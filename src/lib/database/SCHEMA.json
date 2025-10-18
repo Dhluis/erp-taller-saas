@@ -1,0 +1,314 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "last_updated": "2025-10-06",
+    "source": "Supabase Production Database",
+    "warning": "ALWAYS consult this file before writing queries. DO NOT assume field names."
+  },
+  "tables": {
+    "organizations": {
+      "description": "Tabla principal para multi-tenancy",
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "primary_key": true },
+        "name": { "type": "text", "nullable": false, "description": "Nombre de la organización" },
+        "address": { "type": "text", "nullable": true },
+        "phone": { "type": "text", "nullable": true },
+        "email": { "type": "text", "nullable": true },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "updated_at": { "type": "timestamptz", "nullable": false, "default": "now()" }
+      },
+      "foreign_keys": []
+    },
+    "customers": {
+      "description": "Clientes del taller",
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "primary_key": true },
+        "organization_id": { "type": "uuid", "nullable": false },
+        "name": { "type": "text", "nullable": false },
+        "email": { "type": "text", "nullable": true },
+        "phone": { "type": "text", "nullable": true },
+        "address": { "type": "text", "nullable": true },
+        "notes": { "type": "text", "nullable": true },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "updated_at": { "type": "timestamptz", "nullable": false, "default": "now()" }
+      },
+      "foreign_keys": [
+        { "column": "organization_id", "references": "organizations.id" }
+      ]
+    },
+    "vehicles": {
+      "description": "Vehículos de los clientes",
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "primary_key": true },
+        "customer_id": { "type": "uuid", "nullable": false },
+        "brand": { "type": "text", "nullable": false, "note": "NOT 'make' - use 'brand'" },
+        "model": { "type": "text", "nullable": false },
+        "year": { "type": "integer", "nullable": true },
+        "license_plate": { "type": "text", "nullable": true },
+        "vin": { "type": "text", "nullable": true },
+        "color": { "type": "text", "nullable": true },
+        "mileage": { "type": "integer", "nullable": true },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "updated_at": { "type": "timestamptz", "nullable": false, "default": "now()" }
+      },
+      "foreign_keys": [
+        { "column": "customer_id", "references": "customers.id" }
+      ]
+    },
+    "work_orders": {
+      "description": "Órdenes de trabajo/reparación",
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "primary_key": true, "note": "ALWAYS UUID, never order_number" },
+        "organization_id": { "type": "uuid", "nullable": false },
+        "customer_id": { "type": "uuid", "nullable": false },
+        "vehicle_id": { "type": "uuid", "nullable": false },
+        "status": { "type": "text", "nullable": false, "default": "pending", "values": ["pending", "in_progress", "completed", "cancelled"] },
+        "description": { "type": "text", "nullable": true },
+        "estimated_cost": { "type": "numeric", "nullable": true, "default": "0.00" },
+        "final_cost": { "type": "numeric", "nullable": true, "default": "0.00" },
+        "entry_date": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "estimated_completion": { "type": "timestamptz", "nullable": true },
+        "completed_at": { "type": "timestamptz", "nullable": true },
+        "notes": { "type": "text", "nullable": true },
+        "subtotal": { "type": "numeric", "nullable": true, "default": "0.00" },
+        "tax_amount": { "type": "numeric", "nullable": true, "default": "0.00" },
+        "discount_amount": { "type": "numeric", "nullable": true, "default": "0.00" },
+        "total_amount": { "type": "numeric", "nullable": true, "default": "0.00" },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "updated_at": { "type": "timestamptz", "nullable": false, "default": "now()" }
+      },
+      "foreign_keys": [
+        { "column": "organization_id", "references": "organizations.id" },
+        { "column": "customer_id", "references": "customers.id" },
+        { "column": "vehicle_id", "references": "vehicles.id" }
+      ],
+      "important_notes": [
+        "NO existe campo order_number en la tabla",
+        "El ID es siempre UUID, nunca strings como 'WO001'",
+        "Estados válidos: pending, in_progress, completed, cancelled"
+      ]
+    },
+    "order_items": {
+      "description": "Items/servicios dentro de una orden de trabajo",
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "primary_key": true },
+        "order_id": { "type": "uuid", "nullable": false },
+        "service_id": { "type": "uuid", "nullable": true },
+        "inventory_id": { "type": "uuid", "nullable": true },
+        "item_type": { "type": "text", "nullable": false, "values": ["service", "product"] },
+        "description": { "type": "text", "nullable": false },
+        "quantity": { "type": "numeric", "nullable": false, "default": "1.00" },
+        "unit_price": { "type": "numeric", "nullable": false, "default": "0.00" },
+        "discount_percent": { "type": "numeric", "nullable": true, "default": "0.00" },
+        "discount_amount": { "type": "numeric", "nullable": true, "default": "0.00" },
+        "tax_percent": { "type": "numeric", "nullable": true, "default": "16.00" },
+        "subtotal": { "type": "numeric", "nullable": false, "default": "0.00" },
+        "tax_amount": { "type": "numeric", "nullable": false, "default": "0.00" },
+        "total": { "type": "numeric", "nullable": false, "default": "0.00" },
+        "mechanic_id": { "type": "uuid", "nullable": true },
+        "status": { "type": "text", "nullable": true, "default": "pending" },
+        "notes": { "type": "text", "nullable": true },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "updated_at": { "type": "timestamptz", "nullable": false, "default": "now()" }
+      },
+      "foreign_keys": [
+        { "column": "order_id", "references": "work_orders.id" },
+        { "column": "service_id", "references": "services.id" },
+        { "column": "inventory_id", "references": "products.id" },
+        { "column": "mechanic_id", "references": "employees.id" }
+      ]
+    },
+    "inventory": {
+      "description": "Inventario de productos/piezas",
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "primary_key": true },
+        "organization_id": { "type": "uuid", "nullable": true },
+        "code": { "type": "text", "nullable": true },
+        "name": { "type": "text", "nullable": false },
+        "description": { "type": "text", "nullable": true },
+        "quantity": { "type": "integer", "nullable": true, "default": "0", "deprecated": true, "use_instead": "current_stock" },
+        "min_quantity": { "type": "integer", "nullable": true, "default": "1", "deprecated": true, "use_instead": "min_stock" },
+        "unit_price": { "type": "numeric", "nullable": true },
+        "category": { "type": "text", "nullable": true, "deprecated": true, "use_instead": "category_id" },
+        "category_id": { "type": "uuid", "nullable": true },
+        "sku": { "type": "text", "nullable": true },
+        "barcode": { "type": "text", "nullable": true },
+        "current_stock": { "type": "integer", "nullable": true, "default": "0" },
+        "min_stock": { "type": "integer", "nullable": true, "default": "0" },
+        "max_stock": { "type": "integer", "nullable": true, "default": "0" },
+        "unit": { "type": "text", "nullable": true, "default": "pcs" },
+        "status": { "type": "text", "nullable": true, "default": "active" },
+        "created_at": { "type": "timestamptz", "nullable": true, "default": "now()" },
+        "updated_at": { "type": "timestamptz", "nullable": true, "default": "now()" }
+      },
+      "foreign_keys": [
+        { "column": "category_id", "references": "inventory_categories.id" }
+      ],
+      "important_notes": [
+        "Usar current_stock en lugar de quantity",
+        "Usar min_stock en lugar de min_quantity",
+        "Usar category_id en lugar de category (texto)"
+      ]
+    },
+    "inventory_categories": {
+      "description": "Categorías de inventario",
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "primary_key": true },
+        "organization_id": { "type": "uuid", "nullable": false, "default": "00000000-0000-0000-0000-000000000000" },
+        "name": { "type": "text", "nullable": false },
+        "description": { "type": "text", "nullable": true },
+        "parent_id": { "type": "uuid", "nullable": true, "note": "Self-reference for nested categories" },
+        "status": { "type": "text", "nullable": true, "default": "active" },
+        "created_at": { "type": "timestamptz", "nullable": true, "default": "now()" },
+        "updated_at": { "type": "timestamptz", "nullable": true, "default": "now()" }
+      },
+      "foreign_keys": [
+        { "column": "parent_id", "references": "inventory_categories.id", "self_reference": true }
+      ]
+    },
+    "inventory_movements": {
+      "description": "Movimientos de inventario (entradas/salidas)",
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "primary_key": true },
+        "product_id": { "type": "uuid", "nullable": false },
+        "organization_id": { "type": "uuid", "nullable": true },
+        "movement_type": { "type": "text", "nullable": false, "values": ["entry", "exit", "adjustment"] },
+        "quantity": { "type": "integer", "nullable": false },
+        "previous_stock": { "type": "integer", "nullable": true, "default": "0" },
+        "new_stock": { "type": "integer", "nullable": true, "default": "0" },
+        "unit_cost": { "type": "numeric", "nullable": true },
+        "total_cost": { "type": "numeric", "nullable": true },
+        "reference_type": { "type": "text", "nullable": true },
+        "reference_id": { "type": "uuid", "nullable": true },
+        "notes": { "type": "text", "nullable": true },
+        "created_by": { "type": "uuid", "nullable": true },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "updated_at": { "type": "timestamptz", "nullable": true, "default": "now()" }
+      },
+      "foreign_keys": [
+        { "column": "product_id", "references": "products.id" },
+        { "column": "organization_id", "references": "organizations.id" }
+      ]
+    },
+    "system_users": {
+      "description": "Usuarios del sistema",
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "primary_key": true },
+        "organization_id": { "type": "uuid", "nullable": false },
+        "email": { "type": "text", "nullable": false },
+        "first_name": { "type": "text", "nullable": false },
+        "last_name": { "type": "text", "nullable": false },
+        "role": { "type": "text", "nullable": false, "default": "employee" },
+        "is_active": { "type": "boolean", "nullable": true, "default": "true", "note": "NOT 'status' - use 'is_active'" },
+        "last_login": { "type": "timestamptz", "nullable": true },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "updated_at": { "type": "timestamptz", "nullable": false, "default": "now()" }
+      },
+      "foreign_keys": [
+        { "column": "organization_id", "references": "organizations.id" }
+      ],
+      "important_notes": [
+        "NO existe campo 'status'",
+        "Usar 'is_active' (boolean) en lugar de 'status' (text)"
+      ]
+    },
+    "payments": {
+      "description": "Pagos a proveedores",
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "primary_key": true },
+        "organization_id": { "type": "uuid", "nullable": false },
+        "supplier_id": { "type": "uuid", "nullable": false },
+        "invoice_number": { "type": "text", "nullable": false },
+        "amount": { "type": "numeric", "nullable": false, "default": "0.00" },
+        "payment_date": { "type": "date", "nullable": false },
+        "payment_method": { "type": "text", "nullable": false },
+        "reference": { "type": "text", "nullable": true },
+        "status": { "type": "text", "nullable": false, "default": "pending" },
+        "notes": { "type": "text", "nullable": true },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "updated_at": { "type": "timestamptz", "nullable": false, "default": "now()" }
+      },
+      "foreign_keys": [
+        { "column": "organization_id", "references": "organizations.id" },
+        { "column": "supplier_id", "references": "suppliers.id" }
+      ]
+    },
+    "invoices": {
+      "description": "Facturas a clientes",
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "primary_key": true },
+        "organization_id": { "type": "uuid", "nullable": false },
+        "customer_id": { "type": "uuid", "nullable": false },
+        "vehicle_id": { "type": "uuid", "nullable": false },
+        "invoice_number": { "type": "text", "nullable": false },
+        "status": { "type": "text", "nullable": false, "default": "draft" },
+        "due_date": { "type": "date", "nullable": false },
+        "paid_date": { "type": "date", "nullable": true },
+        "payment_method": { "type": "text", "nullable": true },
+        "payment_reference": { "type": "varchar", "nullable": true },
+        "payment_notes": { "type": "text", "nullable": true },
+        "notes": { "type": "text", "nullable": true },
+        "subtotal": { "type": "numeric", "nullable": true, "default": "0.00" },
+        "tax_amount": { "type": "numeric", "nullable": true, "default": "0.00" },
+        "discount_amount": { "type": "numeric", "nullable": true, "default": "0.00" },
+        "total": { "type": "numeric", "nullable": true, "default": "0.00" },
+        "created_by": { "type": "uuid", "nullable": true },
+        "updated_by": { "type": "uuid", "nullable": true },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "updated_at": { "type": "timestamptz", "nullable": false, "default": "now()" }
+      },
+      "foreign_keys": [
+        { "column": "organization_id", "references": "organizations.id" },
+        { "column": "customer_id", "references": "customers.id" },
+        { "column": "vehicle_id", "references": "vehicles.id" }
+      ]
+    },
+    "appointments": {
+      "description": "Citas programadas",
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "primary_key": true },
+        "organization_id": { "type": "uuid", "nullable": false },
+        "customer_id": { "type": "uuid", "nullable": false },
+        "vehicle_id": { "type": "uuid", "nullable": false },
+        "service_type": { "type": "text", "nullable": false },
+        "appointment_date": { "type": "timestamptz", "nullable": false },
+        "duration": { "type": "integer", "nullable": true, "default": "60" },
+        "status": { "type": "text", "nullable": false, "default": "scheduled" },
+        "notes": { "type": "text", "nullable": true },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "updated_at": { "type": "timestamptz", "nullable": false, "default": "now()" }
+      },
+      "foreign_keys": [
+        { "column": "organization_id", "references": "organizations.id" },
+        { "column": "customer_id", "references": "customers.id" },
+        { "column": "vehicle_id", "references": "vehicles.id" }
+      ]
+    }
+  },
+  "common_errors": [
+    {
+      "error": "Using 'make' instead of 'brand'",
+      "correct": "Use vehicles.brand, NOT vehicles.make"
+    },
+    {
+      "error": "Using order_number as ID",
+      "correct": "work_orders.id is UUID, NOT order_number"
+    },
+    {
+      "error": "Passing string IDs like 'WO001'",
+      "correct": "All IDs must be UUIDs like '123e4567-e89b-12d3-a456-426614174000'"
+    },
+    {
+      "error": "Using system_users.status",
+      "correct": "Use system_users.is_active (boolean)"
+    },
+    {
+      "error": "Using inventory.quantity",
+      "correct": "Use inventory.current_stock instead"
+    },
+    {
+      "error": "Forgetting organization_id",
+      "correct": "Most tables require organization_id for multi-tenancy"
+    }
+  ]
+}

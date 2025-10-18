@@ -1,0 +1,5 @@
+# Páginas temporalmente excluidas del build (en desarrollo)
+src/app/inventario/**
+src/app/cotizaciones/**
+src/app/ordenes-trabajo/**
+

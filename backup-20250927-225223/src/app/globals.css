@@ -1,0 +1,180 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.625rem;
+  /* Fondo negro y paleta personalizada EAGLES */
+  --background: #000000;
+  --foreground: #ffffff; /* Mejor contraste */
+  --card: #0f0f10;
+  --card-foreground: #ffffff;
+  --popover: #0f0f10;
+  --popover-foreground: #ffffff;
+  --primary: #00d4ff; /* Azul más brillante para mejor visibilidad */
+  --primary-foreground: #000000;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #ffffff;
+  --muted: #1a1a1a;
+  --muted-foreground: #a1a1aa; /* Mejor contraste */
+  --accent: #00ffb3; /* Verde más brillante */
+  --accent-foreground: #000000;
+  --destructive: #ff4444;
+  --border: #262626;
+  --input: #262626;
+  --ring: #00d4ff;
+  /* charts aproximados a la paleta */
+  --chart-1: #00d4ff;
+  --chart-2: #0066ff;
+  --chart-3: #00ffb3;
+  --chart-4: #69a7ff;
+  --chart-5: #6dffd8;
+  --sidebar: #0f0f10;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #00d4ff;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #1a1a1a;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #262626;
+  --sidebar-ring: #00d4ff;
+}
+
+.dark {
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #0f0f10;
+  --card-foreground: #ffffff;
+  --popover: #0f0f10;
+  --popover-foreground: #ffffff;
+  --primary: #00d4ff;
+  --primary-foreground: #000000;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #ffffff;
+  --muted: #1a1a1a;
+  --muted-foreground: #a1a1aa;
+  --accent: #00ffb3;
+  --accent-foreground: #000000;
+  --destructive: #ff4444;
+  --border: #262626;
+  --input: #262626;
+  --ring: #00d4ff;
+  --chart-1: #00d4ff;
+  --chart-2: #0066ff;
+  --chart-3: #00ffb3;
+  --chart-4: #69a7ff;
+  --chart-5: #6dffd8;
+  --sidebar: #0f0f10;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #00d4ff;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #1a1a1a;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #262626;
+  --sidebar-ring: #00d4ff;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  
+  /* Asegurar que el texto sea visible en todos los componentes */
+  input, textarea, select {
+    @apply text-foreground;
+  }
+  
+  /* Forzar visibilidad del texto en inputs y textareas */
+  input::placeholder, textarea::placeholder {
+    @apply text-muted-foreground;
+  }
+  
+  /* Asegurar que los selects muestren texto visible */
+  [data-slot="select-trigger"] {
+    @apply text-foreground;
+  }
+  
+  [data-slot="select-item"] {
+    @apply text-foreground;
+  }
+  
+  /* Forzar texto blanco en elementos que podrían estar ocultos */
+  .text-foreground, .text-white {
+    color: var(--foreground) !important;
+  }
+  
+  /* Asegurar visibilidad en todos los elementos de formulario */
+  input[type="text"], 
+  input[type="email"], 
+  input[type="password"], 
+  input[type="number"], 
+  input[type="tel"], 
+  input[type="url"], 
+  input[type="search"],
+  textarea {
+    color: var(--foreground) !important;
+  }
+  
+  /* Asegurar que los placeholders sean visibles pero más tenues */
+  input::placeholder, 
+  textarea::placeholder {
+    color: var(--muted-foreground) !important;
+  }
+  
+  /* Forzar visibilidad en elementos de select */
+  [data-slot="select-trigger"] {
+    color: var(--foreground) !important;
+  }
+  
+  [data-slot="select-item"] {
+    color: var(--foreground) !important;
+  }
+  
+  /* Asegurar que los labels sean visibles */
+  label {
+    color: var(--foreground) !important;
+  }
+}

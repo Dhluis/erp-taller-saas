@@ -1,0 +1,207 @@
+'use client'
+
+import { Suspense } from 'react'
+import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { signInWithProfile } from '@/lib/auth/client-auth'
+import { OAuthButtons } from '@/components/auth/OAuthButtons'
+import { Mail, Lock, AlertCircle, Loader2 } from 'lucide-react'
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+function LoginContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    try {
+      const result = await signInWithProfile(email, password)
+      
+      if (result.error) {
+        if (result.error.message.includes('Invalid login credentials')) {
+          setError('Usuario o contraseña incorrectos')
+        } else {
+          setError(result.error.message)
+        }
+        setLoading(false)
+        return
+      }
+
+      // Redirect to the page they were trying to access, or dashboard
+      const redirectTo = searchParams?.get('redirectTo') || '/dashboard'
+      router.push(redirectTo)
+      router.refresh()
+    } catch (error: any) {
+      console.error('Login error:', error)
+      setError('Error al iniciar sesión. Por favor, intenta de nuevo.')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4">
+      <div className="w-full max-w-md">
+        {/* Logo and Title */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
+            <svg
+              className="w-10 h-10 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 10V3L4 14h7v7l9-11h-7z"
+              />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">EAGLES</h1>
+          <p className="text-gray-600">Sistema de Gestión de Talleres</p>
+        </div>
+
+        {/* Login Form */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-6 text-center">
+            Iniciar Sesión
+          </h2>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-5">
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Correo electrónico
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="tu@email.com"
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                Contraseña
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between text-sm">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-gray-700">Recordarme</span>
+              </label>
+              <Link
+                href="/auth/forgot-password"
+                className="text-blue-600 hover:text-blue-700 font-medium transition"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Iniciando sesión...
+                </>
+              ) : (
+                'Iniciar Sesión'
+              )}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white text-gray-500">O continúa con</span>
+            </div>
+          </div>
+
+          {/* OAuth Buttons */}
+          <OAuthButtons />
+
+          {/* Sign Up Link */}
+          <p className="mt-6 text-center text-sm text-gray-600">
+            ¿No tienes una cuenta?{' '}
+            <Link
+              href="/auth/register"
+              className="font-medium text-blue-600 hover:text-blue-700 transition"
+            >
+              Regístrate gratis
+            </Link>
+          </p>
+        </div>
+
+        {/* Footer */}
+        <p className="mt-8 text-center text-sm text-gray-500">
+          © 2024 EAGLES. Todos los derechos reservados.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
+  )
+}

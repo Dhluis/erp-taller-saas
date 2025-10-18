@@ -1,0 +1,57 @@
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import "./globals.css"
+import { AppLayout } from "@/components/layout/AppLayout"
+import { Providers } from "@/components/providers/Providers"
+
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+})
+
+export const metadata: Metadata = {
+  title: "EAGLES - ERP Taller Automotriz",
+  description: "Sistema de gestión integral para talleres automotrices con tema oscuro moderno",
+  keywords: ["ERP", "Taller", "Automotriz", "Gestión", "Sistema"],
+  authors: [{ name: "EAGLES Team" }],
+  creator: "EAGLES",
+  publisher: "EAGLES",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
+  other: {
+    "google": "notranslate",
+  },
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="es" translate="no" className="notranslate dark">
+      <head>
+        <meta name="google" content="notranslate" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="theme-color" content="#00D9FF" />
+        <meta name="color-scheme" content="dark" />
+      </head>
+      <body className={`${inter.variable} font-sans antialiased`}>
+        <Providers>
+          <div className="min-h-screen bg-bg-primary text-text-primary">
+            {children}
+          </div>
+        </Providers>
+      </body>
+    </html>
+  )
+}
