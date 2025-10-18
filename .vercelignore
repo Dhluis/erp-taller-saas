@@ -3,3 +3,11 @@ src/app/inventario/**
 src/app/cotizaciones/**
 src/app/ordenes-trabajo/**
 
+# APIs con imports faltantes (temporalmente excluidas)
+src/app/api/conversions/**
+src/app/api/customers/[id]/vehicles/**
+src/app/api/quotations/[id]/approve/**
+src/app/api/quotations/[id]/reject/**
+src/app/api/quotations/[id]/send/**
+src/app/api/vehicles/[id]/history/**
+src/app/api/work-orders/[id]/items/**
