@@ -225,3 +225,53 @@ export async function searchVehicles(searchTerm: string) {
 
   return vehicles || []
 }
+
+// TODO: Implementar estas funciones cuando se necesiten
+export async function getVehiclesByCustomer(customerId: string) {
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase
+    .from('vehicles')
+    .select('*')
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: false })
+  
+  if (error) {
+    console.error('Error fetching vehicles by customer:', error)
+    throw error
+  }
+  
+  return data || []
+}
+
+export async function getVehicleWithHistory(vehicleId: string) {
+  const supabase = await createClient()
+  
+  // Obtener vehículo
+  const { data: vehicle, error: vehicleError } = await supabase
+    .from('vehicles')
+    .select('*, customers(*)')
+    .eq('id', vehicleId)
+    .single()
+  
+  if (vehicleError) {
+    console.error('Error fetching vehicle:', vehicleError)
+    throw vehicleError
+  }
+  
+  // Obtener historial de órdenes
+  const { data: workOrders, error: ordersError } = await supabase
+    .from('work_orders')
+    .select('*')
+    .eq('vehicle_id', vehicleId)
+    .order('created_at', { ascending: false })
+  
+  if (ordersError) {
+    console.error('Error fetching work orders:', ordersError)
+  }
+  
+  return {
+    ...(vehicle || {}),
+    work_orders: workOrders || []
+  }
+}

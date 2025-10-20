@@ -113,7 +113,7 @@ export async function getAllQuotations(
   organizationId: string = 'default',
   status?: QuotationStatus
 ): Promise<Quotation[]> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   let query = supabase
     .from('quotations')
@@ -141,9 +141,9 @@ export async function getAllQuotations(
 }
 
 export async function getQuotationById(id: string): Promise<Quotation | null> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
-  const { data, error } = await query
+  const { data, error } = await supabase
     .from('quotations')
     .select(`
       *,
@@ -164,7 +164,7 @@ export async function getQuotationById(id: string): Promise<Quotation | null> {
 }
 
 export async function createQuotation(data: CreateQuotationData): Promise<Quotation> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   const quotationData = {
     organization_id: 'default',
@@ -204,7 +204,7 @@ export async function updateQuotation(
   id: string,
   data: UpdateQuotationData
 ): Promise<Quotation> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   const { data: quotation, error } = await supabase
     .from('quotations')
@@ -230,7 +230,7 @@ export async function updateQuotation(
 }
 
 export async function deleteQuotation(id: string): Promise<void> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   const { error } = await supabase
     .from('quotations')
@@ -247,7 +247,7 @@ export async function updateQuotationStatus(
   id: string,
   status: QuotationStatus
 ): Promise<Quotation> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   const updateData: any = {
     status,
@@ -282,7 +282,7 @@ export async function searchQuotations(
   searchTerm: string,
   organizationId: string = 'default'
 ): Promise<Quotation[]> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   const { data, error } = await supabase
     .from('quotations')
@@ -308,7 +308,7 @@ export async function getQuotationsByCustomer(
   customerId: string,
   organizationId: string = 'default'
 ): Promise<Quotation[]> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   const { data, error } = await supabase
     .from('quotations')
@@ -334,7 +334,7 @@ export async function getQuotationsByWorkOrder(
   workOrderId: string,
   organizationId: string = 'default'
 ): Promise<Quotation[]> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   const { data, error } = await supabase
     .from('quotations')
@@ -359,7 +359,7 @@ export async function getQuotationsByWorkOrder(
 export async function getQuotationStats(
   organizationId: string = 'default'
 ): Promise<QuotationStats> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   const { data, error } = await supabase
     .from('quotations')
@@ -409,7 +409,7 @@ export async function getQuotationStats(
 // =====================================================
 
 export async function getQuotationItems(quotationId: string): Promise<QuotationItem[]> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   const { data, error } = await supabase
     .from('quotation_items')
@@ -429,7 +429,7 @@ export async function addQuotationItem(
   quotationId: string,
   data: CreateQuotationItemData
 ): Promise<QuotationItem> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   const itemData = {
     quotation_id: quotationId,
@@ -459,7 +459,7 @@ export async function updateQuotationItem(
   itemId: string,
   data: UpdateQuotationItemData
 ): Promise<QuotationItem> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   const { data: item, error } = await supabase
     .from('quotation_items')
@@ -481,7 +481,7 @@ export async function deleteQuotationItem(
   quotationId: string,
   itemId: string
 ): Promise<void> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   const { error } = await supabase
     .from('quotation_items')
@@ -500,7 +500,7 @@ export async function deleteQuotationItem(
 // =====================================================
 
 export async function recalculateQuotationTotals(quotationId: string): Promise<void> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   // Obtener items y calcular totales
   const items = await getQuotationItems(quotationId);
@@ -533,7 +533,7 @@ export async function updateQuotationDiscount(
   quotationId: string,
   discount: number
 ): Promise<Quotation> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   // Obtener totales actuales
   const { data: quotation } = await supabase
@@ -570,4 +570,27 @@ export async function updateQuotationDiscount(
   }
 
   return updatedQuotation;
+}
+
+// TODO: Implementar sistema de versionado cuando se necesite
+export async function saveQuotationVersion(quotationId: string, changes: any) {
+  console.log('saveQuotationVersion called:', quotationId, changes)
+  // Por ahora solo registrar en consola
+  return { success: true, message: 'Version tracking not implemented yet' }
+}
+
+export async function trackQuotationChange(
+  quotationId: string, 
+  changeType: string, 
+  userId: string,
+  changes: any
+) {
+  console.log('trackQuotationChange called:', {
+    quotationId,
+    changeType,
+    userId,
+    changes
+  })
+  // Por ahora solo registrar en consola
+  return { success: true, message: 'Change tracking not implemented yet' }
 }

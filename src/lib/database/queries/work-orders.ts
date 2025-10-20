@@ -625,3 +625,27 @@ export interface WorkOrderStats {
   delivered: number;
   total_revenue: number;
 }
+
+// TODO: Implementar cuando se necesite
+export async function getOrderItemsByWorkOrder(workOrderId: string) {
+  const { data, error } = await supabase
+    .from('order_items')
+    .select(`
+      *,
+      services (
+        id,
+        name,
+        description,
+        unit_price
+      )
+    `)
+    .eq('work_order_id', workOrderId)
+    .order('created_at', { ascending: true })
+  
+  if (error) {
+    console.error('Error fetching order items:', error)
+    throw error
+  }
+  
+  return data || []
+}
