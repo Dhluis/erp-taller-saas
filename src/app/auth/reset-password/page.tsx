@@ -1,200 +1,196 @@
 'use client'
 
+// Disable static generation
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { toast } from 'sonner'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
 export default function ResetPasswordPage() {
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [verifying, setVerifying] = useState(true)
-  const [error, setError] = useState('')
-  const [tokenVerified, setTokenVerified] = useState(false)
-  
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
 
+  // Verificar si hay error en la URL
   useEffect(() => {
-    const verifyToken = async () => {
-      console.log('🔍 [ResetPassword] Verificando token...')
-      console.log('🔍 [ResetPassword] URL completa:', window.location.href)
-      console.log('🔍 [ResetPassword] Search params:', Object.fromEntries(searchParams.entries()))
-      
-      const tokenHash = searchParams.get('token_hash')
-      const type = searchParams.get('type')
-      const accessToken = searchParams.get('access_token')
-      const refreshToken = searchParams.get('refresh_token')
-
-      // Si tenemos access_token y refresh_token, usar esos en lugar de verifyOtp
-      if (accessToken && refreshToken) {
-        console.log('🔍 [ResetPassword] Usando access_token y refresh_token')
-        try {
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          })
-
-          if (error) {
-            setError('Token inválido o expirado')
-            console.error('Error estableciendo sesión:', error)
-          } else {
-            setTokenVerified(true)
-            console.log('✅ Sesión establecida correctamente')
-          }
-        } catch (error: any) {
-          setError('Error al establecer sesión')
-          console.error('Excepción estableciendo sesión:', error)
-        } finally {
-          setVerifying(false)
-        }
-        return
-      }
-
-      // Método alternativo con verifyOtp
-      if (!tokenHash || type !== 'recovery') {
-        setError('Token inválido o expirado')
-        setVerifying(false)
-        return
-      }
-
-      try {
-        // Verificar el token de recovery
-        const { error } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: 'recovery',
-        })
-
-        if (error) {
-          setError('Token inválido o expirado')
-          console.error('Error verificando token:', error)
-        } else {
-          setTokenVerified(true)
-          console.log('✅ Token verificado correctamente')
-        }
-      } catch (error: any) {
-        setError('Error al verificar token')
-        console.error('Excepción verificando token:', error)
-      } finally {
-        setVerifying(false)
-      }
+    const error = searchParams.get('error')
+    const errorCode = searchParams.get('error_code')
+    
+    if (error === 'access_denied' && errorCode === 'otp_expired') {
+      toast.error('El enlace ha expirado. Solicita uno nuevo.')
+    } else if (error) {
+      toast.error('Error al verificar el enlace. Intenta de nuevo.')
     }
-
-    verifyToken()
   }, [searchParams])
 
-  const handleResetPassword = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
 
-    if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden')
+    // Validaciones
+    if (!password || !confirmPassword) {
+      toast.error('Por favor completa todos los campos')
       return
     }
 
     if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres')
+      toast.error('La contraseña debe tener al menos 6 caracteres')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      toast.error('Las contraseñas no coinciden')
       return
     }
 
     setLoading(true)
 
     try {
-      // Actualizar la contraseña del usuario autenticado
+      const supabase = createClient()
+
+      // Actualizar contraseña
       const { error } = await supabase.auth.updateUser({
         password: password
       })
 
-      if (error) throw error
+      if (error) {
+        console.error('Error updating password:', error)
+        toast.error(error.message || 'Error al actualizar la contraseña')
+        return
+      }
 
-      console.log('✅ Contraseña actualizada exitosamente')
+      toast.success('Contraseña actualizada exitosamente')
       
-      // Cerrar sesión para que inicie sesión con nueva contraseña
-      await supabase.auth.signOut()
-      
-      // Redirigir al login con mensaje de éxito
-      router.push('/auth/login?message=password_updated')
+      // Redirigir al login después de 2 segundos
+      setTimeout(() => {
+        router.push('/auth/login')
+      }, 2000)
+
     } catch (error: any) {
-      setError(error.message || 'Error al actualizar contraseña')
-      console.error('Error actualizando contraseña:', error)
+      console.error('Error:', error)
+      toast.error('Error al actualizar la contraseña')
     } finally {
       setLoading(false)
     }
   }
 
-  if (verifying) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Card className="w-full max-w-md p-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p>Verificando token...</p>
-          </div>
-        </Card>
-      </div>
-    )
-  }
-
-  if (!tokenVerified) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Card className="w-full max-w-md p-8">
-          <h1 className="text-2xl font-bold mb-4 text-red-600">Token Inválido</h1>
-          <p className="text-gray-600 mb-6">{error || 'El enlace de recuperación es inválido o ha expirado.'}</p>
-          <Button onClick={() => router.push('/auth/login')} className="w-full">
-            Volver al Login
-          </Button>
-        </Card>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md p-8">
-        <h1 className="text-2xl font-bold mb-6">Establecer Nueva Contraseña</h1>
-        
-        <form onSubmit={handleResetPassword} className="space-y-4">
-          <div>
-            <Label htmlFor="password">Nueva Contraseña</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              placeholder="Mínimo 6 caracteres"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              minLength={6}
-              placeholder="Repite la contraseña"
-            />
-          </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
-              {error}
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">
+            Restablecer Contraseña
+          </CardTitle>
+          <CardDescription className="text-center">
+            Ingresa tu nueva contraseña
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Nueva Contraseña */}
+            <div className="space-y-2">
+              <Label htmlFor="password">Nueva Contraseña</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Mínimo 6 caracteres"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
-          )}
 
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading ? 'Actualizando...' : 'Establecer Contraseña'}
-          </Button>
-        </form>
+            {/* Confirmar Contraseña */}
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Repite la contraseña"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={loading}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Indicador de fortaleza */}
+            {password && (
+              <div className="text-xs text-muted-foreground">
+                {password.length < 6 && '⚠️ Demasiado corta'}
+                {password.length >= 6 && password.length < 8 && '⚡ Aceptable'}
+                {password.length >= 8 && password.length < 12 && '✅ Buena'}
+                {password.length >= 12 && '🔒 Excelente'}
+              </div>
+            )}
+
+            {/* Botón Submit */}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Actualizando...
+                </>
+              ) : (
+                'Actualizar Contraseña'
+              )}
+            </Button>
+
+            {/* Link volver al login */}
+            <div className="text-center">
+              <Button
+                type="button"
+                variant="link"
+                onClick={() => router.push('/auth/login')}
+                disabled={loading}
+                className="text-sm"
+              >
+                Volver al inicio de sesión
+              </Button>
+            </div>
+          </form>
+        </CardContent>
       </Card>
     </div>
   )
