@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   Select,
@@ -78,6 +78,10 @@ export function WorkOrderImageManager({
   // Log cuando cambie la categoría
   console.log('🔄 [CategoryState] Categoría actual:', selectedCategory)
   const [uploadDescription, setUploadDescription] = useState('')
+  
+  // Refs para inputs de archivo
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Detectar si es dispositivo móvil
   const isMobile = typeof window !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -252,29 +256,31 @@ export function WorkOrderImageManager({
   return (
     <div className="space-y-6">
       {/* Controles de subida */}
-      <Card className="p-4">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Camera className="h-5 w-5" />
-              <h3 className="font-semibold">Agregar Fotos</h3>
+      <Card className="border-dashed bg-accent/30">
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Camera className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold">Agregar Fotos</h3>
+              </div>
+              <Badge variant="secondary">
+                {images.length}/{maxImages}
+              </Badge>
             </div>
-            <Badge variant="secondary">
-              {images.length}/{maxImages}
-            </Badge>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Category Selector */}
             <div className="space-y-2">
-              <Label>Categoría</Label>
-              <Select 
-                value={selectedCategory} 
+              <Label htmlFor="category">Categoría</Label>
+              <Select
+                value={selectedCategory}
                 onValueChange={(value) => {
                   console.log('🔄 [CategoryChange] Cambiando categoría de', selectedCategory, 'a', value)
                   setSelectedCategory(value as ImageCategory)
                 }}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="category">
                   <SelectValue>
                     <div className="flex items-center gap-2">
                       <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[selectedCategory].color}`} />
@@ -293,73 +299,99 @@ export function WorkOrderImageManager({
                   ))}
                 </SelectContent>
               </Select>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">
-                Estado actual: <span className="font-medium capitalize">{currentStatus}</span>
-              </p>
-              {suggestedCategory !== selectedCategory && suggestedCategory !== 'reception' && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 text-xs"
-                  onClick={() => {
-                    console.log('💡 [QuickSuggestion] Aplicando sugerencia:', suggestedCategory)
-                    setSelectedCategory(suggestedCategory)
-                  }}
-                >
-                  💡 Sugerir: {CATEGORY_LABELS[suggestedCategory].label}
-                </Button>
-              )}
-              {/* Info sobre funcionalidad */}
-              <p className="text-xs text-muted-foreground">
-                💡 <strong>Agregar Foto:</strong> Abre selector con opción de cámara o galería
-              </p>
-            </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  Estado actual: <span className="font-medium capitalize">{currentStatus}</span>
+                </p>
+                {suggestedCategory !== selectedCategory && suggestedCategory !== 'reception' && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs"
+                    onClick={() => {
+                      console.log('💡 [QuickSuggestion] Aplicando sugerencia:', suggestedCategory)
+                      setSelectedCategory(suggestedCategory)
+                    }}
+                  >
+                    💡 Sugerir: {CATEGORY_LABELS[suggestedCategory].label}
+                  </Button>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label>Descripción (opcional)</Label>
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="description">Descripción (opcional)</Label>
               <Input
+                id="description"
                 placeholder="Ej: Golpe en puerta trasera derecha"
                 value={uploadDescription}
                 onChange={(e) => setUploadDescription(e.target.value)}
               />
             </div>
-          </div>
 
-            {/* INPUTS OCULTOS */}
-            <Input
-              id="work-order-camera"
+            {/* Estado Actual */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="text-xs">
+                💡 <strong>Tomar Foto:</strong> Abre cámara directa del dispositivo
+              </div>
+            </div>
+
+            {/* Input oculto para CÁMARA */}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileChange}
+              className="hidden"
+              disabled={uploading || images.length >= maxImages}
+            />
+
+            {/* Input oculto para GALERÍA */}
+            <input
+              ref={fileInputRef}
               type="file"
               accept="image/*"
               onChange={handleFileChange}
-              disabled={uploading || images.length >= maxImages}
               className="hidden"
-            />
-            
-            <Input
-              id="work-order-gallery"
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
               disabled={uploading || images.length >= maxImages}
-              className="hidden"
             />
 
-            {/* BOTONES */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* Debug Info */}
+            {typeof window !== 'undefined' && (
+              <div className="text-xs bg-yellow-50 border border-yellow-200 p-3 rounded-lg space-y-1">
+                <p className="font-semibold text-yellow-800">🔍 Información de Debug:</p>
+                <p><strong>Dispositivo:</strong> {/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? '📱 Móvil' : '💻 Desktop'}</p>
+                <p><strong>User Agent:</strong> {navigator.userAgent.substring(0, 50)}...</p>
+                <p><strong>Protocolo:</strong> {window.location.protocol === 'https:' ? '🔒 HTTPS' : '⚠️ HTTP'}</p>
+                <p><strong>Input cámara:</strong> {cameraInputRef.current ? '✅ Listo' : '⏳ Inicializando'}</p>
+                <p><strong>Soporte cámara:</strong> {cameraSupported ? '✅ Soportado' : '❌ No soportado'}</p>
+                <p className="text-yellow-700 mt-2">
+                  💡 <strong>Nota:</strong> capture="environment" solo funciona en móviles reales con HTTPS o localhost
+                </p>
+              </div>
+            )}
+
+            {/* Botones de acción */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Botón: Tomar Foto */}
               <Button
-                type="button"
                 onClick={() => {
-                  console.log('📸 [Tomar Foto] Botón clickeado')
-                  const input = document.getElementById('work-order-camera')
-                  console.log('🔍 Input encontrado:', !!input)
-                  input?.click()
-                  console.log('✅ Click ejecutado')
+                  console.log('📸 [Tomar Foto] Botón clickeado - usando ref')
+                  console.log('🔍 Ref actual:', cameraInputRef.current)
+                  console.log('🔍 Atributos del input:', {
+                    type: cameraInputRef.current?.type,
+                    accept: cameraInputRef.current?.accept,
+                    capture: cameraInputRef.current?.getAttribute('capture')
+                  })
+                  cameraInputRef.current?.click()
+                  console.log('✅ Click ejecutado en input de cámara')
                 }}
                 disabled={uploading || images.length >= maxImages}
                 className="w-full"
+                variant="primary"
               >
                 {uploading ? (
                   <>
@@ -369,29 +401,41 @@ export function WorkOrderImageManager({
                 ) : (
                   <>
                     <Camera className="mr-2 h-4 w-4" />
-                    Agregar Foto
+                    Tomar Foto
                   </>
                 )}
               </Button>
 
+              {/* Botón: Desde Galería */}
               <Button
-                type="button"
-                variant="outline"
                 onClick={() => {
-                  console.log('📁 [Subir Foto] Botón clickeado')
-                  const input = document.getElementById('work-order-gallery')
-                  console.log('🔍 Input encontrado:', !!input)
-                  input?.click()
-                  console.log('✅ Click ejecutado')
+                  console.log('📁 [Galería] Botón clickeado - usando ref')
+                  fileInputRef.current?.click()
                 }}
                 disabled={uploading || images.length >= maxImages}
                 className="w-full"
+                variant="outline"
               >
-                <Upload className="mr-2 h-4 w-4" />
-                Desde Galería
+                {uploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Subiendo...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Desde Galería
+                  </>
+                )}
               </Button>
             </div>
-        </div>
+
+            {/* Contador de imágenes */}
+            <div className="text-xs text-muted-foreground text-center">
+              {images.length}/{maxImages} fotos
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Imágenes por categoría */}
@@ -425,9 +469,9 @@ export function WorkOrderImageManager({
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
                         <div className="flex justify-end gap-1">
                           <Button
-                            size="icon"
+                            size="sm"
                             variant="secondary"
-                            className="h-8 w-8"
+                            className="h-8 w-8 p-0"
                             onClick={(e) => {
                               e.stopPropagation()
                               openImageDetail(image)
@@ -436,9 +480,9 @@ export function WorkOrderImageManager({
                             <ZoomIn className="h-4 w-4" />
                           </Button>
                           <Button
-                            size="icon"
-                            variant="destructive"
-                            className="h-8 w-8"
+                            size="sm"
+                            variant="danger"
+                            className="h-8 w-8 p-0"
                             onClick={(e) => {
                               e.stopPropagation()
                               handleDelete(globalIndex)
