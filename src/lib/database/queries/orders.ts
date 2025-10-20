@@ -1,65 +1,41 @@
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import type { WorkOrder, OrderStatus } from '@/types/orders';
 
 // Obtener todas las órdenes de una organización con sus relaciones
 export async function getAllOrders(organizationId: string): Promise<WorkOrder[]> {
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('🔌 getAllOrders - QUERY EJECUTADA');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('Organization ID:', organizationId);
+  const supabaseClient = createClient()
   
-  // Validar que organizationId sea un UUID válido (formato básico)
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(organizationId)) {
-    const error = new Error(`ID de organización inválido: ${organizationId}`);
-    console.error('❌ Error de validación:', error.message);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    throw error;
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('🔌 getAllOrders - QUERY EJECUTADA')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('Organization ID:', organizationId)
+  
+  // Deshabilitar cache forzando nueva query cada vez
+  const timestamp = Date.now()
+  
+  const { data, error } = await supabaseClient
+    .from('work_orders')
+    .select('*, customer:customers(*), vehicle:vehicles(*)')
+    .eq('organization_id', organizationId)
+    .gte('created_at', '1970-01-01')  // Forzar bypass de cache
+    .order('created_at', { ascending: false })
+    .limit(1000)
+  
+  if (error) {
+    console.error('❌ Error obteniendo órdenes:', error)
+    throw error
   }
   
-  try {
-    const { data, error } = await supabase
-      .from('work_orders')
-      .select(`
-        *,
-        customer:customers!customer_id (
-          id,
-          name,
-          email,
-          phone
-        ),
-        vehicle:vehicles!vehicle_id (
-          id,
-          brand,
-          model,
-          year,
-          license_plate,
-          color
-        )
-      `)
-      .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('❌ Error de Supabase:', JSON.stringify(error, null, 2));
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      throw error;
-    }
-
-    console.log('✅ Órdenes encontradas:', data?.length || 0);
-    console.log('✅ Distribución por estado:', data?.reduce((acc: any, o: any) => {
-      acc[o.status] = (acc[o.status] || 0) + 1;
-      return acc;
-    }, {}));
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    
-    return (data || []) as WorkOrder[];
-    
-  } catch (err) {
-    console.error('❌ Excepción capturada:', err);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    throw err;
-  }
+  console.log('✅ Órdenes encontradas:', data?.length || 0)
+  console.log('✅ Distribución por estado:', 
+    data?.reduce((acc: any, order: any) => {
+      acc[order.status] = (acc[order.status] || 0) + 1
+      return acc
+    }, {})
+  )
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  
+  return data || []
 }
 
 // Actualizar estado de una orden
@@ -116,7 +92,8 @@ export async function updateOrderStatus(
   console.log('🔄 [updateOrderStatus] updateData:', JSON.stringify(updateData, null, 2));
 
   try {
-    const { data, error } = await supabase
+    const supabaseClient = createClient()
+    const { data, error } = await supabaseClient
       .from('work_orders')
       .update(updateData)
       .eq('id', orderId)
@@ -153,7 +130,8 @@ export async function createOrder(orderData: {
 }): Promise<WorkOrder> {
   console.log('🆕 [createOrder] Creando nueva orden:', orderData);
   
-  const { data, error } = await supabase
+  const supabaseClient = createClient()
+  const { data, error } = await supabaseClient
     .from('work_orders')
     .insert({
       organization_id: orderData.organization_id,
@@ -197,7 +175,8 @@ export async function createOrder(orderData: {
 
 // Obtener todos los clientes de una organización
 export async function getCustomers(organizationId: string) {
-  const { data, error } = await supabase
+  const supabaseClient = createClient()
+  const { data, error } = await supabaseClient
     .from('customers')
     .select('id, name, email, phone')
     .eq('organization_id', organizationId)
@@ -213,7 +192,8 @@ export async function getCustomers(organizationId: string) {
 
 // Obtener vehículos de un cliente
 export async function getVehiclesByCustomer(customerId: string) {
-  const { data, error } = await supabase
+  const supabaseClient = createClient()
+  const { data, error } = await supabaseClient
     .from('vehicles')
     .select('id, brand, model, year, license_plate, color')
     .eq('customer_id', customerId)

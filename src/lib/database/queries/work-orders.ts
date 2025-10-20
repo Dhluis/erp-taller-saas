@@ -156,7 +156,10 @@ export async function getWorkOrderById(id: string) {
     `)
     .eq('id', id)
     .eq('organization_id', ORGANIZATION_ID)
-    .single();
+    .gte('created_at', '1970-01-01')  // Forzar bypass de cache
+    .single()
+    // NO usar cache para obtener datos actualizados de notas
+    .abortSignal(new AbortController().signal);
 
   if (error) throw error;
   return data as WorkOrder;
