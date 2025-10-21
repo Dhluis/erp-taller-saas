@@ -60,6 +60,69 @@ const CATEGORY_LABELS: Record<ImageCategory, { label: string; color: string }> =
   other: { label: 'Otro', color: 'bg-gray-500' }
 }
 
+/**
+ * Comprime imagen antes de subir a Supabase
+ * Reduce tamaño de 4-12MB a ~500KB-1MB
+ */
+async function compressImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    
+    reader.onload = (e) => {
+      const img = new Image()
+      img.src = e.target?.result as string
+      
+      img.onload = () => {
+        // Redimensionar a máximo 1920px
+        let { width, height } = img
+        const MAX_SIZE = 1920
+        
+        if (width > height && width > MAX_SIZE) {
+          height = Math.round((height * MAX_SIZE) / width)
+          width = MAX_SIZE
+        } else if (height > MAX_SIZE) {
+          width = Math.round((width * MAX_SIZE) / height)
+          height = MAX_SIZE
+        }
+        
+        // Crear canvas y comprimir
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx?.drawImage(img, 0, 0, width, height)
+        
+        // Convertir a blob comprimido
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              })
+              
+              const originalSize = (file.size / 1024 / 1024).toFixed(2)
+              const compressedSize = (compressedFile.size / 1024 / 1024).toFixed(2)
+              console.log(`📸 Imagen comprimida: ${originalSize}MB → ${compressedSize}MB`)
+              
+              resolve(compressedFile)
+            } else {
+              reject(new Error('Error al comprimir imagen'))
+            }
+          },
+          'image/jpeg',
+          0.8 // 80% de calidad (imperceptible a la vista)
+        )
+      }
+      
+      img.onerror = () => reject(new Error('Error al cargar imagen'))
+    }
+    
+    reader.onerror = () => reject(new Error('Error al leer archivo'))
+  })
+}
+
 export function WorkOrderImageManager({
   orderId,
   images,
@@ -145,9 +208,30 @@ export function WorkOrderImageManager({
     try {
       const file = files[0]
 
+      // Comprimir imagen antes de subir
+      console.log('📸 Procesando imagen...')
+      console.log('📊 Tamaño original:', (file.size / 1024 / 1024).toFixed(2), 'MB')
+
+      let fileToUpload = file
+
+      try {
+        if (file.type.startsWith('image/')) {
+          toast.info('Optimizando imagen...', { duration: 2000 })
+          fileToUpload = await compressImage(file)
+          const sizeKB = (fileToUpload.size / 1024).toFixed(0)
+          toast.success(`Imagen optimizada: ${sizeKB}KB`, { duration: 2000 })
+        }
+      } catch (error) {
+        console.error('❌ Error comprimiendo imagen:', error)
+        toast.warning('Subiendo imagen sin comprimir...', { duration: 2000 })
+        fileToUpload = file
+      }
+
+      console.log('📊 Tamaño a subir:', (fileToUpload.size / 1024 / 1024).toFixed(2), 'MB')
+
       // Subir imagen
       const uploadResult = await uploadWorkOrderImage(
-        file,
+        fileToUpload,
         orderId,
         selectedCategory,
         uploadDescription || undefined,
