@@ -68,20 +68,13 @@ export async function uploadWorkOrderImage(
     console.log('🔄 [uploadWorkOrderImage] Archivo:', file.name, 'Tamaño:', file.size, 'bytes')
     console.log('⏱️ Timeout configurado: 60 segundos')
     
-    // Crear una promesa con timeout
-    const uploadPromise = supabase.storage
+    console.log('🔄 [uploadWorkOrderImage] Esperando respuesta de Supabase...')
+    const { data: uploadData, error: uploadError } = await supabase.storage
       .from('work-order-images')
       .upload(fileName, file, {
         cacheControl: '3600',
         upsert: false
       })
-
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Timeout: La subida tardó más de 60 segundos. Verifica que el bucket "work-order-images" existe en Supabase.')), 60000)
-    )
-
-    console.log('🔄 [uploadWorkOrderImage] Esperando respuesta de Supabase...')
-    const { data: uploadData, error: uploadError } = await Promise.race([uploadPromise, timeoutPromise]) as any
 
     console.log('✅ Upload completado exitosamente')
     console.log('🔄 [uploadWorkOrderImage] Subida completada. Data:', uploadData, 'Error:', uploadError)
