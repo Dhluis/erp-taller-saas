@@ -63,9 +63,10 @@ export async function uploadWorkOrderImage(
     console.log('✅ [uploadWorkOrderImage] Nombre de archivo generado:', fileName)
 
     // Subir archivo
-    console.log('🔄 [uploadWorkOrderImage] Iniciando subida a Supabase Storage...')
+    console.log('📤 Iniciando upload a Supabase Storage...')
     console.log('🔄 [uploadWorkOrderImage] Bucket: work-order-images')
     console.log('🔄 [uploadWorkOrderImage] Archivo:', file.name, 'Tamaño:', file.size, 'bytes')
+    console.log('⏱️ Timeout configurado: 60 segundos')
     
     // Crear una promesa con timeout
     const uploadPromise = supabase.storage
@@ -76,16 +77,18 @@ export async function uploadWorkOrderImage(
       })
 
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Timeout: La subida tardó más de 10 segundos. Verifica que el bucket "work-order-images" existe en Supabase.')), 10000)
+      setTimeout(() => reject(new Error('Timeout: La subida tardó más de 60 segundos. Verifica que el bucket "work-order-images" existe en Supabase.')), 60000)
     )
 
     console.log('🔄 [uploadWorkOrderImage] Esperando respuesta de Supabase...')
     const { data: uploadData, error: uploadError } = await Promise.race([uploadPromise, timeoutPromise]) as any
 
+    console.log('✅ Upload completado exitosamente')
     console.log('🔄 [uploadWorkOrderImage] Subida completada. Data:', uploadData, 'Error:', uploadError)
 
     if (uploadError) {
-      console.error('Error subiendo imagen:', uploadError)
+      console.error('❌ Error en upload:', uploadError)
+      console.error('❌ Detalles:', uploadError.message)
       console.error('Detalles del error:', {
         message: uploadError.message,
         statusCode: uploadError.statusCode,
@@ -127,7 +130,8 @@ export async function uploadWorkOrderImage(
     console.log('✅ [uploadWorkOrderImage] Imagen subida exitosamente:', imageData)
     return { success: true, data: imageData }
   } catch (error: any) {
-    console.error('Error:', error)
+    console.error('❌ Error en upload:', error)
+    console.error('❌ Detalles:', error.message)
     return { success: false, error: error.message }
   }
 }
