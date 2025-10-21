@@ -70,7 +70,8 @@ async function compressImage(file: File): Promise<File> {
     reader.readAsDataURL(file)
     
     reader.onload = (e) => {
-      const img = new Image()
+      // Crear elemento img usando HTMLImageElement para evitar conflicto con Next.js Image
+      const img = document.createElement('img')
       img.src = e.target?.result as string
       
       img.onload = () => {
