@@ -32,6 +32,7 @@ export function WorkOrderDetailsTabs({
   const [images, setImages] = useState<WorkOrderImage[]>(order?.images || [])
   const [notes, setNotes] = useState<WorkOrderNote[]>(order?.notes || [])
   const [documents, setDocuments] = useState<any[]>(order?.documents || [])
+  const [lastNotesUpdate, setLastNotesUpdate] = useState<number>(0)
 
   // ✅ SINCRONIZAR ESTADO CON LA PROPIEDAD order.images
   useEffect(() => {
@@ -45,13 +46,18 @@ export function WorkOrderDetailsTabs({
 
   // ✅ SINCRONIZAR ESTADO CON LA PROPIEDAD order.notes
   useEffect(() => {
-    console.log('🔄 [WorkOrderDetailsTabs] Sincronizando notas:', order?.notes)
-    if (order?.notes) {
+    // Solo sincronizar si workOrder.notes cambió desde fuera
+    // (no si cambiamos nosotros las notas)
+    const notesTimestamp = Date.now()
+    
+    if (order?.notes && notesTimestamp - lastNotesUpdate > 1000) {
+      console.log('🔄 [WorkOrderDetailsTabs] Sincronizando notas:', order.notes)
       setNotes(order.notes)
-    } else {
+      setLastNotesUpdate(notesTimestamp)
+    } else if (!order?.notes) {
       setNotes([])
     }
-  }, [order?.notes])
+  }, [order?.notes, lastNotesUpdate])
 
   // ✅ SINCRONIZAR ESTADO CON LA PROPIEDAD order.documents
   useEffect(() => {

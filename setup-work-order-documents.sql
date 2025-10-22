@@ -149,3 +149,6 @@ ORDER BY policyname;
 -- Ejecuta este script en Supabase SQL Editor
 -- Luego verifica que todo se creó correctamente
 
+
+
+

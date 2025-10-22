@@ -24,3 +24,6 @@ LIMIT 10;
 --    301eb55a-f6f9-449f-ab04-8dcf8fc081a6
 -- 7. Guárdalo en un bloc de notas temporalmente
 -- ═══════════════════════════════════════════════════════════════
+
+
+

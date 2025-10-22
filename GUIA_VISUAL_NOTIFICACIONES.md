@@ -340,3 +340,6 @@ Si algo no funciona:
 2. Revisa los logs de Supabase
 3. Verifica que el `user_id` es correcto
 4. Ejecuta las queries de verificación
+
+
+

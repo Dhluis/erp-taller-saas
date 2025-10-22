@@ -80,3 +80,6 @@ FROM pg_indexes
 WHERE tablename = 'work_orders'
 AND indexname LIKE '%notes%';
 
+
+
+

@@ -234,3 +234,6 @@ COMMENT ON COLUMN inventory_movements.new_stock IS 'Stock después del movimient
 
 
 
+
+
+

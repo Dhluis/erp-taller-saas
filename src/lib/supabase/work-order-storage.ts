@@ -17,6 +17,53 @@ export interface WorkOrderImage {
 }
 
 /**
+ * Función alternativa de upload usando fetch directo
+ */
+async function uploadWithDirectFetch(
+  file: File,
+  fileName: string
+): Promise<{ success: boolean; path?: string; error?: string }> {
+  try {
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+      return { success: false, error: 'Missing Supabase credentials' }
+    }
+    
+    console.log('🔧 [DirectFetch] Usando fetch directo...')
+    
+    const url = `${SUPABASE_URL}/storage/v1/object/work-order-images/${fileName}`
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': file.type,
+      },
+      body: file
+    })
+    
+    console.log('🔧 [DirectFetch] Response status:', response.status)
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('🔧 [DirectFetch] Error:', errorText)
+      return { success: false, error: `HTTP ${response.status}: ${errorText}` }
+    }
+    
+    const data = await response.json()
+    console.log('🔧 [DirectFetch] Success:', data)
+    
+    return { success: true, path: fileName }
+    
+  } catch (error: any) {
+    console.error('🔧 [DirectFetch] Exception:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
  * Subir imagen de orden de trabajo
  */
 export async function uploadWorkOrderImage(
@@ -62,93 +109,18 @@ export async function uploadWorkOrderImage(
     
     console.log('✅ [uploadWorkOrderImage] Nombre de archivo generado:', fileName)
 
-    // Subir archivo
-    console.log('📤 Iniciando upload a Supabase Storage...')
-    console.log('🔄 [uploadWorkOrderImage] Bucket: work-order-images')
-    console.log('🔄 [uploadWorkOrderImage] Archivo:', file.name, 'Tamaño:', file.size, 'bytes')
-    console.log('🔄 [uploadWorkOrderImage] Esperando respuesta de Supabase...')
-    console.log('🔍 [DEBUG] Cliente Supabase existe:', !!supabase)
-    console.log('🔍 [DEBUG] Storage existe:', !!supabase?.storage)
+    // Intentar con fetch directo primero
+    console.log('🔧 Intentando upload con fetch directo...')
+    const directResult = await uploadWithDirectFetch(file, fileName)
 
-    let uploadData, uploadError
-
-    try {
-      console.log('📤 [DEBUG] Iniciando llamada a storage.upload()...')
-      console.log('📤 [DEBUG] Parámetros:', {
-        bucket: 'work-order-images',
-        fileName: fileName,
-        fileSize: file.size,
-        fileType: file.type
-      })
-      
-      // Medir inicio
-      const t0 = performance.now()
-      console.log(`⏱️ [TIMING] T0: Inicio del proceso de upload`)
-      
-      // Crear las promesas
-      const t1 = performance.now()
-      console.log(`⏱️ [TIMING] T1 (+${Math.round(t1-t0)}ms): Creando promesas`)
-      
-      const uploadPromise = supabase.storage
-        .from('work-order-images')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        })
-      
-      const t2 = performance.now()
-      console.log(`⏱️ [TIMING] T2 (+${Math.round(t2-t1)}ms): uploadPromise creada`)
-      
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-          const tTimeout = performance.now()
-          console.log(`⏱️ [TIMING] TIMEOUT (+${Math.round(tTimeout-t0)}ms desde inicio): Se alcanzó el timeout de 90s`)
-          reject(new Error('Timeout después de 90 segundos'))
-        }, 90000)
-      })
-      
-      const t3 = performance.now()
-      console.log(`⏱️ [TIMING] T3 (+${Math.round(t3-t2)}ms): timeoutPromise creada`)
-      console.log('⏳ [DEBUG] Ejecutando Promise.race (timeout 90s)...')
-      
-      // Instrumentar la promesa de upload
-      const instrumentedUpload = uploadPromise.then((result) => {
-        const tUpload = performance.now()
-        console.log(`⏱️ [TIMING] UPLOAD SUCCESS (+${Math.round(tUpload-t0)}ms desde inicio)`)
-        return result
-      }).catch((error) => {
-        const tError = performance.now()
-        console.log(`⏱️ [TIMING] UPLOAD ERROR (+${Math.round(tError-t0)}ms desde inicio)`)
-        throw error
-      })
-      
-      const t4 = performance.now()
-      console.log(`⏱️ [TIMING] T4 (+${Math.round(t4-t3)}ms): Iniciando Promise.race...`)
-      
-      const result = await Promise.race([instrumentedUpload, timeoutPromise])
-      
-      const tFinal = performance.now()
-      console.log(`⏱️ [TIMING] FINAL (+${Math.round(tFinal-t0)}ms TOTAL): Promise.race completado`)
-      
-      console.log('📊 [DEBUG] Resultado completo:', result)
-      
-      uploadData = result.data
-      uploadError = result.error
-      
-    } catch (exception: any) {
-      console.error('❌ [DEBUG] Excepción capturada:', exception)
-      console.error('❌ [DEBUG] Tipo:', exception.constructor.name)
-      console.error('❌ [DEBUG] Mensaje:', exception.message)
-      
-      if (exception.message.includes('Timeout')) {
-        return { 
-          success: false, 
-          error: 'La conexión a Supabase está muy lenta. Verifica tu internet.' 
-        }
-      }
-      
-      return { success: false, error: `Error: ${exception.message}` }
+    if (!directResult.success) {
+      console.error('❌ Upload directo falló:', directResult.error)
+      return { success: false, error: directResult.error }
     }
+
+    console.log('✅ Upload directo exitoso')
+    const uploadData = { path: fileName }
+    const uploadError = null
 
     console.log('🏁 [DEBUG] Continuando después del upload...')
 

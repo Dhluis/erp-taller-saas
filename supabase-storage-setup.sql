@@ -89,3 +89,6 @@ SELECT
   COUNT(*) as total_ordenes
 FROM work_orders
 GROUP BY organization_id;
+
+
+

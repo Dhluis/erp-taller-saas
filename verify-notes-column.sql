@@ -27,3 +27,6 @@ USING (auth.role() = 'authenticated');
 SELECT schemaname, tablename, rowsecurity 
 FROM pg_tables 
 WHERE tablename = 'work_orders';
+
+
+

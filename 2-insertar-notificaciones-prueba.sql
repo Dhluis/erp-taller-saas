@@ -174,3 +174,6 @@ ORDER BY created_at DESC;
 -- ✅ 4 con read = false (no leídas)
 -- ✅ 3 con read = true (ya leídas)
 -- ═══════════════════════════════════════════════════════════════
+
+
+

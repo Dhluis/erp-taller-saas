@@ -26,3 +26,6 @@ export interface WorkOrder {
   notes?: WorkOrderNote[]
   // Agregar otros campos según tu esquema actual
 }
+
+
+

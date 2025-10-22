@@ -216,3 +216,6 @@ ORDER BY created_at DESC;
 -- ⚠️ DESCOMENTA SOLO SI QUIERES ELIMINAR TODO
 -- DELETE FROM notifications 
 -- WHERE user_id = '301eb55a-f6f9-449f-ab04-8dcf8fc081a6';  -- ⬅️ TU USER_ID
+
+
+
