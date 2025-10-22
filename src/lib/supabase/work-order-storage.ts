@@ -81,9 +81,14 @@ export async function uploadWorkOrderImage(
         fileType: file.type
       })
       
-      const startTime = Date.now()
+      // Medir inicio
+      const t0 = performance.now()
+      console.log(`⏱️ [TIMING] T0: Inicio del proceso de upload`)
       
-      // Agregar timeout manual con Promise.race
+      // Crear las promesas
+      const t1 = performance.now()
+      console.log(`⏱️ [TIMING] T1 (+${Math.round(t1-t0)}ms): Creando promesas`)
+      
       const uploadPromise = supabase.storage
         .from('work-order-images')
         .upload(fileName, file, {
@@ -91,17 +96,40 @@ export async function uploadWorkOrderImage(
           upsert: false
         })
       
+      const t2 = performance.now()
+      console.log(`⏱️ [TIMING] T2 (+${Math.round(t2-t1)}ms): uploadPromise creada`)
+      
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
-          reject(new Error('Timeout después de 30 segundos'))
-        }, 30000)
+          const tTimeout = performance.now()
+          console.log(`⏱️ [TIMING] TIMEOUT (+${Math.round(tTimeout-t0)}ms desde inicio): Se alcanzó el timeout de 90s`)
+          reject(new Error('Timeout después de 90 segundos'))
+        }, 90000)
       })
       
-      console.log('⏳ [DEBUG] Ejecutando Promise.race (timeout 30s)...')
-      const result = await Promise.race([uploadPromise, timeoutPromise]) as any
+      const t3 = performance.now()
+      console.log(`⏱️ [TIMING] T3 (+${Math.round(t3-t2)}ms): timeoutPromise creada`)
+      console.log('⏳ [DEBUG] Ejecutando Promise.race (timeout 90s)...')
       
-      const duration = Date.now() - startTime
-      console.log(`✅ [DEBUG] Upload completó en ${duration}ms`)
+      // Instrumentar la promesa de upload
+      const instrumentedUpload = uploadPromise.then((result) => {
+        const tUpload = performance.now()
+        console.log(`⏱️ [TIMING] UPLOAD SUCCESS (+${Math.round(tUpload-t0)}ms desde inicio)`)
+        return result
+      }).catch((error) => {
+        const tError = performance.now()
+        console.log(`⏱️ [TIMING] UPLOAD ERROR (+${Math.round(tError-t0)}ms desde inicio)`)
+        throw error
+      })
+      
+      const t4 = performance.now()
+      console.log(`⏱️ [TIMING] T4 (+${Math.round(t4-t3)}ms): Iniciando Promise.race...`)
+      
+      const result = await Promise.race([instrumentedUpload, timeoutPromise])
+      
+      const tFinal = performance.now()
+      console.log(`⏱️ [TIMING] FINAL (+${Math.round(tFinal-t0)}ms TOTAL): Promise.race completado`)
+      
       console.log('📊 [DEBUG] Resultado completo:', result)
       
       uploadData = result.data
