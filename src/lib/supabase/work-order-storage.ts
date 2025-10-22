@@ -66,15 +66,63 @@ export async function uploadWorkOrderImage(
     console.log('📤 Iniciando upload a Supabase Storage...')
     console.log('🔄 [uploadWorkOrderImage] Bucket: work-order-images')
     console.log('🔄 [uploadWorkOrderImage] Archivo:', file.name, 'Tamaño:', file.size, 'bytes')
-    console.log('⏱️ Timeout configurado: 60 segundos')
-    
     console.log('🔄 [uploadWorkOrderImage] Esperando respuesta de Supabase...')
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('work-order-images')
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: false
+    console.log('🔍 [DEBUG] Cliente Supabase existe:', !!supabase)
+    console.log('🔍 [DEBUG] Storage existe:', !!supabase?.storage)
+
+    let uploadData, uploadError
+
+    try {
+      console.log('📤 [DEBUG] Iniciando llamada a storage.upload()...')
+      console.log('📤 [DEBUG] Parámetros:', {
+        bucket: 'work-order-images',
+        fileName: fileName,
+        fileSize: file.size,
+        fileType: file.type
       })
+      
+      const startTime = Date.now()
+      
+      // Agregar timeout manual con Promise.race
+      const uploadPromise = supabase.storage
+        .from('work-order-images')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Timeout después de 30 segundos'))
+        }, 30000)
+      })
+      
+      console.log('⏳ [DEBUG] Ejecutando Promise.race (timeout 30s)...')
+      const result = await Promise.race([uploadPromise, timeoutPromise]) as any
+      
+      const duration = Date.now() - startTime
+      console.log(`✅ [DEBUG] Upload completó en ${duration}ms`)
+      console.log('📊 [DEBUG] Resultado completo:', result)
+      
+      uploadData = result.data
+      uploadError = result.error
+      
+    } catch (exception: any) {
+      console.error('❌ [DEBUG] Excepción capturada:', exception)
+      console.error('❌ [DEBUG] Tipo:', exception.constructor.name)
+      console.error('❌ [DEBUG] Mensaje:', exception.message)
+      
+      if (exception.message.includes('Timeout')) {
+        return { 
+          success: false, 
+          error: 'La conexión a Supabase está muy lenta. Verifica tu internet.' 
+        }
+      }
+      
+      return { success: false, error: `Error: ${exception.message}` }
+    }
+
+    console.log('🏁 [DEBUG] Continuando después del upload...')
 
     console.log('✅ Upload completado exitosamente')
     console.log('🔄 [uploadWorkOrderImage] Subida completada. Data:', uploadData, 'Error:', uploadError)
