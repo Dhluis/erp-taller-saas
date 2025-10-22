@@ -31,6 +31,11 @@ async function uploadWithDirectFetch(
       return { success: false, error: 'Missing Supabase credentials' }
     }
     
+    // Obtener el token de la sesión actual
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    
+    console.log('🔑 [DirectFetch] Usando token de:', session ? 'sesión' : 'anon key')
     console.log('🔧 [DirectFetch] Usando fetch directo...')
     
     const url = `${SUPABASE_URL}/storage/v1/object/work-order-images/${fileName}`
@@ -38,7 +43,7 @@ async function uploadWithDirectFetch(
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': file.type,
       },
       body: file
@@ -108,6 +113,19 @@ export async function uploadWorkOrderImage(
     const fileName = `${orderId}/${category}-${timestamp}-${random}.${fileExt}`
     
     console.log('✅ [uploadWorkOrderImage] Nombre de archivo generado:', fileName)
+
+    // Verificar autenticación
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    console.log('🔐 [Auth Check] Sesión:', session ? 'ACTIVA' : 'NO ACTIVA')
+    console.log('🔐 [Auth Check] User ID:', session?.user?.id)
+    console.log('🔐 [Auth Check] Email:', session?.user?.email)
+    console.log('🔐 [Auth Check] Token presente:', !!session?.access_token)
+    console.log('🔐 [Auth Check] Error de sesión:', sessionError)
+
+    if (!session) {
+      console.error('❌ [Auth] No hay sesión activa - el usuario NO está logueado')
+      return { success: false, error: 'Usuario no autenticado. Por favor inicia sesión.' }
+    }
 
     // Intentar con fetch directo primero
     console.log('🔧 Intentando upload con fetch directo...')
