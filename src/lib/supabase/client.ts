@@ -33,7 +33,11 @@ export function getSupabaseClient(): SupabaseClient {
           'X-App-Version': process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
         },
         fetch: (url, options = {}) => {
-          return fetch(url, options)
+          return fetch(url, {
+            ...options,
+            // Timeout de 120 segundos para operaciones lentas
+            signal: options.signal || AbortSignal.timeout(120000),
+          })
         },
       },
       auth: {
