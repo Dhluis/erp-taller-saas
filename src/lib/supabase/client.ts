@@ -33,11 +33,7 @@ export function getSupabaseClient(): SupabaseClient {
           'X-App-Version': process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
         },
         fetch: (url, options = {}) => {
-          return fetch(url, {
-            ...options,
-            // Timeout de 60 segundos para uploads de imágenes
-            signal: AbortSignal.timeout(60000),
-          })
+          return fetch(url, options)
         },
       },
       auth: {
