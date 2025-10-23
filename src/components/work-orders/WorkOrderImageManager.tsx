@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -148,9 +148,6 @@ export function WorkOrderImageManager({
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  // Ref para token de autenticación
-  const authTokenRef = useRef<string | null>(null)
-  
   // Detectar si es dispositivo móvil
   const isMobile = typeof window !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
   
@@ -167,25 +164,6 @@ export function WorkOrderImageManager({
     }
   }, [])
 
-  useEffect(() => {
-    const getAuthToken = async () => {
-      console.log('🔐 [COMPONENT MOUNT] Obteniendo token de autenticación...')
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (session?.access_token) {
-        authTokenRef.current = session.access_token
-        console.log('✅ [COMPONENT MOUNT] Token obtenido y guardado:', {
-          hasToken: true,
-          tokenLength: session.access_token.length
-        })
-      } else {
-        console.error('❌ [COMPONENT MOUNT] No se pudo obtener token')
-      }
-    }
-    
-    getAuthToken()
-  }, [])
   
   // Sugerir categoría basada en el estado actual de la orden
   const getSuggestedCategory = (status: string): ImageCategory => {
@@ -233,20 +211,7 @@ export function WorkOrderImageManager({
     try {
       const file = files[0]
       
-      // ✅ Usar el token obtenido al montar el componente
-      console.log('🔐 [USE TOKEN] Usando token desde ref')
-      const authToken = authTokenRef.current
-
-      if (!authToken) {
-        console.error('❌ [USE TOKEN] No hay token disponible')
-        toast.error('Error de autenticación. Recarga la página.')
-        setUploading(false)
-        return
-      }
-
-      console.log('✅ [USE TOKEN] Token disponible, procediendo...')
-      
-      // Comprimir imagen DESPUÉS de obtener token
+      // Comprimir imagen antes de subir
       console.log('📸 Procesando imagen...')
       console.log('📊 Tamaño original:', (file.size / 1024 / 1024).toFixed(2), 'MB')
 
@@ -267,9 +232,15 @@ export function WorkOrderImageManager({
 
       console.log('📊 Tamaño a subir:', (fileToUpload.size / 1024 / 1024).toFixed(2), 'MB')
 
-      // ✅ Usar el token desde ref
-      console.log('🔐 [UPLOAD] Usando token para upload')
-      const session = { access_token: authToken }
+      // Obtener token de autenticación
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        toast.error('Sesión expirada. Recarga la página.')
+        setUploading(false)
+        return
+      }
       
       // Subir imagen
       const uploadResult = await uploadWorkOrderImage(
