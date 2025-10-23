@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -148,6 +148,9 @@ export function WorkOrderImageManager({
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
+  // Ref para token de autenticación
+  const authTokenRef = useRef<string | null>(null)
+  
   // Detectar si es dispositivo móvil
   const isMobile = typeof window !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
   
@@ -162,6 +165,26 @@ export function WorkOrderImageManager({
     } else {
       console.log('📱 [CameraSupport] Cámara NO soportada en este dispositivo')
     }
+  }, [])
+
+  useEffect(() => {
+    const getAuthToken = async () => {
+      console.log('🔐 [COMPONENT MOUNT] Obteniendo token de autenticación...')
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (session?.access_token) {
+        authTokenRef.current = session.access_token
+        console.log('✅ [COMPONENT MOUNT] Token obtenido y guardado:', {
+          hasToken: true,
+          tokenLength: session.access_token.length
+        })
+      } else {
+        console.error('❌ [COMPONENT MOUNT] No se pudo obtener token')
+      }
+    }
+    
+    getAuthToken()
   }, [])
   
   // Sugerir categoría basada en el estado actual de la orden
@@ -210,26 +233,18 @@ export function WorkOrderImageManager({
     try {
       const file = files[0]
       
-      // ✅ OBTENER TOKEN PRIMERO (antes de comprimir)
-      console.log('🔐 [EARLY AUTH] Obteniendo sesión ANTES de comprimir...')
-      const supabaseClient = createClient()
-      const { data: { session: earlySession } } = await supabaseClient.auth.getSession()
-      
-      console.log('🔐 [EARLY AUTH] Sesión obtenida:', {
-        hasSession: !!earlySession,
-        hasToken: !!earlySession?.access_token,
-        tokenLength: earlySession?.access_token?.length || 0
-      })
-      
-      if (!earlySession || !earlySession.access_token) {
-        console.error('❌ [EARLY AUTH] No hay sesión válida')
-        toast.error('Tu sesión ha expirado. Recarga la página.')
+      // ✅ Usar el token obtenido al montar el componente
+      console.log('🔐 [USE TOKEN] Usando token desde ref')
+      const authToken = authTokenRef.current
+
+      if (!authToken) {
+        console.error('❌ [USE TOKEN] No hay token disponible')
+        toast.error('Error de autenticación. Recarga la página.')
         setUploading(false)
         return
       }
-      
-      const authToken = earlySession.access_token
-      console.log('✅ [EARLY AUTH] Token guardado, procediendo con compresión...')
+
+      console.log('✅ [USE TOKEN] Token disponible, procediendo...')
       
       // Comprimir imagen DESPUÉS de obtener token
       console.log('📸 Procesando imagen...')
@@ -252,8 +267,8 @@ export function WorkOrderImageManager({
 
       console.log('📊 Tamaño a subir:', (fileToUpload.size / 1024 / 1024).toFixed(2), 'MB')
 
-      // ✅ Usar el token obtenido al inicio
-      console.log('🔐 [REUSING TOKEN] Usando token obtenido antes de comprimir')
+      // ✅ Usar el token desde ref
+      console.log('🔐 [UPLOAD] Usando token para upload')
       const session = { access_token: authToken }
       
       // Subir imagen
