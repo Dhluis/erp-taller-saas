@@ -235,6 +235,26 @@ export function WorkOrderImageManager({
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       
+      console.log('🔐🔐🔐 [DIAGNÓSTICO DE SESIÓN] 🔐🔐🔐')
+      console.log('🔐 Sesión completa:', session)
+      console.log('🔐 ¿Tiene sesión?:', !!session)
+      console.log('🔐 ¿Tiene usuario?:', !!session?.user)
+      console.log('🔐 ¿Tiene access_token?:', !!session?.access_token)
+      console.log('🔐 User ID:', session?.user?.id)
+      console.log('🔐 Email:', session?.user?.email)
+      console.log('🔐 Token length:', session?.access_token?.length || 0)
+      console.log('🔐 Token (primeros 50 caracteres):', session?.access_token?.substring(0, 50))
+
+      if (!session || !session.access_token) {
+        console.error('❌❌❌ [ERROR CRÍTICO] NO HAY SESIÓN VÁLIDA')
+        console.error('❌ La sesión es null o no tiene token')
+        toast.error('Tu sesión ha expirado. Recarga la página e intenta de nuevo.')
+        setUploading(false)
+        return
+      }
+
+      console.log('✅ Sesión válida confirmada, continuando con upload...')
+      
       // Subir imagen
       const uploadResult = await uploadWorkOrderImage(
         fileToUpload,
