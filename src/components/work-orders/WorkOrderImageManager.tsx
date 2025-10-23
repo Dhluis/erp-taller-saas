@@ -39,6 +39,7 @@ import {
   WorkOrderImage,
   ImageCategory
 } from '@/lib/supabase/work-order-storage'
+import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -230,14 +231,19 @@ export function WorkOrderImageManager({
 
       console.log('📊 Tamaño a subir:', (fileToUpload.size / 1024 / 1024).toFixed(2), 'MB')
 
+      // Obtener token de autenticación
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
       // Subir imagen
       const uploadResult = await uploadWorkOrderImage(
         fileToUpload,
         orderId,
+        userId,
         selectedCategory,
         uploadDescription || undefined,
-        userId,
-        currentStatus
+        currentStatus,
+        session?.access_token
       )
 
       if (!uploadResult.success || !uploadResult.data) {
