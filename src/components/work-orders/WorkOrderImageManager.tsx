@@ -444,20 +444,6 @@ export function WorkOrderImageManager({
               disabled={uploading || images.length >= maxImages}
             />
 
-            {/* Debug Info */}
-            {typeof window !== 'undefined' && (
-              <div className="text-xs bg-yellow-50 border border-yellow-200 p-3 rounded-lg space-y-1">
-                <p className="font-semibold text-yellow-800">🔍 Información de Debug:</p>
-                <p><strong>Dispositivo:</strong> {/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? '📱 Móvil' : '💻 Desktop'}</p>
-                <p><strong>User Agent:</strong> {navigator.userAgent.substring(0, 50)}...</p>
-                <p><strong>Protocolo:</strong> {window.location.protocol === 'https:' ? '🔒 HTTPS' : '⚠️ HTTP'}</p>
-                <p><strong>Input cámara:</strong> {cameraInputRef.current ? '✅ Listo' : '⏳ Inicializando'}</p>
-                <p><strong>Soporte cámara:</strong> {cameraSupported ? '✅ Soportado' : '❌ No soportado'}</p>
-                <p className="text-yellow-700 mt-2">
-                  💡 <strong>Nota:</strong> capture="environment" solo funciona en móviles reales con HTTPS o localhost
-                </p>
-              </div>
-            )}
 
             {/* Botones de acción */}
             <div className="grid grid-cols-2 gap-3">
