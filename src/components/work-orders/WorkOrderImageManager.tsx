@@ -233,6 +233,15 @@ export function WorkOrderImageManager({
 
       // Obtener token de autenticación
       const supabase = createClient()
+      
+      console.log('⏰ [CRÍTICO] A punto de llamar getSession() - ANTES DE CUALQUIER AWAIT')
+      console.log('⏰ Supabase client existe:', !!supabase)
+      console.log('⏰ Archivo a subir:', {
+        name: fileToUpload.name,
+        size: fileToUpload.size,
+        type: fileToUpload.type
+      })
+      
       const { data: { session } } = await supabase.auth.getSession()
       
       console.log('🔐🔐🔐 [DIAGNÓSTICO DE SESIÓN] 🔐🔐🔐')
