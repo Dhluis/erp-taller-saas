@@ -114,80 +114,98 @@ export async function uploadWorkOrderImage(
     
     console.log('✅ [uploadWorkOrderImage] Nombre de archivo generado:', fileName)
 
-    // Verificar autenticación
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    console.log('🔐 [Auth Check] Sesión:', session ? 'ACTIVA' : 'NO ACTIVA')
-    console.log('🔐 [Auth Check] User ID:', session?.user?.id)
-    console.log('🔐 [Auth Check] Email:', session?.user?.email)
-    console.log('🔐 [Auth Check] Token presente:', !!session?.access_token)
-    console.log('🔐 [Auth Check] Error de sesión:', sessionError)
+    try {
+      console.log('🔹 [DEBUG] Paso 1: Nombre generado exitosamente')
+      console.log('🔹 [DEBUG] Paso 2: Preparando para verificar autenticación...')
+      console.log('🔹 [DEBUG] Tipo de archivo:', typeof file, file instanceof File)
+      console.log('🔹 [DEBUG] Tamaño del archivo:', file.size)
 
-    if (!session) {
-      console.error('❌ [Auth] No hay sesión activa - el usuario NO está logueado')
-      return { success: false, error: 'Usuario no autenticado. Por favor inicia sesión.' }
-    }
+      // Aquí debería estar el código de auth check
+      console.log('🔹 [DEBUG] Paso 3: A punto de llamar supabase.auth.getSession()')
 
-    // Intentar con fetch directo primero
-    console.log('🔧 Intentando upload con fetch directo...')
-    const directResult = await uploadWithDirectFetch(file, fileName)
+      // Verificar autenticación
+      console.log('🔹 [DEBUG] Paso 4: Ejecutando getSession...')
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      console.log('🔐 [Auth Check] Sesión:', session ? 'ACTIVA' : 'NO ACTIVA')
+      console.log('🔐 [Auth Check] User ID:', session?.user?.id)
+      console.log('🔐 [Auth Check] Email:', session?.user?.email)
+      console.log('🔐 [Auth Check] Token presente:', !!session?.access_token)
+      console.log('🔐 [Auth Check] Error de sesión:', sessionError)
 
-    if (!directResult.success) {
-      console.error('❌ Upload directo falló:', directResult.error)
-      return { success: false, error: directResult.error }
-    }
-
-    console.log('✅ Upload directo exitoso')
-    const uploadData = { path: fileName }
-    const uploadError = null
-
-    console.log('🏁 [DEBUG] Continuando después del upload...')
-
-    console.log('✅ Upload completado exitosamente')
-    console.log('🔄 [uploadWorkOrderImage] Subida completada. Data:', uploadData, 'Error:', uploadError)
-
-    if (uploadError) {
-      console.error('❌ Error en upload:', uploadError)
-      console.error('❌ Detalles:', uploadError.message)
-      console.error('Detalles del error:', {
-        message: uploadError.message,
-        statusCode: uploadError.statusCode,
-        error: uploadError.error
-      })
-      
-      // Mensajes de error más específicos
-      let errorMessage = uploadError.message
-      if (uploadError.message.includes('not found')) {
-        errorMessage = 'El bucket de almacenamiento no existe. Contacta al administrador.'
-      } else if (uploadError.message.includes('policy')) {
-        errorMessage = 'No tienes permisos para subir archivos.'
-      } else if (uploadError.message.includes('size')) {
-        errorMessage = 'El archivo es demasiado grande.'
+      if (!session) {
+        console.error('❌ [Auth] No hay sesión activa - el usuario NO está logueado')
+        return { success: false, error: 'Usuario no autenticado. Por favor inicia sesión.' }
       }
-      
-      return { success: false, error: errorMessage }
+
+      // Intentar con fetch directo primero
+      console.log('🔧 Intentando upload con fetch directo...')
+      const directResult = await uploadWithDirectFetch(file, fileName)
+
+      if (!directResult.success) {
+        console.error('❌ Upload directo falló:', directResult.error)
+        return { success: false, error: directResult.error }
+      }
+
+      console.log('✅ Upload directo exitoso')
+      const uploadData = { path: fileName }
+      const uploadError = null
+
+      console.log('🏁 [DEBUG] Continuando después del upload...')
+
+      console.log('✅ Upload completado exitosamente')
+      console.log('🔄 [uploadWorkOrderImage] Subida completada. Data:', uploadData, 'Error:', uploadError)
+
+      if (uploadError) {
+        console.error('❌ Error en upload:', uploadError)
+        console.error('❌ Detalles:', uploadError.message)
+        console.error('Detalles del error:', {
+          message: uploadError.message,
+          statusCode: uploadError.statusCode,
+          error: uploadError.error
+        })
+        
+        // Mensajes de error más específicos
+        let errorMessage = uploadError.message
+        if (uploadError.message.includes('not found')) {
+          errorMessage = 'El bucket de almacenamiento no existe. Contacta al administrador.'
+        } else if (uploadError.message.includes('policy')) {
+          errorMessage = 'No tienes permisos para subir archivos.'
+        } else if (uploadError.message.includes('size')) {
+          errorMessage = 'El archivo es demasiado grande.'
+        }
+        
+        return { success: false, error: errorMessage }
+      }
+
+      // Obtener URL pública
+      const { data: urlData } = supabase.storage
+        .from('work-order-images')
+        .getPublicUrl(fileName)
+
+      console.log('✅ [uploadWorkOrderImage] URL pública generada:', urlData.publicUrl)
+
+      const imageData: WorkOrderImage = {
+        url: urlData.publicUrl,
+        path: `work-order-images/${fileName}`,
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: userId || 'unknown',
+        category,
+        description,
+        size: file.size,
+        name: file.name,
+        orderStatus: orderStatus || 'unknown'
+      }
+
+      console.log('✅ [uploadWorkOrderImage] Imagen subida exitosamente:', imageData)
+      return { success: true, data: imageData }
+
+    } catch (error: any) {
+      console.error('🔥 [CRITICAL ERROR] Excepción no capturada:', error)
+      console.error('🔥 Stack:', error.stack)
+      console.error('🔥 Mensaje:', error.message)
+      console.error('🔥 Tipo:', error.constructor.name)
+      return { success: false, error: `Error crítico: ${error.message}` }
     }
-
-    // Obtener URL pública
-    const { data: urlData } = supabase.storage
-      .from('work-order-images')
-      .getPublicUrl(fileName)
-
-    console.log('✅ [uploadWorkOrderImage] URL pública generada:', urlData.publicUrl)
-
-    const imageData: WorkOrderImage = {
-      url: urlData.publicUrl,
-      path: `work-order-images/${fileName}`,
-      uploadedAt: new Date().toISOString(),
-      uploadedBy: userId || 'unknown',
-      category,
-      description,
-      size: file.size,
-      name: file.name,
-      orderStatus: orderStatus || 'unknown'
-    }
-
-    console.log('✅ [uploadWorkOrderImage] Imagen subida exitosamente:', imageData)
-    return { success: true, data: imageData }
   } catch (error: any) {
     console.error('❌ Error en upload:', error)
     console.error('❌ Detalles:', error.message)
