@@ -21,7 +21,8 @@ export interface WorkOrderImage {
  */
 async function uploadWithDirectFetch(
   file: File,
-  fileName: string
+  fileName: string,
+  accessToken?: string
 ): Promise<{ success: boolean; path?: string; error?: string }> {
   try {
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -31,11 +32,10 @@ async function uploadWithDirectFetch(
       return { success: false, error: 'Missing Supabase credentials' }
     }
     
-    // Obtener el token de la sesión actual
-    const { data: { session } } = await supabase.auth.getSession()
-    const token = session?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    // Usar el token recibido como parámetro
+    const token = accessToken || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
-    console.log('🔑 [DirectFetch] Usando token de:', session ? 'sesión' : 'anon key')
+    console.log('🔑 [DirectFetch] Usando token de:', accessToken ? 'parámetro' : 'anon key')
     console.log('🔧 [DirectFetch] Usando fetch directo...')
     
     const url = `${SUPABASE_URL}/storage/v1/object/work-order-images/${fileName}`
@@ -74,10 +74,11 @@ async function uploadWithDirectFetch(
 export async function uploadWorkOrderImage(
   file: File,
   orderId: string,
-  category: ImageCategory,
-  description?: string,
   userId?: string,
-  orderStatus?: string
+  category?: string,
+  description?: string,
+  orderStatus?: string,
+  accessToken?: string  // NUEVO PARÁMETRO
 ): Promise<{ success: boolean; data?: WorkOrderImage; error?: string }> {
   try {
     console.log('🔄 [uploadWorkOrderImage] Iniciando subida...', {
@@ -120,26 +121,18 @@ export async function uploadWorkOrderImage(
       console.log('🔹 [DEBUG] Tipo de archivo:', typeof file, file instanceof File)
       console.log('🔹 [DEBUG] Tamaño del archivo:', file.size)
 
-      // Aquí debería estar el código de auth check
-      console.log('🔹 [DEBUG] Paso 3: A punto de llamar supabase.auth.getSession()')
+      // Verificar token de acceso
+      console.log('🔹 [DEBUG] Paso 3: Verificando token de acceso')
+      console.log('🔐 [Auth Check] Token recibido:', !!accessToken)
 
-      // Verificar autenticación
-      console.log('🔹 [DEBUG] Paso 4: Ejecutando getSession...')
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      console.log('🔐 [Auth Check] Sesión:', session ? 'ACTIVA' : 'NO ACTIVA')
-      console.log('🔐 [Auth Check] User ID:', session?.user?.id)
-      console.log('🔐 [Auth Check] Email:', session?.user?.email)
-      console.log('🔐 [Auth Check] Token presente:', !!session?.access_token)
-      console.log('🔐 [Auth Check] Error de sesión:', sessionError)
-
-      if (!session) {
-        console.error('❌ [Auth] No hay sesión activa - el usuario NO está logueado')
+      if (!accessToken) {
+        console.error('❌ [Auth] No hay token de acceso')
         return { success: false, error: 'Usuario no autenticado. Por favor inicia sesión.' }
       }
 
       // Intentar con fetch directo primero
       console.log('🔧 Intentando upload con fetch directo...')
-      const directResult = await uploadWithDirectFetch(file, fileName)
+      const directResult = await uploadWithDirectFetch(file, fileName, accessToken)
 
       if (!directResult.success) {
         console.error('❌ Upload directo falló:', directResult.error)
@@ -189,7 +182,7 @@ export async function uploadWorkOrderImage(
         path: `work-order-images/${fileName}`,
         uploadedAt: new Date().toISOString(),
         uploadedBy: userId || 'unknown',
-        category,
+        category: category as ImageCategory,
         description,
         size: file.size,
         name: file.name,
