@@ -209,8 +209,29 @@ export function WorkOrderImageManager({
 
     try {
       const file = files[0]
-
-      // Comprimir imagen antes de subir
+      
+      // ✅ OBTENER TOKEN PRIMERO (antes de comprimir)
+      console.log('🔐 [EARLY AUTH] Obteniendo sesión ANTES de comprimir...')
+      const supabaseClient = createClient()
+      const { data: { session: earlySession } } = await supabaseClient.auth.getSession()
+      
+      console.log('🔐 [EARLY AUTH] Sesión obtenida:', {
+        hasSession: !!earlySession,
+        hasToken: !!earlySession?.access_token,
+        tokenLength: earlySession?.access_token?.length || 0
+      })
+      
+      if (!earlySession || !earlySession.access_token) {
+        console.error('❌ [EARLY AUTH] No hay sesión válida')
+        toast.error('Tu sesión ha expirado. Recarga la página.')
+        setUploading(false)
+        return
+      }
+      
+      const authToken = earlySession.access_token
+      console.log('✅ [EARLY AUTH] Token guardado, procediendo con compresión...')
+      
+      // Comprimir imagen DESPUÉS de obtener token
       console.log('📸 Procesando imagen...')
       console.log('📊 Tamaño original:', (file.size / 1024 / 1024).toFixed(2), 'MB')
 
@@ -231,38 +252,9 @@ export function WorkOrderImageManager({
 
       console.log('📊 Tamaño a subir:', (fileToUpload.size / 1024 / 1024).toFixed(2), 'MB')
 
-      // Obtener token de autenticación
-      const supabase = createClient()
-      
-      console.log('⏰ [CRÍTICO] A punto de llamar getSession() - ANTES DE CUALQUIER AWAIT')
-      console.log('⏰ Supabase client existe:', !!supabase)
-      console.log('⏰ Archivo a subir:', {
-        name: fileToUpload.name,
-        size: fileToUpload.size,
-        type: fileToUpload.type
-      })
-      
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      console.log('🔐🔐🔐 [DIAGNÓSTICO DE SESIÓN] 🔐🔐🔐')
-      console.log('🔐 Sesión completa:', session)
-      console.log('🔐 ¿Tiene sesión?:', !!session)
-      console.log('🔐 ¿Tiene usuario?:', !!session?.user)
-      console.log('🔐 ¿Tiene access_token?:', !!session?.access_token)
-      console.log('🔐 User ID:', session?.user?.id)
-      console.log('🔐 Email:', session?.user?.email)
-      console.log('🔐 Token length:', session?.access_token?.length || 0)
-      console.log('🔐 Token (primeros 50 caracteres):', session?.access_token?.substring(0, 50))
-
-      if (!session || !session.access_token) {
-        console.error('❌❌❌ [ERROR CRÍTICO] NO HAY SESIÓN VÁLIDA')
-        console.error('❌ La sesión es null o no tiene token')
-        toast.error('Tu sesión ha expirado. Recarga la página e intenta de nuevo.')
-        setUploading(false)
-        return
-      }
-
-      console.log('✅ Sesión válida confirmada, continuando con upload...')
+      // ✅ Usar el token obtenido al inicio
+      console.log('🔐 [REUSING TOKEN] Usando token obtenido antes de comprimir')
+      const session = { access_token: authToken }
       
       // Subir imagen
       const uploadResult = await uploadWorkOrderImage(
