@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+// 🚀 DEPLOY READY - Image upload API route
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }

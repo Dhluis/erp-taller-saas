@@ -23,3 +23,4 @@
 
 ## Purpose
 Fix authentication issues in mobile devices where getSession() calls were hanging.
+
