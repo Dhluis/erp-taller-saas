@@ -274,7 +274,7 @@ export function WorkOrderImageManager({
       console.log('📝 [ADD TO DB] imageData:', uploadResult.data)
 
       // Agregar a la BD
-      const addResult = await addImageToWorkOrder(orderId, uploadResult.data)
+      const addResult = await addImageToWorkOrder(orderId, uploadResult.data, session.access_token)
 
       console.log('📝 [ADD TO DB] Resultado:', addResult)
       console.log('📝 [ADD TO DB] Success:', addResult.success)

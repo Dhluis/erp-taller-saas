@@ -237,25 +237,37 @@ export async function deleteWorkOrderImage(
  */
 export async function addImageToWorkOrder(
   orderId: string,
-  imageData: WorkOrderImage
+  imageData: WorkOrderImage,
+  accessToken?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    console.log('📝 [addImageToWorkOrder] Iniciando...')
+    console.log('📝 [addImageToWorkOrder] orderId:', orderId)
+    console.log('📝 [addImageToWorkOrder] hasToken:', !!accessToken)
+    
+    // Crear cliente con token si está disponible
+    const client = accessToken ? createClient() : supabase
+    
     // Obtener imágenes actuales
-    const { data: order, error: fetchError } = await supabase
+    console.log('📝 [addImageToWorkOrder] Obteniendo imágenes actuales...')
+    const { data: order, error: fetchError } = await client
       .from('work_orders')
       .select('images')
       .eq('id', orderId)
       .single()
 
     if (fetchError) {
+      console.error('❌ [addImageToWorkOrder] Error obteniendo orden:', fetchError)
       return { success: false, error: fetchError.message }
     }
 
+    console.log('📝 [addImageToWorkOrder] Orden obtenida, actualizando...')
     const currentImages = order.images || []
     const updatedImages = [...currentImages, imageData]
 
     // Actualizar orden
-    const { error: updateError } = await supabase
+    console.log('📝 [addImageToWorkOrder] Ejecutando update...')
+    const { error: updateError } = await client
       .from('work_orders')
       .update({ 
         images: updatedImages,
@@ -264,9 +276,11 @@ export async function addImageToWorkOrder(
       .eq('id', orderId)
 
     if (updateError) {
+      console.error('❌ [addImageToWorkOrder] Error actualizando orden:', updateError)
       return { success: false, error: updateError.message }
     }
 
+    console.log('✅ [addImageToWorkOrder] Orden actualizada exitosamente')
     return { success: true }
   } catch (error: any) {
     console.error('Error:', error)
