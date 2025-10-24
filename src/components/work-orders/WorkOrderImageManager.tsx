@@ -40,6 +40,7 @@ import {
   ImageCategory
 } from '@/lib/supabase/work-order-storage'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/contexts/AuthContext'
 import Image from 'next/image'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -133,6 +134,7 @@ export function WorkOrderImageManager({
   userId,
   maxImages = 20
 }: WorkOrderImageManagerProps) {
+  const { session } = useAuth()
   const [uploading, setUploading] = useState(false)
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null)
   const [selectedImage, setSelectedImage] = useState<WorkOrderImage | null>(null)
@@ -232,15 +234,19 @@ export function WorkOrderImageManager({
 
       console.log('📊 Tamaño a subir:', (fileToUpload.size / 1024 / 1024).toFixed(2), 'MB')
 
-      // Obtener token de autenticación
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      // ✅ Usar sesión del contexto (ya está disponible, sin await)
+      console.log('🔐 [CONTEXT] Usando sesión del AuthContext')
+      console.log('🔐 ¿Tiene sesión del contexto?:', !!session)
+      console.log('🔐 ¿Tiene token?:', !!session?.access_token)
 
       if (!session?.access_token) {
-        toast.error('Sesión expirada. Recarga la página.')
+        console.error('❌ [CONTEXT] No hay token en el contexto')
+        toast.error('Sesión inválida. Recarga la página.')
         setUploading(false)
         return
       }
+
+      console.log('✅ [CONTEXT] Token disponible desde contexto')
       
       // Subir imagen
       const uploadResult = await uploadWorkOrderImage(

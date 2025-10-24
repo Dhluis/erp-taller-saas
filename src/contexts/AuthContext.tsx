@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { User } from '@supabase/supabase-js'
+import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -32,6 +32,7 @@ interface Workshop {
 // Tipo del contexto
 interface AuthContextType {
   user: User | null
+  session: Session | null
   profile: Profile | null
   organization: Workshop | null
   loading: boolean
@@ -43,6 +44,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [organization, setOrganization] = useState<Workshop | null>(null)
   const [loading, setLoading] = useState(true)
@@ -186,6 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Obtener sesión actual
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
+      setSession(session)
       if (session?.user) {
         loadUserData(session.user.id)
       }
@@ -205,6 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       setUser(session?.user ?? null)
+      setSession(session)
       
       if (session?.user) {
         await loadUserData(session.user.id)
@@ -224,6 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await supabase.auth.signOut()
       setUser(null)
+      setSession(null)
       setProfile(null)
       setOrganization(null)
       router.push('/auth/login')
@@ -241,6 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     user,
+    session,
     profile,
     organization,
     loading,
