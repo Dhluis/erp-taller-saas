@@ -272,18 +272,48 @@ export function WorkOrderImageManager({
       }
 
       // ✅ Imagen subida exitosamente a Storage
-      // Actualizar estado local inmediatamente
-      console.log('🔄 [UPDATE STATE] Actualizando estado local...')
-      console.log('🔄 [UPDATE STATE] Imágenes antes:', images.length)
+      // Persistir directamente en BD (sin triggear callbacks)
+      console.log('💾 [PERSIST] Guardando imagen en BD...')
 
-      // Actualizar estado local
-      const updatedImages = [...images, uploadResult.data]
-      console.log('🔄 [UPDATE STATE] Imágenes después:', updatedImages.length)
+      // Obtener orden actual de la BD
+      const supabase = createClient()
+      const { data: currentOrder, error: fetchError } = await supabase
+        .from('work_orders')
+        .select('images')
+        .eq('id', orderId)
+        .single()
 
-      // Llamar al callback del componente padre
-      onImagesChange(updatedImages)
+      if (fetchError) {
+        console.error('❌ [PERSIST] Error obteniendo orden:', fetchError)
+        toast.error('Error al guardar imagen')
+        return
+      }
 
-      console.log('✅ [SUCCESS] Estado actualizado, imagen visible')
+      console.log('💾 [PERSIST] Orden obtenida, actualizando...')
+      const currentImages = currentOrder.images || []
+      const updatedImages = [...currentImages, uploadResult.data]
+
+      // Actualizar directamente en BD
+      const { error: updateError } = await supabase
+        .from('work_orders')
+        .update({ 
+          images: updatedImages,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+
+      if (updateError) {
+        console.error('❌ [PERSIST] Error actualizando:', updateError)
+        toast.error('Error al guardar imagen')
+        return
+      }
+
+      console.log('✅ [PERSIST] Imagen guardada en BD exitosamente')
+
+      // Actualizar UI sin triggear refetch
+      const newImagesList = [...images, uploadResult.data]
+      onImagesChange(newImagesList)
+
       toast.success('Imagen subida exitosamente')
 
       // Limpiar
