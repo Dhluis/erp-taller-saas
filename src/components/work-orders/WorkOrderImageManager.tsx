@@ -271,33 +271,19 @@ export function WorkOrderImageManager({
         return
       }
 
-      console.log('📝 [ADD TO DB] Iniciando addImageToWorkOrder...')
-      console.log('📝 [ADD TO DB] orderId:', orderId)
-      console.log('📝 [ADD TO DB] imageData:', uploadResult.data)
-
-      // Agregar a la BD
-      const addResult = await addImageToWorkOrder(orderId, uploadResult.data, session.access_token)
-
-      console.log('📝 [ADD TO DB] Resultado:', addResult)
-      console.log('📝 [ADD TO DB] Success:', addResult.success)
-
-      if (!addResult.success) {
-        console.error('❌ [ADD TO DB] Error al guardar:', addResult.error)
-        toast.error(addResult.error || 'Error al guardar imagen')
-        return
-      }
-
-      console.log('✅ [ADD TO DB] Imagen guardada exitosamente')
+      // ✅ Imagen subida exitosamente a Storage
+      // Actualizar estado local inmediatamente
       console.log('🔄 [UPDATE STATE] Actualizando estado local...')
+      console.log('🔄 [UPDATE STATE] Imágenes antes:', images.length)
 
       // Actualizar estado local
       const updatedImages = [...images, uploadResult.data]
-      console.log('🔄 [UPDATE STATE] Imágenes antes:', images.length)
       console.log('🔄 [UPDATE STATE] Imágenes después:', updatedImages.length)
 
+      // Llamar al callback del componente padre
       onImagesChange(updatedImages)
 
-      console.log('🎉 [SUCCESS] Proceso completado, mostrando toast')
+      console.log('✅ [SUCCESS] Estado actualizado, imagen visible')
       toast.success('Imagen subida exitosamente')
       
       // Limpiar
