@@ -81,7 +81,9 @@ export function WorkOrderDetailsTabs({
   const handleNotesChange = async (newNotes: WorkOrderNote[]) => {
     console.log('🔄 [WorkOrderDetailsTabs] Notas actualizadas:', newNotes.length)
     setNotes(newNotes)
-    onUpdate?.()
+    // ❌ NO hacer refetch inmediato - igual que con imágenes
+    // onUpdate?.()
+    console.log('✅ [WorkOrderDetailsTabs] Nota agregada sin refetch')
   }
 
   return (
