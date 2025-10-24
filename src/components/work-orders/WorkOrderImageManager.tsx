@@ -286,24 +286,6 @@ export function WorkOrderImageManager({
       console.log('✅ [SUCCESS] Estado actualizado, imagen visible')
       toast.success('Imagen subida exitosamente')
 
-      // 🔄 Persistir en BD de forma asíncrona (sin bloquear la UI)
-      console.log('💾 [PERSIST] Guardando en BD en background...')
-
-      // Llamar sin await para no bloquear
-      addImageToWorkOrder(orderId, uploadResult.data, session?.access_token)
-        .then(result => {
-          if (result.success) {
-            console.log('✅ [PERSIST] Imagen guardada en BD exitosamente')
-          } else {
-            console.error('❌ [PERSIST] Error guardando en BD:', result.error)
-            // No mostramos error al usuario porque la imagen ya está visible
-          }
-        })
-        .catch(error => {
-          console.error('❌ [PERSIST] Excepción guardando en BD:', error)
-          // No mostramos error al usuario porque la imagen ya está visible
-        })
-      
       // Limpiar
       e.target.value = ''
       setUploadDescription('')
