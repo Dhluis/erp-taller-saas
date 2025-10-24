@@ -272,45 +272,28 @@ export function WorkOrderImageManager({
       }
 
       // ✅ Imagen subida exitosamente a Storage
-      // Persistir directamente en BD (sin triggear callbacks)
-      console.log('💾 [PERSIST] Guardando imagen en BD...')
+      // Persistir en BD usando API route (servidor)
+      console.log('💾 [PERSIST] Guardando en BD via API...')
 
-      // Obtener orden actual de la BD
-      const supabase = createClient()
-      const { data: currentOrder, error: fetchError } = await supabase
-        .from('work_orders')
-        .select('images')
-        .eq('id', orderId)
-        .single()
-
-      if (fetchError) {
-        console.error('❌ [PERSIST] Error obteniendo orden:', fetchError)
-        toast.error('Error al guardar imagen')
-        return
-      }
-
-      console.log('💾 [PERSIST] Orden obtenida, actualizando...')
-      const currentImages = currentOrder.images || []
-      const updatedImages = [...currentImages, uploadResult.data]
-
-      // Actualizar directamente en BD
-      const { error: updateError } = await supabase
-        .from('work_orders')
-        .update({ 
-          images: updatedImages,
-          updated_at: new Date().toISOString()
+      try {
+        const response = await fetch(`/api/orders/${orderId}/images`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(uploadResult.data)
         })
-        .eq('id', orderId)
-
-      if (updateError) {
-        console.error('❌ [PERSIST] Error actualizando:', updateError)
+        
+        if (!response.ok) {
+          throw new Error('Error al guardar en BD')
+        }
+        
+        console.log('✅ [PERSIST] Guardado exitosamente')
+      } catch (error) {
+        console.error('❌ [PERSIST] Error:', error)
         toast.error('Error al guardar imagen')
         return
       }
 
-      console.log('✅ [PERSIST] Imagen guardada en BD exitosamente')
-
-      // Actualizar UI sin triggear refetch
+      // Actualizar UI
       const newImagesList = [...images, uploadResult.data]
       onImagesChange(newImagesList)
 
