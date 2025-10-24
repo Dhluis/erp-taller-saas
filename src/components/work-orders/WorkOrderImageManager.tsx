@@ -259,23 +259,43 @@ export function WorkOrderImageManager({
         session?.access_token
       )
 
+      console.log('✅ [UPLOAD RESULT] Upload completado:', uploadResult)
+      console.log('✅ [UPLOAD RESULT] Success:', uploadResult.success)
+      console.log('✅ [UPLOAD RESULT] Data:', uploadResult.data)
+
       if (!uploadResult.success || !uploadResult.data) {
+        console.error('❌ [UPLOAD RESULT] Falló la validación')
         toast.error(uploadResult.error || 'Error al subir imagen')
         return
       }
 
+      console.log('📝 [ADD TO DB] Iniciando addImageToWorkOrder...')
+      console.log('📝 [ADD TO DB] orderId:', orderId)
+      console.log('📝 [ADD TO DB] imageData:', uploadResult.data)
+
       // Agregar a la BD
       const addResult = await addImageToWorkOrder(orderId, uploadResult.data)
 
+      console.log('📝 [ADD TO DB] Resultado:', addResult)
+      console.log('📝 [ADD TO DB] Success:', addResult.success)
+
       if (!addResult.success) {
+        console.error('❌ [ADD TO DB] Error al guardar:', addResult.error)
         toast.error(addResult.error || 'Error al guardar imagen')
         return
       }
 
+      console.log('✅ [ADD TO DB] Imagen guardada exitosamente')
+      console.log('🔄 [UPDATE STATE] Actualizando estado local...')
+
       // Actualizar estado local
       const updatedImages = [...images, uploadResult.data]
+      console.log('🔄 [UPDATE STATE] Imágenes antes:', images.length)
+      console.log('🔄 [UPDATE STATE] Imágenes después:', updatedImages.length)
+
       onImagesChange(updatedImages)
 
+      console.log('🎉 [SUCCESS] Proceso completado, mostrando toast')
       toast.success('Imagen subida exitosamente')
       
       // Limpiar
