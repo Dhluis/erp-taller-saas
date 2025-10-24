@@ -5,15 +5,20 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  console.log('🔵 [API] Request recibida para work-orders')
+  console.log('🔵 [API] Order ID:', params.id)
+  
   try {
     const orderId = params.id
+    
+    console.log('🔵 [API] Parseando body...')
     const imageData = await request.json()
+    console.log('🔵 [API] Image data recibida')
     
-    console.log('📝 [API] Agregando imagen a orden:', orderId)
-    
+    console.log('🔵 [API] Creando cliente Supabase...')
     const supabase = createClient()
     
-    // Obtener orden actual
+    console.log('🔵 [API] Obteniendo orden...')
     const { data: order, error: fetchError } = await supabase
       .from('work_orders')
       .select('images')
@@ -21,18 +26,18 @@ export async function POST(
       .single()
     
     if (fetchError) {
-      console.error('❌ [API] Error obteniendo orden:', fetchError)
+      console.error('❌ [API] Error fetch:', fetchError)
       return NextResponse.json(
         { error: fetchError.message },
         { status: 500 }
       )
     }
     
-    // Agregar nueva imagen
-    const currentImages = order.images || []
+    console.log('🔵 [API] Orden obtenida, actualizando...')
+    
+    const currentImages = order?.images || []
     const updatedImages = [...currentImages, imageData]
     
-    // Actualizar orden
     const { error: updateError } = await supabase
       .from('work_orders')
       .update({
@@ -42,7 +47,7 @@ export async function POST(
       .eq('id', orderId)
     
     if (updateError) {
-      console.error('❌ [API] Error actualizando:', updateError)
+      console.error('❌ [API] Error update:', updateError)
       return NextResponse.json(
         { error: updateError.message },
         { status: 500 }
@@ -53,7 +58,7 @@ export async function POST(
     return NextResponse.json({ success: true })
     
   } catch (error: any) {
-    console.error('❌ [API] Error:', error)
+    console.error('❌ [API] Exception:', error)
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
