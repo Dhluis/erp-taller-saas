@@ -33,19 +33,9 @@ export function WorkOrderDetailsTabs({
   const [notes, setNotes] = useState<WorkOrderNote[]>(order?.notes || [])
   const [documents, setDocuments] = useState<any[]>(order?.documents || [])
   const [lastNotesUpdate, setLastNotesUpdate] = useState<number>(0)
-  
-  // 🔑 FLAG para prevenir sincronización después de upload
-  const justUploadedImage = useRef(false)
-  const uploadTimeout = useRef<NodeJS.Timeout>()
 
   // ✅ SINCRONIZAR ESTADO CON LA PROPIEDAD order.images
   useEffect(() => {
-    // 🛡️ Si acabamos de subir una imagen, NO sincronizar
-    if (justUploadedImage.current) {
-      console.log('⏸️ [WorkOrderDetailsTabs] Upload reciente detectado, pausando sincronización')
-      return
-    }
-    
     console.log('🔄 [WorkOrderDetailsTabs] Sincronizando imágenes:', order?.images)
     if (order?.images) {
       setImages(order.images)
@@ -77,36 +67,15 @@ export function WorkOrderDetailsTabs({
     }
   }, [order?.documents])
 
-  // 🧹 Limpiar timeout al desmontar
-  useEffect(() => {
-    return () => {
-      if (uploadTimeout.current) {
-        clearTimeout(uploadTimeout.current)
-      }
-    }
-  }, [])
 
   const handleImagesChange = async (newImages: WorkOrderImage[]) => {
     console.log('🔄 [WorkOrderDetailsTabs] Imágenes actualizadas:', newImages.length)
     setImages(newImages)
     
-    // 🔑 Activar flag de "upload reciente"
-    justUploadedImage.current = true
-    console.log('🔒 [WorkOrderDetailsTabs] Protección de sincronización activada por 5 segundos')
+    // ❌ COMENTAR ESTO - No hacer refetch inmediato
+    // onUpdate?.()
     
-    // Limpiar timeout anterior si existe
-    if (uploadTimeout.current) {
-      clearTimeout(uploadTimeout.current)
-    }
-    
-    // Desactivar flag después de 5 segundos
-    uploadTimeout.current = setTimeout(() => {
-      justUploadedImage.current = false
-      console.log('🔓 [WorkOrderDetailsTabs] Protección de sincronización desactivada')
-    }, 5000)
-    
-    // Notificar al padre (esto puede disparar refetch, pero ya estamos protegidos)
-    onUpdate?.()
+    console.log('✅ [WorkOrderDetailsTabs] Imagen agregada sin refetch')
   }
 
   const handleNotesChange = async (newNotes: WorkOrderNote[]) => {
