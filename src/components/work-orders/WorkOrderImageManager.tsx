@@ -135,6 +135,8 @@ export function WorkOrderImageManager({
   maxImages = 20
 }: WorkOrderImageManagerProps) {
   const { session } = useAuth()
+  
+  // 🔧 FIX: Use AuthContext token to avoid getSession() calls
   const [uploading, setUploading] = useState(false)
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null)
   const [selectedImage, setSelectedImage] = useState<WorkOrderImage | null>(null)

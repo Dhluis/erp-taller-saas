@@ -234,6 +234,7 @@ export async function deleteWorkOrderImage(
 
 /**
  * Agregar imagen a orden en la BD
+ * 🔧 FIX: Now accepts accessToken parameter to avoid getSession() calls
  */
 export async function addImageToWorkOrder(
   orderId: string,
