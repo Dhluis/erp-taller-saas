@@ -16,7 +16,7 @@ export async function POST(
     console.log('🔵 [API] Image data recibida')
     
     console.log('🔵 [API] Creando cliente Supabase...')
-    const supabase = createClient()
+    const supabase = await createClient()
     
     console.log('🔵 [API] Obteniendo orden...')
     const { data: order, error: fetchError } = await supabase
