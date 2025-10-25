@@ -45,10 +45,10 @@ export default function LandingPage() {
 
           <div className="flex items-center gap-3">
             <Button variant="ghost" asChild>
-              <Link href="/login">Iniciar Sesión</Link>
+              <Link href="/auth/login">Iniciar Sesión</Link>
             </Button>
             <Button asChild>
-              <Link href="/login">
+              <Link href="/auth/login">
                 Comenzar Gratis
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
@@ -99,7 +99,7 @@ export default function LandingPage() {
             transition={{ duration: 0.6, delay: 0.3 }}
           >
             <Button size="lg" asChild className="text-lg h-12 px-8">
-              <Link href="/login">
+              <Link href="/auth/login">
                 Probar Gratis
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
@@ -306,7 +306,7 @@ export default function LandingPage() {
             </div>
 
             <Button size="lg" asChild className="mt-6">
-              <Link href="/login">
+              <Link href="/auth/login">
                 Comenzar Ahora
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
@@ -359,7 +359,7 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Button size="lg" asChild className="text-lg h-12 px-8">
-                <Link href="/login">
+                <Link href="/auth/login">
                   Comenzar Gratis - 14 días
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
@@ -393,7 +393,7 @@ export default function LandingPage() {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="#features" className="hover:text-primary transition-colors">Características</Link></li>
                 <li><Link href="#pricing" className="hover:text-primary transition-colors">Precios</Link></li>
-                <li><Link href="/login" className="hover:text-primary transition-colors">Iniciar Sesión</Link></li>
+                <li><Link href="/auth/login" className="hover:text-primary transition-colors">Iniciar Sesión</Link></li>
               </ul>
             </div>
 
