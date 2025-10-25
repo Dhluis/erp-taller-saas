@@ -199,6 +199,7 @@ export default function LandingPage() {
               </CardDescription>
             </CardHeader>
           </Card>
+          </motion.div>
 
           {/* Feature 3 */}
           <Card className="border-2 hover:border-primary/50 transition-all hover:shadow-lg">
