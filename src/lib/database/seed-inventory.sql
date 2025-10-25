@@ -564,3 +564,4 @@ GROUP BY movement_type;
 
 
 
+
