@@ -47,8 +47,8 @@ export default function LandingPage() {
             <Button variant="ghost" asChild>
               <Link href="/auth/login">Iniciar Sesión</Link>
             </Button>
-            <Button asChild>
-              <Link href="/auth/login">
+            <Button asChild className="text-white">
+              <Link href="/auth/register">
                 Comenzar Gratis
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
@@ -98,9 +98,9 @@ export default function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            <Button size="lg" asChild className="text-lg h-12 px-8">
-              <Link href="/auth/login">
-                Probar Gratis
+            <Button size="lg" asChild className="text-lg h-12 px-8 text-white">
+              <Link href="/auth/register">
+                Probar Gratis - 7 días
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
@@ -305,8 +305,8 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <Button size="lg" asChild className="mt-6">
-              <Link href="/auth/login">
+            <Button size="lg" asChild className="mt-6 text-white">
+              <Link href="/auth/register">
                 Comenzar Ahora
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
@@ -358,9 +358,9 @@ export default function LandingPage() {
               Únete a cientos de talleres que ya están optimizando sus operaciones con EAGLES ERP
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <Button size="lg" asChild className="text-lg h-12 px-8">
-                <Link href="/auth/login">
-                  Comenzar Gratis - 14 días
+              <Button size="lg" asChild className="text-lg h-12 px-8 text-white">
+                <Link href="/auth/register">
+                  Comenzar Gratis - 7 días
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
