@@ -47,9 +47,9 @@ export default function LandingPage() {
             <Button variant="ghost" asChild>
               <Link href="/auth/login">Iniciar Sesión</Link>
             </Button>
-            <Button asChild className="text-white">
+            <Button asChild className="bg-primary text-white hover:bg-primary/90">
               <Link href="/auth/register">
-                Comenzar Gratis
+                Probar Gratis - 7 días
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -305,9 +305,9 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <Button size="lg" asChild className="mt-6 text-white">
+            <Button size="lg" asChild className="mt-6 bg-primary text-white hover:bg-primary/90">
               <Link href="/auth/register">
-                Comenzar Ahora
+                Probar Gratis - 7 días
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
@@ -358,9 +358,9 @@ export default function LandingPage() {
               Únete a cientos de talleres que ya están optimizando sus operaciones con EAGLES ERP
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <Button size="lg" asChild className="text-lg h-12 px-8 text-white">
+              <Button size="lg" asChild className="text-lg h-12 px-8 bg-primary text-white hover:bg-primary/90">
                 <Link href="/auth/register">
-                  Comenzar Gratis - 7 días
+                  Probar Gratis - 7 días
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
