@@ -98,7 +98,7 @@ export default function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            <Button size="lg" asChild className="text-lg h-12 px-8 text-white">
+            <Button size="lg" asChild className="text-lg h-12 px-8 bg-primary text-white hover:bg-primary/90">
               <Link href="/auth/register">
                 Probar Gratis - 7 días
                 <ArrowRight className="ml-2 h-5 w-5" />
