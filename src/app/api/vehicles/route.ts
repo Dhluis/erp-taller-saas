@@ -1,45 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getTenantContext } from '@/lib/core/multi-tenant-server'
+import { getAllVehicles } from '@/lib/database/queries/vehicles'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔄 GET /api/vehicles - Iniciando...')
+    const vehicles = await getAllVehicles()
     
-    // Obtener contexto del tenant
-    const tenantContext = await getTenantContext()
-    if (!tenantContext) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    const supabase = await createClient()
-    
-    // Obtener todos los vehículos de la organización
-    const { data: vehicles, error } = await supabase
-      .from('vehicles')
-      .select(`
-        *,
-        customer:customers!customer_id (
-          id,
-          name,
-          email,
-          phone
-        )
-      `)
-      .eq('workshop_id', tenantContext.workshopId)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('❌ Error obteniendo vehículos:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    console.log('✅ Vehículos obtenidos:', vehicles?.length || 0)
-    return NextResponse.json(vehicles || [])
-
+    return NextResponse.json({ success: true, data: vehicles })
   } catch (error: any) {
-    console.error('💥 Error en GET /api/vehicles:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('❌ API Error fetching vehicles:', error)
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    )
   }
 }
 

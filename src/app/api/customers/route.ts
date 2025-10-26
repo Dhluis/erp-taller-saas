@@ -1,47 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getTenantContext } from '@/lib/core/multi-tenant-server'
+import { getAllCustomers } from '@/lib/database/queries/customers'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔄 GET /api/customers - Iniciando...')
+    const { searchParams } = new URL(request.url)
+    const organizationId = searchParams.get('organizationId')
     
-    // Obtener contexto del tenant
-    const tenantContext = await getTenantContext()
-    if (!tenantContext) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    const supabase = await createClient()
+    const customers = await getAllCustomers(organizationId || undefined)
     
-    // Obtener todos los clientes de la organización
-    const { data: customers, error } = await supabase
-      .from('customers')
-      .select(`
-        *,
-        vehicles (
-          id,
-          brand,
-          model,
-          year,
-          license_plate,
-          color
-        )
-      `)
-      .eq('organization_id', tenantContext.organizationId)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('❌ Error obteniendo clientes:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    console.log('✅ Clientes obtenidos:', customers?.length || 0)
-    return NextResponse.json(customers || [])
-
+    return NextResponse.json({ success: true, data: customers })
   } catch (error: any) {
-    console.error('💥 Error en GET /api/customers:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('❌ API Error fetching customers:', error)
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    )
   }
 }
 
