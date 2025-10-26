@@ -250,7 +250,3 @@ const benefits = [
   "Actualizaciones continuas sin costo adicional",
   "Interfaz intuitiva, no se requiere capacitación extensa"
 ]
-
-// Landing page complete
-
-Last updated: 2025-10-25 19:07
