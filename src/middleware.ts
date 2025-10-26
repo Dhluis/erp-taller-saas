@@ -6,7 +6,9 @@ export async function middleware(request: NextRequest) {
 
   // Rutas públicas que NO requieren autenticación
   const publicRoutes = [
+    '/',
     '/auth/login',
+    '/auth/register',
     '/auth/signup',
     '/auth/callback',
     '/auth/forgot-password',
@@ -14,7 +16,7 @@ export async function middleware(request: NextRequest) {
   ]
 
   // Si es ruta pública, permitir acceso
-  if (publicRoutes.some(route => pathname.startsWith(route))) {
+  if (publicRoutes.some(route => pathname === route || pathname.startsWith(route))) {
     return NextResponse.next()
   }
 
