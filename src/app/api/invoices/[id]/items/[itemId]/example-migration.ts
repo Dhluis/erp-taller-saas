@@ -374,5 +374,8 @@ export async function DELETE(
 
 
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> parent of b9214dc (landing page cambios)

@@ -204,5 +204,8 @@ export function InventoryValuationChart({ data, loading }: InventoryValuationCha
 
 
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> parent of b9214dc (landing page cambios)

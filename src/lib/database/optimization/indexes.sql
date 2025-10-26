@@ -370,5 +370,8 @@ ANALYZE warranty_claims;
 
 
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> parent of b9214dc (landing page cambios)

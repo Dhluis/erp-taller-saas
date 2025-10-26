@@ -158,5 +158,8 @@ El endpoint de pagos por nota debería ser:
 
 
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> parent of b9214dc (landing page cambios)

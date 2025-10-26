@@ -264,5 +264,8 @@ export default function MovementsModal({
 
 
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> parent of b9214dc (landing page cambios)

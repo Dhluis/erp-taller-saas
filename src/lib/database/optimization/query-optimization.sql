@@ -310,5 +310,8 @@ ORDER BY idx_scan DESC;
 
 
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> parent of b9214dc (landing page cambios)

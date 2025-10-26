@@ -165,5 +165,8 @@ export const invoiceDiscountMigrationHelpers = {
 
 
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> parent of b9214dc (landing page cambios)
