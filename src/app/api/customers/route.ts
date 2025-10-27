@@ -21,3 +21,31 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const body = await request.json()
+    
+    const { data: customer, error } = await supabase
+      .from('customers')
+      .insert({
+        name: body.name,
+        email: body.email,
+        phone: body.phone,
+        address: body.address,
+        notes: body.notes,
+        organization_id: body.organization_id,
+        workshop_id: body.workshop_id
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return NextResponse.json(customer)
+  } catch (error: any) {
+    console.error('❌ Error creando cliente:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}

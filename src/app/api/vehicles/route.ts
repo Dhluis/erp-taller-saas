@@ -29,3 +29,41 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const body = await request.json()
+    
+    const { data: vehicle, error } = await supabase
+      .from('vehicles')
+      .insert({
+        customer_id: body.customer_id,
+        brand: body.brand,
+        model: body.model,
+        year: body.year,
+        license_plate: body.license_plate,
+        vin: body.vin,
+        color: body.color,
+        mileage: body.mileage,
+        workshop_id: body.workshop_id
+      })
+      .select(`
+        *,
+        customer:customers!customer_id (
+          id,
+          name,
+          email,
+          phone
+        )
+      `)
+      .single()
+
+    if (error) throw error
+
+    return NextResponse.json(vehicle)
+  } catch (error: any) {
+    console.error('❌ Error creando vehículo:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
