@@ -36,7 +36,7 @@ export default function LandingPage() {
               <Button variant="ghost">Iniciar Sesión</Button>
             </Link>
             <Link href="/auth/register">
-              <Button className="bg-primary text-white hover:bg-primary/90">
+              <Button className="bg-cyan-500 hover:bg-cyan-600 text-white">
                 Probar Gratis - 7 días
               </Button>
             </Link>
@@ -69,7 +69,7 @@ export default function LandingPage() {
             variants={fadeInUp}
           >
             <Link href="/auth/register">
-              <Button size="lg" className="bg-primary text-white hover:bg-primary/90 px-8">
+              <Button size="lg" className="bg-cyan-500 hover:bg-cyan-600 text-white px-8">
                 Probar Gratis - 7 días
               </Button>
             </Link>
