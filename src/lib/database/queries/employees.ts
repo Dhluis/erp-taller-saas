@@ -1,4 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/client'
+
+// Helper para obtener cliente
+function getClient() {
+  return createClient()
+}
 
 /**
  * Tipo para el modelo Employee
@@ -22,7 +27,7 @@ export interface Employee {
  * Obtener todos los empleados
  */
 export async function getAllEmployees(workshopId?: string) {
-  const supabase = await createClient()
+  const supabase = getClient()
 
   let query = supabase
     .from('employees')
@@ -48,7 +53,7 @@ export async function getAllEmployees(workshopId?: string) {
  * Obtener un empleado por ID
  */
 export async function getEmployeeById(id: string) {
-  const supabase = await createClient()
+  const supabase = getClient()
 
   const { data: employee, error } = await supabase
     .from('employees')
@@ -68,7 +73,7 @@ export async function getEmployeeById(id: string) {
  * Obtener mecánicos activos
  */
 export async function getActiveMechanics(workshopId?: string) {
-  const supabase = await createClient()
+  const supabase = getClient()
 
   let query = supabase
     .from('employees')
@@ -107,7 +112,7 @@ export interface EmployeeStats {
  * Obtener estadísticas de un empleado
  */
 export async function getEmployeeStats(employeeId: string): Promise<EmployeeStats> {
-  const supabase = await createClient()
+  const supabase = getClient()
   
   const { data: orders, error } = await supabase
     .from('work_orders')
@@ -160,7 +165,7 @@ export async function getEmployeeOrders(
     limit?: number
   }
 ): Promise<any[]> {
-  const supabase = await createClient()
+  const supabase = getClient()
   
   let query = supabase
     .from('work_orders')
@@ -193,7 +198,7 @@ export async function assignOrderToEmployee(
   orderId: string,
   employeeId: string
 ): Promise<any> {
-  const supabase = await createClient()
+  const supabase = getClient()
   
   const { data, error } = await supabase
     .from('work_orders')
@@ -213,7 +218,7 @@ export async function assignOrderToEmployee(
 }
 
 export async function unassignOrder(orderId: string): Promise<any> {
-  const supabase = await createClient()
+  const supabase = getClient()
   
   const { data, error } = await supabase
     .from('work_orders')
@@ -233,7 +238,7 @@ export async function unassignOrder(orderId: string): Promise<any> {
 }
 
 export async function getAllEmployeesWithStats(): Promise<any[]> {
-  const supabase = await createClient()
+  const supabase = getClient()
   
   const { data: employees, error: empError } = await supabase
     .from('employees')
