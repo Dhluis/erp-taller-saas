@@ -148,7 +148,7 @@ export default function KanbanPage() {
 
   // Agrupar órdenes por estado
   const ordersByStatus = useCallback(() => {
-    if (!workOrders) return {};
+    if (!workOrders || !Array.isArray(workOrders)) return {};
     
     return workOrders.reduce((acc, order) => {
       const status = order.status as KanbanStatus;
@@ -289,8 +289,8 @@ export default function KanbanPage() {
           >
             <div className="overflow-x-auto pb-4">
               <div className="flex gap-6 min-w-max">
-                {KANBAN_COLUMNS.map((column) => {
-                  const columnOrders = ordersByStatusData[column.id] || [];
+                {Array.isArray(KANBAN_COLUMNS) ? KANBAN_COLUMNS.map((column) => {
+                  const columnOrders = Array.isArray(ordersByStatusData[column.id]) ? ordersByStatusData[column.id] : [];
                   
                   return (
                     <KanbanColumn
@@ -302,7 +302,7 @@ export default function KanbanPage() {
                       vehicles={vehicles}
                     />
                   );
-                })}
+                }) : null}
               </div>
             </div>
 
