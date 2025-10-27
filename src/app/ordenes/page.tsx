@@ -366,6 +366,7 @@ export default function OrdenesPage() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </div>
 
