@@ -112,7 +112,7 @@ export default function CustomersPage() {
       if (!response.ok) throw new Error('Error al actualizar cliente')
 
       const updatedCustomer = await response.json()
-      setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? updatedCustomer : c))
+      setCustomers(prev => Array.isArray(prev) ? prev.map(c => c.id === selectedCustomer.id ? updatedCustomer : c) : [updatedCustomer])
       setShowEditDialog(false)
       setSelectedCustomer(null)
       setFormData({ name: '', email: '', phone: '', address: '', notes: '' })
@@ -137,7 +137,7 @@ export default function CustomersPage() {
         throw new Error(error.error || 'Error al eliminar cliente')
       }
 
-      setCustomers(prev => prev.filter(c => c.id !== customer.id))
+      setCustomers(prev => Array.isArray(prev) ? prev.filter(c => c.id !== customer.id) : [])
       toast.success('Cliente eliminado exitosamente')
     } catch (error: any) {
       console.error('Error eliminando cliente:', error)
@@ -159,11 +159,11 @@ export default function CustomersPage() {
   }
 
   // Filtrar clientes
-  const filteredCustomers = customers.filter(customer =>
+  const filteredCustomers = Array.isArray(customers) ? customers.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.phone?.includes(searchTerm)
-  )
+  ) : []
 
   useEffect(() => {
     loadCustomers()
@@ -301,7 +301,7 @@ export default function CustomersPage() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredCustomers.map((customer) => (
+          {Array.isArray(filteredCustomers) ? filteredCustomers.map((customer) => (
             <Card key={customer.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
@@ -340,10 +340,10 @@ export default function CustomersPage() {
                     <span className="truncate">{customer.address}</span>
                   </div>
                 )}
-                {customer.vehicles && customer.vehicles.length > 0 && (
+                {customer.vehicles && Array.isArray(customer.vehicles) && customer.vehicles.length > 0 && (
                   <div className="mt-3 pt-3 border-t">
                     <p className="text-xs font-medium text-muted-foreground mb-2">Vehículos:</p>
-                    {customer.vehicles.slice(0, 2).map((vehicle) => (
+                    {Array.isArray(customer.vehicles) ? customer.vehicles.slice(0, 2).map((vehicle) => (
                       <div key={vehicle.id} className="flex items-center gap-2 text-sm">
                         <Car className="h-3 w-3 text-muted-foreground" />
                         <span>{vehicle.brand} {vehicle.model}</span>
@@ -353,7 +353,7 @@ export default function CustomersPage() {
                           </Badge>
                         )}
                       </div>
-                    ))}
+                    )) : null}
                     {customer.vehicles.length > 2 && (
                       <p className="text-xs text-muted-foreground">
                         +{customer.vehicles.length - 2} más
@@ -363,7 +363,7 @@ export default function CustomersPage() {
                 )}
               </CardContent>
             </Card>
-          ))}
+          )) : null}
         </div>
       )}
 
