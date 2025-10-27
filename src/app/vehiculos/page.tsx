@@ -151,7 +151,7 @@ export default function VehiclesPage() {
       if (!response.ok) throw new Error('Error al actualizar vehículo')
 
       const updatedVehicle = await response.json()
-      setVehicles(prev => prev.map(v => v.id === selectedVehicle.id ? updatedVehicle : v))
+      setVehicles(prev => Array.isArray(prev) ? prev.map(v => v.id === selectedVehicle.id ? updatedVehicle : v) : [updatedVehicle])
       setShowEditDialog(false)
       setSelectedVehicle(null)
       setFormData({
@@ -185,7 +185,7 @@ export default function VehiclesPage() {
         throw new Error(error.error || 'Error al eliminar vehículo')
       }
 
-      setVehicles(prev => prev.filter(v => v.id !== vehicle.id))
+      setVehicles(prev => Array.isArray(prev) ? prev.filter(v => v.id !== vehicle.id) : [])
       toast.success('Vehículo eliminado exitosamente')
     } catch (error: any) {
       console.error('Error eliminando vehículo:', error)
@@ -210,12 +210,12 @@ export default function VehiclesPage() {
   }
 
   // Filtrar vehículos
-  const filteredVehicles = vehicles.filter(vehicle =>
+  const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter(vehicle =>
     vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
     vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
     vehicle.license_plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     vehicle.customer.name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  ) : []
 
   useEffect(() => {
     loadData()
@@ -264,11 +264,11 @@ export default function VehiclesPage() {
                     <SelectValue placeholder="Seleccionar cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {customers.map((customer) => (
+                    {Array.isArray(customers) ? customers.map((customer) => (
                       <SelectItem key={customer.id} value={customer.id}>
                         {customer.name}
                       </SelectItem>
-                    ))}
+                    )) : null}
                   </SelectContent>
                 </Select>
               </div>
@@ -403,7 +403,7 @@ export default function VehiclesPage() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredVehicles.map((vehicle) => (
+          {Array.isArray(filteredVehicles) ? filteredVehicles.map((vehicle) => (
             <Card key={vehicle.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
@@ -470,7 +470,7 @@ export default function VehiclesPage() {
                 )}
               </CardContent>
             </Card>
-          ))}
+          )) : null}
         </div>
       )}
 
@@ -491,11 +491,11 @@ export default function VehiclesPage() {
                   <SelectValue placeholder="Seleccionar cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  {customers.map((customer) => (
+                  {Array.isArray(customers) ? customers.map((customer) => (
                     <SelectItem key={customer.id} value={customer.id}>
                       {customer.name}
                     </SelectItem>
-                  ))}
+                  )) : null}
                 </SelectContent>
               </Select>
             </div>
