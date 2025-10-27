@@ -280,6 +280,234 @@ export async function getActiveMechanics(): Promise<Employee[]> {
   )
 }
 
+/**
+ * Estadísticas de empleado/mecánico
+ */
+export interface EmployeeStats {
+  employee_id: string
+  total_orders: number
+  in_progress_orders: number
+  completed_orders: number
+  avg_completion_time: number | null
+  efficiency_rate: number
+}
+
+/**
+ * Obtener estadísticas de un empleado
+ */
+export async function getEmployeeStats(employeeId: string): Promise<EmployeeStats> {
+  return executeWithErrorHandling(
+    async () => {
+      const client = getSupabaseClient()
+      
+      // Obtener todas las órdenes del empleado
+      const { data: orders, error } = await client
+        .from('work_orders')
+        .select('id, status, entry_date, completed_at')
+        .eq('assigned_to', employeeId)
+      
+      if (error) {
+        throw new Error(`Failed to fetch employee stats: ${error.message}`)
+      }
+      
+      const total_orders = orders?.length || 0
+      const completed = orders?.filter(o => o.status === 'completed') || []
+      const in_progress = orders?.filter(o => 
+        o.status !== 'completed' && o.status !== 'cancelled'
+      ) || []
+      
+      // Calcular tiempo promedio de completación
+      let avg_completion_time = null
+      if (completed.length > 0) {
+        const times = completed
+          .filter(o => o.completed_at && o.entry_date)
+          .map(o => {
+            const start = new Date(o.entry_date).getTime()
+            const end = new Date(o.completed_at!).getTime()
+            return (end - start) / (1000 * 60 * 60 * 24) // días
+          })
+        
+        if (times.length > 0) {
+          avg_completion_time = times.reduce((a, b) => a + b, 0) / times.length
+        }
+      }
+      
+      // Calcular eficiencia (órdenes completadas / total)
+      const efficiency_rate = total_orders > 0 
+        ? (completed.length / total_orders) * 100 
+        : 0
+      
+      return {
+        employee_id: employeeId,
+        total_orders,
+        in_progress_orders: in_progress.length,
+        completed_orders: completed.length,
+        avg_completion_time,
+        efficiency_rate: Math.round(efficiency_rate * 100) / 100
+      }
+    },
+    {
+      operation: 'getEmployeeStats',
+      table: 'work_orders'
+    }
+  )
+}
+
+/**
+ * Obtener órdenes asignadas a un empleado
+ */
+export async function getEmployeeOrders(
+  employeeId: string,
+  filters?: {
+    status?: string
+    limit?: number
+  }
+): Promise<any[]> {
+  return executeWithErrorHandling(
+    async () => {
+      const client = getSupabaseClient()
+      
+      let query = client
+        .from('work_orders')
+        .select(`
+          *,
+          customer:customers(id, name, phone, email),
+          vehicle:vehicles(id, brand, model, year, license_plate)
+        `)
+        .eq('assigned_to', employeeId)
+      
+      if (filters?.status) {
+        query = query.eq('status', filters.status)
+      }
+      
+      if (filters?.limit) {
+        query = query.limit(filters.limit)
+      }
+      
+      const { data, error } = await query
+        .order('entry_date', { ascending: false })
+      
+      if (error) {
+        throw new Error(`Failed to fetch employee orders: ${error.message}`)
+      }
+      
+      return data || []
+    },
+    {
+      operation: 'getEmployeeOrders',
+      table: 'work_orders'
+    }
+  )
+}
+
+/**
+ * Asignar orden a un empleado
+ */
+export async function assignOrderToEmployee(
+  orderId: string,
+  employeeId: string
+): Promise<any> {
+  return executeWithErrorHandling(
+    async () => {
+      const client = getSupabaseClient()
+      
+      const { data, error } = await client
+        .from('work_orders')
+        .update({
+          assigned_to: employeeId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .select()
+        .single()
+      
+      if (error) {
+        throw new Error(`Failed to assign order: ${error.message}`)
+      }
+      
+      return data
+    },
+    {
+      operation: 'assignOrderToEmployee',
+      table: 'work_orders'
+    }
+  )
+}
+
+/**
+ * Remover asignación de orden
+ */
+export async function unassignOrder(orderId: string): Promise<any> {
+  return executeWithErrorHandling(
+    async () => {
+      const client = getSupabaseClient()
+      
+      const { data, error } = await client
+        .from('work_orders')
+        .update({
+          assigned_to: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .select()
+        .single()
+      
+      if (error) {
+        throw new Error(`Failed to unassign order: ${error.message}`)
+      }
+      
+      return data
+    },
+    {
+      operation: 'unassignOrder',
+      table: 'work_orders'
+    }
+  )
+}
+
+/**
+ * Obtener resumen de todos los empleados con sus estadísticas
+ */
+export async function getAllEmployeesWithStats(): Promise<any[]> {
+  return executeWithErrorHandling(
+    async () => {
+      const client = getSupabaseClient()
+      
+      // Obtener todos los empleados activos
+      const { data: employees, error: empError } = await client
+        .from('employees')
+        .select('*')
+        .eq('is_active', true)
+        .order('name', { ascending: true })
+      
+      if (empError) {
+        throw new Error(`Failed to fetch employees: ${empError.message}`)
+      }
+      
+      if (!employees || employees.length === 0) {
+        return []
+      }
+      
+      // Obtener estadísticas para cada empleado
+      const employeesWithStats = await Promise.all(
+        employees.map(async (emp) => {
+          const stats = await getEmployeeStats(emp.id)
+          return {
+            ...emp,
+            stats
+          }
+        })
+      )
+      
+      return employeesWithStats
+    },
+    {
+      operation: 'getAllEmployeesWithStats',
+      table: 'employees'
+    }
+  )
+}
+
 
 
 
