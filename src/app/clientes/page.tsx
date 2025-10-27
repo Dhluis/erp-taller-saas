@@ -66,8 +66,8 @@ export default function CustomersPage() {
       const response = await fetch('/api/customers')
       if (!response.ok) throw new Error('Error al cargar clientes')
       
-      const data = await response.json()
-      setCustomers(data)
+      const result = await response.json()
+      setCustomers(result.data || [])
     } catch (error: any) {
       console.error('Error cargando clientes:', error)
       toast.error('Error al cargar clientes')
