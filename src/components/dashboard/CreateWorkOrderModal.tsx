@@ -83,7 +83,8 @@ export function CreateWorkOrderModal({
     if (open && profile?.workshop_id) {
       loadMechanics()
     }
-  }, [open, profile])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, profile?.workshop_id])
 
   // Prefijar descripción según el tipo de servicio
   useEffect(() => {
@@ -382,7 +383,7 @@ export function CreateWorkOrderModal({
           description: formData.description,
           estimated_cost: formData.estimated_cost ? parseFloat(formData.estimated_cost) : 0,
           entry_date: new Date().toISOString(),
-          assigned_to: formData.assigned_to || null, // ✅ Campo corregido
+          assigned_to: formData.assigned_to && formData.assigned_to.trim() !== '' ? formData.assigned_to : null, // ✅ Campo corregido
           created_by: user.id // ✅ Nuevo campo
         })
         .select()
