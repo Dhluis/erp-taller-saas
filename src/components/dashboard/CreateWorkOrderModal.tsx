@@ -1,7 +1,7 @@
 // components/dashboard/CreateWorkOrderModal.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { 
   Dialog, 
   DialogContent, 
@@ -78,13 +78,38 @@ export function CreateWorkOrderModal({
     assigned_to: '' // Campo corregido
   })
 
+  const loadMechanics = useCallback(async () => {
+    if (!profile?.workshop_id) return
+    
+    try {
+      setLoadingMechanics(true)
+      const client = createClient()
+      
+      const { data, error } = await client
+        .from('employees')
+        .select('id, name, role, email')
+        .eq('workshop_id', profile.workshop_id)
+        .eq('is_active', true)
+        .in('role', ['mechanic', 'technician'])
+        .order('name')
+      
+      if (error) throw error
+      
+      setMechanics(data || [])
+      console.log('✅ Mecánicos disponibles:', data?.length || 0)
+    } catch (error) {
+      console.error('Error cargando mecánicos:', error)
+    } finally {
+      setLoadingMechanics(false)
+    }
+  }, [profile?.workshop_id])
+
   // Cargar mecánicos cuando se abre el modal
   useEffect(() => {
-    if (open && profile?.workshop_id) {
+    if (open) {
       loadMechanics()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, profile?.workshop_id])
+  }, [open, loadMechanics])
 
   // Prefijar descripción según el tipo de servicio
   useEffect(() => {
@@ -103,41 +128,7 @@ export function CreateWorkOrderModal({
         }))
       }
     }
-  }, [open, prefilledServiceType])
-
-  const loadMechanics = async () => {
-    if (!profile?.workshop_id) return
-
-    try {
-      setLoadingMechanics(true)
-      
-      const { data, error } = await supabase
-        .from('employees')
-        .select('id, name, role, is_active')
-        .eq('workshop_id', profile.workshop_id)
-        .eq('is_active', true)
-        .in('role', ['mechanic', 'supervisor']) // Solo mecánicos y supervisores
-        .order('name')
-
-      if (error) {
-        console.error('Error cargando mecánicos:', error)
-        return
-      }
-
-      // Filtrar mecánicos con IDs válidos (no vacíos)
-      const validMechanics = (data || []).filter(m => m.id && m.id.trim() !== '')
-      setMechanics(validMechanics)
-      console.log('✅ Mecánicos disponibles:', validMechanics.length)
-      
-      if (validMechanics.length !== (data || []).length) {
-        console.warn('⚠️ Se filtraron mecánicos con IDs inválidos:', (data || []).length - validMechanics.length)
-      }
-    } catch (error) {
-      console.error('Error:', error)
-    } finally {
-      setLoadingMechanics(false)
-    }
-  }
+  }, [open, prefilledServiceType]) // eslint-disable-next-line react-hooks/exhaustive-deps
 
   // Validaciones
   const validatePhone = (phone: string): string | undefined => {
