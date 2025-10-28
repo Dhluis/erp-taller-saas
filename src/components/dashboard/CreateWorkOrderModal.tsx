@@ -363,24 +363,38 @@ export function CreateWorkOrderModal({
 
       // Crear la orden de trabajo
       console.log('📋 [CreateOrder] Creando orden...')
-      const { data: newOrder, error: workOrderError } = await supabase
+      
+      const orderData = {
+        organization_id: organizationId,
+        workshop_id: workshopId,
+        customer_id: customerId,
+        vehicle_id: vehicleId,
+        description: formData.description?.trim() || 'Sin descripción',
+        estimated_cost: parseFloat(formData.estimated_cost) || 0,
+        status: 'reception',
+        entry_date: new Date().toISOString(),
+        assigned_to: formData.assigned_to && formData.assigned_to.trim() !== '' 
+          ? formData.assigned_to 
+          : null
+      }
+
+      console.log('📊 [CreateOrder] orderData completo:', JSON.stringify(orderData, null, 2))
+
+      const { data: newOrder, error: orderError } = await supabase
         .from('work_orders')
-        .insert({
-          organization_id: organizationId, // ✅ Obtenido del workshop
-          workshop_id: workshopId,
-          customer_id: customerId,
-          vehicle_id: vehicleId,
-          status: 'reception',
-          description: formData.description,
-          estimated_cost: formData.estimated_cost ? parseFloat(formData.estimated_cost) : 0,
-          entry_date: new Date().toISOString(),
-          assigned_to: formData.assigned_to && formData.assigned_to.trim() !== '' ? formData.assigned_to : null, // ✅ Campo corregido
-          created_by: user.id // ✅ Nuevo campo
-        })
+        .insert(orderData)
         .select()
         .single()
 
-      if (workOrderError) throw workOrderError
+      if (orderError) {
+        console.error('❌ [CreateOrder] Error completo:', {
+          message: orderError.message,
+          details: orderError.details,
+          hint: orderError.hint,
+          code: orderError.code
+        })
+        throw new Error(`Error creando orden: ${orderError.message}`)
+      }
 
       console.log('✅ [CreateOrder] ¡Orden creada!:', newOrder.id)
       
