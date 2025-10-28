@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { CreateWorkOrderModal } from './CreateWorkOrderModal'
+import CreateWorkOrderModal from './CreateWorkOrderModal'
 import { Plus } from 'lucide-react'
 
 /**

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Plus, Users, Car, FileText, Calendar, Wrench, Settings, Hammer } from 'lucide-react'
-import { CreateWorkOrderModal } from './CreateWorkOrderModal'
+import CreateWorkOrderModal from './CreateWorkOrderModal'
 
 interface QuickActionsProps {
   onOrderCreated?: () => void
