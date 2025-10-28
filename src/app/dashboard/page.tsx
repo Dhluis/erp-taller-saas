@@ -108,11 +108,9 @@ export default function DashboardPage() {
         });
       }
       console.log('Datos por estado:', data);
-      const totalFromAPI = Array.isArray(Object.entries(data))
-        ? Object.entries(data)
-            .filter(([key]) => key !== 'success' && key !== 'total')
-            .reduce((sum, [_, val]) => sum + (typeof val === 'number' ? val : 0), 0)
-        : 0;
+      const totalFromAPI = Object.entries(data)
+        .filter(([key]) => key !== 'success' && key !== 'total')
+        .reduce((sum, [_, val]) => sum + (typeof val === 'number' ? val : 0), 0);
       console.log('Total de órdenes (calculado):', totalFromAPI);
       console.log('Total de órdenes (del API):', data.total);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -158,14 +156,12 @@ export default function DashboardPage() {
   };
   
   // Calcular estadísticas dinámicamente de ordersByStatus
-  const totalOrdenes = Array.isArray(ordersByStatus) ? ordersByStatus.reduce((sum, item) => sum + item.value, 0) : 0;
-  const ordenesActivas = Array.isArray(ordersByStatus)
-    ? ordersByStatus
-        .filter(item => !['Recepción', 'Completado'].includes(item.name))
-        .reduce((sum, item) => sum + item.value, 0)
-    : 0;
-  const ordenesCompletadas = Array.isArray(ordersByStatus) ? (ordersByStatus.find(item => item.name === 'Completado')?.value || 0) : 0;
-  const ordenesPendientes = Array.isArray(ordersByStatus) ? (ordersByStatus.find(item => item.name === 'Recepción')?.value || 0) : 0;
+  const totalOrdenes = ordersByStatus.reduce((sum, item) => sum + item.value, 0);
+  const ordenesActivas = ordersByStatus
+    .filter(item => !['Recepción', 'Completado'].includes(item.name))
+    .reduce((sum, item) => sum + item.value, 0);
+  const ordenesCompletadas = ordersByStatus.find(item => item.name === 'Completado')?.value || 0;
+  const ordenesPendientes = ordersByStatus.find(item => item.name === 'Recepción')?.value || 0;
 
   console.log('📊 Estadísticas calculadas:', {
     total: totalOrdenes,
@@ -429,7 +425,7 @@ export default function DashboardPage() {
                       <p className="text-gray-400 text-sm">Cargando datos...</p>
                     </div>
                   </div>
-                ) : (Array.isArray(ordersByStatus) && ordersByStatus.every(item => item.value === 0)) ? (
+                ) : ordersByStatus.every(item => item.value === 0) ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
                       <AlertTriangle className="w-12 h-12 text-gray-600 mx-auto mb-3" />
@@ -460,7 +456,7 @@ export default function DashboardPage() {
                       verticalAlign="middle"
                       iconType="circle"
                       formatter={(value, entry: any) => {
-                        const item = Array.isArray(ordersByStatus) ? ordersByStatus.find(s => s.name === value) : null
+                        const item = ordersByStatus.find(s => s.name === value)
                         return `${value} (${item?.value || 0})`
                       }}
                     />

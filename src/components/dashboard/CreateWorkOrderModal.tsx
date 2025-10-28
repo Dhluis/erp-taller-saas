@@ -86,7 +86,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const { user, profile } = useAuth()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
-  const [errors, setErrors] = useState<ValidationErrors>({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [mechanics, setMechanics] = useState<Mechanic[]>([])
   const [loadingMechanics, setLoadingMechanics] = useState(false)
@@ -385,12 +385,6 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       mecanico: formData.assigned_to
     })
     
-    // Marcar todos como touched
-    const allFields = ['customer_phone', 'customer_email', 'vehicle_year', 'mileage', 'estimated_cost']
-    const newTouched: Record<string, boolean> = {}
-    allFields.forEach(field => { newTouched[field] = true })
-    setTouched(newTouched)
-    
     if (!user || !profile) {
       toast.error('Error', {
         description: 'No hay sesión activa. Por favor recarga la página.'
@@ -426,39 +420,30 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       console.log('✅ [CreateOrder] Organization ID:', organizationId)
 
       // Verificar si el cliente ya existe
-      console.log('👥 [CreateOrder] Buscando cliente:', formData.customerPhone)
+      console.log('👤 [CreateOrder] Buscando cliente con teléfono:', formData.customerPhone)
       const { data: existingCustomer } = await supabase
         .from('customers')
-        .select('id')
+        .select('*')
         .eq('phone', formData.customerPhone)
         .eq('workshop_id', workshopId)
         .maybeSingle()
+      
+      console.log('📞 [CreateOrder] Cliente encontrado:', existingCustomer)
 
       let customerId = existingCustomer?.id
 
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      console.log('📋 [DEBUG] DATOS DEL FORMULARIO')
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      console.log('👤 Cliente:', {
-        name: formData.customerName,
-        phone: formData.customerPhone,
-        email: formData.customerEmail,
-        address: formData.customerAddress
-      })
-      console.log('🚗 Vehículo:', {
-        brand: formData.vehicleBrand,
-        model: formData.vehicleModel,
-        year: formData.vehicleYear,
-        plate: formData.vehiclePlate,
-        color: formData.vehicleColor,
-        mileage: formData.vehicleMileage
-      })
-      console.log('📝 Orden:', {
-        description: formData.description,
-        cost: formData.estimated_cost,
-        mechanic: formData.assigned_to
-      })
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      if (existingCustomer) {
+        console.log('✅ Usando cliente existente:', existingCustomer.id, existingCustomer.name)
+        customerId = existingCustomer.id
+      } else {
+        console.log('➕ [CreateOrder] Cliente NO existe, creando nuevo...')
+        console.log('📋 Datos del nuevo cliente:', {
+          name: formData.customerName,
+          phone: formData.customerPhone,
+          email: formData.customerEmail,
+          address: formData.customerAddress
+        })
+      }
 
       // Crear cliente si no existe
       if (!customerId) {

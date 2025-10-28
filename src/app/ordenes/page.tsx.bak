@@ -113,11 +113,11 @@ export default function OrdenesPage() {
         setOrders(mockOrders)
         setStats({
           totalOrders: mockOrders.length,
-          pendingOrders: Array.isArray(mockOrders) ? mockOrders.filter(o => o.status === 'pending').length : 0,
-          inProgressOrders: Array.isArray(mockOrders) ? mockOrders.filter(o => o.status === 'in_progress').length : 0,
-          completedOrders: Array.isArray(mockOrders) ? mockOrders.filter(o => o.status === 'completed').length : 0,
-          cancelledOrders: Array.isArray(mockOrders) ? mockOrders.filter(o => o.status === 'cancelled').length : 0,
-          totalRevenue: Array.isArray(mockOrders) ? mockOrders.reduce((sum, o) => sum + o.total, 0) : 0
+          pendingOrders: mockOrders.filter(o => o.status === 'pending').length,
+          inProgressOrders: mockOrders.filter(o => o.status === 'in_progress').length,
+          completedOrders: mockOrders.filter(o => o.status === 'completed').length,
+          cancelledOrders: mockOrders.filter(o => o.status === 'cancelled').length,
+          totalRevenue: mockOrders.reduce((sum, o) => sum + o.total, 0)
         })
       } else {
         setOrders(ordersData)
@@ -221,12 +221,12 @@ export default function OrdenesPage() {
     setIsDialogOpen(true)
   }
 
-  const filteredOrders = Array.isArray(orders) ? orders.filter(
+  const filteredOrders = orders.filter(
     (order) =>
       (order.customer_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.vehicle_info || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.id || '').toLowerCase().includes(searchTerm.toLowerCase())
-  ) : []
+  )
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -441,7 +441,7 @@ export default function OrdenesPage() {
                 </tr>
               </thead>
               <tbody className="[&_tr:last-child]:border-0">
-                {Array.isArray(filteredOrders) ? filteredOrders.map((order) => (
+                {filteredOrders.map((order) => (
                   <tr key={order.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{order.id}</td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 flex items-center gap-2">
@@ -483,7 +483,7 @@ export default function OrdenesPage() {
                       </div>
                     </td>
                   </tr>
-                )) : null}
+                ))}
               </tbody>
             </table>
           </div>
