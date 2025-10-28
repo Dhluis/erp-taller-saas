@@ -1,26 +1,24 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Deshabilitar ESLint durante el build
+  // Configuración para Supabase
+  serverExternalPackages: ['@supabase/ssr'],
+  
+  // Deshabilitar ESLint durante el build para evitar errores
   eslint: {
     ignoreDuringBuilds: true,
   },
   
-  // Deshabilitar TypeScript errors durante build (opcional)
+  // Deshabilitar TypeScript errors durante build
   typescript: {
-    ignoreBuildErrors: true, // Deshabilitado temporalmente para build rápido
+    ignoreBuildErrors: true,
   },
 
-  // Desactivar redirecciones automáticas que puedan estar causando problemas
-  async redirects() {
-    return []
-  },
-  
-  // Limpiar caché
+  // Configuración experimental
   experimental: {
     forceSwcTransforms: true,
   },
   
-  // Configuración para imágenes de Supabase Storage
+  // Configuración para imágenes
   images: {
     remotePatterns: [
       {
@@ -29,6 +27,38 @@ const nextConfig = {
         pathname: '/storage/v1/object/public/**',
       },
     ],
+  },
+
+  // Configuración de webpack para Supabase
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      }
+    }
+    return config
+  },
+
+  // Headers de seguridad
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+        ],
+      },
+    ]
   },
 }
 
