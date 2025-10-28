@@ -9,7 +9,7 @@ import { Plus, Wrench, Mail, Phone, Edit, Power } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
-import { CreateMechanicModal } from '@/components/mecanicos/CreateMechanicModal'
+import CreateEditMechanicModal from '@/components/mecanicos/CreateEditMechanicModal'
 import { AppLayout } from '@/components/layout/AppLayout'
 
 interface Mechanic {
@@ -29,6 +29,7 @@ export default function MecanicosPage() {
   const [mechanics, setMechanics] = useState<Mechanic[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingMechanicId, setEditingMechanicId] = useState<string | null>(null)
 
   const fetchMechanics = async () => {
     if (!profile?.workshop_id) {
@@ -133,7 +134,10 @@ export default function MecanicosPage() {
               Gestiona tu equipo de trabajo
             </p>
           </div>
-          <Button onClick={() => setModalOpen(true)}>
+          <Button onClick={() => {
+            setEditingMechanicId(null)
+            setModalOpen(true)
+          }}>
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Mecánico
           </Button>
@@ -199,7 +203,10 @@ export default function MecanicosPage() {
               <Wrench className="h-12 w-12 text-gray-600 mb-4" />
               <h3 className="text-lg font-semibold mb-2 text-white">No hay mecánicos registrados</h3>
               <p className="text-gray-400 mb-4">Comienza agregando tu primer mecánico</p>
-              <Button onClick={() => setModalOpen(true)}>
+              <Button onClick={() => {
+              setEditingMechanicId(null)
+              setModalOpen(true)
+            }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Agregar Mecánico
               </Button>
@@ -218,6 +225,16 @@ export default function MecanicosPage() {
                       </Badge>
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setEditingMechanicId(mechanic.id)
+                          setModalOpen(true)
+                        }}
+                      >
+                        <Edit className="h-4 w-4 text-cyan-400" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -264,9 +281,13 @@ export default function MecanicosPage() {
           </div>
         )}
 
-        <CreateMechanicModal
-          open={modalOpen}
-          onOpenChange={setModalOpen}
+        <CreateEditMechanicModal
+          isOpen={modalOpen}
+          onClose={() => {
+            setModalOpen(false)
+            setEditingMechanicId(null)
+          }}
+          mechanicId={editingMechanicId}
           onSuccess={fetchMechanics}
         />
       </div>
