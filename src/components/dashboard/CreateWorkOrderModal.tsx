@@ -250,6 +250,20 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // DEBUG: Ver datos del formulario
+    console.log('🔍 [CreateOrder] formData COMPLETO:', formData)
+    console.log('📋 [CreateOrder] Datos individuales:', {
+      nombre: formData.customer_name,
+      telefono: formData.customer_phone,
+      email: formData.customer_email,
+      marca: formData.vehicle_brand,
+      modelo: formData.vehicle_model,
+      placa: formData.vehicle_plate,
+      descripcion: formData.description,
+      costo: formData.estimated_cost,
+      mecanico: formData.assigned_to
+    })
+    
     // Marcar todos como touched
     const allFields = ['customer_phone', 'customer_email', 'vehicle_year', 'mileage', 'estimated_cost']
     const newTouched: Record<string, boolean> = {}
