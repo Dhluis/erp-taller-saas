@@ -1,7 +1,7 @@
 // components/dashboard/CreateWorkOrderModal.tsx
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import { 
   Dialog, 
   DialogContent, 
@@ -47,13 +47,13 @@ interface Mechanic {
   is_active: boolean
 }
 
-export function CreateWorkOrderModal({ 
+const CreateWorkOrderModal = memo(function CreateWorkOrderModal({ 
   open, 
   onOpenChange, 
   onSuccess,
   prefilledServiceType
 }: CreateWorkOrderModalProps) {
-  console.log('🔍 [CreateWorkOrderModal] Renderizado - open:', open)
+  // console.log('🔍 [CreateWorkOrderModal] Renderizado - open:', open)
   
   const { user, profile } = useAuth()
   const supabase = createClient()
@@ -774,4 +774,6 @@ export function CreateWorkOrderModal({
       </DialogContent>
     </Dialog>
   )
-}
+})
+
+export default CreateWorkOrderModal
