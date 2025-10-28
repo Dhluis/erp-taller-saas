@@ -49,19 +49,19 @@ interface Mechanic {
 
 const INITIAL_FORM_DATA = {
   // Cliente
-  customer_name: '',
-  customer_phone: '',
-  customer_email: '',
-  customer_address: '',
+  customerName: '',
+  customerPhone: '',
+  customerEmail: '',
+  customerAddress: '',
   
   // Vehículo
-  vehicle_brand: '',
-  vehicle_model: '',
-  vehicle_year: '',
-  vehicle_plate: '',
-  vehicle_color: '',
-  vehicle_vin: '',
-  mileage: '',
+  vehicleBrand: '',
+  vehicleModel: '',
+  vehicleYear: '',
+  vehiclePlate: '',
+  vehicleColor: '',
+  vehicleVin: '',
+  vehicleMileage: '',
   
   // Orden
   description: '',
@@ -86,6 +86,20 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const [loadingMechanics, setLoadingMechanics] = useState(false)
   
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    
+    console.log('✏️ [Input] Cambio detectado:', name, '→', value)
+    
+    // Caso especial para la placa del vehículo (convertir a mayúsculas)
+    const processedValue = name === 'vehiclePlate' ? value.toUpperCase() : value
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: processedValue
+    }))
+  }
 
   const loadMechanics = useCallback(async () => {
     if (!profile?.workshop_id) return
@@ -253,12 +267,12 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     // DEBUG: Ver datos del formulario
     console.log('🔍 [CreateOrder] formData COMPLETO:', formData)
     console.log('📋 [CreateOrder] Datos individuales:', {
-      nombre: formData.customer_name,
-      telefono: formData.customer_phone,
-      email: formData.customer_email,
-      marca: formData.vehicle_brand,
-      modelo: formData.vehicle_model,
-      placa: formData.vehicle_plate,
+      nombre: formData.customerName,
+      telefono: formData.customerPhone,
+      email: formData.customerEmail,
+      marca: formData.vehicleBrand,
+      modelo: formData.vehicleModel,
+      placa: formData.vehiclePlate,
       descripcion: formData.description,
       costo: formData.estimated_cost,
       mecanico: formData.assigned_to
@@ -272,10 +286,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     
     // Validar todos los campos
     const newErrors: ValidationErrors = {
-      customer_phone: validatePhone(formData.customer_phone),
-      customer_email: validateEmail(formData.customer_email),
-      vehicle_year: validateYear(formData.vehicle_year),
-      mileage: validateMileage(formData.mileage),
+      customer_phone: validatePhone(formData.customerPhone),
+      customer_email: validateEmail(formData.customerEmail),
+      vehicle_year: validateYear(formData.vehicleYear),
+      mileage: validateMileage(formData.vehicleMileage),
       estimated_cost: validateEstimatedCost(formData.estimated_cost)
     }
     
@@ -323,15 +337,39 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       console.log('✅ [CreateOrder] Organization ID:', organizationId)
 
       // Verificar si el cliente ya existe
-      console.log('👥 [CreateOrder] Buscando cliente:', formData.customer_phone)
+      console.log('👥 [CreateOrder] Buscando cliente:', formData.customerPhone)
       const { data: existingCustomer } = await supabase
         .from('customers')
         .select('id')
-        .eq('phone', formData.customer_phone)
+        .eq('phone', formData.customerPhone)
         .eq('workshop_id', workshopId)
         .maybeSingle()
 
       let customerId = existingCustomer?.id
+
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('📋 [DEBUG] DATOS DEL FORMULARIO')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('👤 Cliente:', {
+        name: formData.customerName,
+        phone: formData.customerPhone,
+        email: formData.customerEmail,
+        address: formData.customerAddress
+      })
+      console.log('🚗 Vehículo:', {
+        brand: formData.vehicleBrand,
+        model: formData.vehicleModel,
+        year: formData.vehicleYear,
+        plate: formData.vehiclePlate,
+        color: formData.vehicleColor,
+        mileage: formData.vehicleMileage
+      })
+      console.log('📝 Orden:', {
+        description: formData.description,
+        cost: formData.estimated_cost,
+        mechanic: formData.assigned_to
+      })
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
       // Crear cliente si no existe
       if (!customerId) {
@@ -341,9 +379,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           .insert({
             organization_id: organizationId,
             workshop_id: workshopId,
-            name: formData.customer_name,
-            phone: formData.customer_phone,
-            email: formData.customer_email || null
+            name: formData.customerName,
+            phone: formData.customerPhone,
+            email: formData.customerEmail || null
           })
           .select()
           .single()
@@ -356,11 +394,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       }
 
       // Verificar si el vehículo ya existe
-      console.log('🚗 [CreateOrder] Buscando vehículo:', formData.vehicle_plate)
+      console.log('🚗 [CreateOrder] Buscando vehículo:', formData.vehiclePlate)
       const { data: existingVehicle } = await supabase
         .from('vehicles')
         .select('id')
-        .eq('license_plate', formData.vehicle_plate.toUpperCase())
+        .eq('license_plate', formData.vehiclePlate.toUpperCase())
         .eq('workshop_id', workshopId)
         .maybeSingle()
 
@@ -374,12 +412,12 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           .insert({
             customer_id: customerId,
             workshop_id: workshopId,
-            brand: formData.vehicle_brand,
-            model: formData.vehicle_model,
-            year: formData.vehicle_year ? parseInt(formData.vehicle_year) : null,
-            license_plate: formData.vehicle_plate.toUpperCase(),
-            color: formData.vehicle_color || null,
-            mileage: formData.mileage ? parseInt(formData.mileage) : null
+            brand: formData.vehicleBrand,
+            model: formData.vehicleModel,
+            year: formData.vehicleYear ? parseInt(formData.vehicleYear) : null,
+            license_plate: formData.vehiclePlate.toUpperCase(),
+            color: formData.vehicleColor || null,
+            mileage: formData.vehicleMileage ? parseInt(formData.vehicleMileage) : null
           })
           .select()
           .single()
@@ -433,7 +471,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       }
 
       toast.success('Orden creada exitosamente', {
-        description: `${formData.vehicle_brand} ${formData.vehicle_model} - ${formData.customer_name}`
+        description: `${formData.vehicleBrand} ${formData.vehicleModel} - ${formData.customerName}`
       })
       
       onOpenChange(false)
@@ -482,9 +520,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 <Label htmlFor="customer_name">Nombre *</Label>
                 <Input
                   id="customer_name"
+                  name="customerName"
                   required
-                  value={formData.customer_name}
-                  onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
+                  value={formData.customerName}
+                  onChange={handleChange}
                   placeholder="Juan Pérez"
                   disabled={loading}
                 />
@@ -495,10 +534,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 <div className="relative">
                   <Input
                     id="customer_phone"
+                    name="customerPhone"
                     required
                     type="tel"
-                    value={formData.customer_phone}
-                    onChange={(e) => handleFieldChange('customer_phone', e.target.value)}
+                    value={formData.customerPhone}
+                    onChange={handleChange}
                     onBlur={() => handleBlur('customer_phone')}
                     placeholder="222-123-4567"
                     disabled={loading}
@@ -528,9 +568,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
               <div className="relative">
                 <Input
                   id="customer_email"
+                  name="customerEmail"
                   type="email"
-                  value={formData.customer_email}
-                  onChange={(e) => handleFieldChange('customer_email', e.target.value)}
+                  value={formData.customerEmail}
+                  onChange={handleChange}
                   onBlur={() => handleBlur('customer_email')}
                   placeholder="cliente@ejemplo.com"
                   disabled={loading}
@@ -566,9 +607,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 <Label htmlFor="vehicle_brand">Marca *</Label>
                 <Input
                   id="vehicle_brand"
+                  name="vehicleBrand"
                   required
-                  value={formData.vehicle_brand}
-                  onChange={(e) => setFormData({ ...formData, vehicle_brand: e.target.value })}
+                  value={formData.vehicleBrand}
+                  onChange={handleChange}
                   placeholder="Toyota, Honda..."
                   disabled={loading}
                 />
@@ -578,9 +620,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 <Label htmlFor="vehicle_model">Modelo *</Label>
                 <Input
                   id="vehicle_model"
+                  name="vehicleModel"
                   required
-                  value={formData.vehicle_model}
-                  onChange={(e) => setFormData({ ...formData, vehicle_model: e.target.value })}
+                  value={formData.vehicleModel}
+                  onChange={handleChange}
                   placeholder="Corolla, Civic..."
                   disabled={loading}
                 />
@@ -593,10 +636,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 <div className="relative">
                   <Input
                     id="vehicle_year"
+                    name="vehicleYear"
                     required
                     type="number"
-                    value={formData.vehicle_year}
-                    onChange={(e) => handleFieldChange('vehicle_year', e.target.value)}
+                    value={formData.vehicleYear}
+                    onChange={handleChange}
                     onBlur={() => handleBlur('vehicle_year')}
                     placeholder="2020"
                     disabled={loading}
@@ -624,9 +668,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 <Label htmlFor="vehicle_plate">Placa *</Label>
                 <Input
                   id="vehicle_plate"
+                  name="vehiclePlate"
                   required
-                  value={formData.vehicle_plate}
-                  onChange={(e) => setFormData({ ...formData, vehicle_plate: e.target.value.toUpperCase() })}
+                  value={formData.vehiclePlate}
+                  onChange={handleChange}
                   placeholder="ABC-123-D"
                   className="uppercase"
                   disabled={loading}
@@ -637,8 +682,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 <Label htmlFor="vehicle_color">Color</Label>
                 <Input
                   id="vehicle_color"
-                  value={formData.vehicle_color}
-                  onChange={(e) => setFormData({ ...formData, vehicle_color: e.target.value })}
+                  name="vehicleColor"
+                  value={formData.vehicleColor}
+                  onChange={handleChange}
                   placeholder="Blanco..."
                   disabled={loading}
                 />
@@ -650,9 +696,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
               <div className="relative">
                 <Input
                   id="mileage"
+                  name="vehicleMileage"
                   type="number"
-                  value={formData.mileage}
-                  onChange={(e) => handleFieldChange('mileage', e.target.value)}
+                  value={formData.vehicleMileage}
+                  onChange={handleChange}
                   onBlur={() => handleBlur('mileage')}
                   placeholder="50000"
                   disabled={loading}
@@ -687,11 +734,12 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
               <Label htmlFor="description">Servicio requerido *</Label>
               <Textarea
                 id="description"
+                name="description"
                 required
                 rows={4}
                 placeholder="Cambio de aceite, revisión de frenos..."
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={handleChange}
                 disabled={loading}
               />
             </div>
@@ -701,10 +749,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
               <div className="relative">
                 <Input
                   id="estimated_cost"
+                  name="estimated_cost"
                   type="number"
                   step="0.01"
                   value={formData.estimated_cost}
-                  onChange={(e) => handleFieldChange('estimated_cost', e.target.value)}
+                  onChange={handleChange}
                   onBlur={() => handleBlur('estimated_cost')}
                   placeholder="0.00"
                   disabled={loading}
@@ -731,8 +780,12 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             <div>
               <Label htmlFor="assigned_to">Asignar Mecánico (opcional)</Label>
               <Select
+                name="assigned_to"
                 value={formData.assigned_to || undefined}
-                onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}
+                onValueChange={(value) => {
+                  console.log('✏️ [Select] Cambio detectado: assigned_to →', value)
+                  setFormData(prev => ({ ...prev, assigned_to: value }))
+                }}
                 disabled={loading || loadingMechanics || mechanics.length === 0}
               >
                 <SelectTrigger>
