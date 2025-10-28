@@ -226,3 +226,4 @@ COMMENT ON COLUMN user_profiles.metadata IS 'Metadatos adicionales del usuario e
 
 
 
+

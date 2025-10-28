@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { X, User, Mail, Phone, Wrench, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useEmployees } from '@/hooks/useEmployees'
 import { toast } from 'sonner'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 interface CreateEditMechanicModalProps {
   isOpen: boolean
