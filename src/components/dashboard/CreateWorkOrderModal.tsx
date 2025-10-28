@@ -47,6 +47,28 @@ interface Mechanic {
   is_active: boolean
 }
 
+const INITIAL_FORM_DATA = {
+  // Cliente
+  customer_name: '',
+  customer_phone: '',
+  customer_email: '',
+  customer_address: '',
+  
+  // Vehículo
+  vehicle_brand: '',
+  vehicle_model: '',
+  vehicle_year: '',
+  vehicle_plate: '',
+  vehicle_color: '',
+  vehicle_vin: '',
+  mileage: '',
+  
+  // Orden
+  description: '',
+  estimated_cost: '',
+  assigned_to: ''
+}
+
 const CreateWorkOrderModal = memo(function CreateWorkOrderModal({ 
   open, 
   onOpenChange, 
@@ -63,20 +85,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const [mechanics, setMechanics] = useState<Mechanic[]>([])
   const [loadingMechanics, setLoadingMechanics] = useState(false)
   
-  const [formData, setFormData] = useState({
-    customer_name: '',
-    customer_phone: '',
-    customer_email: '',
-    vehicle_brand: '',
-    vehicle_model: '',
-    vehicle_year: '',
-    vehicle_plate: '',
-    vehicle_color: '',
-    mileage: '',
-    description: '',
-    estimated_cost: '',
-    assigned_to: '' // Campo corregido
-  })
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA)
 
   const loadMechanics = useCallback(async () => {
     if (!profile?.workshop_id) return
@@ -129,6 +138,13 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       }
     }
   }, [open, prefilledServiceType]) // eslint-disable-next-line react-hooks/exhaustive-deps
+
+  // Limpiar formulario al cerrar
+  useEffect(() => {
+    if (!open) {
+      setFormData(INITIAL_FORM_DATA)
+    }
+  }, [open])
 
   // Validaciones
   const validatePhone = (phone: string): string | undefined => {
@@ -366,13 +382,13 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       
       const orderData = {
         organization_id: organizationId,
-        workshop_id: workshopId,
-        customer_id: customerId,
-        vehicle_id: vehicleId,
+          workshop_id: workshopId,
+          customer_id: customerId,
+          vehicle_id: vehicleId,
         description: formData.description?.trim() || 'Sin descripción',
         estimated_cost: parseFloat(formData.estimated_cost) || 0,
-        status: 'reception',
-        entry_date: new Date().toISOString(),
+          status: 'reception',
+          entry_date: new Date().toISOString(),
         assigned_to: formData.assigned_to && formData.assigned_to.trim() !== '' 
           ? formData.assigned_to 
           : null
@@ -421,20 +437,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   }
 
   const resetForm = () => {
-    setFormData({
-      customer_name: '',
-      customer_phone: '',
-      customer_email: '',
-      vehicle_brand: '',
-      vehicle_model: '',
-      vehicle_year: '',
-      vehicle_plate: '',
-      vehicle_color: '',
-      mileage: '',
-      description: '',
-      estimated_cost: '',
-      assigned_to: ''
-    })
+    setFormData(INITIAL_FORM_DATA)
     setErrors({})
     setTouched({})
   }
