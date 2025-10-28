@@ -33,10 +33,16 @@ interface CreateWorkOrderModalProps {
 }
 
 interface ValidationErrors {
-  customer_phone?: string
-  customer_email?: string
-  vehicle_year?: string
-  mileage?: string
+  customerName?: string
+  customerPhone?: string
+  customerEmail?: string
+  vehicleBrand?: string
+  vehicleModel?: string
+  vehicleYear?: string
+  vehiclePlate?: string
+  vehicleColor?: string
+  vehicleMileage?: string
+  description?: string
   estimated_cost?: string
 }
 
@@ -87,18 +93,87 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
 
+  const validateField = (name: string, value: string): string => {
+    switch (name) {
+      case 'customerName':
+        if (!value.trim()) return 'El nombre es requerido'
+        if (value.trim().length < 3) return 'Mínimo 3 caracteres'
+        if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(value)) return 'Solo letras permitidas'
+        return ''
+        
+      case 'customerPhone':
+        if (!value.trim()) return 'El teléfono es requerido'
+        if (!/^\d+$/.test(value)) return 'Solo números permitidos'
+        if (value.length !== 10) return 'Debe tener 10 dígitos'
+        return ''
+        
+      case 'customerEmail':
+        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          return 'Email inválido'
+        }
+        return ''
+        
+      case 'vehicleBrand':
+        if (!value.trim()) return 'La marca es requerida'
+        return ''
+        
+      case 'vehicleModel':
+        if (!value.trim()) return 'El modelo es requerido'
+        return ''
+        
+      case 'vehicleYear':
+        if (!value) return 'El año es requerido'
+        const year = parseInt(value)
+        const currentYear = new Date().getFullYear()
+        if (year < 1900 || year > currentYear + 1) {
+          return `Año debe estar entre 1900 y ${currentYear + 1}`
+        }
+        return ''
+        
+      case 'vehiclePlate':
+        if (!value.trim()) return 'La placa es requerida'
+        if (value.length < 5) return 'Placa muy corta'
+        return ''
+        
+      case 'vehicleMileage':
+        if (value && !/^\d+$/.test(value)) return 'Solo números permitidos'
+        return ''
+        
+      case 'description':
+        if (!value.trim()) return 'La descripción es requerida'
+        if (value.trim().length < 10) return 'Mínimo 10 caracteres'
+        return ''
+        
+      case 'estimated_cost':
+        if (!value) return 'El costo estimado es requerido'
+        if (parseFloat(value) <= 0) return 'Debe ser mayor a 0'
+        return ''
+        
+      default:
+        return ''
+    }
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    
-    console.log('✏️ [Input] Cambio detectado:', name, '→', value)
     
     // Caso especial para la placa del vehículo (convertir a mayúsculas)
     const processedValue = name === 'vehiclePlate' ? value.toUpperCase() : value
     
+    // Actualizar valor
     setFormData(prev => ({
       ...prev,
       [name]: processedValue
     }))
+    
+    // Validar campo
+    const error = validateField(name, processedValue)
+    setErrors(prev => ({
+      ...prev,
+      [name]: error
+    }))
+    
+    console.log('✏️ [Input]', name, '→', processedValue, error ? `❌ ${error}` : '✅')
   }
 
   const loadMechanics = useCallback(async () => {
@@ -264,6 +339,38 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // Validar todos los campos
+    const newErrors: Record<string, string> = {}
+    
+    const fieldsToValidate = [
+      'customerName',
+      'customerPhone',
+      'customerEmail',
+      'vehicleBrand',
+      'vehicleModel',
+      'vehicleYear',
+      'vehiclePlate',
+      'vehicleMileage',
+      'description',
+      'estimated_cost'
+    ]
+    
+    fieldsToValidate.forEach(field => {
+      const error = validateField(field, formData[field] || '')
+      if (error) newErrors[field] = error
+    })
+    
+    setErrors(newErrors)
+    
+    // Si hay errores, no continuar
+    if (Object.keys(newErrors).length > 0) {
+      console.error('❌ [Validación] Errores encontrados:', newErrors)
+      toast.error('Por favor corrige los errores en el formulario')
+      return
+    }
+    
+    console.log('✅ [Validación] Formulario válido')
+    
     // DEBUG: Ver datos del formulario
     console.log('🔍 [CreateOrder] formData COMPLETO:', formData)
     console.log('📋 [CreateOrder] Datos individuales:', {
@@ -283,24 +390,6 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     const newTouched: Record<string, boolean> = {}
     allFields.forEach(field => { newTouched[field] = true })
     setTouched(newTouched)
-    
-    // Validar todos los campos
-    const newErrors: ValidationErrors = {
-      customer_phone: validatePhone(formData.customerPhone),
-      customer_email: validateEmail(formData.customerEmail),
-      vehicle_year: validateYear(formData.vehicleYear),
-      mileage: validateMileage(formData.vehicleMileage),
-      estimated_cost: validateEstimatedCost(formData.estimated_cost)
-    }
-    
-    setErrors(newErrors)
-    
-    // Si hay errores, no continuar
-    const hasErrors = Object.values(newErrors).some(error => error !== undefined)
-    if (hasErrors) {
-      toast.error('Por favor corrige los errores del formulario')
-      return
-    }
     
     if (!user || !profile) {
       toast.error('Error', {
@@ -526,7 +615,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   onChange={handleChange}
                   placeholder="Juan Pérez"
                   disabled={loading}
+                  className={errors.customerName ? 'border-red-500' : ''}
                 />
+                {errors.customerName && (
+                  <p className="text-red-400 text-xs mt-1">{errors.customerName}</p>
+                )}
               </div>
               
               <div>
@@ -539,26 +632,20 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                     type="tel"
                     value={formData.customerPhone}
                     onChange={handleChange}
-                    onBlur={() => handleBlur('customer_phone')}
-                    placeholder="222-123-4567"
+                    placeholder="4491234567"
                     disabled={loading}
-                    className={
-                      isFieldInvalid('customer_phone') 
-                        ? 'border-red-500 pr-10' 
-                        : isFieldValid('customer_phone')
-                        ? 'border-green-500 pr-10'
-                        : ''
-                    }
+                    maxLength={10}
+                    className={`${errors.customerPhone ? 'border-red-500' : 'border-gray-700'} pr-10`}
                   />
-                  {isFieldValid('customer_phone') && (
+                  {!errors.customerPhone && formData.customerPhone && (
                     <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
                   )}
-                  {isFieldInvalid('customer_phone') && (
+                  {errors.customerPhone && (
                     <AlertCircle className="absolute right-3 top-2.5 h-5 w-5 text-red-500" />
                   )}
                 </div>
-                {isFieldInvalid('customer_phone') && (
-                  <p className="text-xs text-red-500 mt-1">{errors.customer_phone}</p>
+                {errors.customerPhone && (
+                  <p className="text-xs text-red-500 mt-1">{errors.customerPhone}</p>
                 )}
               </div>
             </div>
@@ -572,26 +659,19 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   type="email"
                   value={formData.customerEmail}
                   onChange={handleChange}
-                  onBlur={() => handleBlur('customer_email')}
                   placeholder="cliente@ejemplo.com"
                   disabled={loading}
-                  className={
-                    isFieldInvalid('customer_email') 
-                      ? 'border-red-500 pr-10' 
-                      : isFieldValid('customer_email')
-                      ? 'border-green-500 pr-10'
-                      : ''
-                  }
+                  className={`${errors.customerEmail ? 'border-red-500' : 'border-gray-700'} pr-10`}
                 />
-                {isFieldValid('customer_email') && (
+                {!errors.customerEmail && formData.customerEmail && (
                   <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
                 )}
-                {isFieldInvalid('customer_email') && (
+                {errors.customerEmail && (
                   <AlertCircle className="absolute right-3 top-2.5 h-5 w-5 text-red-500" />
                 )}
               </div>
-              {isFieldInvalid('customer_email') && (
-                <p className="text-xs text-red-500 mt-1">{errors.customer_email}</p>
+              {errors.customerEmail && (
+                <p className="text-xs text-red-500 mt-1">{errors.customerEmail}</p>
               )}
             </div>
           </div>
@@ -613,7 +693,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   onChange={handleChange}
                   placeholder="Toyota, Honda..."
                   disabled={loading}
+                  className={errors.vehicleBrand ? 'border-red-500' : ''}
                 />
+                {errors.vehicleBrand && (
+                  <p className="text-red-400 text-xs mt-1">{errors.vehicleBrand}</p>
+                )}
               </div>
               
               <div>
@@ -626,7 +710,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   onChange={handleChange}
                   placeholder="Corolla, Civic..."
                   disabled={loading}
+                  className={errors.vehicleModel ? 'border-red-500' : ''}
                 />
+                {errors.vehicleModel && (
+                  <p className="text-red-400 text-xs mt-1">{errors.vehicleModel}</p>
+                )}
               </div>
             </div>
 
@@ -641,26 +729,19 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                     type="number"
                     value={formData.vehicleYear}
                     onChange={handleChange}
-                    onBlur={() => handleBlur('vehicle_year')}
                     placeholder="2020"
                     disabled={loading}
-                    className={
-                      isFieldInvalid('vehicle_year') 
-                        ? 'border-red-500 pr-10' 
-                        : isFieldValid('vehicle_year')
-                        ? 'border-green-500 pr-10'
-                        : ''
-                    }
+                    className={`${errors.vehicleYear ? 'border-red-500' : 'border-gray-700'} pr-10`}
                   />
-                  {isFieldValid('vehicle_year') && (
+                  {!errors.vehicleYear && formData.vehicleYear && (
                     <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
                   )}
-                  {isFieldInvalid('vehicle_year') && (
+                  {errors.vehicleYear && (
                     <AlertCircle className="absolute right-3 top-2.5 h-5 w-5 text-red-500" />
                   )}
                 </div>
-                {isFieldInvalid('vehicle_year') && (
-                  <p className="text-xs text-red-500 mt-1">{errors.vehicle_year}</p>
+                {errors.vehicleYear && (
+                  <p className="text-xs text-red-500 mt-1">{errors.vehicleYear}</p>
                 )}
               </div>
               
@@ -673,9 +754,12 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   value={formData.vehiclePlate}
                   onChange={handleChange}
                   placeholder="ABC-123-D"
-                  className="uppercase"
+                  className={`uppercase ${errors.vehiclePlate ? 'border-red-500' : ''}`}
                   disabled={loading}
                 />
+                {errors.vehiclePlate && (
+                  <p className="text-red-400 text-xs mt-1">{errors.vehiclePlate}</p>
+                )}
               </div>
 
               <div>
@@ -687,7 +771,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   onChange={handleChange}
                   placeholder="Blanco..."
                   disabled={loading}
+                  className={errors.vehicleColor ? 'border-red-500' : ''}
                 />
+                {errors.vehicleColor && (
+                  <p className="text-red-400 text-xs mt-1">{errors.vehicleColor}</p>
+                )}
               </div>
             </div>
 
@@ -700,26 +788,19 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   type="number"
                   value={formData.vehicleMileage}
                   onChange={handleChange}
-                  onBlur={() => handleBlur('mileage')}
                   placeholder="50000"
                   disabled={loading}
-                  className={
-                    isFieldInvalid('mileage') 
-                      ? 'border-red-500 pr-10' 
-                      : isFieldValid('mileage')
-                      ? 'border-green-500 pr-10'
-                      : ''
-                  }
+                  className={`${errors.vehicleMileage ? 'border-red-500' : 'border-gray-700'} pr-10`}
                 />
-                {isFieldValid('mileage') && (
+                {!errors.vehicleMileage && formData.vehicleMileage && (
                   <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
                 )}
-                {isFieldInvalid('mileage') && (
+                {errors.vehicleMileage && (
                   <AlertCircle className="absolute right-3 top-2.5 h-5 w-5 text-red-500" />
                 )}
               </div>
-              {isFieldInvalid('mileage') && (
-                <p className="text-xs text-red-500 mt-1">{errors.mileage}</p>
+              {errors.vehicleMileage && (
+                <p className="text-xs text-red-500 mt-1">{errors.vehicleMileage}</p>
               )}
             </div>
           </div>
@@ -741,7 +822,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 value={formData.description}
                 onChange={handleChange}
                 disabled={loading}
+                className={errors.description ? 'border-red-500' : ''}
               />
+              {errors.description && (
+                <p className="text-red-400 text-xs mt-1">{errors.description}</p>
+              )}
             </div>
 
             <div>
@@ -754,25 +839,18 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   step="0.01"
                   value={formData.estimated_cost}
                   onChange={handleChange}
-                  onBlur={() => handleBlur('estimated_cost')}
                   placeholder="0.00"
                   disabled={loading}
-                  className={
-                    isFieldInvalid('estimated_cost') 
-                      ? 'border-red-500 pr-10' 
-                      : isFieldValid('estimated_cost')
-                      ? 'border-green-500 pr-10'
-                      : ''
-                  }
+                  className={`${errors.estimated_cost ? 'border-red-500' : 'border-gray-700'} pr-10`}
                 />
-                {isFieldValid('estimated_cost') && (
+                {!errors.estimated_cost && formData.estimated_cost && (
                   <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
                 )}
-                {isFieldInvalid('estimated_cost') && (
+                {errors.estimated_cost && (
                   <AlertCircle className="absolute right-3 top-2.5 h-5 w-5 text-red-500" />
                 )}
               </div>
-              {isFieldInvalid('estimated_cost') && (
+              {errors.estimated_cost && (
                 <p className="text-xs text-red-500 mt-1">{errors.estimated_cost}</p>
               )}
             </div>
