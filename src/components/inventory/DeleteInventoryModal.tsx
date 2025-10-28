@@ -116,8 +116,3 @@ export default function DeleteInventoryModal({
 
 
 
-<<<<<<< HEAD
-
-
-=======
->>>>>>> parent of b9214dc (landing page cambios)

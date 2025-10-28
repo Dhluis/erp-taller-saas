@@ -169,9 +169,4 @@ export function createErrorResponse(error: APIError) {
 
 
 
-<<<<<<< HEAD
-
-
-=======
->>>>>>> parent of b9214dc (landing page cambios)
 

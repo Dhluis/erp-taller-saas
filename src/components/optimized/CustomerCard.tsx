@@ -261,8 +261,3 @@ export function CustomerList({ customers, onEdit, onDelete, onView }: CustomerLi
 
 
 
-<<<<<<< HEAD
-
-
-=======
->>>>>>> parent of b9214dc (landing page cambios)
