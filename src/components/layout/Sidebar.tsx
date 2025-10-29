@@ -29,7 +29,8 @@ import {
   Shield,
   User,
   LogOut,
-  Kanban
+  Kanban,
+  LayoutGrid
 } from "lucide-react"
 import { TruckIcon } from '@heroicons/react/24/outline'
 import { useSidebar } from '@/contexts/SidebarContext'
@@ -88,7 +89,7 @@ export function Sidebar({ className }: SidebarProps) {
     },
     { 
       href: "/ordenes", 
-      label: "Órdenes de Trabajo", 
+      label: "Lista de Órdenes", 
       icon: FileText,
       badge: null
     },
@@ -153,7 +154,7 @@ export function Sidebar({ className }: SidebarProps) {
     { 
       href: "/ordenes/kanban", 
       label: "Kanban", 
-      icon: Kanban,
+      icon: LayoutGrid,
       badge: null
     }
   ]
