@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowRight, CheckCircle, Star, Users, Wrench, BarChart3, Shield, Zap, Clock } from 'lucide-react'
+import { ArrowRight, CheckCircle, Star, Users, Wrench, BarChart3, Shield, Zap, Clock, Database } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 
