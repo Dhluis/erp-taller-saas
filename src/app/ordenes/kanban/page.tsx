@@ -122,7 +122,9 @@ export default function KanbanPage() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,  // Menor distancia = más sensible
+        delay: 100,    // Pequeño delay para diferenciar click de drag
+        tolerance: 5,
       },
     })
   );

@@ -58,11 +58,17 @@ export function OrderCard({
   };
 
   return (
-    <Card
+    <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
+      onClick={(e) => {
+        // Solo navegar si no estamos arrastrando
+        if (!isDragging && !isSortableDragging) {
+          window.location.href = `/ordenes/${order.id}`;
+        }
+      }}
       className={`
         cursor-grab active:cursor-grabbing transition-all duration-200
         hover:shadow-md hover:scale-[1.02]
@@ -70,11 +76,12 @@ export function OrderCard({
         ${isDragging ? 'rotate-3' : ''}
       `}
     >
+      <Card>
       <CardContent className="p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs font-mono">
+            <Badge variant="secondary" className="text-xs font-mono">
               #{orderNumber}
             </Badge>
             <Badge 
@@ -131,6 +138,7 @@ export function OrderCard({
           Entrada: {new Date(order.entry_date).toLocaleDateString('es-MX')}
         </div>
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }
