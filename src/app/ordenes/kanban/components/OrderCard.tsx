@@ -66,10 +66,17 @@ export function OrderCard({
       {...attributes}
       {...listeners}
       onClick={(e) => {
+        console.log('OrderCard clicked:', { orderId: order.id, isDragging, isSortableDragging, hasOnClick: !!onClick });
         // Solo navegar si no estamos arrastrando
-        if (!isDragging && !isSortableDragging && onClick) {
+        if (!isDragging && !isSortableDragging) {
           e.stopPropagation();
-          onClick(order);
+          if (onClick) {
+            console.log('Calling onClick function');
+            onClick(order);
+          } else {
+            console.log('No onClick function, navigating directly');
+            window.location.href = `/ordenes/${order.id}`;
+          }
         }
       }}
       className={`
