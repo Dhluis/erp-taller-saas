@@ -2,7 +2,7 @@
 
 import { Plus, Search, Filter, RefreshCw, Home, ChevronRight, Wrench, Eye, Edit, MoreHorizontal } from 'lucide-react';
 import { NewOrderModal } from '@/components/ordenes/NewOrderModal';
-import { OrderDetailModal } from '@/components/ordenes/OrderDetailModal';
+import { WorkOrderDetailsModal } from '@/components/work-orders/WorkOrderDetailsModal';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
@@ -303,14 +303,15 @@ export default function OrdenesPage() {
         organizationId={organizationId}
       />
 
-      <OrderDetailModal
-        isOpen={isDetailModalOpen}
-        onClose={() => {
-          setIsDetailModalOpen(false);
-          setSelectedOrder(null);
-        }}
+      <WorkOrderDetailsModal
         order={selectedOrder}
-        onUpdate={loadOrders}
+        open={isDetailModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsDetailModalOpen(false);
+            setSelectedOrder(null);
+          }
+        }}
       />
     </div>
   );

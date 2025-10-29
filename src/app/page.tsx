@@ -47,7 +47,7 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="py-20 px-4">
         <div className="container mx-auto text-center">
-          <motion.div
+        <motion.div 
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -66,11 +66,11 @@ export default function LandingPage() {
               mecánicos y facturación desde una sola plataforma.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/auth/register">
+            <Link href="/auth/register">
                 <Button size="lg" className="bg-cyan-500 hover:bg-cyan-600 text-white px-8">
-                  Probar Gratis - 7 días
-                </Button>
-              </Link>
+                Probar Gratis - 7 días
+              </Button>
+            </Link>
               <Button size="lg" variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-800">
                 Ver Demo
               </Button>
@@ -95,8 +95,8 @@ export default function LandingPage() {
               Herramientas profesionales diseñadas específicamente para talleres automotrices
             </p>
           </motion.div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <AnimatedCard delay={0.1}>
               <Card className="bg-slate-900/50 border-slate-700 hover:border-cyan-500/50 transition-colors">
                 <CardHeader>
@@ -180,7 +180,7 @@ export default function LandingPage() {
                 </CardContent>
               </Card>
             </AnimatedCard>
-          </div>
+              </div>
         </div>
       </section>
 
@@ -213,9 +213,9 @@ export default function LandingPage() {
                   <BarChart3 className="w-6 h-6 text-cyan-400 mr-3" />
                   <span className="text-slate-300">Reportes detallados y análisis</span>
                 </div>
-              </div>
+          </div>
             </motion.div>
-            <motion.div
+              <motion.div
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
@@ -249,28 +249,28 @@ export default function LandingPage() {
       {/* CTA Section */}
       <section className="py-20 px-4 bg-gradient-to-r from-cyan-500/10 to-blue-500/10">
         <div className="container mx-auto text-center">
-          <motion.div
+        <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
             <h2 className="text-4xl font-bold text-white mb-4">
-              ¿Listo para transformar tu taller?
-            </h2>
+            ¿Listo para transformar tu taller?
+          </h2>
             <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
               Comienza tu prueba gratuita de 7 días. Sin compromisos, sin tarjeta de crédito.
-            </p>
+          </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/auth/register">
+          <Link href="/auth/register">
                 <Button size="lg" className="bg-cyan-500 hover:bg-cyan-600 text-white px-8">
-                  Probar Gratis - 7 días
-                </Button>
-              </Link>
+              Probar Gratis - 7 días
+            </Button>
+          </Link>
               <Button size="lg" variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-800">
                 Contactar Ventas
               </Button>
             </div>
-          </motion.div>
+        </motion.div>
         </div>
       </section>
 
@@ -281,9 +281,9 @@ export default function LandingPage() {
             <div className="flex items-center space-x-2 mb-4 md:mb-0">
               <div className="w-8 h-8 bg-cyan-500 rounded-lg flex items-center justify-center">
                 <Wrench className="w-5 h-5 text-white" />
-              </div>
+                </div>
               <span className="text-xl font-bold text-white">ERP Taller</span>
-            </div>
+              </div>
             <div className="text-slate-400 text-sm">
               © 2024 ERP Taller. Todos los derechos reservados.
             </div>
@@ -340,13 +340,5 @@ const benefits = [
 
 // Landing page complete
 
-Last updated: 2025-10-25 19:07
-
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+Last updated: 2025-10-25 20:40 - Deploy fix
 
