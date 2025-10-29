@@ -337,6 +337,5 @@ const benefits = [
 ]
 
 // Landing page complete
-
-Last updated: 2025-10-25 20:40 - Deploy fix
+// Last updated: 2025-10-25 20:40 - Deploy fix
 
