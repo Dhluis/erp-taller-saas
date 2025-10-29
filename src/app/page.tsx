@@ -294,8 +294,6 @@ export default function LandingPage() {
   )
 }
 
-<<<<<<< Updated upstream
-=======
 const features = [
   {
     icon: Wrench,
