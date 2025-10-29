@@ -1,5 +1,8 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
+import { createClient } from '@/lib/supabase/client';
+
+const supabase = createClient();
 
 export interface WorkOrderItem {
   id: string;
@@ -665,45 +668,89 @@ export function useWorkOrders() {
     setError(null);
 
     try {
-      // Cargar órdenes, clientes y vehículos en paralelo
-      const [ordersResponse, customersResponse, vehiclesResponse] = await Promise.all([
-        fetch('/api/work-orders', { 
-          signal: AbortSignal.timeout(30000) 
-        }),
-        fetch('/api/customers', { 
-          signal: AbortSignal.timeout(30000) 
-        }),
-        fetch('/api/vehicles', { 
-          signal: AbortSignal.timeout(30000) 
-        })
-      ]);
+      console.log('🔄 Cargando datos del Kanban...');
+      
+      // Obtener usuario y workshop
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuario no autenticado');
 
-      const [ordersData, customersData, vehiclesData] = await Promise.all([
-        ordersResponse.json(),
-        customersResponse.json(),
-        vehiclesResponse.json()
-      ]);
+      const { data: userData } = await supabase
+        .from('users')
+        .select('workshop_id, organization_id')
+        .eq('auth_user_id', user.id)
+        .single();
 
-      if (!ordersData.success) {
-        throw new Error(ordersData.error || 'Error al obtener órdenes');
+      if (!userData || !(userData as any).workshop_id) throw new Error('No se encontró el taller');
+
+      const workshopId = (userData as any).workshop_id as string;
+      console.log('✅ Workshop ID:', workshopId);
+
+      // Cargar órdenes con relaciones
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('work_orders')
+        .select(`
+          *,
+          customer:customers(id, name, email, phone),
+          vehicle:vehicles(id, brand, model, year, license_plate),
+          assigned_mechanic:employees(id, name)
+        `)
+        .eq('workshop_id', workshopId)
+        .order('entry_date', { ascending: false });
+
+      if (ordersError) {
+        console.error('❌ Error cargando órdenes:', ordersError);
+        throw ordersError;
       }
-      if (!customersData.success) {
-        throw new Error(customersData.error || 'Error al obtener clientes');
-      }
-      if (!vehiclesData.success) {
-        throw new Error(vehiclesData.error || 'Error al obtener vehículos');
+
+      console.log('✅ Órdenes cargadas:', ordersData?.length || 0);
+
+      // Cargar clientes
+      const { data: customersData, error: customersError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('workshop_id', workshopId)
+        .order('name');
+
+      if (customersError) {
+        console.error('❌ Error cargando clientes:', customersError);
+        throw customersError;
       }
 
-      setWorkOrders(ordersData.data);
-      setCustomers(customersData.data);
-      setVehicles(vehiclesData.data);
+      console.log('✅ Clientes cargados:', customersData?.length || 0);
 
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      // Cargar vehículos
+      const { data: vehiclesData, error: vehiclesError } = await supabase
+        .from('vehicles')
+        .select('*')
+        .eq('workshop_id', workshopId)
+        .order('brand');
+
+      if (vehiclesError) {
+        console.error('❌ Error cargando vehículos:', vehiclesError);
+        throw vehiclesError;
+      }
+
+      console.log('✅ Vehículos cargados:', vehiclesData?.length || 0);
+
+      // Actualizar estados
+      setWorkOrders(ordersData || []);
+      setCustomers(customersData || []);
+      setVehicles(vehiclesData || []);
+
+      console.log('✅ Datos cargados exitosamente');
+
+    } catch (err: any) {
+      const errorMessage = err?.message || 'Error desconocido';
+      console.error('💥 Error en loadData:', errorMessage);
       setError(errorMessage);
       toast.error('Error al cargar datos', {
         description: errorMessage,
       });
+      
+      // IMPORTANTE: Setear arrays vacíos para que el Kanban no se quede cargando
+      setWorkOrders([]);
+      setCustomers([]);
+      setVehicles([]);
     } finally {
       setLoading(false);
     }
@@ -712,25 +759,17 @@ export function useWorkOrders() {
   // 🔄 ACTUALIZAR ESTADO DE ORDEN (PARA KANBAN)
   const updateOrderStatus = useCallback(async (orderId: string, newStatus: string) => {
     try {
-      const response = await fetch(`/api/work-orders/${orderId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: newStatus }),
-        signal: AbortSignal.timeout(30000)
-      });
+      // @ts-expect-error - Supabase generated types don't match runtime
+      const { error } = await supabase
+        .from('work_orders')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', orderId);
 
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Error al actualizar estado');
-      }
-
-      return data.data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      throw new Error(errorMessage);
+      if (error) throw error;
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error updating order status:', error);
+      throw error;
     }
   }, []);
 

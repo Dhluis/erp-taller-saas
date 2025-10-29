@@ -17,19 +17,18 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
-import { MainLayout } from '@/components/main-layout';
-import { PageHeader } from '@/components/navigation/page-header';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-// import { Skeleton } from '@/components/ui/skeleton'; // No disponible
 import { toast } from 'sonner';
-import { Home, RefreshCw, Plus, List } from 'lucide-react';
+import { RefreshCw, Plus, List } from 'lucide-react';
 import { OrderCard } from './components/OrderCard';
 import { KanbanColumn } from './components/KanbanColumn';
+import { useAuth } from '@/contexts/AuthContext';
+import { createClient } from '@/lib/supabase/client';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
-import type { WorkOrder } from '@/hooks/useWorkOrders';
+import type { WorkOrder } from '@/types/orders';
 
 // Estados del Kanban para transmisiones automáticas
 const KANBAN_COLUMNS = [
@@ -102,10 +101,11 @@ type KanbanStatus = typeof KANBAN_COLUMNS[number]['id'] | 'completed' | 'cancell
 
 export default function KanbanPage() {
   const router = useRouter();
-  // Usar toast de sonner directamente
+  const { organization } = useAuth();
   const [activeOrder, setActiveOrder] = useState<WorkOrder | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  const organizationId = organization?.organization_id || null;
 
   const {
     workOrders,
@@ -113,8 +113,10 @@ export default function KanbanPage() {
     vehicles,
     loadData,
     updateOrderStatus,
+    loading: isLoading,
     error
   } = useWorkOrders();
+
 
   // Configurar sensores para drag and drop
   const sensors = useSensors(
@@ -127,15 +129,10 @@ export default function KanbanPage() {
 
   // Cargar datos al montar el componente
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Manejar estado de carga
-  useEffect(() => {
-    if (workOrders !== null) {
-      setIsLoading(false);
+    if (organizationId) {
+      loadData();
     }
-  }, [workOrders]);
+  }, [loadData, organizationId]);
 
   // Manejar errores
   useEffect(() => {
@@ -219,55 +216,62 @@ export default function KanbanPage() {
 
   // Refrescar datos
   const handleRefresh = useCallback(async () => {
-    setIsLoading(true);
     await loadData();
-    setIsLoading(false);
   }, [loadData]);
 
   const ordersByStatusData = ordersByStatus();
 
-  return (
-    <MainLayout>
-      <div className="flex-1 space-y-6 p-8 pt-6">
-        {/* Breadcrumbs */}
-        <StandardBreadcrumbs
-          currentPage="Kanban"
-          parentPages={[
-            { label: "Órdenes", href: "/ordenes" }
-          ]}
-        />
+  if (!organizationId) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-slate-400">Cargando organización...</p>
+        </div>
+      </div>
+    );
+  }
 
-        {/* Header */}
-        <PageHeader
-          title="Kanban de Órdenes"
-          description="Gestión visual de órdenes de trabajo para transmisiones automáticas"
-          actions={
-            <div className="flex gap-2">
-              <Link href="/ordenes">
-                <Button variant="outline">
-                  <List className="mr-2 h-4 w-4" />
-                  Vista Lista
-                </Button>
-              </Link>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isLoading || isUpdating}
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Actualizar
-              </Button>
-              <Button
-                onClick={handleCreateOrder}
-                disabled={isUpdating}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Nueva Orden
-              </Button>
-            </div>
-          }
-        />
+  return (
+    <div className="flex-1 space-y-6 p-8 pt-6">
+      {/* Breadcrumbs */}
+      <StandardBreadcrumbs
+        currentPage="Kanban"
+        parentPages={[
+          { label: "Órdenes", href: "/ordenes" }
+        ]}
+      />
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Kanban de Órdenes</h1>
+          <p className="text-slate-400 mt-1">Gestión visual de órdenes de trabajo</p>
+        </div>
+        <div className="flex gap-2">
+          <Link href="/ordenes">
+            <Button variant="outline">
+              <List className="mr-2 h-4 w-4" />
+              Vista Lista
+            </Button>
+          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isLoading || isUpdating}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Actualizar
+          </Button>
+          <Button
+            onClick={handleCreateOrder}
+            disabled={isUpdating}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Orden
+          </Button>
+        </div>
+      </div>
 
         {/* Loading State */}
         {isLoading && (
@@ -311,7 +315,7 @@ export default function KanbanPage() {
               {activeOrder && (
                 <div className="transform rotate-3 opacity-90">
                   <OrderCard
-                    order={activeOrder}
+                    order={activeOrder as any}
                     customers={customers}
                     vehicles={vehicles}
                     getDaysInStatus={getDaysInStatus}
@@ -323,25 +327,24 @@ export default function KanbanPage() {
           </DndContext>
         )}
 
-        {/* Empty State */}
-        {!isLoading && workOrders?.length === 0 && (
-          <div className="text-center py-12">
-            <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <Plus className="h-12 w-12 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No hay órdenes de trabajo
-            </h3>
-            <p className="text-gray-500 mb-4">
-              Comienza creando tu primera orden de trabajo
-            </p>
-            <Button onClick={handleCreateOrder}>
-              <Plus className="h-4 w-4 mr-2" />
-              Crear Orden
-            </Button>
+      {/* Empty State */}
+      {!isLoading && workOrders?.length === 0 && (
+        <div className="text-center py-12">
+          <div className="mx-auto w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mb-4">
+            <Plus className="h-12 w-12 text-slate-400" />
           </div>
-        )}
-      </div>
-    </MainLayout>
+          <h3 className="text-lg font-medium text-white mb-2">
+            No hay órdenes de trabajo
+          </h3>
+          <p className="text-slate-400 mb-4">
+            Comienza creando tu primera orden de trabajo
+          </p>
+          <Button onClick={handleCreateOrder}>
+            <Plus className="h-4 w-4 mr-2" />
+            Crear Orden
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
