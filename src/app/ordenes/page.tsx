@@ -17,7 +17,7 @@ export default function OrdenesPage() {
 
   return (
     <div className="p-6">
-      <KanbanBoard />
+      <KanbanBoard organizationId={organizationId} />
     </div>
   );
 }
