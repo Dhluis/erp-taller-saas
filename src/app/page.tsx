@@ -294,3 +294,52 @@ export default function LandingPage() {
   )
 }
 
+<<<<<<< Updated upstream
+=======
+const features = [
+  {
+    icon: Wrench,
+    title: "Gestión de Órdenes",
+    description: "Administra órdenes de trabajo de manera eficiente con seguimiento en tiempo real."
+  },
+  {
+    icon: Users,
+    title: "Control de Clientes",
+    description: "Mantén un registro completo de clientes, vehículos e historial de servicios."
+  },
+  {
+    icon: BarChart3,
+    title: "Reportes Avanzados",
+    description: "Analiza el rendimiento de tu taller con reportes detallados y métricas clave."
+  },
+  {
+    icon: Shield,
+    title: "Seguridad Garantizada",
+    description: "Tus datos están protegidos con encriptación de nivel empresarial."
+  },
+  {
+    icon: Clock,
+    title: "Tiempo Real",
+    description: "Actualizaciones instantáneas y sincronización en la nube."
+  },
+  {
+    icon: Database,
+    title: "Inventario Inteligente",
+    description: "Controla tu inventario con alertas automáticas de stock bajo."
+  }
+]
+
+const benefits = [
+  "Aumenta la productividad de tu taller hasta un 40%",
+  "Reduce errores administrativos y mejora la precisión",
+  "Acceso desde cualquier lugar, en cualquier momento",
+  "Soporte técnico dedicado incluido",
+  "Actualizaciones continuas sin costo adicional",
+  "Interfaz intuitiva, no se requiere capacitación extensa"
+]
+
+// Landing page complete
+
+Last updated: 2025-10-25 19:07
+
+>>>>>>> Stashed changes

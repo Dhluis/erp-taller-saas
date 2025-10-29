@@ -286,3 +286,9 @@ Si encuentras algún problema durante el deploy:
 
 **¡Éxito con tu deploy! 🚀**
 
+MOSTRAR CONTENIDO COMPLETO DE WorkOrderImageManager.tsx
+
+Necesito ver el archivo completo:
+src/components/work-orders/WorkOrderImageManager.tsx
+
+Muestra todo el código del componente, desde el inicio hasta el final.
