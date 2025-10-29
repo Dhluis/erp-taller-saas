@@ -13,6 +13,7 @@ interface OrderCardProps {
   vehicles: Vehicle[];
   getDaysInStatus: (order: WorkOrder) => number;
   isDragging?: boolean;
+  onClick?: (order: WorkOrder) => void;
 }
 
 export function OrderCard({
@@ -21,6 +22,7 @@ export function OrderCard({
   vehicles,
   getDaysInStatus,
   isDragging = false,
+  onClick,
 }: OrderCardProps) {
   const {
     attributes,
@@ -65,8 +67,9 @@ export function OrderCard({
       {...listeners}
       onClick={(e) => {
         // Solo navegar si no estamos arrastrando
-        if (!isDragging && !isSortableDragging) {
-          window.location.href = `/ordenes/${order.id}`;
+        if (!isDragging && !isSortableDragging && onClick) {
+          e.stopPropagation();
+          onClick(order);
         }
       }}
       className={`

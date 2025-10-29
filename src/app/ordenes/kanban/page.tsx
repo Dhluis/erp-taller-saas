@@ -25,6 +25,7 @@ import { toast } from 'sonner';
 import { RefreshCw, Plus, List } from 'lucide-react';
 import { OrderCard } from './components/OrderCard';
 import { KanbanColumn } from './components/KanbanColumn';
+import { WorkOrderDetailsModal } from '@/components/work-orders/WorkOrderDetailsModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
@@ -104,6 +105,8 @@ export default function KanbanPage() {
   const { organization } = useAuth();
   const [activeOrder, setActiveOrder] = useState<WorkOrder | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const organizationId = organization?.organization_id || null;
 
@@ -221,6 +224,12 @@ export default function KanbanPage() {
     await loadData();
   }, [loadData]);
 
+  // Abrir modal de detalles
+  const handleOpenOrderDetails = useCallback((order: WorkOrder) => {
+    setSelectedOrder(order);
+    setIsDetailModalOpen(true);
+  }, []);
+
   const ordersByStatusData = ordersByStatus();
 
   if (!organizationId) {
@@ -306,6 +315,7 @@ export default function KanbanPage() {
                       getDaysInStatus={getDaysInStatus}
                       customers={customers}
                       vehicles={vehicles}
+                      onOrderClick={handleOpenOrderDetails}
                     />
                   );
                 })}
@@ -347,6 +357,18 @@ export default function KanbanPage() {
           </Button>
         </div>
       )}
+
+      {/* Modal de Detalles */}
+      <WorkOrderDetailsModal
+        order={selectedOrder}
+        open={isDetailModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsDetailModalOpen(false);
+            setSelectedOrder(null);
+          }
+        }}
+      />
     </div>
   );
 }

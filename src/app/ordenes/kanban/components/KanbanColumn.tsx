@@ -19,6 +19,7 @@ interface KanbanColumnProps {
   getDaysInStatus: (order: WorkOrder) => number;
   customers: Customer[];
   vehicles: Vehicle[];
+  onOrderClick?: (order: WorkOrder) => void;
 }
 
 export function KanbanColumn({
@@ -27,6 +28,7 @@ export function KanbanColumn({
   getDaysInStatus,
   customers,
   vehicles,
+  onOrderClick,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -71,6 +73,7 @@ export function KanbanColumn({
                   vehicles={vehicles}
                   getDaysInStatus={getDaysInStatus}
                   isDragging={false}
+                  onClick={onOrderClick}
                 />
               ))}
               
