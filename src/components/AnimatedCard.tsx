@@ -25,3 +25,4 @@ export function AnimatedCard({ children, delay = 0, index = 0 }: AnimatedCardPro
 
 
 
+
