@@ -101,6 +101,7 @@ const KANBAN_COLUMNS = [
 type KanbanStatus = typeof KANBAN_COLUMNS[number]['id'] | 'completed' | 'cancelled';
 
 export default function KanbanPage() {
+  // Modal functionality restored
   const router = useRouter();
   const { organization } = useAuth();
   const [activeOrder, setActiveOrder] = useState<WorkOrder | null>(null);
