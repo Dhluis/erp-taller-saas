@@ -235,15 +235,15 @@ export function Sidebar({ className }: SidebarProps) {
       <div className="flex-1 overflow-y-auto p-4">
         {/* Main Navigation */}
         <div className={isCollapsed ? "space-y-3" : "space-y-1"}>
-          <Link href="/">
+          <Link href="/dashboard">
             <Button
-              variant={isActive("/") ? "primary" : "ghost"}
+              variant={isActive("/dashboard") ? "primary" : "ghost"}
               className={cn(
                 "transition-all duration-200",
                 isCollapsed 
                   ? "w-12 h-12 mx-auto mb-3 flex items-center justify-center rounded-xl hover:bg-gray-800/60" 
                   : "w-full gap-3 justify-start h-10",
-                isActive("/") && "bg-primary text-white"
+                isActive("/dashboard") && "bg-primary text-white"
               )}
               title={isCollapsed ? "Dashboard" : ""}
             >
