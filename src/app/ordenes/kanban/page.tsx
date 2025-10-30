@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { KanbanBoard } from '@/components/ordenes/KanbanBoard';
 import { useAuth } from '@/contexts/AuthContext';
 import { Search } from 'lucide-react';
+import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 
 export default function KanbanPage() {
   const { organization } = useAuth();
@@ -20,6 +21,11 @@ export default function KanbanPage() {
 
   return (
     <div className="p-6">
+      <StandardBreadcrumbs
+        currentPage="Kanban"
+        parentPages={[{ label: 'Órdenes', href: '/ordenes' }]}
+        className="mb-4"
+      />
       {/* Header con búsqueda */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white mb-4">Kanban</h1>

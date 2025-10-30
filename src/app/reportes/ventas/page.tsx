@@ -21,6 +21,7 @@ import {
   User
 } from "lucide-react"
 import { getSalesReport, SalesReport } from "@/lib/supabase/reports"
+import { StandardBreadcrumbs } from "@/components/ui/breadcrumbs"
 
 export default function ReportesVentasPage() {
   const [report, setReport] = useState<SalesReport>({
@@ -163,6 +164,11 @@ export default function ReportesVentasPage() {
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
+      <StandardBreadcrumbs
+        currentPage="Reportes de Ventas"
+        parentPages={[{ label: 'Reportes', href: '/reportes' }]}
+        className="mb-2"
+      />
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Reportes de Ventas</h2>
         <div className="flex items-center space-x-2">
