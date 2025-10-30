@@ -53,7 +53,7 @@ interface StandardBreadcrumbsProps {
 
 export function StandardBreadcrumbs({ currentPage, parentPages, className }: StandardBreadcrumbsProps) {
   const items: BreadcrumbItem[] = [
-    { label: 'Inicio', href: '/', icon: <Home className="h-4 w-4" /> },
+    { label: 'Inicio', href: '/dashboard', icon: <Home className="h-4 w-4" /> },
     ...(parentPages || []).map(page => ({ label: page.label, href: page.href })),
     { label: currentPage }
   ]

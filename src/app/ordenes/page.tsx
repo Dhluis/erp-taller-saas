@@ -23,7 +23,6 @@ export default function OrdenesPage() {
     <div className="p-6">
       <StandardBreadcrumbs
         currentPage="Órdenes de Trabajo"
-        parentPages={[{ label: 'Inicio', href: '/' }]}
         className="mb-4"
       />
       {/* Header con búsqueda */}
