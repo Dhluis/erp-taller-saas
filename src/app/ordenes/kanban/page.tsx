@@ -3,13 +3,15 @@
 import { useState } from 'react';
 import { KanbanBoard } from '@/components/ordenes/KanbanBoard';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search } from 'lucide-react';
+import { Search, RefreshCw } from 'lucide-react';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
+import { Button } from '@/components/ui/button';
 
 export default function KanbanPage() {
   const { organization } = useAuth();
   const organizationId = organization?.organization_id || null;
   const [searchQuery, setSearchQuery] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
 
   if (!organizationId) {
     return (
@@ -28,7 +30,18 @@ export default function KanbanPage() {
       />
       {/* Header con búsqueda */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white mb-4">Kanban</h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-white">Kanban</h1>
+          <Button
+            onClick={() => setRefreshKey(prev => prev + 1)}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Actualizar
+          </Button>
+        </div>
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input
@@ -41,8 +54,12 @@ export default function KanbanPage() {
         </div>
       </div>
 
-      {/* ✅ Pasamos organizationId y searchQuery */}
-      <KanbanBoard organizationId={organizationId} searchQuery={searchQuery} />
+      {/* ✅ Pasamos organizationId, searchQuery y refreshKey */}
+      <KanbanBoard 
+        organizationId={organizationId} 
+        searchQuery={searchQuery}
+        refreshKey={refreshKey}
+      />
     </div>
   );
 }

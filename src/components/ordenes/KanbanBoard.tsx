@@ -27,6 +27,7 @@ import { es } from 'date-fns/locale';
 interface KanbanBoardProps {
   organizationId: string;
   searchQuery?: string;
+  refreshKey?: number;
 }
 
 // Definición de columnas del Kanban
@@ -103,7 +104,7 @@ const KANBAN_COLUMNS: Omit<KanbanColumnType, 'orders'>[] = [
   },
 ];
 
-export function KanbanBoard({ organizationId, searchQuery = '' }: KanbanBoardProps) {
+export function KanbanBoard({ organizationId, searchQuery = '', refreshKey }: KanbanBoardProps) {
   const [columns, setColumns] = useState<KanbanColumnType[]>([]);
   const [activeOrder, setActiveOrder] = useState<WorkOrder | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
@@ -169,7 +170,7 @@ export function KanbanBoard({ organizationId, searchQuery = '' }: KanbanBoardPro
   // Cargar órdenes al montar y cuando cambien los filtros
   useEffect(() => {
     loadOrders();
-  }, [organizationId, dateFilter, customDateRange, searchQuery]);
+  }, [organizationId, dateFilter, customDateRange, searchQuery, refreshKey]);
 
 
   // Función de diagnóstico
