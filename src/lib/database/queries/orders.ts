@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
+import { withRetry } from '@/lib/supabase/retry-client';
 import type { WorkOrder, OrderStatus } from '@/types/orders';
 
 // Obtener todas las órdenes de una organización con sus relaciones
@@ -15,13 +16,16 @@ export async function getAllOrders(organizationId: string): Promise<WorkOrder[]>
   // Deshabilitar cache forzando nueva query cada vez
   const timestamp = Date.now()
   
-  const { data, error } = await supabaseClient
-    .from('work_orders')
-    .select('*, customer:customers(*), vehicle:vehicles(*)')
-    .eq('organization_id', organizationId)
-    .gte('created_at', '1970-01-01')  // Forzar bypass de cache
-    .order('created_at', { ascending: false })
-    .limit(1000)
+  const { data, error } = await withRetry(
+    async () => await supabaseClient
+      .from('work_orders')
+      .select('*, customer:customers(*), vehicle:vehicles(*)')
+      .eq('organization_id', organizationId)
+      .gte('created_at', '1970-01-01')  // Forzar bypass de cache
+      .order('created_at', { ascending: false })
+      .limit(1000),
+    { maxRetries: 3, delayMs: 500 }
+  )
   
   if (error) {
     console.error('❌ Error obteniendo órdenes:', error)
@@ -180,11 +184,14 @@ export async function createOrder(orderData: {
 // Obtener todos los clientes de una organización
 export async function getCustomers(organizationId: string) {
   const supabaseClient = createClient()
-  const { data, error } = await supabaseClient
-    .from('customers')
-    .select('id, name, email, phone')
-    .eq('organization_id', organizationId)
-    .order('name');
+  const { data, error } = await withRetry(
+    async () => await supabaseClient
+      .from('customers')
+      .select('id, name, email, phone')
+      .eq('organization_id', organizationId)
+      .order('name'),
+    { maxRetries: 3, delayMs: 500 }
+  )
 
   if (error) {
     console.error('❌ [getCustomers] Error:', error);
