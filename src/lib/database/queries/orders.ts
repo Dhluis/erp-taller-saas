@@ -5,10 +5,12 @@ import type { WorkOrder, OrderStatus } from '@/types/orders';
 export async function getAllOrders(organizationId: string): Promise<WorkOrder[]> {
   const supabaseClient = createClient()
   
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('🔌 getAllOrders - QUERY EJECUTADA')
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('Organization ID:', organizationId)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('🔌 getAllOrders - QUERY EJECUTADA')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('Organization ID:', organizationId)
+  }
   
   // Deshabilitar cache forzando nueva query cada vez
   const timestamp = Date.now()
@@ -26,14 +28,16 @@ export async function getAllOrders(organizationId: string): Promise<WorkOrder[]>
     throw error
   }
   
-  console.log('✅ Órdenes encontradas:', data?.length || 0)
-  console.log('✅ Distribución por estado:', 
-    data?.reduce((acc: any, order: any) => {
-      acc[order.status] = (acc[order.status] || 0) + 1
-      return acc
-    }, {})
-  )
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  if (process.env.NODE_ENV === 'development') {
+    console.log('✅ Órdenes encontradas:', data?.length || 0)
+    console.log('✅ Distribución por estado:', 
+      data?.reduce((acc: any, order: any) => {
+        acc[order.status] = (acc[order.status] || 0) + 1
+        return acc
+      }, {})
+    )
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  }
   
   return data || []
 }

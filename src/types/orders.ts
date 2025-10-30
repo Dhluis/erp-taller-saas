@@ -48,6 +48,14 @@ export interface WorkOrder {
     license_plate: string;
     color?: string;
   };
+  
+  // ✅ Campo de imágenes
+  images?: Array<{
+    id?: string;
+    url: string;
+    caption?: string;
+    created_at?: string;
+  }>;
 }
 
 export interface KanbanColumn {
