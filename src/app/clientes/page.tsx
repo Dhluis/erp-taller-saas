@@ -112,11 +112,8 @@ export default function ClientesPage() {
         await updateCustomer(selectedCustomer.id, formData);
         showToast('Cliente actualizado correctamente', 'success');
       } else {
-        // Crear nuevo cliente
-        await createCustomer({
-          ...formData,
-          organization_id: 'org-1', // TODO: Obtener del contexto de usuario
-        });
+        // Crear nuevo cliente (org se resuelve en API por tenant)
+        await createCustomer(formData);
         showToast('Cliente creado correctamente', 'success');
       }
       
