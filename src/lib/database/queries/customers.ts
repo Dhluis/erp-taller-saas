@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { withRetry } from '@/lib/supabase/retry-client'
 
 /**
  * Tipo para el modelo Customer
@@ -18,20 +19,17 @@ export interface Customer {
 /**
  * Obtener todos los clientes
  */
-export async function getAllCustomers(organizationId?: string) {
+export async function getAllCustomers(organizationId: string) {
   const supabase = await createClient()
 
-  let query = supabase
-    .from('customers')
-    .select('*')
-    .order('name')
-
-  // Si se proporciona organizationId, filtrar por organización
-  if (organizationId) {
-    query = query.eq('organization_id', organizationId)
-  }
-
-  const { data: customers, error } = await query
+  const { data: customers, error } = await withRetry(
+    async () => await supabase
+      .from('customers')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .order('name'),
+    { maxRetries: 3, delayMs: 500 }
+  )
 
   if (error) {
     console.error('Error fetching customers:', error)
@@ -47,11 +45,14 @@ export async function getAllCustomers(organizationId?: string) {
 export async function getCustomerById(id: string) {
   const supabase = await createClient()
 
-  const { data: customer, error } = await supabase
-    .from('customers')
-    .select('*')
-    .eq('id', id)
-    .single()
+  const { data: customer, error } = await withRetry(
+    async () => await supabase
+      .from('customers')
+      .select('*')
+      .eq('id', id)
+      .single(),
+    { maxRetries: 3, delayMs: 500 }
+  )
 
   if (error) {
     console.error('Error fetching customer by id:', error)
@@ -74,11 +75,14 @@ export async function createCustomer(data: {
 }) {
   const supabase = await createClient()
 
-  const { data: customer, error } = await supabase
-    .from('customers')
-    .insert(data)
-    .select()
-    .single()
+  const { data: customer, error } = await withRetry(
+    async () => await supabase
+      .from('customers')
+      .insert(data)
+      .select()
+      .single(),
+    { maxRetries: 3, delayMs: 500 }
+  )
 
   if (error) {
     console.error('Error creating customer:', error)
@@ -100,12 +104,15 @@ export async function updateCustomer(id: string, data: {
 }) {
   const supabase = await createClient()
 
-  const { data: customer, error } = await supabase
-    .from('customers')
-    .update(data)
-    .eq('id', id)
-    .select()
-    .single()
+  const { data: customer, error } = await withRetry(
+    async () => await supabase
+      .from('customers')
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single(),
+    { maxRetries: 3, delayMs: 500 }
+  )
 
   if (error) {
     console.error('Error updating customer:', error)
@@ -121,10 +128,13 @@ export async function updateCustomer(id: string, data: {
 export async function deleteCustomer(id: string) {
   const supabase = await createClient()
 
-  const { error } = await supabase
-    .from('customers')
-    .delete()
-    .eq('id', id)
+  const { error } = await withRetry(
+    async () => await supabase
+      .from('customers')
+      .delete()
+      .eq('id', id),
+    { maxRetries: 3, delayMs: 500 }
+  )
 
   if (error) {
     console.error('Error deleting customer:', error)

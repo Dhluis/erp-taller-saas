@@ -20,8 +20,11 @@ import {
   Camera
 } from "lucide-react"
 import { getCompanySettings, updateCompanySettings, CompanySettings } from "@/lib/supabase/company-settings"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function EmpresaPage() {
+  const { organization } = useAuth()
+  const organizationId = organization?.organization_id || null
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -59,13 +62,15 @@ export default function EmpresaPage() {
   })
 
   useEffect(() => {
-    loadSettings()
-  }, [])
+    if (organizationId) {
+      loadSettings()
+    }
+  }, [organizationId])
 
   const loadSettings = async () => {
     setIsLoading(true)
     try {
-      const settings = await getCompanySettings()
+      const settings = await getCompanySettings(organizationId as string)
       if (settings) {
         setFormData(settings)
       }
@@ -118,7 +123,8 @@ export default function EmpresaPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      const success = await updateCompanySettings(formData)
+      if (!organizationId) throw new Error('organizationId no disponible')
+      const success = await updateCompanySettings(organizationId, formData)
       if (success) {
         setIsEditing(false)
         alert('Configuración guardada exitosamente')
