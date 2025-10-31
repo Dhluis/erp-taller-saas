@@ -224,8 +224,27 @@ export default function CitasPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // ✅ VALIDACIÓN MEJORADA
+    if (!organization) {
+      console.error('❌ Organization no disponible:', organization)
+      alert('Error: Esperando información de la organización. Por favor intenta de nuevo.')
+      return
+    }
+    
+    const organizationId = organization.organization_id
+    const workshopId = organization.workshop_id
+    
     if (!organizationId || !workshopId) {
+      console.error('❌ IDs faltantes:', { organizationId, workshopId })
       alert('Error: No se pudo obtener la información de la organización')
+      return
+    }
+    
+    console.log('✅ Organization IDs:', { organizationId, workshopId })
+    
+    if (!formData.customer_name.trim() || !formData.customer_phone.trim() || 
+        !formData.vehicle_info.trim() || !formData.service_type.trim()) {
+      alert('Por favor completa todos los campos requeridos')
       return
     }
     
@@ -264,6 +283,7 @@ export default function CitasPage() {
           .single()
         
         if (customerError) {
+          console.error('❌ Error creando cliente:', customerError)
           throw new Error(`Error creando cliente: ${customerError.message}`)
         }
         
@@ -271,20 +291,17 @@ export default function CitasPage() {
         console.log('✅ Cliente creado:', customerId)
       }
       
-      // 2. BUSCAR O CREAR VEHÍCULO (opcional)
+      // 2. BUSCAR O CREAR VEHÍCULO
       let vehicleId: string | undefined
       
       if (formData.vehicle_info && formData.vehicle_info.trim()) {
         console.log('🚗 Procesando información del vehículo...')
         
-        // Intentar extraer marca, modelo y placa de vehicle_info
-        // Formato esperado: "Toyota Corolla 2020 - ABC123"
         const vehicleParts = formData.vehicle_info.split('-')
         const vehicleData = vehicleParts[0]?.trim() || ''
         const licensePlate = vehicleParts[1]?.trim() || ''
         
         if (licensePlate) {
-          // Buscar vehículo por placa
           const { data: existingVehicle } = await supabase
             .from('vehicles')
             .select('id')
@@ -296,7 +313,6 @@ export default function CitasPage() {
             vehicleId = existingVehicle.id
             console.log('✅ Vehículo encontrado:', vehicleId)
           } else {
-            // Crear vehículo nuevo
             const vehicleWords = vehicleData.split(' ')
             const brand = vehicleWords[0] || 'Desconocido'
             const model = vehicleWords.slice(1).join(' ') || 'Desconocido'
@@ -323,7 +339,11 @@ export default function CitasPage() {
       }
       
       // 3. CREAR LA CITA
-      console.log('📅 Creando cita...')
+      console.log('📅 Creando cita con datos:', {
+        customer_id: customerId,
+        vehicle_id: vehicleId,
+        organization_id: organizationId
+      })
       
       const appointmentData = {
         customer_id: customerId,
@@ -333,24 +353,23 @@ export default function CitasPage() {
         appointment_time: formData.appointment_time,
         duration: formData.estimated_duration,
         notes: formData.notes || null,
-        organization_id: organizationId,
-        status: 'scheduled'
+        organization_id: organizationId
       }
       
       const result = await createAppointment(appointmentData)
       
       if (result) {
         console.log('✅ Cita creada exitosamente:', result.id)
-        alert('Cita creada exitosamente')
+        alert('¡Cita creada exitosamente!')
         handleClose()
-        loadData()
+        await loadData()
       } else {
-        alert('Error al crear la cita')
+        throw new Error('No se pudo crear la cita')
       }
       
     } catch (error) {
-      console.error('❌ Error processing appointment:', error)
-      alert(`Error al procesar la cita: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+      console.error('❌ Error completo:', error)
+      alert(`Error: ${error instanceof Error ? error.message : 'Error desconocido'}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -383,21 +402,24 @@ export default function CitasPage() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => {
-              setEditingAppointment(null)
-              setFormData({
-                customer_name: '',
-                customer_phone: '',
-                customer_email: '',
-                vehicle_info: '',
-                service_type: '',
-                appointment_date: '',
-                appointment_time: '',
-                status: 'scheduled',
-                notes: '',
-                estimated_duration: 60
-              })
-            }}>
+            <Button 
+              onClick={() => {
+                setEditingAppointment(null)
+                setFormData({
+                  customer_name: '',
+                  customer_phone: '',
+                  customer_email: '',
+                  vehicle_info: '',
+                  service_type: '',
+                  appointment_date: '',
+                  appointment_time: '',
+                  status: 'scheduled',
+                  notes: '',
+                  estimated_duration: 60
+                })
+              }}
+              disabled={!organization}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Nueva Cita
             </Button>
