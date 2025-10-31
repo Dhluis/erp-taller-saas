@@ -9,7 +9,10 @@ export async function GET(request: NextRequest) {
     // Obtener contexto del tenant
     const tenantContext = await getTenantContext()
     if (!tenantContext) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No autorizado' 
+      }, { status: 401 })
     }
 
     const supabase = await createClient()
@@ -33,15 +36,26 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('❌ Error obteniendo clientes:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ 
+        success: false, 
+        error: error.message 
+      }, { status: 500 })
     }
 
     console.log('✅ Clientes obtenidos:', customers?.length || 0)
-    return NextResponse.json(customers || [])
+    
+    // ✅ DEVOLVER EN EL FORMATO CORRECTO
+    return NextResponse.json({ 
+      success: true, 
+      data: customers || [] 
+    })
 
   } catch (error: any) {
     console.error('💥 Error en GET /api/customers:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message 
+    }, { status: 500 })
   }
 }
 
@@ -52,7 +66,10 @@ export async function POST(request: NextRequest) {
     // Obtener contexto del tenant
     const tenantContext = await getTenantContext()
     if (!tenantContext) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No autorizado' 
+      }, { status: 401 })
     }
 
     const body = await request.json()
@@ -71,19 +88,39 @@ export async function POST(request: NextRequest) {
         phone: body.phone,
         address: body.address,
         notes: body.notes
-      })
+      } as any)
       .select()
       .single()
 
     if (error) {
       console.error('❌ Error creando cliente:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ 
+        success: false, 
+        error: error.message 
+      }, { status: 500 })
     }
 
-    console.log('✅ Cliente creado:', customer.id)
-    return NextResponse.json(customer)
+    if (!customer) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No se pudo crear el cliente' 
+      }, { status: 500 })
+    }
+
+    const customerData = customer as any
+    console.log('✅ Cliente creado:', customerData.id)
+    
+    // ✅ DEVOLVER EN EL FORMATO CORRECTO
+    return NextResponse.json({ 
+      success: true, 
+      data: customer 
+    })
+    
   } catch (error: any) {
     console.error('💥 Error en POST /api/customers:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message 
+    }, { status: 500 })
   }
 }
