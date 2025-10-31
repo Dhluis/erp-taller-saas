@@ -361,18 +361,21 @@ export default function CitasPage() {
       }
       
       // 3. CREAR LA CITA
+      // Combinar fecha y hora en un solo timestamp ISO
+      const appointmentDateTime = `${formData.appointment_date}T${formData.appointment_time || '09:00'}:00`
+      
       console.log('📅 Creando cita con datos:', {
         customer_id: customerId,
         vehicle_id: vehicleId,
-        organization_id: organizationId
+        organization_id: organizationId,
+        appointment_date: appointmentDateTime
       })
       
       const appointmentData = {
         customer_id: customerId,
         vehicle_id: vehicleId,
         service_type: formData.service_type,
-        appointment_date: formData.appointment_date,
-        appointment_time: formData.appointment_time,
+        appointment_date: appointmentDateTime,
         duration: formData.estimated_duration,
         notes: formData.notes || null,
         organization_id: organizationId

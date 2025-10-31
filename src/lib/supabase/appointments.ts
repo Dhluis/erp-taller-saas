@@ -167,24 +167,25 @@ export async function createAppointment(appointment: CreateAppointment): Promise
     async () => {
       const client = getSupabaseClient()
       
-      // Generar número de cita automático
-      const { data: lastAppointment } = await client
-        .from('appointments')
-        .select('appointment_number')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
+      // ✅ Crear cita sin appointment_number (esa columna no existe en la tabla)
+      const insertData: any = {
+        customer_id: appointment.customer_id,
+        service_type: appointment.service_type,
+        appointment_date: appointment.appointment_date,
+        duration: appointment.duration || 60,
+        organization_id: appointment.organization_id,
+        status: appointment.status || 'scheduled',
+        notes: appointment.notes
+      }
       
-      const lastNumber = lastAppointment?.appointment_number ? parseInt(lastAppointment.appointment_number.replace('APT-', '')) : 0
-      const appointmentNumber = `APT-${String(lastNumber + 1).padStart(6, '0')}`
+      // Solo agregar vehicle_id si existe
+      if (appointment.vehicle_id) {
+        insertData.vehicle_id = appointment.vehicle_id
+      }
       
       const { data, error } = await client
         .from('appointments')
-        .insert({
-          ...appointment,
-          appointment_number: appointmentNumber,
-          status: 'scheduled'
-        })
+        .insert(insertData)
         .select()
         .single()
       
