@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import {
   Plus,
   Search,
@@ -16,8 +17,7 @@ import {
   Phone,
   Mail
 } from "lucide-react"
-import { getSuppliers, getSupplierStats, createSupplier, Supplier, CreateSupplier } from "@/lib/supabase/suppliers"
-import { useErrorHandler } from "@/lib/utils/error-handler"
+import { useSuppliers, type Supplier } from "@/hooks/useSuppliers"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -38,18 +38,13 @@ import {
 } from "@/components/ui/select"
 
 export default function ProveedoresPage() {
+  // Hook para proveedores
+  const { suppliers, stats, loading, createSupplier } = useSuppliers()
+
   const [searchTerm, setSearchTerm] = useState("")
-  const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [stats, setStats] = useState({
-    totalSuppliers: 0,
-    activeSuppliers: 0,
-    totalOrders: 0,
-    totalAmount: 0
-  })
-  const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState<CreateSupplier>({
+  const [formData, setFormData] = useState({
     name: '',
     contact_person: '',
     phone: '',
@@ -63,147 +58,31 @@ export default function ProveedoresPage() {
     is_active: true,
     notes: ''
   })
-  
-  // Usar el sistema de manejo de errores
-  const { error, handleError, clearError } = useErrorHandler()
-
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = async () => {
-    setIsLoading(true)
-    clearError()
-    
-    try {
-      const [suppliersData, statsData] = await Promise.all([
-        getSuppliers(),
-        getSupplierStats()
-      ])
-      
-      // Si no hay proveedores, usar datos mock
-      if (suppliersData.length === 0) {
-        console.log('Using mock data for suppliers')
-        const mockSuppliers = [
-          {
-            id: 'S001',
-            name: 'Proveedor ABC S.A.',
-            contact_person: 'Juan Pérez',
-            phone: '+1 555-0123',
-            email: 'juan@proveedorabc.com',
-            address: 'Calle Principal 123',
-            city: 'Ciudad',
-            state: 'Estado',
-            postal_code: '12345',
-            country: 'México',
-            tax_id: 'RFC123456789',
-            is_active: true,
-            notes: 'Proveedor principal de repuestos',
-            created_at: '2024-01-15T00:00:00Z',
-            updated_at: '2024-01-15T00:00:00Z'
-          },
-          {
-            id: 'S002',
-            name: 'Distribuidora XYZ',
-            contact_person: 'María García',
-            phone: '+1 555-0456',
-            email: 'maria@distribuidoraxyz.com',
-            address: 'Avenida Central 456',
-            city: 'Ciudad',
-            state: 'Estado',
-            postal_code: '67890',
-            country: 'México',
-            tax_id: 'RFC987654321',
-            is_active: true,
-            notes: 'Especialista en herramientas',
-            created_at: '2024-01-16T00:00:00Z',
-            updated_at: '2024-01-16T00:00:00Z'
-          }
-        ]
-        setSuppliers(mockSuppliers)
-        setStats({
-          totalSuppliers: mockSuppliers.length,
-          activeSuppliers: mockSuppliers.filter(s => s.is_active === true).length,
-          totalOrders: 15,
-          totalAmount: 125000
-        })
-      } else {
-        setSuppliers(suppliersData)
-        setStats({
-          totalSuppliers: statsData.totalSuppliers,
-          activeSuppliers: statsData.activeSuppliers,
-          totalOrders: statsData.totalOrders,
-          totalAmount: statsData.totalAmount
-        })
-      }
-    } catch (error) {
-      console.error('Error loading suppliers:', error)
-      handleError(error instanceof Error ? error : new Error('Error loading data'))
-      
-      // En caso de error, usar datos mock
-      const mockSuppliers = [
-        {
-          id: 'S001',
-          name: 'Proveedor ABC S.A.',
-          contact_person: 'Juan Pérez',
-          phone: '+1 555-0123',
-          email: 'juan@proveedorabc.com',
-          address: 'Calle Principal 123',
-          city: 'Ciudad',
-          state: 'Estado',
-          postal_code: '12345',
-          country: 'México',
-          tax_id: 'RFC123456789',
-          status: 'active' as const,
-          notes: 'Proveedor principal de repuestos',
-          created_at: '2024-01-15T00:00:00Z',
-          updated_at: '2024-01-15T00:00:00Z'
-        }
-      ]
-      setSuppliers(mockSuppliers)
-      setStats({
-        totalSuppliers: 1,
-        activeSuppliers: 1,
-        totalOrders: 8,
-        totalAmount: 65000
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     
     try {
-      const newSupplier = await createSupplier(formData)
-      if (newSupplier) {
-        // Recargar datos
-        await loadData()
-        setIsDialogOpen(false)
-        // Resetear formulario
-        setFormData({
-          name: '',
-          contact_person: '',
-          phone: '',
-          email: '',
-          address: '',
-          city: '',
-          state: '',
-          postal_code: '',
-          country: '',
-          tax_id: '',
-          is_active: true,
-          notes: ''
-        })
-        alert('Proveedor agregado exitosamente!')
-      } else {
-        alert('Error al agregar el proveedor')
-      }
+      await createSupplier(formData)
+      setIsDialogOpen(false)
+      // Resetear formulario
+      setFormData({
+        name: '',
+        contact_person: '',
+        phone: '',
+        email: '',
+        address: '',
+        city: '',
+        state: '',
+        postal_code: '',
+        country: '',
+        tax_id: '',
+        is_active: true,
+        notes: ''
+      })
     } catch (error) {
       console.error('Error creating supplier:', error)
-      alert('Error al agregar el proveedor')
     } finally {
       setIsSubmitting(false)
     }
@@ -224,7 +103,7 @@ export default function ProveedoresPage() {
     }
   }
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="flex items-center justify-center h-64">
@@ -239,6 +118,12 @@ export default function ProveedoresPage() {
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
+      {/* Breadcrumbs */}
+      <StandardBreadcrumbs 
+        currentPage="Proveedores" 
+        parentPages={[{ label: 'Compras', href: '/compras' }]}
+      />
+
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Gestión de Proveedores</h2>
         <div className="flex items-center space-x-2">
