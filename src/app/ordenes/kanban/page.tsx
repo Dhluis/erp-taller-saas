@@ -5,6 +5,7 @@ import { KanbanBoard } from '@/components/ordenes/KanbanBoard';
 import { useAuth } from '@/contexts/AuthContext';
 import { Search, RefreshCw } from 'lucide-react';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
+import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
 import { Button } from '@/components/ui/button';
 
 export default function KanbanPage() {
@@ -28,8 +29,12 @@ export default function KanbanPage() {
         parentPages={[{ label: 'Órdenes', href: '/ordenes' }]}
         className="mb-4"
       />
+      
+      {/* Tabs de vista */}
+      <OrdersViewTabs />
+
       {/* Header con búsqueda */}
-      <div className="mb-6">
+      <div className="mb-6 mt-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-white">Kanban</h1>
           <Button

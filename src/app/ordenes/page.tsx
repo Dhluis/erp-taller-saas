@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAllOrders } from '@/lib/database/queries/orders';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
+import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +17,6 @@ import {
   Plus,
   Download,
   Filter,
-  Kanban as KanbanIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { WorkOrder, OrderStatus } from '@/types/orders';
@@ -138,18 +138,15 @@ export default function OrdenesPage() {
           <p className="text-slate-400 mt-1">Gestiona todas las órdenes del taller</p>
         </div>
         <div className="flex gap-3">
-          <Link href="/ordenes/kanban">
-            <Button variant="outline" className="gap-2">
-              <KanbanIcon className="w-4 h-4" />
-              Vista Kanban
-            </Button>
-          </Link>
           <Button className="gap-2 bg-cyan-500 hover:bg-cyan-600">
             <Plus className="w-4 h-4" />
             Nueva Orden
           </Button>
         </div>
       </div>
+
+      {/* Tabs de vista */}
+      <OrdersViewTabs />
 
       {/* Estadísticas rápidas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
