@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PageHeader } from '@/components/navigation/page-header'
+import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -97,11 +98,6 @@ export default function MovimientosInventarioPage() {
     total: 0,
     pages: 0
   })
-
-  const breadcrumbs = [
-    { label: 'Inventarios', href: '/inventarios' },
-    { label: 'Movimientos', href: '/inventarios/movimientos' }
-  ]
 
   const loadMovements = async () => {
     try {
@@ -249,10 +245,17 @@ export default function MovimientosInventarioPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {/* Breadcrumbs */}
+        <StandardBreadcrumbs 
+          currentPage="Movimientos"
+          parentPages={[
+            { label: 'Inventarios', href: '/inventarios' }
+          ]}
+        />
+
         <PageHeader
           title="Movimientos de Inventario"
           description="Historial completo de entradas, salidas y ajustes de inventario"
-          breadcrumbs={breadcrumbs}
           actions={
             <div className="flex space-x-2">
               <Button variant="outline">
