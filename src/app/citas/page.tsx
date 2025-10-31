@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAuth } from '@/contexts/AuthContext'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -79,6 +81,11 @@ interface CreateAppointmentData {
 }
 
 export default function CitasPage() {
+  // Obtener organizationId del contexto
+  const { organization } = useAuth()
+  const organizationId = organization?.organization_id
+  const workshopId = organization?.workshop_id
+
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -214,35 +221,136 @@ export default function CitasPage() {
     })
   }
 
-  const handleSubmit = async () => {
-    if (!formData.customer_name.trim() || !formData.customer_phone.trim() || !formData.vehicle_info.trim() || !formData.service_type.trim()) return
-
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!organizationId || !workshopId) {
+      alert('Error: No se pudo obtener la información de la organización')
+      return
+    }
+    
     setIsSubmitting(true)
+    
     try {
-      if (editingAppointment) {
-        // Actualizar cita existente
-        const updateData: UpdateAppointment = {
-          service_type: formData.service_type,
-          appointment_date: formData.appointment_date,
-          duration: formData.estimated_duration,
-          status: formData.status,
-          notes: formData.notes
-        }
-        const updated = await updateAppointment(editingAppointment.id, updateData)
-        if (updated) {
-          console.log('Cita actualizada:', updated)
-        }
+      const supabase = createClient()
+      
+      // 1. BUSCAR O CREAR CLIENTE
+      console.log('🔍 Buscando cliente con teléfono:', formData.customer_phone)
+      
+      const { data: existingCustomer } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('phone', formData.customer_phone)
+        .eq('organization_id', organizationId)
+        .maybeSingle()
+      
+      let customerId: string
+      
+      if (existingCustomer) {
+        console.log('✅ Cliente encontrado:', existingCustomer.id)
+        customerId = existingCustomer.id
       } else {
-        // TODO: Crear nueva cita requiere customer_id y organization_id
-        // Por ahora se necesita implementar la lógica para crear/buscar cliente y vehículo
-        console.warn('Crear nueva cita requiere customer_id y organization_id - implementar lógica de creación de cliente/vehículo')
-        // const created = await createAppointment(...)
+        console.log('➕ Creando nuevo cliente...')
+        const { data: newCustomer, error: customerError } = await supabase
+          .from('customers')
+          .insert({
+            organization_id: organizationId,
+            workshop_id: workshopId,
+            name: formData.customer_name,
+            phone: formData.customer_phone,
+            email: formData.customer_email || null
+          })
+          .select()
+          .single()
+        
+        if (customerError) {
+          throw new Error(`Error creando cliente: ${customerError.message}`)
+        }
+        
+        customerId = newCustomer.id
+        console.log('✅ Cliente creado:', customerId)
       }
-
-      handleClose()
-      loadData()
+      
+      // 2. BUSCAR O CREAR VEHÍCULO (opcional)
+      let vehicleId: string | undefined
+      
+      if (formData.vehicle_info && formData.vehicle_info.trim()) {
+        console.log('🚗 Procesando información del vehículo...')
+        
+        // Intentar extraer marca, modelo y placa de vehicle_info
+        // Formato esperado: "Toyota Corolla 2020 - ABC123"
+        const vehicleParts = formData.vehicle_info.split('-')
+        const vehicleData = vehicleParts[0]?.trim() || ''
+        const licensePlate = vehicleParts[1]?.trim() || ''
+        
+        if (licensePlate) {
+          // Buscar vehículo por placa
+          const { data: existingVehicle } = await supabase
+            .from('vehicles')
+            .select('id')
+            .eq('license_plate', licensePlate.toUpperCase())
+            .eq('workshop_id', workshopId)
+            .maybeSingle()
+          
+          if (existingVehicle) {
+            vehicleId = existingVehicle.id
+            console.log('✅ Vehículo encontrado:', vehicleId)
+          } else {
+            // Crear vehículo nuevo
+            const vehicleWords = vehicleData.split(' ')
+            const brand = vehicleWords[0] || 'Desconocido'
+            const model = vehicleWords.slice(1).join(' ') || 'Desconocido'
+            
+            const { data: newVehicle, error: vehicleError } = await supabase
+              .from('vehicles')
+              .insert({
+                customer_id: customerId,
+                workshop_id: workshopId,
+                brand: brand,
+                model: model,
+                license_plate: licensePlate.toUpperCase(),
+                year: null
+              })
+              .select()
+              .single()
+            
+            if (!vehicleError && newVehicle) {
+              vehicleId = newVehicle.id
+              console.log('✅ Vehículo creado:', vehicleId)
+            }
+          }
+        }
+      }
+      
+      // 3. CREAR LA CITA
+      console.log('📅 Creando cita...')
+      
+      const appointmentData = {
+        customer_id: customerId,
+        vehicle_id: vehicleId,
+        service_type: formData.service_type,
+        appointment_date: formData.appointment_date,
+        appointment_time: formData.appointment_time,
+        duration: formData.estimated_duration,
+        notes: formData.notes || null,
+        organization_id: organizationId,
+        status: 'scheduled'
+      }
+      
+      const result = await createAppointment(appointmentData)
+      
+      if (result) {
+        console.log('✅ Cita creada exitosamente:', result.id)
+        alert('Cita creada exitosamente')
+        handleClose()
+        loadData()
+      } else {
+        alert('Error al crear la cita')
+      }
+      
     } catch (error) {
-      console.error('Error saving appointment:', error)
+      console.error('❌ Error processing appointment:', error)
+      alert(`Error al procesar la cita: ${error instanceof Error ? error.message : 'Error desconocido'}`)
     } finally {
       setIsSubmitting(false)
     }
