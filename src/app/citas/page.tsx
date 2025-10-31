@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { 
   Table, 
   TableBody, 
@@ -47,9 +48,35 @@ import {
   getAppointmentStats,
   searchAppointments,
   subscribeToAppointments,
-  type Appointment,
-  type CreateAppointmentData
+  type AppointmentStats,
+  type CreateAppointment,
+  type UpdateAppointment
 } from "@/lib/supabase/appointments"
+import type { Appointment as BaseAppointment } from "@/types/supabase-simple"
+
+// Tipo extendido para el componente (incluye datos relacionados o calculados)
+interface Appointment extends BaseAppointment {
+  customer_name?: string
+  customer_phone?: string
+  customer_email?: string
+  vehicle_info?: string
+  appointment_time?: string
+  estimated_duration?: number
+}
+
+// Tipo para el formulario local (diferente al CreateAppointment)
+interface CreateAppointmentData {
+  customer_name: string
+  customer_phone: string
+  customer_email?: string
+  vehicle_info: string
+  service_type: string
+  appointment_date: string
+  appointment_time: string
+  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled'
+  notes?: string
+  estimated_duration: number
+}
 
 export default function CitasPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -59,12 +86,17 @@ export default function CitasPage() {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<AppointmentStats>({
     total: 0,
-    today: 0,
-    upcoming: 0,
+    scheduled: 0,
+    confirmed: 0,
+    in_progress: 0,
     completed: 0,
-    pending: 0
+    cancelled: 0,
+    no_show: 0,
+    today: 0,
+    thisWeek: 0,
+    thisMonth: 0
   })
 
   // Form data
@@ -151,16 +183,16 @@ export default function CitasPage() {
   const handleEdit = (appointment: Appointment) => {
     setEditingAppointment(appointment)
     setFormData({
-      customer_name: appointment.customer_name,
-      customer_phone: appointment.customer_phone,
+      customer_name: appointment.customer_name || '',
+      customer_phone: appointment.customer_phone || '',
       customer_email: appointment.customer_email || '',
-      vehicle_info: appointment.vehicle_info,
+      vehicle_info: appointment.vehicle_info || '',
       service_type: appointment.service_type,
       appointment_date: appointment.appointment_date,
-      appointment_time: appointment.appointment_time,
-      status: appointment.status,
+      appointment_time: appointment.appointment_time || '',
+      status: (appointment.status as 'scheduled' | 'confirmed' | 'completed' | 'cancelled') || 'scheduled',
       notes: appointment.notes || '',
-      estimated_duration: appointment.estimated_duration
+      estimated_duration: appointment.estimated_duration || appointment.duration || 60
     })
     setIsDialogOpen(true)
   }
@@ -189,16 +221,22 @@ export default function CitasPage() {
     try {
       if (editingAppointment) {
         // Actualizar cita existente
-        const updated = await updateAppointment(editingAppointment.id, formData)
+        const updateData: UpdateAppointment = {
+          service_type: formData.service_type,
+          appointment_date: formData.appointment_date,
+          duration: formData.estimated_duration,
+          status: formData.status,
+          notes: formData.notes
+        }
+        const updated = await updateAppointment(editingAppointment.id, updateData)
         if (updated) {
           console.log('Cita actualizada:', updated)
         }
       } else {
-        // Crear nueva cita
-        const created = await createAppointment(formData)
-        if (created) {
-          console.log('Cita creada:', created)
-        }
+        // TODO: Crear nueva cita requiere customer_id y organization_id
+        // Por ahora se necesita implementar la lógica para crear/buscar cliente y vehículo
+        console.warn('Crear nueva cita requiere customer_id y organization_id - implementar lógica de creación de cliente/vehículo')
+        // const created = await createAppointment(...)
       }
 
       handleClose()
@@ -214,11 +252,9 @@ export default function CitasPage() {
     if (!confirm('¿Estás seguro de eliminar esta cita?')) return
 
     try {
-      const success = await deleteAppointment(id)
-      if (success) {
-        console.log('Cita eliminada')
-        loadData()
-      }
+      await deleteAppointment(id)
+      console.log('Cita eliminada')
+      loadData()
     } catch (error) {
       console.error('Error deleting appointment:', error)
     }
@@ -226,6 +262,9 @@ export default function CitasPage() {
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumbs */}
+      <StandardBreadcrumbs currentPage="Gestión de Citas" />
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -405,9 +444,9 @@ export default function CitasPage() {
         <div className="bg-card p-4 rounded-lg border">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-orange-500" />
-            <span className="text-sm font-medium">Próximas</span>
+            <span className="text-sm font-medium">Programadas</span>
           </div>
-          <p className="text-2xl font-bold mt-2">{stats.upcoming}</p>
+          <p className="text-2xl font-bold mt-2">{stats.scheduled}</p>
         </div>
         
         <div className="bg-card p-4 rounded-lg border">
@@ -421,9 +460,9 @@ export default function CitasPage() {
         <div className="bg-card p-4 rounded-lg border">
           <div className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-yellow-500" />
-            <span className="text-sm font-medium">Pendientes</span>
+            <span className="text-sm font-medium">Confirmadas</span>
           </div>
-          <p className="text-2xl font-bold mt-2">{stats.pending}</p>
+          <p className="text-2xl font-bold mt-2">{stats.confirmed}</p>
         </div>
       </div>
 
@@ -505,12 +544,18 @@ export default function CitasPage() {
                   <div className="flex justify-end gap-2">
                     <Button 
                       variant="ghost" 
-                      size="icon"
+                      size="sm"
                       onClick={() => handleEdit(appointment)}
+                      className="h-8 w-8 p-0"
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(appointment.id)}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleDelete(appointment.id)}
+                      className="h-8 w-8 p-0"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

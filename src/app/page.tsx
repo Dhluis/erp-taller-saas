@@ -241,7 +241,7 @@ export default function LandingPage() {
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
-            </motion.div>
+              </motion.div>
           </div>
         </div>
       </section>
