@@ -81,10 +81,8 @@ interface CreateAppointmentData {
 }
 
 export default function CitasPage() {
-  // Obtener organizationId del contexto
+  // Obtener organization del contexto (los IDs se extraen en handleSubmit)
   const { organization } = useAuth()
-  const organizationId = organization?.organization_id
-  const workshopId = organization?.workshop_id
 
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([])
@@ -119,6 +117,16 @@ export default function CitasPage() {
     notes: '',
     estimated_duration: 60
   })
+
+  // Monitorear cuando organization carga
+  useEffect(() => {
+    console.log('🔄 [Citas] Organization actualizada:', {
+      exists: !!organization,
+      organization_id: organization?.organization_id,
+      workshop_id: organization?.id,  // ✅ CORRECCIÓN: es 'id', no 'workshop_id'
+      workshop_name: organization?.name
+    })
+  }, [organization])
 
   // Cargar datos al montar el componente
   useEffect(() => {
@@ -224,7 +232,10 @@ export default function CitasPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // ✅ VALIDACIÓN MEJORADA
+    // ✅ VALIDACIÓN MEJORADA CON LOGGING DETALLADO
+    console.log('📋 handleSubmit iniciado')
+    console.log('📦 organization completo:', organization)
+    
     if (!organization) {
       console.error('❌ Organization no disponible:', organization)
       alert('Error: Esperando información de la organización. Por favor intenta de nuevo.')
@@ -232,15 +243,26 @@ export default function CitasPage() {
     }
     
     const organizationId = organization.organization_id
-    const workshopId = organization.workshop_id
+    const workshopId = organization.id  // ✅ CORRECCIÓN: es 'id', no 'workshop_id'
+    
+    console.log('🔍 Extrayendo IDs:', { 
+      organizationId, 
+      workshopId,
+      organization_id_exists: !!organization.organization_id,
+      workshop_id_exists: !!organization.id 
+    })
     
     if (!organizationId || !workshopId) {
-      console.error('❌ IDs faltantes:', { organizationId, workshopId })
+      console.error('❌ IDs faltantes:', { 
+        organizationId, 
+        workshopId,
+        organization: organization 
+      })
       alert('Error: No se pudo obtener la información de la organización')
       return
     }
     
-    console.log('✅ Organization IDs:', { organizationId, workshopId })
+    console.log('✅ Organization IDs validados:', { organizationId, workshopId })
     
     if (!formData.customer_name.trim() || !formData.customer_phone.trim() || 
         !formData.vehicle_info.trim() || !formData.service_type.trim()) {
