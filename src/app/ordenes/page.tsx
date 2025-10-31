@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getAllOrders } from '@/lib/database/queries/orders';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
+import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -47,24 +48,25 @@ export default function OrdenesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // Cargar órdenes
-  useEffect(() => {
+  // Cargar órdenes - función reutilizable
+  const loadOrders = async () => {
     if (!organizationId) return;
-
-    async function loadOrders() {
-      try {
-        setLoading(true);
-        const data = await getAllOrders(organizationId);
-        setOrders(data);
-        setFilteredOrders(data);
-      } catch (error) {
-        console.error('Error cargando órdenes:', error);
-      } finally {
-        setLoading(false);
-      }
+    
+    try {
+      setLoading(true);
+      const data = await getAllOrders(organizationId);
+      setOrders(data);
+      setFilteredOrders(data);
+    } catch (error) {
+      console.error('Error cargando órdenes:', error);
+    } finally {
+      setLoading(false);
     }
+  };
 
+  useEffect(() => {
     loadOrders();
   }, [organizationId]);
 
@@ -121,7 +123,7 @@ export default function OrdenesPage() {
   if (!organizationId) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-slate-400">Cargando organización...</p>
+          <p className="text-slate-400">Cargando organización...</p>
       </div>
     );
   }
@@ -138,9 +140,12 @@ export default function OrdenesPage() {
           <p className="text-slate-400 mt-1">Gestiona todas las órdenes del taller</p>
         </div>
         <div className="flex gap-3">
-          <Button className="gap-2 bg-cyan-500 hover:bg-cyan-600">
+          <Button 
+            onClick={() => setIsCreateModalOpen(true)}
+            className="gap-2 bg-cyan-500 hover:bg-cyan-600"
+          >
             <Plus className="w-4 h-4" />
-            Nueva Orden
+          Nueva Orden
           </Button>
         </div>
       </div>
@@ -212,34 +217,34 @@ export default function OrdenesPage() {
         <div className="flex flex-col md:flex-row gap-4">
           {/* Búsqueda */}
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
             <Input
-              type="text"
+            type="text"
               placeholder="Buscar por cliente, vehículo, placa o ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-slate-900/50 border-slate-700 text-white"
-            />
-          </div>
+          />
+        </div>
 
           {/* Filtro de estado */}
-          <select
-            value={statusFilter}
+        <select
+          value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as OrderStatus | 'all')}
             className="px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          >
-            <option value="all">Todos los estados</option>
-            <option value="reception">Recepción</option>
-            <option value="diagnosis">Diagnóstico</option>
-            <option value="initial_quote">Cotización</option>
+        >
+          <option value="all">Todos los estados</option>
+          <option value="reception">Recepción</option>
+          <option value="diagnosis">Diagnóstico</option>
+          <option value="initial_quote">Cotización</option>
             <option value="waiting_approval">Aprobación</option>
-            <option value="disassembly">Desarmado</option>
-            <option value="waiting_parts">Esperando Piezas</option>
-            <option value="assembly">Armado</option>
-            <option value="testing">Pruebas</option>
-            <option value="ready">Listo</option>
-            <option value="completed">Completado</option>
-          </select>
+          <option value="disassembly">Desarmado</option>
+          <option value="waiting_parts">Esperando Piezas</option>
+          <option value="assembly">Armado</option>
+          <option value="testing">Pruebas</option>
+          <option value="ready">Listo</option>
+          <option value="completed">Completado</option>
+        </select>
 
           {/* Exportar */}
           <Button variant="outline" className="gap-2">
@@ -410,6 +415,15 @@ export default function OrdenesPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de crear orden */}
+      <CreateWorkOrderModal
+        open={isCreateModalOpen}
+        onOpenChange={setIsCreateModalOpen}
+        onSuccess={() => {
+          loadOrders(); // Recargar órdenes después de crear
+        }}
+      />
     </div>
   );
 }

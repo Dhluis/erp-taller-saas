@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { KanbanBoard } from '@/components/ordenes/KanbanBoard';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, Plus } from 'lucide-react';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
+import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
 import { Button } from '@/components/ui/button';
 
 export default function KanbanPage() {
@@ -13,6 +14,7 @@ export default function KanbanPage() {
   const organizationId = organization?.organization_id || null;
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   if (!organizationId) {
     return (
@@ -37,15 +39,24 @@ export default function KanbanPage() {
       <div className="mb-6 mt-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-white">Kanban</h1>
-          <Button
-            onClick={() => setRefreshKey(prev => prev + 1)}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Actualizar
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="gap-2 bg-cyan-500 hover:bg-cyan-600"
+            >
+              <Plus className="w-4 h-4" />
+              Nueva Orden
+            </Button>
+            <Button
+              onClick={() => setRefreshKey(prev => prev + 1)}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Actualizar
+            </Button>
+          </div>
         </div>
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
@@ -64,6 +75,15 @@ export default function KanbanPage() {
         organizationId={organizationId} 
         searchQuery={searchQuery}
         refreshKey={refreshKey}
+      />
+
+      {/* Modal de crear orden */}
+      <CreateWorkOrderModal
+        open={isCreateModalOpen}
+        onOpenChange={setIsCreateModalOpen}
+        onSuccess={() => {
+          setRefreshKey(prev => prev + 1); // Forzar recarga del Kanban
+        }}
       />
     </div>
   );
