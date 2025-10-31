@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from "@/components/ui/button"
@@ -64,6 +65,18 @@ interface Appointment extends BaseAppointment {
   vehicle_info?: string
   appointment_time?: string
   estimated_duration?: number
+  customer?: {
+    id: string
+    name: string
+    phone?: string
+    email?: string
+  }
+  vehicle?: {
+    id: string
+    brand: string
+    model: string
+    license_plate?: string
+  }
 }
 
 // Tipo para el formulario local (diferente al CreateAppointment)
@@ -146,10 +159,15 @@ export default function CitasPage() {
   // Filtrar citas cuando cambie el término de búsqueda
   useEffect(() => {
     if (searchTerm.trim()) {
+      const query = searchTerm.toLowerCase()
       const filtered = appointments.filter(appointment =>
-        (appointment.customer_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (appointment.vehicle_info || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (appointment.service_type || '').toLowerCase().includes(searchTerm.toLowerCase())
+        (appointment.customer?.name || appointment.customer_name || '').toLowerCase().includes(query) ||
+        (appointment.customer?.phone || appointment.customer_phone || '').toLowerCase().includes(query) ||
+        (appointment.vehicle?.brand || '').toLowerCase().includes(query) ||
+        (appointment.vehicle?.model || '').toLowerCase().includes(query) ||
+        (appointment.vehicle?.license_plate || '').toLowerCase().includes(query) ||
+        (appointment.vehicle_info || '').toLowerCase().includes(query) ||
+        (appointment.service_type || '').toLowerCase().includes(query)
       )
       setFilteredAppointments(filtered)
     } else {
@@ -160,16 +178,32 @@ export default function CitasPage() {
   const loadData = async () => {
     setIsLoading(true)
     try {
-      const [appointmentsData, statsData] = await Promise.all([
-        getAppointments(),
-        getAppointmentStats()
-      ])
+      // Obtener citas con datos de cliente y vehículo
+      const supabase = createClient()
+      const { data: appointmentsData, error } = await supabase
+        .from('appointments')
+        .select(`
+          *,
+          customer:customers(id, name, phone, email),
+          vehicle:vehicles(id, brand, model, license_plate)
+        `)
+        .order('appointment_date', { ascending: false })
+      
+      if (error) {
+        console.error('Error loading appointments:', error)
+        throw error
+      }
+      
+      const statsData = await getAppointmentStats()
 
-      setAppointments(appointmentsData)
-      setFilteredAppointments(appointmentsData)
+      setAppointments(appointmentsData || [])
+      setFilteredAppointments(appointmentsData || [])
       setStats(statsData)
     } catch (error) {
       console.error('Error loading data:', error)
+      toast.error('Error al cargar citas', {
+        description: 'No se pudieron cargar las citas'
+      })
     } finally {
       setIsLoading(false)
     }
@@ -238,7 +272,9 @@ export default function CitasPage() {
     
     if (!organization) {
       console.error('❌ Organization no disponible:', organization)
-      alert('Error: Esperando información de la organización. Por favor intenta de nuevo.')
+      toast.error('Error al crear cita', {
+        description: 'Esperando información de la organización. Por favor intenta de nuevo.'
+      })
       return
     }
     
@@ -258,7 +294,9 @@ export default function CitasPage() {
         workshopId,
         organization: organization 
       })
-      alert('Error: No se pudo obtener la información de la organización')
+      toast.error('Error al crear cita', {
+        description: 'No se pudo obtener la información de la organización'
+      })
       return
     }
     
@@ -266,7 +304,9 @@ export default function CitasPage() {
     
     if (!formData.customer_name.trim() || !formData.customer_phone.trim() || 
         !formData.vehicle_info.trim() || !formData.service_type.trim()) {
-      alert('Por favor completa todos los campos requeridos')
+      toast.error('Campos requeridos', {
+        description: 'Por favor completa todos los campos obligatorios'
+      })
       return
     }
     
@@ -417,7 +457,7 @@ export default function CitasPage() {
       
       if (result) {
         console.log('✅ Cita creada exitosamente:', result.id)
-        alert('¡Cita creada exitosamente!')
+        toast.success('¡Cita creada exitosamente!')
         handleClose()
         await loadData()
       } else {
@@ -426,21 +466,25 @@ export default function CitasPage() {
       
     } catch (error) {
       console.error('❌ Error completo:', error)
-      alert(`Error: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+      toast.error('Error al crear cita', {
+        description: error instanceof Error ? error.message : 'Error desconocido'
+      })
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar esta cita?')) return
+    if (!window.confirm('¿Estás seguro de eliminar esta cita?')) return
 
     try {
       await deleteAppointment(id)
       console.log('Cita eliminada')
+      toast.success('Cita eliminada correctamente')
       loadData()
     } catch (error) {
       console.error('Error deleting appointment:', error)
+      toast.error('Error al eliminar cita')
     }
   }
 
@@ -684,15 +728,17 @@ export default function CitasPage() {
               <TableRow key={appointment.id}>
                 <TableCell>
                   <div>
-                    <div className="font-medium">{appointment.customer_name}</div>
+                    <div className="font-medium">
+                      {appointment.customer?.name || appointment.customer_name || 'Sin nombre'}
+                    </div>
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
                       <Phone className="h-3 w-3" />
-                      {appointment.customer_phone}
+                      {appointment.customer?.phone || appointment.customer_phone || 'Sin teléfono'}
                     </div>
-                    {appointment.customer_email && (
+                    {(appointment.customer?.email || appointment.customer_email) && (
                       <div className="text-sm text-muted-foreground flex items-center gap-1">
                         <Mail className="h-3 w-3" />
-                        {appointment.customer_email}
+                        {appointment.customer?.email || appointment.customer_email}
                       </div>
                     )}
                   </div>
@@ -700,7 +746,11 @@ export default function CitasPage() {
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Car className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{appointment.vehicle_info}</span>
+                    <span className="text-sm">
+                      {appointment.vehicle 
+                        ? `${appointment.vehicle.brand} ${appointment.vehicle.model}` 
+                        : appointment.vehicle_info || 'Sin vehículo'}
+                    </span>
                   </div>
                 </TableCell>
                 <TableCell>
