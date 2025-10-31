@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Users, Target } from "lucide-react"
 
 interface Lead {
@@ -126,6 +127,9 @@ export default function TestComercialPage() {
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
+      {/* Breadcrumbs */}
+      <StandardBreadcrumbs currentPage="Comercial" />
+
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Comercial</h2>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
