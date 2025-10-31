@@ -300,64 +300,96 @@ export default function CitasPage() {
             name: formData.customer_name,
             phone: formData.customer_phone,
             email: formData.customer_email || null
-          })
+          } as any)
           .select()
           .single()
         
-        if (customerError) {
+        if (customerError || !newCustomer) {
           console.error('❌ Error creando cliente:', customerError)
-          throw new Error(`Error creando cliente: ${customerError.message}`)
+          throw new Error(`Error creando cliente: ${customerError?.message || 'No se pudo crear el cliente'}`)
         }
         
         customerId = newCustomer.id
         console.log('✅ Cliente creado:', customerId)
       }
       
-      // 2. BUSCAR O CREAR VEHÍCULO
-      let vehicleId: string | undefined
-      
-      if (formData.vehicle_info && formData.vehicle_info.trim()) {
-        console.log('🚗 Procesando información del vehículo...')
+      // 2. BUSCAR O CREAR VEHÍCULO (SIEMPRE CREAR UNO)
+      let vehicleId: string
+      console.log('🚗 Procesando información del vehículo...')
+
+      const vehicleInfo = formData.vehicle_info?.trim() || 'Vehículo sin especificar'
+      const vehicleParts = vehicleInfo.split('-')
+      const vehicleData = vehicleParts[0]?.trim() || vehicleInfo
+      const licensePlate = vehicleParts[1]?.trim() || ''
+
+      if (licensePlate) {
+        // BUSCAR POR PLACA
+        const { data: existingVehicle } = await supabase
+          .from('vehicles')
+          .select('id')
+          .eq('license_plate', licensePlate.toUpperCase())
+          .eq('workshop_id', workshopId)
+          .maybeSingle()
         
-        const vehicleParts = formData.vehicle_info.split('-')
-        const vehicleData = vehicleParts[0]?.trim() || ''
-        const licensePlate = vehicleParts[1]?.trim() || ''
-        
-        if (licensePlate) {
-          const { data: existingVehicle } = await supabase
-            .from('vehicles')
-            .select('id')
-            .eq('license_plate', licensePlate.toUpperCase())
-            .eq('workshop_id', workshopId)
-            .maybeSingle()
+        if (existingVehicle) {
+          vehicleId = existingVehicle.id
+          console.log('✅ Vehículo encontrado por placa:', vehicleId)
+        } else {
+          // CREAR CON PLACA
+          const vehicleWords = vehicleData.split(' ')
+          const brand = vehicleWords[0] || 'Desconocido'
+          const model = vehicleWords.slice(1).join(' ') || 'Desconocido'
           
-          if (existingVehicle) {
-            vehicleId = existingVehicle.id
-            console.log('✅ Vehículo encontrado:', vehicleId)
-          } else {
-            const vehicleWords = vehicleData.split(' ')
-            const brand = vehicleWords[0] || 'Desconocido'
-            const model = vehicleWords.slice(1).join(' ') || 'Desconocido'
-            
-            const { data: newVehicle, error: vehicleError } = await supabase
-              .from('vehicles')
-              .insert({
-                customer_id: customerId,
-                workshop_id: workshopId,
-                brand: brand,
-                model: model,
-                license_plate: licensePlate.toUpperCase(),
-                year: null
-              })
-              .select()
-              .single()
-            
-            if (!vehicleError && newVehicle) {
-              vehicleId = newVehicle.id
-              console.log('✅ Vehículo creado:', vehicleId)
-            }
+          const { data: newVehicle, error: vehicleError } = await supabase
+            .from('vehicles')
+            .insert({
+              customer_id: customerId,
+              workshop_id: workshopId,
+              brand: brand,
+              model: model,
+              license_plate: licensePlate.toUpperCase(),
+              year: null
+            } as any)
+            .select()
+            .single()
+          
+          if (vehicleError || !newVehicle) {
+            throw new Error(`Error creando vehículo: ${vehicleError?.message || 'No se pudo crear el vehículo'}`)
           }
+          
+          vehicleId = newVehicle.id
+          console.log('✅ Vehículo creado con placa:', vehicleId)
         }
+      } else {
+        // NO HAY PLACA - CREAR VEHÍCULO GENÉRICO
+        console.log('⚠️ No hay placa, creando vehículo genérico...')
+        
+        const vehicleWords = vehicleData.split(' ')
+        const brand = vehicleWords[0] || 'Desconocido'
+        const model = vehicleWords.slice(1).join(' ') || 'Desconocido'
+        
+        // Generar placa temporal única
+        const tempPlate = `TEMP-${Date.now().toString().slice(-6)}`
+        
+        const { data: newVehicle, error: vehicleError } = await supabase
+          .from('vehicles')
+          .insert({
+            customer_id: customerId,
+            workshop_id: workshopId,
+            brand: brand,
+            model: model,
+            license_plate: tempPlate,
+            year: null
+          } as any)
+          .select()
+          .single()
+        
+        if (vehicleError || !newVehicle) {
+          throw new Error(`Error creando vehículo: ${vehicleError?.message || 'No se pudo crear el vehículo'}`)
+        }
+        
+        vehicleId = newVehicle.id
+        console.log('✅ Vehículo genérico creado:', vehicleId, 'con placa:', tempPlate)
       }
       
       // 3. CREAR LA CITA

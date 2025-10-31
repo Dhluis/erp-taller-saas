@@ -24,7 +24,7 @@ export interface AppointmentStats {
 
 export interface CreateAppointment {
   customer_id: string
-  vehicle_id?: string
+  vehicle_id: string  // ✅ Ahora obligatorio - siempre se crea un vehículo
   service_type: string
   appointment_date: string
   duration?: number
@@ -168,24 +168,18 @@ export async function createAppointment(appointment: CreateAppointment): Promise
       const client = getSupabaseClient()
       
       // ✅ Crear cita sin appointment_number (esa columna no existe en la tabla)
-      const insertData: any = {
-        customer_id: appointment.customer_id,
-        service_type: appointment.service_type,
-        appointment_date: appointment.appointment_date,
-        duration: appointment.duration || 60,
-        organization_id: appointment.organization_id,
-        status: appointment.status || 'scheduled',
-        notes: appointment.notes
-      }
-      
-      // Solo agregar vehicle_id si existe
-      if (appointment.vehicle_id) {
-        insertData.vehicle_id = appointment.vehicle_id
-      }
-      
       const { data, error } = await client
         .from('appointments')
-        .insert(insertData)
+        .insert({
+          customer_id: appointment.customer_id,
+          vehicle_id: appointment.vehicle_id,
+          service_type: appointment.service_type,
+          appointment_date: appointment.appointment_date,
+          duration: appointment.duration || 60,
+          organization_id: appointment.organization_id,
+          status: appointment.status || 'scheduled',
+          notes: appointment.notes
+        } as any)
         .select()
         .single()
       
@@ -212,7 +206,7 @@ export async function updateAppointment(id: string, appointment: UpdateAppointme
       
       const { data, error } = await client
         .from('appointments')
-        .update(appointment)
+        .update(appointment as any)
         .eq('id', id)
         .select()
         .single()
@@ -273,7 +267,7 @@ export async function confirmAppointment(id: string): Promise<Appointment> {
         .update({
           status: 'confirmed',
           updated_at: new Date().toISOString()
-        })
+        } as any)
         .eq('id', id)
         .select()
         .single()
@@ -305,7 +299,7 @@ export async function completeAppointment(id: string, actualDuration?: number): 
           status: 'completed',
           actual_duration: actualDuration,
           updated_at: new Date().toISOString()
-        })
+        } as any)
         .eq('id', id)
         .select()
         .single()
@@ -337,7 +331,7 @@ export async function cancelAppointment(id: string, reason?: string): Promise<Ap
           status: 'cancelled',
           notes: reason ? `${reason}` : undefined,
           updated_at: new Date().toISOString()
-        })
+        } as any)
         .eq('id', id)
         .select()
         .single()
