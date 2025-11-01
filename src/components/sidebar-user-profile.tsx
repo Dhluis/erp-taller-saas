@@ -30,6 +30,9 @@ import {
   ChevronDown,
   Key,
   HelpCircle,
+  Building2,
+  Users,
+  Settings,
   Loader2
 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/use-user-profile';
@@ -204,6 +207,30 @@ export function SidebarUserProfile({ className = '' }: SidebarUserProfileProps) 
               >
                 <Key className="mr-2 h-4 w-4" />
                 <span>Cambiar Contraseña</span>
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              
+              {/* Configuraciones */}
+              <DropdownMenuItem asChild>
+                <Link href="/configuraciones/empresa" className="flex items-center cursor-pointer">
+                  <Building2 className="mr-2 h-4 w-4" />
+                  <span>Empresa</span>
+                </Link>
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem asChild>
+                <Link href="/configuraciones/usuarios" className="flex items-center cursor-pointer">
+                  <Users className="mr-2 h-4 w-4" />
+                  <span>Usuarios</span>
+                </Link>
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem asChild>
+                <Link href="/configuraciones/sistema" className="flex items-center cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Sistema</span>
+                </Link>
               </DropdownMenuItem>
               
               <DropdownMenuSeparator />

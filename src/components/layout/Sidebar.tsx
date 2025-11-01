@@ -176,20 +176,6 @@ export function Sidebar({ className }: SidebarProps) {
     }
   ]
 
-  const configSections = [
-    {
-      key: 'configuraciones',
-      label: 'Configuraciones',
-      icon: Settings,
-      items: [
-        { href: "/perfil", label: "Mi Perfil", icon: User },
-        { href: "/configuraciones/empresa", label: "Empresa", icon: Building2 },
-        { href: "/configuraciones/usuarios", label: "Usuarios", icon: Users },
-        { href: "/configuraciones/sistema", label: "Sistema", icon: Settings }
-      ]
-    }
-  ]
-
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/"
     
@@ -418,50 +404,6 @@ export function Sidebar({ className }: SidebarProps) {
             </Link>
           ))}
         </div>
-
-        {/* Configuration Sections */}
-        {!isCollapsed && (
-          <div className="space-y-1 pt-4 border-t">
-            {configSections.map((section) => (
-              <div key={section.key}>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-between gap-3 h-10"
-                  onClick={() => toggleSection(section.key)}
-                >
-                  <div className="flex items-center gap-3">
-                    <section.icon className="h-4 w-4" />
-                    {section.label}
-                  </div>
-                  {shouldExpandSection(section.key) ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </Button>
-                
-                {shouldExpandSection(section.key) && (
-                  <div className="ml-6 space-y-1 mt-1">
-                    {section.items.map((item) => (
-                      <Link key={item.href} href={item.href}>
-                        <Button
-                          variant={isActive(item.href) ? "primary" : "ghost"}
-                          className={cn(
-                            "w-full justify-start gap-3 h-8 text-sm",
-                            isActive(item.href) && "bg-primary text-white"
-                          )}
-                        >
-                          <item.icon className="h-3 w-3" />
-                          {item.label}
-                        </Button>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Footer */}
