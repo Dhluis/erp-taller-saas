@@ -1,0 +1,383 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { 
+  Search, 
+  FileText, 
+  User, 
+  Car, 
+  Package,
+  Clock,
+  Loader2,
+  ArrowRight
+} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { useGlobalSearch } from '@/hooks/useGlobalSearch';
+
+interface GlobalSearchProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
+  const [query, setQuery] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const { results, loading, search } = useGlobalSearch();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  // Buscar cuando cambia el query
+  useEffect(() => {
+    if (query.trim().length > 0) {
+      search(query);
+    }
+  }, [query, search]);
+
+  // Focus en el input cuando se abre el modal
+  useEffect(() => {
+    if (open) {
+      setQuery('');
+      setSelectedIndex(0);
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [open]);
+
+  // Obtener todos los resultados en un array plano
+  const allResults = [
+    ...results.orders.map(item => ({ ...item, type: 'order' as const })),
+    ...results.customers.map(item => ({ ...item, type: 'customer' as const })),
+    ...results.vehicles.map(item => ({ ...item, type: 'vehicle' as const })),
+    ...results.products.map(item => ({ ...item, type: 'product' as const })),
+  ];
+
+  // Navegación con teclado
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(prev => Math.min(prev + 1, allResults.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(prev => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter' && allResults[selectedIndex]) {
+      e.preventDefault();
+      handleSelectResult(allResults[selectedIndex]);
+    }
+  };
+
+  // Navegar al resultado seleccionado
+  const handleSelectResult = (result: any) => {
+    let path = '';
+    
+    switch (result.type) {
+      case 'order':
+        path = `/ordenes/${result.id}`;
+        break;
+      case 'customer':
+        path = `/clientes`;
+        break;
+      case 'vehicle':
+        path = `/vehiculos`;
+        break;
+      case 'product':
+        path = `/inventarios`;
+        break;
+    }
+    
+    if (path) {
+      router.push(path);
+      onOpenChange(false);
+    }
+  };
+
+  // Obtener icono según tipo
+  const getIcon = (type: string) => {
+    switch (type) {
+      case 'order':
+        return <FileText className="w-4 h-4 text-cyan-400" />;
+      case 'customer':
+        return <User className="w-4 h-4 text-green-400" />;
+      case 'vehicle':
+        return <Car className="w-4 h-4 text-blue-400" />;
+      case 'product':
+        return <Package className="w-4 h-4 text-purple-400" />;
+      default:
+        return <Search className="w-4 h-4 text-slate-400" />;
+    }
+  };
+
+  // Obtener label según tipo
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'order':
+        return 'Orden';
+      case 'customer':
+        return 'Cliente';
+      case 'vehicle':
+        return 'Vehículo';
+      case 'product':
+        return 'Producto';
+      default:
+        return type;
+    }
+  };
+
+  // Formatear resultado según tipo
+  const formatResult = (result: any) => {
+    switch (result.type) {
+      case 'order':
+        return {
+          title: `Orden ${result.id?.substring(0, 8)}...`,
+          subtitle: `${result.customer?.name || 'Sin cliente'} - ${result.vehicle?.brand || ''} ${result.vehicle?.model || ''}`,
+          badge: result.status,
+        };
+      case 'customer':
+        return {
+          title: result.name,
+          subtitle: result.phone || result.email || 'Sin información de contacto',
+          badge: null,
+        };
+      case 'vehicle':
+        return {
+          title: `${result.brand} ${result.model} ${result.year || ''}`,
+          subtitle: result.license_plate || 'Sin placa',
+          badge: null,
+        };
+      case 'product':
+        return {
+          title: result.name,
+          subtitle: `SKU: ${result.sku || 'N/A'} - Stock: ${result.current_stock || 0}`,
+          badge: result.current_stock < result.min_stock ? 'Stock Bajo' : null,
+        };
+      default:
+        return { title: 'Resultado', subtitle: '', badge: null };
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px] p-0 bg-slate-900 border-slate-700">
+        {/* Search Input */}
+        <div className="flex items-center border-b border-slate-700 px-4 py-3">
+          <Search className="w-5 h-5 text-slate-400 mr-3" />
+          <Input
+            ref={inputRef}
+            type="text"
+            placeholder="Buscar órdenes, clientes, vehículos, productos..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-white placeholder:text-slate-400"
+          />
+          {loading && <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />}
+        </div>
+
+        {/* Results */}
+        <div className="max-h-[400px] overflow-y-auto">
+          {query.trim().length === 0 ? (
+            <div className="p-8 text-center">
+              <Search className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-400 text-sm">
+                Comienza a escribir para buscar...
+              </p>
+              <p className="text-slate-500 text-xs mt-2">
+                Órdenes, Clientes, Vehículos, Productos
+              </p>
+            </div>
+          ) : loading ? (
+            <div className="p-8 text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-cyan-400 mx-auto mb-4" />
+              <p className="text-slate-400 text-sm">Buscando...</p>
+            </div>
+          ) : allResults.length === 0 ? (
+            <div className="p-8 text-center">
+              <Search className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-300 text-sm font-medium mb-1">
+                No se encontraron resultados
+              </p>
+              <p className="text-slate-500 text-xs">
+                Intenta con otros términos de búsqueda
+              </p>
+            </div>
+          ) : (
+            <div className="py-2">
+              {/* Órdenes */}
+              {results.orders.length > 0 && (
+                <div className="mb-4">
+                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase">
+                    Órdenes de Trabajo ({results.orders.length})
+                  </div>
+                  {results.orders.map((order, index) => {
+                    const globalIndex = allResults.findIndex(r => r.type === 'order' && r.id === order.id);
+                    const formatted = formatResult({ ...order, type: 'order' });
+                    return (
+                      <button
+                        key={`order-${order.id}`}
+                        onClick={() => handleSelectResult({ ...order, type: 'order' })}
+                        className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-800 transition-colors ${
+                          globalIndex === selectedIndex ? 'bg-slate-800' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 flex-1 text-left">
+                          {getIcon('order')}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-white truncate">
+                              {formatted.title}
+                            </div>
+                            <div className="text-xs text-slate-400 truncate">
+                              {formatted.subtitle}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {formatted.badge && (
+                            <Badge variant="secondary" className="text-xs">
+                              {formatted.badge}
+                            </Badge>
+                          )}
+                          <ArrowRight className="w-4 h-4 text-slate-500" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Clientes */}
+              {results.customers.length > 0 && (
+                <div className="mb-4">
+                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase">
+                    Clientes ({results.customers.length})
+                  </div>
+                  {results.customers.map((customer) => {
+                    const globalIndex = allResults.findIndex(r => r.type === 'customer' && r.id === customer.id);
+                    const formatted = formatResult({ ...customer, type: 'customer' });
+                    return (
+                      <button
+                        key={`customer-${customer.id}`}
+                        onClick={() => handleSelectResult({ ...customer, type: 'customer' })}
+                        className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-800 transition-colors ${
+                          globalIndex === selectedIndex ? 'bg-slate-800' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 flex-1 text-left">
+                          {getIcon('customer')}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-white truncate">
+                              {formatted.title}
+                            </div>
+                            <div className="text-xs text-slate-400 truncate">
+                              {formatted.subtitle}
+                            </div>
+                          </div>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-slate-500" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Vehículos */}
+              {results.vehicles.length > 0 && (
+                <div className="mb-4">
+                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase">
+                    Vehículos ({results.vehicles.length})
+                  </div>
+                  {results.vehicles.map((vehicle) => {
+                    const globalIndex = allResults.findIndex(r => r.type === 'vehicle' && r.id === vehicle.id);
+                    const formatted = formatResult({ ...vehicle, type: 'vehicle' });
+                    return (
+                      <button
+                        key={`vehicle-${vehicle.id}`}
+                        onClick={() => handleSelectResult({ ...vehicle, type: 'vehicle' })}
+                        className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-800 transition-colors ${
+                          globalIndex === selectedIndex ? 'bg-slate-800' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 flex-1 text-left">
+                          {getIcon('vehicle')}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-white truncate">
+                              {formatted.title}
+                            </div>
+                            <div className="text-xs text-slate-400 truncate">
+                              {formatted.subtitle}
+                            </div>
+                          </div>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-slate-500" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Productos */}
+              {results.products.length > 0 && (
+                <div className="mb-4">
+                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase">
+                    Productos ({results.products.length})
+                  </div>
+                  {results.products.map((product) => {
+                    const globalIndex = allResults.findIndex(r => r.type === 'product' && r.id === product.id);
+                    const formatted = formatResult({ ...product, type: 'product' });
+                    return (
+                      <button
+                        key={`product-${product.id}`}
+                        onClick={() => handleSelectResult({ ...product, type: 'product' })}
+                        className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-800 transition-colors ${
+                          globalIndex === selectedIndex ? 'bg-slate-800' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 flex-1 text-left">
+                          {getIcon('product')}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-white truncate">
+                              {formatted.title}
+                            </div>
+                            <div className="text-xs text-slate-400 truncate">
+                              {formatted.subtitle}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {formatted.badge && (
+                            <Badge variant="destructive" className="text-xs">
+                              {formatted.badge}
+                            </Badge>
+                          )}
+                          <ArrowRight className="w-4 h-4 text-slate-500" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {query.trim().length > 0 && allResults.length > 0 && (
+          <div className="border-t border-slate-700 px-4 py-2 flex items-center justify-between text-xs text-slate-400">
+            <div className="flex items-center gap-4">
+              <span>↑↓ Navegar</span>
+              <span>↵ Abrir</span>
+              <span>ESC Cerrar</span>
+            </div>
+            <span>{allResults.length} resultados</span>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+

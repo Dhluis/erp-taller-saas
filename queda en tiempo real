@@ -1,0 +1,15 @@
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'next.config.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/app/api/customers/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/app/api/invoices/[id]/discount/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/app/api/payments/invoice/[invoiceId]/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/app/api/vehicles/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/app/clientes/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/app/mecanicos/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/app/ordenes/kanban/components/OrderCard.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/app/ordenes/kanban/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/app/ordenes/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/app/vehiculos/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/dashboard/CreateWorkOrderModal.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/dashboard/DashboardWithCreateOrder.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/dashboard/QuickActions.tsx', LF will be replaced by CRLF the next time Git touches it
