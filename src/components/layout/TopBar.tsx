@@ -1,9 +1,10 @@
 'use client'
 
 import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { LogoWithText } from '@/components/ui/Logo'
 import { NotificationBell } from '@/components/layout/NotificationBell'
+import { GlobalSearch } from '@/components/search/GlobalSearch'
 
 interface TopBarProps {
   onMenuClick?: () => void
@@ -11,67 +12,87 @@ interface TopBarProps {
 }
 
 export function TopBar({ onMenuClick, title = 'EAGLES - ERP Taller SaaS' }: TopBarProps) {
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
+
+  // Atajos de teclado para abrir búsqueda global (Ctrl+K / Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setIsGlobalSearchOpen(true)
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   return (
-    <header className="h-16 bg-bg-secondary border-b border-border flex items-center justify-between px-6 sticky top-0 z-30">
-      <div className="flex items-center space-x-4">
-        {onMenuClick && (
-          <button
-            onClick={onMenuClick}
-            className="lg:hidden p-2 hover:bg-bg-tertiary rounded-lg transition-colors"
-          >
-            <Bars3Icon className="w-6 h-6 text-text-primary" />
-          </button>
-        )}
-        
-        {title ? (
-          <h2 className="text-xl font-semibold text-text-primary">
-            {title}
-          </h2>
-        ) : (
-          <LogoWithText size="sm" />
-        )}
-      </div>
+    <>
+      <header className="h-16 bg-bg-secondary border-b border-border flex items-center justify-between px-6 sticky top-0 z-30">
+        <div className="flex items-center space-x-4">
+          {onMenuClick && (
+            <button
+              onClick={onMenuClick}
+              className="lg:hidden p-2 hover:bg-bg-tertiary rounded-lg transition-colors"
+            >
+              <Bars3Icon className="w-6 h-6 text-text-primary" />
+            </button>
+          )}
+          
+          {title ? (
+            <h2 className="text-xl font-semibold text-text-primary">
+              {title}
+            </h2>
+          ) : (
+            <LogoWithText size="sm" />
+          )}
+        </div>
 
-      <div className="flex items-center space-x-4">
-        {/* Search */}
-        <div className="relative">
+        <div className="flex items-center space-x-4">
+          {/* Global Search - Ahora funcional */}
           <button
-            onClick={() => setIsSearchOpen(!isSearchOpen)}
-            className="p-2 hover:bg-bg-tertiary rounded-lg transition-colors"
+            onClick={() => setIsGlobalSearchOpen(true)}
+            className="hidden md:flex items-center space-x-2 px-4 py-2 bg-bg-tertiary border border-border rounded-lg hover:bg-bg-tertiary/70 transition-colors cursor-pointer group"
+          >
+            <MagnifyingGlassIcon className="w-5 h-5 text-text-secondary group-hover:text-text-primary" />
+            <span className="text-sm text-text-muted group-hover:text-text-secondary">
+              Buscar...
+            </span>
+            <kbd className="hidden lg:inline-block px-2 py-1 text-xs font-semibold text-text-muted bg-bg-primary border border-border rounded">
+              Ctrl+K
+            </kbd>
+          </button>
+
+          {/* Mobile Search Button */}
+          <button
+            onClick={() => setIsGlobalSearchOpen(true)}
+            className="md:hidden p-2 hover:bg-bg-tertiary rounded-lg transition-colors"
           >
             <MagnifyingGlassIcon className="w-6 h-6 text-text-secondary" />
           </button>
           
-          {isSearchOpen && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-bg-secondary border border-border rounded-lg shadow-lg z-50">
-              <div className="p-4">
-                <input
-                  type="text"
-                  placeholder="Buscar clientes, órdenes, productos..."
-                  className="w-full px-3 py-2 bg-bg-tertiary border border-border rounded-md text-text-primary placeholder-text-muted focus:border-primary focus:outline-none"
-                  autoFocus
-                />
-              </div>
+          {/* Notifications */}
+          <NotificationBell />
+          
+          {/* User Profile */}
+          <div className="flex items-center space-x-3 pl-4 border-l border-border">
+            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-bg-primary font-bold">
+              AP
             </div>
-          )}
-        </div>
-        
-        {/* Notifications */}
-        <NotificationBell />
-        
-        {/* User Profile */}
-        <div className="flex items-center space-x-3 pl-4 border-l border-border">
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-bg-primary font-bold">
-            AP
-          </div>
-          <div className="hidden sm:block">
-            <p className="text-sm font-medium text-text-primary">Admin</p>
-            <p className="text-xs text-text-secondary">admin@eagles.com</p>
+            <div className="hidden sm:block">
+              <p className="text-sm font-medium text-text-primary">Admin</p>
+              <p className="text-xs text-text-secondary">admin@eagles.com</p>
+            </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Global Search Modal */}
+      <GlobalSearch 
+        open={isGlobalSearchOpen} 
+        onOpenChange={setIsGlobalSearchOpen}
+      />
+    </>
   )
 }
