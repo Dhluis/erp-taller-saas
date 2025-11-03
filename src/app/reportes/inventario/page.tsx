@@ -192,8 +192,8 @@ export default function ReportesInventarioPage() {
                 report.lowStockItems.map((item, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
                     <div>
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">{item.category}</p>
+                      <p className="font-medium text-gray-900">{item.name}</p>
+                      <p className="text-sm text-gray-700">{item.category}</p>
                     </div>
                     <div className="text-right">
                       <Badge variant="outline" className="bg-orange-500 text-white">
@@ -224,12 +224,12 @@ export default function ReportesInventarioPage() {
               {report.categories.map((category, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">{category.name}</p>
-                    <p className="text-sm text-muted-foreground">{category.count} productos</p>
+                    <p className="font-medium text-gray-900">{category.name}</p>
+                    <p className="text-sm text-gray-700">{category.count} productos</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">${(category.value || 0).toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">Valor total</p>
+                    <p className="font-medium text-gray-900">${(category.value || 0).toLocaleString()}</p>
+                    <p className="text-sm text-gray-700">Valor total</p>
                   </div>
                 </div>
               ))}
@@ -246,15 +246,15 @@ export default function ReportesInventarioPage() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <div className="text-2xl font-bold text-blue-600">{report.totalProducts}</div>
-              <div className="text-sm text-muted-foreground">Productos Totales</div>
+              <div className="text-sm text-gray-900 font-medium">Productos Totales</div>
             </div>
             <div className="text-center p-4 bg-orange-50 rounded-lg">
               <div className="text-2xl font-bold text-orange-600">{report.lowStockProducts}</div>
-              <div className="text-sm text-muted-foreground">Stock Bajo</div>
+              <div className="text-sm text-gray-900 font-medium">Stock Bajo</div>
             </div>
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <div className="text-2xl font-bold text-green-600">${(report.totalValue || 0).toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Valor Total</div>
+              <div className="text-sm text-gray-900 font-medium">Valor Total</div>
             </div>
           </div>
         </CardContent>
