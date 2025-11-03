@@ -173,50 +173,21 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey }: Ka
   }, [organizationId, dateFilter, customDateRange, searchQuery, refreshKey]);
 
 
-  // Función de diagnóstico
-  const runDiagnostics = async () => {
-    console.log('🔍 [DIAGNOSTIC] Iniciando diagnósticos...');
-    console.log('🔍 [DIAGNOSTIC] organizationId:', organizationId);
-    
-    try {
-      // Verificar variables de entorno
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      
-      console.log('🔍 [DIAGNOSTIC] Supabase URL configurada:', !!supabaseUrl);
-      console.log('🔍 [DIAGNOSTIC] Supabase Key configurada:', !!supabaseKey);
-      
-      if (!supabaseUrl || !supabaseKey) {
-        console.error('❌ [DIAGNOSTIC] Variables de entorno faltantes');
-        setError('Variables de entorno de Supabase no configuradas');
-        return;
-      }
-      
-      // Probar conexión básica
-      const { getAllOrders } = await import('@/lib/database/queries/orders');
-      const testOrders = await getAllOrders(organizationId);
-      console.log('✅ [DIAGNOSTIC] Query exitosa, órdenes obtenidas:', testOrders.length);
-      
-    } catch (err) {
-      console.error('❌ [DIAGNOSTIC] Error en diagnóstico:', err);
-      setError(`Error de diagnóstico: ${err instanceof Error ? err.message : 'Error desconocido'}`);
-    }
-  };
+  // ✅ DIAGNOSTICS ELIMINADO para reducir llamadas duplicadas
+  // Las verificaciones se hacen en loadOrders() si es necesario
 
-  // Ejecutar diagnósticos en desarrollo
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      runDiagnostics();
-    }
-  }, [organizationId]);
-
-  // Función para cargar órdenes
+  // Función para cargar órdenes (OPTIMIZADA)
   async function loadOrders() {
     try {
       setLoading(true);
       setError(null);
       
-      const orders = await getAllOrders(organizationId);
+      // ✅ Usar query optimizada sin paginación para Kanban (muestra todas visibles)
+      // ✅ Excluir órdenes completadas antiguas para mejor rendimiento
+      const orders = await getAllOrders(organizationId, {
+        useCache: true,
+        includeCompleted: false, // Solo órdenes activas o recientes
+      });
       
       // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

@@ -6,13 +6,28 @@ import type { WorkOrder, OrderStatus } from '@/types/orders';
 let ordersCache: { [key: string]: { data: WorkOrder[]; timestamp: number } } = {}
 const CACHE_TTL = 10000 // 10 segundos
 
+// Opciones de paginación
+export interface PaginationOptions {
+  page?: number;
+  limit?: number;
+  offset?: number;
+}
+
 // Obtener todas las órdenes de una organización con sus relaciones (OPTIMIZADA)
-export async function getAllOrders(organizationId: string, useCache: boolean = true): Promise<WorkOrder[]> {
+export async function getAllOrders(
+  organizationId: string, 
+  options: {
+    useCache?: boolean;
+    pagination?: PaginationOptions;
+    includeCompleted?: boolean; // Si false, excluye órdenes completadas antiguas
+  } = {}
+): Promise<WorkOrder[]> {
+  const { useCache = true, pagination, includeCompleted = true } = options;
   const supabaseClient = createClient()
   
   // Verificar cache (solo en desarrollo, opcional)
-  const cacheKey = `orders_${organizationId}`
-  if (useCache && ordersCache[cacheKey]) {
+  const cacheKey = `orders_${organizationId}_${pagination?.page || 0}_${includeCompleted}`
+  if (useCache && !pagination && ordersCache[cacheKey]) {
     const cached = ordersCache[cacheKey]
     if (Date.now() - cached.timestamp < CACHE_TTL) {
       if (process.env.NODE_ENV === 'development') {
@@ -28,14 +43,57 @@ export async function getAllOrders(organizationId: string, useCache: boolean = t
     console.log('🔌 [getAllOrders] Ejecutando query optimizada...')
   }
 
-  // ✅ Query optimizada usando campos reales del schema (sintaxis simple)
+  // ✅ Query optimizada: Seleccionar solo campos necesarios
+  // Campos principales de work_orders (los más usados)
+  const workOrderFields = [
+    'id',
+    'status',
+    'description',
+    'notes',
+    'estimated_cost',
+    'final_cost',
+    'total_amount',
+    'entry_date',
+    'estimated_completion',
+    'completed_at',
+    'created_at',
+    'updated_at',
+    'organization_id',
+    'customer_id',
+    'vehicle_id',
+    'mechanic_id'
+  ].join(',')
+
+  // ✅ Relaciones optimizadas: solo campos necesarios
+  const customerFields = 'id,name,phone,email'
+  const vehicleFields = 'id,brand,model,year,license_plate,color'
+  const employeeFields = 'id,full_name,email'
+
+  // Construir query
+  let query = supabaseClient
+    .from('work_orders')
+    .select(`${workOrderFields}, customer:customers(${customerFields}), vehicle:vehicles(${vehicleFields}), assigned_to:employees(${employeeFields})`)
+    .eq('organization_id', organizationId)
+    .order('created_at', { ascending: false })
+
+  // ✅ Filtrar órdenes completadas antiguas (mejora rendimiento)
+  if (!includeCompleted) {
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    // Formato correcto de Supabase .or()
+    query = query.or(`completed_at.is.null,completed_at.gte.${sixMonthsAgo.toISOString()}`)
+  }
+
+  // ✅ Paginación inteligente
+  const limit = pagination?.limit || 300; // Reducido de 500 a 300 para mejor rendimiento
+  const offset = pagination?.offset || (pagination?.page ? (pagination.page - 1) * limit : 0);
+  
+  query = query
+    .range(offset, offset + limit - 1)
+    .limit(limit)
+
   const { data, error } = await withRetry(
-    async () => await supabaseClient
-      .from('work_orders')
-      .select('*, customer:customers(*), vehicle:vehicles(*), assigned_to:employees(*)')
-      .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false })
-      .limit(500), // ✅ Límite reducido de 1000 a 500
+    async () => await query,
     { maxRetries: 2, delayMs: 300 }
   )
   
@@ -47,8 +105,8 @@ export async function getAllOrders(organizationId: string, useCache: boolean = t
     throw error
   }
   
-  // Guardar en cache
-  if (useCache && data) {
+  // Guardar en cache (solo si no hay paginación)
+  if (useCache && !pagination && data) {
     ordersCache[cacheKey] = {
       data: data as WorkOrder[],
       timestamp: Date.now()
@@ -58,6 +116,7 @@ export async function getAllOrders(organizationId: string, useCache: boolean = t
   if (process.env.NODE_ENV === 'development') {
     console.log(`✅ [getAllOrders] Query completada en ${queryTime}ms`)
     console.log(`✅ Órdenes encontradas: ${data?.length || 0}`)
+    console.log(`📊 Límite aplicado: ${limit}, Offset: ${offset}`)
   }
 
   return (data || []) as WorkOrder[]

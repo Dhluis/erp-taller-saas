@@ -50,13 +50,18 @@ export default function OrdenesPage() {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // Cargar órdenes - función reutilizable
+  // Cargar órdenes - función reutilizable (OPTIMIZADA)
   const loadOrders = async () => {
     if (!organizationId) return;
-    
+
     try {
       setLoading(true);
-      const data = await getAllOrders(organizationId);
+      // ✅ Usar query optimizada con cache
+      // ✅ Para la tabla, incluir todas las órdenes (completadas también)
+      const data = await getAllOrders(organizationId, {
+        useCache: true,
+        includeCompleted: true, // Tabla puede mostrar todas
+      });
       setOrders(data);
       setFilteredOrders(data);
     } catch (error) {

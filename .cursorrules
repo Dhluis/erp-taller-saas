@@ -1,0 +1,143 @@
+# .cursorrules - Reglas de protección para Cursor AI
+
+# ============================================
+# 🛡️ ZONA PROTEGIDA - NUNCA MODIFICAR
+# ============================================
+
+PROTECTED_AREAS:
+  - "src/app/ordenes/**"
+  - "src/app/clientes/**"
+  - "src/app/citas/**"
+  - "src/app/inventarios/**"
+  - "src/app/vehiculos/**"
+  - "src/app/dashboard/**"
+  - "src/app/configuraciones/**"
+  - "src/components/ui/**"
+  - "src/components/layout/**"
+  - "src/lib/database/**"
+  - "src/lib/supabase/**"
+  - "src/hooks/**"
+  - "src/contexts/**"
+  - "src/types/**"
+
+CRITICAL_FILES:
+  - "src/app/layout.tsx"
+  - "src/app/page.tsx"
+  - "src/middleware.ts"
+  - "package.json"
+  - "next.config.js"
+  - "tailwind.config.js"
+  - "tailwind.config.ts"
+  - "tsconfig.json"
+  - "supabase/**"
+  - ".env.local"
+  - ".env"
+  - "middleware.ts"
+
+# ============================================
+# ✅ ZONA DE DESARROLLO SEGURA
+# ============================================
+
+DEVELOPMENT_ZONE:
+  - "src/components/new/**"
+  - "src/features-new/**"
+  - "docs/**"
+  - "scripts/**"
+
+# ============================================
+# 📋 REGLAS OBLIGATORIAS
+# ============================================
+
+RULES:
+  1. NUNCA modificar archivos en PROTECTED_AREAS sin autorización explícita
+  2. SIEMPRE crear código nuevo en DEVELOPMENT_ZONE o componentes específicos
+  3. Para integrar con código existente, crear adapters o wrappers
+  4. SIEMPRE preguntar antes de modificar CRITICAL_FILES
+  5. Documentar todos los cambios importantes
+  6. Usar imports para conectar, NUNCA modificar originales sin permiso
+  7. Mantener TypeScript types y interfaces
+  8. Respetar la arquitectura multi-tenant existente
+  9. NO modificar queries de Supabase sin revisar RLS policies
+  10. Usar el sistema de retry client para queries de Supabase
+
+# ============================================
+# 🔌 ESTRATEGIA DE INTEGRACIÓN
+# ============================================
+
+INTEGRATION_PATTERN: "Adapter Pattern + Component Wrapper"
+
+Cuando necesites integrar con código existente:
+  ✅ CORRECTO: Crear wrapper/extension que IMPORTE el componente original
+  ❌ INCORRECTO: Modificar directamente componentes protegidos
+
+Ejemplo:
+  // ✅ Crear nuevo componente wrapper
+  // src/components/new/EnhancedWorkOrderModal.tsx
+  import { WorkOrderDetailsModal } from '@/components/work-orders/WorkOrderDetailsModal';
+  export const EnhancedWorkOrderModal = ({ ... }) => {
+    // Extiende funcionalidad sin modificar el original
+  };
+  
+  // ❌ NO modificar el archivo original
+  // src/components/work-orders/WorkOrderDetailsModal.tsx
+
+# ============================================
+# 🎯 PROMPT REQUERIDO
+# ============================================
+
+Antes de generar código, el usuario debe especificar:
+  - Dónde crear los archivos nuevos (ruta exacta)
+  - Qué archivos NO tocar
+  - Si necesita integración, usar wrappers/adapters
+  - Verificar impacto en multi-tenant architecture
+  - Confirmar cambios en queries de Supabase
+
+# ============================================
+# 🏗️ ARQUITECTURA DEL PROYECTO
+# ============================================
+
+ARCHITECTURE:
+  - Framework: Next.js 15 (App Router)
+  - Language: TypeScript
+  - Database: Supabase (PostgreSQL)
+  - Styling: Tailwind CSS
+  - Multi-tenant: Sí (organization_id, workshop_id)
+  - Auth: Supabase Auth
+  - State: React Context + Hooks
+
+CONVENTIONS:
+  - Componentes: PascalCase (WorkOrderDetailsModal.tsx)
+  - Hooks: camelCase con prefijo 'use' (useWorkOrders.ts)
+  - Utilities: camelCase (queries/orders.ts)
+  - Types: PascalCase (WorkOrder, OrderStatus)
+  - Pages: lowercase routes en app/ (app/ordenes/page.tsx)
+
+# ============================================
+# 🔒 SEGURIDAD Y VALIDACIÓN
+# ============================================
+
+SECURITY_RULES:
+  1. SIEMPRE validar organization_id en queries
+  2. Usar getTenantContext() para obtener IDs del tenant
+  3. NUNCA exponer datos de otras organizaciones
+  4. Validar permisos antes de modificar datos críticos
+  5. Usar RLS policies de Supabase
+
+VALIDATION_REQUIRED:
+  - Variables de entorno antes de usar Supabase
+  - organization_id y workshop_id en todas las queries
+  - Manejo de errores en todas las operaciones async
+  - Validación de tipos TypeScript
+
+# ============================================
+# 📝 NOTAS IMPORTANTES
+# ============================================
+
+NOTES:
+  - El proyecto usa sistema de breadcrumbs (StandardBreadcrumbs)
+  - Toast notifications con sonner (toast.success/error)
+  - Layout principal: AppLayout con Sidebar y TopBar
+  - Sistema de cache en queries (10 segundos)
+  - Retry client para manejo de errores de red
+  - Sistema de búsqueda global (GlobalSearch component)
+
