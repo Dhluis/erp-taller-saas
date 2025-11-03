@@ -2,48 +2,97 @@ import { createClient } from '@/lib/supabase/client';
 import { withRetry } from '@/lib/supabase/retry-client';
 import type { WorkOrder, OrderStatus } from '@/types/orders';
 
-// Obtener todas las órdenes de una organización con sus relaciones
-export async function getAllOrders(organizationId: string): Promise<WorkOrder[]> {
+// Cache simple en memoria (solo para desarrollo/testing)
+let ordersCache: { [key: string]: { data: WorkOrder[]; timestamp: number } } = {}
+const CACHE_TTL = 10000 // 10 segundos
+
+// Obtener todas las órdenes de una organización con sus relaciones (OPTIMIZADA)
+export async function getAllOrders(organizationId: string, useCache: boolean = true): Promise<WorkOrder[]> {
   const supabaseClient = createClient()
   
-  if (process.env.NODE_ENV === 'development') {
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('🔌 getAllOrders - QUERY EJECUTADA')
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('Organization ID:', organizationId)
+  // Verificar cache (solo en desarrollo, opcional)
+  const cacheKey = `orders_${organizationId}`
+  if (useCache && ordersCache[cacheKey]) {
+    const cached = ordersCache[cacheKey]
+    if (Date.now() - cached.timestamp < CACHE_TTL) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ [getAllOrders] Usando cache (datos frescos)')
+      }
+      return cached.data
+    }
   }
   
-  // Deshabilitar cache forzando nueva query cada vez
-  const timestamp = Date.now()
+  const startTime = performance.now()
   
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔌 [getAllOrders] Ejecutando query optimizada...')
+  }
+
+  // ✅ OPTIMIZACIÓN: Seleccionar solo campos necesarios para el Kanban/Lista
   const { data, error } = await withRetry(
     async () => await supabaseClient
       .from('work_orders')
-      .select('*, customer:customers(*), vehicle:vehicles(*)')
+      .select(`
+        id,
+        status,
+        description,
+        notes,
+        estimated_cost,
+        final_cost,
+        total_amount,
+        entry_date,
+        estimated_completion,
+        completed_at,
+        created_at,
+        updated_at,
+        organization_id,
+        customer_id,
+        vehicle_id,
+        mechanic_id,
+        customer:customers(
+          id,
+          name,
+          phone,
+          email
+        ),
+        vehicle:vehicles(
+          id,
+          brand,
+          model,
+          year,
+          license_plate
+        )
+      `)
       .eq('organization_id', organizationId)
-      .gte('created_at', '1970-01-01')  // Forzar bypass de cache
+      // ✅ OPTIMIZACIÓN: Solo órdenes de los últimos 2 años (o no completadas)
+      .or('completed_at.is.null,completed_at.gte.' + new Date(Date.now() - 730 * 24 * 60 * 60 * 1000).toISOString())
       .order('created_at', { ascending: false })
-      .limit(1000),
-    { maxRetries: 3, delayMs: 500 }
+      .limit(500), // ✅ Reducido de 1000 a 500
+    { maxRetries: 2, delayMs: 300 } // ✅ Reducido retries y delay
   )
+  
+  const endTime = performance.now()
+  const queryTime = Math.round(endTime - startTime)
   
   if (error) {
     console.error('❌ Error obteniendo órdenes:', error)
     throw error
   }
   
-  if (process.env.NODE_ENV === 'development') {
-    console.log('✅ Órdenes encontradas:', data?.length || 0)
-    console.log('✅ Distribución por estado:', 
-      data?.reduce((acc: any, order: any) => {
-        acc[order.status] = (acc[order.status] || 0) + 1
-        return acc
-      }, {})
-    )
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  // Guardar en cache
+  if (useCache && data) {
+    ordersCache[cacheKey] = {
+      data: data as WorkOrder[],
+      timestamp: Date.now()
+    }
   }
   
-  return data || []
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`✅ [getAllOrders] Query completada en ${queryTime}ms`)
+    console.log(`✅ Órdenes encontradas: ${data?.length || 0}`)
+  }
+
+  return (data || []) as WorkOrder[]
 }
 
 // Actualizar estado de una orden
