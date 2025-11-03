@@ -56,12 +56,7 @@ export default function OrdenesPage() {
 
     try {
       setLoading(true);
-      // ✅ Usar query optimizada con cache
-      // ✅ Para la tabla, incluir todas las órdenes (completadas también)
-      const data = await getAllOrders(organizationId, {
-        useCache: true,
-        includeCompleted: true, // Tabla puede mostrar todas
-      });
+      const data = await getAllOrders(organizationId);
       setOrders(data);
       setFilteredOrders(data);
     } catch (error) {

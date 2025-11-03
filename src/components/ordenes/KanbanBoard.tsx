@@ -182,12 +182,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey }: Ka
       setLoading(true);
       setError(null);
       
-      // ✅ Usar query optimizada sin paginación para Kanban (muestra todas visibles)
-      // ✅ Excluir órdenes completadas antiguas para mejor rendimiento
-      const orders = await getAllOrders(organizationId, {
-        useCache: true,
-        includeCompleted: false, // Solo órdenes activas o recientes
-      });
+      const orders = await getAllOrders(organizationId);
       
       // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

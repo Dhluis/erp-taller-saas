@@ -13,21 +13,13 @@ export interface PaginationOptions {
   offset?: number;
 }
 
-// Obtener todas las órdenes de una organización con sus relaciones (OPTIMIZADA)
-export async function getAllOrders(
-  organizationId: string, 
-  options: {
-    useCache?: boolean;
-    pagination?: PaginationOptions;
-    includeCompleted?: boolean; // Si false, excluye órdenes completadas antiguas
-  } = {}
-): Promise<WorkOrder[]> {
-  const { useCache = true, pagination, includeCompleted = true } = options;
+// Obtener todas las órdenes de una organización con sus relaciones (VERSIÓN SIMPLE QUE FUNCIONA)
+export async function getAllOrders(organizationId: string, useCache: boolean = true): Promise<WorkOrder[]> {
   const supabaseClient = createClient()
   
   // Verificar cache (solo en desarrollo, opcional)
-  const cacheKey = `orders_${organizationId}_${pagination?.page || 0}_${includeCompleted}`
-  if (useCache && !pagination && ordersCache[cacheKey]) {
+  const cacheKey = `orders_${organizationId}`
+  if (useCache && ordersCache[cacheKey]) {
     const cached = ordersCache[cacheKey]
     if (Date.now() - cached.timestamp < CACHE_TTL) {
       if (process.env.NODE_ENV === 'development') {
@@ -40,59 +32,17 @@ export async function getAllOrders(
   const startTime = performance.now()
   
   if (process.env.NODE_ENV === 'development') {
-    console.log('🔌 [getAllOrders] Ejecutando query optimizada...')
+    console.log('🔌 [getAllOrders] Ejecutando query...')
   }
 
-  // ✅ Query optimizada: Seleccionar solo campos necesarios
-  // Campos principales de work_orders (los más usados)
-  const workOrderFields = [
-    'id',
-    'status',
-    'description',
-    'notes',
-    'estimated_cost',
-    'final_cost',
-    'total_amount',
-    'entry_date',
-    'estimated_completion',
-    'completed_at',
-    'created_at',
-    'updated_at',
-    'organization_id',
-    'customer_id',
-    'vehicle_id',
-    'mechanic_id'
-  ].join(',')
-
-  // ✅ Relaciones optimizadas: solo campos necesarios
-  // Nota: assigned_to podría no estar definida como FK, usar mechanic_id si existe
-  const customerFields = 'id,name,phone,email'
-  const vehicleFields = 'id,brand,model,year,license_plate,color'
-  
-  // Construir query base sin employees (puede no tener FK definida)
-  let query = supabaseClient
-    .from('work_orders')
-    .select(`${workOrderFields}, customer:customers(${customerFields}), vehicle:vehicles(${vehicleFields})`)
-    .eq('organization_id', organizationId)
-    .order('created_at', { ascending: false })
-
-  // ✅ Filtrar órdenes completadas antiguas (mejora rendimiento)
-  // Solo órdenes no completadas o completadas recientemente (últimos 6 meses)
-  // Nota: El filtro se aplica después de obtener los datos para evitar problemas con .or()
-  // Esto es menos eficiente pero más confiable
-  const shouldFilterOldCompleted = !includeCompleted
-
-  // ✅ Paginación inteligente
-  const limit = pagination?.limit || 300; // Reducido de 500 a 300 para mejor rendimiento
-  const offset = pagination?.offset || (pagination?.page ? (pagination.page - 1) * limit : 0);
-  
-  // Solo usar range, no limit también
-  if (pagination || limit < 1000) {
-    query = query.range(offset, offset + limit - 1)
-  }
-
+  // ✅ Query simple que funcionaba antes
   const { data, error } = await withRetry(
-    async () => await query,
+    async () => await supabaseClient
+      .from('work_orders')
+      .select('*, customer:customers(*), vehicle:vehicles(*)')
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: false })
+      .limit(500),
     { maxRetries: 2, delayMs: 300 }
   )
   
@@ -104,36 +54,20 @@ export async function getAllOrders(
     throw error
   }
   
-  // Guardar en cache (solo si no hay paginación)
-  if (useCache && !pagination && data) {
+  // Guardar en cache
+  if (useCache && data) {
     ordersCache[cacheKey] = {
       data: data as WorkOrder[],
       timestamp: Date.now()
     }
   }
   
-  // ✅ Filtrar órdenes completadas antiguas en el cliente (más confiable)
-  let filteredData = data || []
-  if (shouldFilterOldCompleted && filteredData.length > 0) {
-    const sixMonthsAgo = new Date()
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-    filteredData = filteredData.filter(order => {
-      // Incluir si: no está completada O fue completada hace menos de 6 meses
-      return !order.completed_at || new Date(order.completed_at) >= sixMonthsAgo
-    })
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`✅ [getAllOrders] Filtradas ${(data?.length || 0) - filteredData.length} órdenes antiguas`)
-    }
-  }
-
   if (process.env.NODE_ENV === 'development') {
     console.log(`✅ [getAllOrders] Query completada en ${queryTime}ms`)
-    console.log(`✅ Órdenes encontradas: ${filteredData.length}`)
-    console.log(`📊 Límite aplicado: ${limit}, Offset: ${offset}`)
+    console.log(`✅ Órdenes encontradas: ${data?.length || 0}`)
   }
 
-  return filteredData as WorkOrder[]
+  return (data || []) as WorkOrder[]
 }
 
 // Actualizar estado de una orden
