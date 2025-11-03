@@ -28,11 +28,11 @@ export async function getAllOrders(organizationId: string, useCache: boolean = t
     console.log('🔌 [getAllOrders] Ejecutando query optimizada...')
   }
 
-  // ✅ Volver a la versión original que funcionaba, pero con límite optimizado
+  // ✅ Query optimizada usando campos reales del schema (sintaxis simple)
   const { data, error } = await withRetry(
     async () => await supabaseClient
       .from('work_orders')
-      .select('*, customer:customers(*), vehicle:vehicles(*)')
+      .select('*, customer:customers(*), vehicle:vehicles(*), assigned_to:employees(*)')
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
       .limit(500), // ✅ Límite reducido de 1000 a 500
