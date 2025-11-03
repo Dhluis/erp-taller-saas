@@ -64,8 +64,9 @@ export async function getAllOrders(organizationId: string, useCache: boolean = t
         )
       `)
       .eq('organization_id', organizationId)
-      // ✅ OPTIMIZACIÓN: Solo órdenes de los últimos 2 años (o no completadas)
-      .or('completed_at.is.null,completed_at.gte.' + new Date(Date.now() - 730 * 24 * 60 * 60 * 1000).toISOString())
+      // ✅ OPTIMIZACIÓN: Solo órdenes recientes (últimos 2 años)
+      // Filtrar por fecha de creación en lugar de completed_at para evitar problemas con null
+      .gte('created_at', new Date(Date.now() - 730 * 24 * 60 * 60 * 1000).toISOString())
       .order('created_at', { ascending: false })
       .limit(500), // ✅ Reducido de 1000 a 500
     { maxRetries: 2, delayMs: 300 } // ✅ Reducido retries y delay
