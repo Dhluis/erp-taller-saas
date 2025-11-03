@@ -28,46 +28,15 @@ export async function getAllOrders(organizationId: string, useCache: boolean = t
     console.log('🔌 [getAllOrders] Ejecutando query optimizada...')
   }
 
-  // ✅ OPTIMIZACIÓN: Seleccionar solo campos necesarios para el Kanban/Lista
+  // ✅ Volver a la versión original que funcionaba, pero con límite optimizado
   const { data, error } = await withRetry(
     async () => await supabaseClient
       .from('work_orders')
-      .select(`
-        id,
-        status,
-        description,
-        notes,
-        estimated_cost,
-        final_cost,
-        total_amount,
-        entry_date,
-        estimated_completion,
-        completed_at,
-        created_at,
-        updated_at,
-        organization_id,
-        customer_id,
-        vehicle_id,
-        mechanic_id,
-        customer:customers(
-          id,
-          name,
-          phone,
-          email
-        ),
-        vehicle:vehicles(
-          id,
-          brand,
-          model,
-          year,
-          license_plate
-        )
-      `)
+      .select('*, customer:customers(*), vehicle:vehicles(*)')
       .eq('organization_id', organizationId)
-      // ✅ OPTIMIZACIÓN: Ordenar y limitar (sin filtro de fecha por ahora para evitar errores)
       .order('created_at', { ascending: false })
-      .limit(500), // ✅ Reducido de 1000 a 500
-    { maxRetries: 2, delayMs: 300 } // ✅ Reducido retries y delay
+      .limit(500), // ✅ Límite reducido de 1000 a 500
+    { maxRetries: 2, delayMs: 300 }
   )
   
   const endTime = performance.now()
