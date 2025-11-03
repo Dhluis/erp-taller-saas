@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { 
   Select,
   SelectContent,
@@ -13,7 +14,7 @@ import {
 import { 
   DollarSign, 
   TrendingUp, 
- TrendingDown, 
+  TrendingDown, 
   BarChart3,
   Download,
   Calendar
@@ -142,6 +143,12 @@ export default function ReportesFinancierosPage() {
   if (isLoading) {
     return (
       <div className="flex-1 space-y-4 p-8 pt-6">
+        {/* Breadcrumbs */}
+        <StandardBreadcrumbs 
+          currentPage="Financieros"
+          parentPages={[{ label: 'Reportes', href: '/reportes' }]}
+        />
+        
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -154,6 +161,12 @@ export default function ReportesFinancierosPage() {
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
+      {/* Breadcrumbs */}
+      <StandardBreadcrumbs 
+        currentPage="Financieros"
+        parentPages={[{ label: 'Reportes', href: '/reportes' }]}
+      />
+      
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Reportes Financieros</h2>
         <div className="flex items-center space-x-2">
