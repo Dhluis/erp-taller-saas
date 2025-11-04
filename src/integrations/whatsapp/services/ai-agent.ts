@@ -9,10 +9,10 @@
  */
 
 import OpenAI from 'openai';
-import Anthropic from '@anthropic-ai/sdk';
-import { 
-  loadAIContext, 
-  getAIConfig, 
+// Anthropic se importa dinámicamente solo cuando se necesita
+import {
+  loadAIContext,
+  getAIConfig,
   getConversationHistory,
   buildSystemPrompt,
   isWithinBusinessHours
@@ -20,14 +20,28 @@ import {
 import { executeFunction } from './function-executor';
 import type { AIFunctionCall } from '../types';
 
-// Inicializar clientes
+// Inicializar cliente OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || ''
 });
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || ''
-});
+// Anthropic se inicializa dinámicamente solo cuando se necesita
+let anthropicClient: any = null;
+
+async function getAnthropicClient() {
+  if (!anthropicClient) {
+    try {
+      const Anthropic = (await import('@anthropic-ai/sdk')).default;
+      anthropicClient = new Anthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY || ''
+      });
+    } catch (error) {
+      console.error('[AIAgent] Error cargando Anthropic SDK:', error);
+      throw new Error('Anthropic SDK no está instalado. Ejecuta: npm install @anthropic-ai/sdk');
+    }
+  }
+  return anthropicClient;
+}
 
 interface ProcessMessageParams {
   conversationId: string;
@@ -337,7 +351,7 @@ async function processWithAnthropic(params: {
 }): Promise<ProcessMessageResult> {
   
   // Definir tools para Claude
-  const tools: Anthropic.Tool[] = [
+  const tools: any[] = [
     {
       name: 'schedule_appointment',
       description: 'Agenda una cita para el cliente en el taller',
@@ -394,7 +408,7 @@ async function processWithAnthropic(params: {
     }
   ];
 
-  const messages: Anthropic.MessageParam[] = [
+  const messages: any[] = [
     ...params.history.map(msg => ({
       role: msg.role,
       content: msg.content
@@ -406,6 +420,7 @@ async function processWithAnthropic(params: {
   ];
 
   const functionsCalled: string[] = [];
+  const anthropic = await getAnthropicClient();
   let response = await anthropic.messages.create({
     model: params.aiConfig.model,
     max_tokens: params.aiConfig.max_tokens,
@@ -417,10 +432,10 @@ async function processWithAnthropic(params: {
 
   while (response.stop_reason === 'tool_use') {
     const toolUses = response.content.filter(
-      (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
+      (block): block is any => block.type === 'tool_use'
     );
 
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+    const toolResults: any[] = [];
 
     for (const toolUse of toolUses) {
       console.log('[AIAgent/Claude] Ejecutando función:', toolUse.name);
@@ -462,7 +477,7 @@ async function processWithAnthropic(params: {
   }
 
   const textBlocks = response.content.filter(
-    (block): block is Anthropic.TextBlock => block.type === 'text'
+    (block): block is any => block.type === 'text'
   );
 
   const finalText = textBlocks.map(block => block.text).join('\n');
@@ -495,4 +510,5 @@ function formatBusinessHours(
     })
     .join('\n');
 }
+
 
