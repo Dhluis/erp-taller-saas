@@ -163,13 +163,15 @@ export async function POST(request: NextRequest) {
 
     // 5️⃣ PROCESAR MENSAJE CON AI AGENT
     console.log('🤖 Procesando con AI Agent...');
+    console.log('⚠️ Modo prueba: Verificación de horarios deshabilitada');
     
     const startTime = Date.now();
     const result = await processMessage({
       conversationId: finalConversationId,
       organizationId,
       customerMessage: message,
-      customerPhone: '+521234567890' // Número de prueba
+      customerPhone: '+521234567890', // Número de prueba
+      skipBusinessHoursCheck: true // Saltar verificación de horarios en pruebas
     });
     const processingTime = Date.now() - startTime;
 

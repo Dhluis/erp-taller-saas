@@ -48,6 +48,7 @@ interface ProcessMessageParams {
   organizationId: string;
   customerMessage: string;
   customerPhone: string;
+  skipBusinessHoursCheck?: boolean; // Para pruebas, saltar verificación de horarios
 }
 
 interface ProcessMessageResult {
@@ -88,10 +89,11 @@ export async function processMessage(
       };
     }
 
-    // 3. Verificar horarios si está configurado
-    if (aiConfig.business_hours_only) {
+    // 3. Verificar horarios si está configurado (solo si no se omite la verificación)
+    if (aiConfig.business_hours_only && !params.skipBusinessHoursCheck) {
       const isOpen = isWithinBusinessHours(context.business_hours);
       if (!isOpen) {
+        console.log('[AIAgent] Fuera de horario, retornando mensaje automático');
         return {
           success: true,
           response: `Gracias por contactarnos. Actualmente estamos fuera de horario.\n\n` +
@@ -99,6 +101,8 @@ export async function processMessage(
                    `Te responderemos en cuanto abramos. 😊`
         };
       }
+    } else if (params.skipBusinessHoursCheck) {
+      console.log('[AIAgent] ⚠️ Verificación de horarios omitida (modo prueba)');
     }
 
     // 4. Cargar historial de conversación
