@@ -5,7 +5,7 @@
  * Selecciona el sender correcto según el provider configurado
  */
 
-import { getSupabaseServerClient } from '../utils/supabase-helpers';
+import { getSupabaseServerClient } from '../utils/supabase-server-helpers';
 import { TwilioSender, TwilioConfig } from '../senders/twilio-sender';
 import { MetaSender, MetaConfig } from '../senders/meta-sender';
 

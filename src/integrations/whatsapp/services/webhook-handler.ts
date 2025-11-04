@@ -8,7 +8,7 @@
  * 4. Envía respuesta
  */
 
-import { getSupabaseServerClient } from '../utils/supabase-helpers';
+import { getSupabaseServerClient } from '../utils/supabase-server-helpers';
 import { parseTwilioWebhook } from '../utils/twilio-parser';
 import { parseEvolutionWebhook } from '../utils/evolution-parser';
 import { processMessage } from './ai-agent';

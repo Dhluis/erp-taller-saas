@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseServerClient } from '@/integrations/whatsapp/utils/supabase-helpers'
+import { getSupabaseServerClient } from '@/integrations/whatsapp/utils/supabase-server-helpers'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 export async function POST(request: NextRequest) {

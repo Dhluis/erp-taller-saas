@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseServerClient } from '@/integrations/whatsapp/utils/supabase-helpers';
+import { getSupabaseServerClient } from '@/integrations/whatsapp/utils/supabase-server-helpers';
 import { processMessage } from '@/integrations/whatsapp/services/ai-agent';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
 

@@ -106,7 +106,7 @@ async function scheduleAppointment(
   if (args.vehicle_brand && args.vehicle_model) {
     // Aquí podrías crear un adapter para vehículos
     // Por ahora, simplificaremos creando directamente
-    const { getSupabaseServerClient } = await import('../utils/supabase-helpers');
+    const { getSupabaseServerClient } = await import('../utils/supabase-server-helpers');
     const supabase = await getSupabaseServerClient();
 
     const { data: existingVehicle } = await supabase

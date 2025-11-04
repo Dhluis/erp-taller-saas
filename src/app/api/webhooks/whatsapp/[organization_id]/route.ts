@@ -16,7 +16,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { handleIncomingMessage } from '@/integrations/whatsapp/services/webhook-handler';
-import { getSupabaseServerClient } from '@/integrations/whatsapp/utils/supabase-helpers';
+import { getSupabaseServerClient } from '@/integrations/whatsapp/utils/supabase-server-helpers';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

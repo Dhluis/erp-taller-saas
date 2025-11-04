@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from '../utils/supabase-helpers'
+import { getSupabaseServerClient } from '../utils/supabase-server-helpers'
 import type { AIContext, AIAgentConfig } from '../types'
 
 export async function loadAIContext(
