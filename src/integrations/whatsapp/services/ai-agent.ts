@@ -20,10 +20,21 @@ import {
 import { executeFunction } from './function-executor';
 import type { AIFunctionCall } from '../types';
 
-// Inicializar cliente OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || ''
-});
+// Cliente OpenAI - inicializado lazy (solo cuando se necesita)
+let openaiClient: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!openaiClient) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey || apiKey === '') {
+      throw new Error('OPENAI_API_KEY no está configurada. Verifica tu archivo .env.local');
+    }
+    openaiClient = new OpenAI({
+      apiKey: apiKey
+    });
+  }
+  return openaiClient;
+}
 
 // Anthropic se inicializa dinámicamente solo cuando se necesita
 let anthropicClient: any = null;
@@ -69,6 +80,23 @@ export async function processMessage(
 
     // 1. Cargar configuración del AI
     const aiConfig = await getAIConfig(params.organizationId);
+    
+    // Validar API keys antes de procesar
+    if (aiConfig.provider === 'openai' && !process.env.OPENAI_API_KEY) {
+      console.error('[AIAgent] ❌ OPENAI_API_KEY no está configurada');
+      return {
+        success: false,
+        error: 'OPENAI_API_KEY no está configurada. Por favor, agrega tu API key en el archivo .env.local. Obtén tu key en: https://platform.openai.com/api-keys'
+      };
+    }
+    
+    if (aiConfig.provider === 'anthropic' && !process.env.ANTHROPIC_API_KEY) {
+      console.error('[AIAgent] ❌ ANTHROPIC_API_KEY no está configurada');
+      return {
+        success: false,
+        error: 'ANTHROPIC_API_KEY no está configurada. Por favor, agrega tu API key en el archivo .env.local. Obtén tu key en: https://console.anthropic.com/settings/keys'
+      };
+    }
 
     if (!aiConfig || !aiConfig.enabled) {
       console.log('[AIAgent] Bot deshabilitado para esta organización');
@@ -158,6 +186,15 @@ async function processWithOpenAI(params: {
   organizationId: string;
   customerPhone: string;
 }): Promise<ProcessMessageResult> {
+  
+  // Validar API key
+  if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === '') {
+    console.error('[AIAgent] ❌ OPENAI_API_KEY no está configurada');
+    return {
+      success: false,
+      error: 'OPENAI_API_KEY no está configurada. Por favor, crea el archivo .env.local en la raíz del proyecto y agrega: OPENAI_API_KEY=sk-tu-api-key-aqui'
+    };
+  }
   
   // Definir funciones para OpenAI
   const functions: OpenAI.Chat.ChatCompletionCreateParams.Function[] = [
@@ -285,6 +322,7 @@ async function processWithOpenAI(params: {
   while (continueLoop) {
     console.log('[AIAgent/OpenAI] Llamando a OpenAI API...');
 
+    const openai = getOpenAIClient();
     const response = await openai.chat.completions.create({
       model: params.aiConfig.model,
       messages: messages,
