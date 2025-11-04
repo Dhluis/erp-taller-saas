@@ -41,6 +41,14 @@ export async function GET() {
     // Verificar variables de entorno de AI
     const hasOpenAI = !!process.env.OPENAI_API_KEY;
     const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+    
+    // Debug: Log de variables de entorno (solo en desarrollo)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[TestAgent] 🔍 Variables de entorno:');
+      console.log('[TestAgent] OPENAI_API_KEY presente:', hasOpenAI);
+      console.log('[TestAgent] OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length || 0);
+      console.log('[TestAgent] ANTHROPIC_API_KEY presente:', hasAnthropic);
+    }
 
     return NextResponse.json({
       status: 'healthy',

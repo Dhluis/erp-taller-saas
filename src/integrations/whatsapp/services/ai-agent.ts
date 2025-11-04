@@ -26,12 +26,35 @@ let openaiClient: OpenAI | null = null;
 function getOpenAIClient(): OpenAI {
   if (!openaiClient) {
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey || apiKey === '') {
-      throw new Error('OPENAI_API_KEY no está configurada. Verifica tu archivo .env.local');
+    
+    // Debug: Log para ver qué está pasando (solo en desarrollo)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[AIAgent] 🔍 Verificando OPENAI_API_KEY...');
+      console.log('[AIAgent] API Key presente:', !!apiKey);
+      console.log('[AIAgent] API Key length:', apiKey?.length || 0);
+      console.log('[AIAgent] API Key starts with sk-:', apiKey?.startsWith('sk-') || false);
+      
+      // Verificar todas las variables de entorno relacionadas con OpenAI
+      const allEnvKeys = Object.keys(process.env).filter(key => 
+        key.includes('OPENAI') || key.includes('ANTHROPIC')
+      );
+      console.log('[AIAgent] Variables de entorno relacionadas:', allEnvKeys);
     }
+    
+    if (!apiKey || apiKey === '' || apiKey.trim() === '') {
+      const errorMsg = 'OPENAI_API_KEY no está configurada. Verifica tu archivo .env.local y reinicia el servidor (npm run dev)';
+      console.error('[AIAgent] ❌', errorMsg);
+      throw new Error(errorMsg);
+    }
+    
+    // Limpiar espacios en blanco por si acaso
+    const cleanApiKey = apiKey.trim();
+    
     openaiClient = new OpenAI({
-      apiKey: apiKey
+      apiKey: cleanApiKey
     });
+    
+    console.log('[AIAgent] ✅ Cliente OpenAI inicializado correctamente');
   }
   return openaiClient;
 }
