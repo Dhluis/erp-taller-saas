@@ -21,6 +21,7 @@ import {
   Plus,
   Calendar,
   MessageCircle,
+  MessageSquare,
   Phone,
   Building2,
   ClipboardList,
@@ -93,10 +94,16 @@ export function Sidebar({ className }: SidebarProps) {
       icon: FileText,
       badge: null
     },
-    { 
-      href: "/cotizaciones", 
-      label: "Cotizaciones", 
+    {
+      href: "/cotizaciones",
+      label: "Cotizaciones",
       icon: Receipt,
+      badge: null
+    },
+    {
+      href: "/dashboard/whatsapp",
+      label: "WhatsApp",
+      icon: MessageSquare,
       badge: null
     }
   ]
@@ -286,6 +293,24 @@ export function Sidebar({ className }: SidebarProps) {
             >
               <BarChart3 className={isCollapsed ? "w-6 h-6" : "h-4 w-4 flex-shrink-0"} />
               {!isCollapsed && <span className="text-sm font-medium">Reportes</span>}
+            </Button>
+          </Link>
+
+          {/* WhatsApp Business Integration */}
+          <Link href="/dashboard/whatsapp">
+            <Button
+              variant={isActive("/dashboard/whatsapp") ? "primary" : "ghost"}
+              className={cn(
+                "transition-all duration-200",
+                isCollapsed 
+                  ? "w-12 h-12 mx-auto mb-3 flex items-center justify-center rounded-xl hover:bg-gray-800/60" 
+                  : "w-full gap-3 justify-start h-10",
+                isActive("/dashboard/whatsapp") && "bg-primary text-white"
+              )}
+              title={isCollapsed ? "WhatsApp" : ""}
+            >
+              <MessageSquare className={isCollapsed ? "w-6 h-6" : "h-4 w-4 flex-shrink-0"} />
+              {!isCollapsed && <span className="text-sm font-medium">WhatsApp</span>}
             </Button>
           </Link>
         </div>

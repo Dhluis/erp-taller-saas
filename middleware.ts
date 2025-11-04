@@ -10,6 +10,7 @@ import { updateSession, handleAuthCallback, handleLogout, checkUserPermissions }
 const MIDDLEWARE_ROUTES = [
   '/dashboard',
   '/inventario',
+  '/inventarios',
   '/compras',
   '/ingresos',
   '/clientes',
@@ -24,7 +25,8 @@ const MIDDLEWARE_ROUTES = [
   '/facturas',
   '/notificaciones',
   '/usuarios',
-  '/configuracion'
+  '/configuracion',
+  '/cotizaciones'
 ]
 
 // Rutas de autenticación

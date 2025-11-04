@@ -5,7 +5,7 @@
 
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { cookies } from 'next/headers'
+// cookies de 'next/headers' no está disponible en middleware, usar request.cookies directamente
 
 /**
  * Crear cliente Supabase para middleware
