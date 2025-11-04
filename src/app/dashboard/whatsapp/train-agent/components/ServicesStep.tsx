@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Trash2, Plus, Lightbulb, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { createClient } from '@/lib/supabase/client'
+import { getSupabaseClient } from '@/integrations/whatsapp/utils/supabase-helpers'
 import { toast } from 'sonner'
 
 interface Service {
@@ -66,7 +66,7 @@ export function ServicesStep({ data, onChange }: ServicesStepProps) {
     }
 
     try {
-      const supabase = createClient()
+      const supabase = getSupabaseClient()
       
       // Intentar buscar servicios en diferentes fuentes
       let systemServices: any[] = []

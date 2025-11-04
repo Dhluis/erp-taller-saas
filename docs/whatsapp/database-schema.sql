@@ -504,3 +504,4 @@ COMMENT ON TABLE whatsapp_order_metadata IS 'Metadata de órdenes creadas vía W
 COMMENT ON TABLE whatsapp_appointment_metadata IS 'Metadata de citas creadas vía WhatsApp';
 COMMENT ON TABLE whatsapp_customer_metadata IS 'Metadata de clientes que contactaron por WhatsApp';
 
+

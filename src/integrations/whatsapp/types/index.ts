@@ -9,7 +9,7 @@
 // 🔌 WHATSAPP MESSAGE TYPES
 // ============================================
 
-export type WhatsAppProvider = 'twilio' | 'evolution' | 'meta-cloud';
+export type WhatsAppProvider = 'twilio' | 'evolution' | 'meta' | 'meta-cloud';
 
 export interface WhatsAppMessage {
   id: string;
@@ -398,4 +398,5 @@ export interface AdapterResponse<T> {
   error?: string;
   metadata?: Record<string, any>;
 }
+
 

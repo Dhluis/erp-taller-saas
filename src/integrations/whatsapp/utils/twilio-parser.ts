@@ -89,3 +89,36 @@ export function validateTwilioSignature(
   }
 }
 
+/**
+ * Alias para compatibilidad: parseTwilioMessage
+ */
+export function parseTwilioMessage(
+  payload: TwilioWebhookPayload,
+  organizationId: string
+): Omit<WhatsAppMessage, 'id'> {
+  return parseTwilioWebhook(payload, organizationId);
+}
+
+/**
+ * Alias para compatibilidad: isValidTwilioWebhook
+ */
+export function isValidTwilioWebhook(
+  payload: any,
+  authToken?: string,
+  signature?: string,
+  url?: string
+): boolean {
+  // Validación básica de estructura
+  if (!payload || !payload.From || !payload.To) {
+    return false;
+  }
+
+  // Si se proporcionan credenciales, validar firma
+  if (authToken && signature && url) {
+    return validateTwilioSignature(authToken, signature, url, payload);
+  }
+
+  return true; // En desarrollo, permitir sin firma
+}
+
+

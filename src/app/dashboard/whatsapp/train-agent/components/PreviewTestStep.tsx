@@ -1,15 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, Send, Save } from 'lucide-react'
+import { CheckCircle2, Send, Save, Bot, User, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { useAuth } from '@/hooks/useAuth'
 
 interface TestMessage {
   role: 'user' | 'assistant'
   content: string
+  timestamp: Date
+  functionsCalled?: string[]
 }
 
 interface PreviewTestStepProps {
@@ -19,72 +23,126 @@ interface PreviewTestStepProps {
 }
 
 export function PreviewTestStep({ data, onSave, loading }: PreviewTestStepProps) {
+  const { organization } = useAuth()
   const [testMessages, setTestMessages] = useState<TestMessage[]>([
     { 
-      role: 'user', 
-      content: 'Hola' 
-    },
-    { 
       role: 'assistant', 
-      content: data.personality?.greeting_style || '¡Hola! ¿En qué puedo ayudarte?' 
+      content: data.personality?.greeting_style || '¡Hola! 👋 ¿En qué puedo ayudarte hoy?',
+      timestamp: new Date()
     }
   ])
   const [testInput, setTestInput] = useState('')
   const [isTesting, setIsTesting] = useState(false)
+  const [isTyping, setIsTyping] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
+  
+  // Auto-scroll al final cuando hay nuevos mensajes
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [testMessages, isTyping])
   
   const sendTestMessage = async () => {
-    if (!testInput.trim()) return
+    if (!testInput.trim() || isTesting) return
     
-    setIsTesting(true)
-    const userMsg = testInput
+    const userMessage = testInput.trim()
     setTestInput('')
+    setIsTesting(true)
+    setIsTyping(true)
     
     // Agregar mensaje del usuario
-    setTestMessages(prev => [...prev, { 
-      role: 'user', 
-      content: userMsg 
-    }])
+    const userMsg: TestMessage = {
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date()
+    }
+    setTestMessages(prev => [...prev, userMsg])
     
-    // Simular respuesta del bot
+    // Simular delay de "escribiendo..."
+    await new Promise(resolve => setTimeout(resolve, 800))
+    
     try {
       const response = await fetch('/api/whatsapp/test-agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: userMsg,
-          config: data
+          message: userMessage,
+          organizationId: organization?.organization_id
         })
       })
       
       if (response.ok) {
-        const { reply } = await response.json()
+        const result = await response.json()
         
-        setTestMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: reply || 'Lo siento, no pude procesar tu mensaje. Por favor, intenta de nuevo.' 
-        }])
+        if (result.success && result.data) {
+          const assistantMsg: TestMessage = {
+            role: 'assistant',
+            content: result.data.response || 'Lo siento, no pude procesar tu mensaje.',
+            timestamp: new Date(),
+            functionsCalled: result.data.functionsCalled || []
+          }
+          
+          setTestMessages(prev => [...prev, assistantMsg])
+          
+          // Mostrar toast si se llamaron funciones
+          if (result.data.functionsCalled && result.data.functionsCalled.length > 0) {
+            toast.success(`Bot ejecutó: ${result.data.functionsCalled.join(', ')}`)
+          }
+        } else {
+          throw new Error(result.error || 'Error en la respuesta')
+        }
       } else {
-        // Respuesta simulada si el endpoint no existe todavía
-        setTestMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: `¡Hola! Gracias por tu mensaje: "${userMsg}". En un entorno real, el bot respondería basándose en la configuración que has establecido.` 
-        }])
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Error al procesar mensaje')
       }
     } catch (error) {
       console.error('Error testing agent:', error)
-      // Respuesta simulada en caso de error
-      setTestMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: `Entendí tu mensaje: "${userMsg}". El bot está configurado para responder según tus políticas y servicios.` 
-      }])
+      
+      // Mostrar mensaje de error al usuario
+      const errorMsg: TestMessage = {
+        role: 'assistant',
+        content: `⚠️ Lo siento, hubo un error al procesar tu mensaje: ${error instanceof Error ? error.message : 'Error desconocido'}. Por favor, verifica que el AI Agent esté configurado correctamente.`,
+        timestamp: new Date()
+      }
+      
+      setTestMessages(prev => [...prev, errorMsg])
+      toast.error('Error al procesar mensaje')
     } finally {
       setIsTesting(false)
+      setIsTyping(false)
     }
   }
   
   const handleSuggestedMessage = (msg: string) => {
     setTestInput(msg)
+    // Auto-enviar después de un breve delay
+    setTimeout(() => {
+      sendTestMessage()
+    }, 100)
   }
+  
+  const clearChat = () => {
+    setTestMessages([
+      { 
+        role: 'assistant', 
+        content: data.personality?.greeting_style || '¡Hola! 👋 ¿En qué puedo ayudarte hoy?',
+        timestamp: new Date()
+      }
+    ])
+  }
+  
+  // Mensajes sugeridos basados en la configuración
+  const suggestedMessages = [
+    'Hola',
+    '¿Cuánto cuesta un cambio de aceite?',
+    '¿Tienen disponible mañana?',
+    '¿Qué horario tienen?',
+    ...(data.services?.length > 0 
+      ? [`¿Cuánto cuesta ${data.services[0]?.name}?`]
+      : []
+    ),
+    'Necesito una cita urgente'
+  ].slice(0, 6)
   
   return (
     <div className="space-y-6">
@@ -102,10 +160,10 @@ export function PreviewTestStep({ data, onSave, loading }: PreviewTestStepProps)
         </CardHeader>
         
         <CardContent>
-          <dl className="space-y-3">
+          <dl className="grid grid-cols-2 gap-4">
             <div className="flex justify-between items-start">
               <dt className="font-semibold text-text-primary">Nombre del taller:</dt>
-              <dd className="text-text-secondary">{data.businessInfo?.name || 'No configurado'}</dd>
+              <dd className="text-text-secondary text-right">{data.businessInfo?.name || 'No configurado'}</dd>
             </div>
             
             <div className="flex justify-between items-start">
@@ -140,7 +198,7 @@ export function PreviewTestStep({ data, onSave, loading }: PreviewTestStepProps)
 
             <div className="flex justify-between items-start">
               <dt className="font-semibold text-text-primary">Métodos de pago:</dt>
-              <dd className="text-text-secondary">
+              <dd className="text-text-secondary text-right">
                 {(data.policies?.payment_methods || []).length > 0 
                   ? data.policies.payment_methods.join(', ')
                   : 'No configurados'}
@@ -150,92 +208,155 @@ export function PreviewTestStep({ data, onSave, loading }: PreviewTestStepProps)
         </CardContent>
       </Card>
       
-      {/* Chat de prueba */}
+      {/* Chat de prueba mejorado */}
       <Card>
         <CardHeader>
-          <CardTitle>🧪 Probar el Asistente</CardTitle>
-          <CardDescription>
-            Envía mensajes para ver cómo responderá tu bot
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>🧪 Probar el Asistente</CardTitle>
+              <CardDescription>
+                Envía mensajes para ver cómo responderá tu bot en tiempo real
+              </CardDescription>
+            </div>
+            {testMessages.length > 1 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearChat}
+              >
+                Limpiar chat
+              </Button>
+            )}
+          </div>
         </CardHeader>
         
         <CardContent>
-          {/* Chat messages */}
-          <div className="border border-border rounded-lg p-4 h-96 overflow-y-auto bg-bg-secondary space-y-3 mb-4">
+          {/* Chat messages container */}
+          <div 
+            ref={chatContainerRef}
+            className="border border-border rounded-lg p-4 h-96 overflow-y-auto bg-bg-secondary space-y-4 mb-4 scroll-smooth"
+          >
             {testMessages.map((msg, i) => (
               <div 
                 key={i}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div 
-                  className={`max-w-xs px-4 py-2 rounded-lg ${
-                    msg.role === 'user' 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'bg-bg-primary border border-border text-text-primary'
-                  }`}
-                >
-                  {msg.content}
+                {msg.role === 'assistant' && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Bot className="w-4 h-4 text-primary" />
+                  </div>
+                )}
+                
+                <div className="flex flex-col max-w-[75%]">
+                  <div 
+                    className={`px-4 py-3 rounded-lg ${
+                      msg.role === 'user' 
+                        ? 'bg-primary text-primary-foreground rounded-br-none' 
+                        : 'bg-bg-primary border border-border text-text-primary rounded-bl-none'
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                  </div>
+                  
+                  {/* Metadata */}
+                  <div className={`flex items-center gap-2 mt-1 text-xs text-text-secondary ${
+                    msg.role === 'user' ? 'justify-end' : 'justify-start'
+                  }`}>
+                    <span>
+                      {msg.timestamp.toLocaleTimeString('es-MX', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </span>
+                    {msg.functionsCalled && msg.functionsCalled.length > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        🔧 {msg.functionsCalled.join(', ')}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
+                
+                {msg.role === 'user' && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="w-4 h-4 text-primary" />
+                  </div>
+                )}
               </div>
             ))}
             
-            {isTesting && (
-              <div className="flex justify-start">
-                <div className="bg-bg-primary border border-border px-4 py-2 rounded-lg">
-                  <div className="flex space-x-2">
-                    <div className="w-2 h-2 bg-text-secondary rounded-full animate-bounce"></div>
-                    <div 
-                      className="w-2 h-2 bg-text-secondary rounded-full animate-bounce" 
-                      style={{ animationDelay: '0.2s' }}
-                    ></div>
-                    <div 
-                      className="w-2 h-2 bg-text-secondary rounded-full animate-bounce" 
-                      style={{ animationDelay: '0.4s' }}
-                    ></div>
+            {/* Indicador de "escribiendo..." */}
+            {isTyping && (
+              <div className="flex gap-3 justify-start">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-primary" />
+                </div>
+                <div className="bg-bg-primary border border-border px-4 py-3 rounded-lg rounded-bl-none">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-text-secondary" />
+                    <span className="text-sm text-text-secondary">El bot está escribiendo...</span>
                   </div>
                 </div>
               </div>
             )}
+            
+            {/* Scroll anchor */}
+            <div ref={messagesEndRef} />
           </div>
           
-          {/* Input */}
+          {/* Input area */}
           <div className="flex gap-2">
             <Input 
               value={testInput}
               onChange={(e) => setTestInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && !isTesting && sendTestMessage()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && !isTesting) {
+                  e.preventDefault()
+                  sendTestMessage()
+                }
+              }}
               placeholder="Escribe un mensaje de prueba..."
               disabled={isTesting}
+              className="flex-1"
             />
             <Button 
               onClick={sendTestMessage}
               disabled={isTesting || !testInput.trim()}
+              size="default"
             >
-              <Send className="h-4 w-4" />
+              {isTesting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
           
-          {/* Mensajes de prueba sugeridos */}
+          {/* Mensajes sugeridos */}
           <div className="mt-4">
-            <p className="text-sm text-text-secondary mb-2">Prueba con:</p>
+            <p className="text-sm text-text-secondary mb-2 font-medium">💡 Prueba con estos mensajes:</p>
             <div className="flex flex-wrap gap-2">
-              {[
-                '¿Cuánto cuesta un cambio de aceite?',
-                '¿Tienen disponible mañana?',
-                '¿Qué horario tienen?',
-                'Necesito una emergencia'
-              ].map(msg => (
+              {suggestedMessages.map((msg, idx) => (
                 <Button 
-                  key={msg}
+                  key={idx}
                   variant="outline"
                   size="sm"
                   onClick={() => handleSuggestedMessage(msg)}
+                  disabled={isTesting}
                   type="button"
+                  className="text-xs"
                 >
                   {msg}
                 </Button>
               ))}
             </div>
+          </div>
+          
+          {/* Info */}
+          <div className="mt-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+            <p className="text-xs text-text-secondary">
+              💡 <strong>Tip:</strong> Este chat se conecta al endpoint de prueba del AI Agent. 
+              Las respuestas son generadas en tiempo real usando la configuración que has establecido.
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -158,3 +158,4 @@ OR table_name LIKE 'ai_agent%';
 - Si borras una organización, se borran en cascada sus datos de WhatsApp
 - RLS activo en todas las tablas
 
+

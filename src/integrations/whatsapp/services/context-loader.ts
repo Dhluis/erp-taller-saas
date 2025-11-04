@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { getSupabaseServerClient } from '../utils/supabase-helpers'
 import type { AIContext, AIAgentConfig } from '../types'
 
 export async function loadAIContext(
@@ -6,7 +6,7 @@ export async function loadAIContext(
   conversationId: string
 ): Promise<AIContext | null> {
   try {
-    const supabase = await createClient()
+    const supabase = await getSupabaseServerClient()
 
     const { data: aiConfig, error: aiError } = await supabase
       .from('ai_agent_config')
@@ -61,7 +61,7 @@ export async function loadOrganizationContext(
   organizationId: string
 ): Promise<string> {
   try {
-    const supabase = await createClient()
+    const supabase = await getSupabaseServerClient()
     
     // Cargar configuración del agente
     const { data: config, error } = await supabase
@@ -167,7 +167,7 @@ export async function getAIConfig(
   organizationId: string
 ): Promise<AIAgentConfig | null> {
   try {
-    const supabase = await createClient()
+    const supabase = await getSupabaseServerClient()
 
     const { data, error } = await supabase
       .from('ai_agent_config')
@@ -207,7 +207,7 @@ export async function getConversationHistory(
   limit: number = 10
 ): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
   try {
-    const supabase = await createClient()
+    const supabase = await getSupabaseServerClient()
 
     const { data, error } = await supabase
       .from('whatsapp_messages')

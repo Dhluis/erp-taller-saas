@@ -478,8 +478,8 @@ async function saveWhatsAppAppointmentMetadata(metadata: {
   created_at: Date;
 }) {
   try {
-    const { createClient } = await import('@/lib/supabase/client');
-    const supabase = createClient();
+    const { getSupabaseClient } = await import('../utils/supabase-helpers');
+    const supabase = getSupabaseClient();
 
     // Tabla que crearemos después
     await supabase
@@ -510,8 +510,8 @@ async function saveAppointmentEventMetadata(data: {
   timestamp: Date;
 }) {
   try {
-    const { createClient } = await import('@/lib/supabase/client');
-    const supabase = createClient();
+    const { getSupabaseClient } = await import('../utils/supabase-helpers');
+    const supabase = getSupabaseClient();
 
     await supabase
       .from('appointment_events')
@@ -542,4 +542,5 @@ export const citasAdapter = {
   cancelFromBot: cancelAppointmentFromBot,
   confirmFromBot: confirmAppointmentFromBot
 };
+
 

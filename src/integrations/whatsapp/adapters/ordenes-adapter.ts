@@ -134,8 +134,8 @@ export async function getOrderForBot(
 ): Promise<AdapterResponse<WorkOrder>> {
   try {
     // Usar cliente de Supabase del lado del cliente
-    const { createClient } = await import('@/lib/supabase/client');
-    const supabase = createClient();
+    const { getSupabaseClient } = await import('../utils/supabase-helpers');
+    const supabase = getSupabaseClient();
 
     const { data, error } = await supabase
       .from('work_orders')
@@ -176,8 +176,8 @@ export async function updateOrderStatusFromBot(
   notes?: string
 ): Promise<AdapterResponse<void>> {
   try {
-    const { createClient } = await import('@/lib/supabase/client');
-    const supabase = createClient();
+    const { getSupabaseClient } = await import('../utils/supabase-helpers');
+    const supabase = getSupabaseClient();
 
     const updateData: any = {
       status: newStatus,
@@ -243,8 +243,8 @@ async function saveWhatsAppOrderMetadata(metadata: {
   created_at: Date;
 }) {
   try {
-    const { createClient } = await import('@/lib/supabase/client');
-    const supabase = createClient();
+    const { getSupabaseClient } = await import('../utils/supabase-helpers');
+    const supabase = getSupabaseClient();
 
     // Esta tabla la crearemos después en la migración
     await supabase
@@ -277,8 +277,8 @@ async function saveOrderStatusChangeMetadata(data: {
   notes?: string;
 }) {
   try {
-    const { createClient } = await import('@/lib/supabase/client');
-    const supabase = createClient();
+    const { getSupabaseClient } = await import('../utils/supabase-helpers');
+    const supabase = getSupabaseClient();
 
     // Tabla para timeline/auditoría
     await supabase
@@ -307,4 +307,5 @@ export const ordenesAdapter = {
   getForBot: getOrderForBot,
   updateStatusFromBot: updateOrderStatusFromBot
 };
+
 

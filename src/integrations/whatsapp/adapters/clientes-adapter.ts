@@ -46,8 +46,8 @@ export async function findCustomerByPhone(
     const normalizedPhone = normalizePhoneNumber(phone);
 
     // Usar cliente de Supabase del lado del cliente
-    const { createClient } = await import('@/lib/supabase/client');
-    const supabase = createClient();
+    const { getSupabaseClient } = await import('../utils/supabase-helpers');
+    const supabase = getSupabaseClient();
 
     // Buscar por teléfono
     const { data, error } = await supabase
@@ -313,8 +313,8 @@ export async function getCustomerOrderHistory(
   organizationId: string
 ): Promise<AdapterResponse<any[]>> {
   try {
-    const { createClient } = await import('@/lib/supabase/client');
-    const supabase = createClient();
+    const { getSupabaseClient } = await import('../utils/supabase-helpers');
+    const supabase = getSupabaseClient();
 
     const { data, error } = await supabase
       .from('work_orders')
@@ -398,8 +398,8 @@ async function saveWhatsAppCustomerMetadata(metadata: {
   created_at: Date;
 }) {
   try {
-    const { createClient } = await import('@/lib/supabase/client');
-    const supabase = createClient();
+    const { getSupabaseClient } = await import('../utils/supabase-helpers');
+    const supabase = getSupabaseClient();
 
     // Tabla que crearemos después en migración
     await supabase
@@ -429,4 +429,5 @@ export const clientesAdapter = {
   getForBot: getCustomerForBot,
   getOrderHistory: getCustomerOrderHistory
 };
+
 

@@ -72,3 +72,43 @@ export function validateEvolutionWebhook(
   return apiKey === receivedApiKey;
 }
 
+/**
+ * Alias para compatibilidad: parseEvolutionMessage
+ */
+export function parseEvolutionMessage(
+  payload: EvolutionWebhookPayload,
+  organizationId: string
+): Omit<WhatsAppMessage, 'id'> | null {
+  return parseEvolutionWebhook(payload, organizationId);
+}
+
+/**
+ * Alias para compatibilidad: isValidEvolutionWebhook
+ */
+export function isValidEvolutionWebhook(
+  payload: any,
+  apiKey?: string,
+  receivedApiKey?: string
+): boolean {
+  // Validación básica de estructura
+  if (!payload || !payload.data || !payload.data.key) {
+    return false;
+  }
+
+  // Si se proporcionan API keys, validar
+  if (apiKey && receivedApiKey) {
+    return validateEvolutionWebhook(apiKey, receivedApiKey);
+  }
+
+  return true; // En desarrollo, permitir sin validación
+}
+
+/**
+ * Limpia número de teléfono de Evolution (remueve @s.whatsapp.net)
+ */
+export function cleanEvolutionNumber(jid: string): string {
+  if (!jid) return '';
+  return jid.split('@')[0].replace('+', '');
+}
+
+
