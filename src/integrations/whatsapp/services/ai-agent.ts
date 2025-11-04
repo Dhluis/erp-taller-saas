@@ -1,0 +1,498 @@
+// src/integrations/whatsapp/services/ai-agent.ts
+
+/**
+ * 🤖 AI Agent Service
+ * 
+ * Soporta múltiples providers:
+ * - OpenAI (GPT-4, GPT-3.5)
+ * - Anthropic (Claude)
+ */
+
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
+import { 
+  loadAIContext, 
+  getAIConfig, 
+  getConversationHistory,
+  buildSystemPrompt,
+  isWithinBusinessHours
+} from './context-loader';
+import { executeFunction } from './function-executor';
+import type { AIFunctionCall } from '../types';
+
+// Inicializar clientes
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || ''
+});
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY || ''
+});
+
+interface ProcessMessageParams {
+  conversationId: string;
+  organizationId: string;
+  customerMessage: string;
+  customerPhone: string;
+}
+
+interface ProcessMessageResult {
+  success: boolean;
+  response?: string;
+  functionsCalled?: string[];
+  error?: string;
+}
+
+/**
+ * Procesa un mensaje del cliente y genera respuesta
+ */
+export async function processMessage(
+  params: ProcessMessageParams
+): Promise<ProcessMessageResult> {
+  try {
+    console.log('[AIAgent] Procesando mensaje para conversación:', params.conversationId);
+
+    // 1. Cargar configuración del AI
+    const aiConfig = await getAIConfig(params.organizationId);
+
+    if (!aiConfig || !aiConfig.enabled) {
+      console.log('[AIAgent] Bot deshabilitado para esta organización');
+      return {
+        success: false,
+        error: 'Bot no está habilitado'
+      };
+    }
+
+    // 2. Cargar contexto del taller
+    const context = await loadAIContext(params.organizationId, params.conversationId);
+
+    if (!context) {
+      console.error('[AIAgent] No se pudo cargar contexto');
+      return {
+        success: false,
+        error: 'No se pudo cargar contexto del taller'
+      };
+    }
+
+    // 3. Verificar horarios si está configurado
+    if (aiConfig.business_hours_only) {
+      const isOpen = isWithinBusinessHours(context.business_hours);
+      if (!isOpen) {
+        return {
+          success: true,
+          response: `Gracias por contactarnos. Actualmente estamos fuera de horario.\n\n` +
+                   `📅 Nuestro horario es:\n${formatBusinessHours(context.business_hours)}\n\n` +
+                   `Te responderemos en cuanto abramos. 😊`
+        };
+      }
+    }
+
+    // 4. Cargar historial de conversación
+    const history = await getConversationHistory(params.conversationId, 10);
+
+    // 5. Construir system prompt
+    const systemPrompt = buildSystemPrompt(aiConfig, context);
+
+    // 6. Procesar según el provider
+    if (aiConfig.provider === 'openai') {
+      return await processWithOpenAI({
+        aiConfig,
+        systemPrompt,
+        history,
+        customerMessage: params.customerMessage,
+        organizationId: params.organizationId,
+        customerPhone: params.customerPhone
+      });
+    } else if (aiConfig.provider === 'anthropic') {
+      return await processWithAnthropic({
+        aiConfig,
+        systemPrompt,
+        history,
+        customerMessage: params.customerMessage,
+        organizationId: params.organizationId,
+        customerPhone: params.customerPhone
+      });
+    } else {
+      return {
+        success: false,
+        error: `Provider no soportado: ${aiConfig.provider}`
+      };
+    }
+
+  } catch (error) {
+    console.error('[AIAgent] Error procesando mensaje:', error);
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error desconocido en AI Agent'
+    };
+  }
+}
+
+/**
+ * Procesa mensaje con OpenAI (GPT)
+ */
+async function processWithOpenAI(params: {
+  aiConfig: any;
+  systemPrompt: string;
+  history: Array<{ role: 'user' | 'assistant'; content: string }>;
+  customerMessage: string;
+  organizationId: string;
+  customerPhone: string;
+}): Promise<ProcessMessageResult> {
+  
+  // Definir funciones para OpenAI
+  const functions: OpenAI.Chat.ChatCompletionCreateParams.Function[] = [
+    {
+      name: 'schedule_appointment',
+      description: 'Agenda una cita para el cliente en el taller',
+      parameters: {
+        type: 'object',
+        properties: {
+          customer_name: {
+            type: 'string',
+            description: 'Nombre completo del cliente'
+          },
+          date: {
+            type: 'string',
+            description: 'Fecha en formato YYYY-MM-DD'
+          },
+          time: {
+            type: 'string',
+            description: 'Hora en formato HH:MM (24h)'
+          },
+          service_name: {
+            type: 'string',
+            description: 'Nombre del servicio a realizar'
+          },
+          vehicle_brand: {
+            type: 'string',
+            description: 'Marca del vehículo'
+          },
+          vehicle_model: {
+            type: 'string',
+            description: 'Modelo del vehículo'
+          },
+          vehicle_year: {
+            type: 'string',
+            description: 'Año del vehículo'
+          },
+          notes: {
+            type: 'string',
+            description: 'Notas adicionales del cliente'
+          }
+        },
+        required: ['customer_name', 'date', 'time', 'service_name', 'vehicle_brand', 'vehicle_model']
+      }
+    },
+    {
+      name: 'check_availability',
+      description: 'Verifica los horarios disponibles para una fecha específica',
+      parameters: {
+        type: 'object',
+        properties: {
+          date: {
+            type: 'string',
+            description: 'Fecha a verificar en formato YYYY-MM-DD'
+          }
+        },
+        required: ['date']
+      }
+    },
+    {
+      name: 'get_service_price',
+      description: 'Consulta el precio de un servicio específico',
+      parameters: {
+        type: 'object',
+        properties: {
+          service_name: {
+            type: 'string',
+            description: 'Nombre del servicio a consultar'
+          }
+        },
+        required: ['service_name']
+      }
+    },
+    {
+      name: 'create_quote',
+      description: 'Crea una cotización con uno o más servicios',
+      parameters: {
+        type: 'object',
+        properties: {
+          customer_name: {
+            type: 'string',
+            description: 'Nombre del cliente'
+          },
+          services: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Lista de nombres de servicios a cotizar'
+          },
+          vehicle_brand: {
+            type: 'string',
+            description: 'Marca del vehículo'
+          },
+          vehicle_model: {
+            type: 'string',
+            description: 'Modelo del vehículo'
+          }
+        },
+        required: ['customer_name', 'services']
+      }
+    }
+  ];
+
+  // Construir mensajes
+  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    {
+      role: 'system',
+      content: params.systemPrompt
+    },
+    ...params.history.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    })),
+    {
+      role: 'user',
+      content: params.customerMessage
+    }
+  ];
+
+  const functionsCalled: string[] = [];
+
+  // Loop para manejar function calling
+  let continueLoop = true;
+  let finalResponse = '';
+
+  while (continueLoop) {
+    console.log('[AIAgent/OpenAI] Llamando a OpenAI API...');
+
+    const response = await openai.chat.completions.create({
+      model: params.aiConfig.model,
+      messages: messages,
+      functions: functions,
+      function_call: 'auto',
+      temperature: params.aiConfig.temperature,
+      max_tokens: params.aiConfig.max_tokens
+    } as any);
+
+    const choice = response.choices[0];
+
+    if (choice.message.function_call) {
+      // OpenAI quiere ejecutar una función
+      const functionName = choice.message.function_call.name;
+      const functionArgs = JSON.parse(choice.message.function_call.arguments);
+
+      console.log('[AIAgent/OpenAI] Ejecutando función:', functionName);
+      functionsCalled.push(functionName);
+
+      // Agregar customer_phone si no está
+      if (!functionArgs.customer_phone) {
+        functionArgs.customer_phone = params.customerPhone;
+      }
+
+      const functionCall: AIFunctionCall = {
+        name: functionName as any,
+        arguments: functionArgs
+      };
+
+      const result = await executeFunction(
+        functionCall,
+        params.organizationId,
+        params.customerPhone
+      );
+
+      // Agregar la llamada a función y su resultado a los mensajes
+      messages.push(choice.message);
+      messages.push({
+        role: 'function',
+        name: functionName,
+        content: JSON.stringify(result)
+      } as any);
+
+    } else {
+      // No hay más funciones, tenemos la respuesta final
+      finalResponse = choice.message.content || '';
+      continueLoop = false;
+    }
+  }
+
+  return {
+    success: true,
+    response: finalResponse,
+    functionsCalled: functionsCalled.length > 0 ? functionsCalled : undefined
+  };
+}
+
+/**
+ * Procesa mensaje con Anthropic (Claude)
+ */
+async function processWithAnthropic(params: {
+  aiConfig: any;
+  systemPrompt: string;
+  history: Array<{ role: 'user' | 'assistant'; content: string }>;
+  customerMessage: string;
+  organizationId: string;
+  customerPhone: string;
+}): Promise<ProcessMessageResult> {
+  
+  // Definir tools para Claude
+  const tools: Anthropic.Tool[] = [
+    {
+      name: 'schedule_appointment',
+      description: 'Agenda una cita para el cliente en el taller',
+      input_schema: {
+        type: 'object',
+        properties: {
+          customer_name: { type: 'string', description: 'Nombre completo del cliente' },
+          date: { type: 'string', description: 'Fecha en formato YYYY-MM-DD' },
+          time: { type: 'string', description: 'Hora en formato HH:MM (24h)' },
+          service_name: { type: 'string', description: 'Nombre del servicio a realizar' },
+          vehicle_brand: { type: 'string', description: 'Marca del vehículo' },
+          vehicle_model: { type: 'string', description: 'Modelo del vehículo' },
+          vehicle_year: { type: 'string', description: 'Año del vehículo' },
+          notes: { type: 'string', description: 'Notas adicionales' }
+        },
+        required: ['customer_name', 'date', 'time', 'service_name', 'vehicle_brand', 'vehicle_model']
+      }
+    },
+    {
+      name: 'check_availability',
+      description: 'Verifica horarios disponibles',
+      input_schema: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: 'Fecha en formato YYYY-MM-DD' }
+        },
+        required: ['date']
+      }
+    },
+    {
+      name: 'get_service_price',
+      description: 'Consulta precio de servicio',
+      input_schema: {
+        type: 'object',
+        properties: {
+          service_name: { type: 'string', description: 'Nombre del servicio' }
+        },
+        required: ['service_name']
+      }
+    },
+    {
+      name: 'create_quote',
+      description: 'Crea cotización',
+      input_schema: {
+        type: 'object',
+        properties: {
+          customer_name: { type: 'string' },
+          services: { type: 'array', items: { type: 'string' } },
+          vehicle_brand: { type: 'string' },
+          vehicle_model: { type: 'string' }
+        },
+        required: ['customer_name', 'services']
+      }
+    }
+  ];
+
+  const messages: Anthropic.MessageParam[] = [
+    ...params.history.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    })),
+    {
+      role: 'user',
+      content: params.customerMessage
+    }
+  ];
+
+  const functionsCalled: string[] = [];
+  let response = await anthropic.messages.create({
+    model: params.aiConfig.model,
+    max_tokens: params.aiConfig.max_tokens,
+    temperature: params.aiConfig.temperature,
+    system: params.systemPrompt,
+    messages: messages as any,
+    tools
+  });
+
+  while (response.stop_reason === 'tool_use') {
+    const toolUses = response.content.filter(
+      (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
+    );
+
+    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+    for (const toolUse of toolUses) {
+      console.log('[AIAgent/Claude] Ejecutando función:', toolUse.name);
+      functionsCalled.push(toolUse.name);
+
+      const functionCall: AIFunctionCall = {
+        name: toolUse.name as any,
+        arguments: toolUse.input as any
+      };
+
+      if (!functionCall.arguments.customer_phone) {
+        functionCall.arguments.customer_phone = params.customerPhone;
+      }
+
+      const result = await executeFunction(
+        functionCall,
+        params.organizationId,
+        params.customerPhone
+      );
+
+      toolResults.push({
+        type: 'tool_result',
+        tool_use_id: toolUse.id,
+        content: JSON.stringify(result)
+      });
+    }
+
+    messages.push({ role: 'assistant', content: response.content } as any);
+    messages.push({ role: 'user', content: toolResults } as any);
+
+    response = await anthropic.messages.create({
+      model: params.aiConfig.model,
+      max_tokens: params.aiConfig.max_tokens,
+      temperature: params.aiConfig.temperature,
+      system: params.systemPrompt,
+      messages: messages as any,
+      tools
+    });
+  }
+
+  const textBlocks = response.content.filter(
+    (block): block is Anthropic.TextBlock => block.type === 'text'
+  );
+
+  const finalText = textBlocks.map(block => block.text).join('\n');
+
+  return {
+    success: true,
+    response: finalText,
+    functionsCalled: functionsCalled.length > 0 ? functionsCalled : undefined
+  };
+}
+
+function formatBusinessHours(
+  businessHours: Record<string, { start: string; end: string } | null>
+): string {
+  const days: Record<string, string> = {
+    monday: 'Lunes',
+    tuesday: 'Martes',
+    wednesday: 'Miércoles',
+    thursday: 'Jueves',
+    friday: 'Viernes',
+    saturday: 'Sábado',
+    sunday: 'Domingo'
+  };
+
+  return Object.entries(businessHours)
+    .map(([day, hours]) => {
+      const dayName = days[day] || day;
+      if (!hours) return `${dayName}: Cerrado`;
+      return `${dayName}: ${hours.start} - ${hours.end}`;
+    })
+    .join('\n');
+}
+

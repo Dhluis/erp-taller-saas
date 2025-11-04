@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import Image from 'next/image'
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl'
@@ -16,48 +17,16 @@ const sizeClasses = {
 }
 
 export function Logo({ size = 'md', variant = 'default', className }: LogoProps) {
-  const getVariantColors = () => {
-    switch (variant) {
-      case 'white':
-        return {
-          circle: '#FFFFFF',
-          text: '#0A0E1A',
-        }
-      case 'dark':
-        return {
-          circle: '#0A0E1A',
-          text: '#00D9FF',
-        }
-      default:
-        return {
-          circle: '#00D9FF',
-          text: '#0A0E1A',
-        }
-    }
-  }
-
-  const colors = getVariantColors()
-
   return (
     <div className={cn('flex items-center justify-center', sizeClasses[size], className)}>
-      <svg 
-        xmlns="http://www.w3.org/2000/svg" 
-        viewBox="0 0 100 100"
+      <Image
+        src="/logo-icon.svg"
+        alt="EAGLES Logo"
+        width={64}
+        height={64}
         className="w-full h-full"
-      >
-        <circle cx="50" cy="50" r="45" fill={colors.circle}/>
-        <text 
-          x="50" 
-          y="65" 
-          fontSize="50" 
-          textAnchor="middle" 
-          fill={colors.text} 
-          fontWeight="bold"
-          fontFamily="Inter, sans-serif"
-        >
-          E
-        </text>
-      </svg>
+        priority
+      />
     </div>
   )
 }
@@ -84,4 +53,3 @@ export function LogoWithText({ size = 'md', variant = 'default', className }: Lo
     </div>
   )
 }
-

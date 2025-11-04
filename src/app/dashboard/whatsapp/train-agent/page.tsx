@@ -1,0 +1,207 @@
+'use client'
+
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
+import { ProgressBar } from './components/ProgressBar'
+import { BusinessInfoStep } from './components/BusinessInfoStep'
+import { ServicesStep } from './components/ServicesStep'
+import { PoliciesStep } from './components/PoliciesStep'
+import { PersonalityStep } from './components/PersonalityStep'
+import { FAQStep } from './components/FAQStep'
+import { CustomInstructionsStep } from './components/CustomInstructionsStep'
+import { PreviewTestStep } from './components/PreviewTestStep'
+import { useAuth } from '@/hooks/useAuth'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
+
+export default function TrainAgentPage() {
+  const { organization } = useAuth()
+  const router = useRouter()
+  const [step, setStep] = useState(1)
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    businessInfo: {
+      name: organization?.name || '',
+      address: organization?.address || '',
+      phone: organization?.phone || '',
+      email: organization?.email || '',
+      businessHours: {
+        monday: { start: '09:00', end: '18:00' },
+        tuesday: { start: '09:00', end: '18:00' },
+        wednesday: { start: '09:00', end: '18:00' },
+        thursday: { start: '09:00', end: '18:00' },
+        friday: { start: '09:00', end: '18:00' },
+        saturday: { start: '09:00', end: '14:00' },
+        sunday: null
+      }
+    },
+    services: [],
+    policies: {
+      payment_methods: ['Efectivo', 'Tarjeta'],
+      cancellation_policy: 'Cancelación con 24h de anticipación',
+      warranty: '30 días de garantía en servicios',
+      warranty_policy: '30 días de garantía en servicios', // Compatibilidad
+      deposit_required: false,
+      deposit_percentage: 30,
+      insurance_accepted: false
+    },
+    personality: {
+      tone: 'profesional',
+      language: 'es',
+      emoji_usage: 'moderate', // Compatibilidad
+      use_emojis: false,
+      local_phrases: false,
+      greeting_style: ''
+    },
+    faq: [],
+    customInstructions: '',
+    escalationRules: {
+      keywords_to_escalate: [],
+      max_messages_before_escalate: 10
+    }
+  })
+
+  const handleSave = async () => {
+    if (!organization?.organization_id) {
+      toast.error('No se encontró la organización')
+      return
+    }
+
+    setLoading(true)
+    try {
+      // Guardar configuración en ai_agent_config
+      const response = await fetch(`/api/whatsapp/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessInfo: formData.businessInfo,
+          services: formData.services,
+          policies: formData.policies,
+          personality: formData.personality,
+          faq: formData.faq,
+          customInstructions: formData.customInstructions,
+          escalationRules: formData.escalationRules
+        })
+      })
+
+      if (!response.ok) throw new Error('Error al guardar configuración')
+
+      toast.success('Configuración del agente guardada exitosamente')
+      router.push('/dashboard/whatsapp')
+    } catch (error) {
+      console.error('Error saving config:', error)
+      toast.error('Error al guardar la configuración')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updateFormData = (section: string, data: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [section]: data
+    }))
+  }
+
+  return (
+    <div className="min-h-screen bg-bg-primary">
+      <div className="max-w-4xl mx-auto p-6">
+        <StandardBreadcrumbs
+          items={[
+            { label: 'Dashboard', href: '/dashboard' },
+            { label: 'WhatsApp', href: '/dashboard/whatsapp' },
+            { label: 'Entrenar Agente' }
+          ]}
+        />
+
+        <h1 className="text-3xl font-bold mb-8 text-text-primary mt-6">
+          Entrena tu Asistente de WhatsApp
+        </h1>
+        
+        {/* Progress Bar */}
+        <ProgressBar currentStep={step} totalSteps={7} />
+        
+        {/* Wizard Steps */}
+        <div className="mt-8">
+          {step === 1 && (
+            <BusinessInfoStep 
+              data={formData.businessInfo} 
+              onChange={(data) => updateFormData('businessInfo', data)} 
+            />
+          )}
+          {step === 2 && (
+            <ServicesStep 
+              data={formData.services} 
+              onChange={(data) => updateFormData('services', data)} 
+            />
+          )}
+          {step === 3 && (
+            <PoliciesStep 
+              data={formData.policies} 
+              onChange={(data) => updateFormData('policies', data)} 
+            />
+          )}
+          {step === 4 && (
+            <PersonalityStep 
+              data={formData.personality} 
+              onChange={(data) => updateFormData('personality', data)} 
+            />
+          )}
+          {step === 5 && (
+            <FAQStep 
+              data={formData.faq} 
+              onChange={(data) => updateFormData('faq', data)} 
+            />
+          )}
+          {step === 6 && (
+            <CustomInstructionsStep 
+              data={{
+                customInstructions: formData.customInstructions,
+                escalationRules: formData.escalationRules
+              }}
+              onChange={(data) => {
+                updateFormData('customInstructions', data.customInstructions)
+                updateFormData('escalationRules', data.escalationRules)
+              }} 
+            />
+          )}
+          {step === 7 && (
+            <PreviewTestStep 
+              data={formData} 
+              onSave={handleSave}
+              loading={loading}
+            />
+          )}
+        </div>
+        
+        {/* Navigation */}
+        <div className="flex justify-between mt-8">
+          <Button 
+            onClick={() => setStep(Math.max(1, step - 1))}
+            disabled={step === 1}
+            variant="outline"
+          >
+            ← Anterior
+          </Button>
+          
+          {step < 7 ? (
+            <Button 
+              onClick={() => setStep(Math.min(7, step + 1))}
+            >
+              Siguiente →
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleSave}
+              disabled={loading}
+            >
+              {loading ? 'Guardando...' : 'Guardar Configuración'}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+

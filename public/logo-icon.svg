@@ -1,0 +1,41 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Logo icon version para favicon y uso pequeño -->
+  
+  <defs>
+    <linearGradient id="tealGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00D9FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00B8D4;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Wing izquierdo -->
+  <path d="M8 16 L32 8 L56 16 L56 40 L32 48 L8 40 Z" fill="black"/>
+  <path d="M8 16 L32 8 L56 16" stroke="white" stroke-width="1.5" fill="none"/>
+  
+  <!-- Wing derecho -->
+  <path d="M56 16 L56 40 L32 48 L32 56 L8 48 L8 40" fill="black"/>
+  
+  <!-- Elementos teal izquierdos -->
+  <path d="M12 20 L24 17 L36 20 L32 26 L20 28 L12 24 Z" fill="url(#tealGrad)"/>
+  <path d="M14 22 L22 20 L30 22 L28 24 L20 25 L14 23" fill="#00B8D4"/>
+  
+  <!-- Elementos teal derechos -->
+  <path d="M28 20 L40 17 L52 20 L48 26 L36 28 L28 24 Z" fill="url(#tealGrad)"/>
+  <path d="M30 22 L38 20 L46 22 L44 24 L36 25 L30 23" fill="#00B8D4"/>
+  
+  <!-- Circuit traces -->
+  <line x1="8" y1="16" x2="12" y2="20" stroke="black" stroke-width="0.8"/>
+  <line x1="56" y1="16" x2="52" y2="20" stroke="black" stroke-width="0.8"/>
+  
+  <!-- Puntos de conexión -->
+  <circle cx="12" cy="20" r="2" fill="#00D9FF" stroke="black" stroke-width="0.5"/>
+  <circle cx="52" cy="20" r="2" fill="#00D9FF" stroke="black" stroke-width="0.5"/>
+  
+  <!-- Barra central inferior -->
+  <rect x="24" y="48" width="16" height="6" fill="black"/>
+  <rect x="24" y="48" width="16" height="6" stroke="#00D9FF" stroke-width="0.5" fill="none"/>
+  
+  <!-- Triángulo central -->
+  <path d="M28 56 L32 54 L36 56 Z" fill="black"/>
+</svg>
+
