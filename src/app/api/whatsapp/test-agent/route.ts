@@ -22,6 +22,24 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
   try {
+    // Debug: Log todas las variables de entorno relacionadas con OpenAI
+    console.log('\n' + '='.repeat(60));
+    console.log('[TestAgent] 🔍 VERIFICACIÓN DE VARIABLES DE ENTORNO');
+    console.log('='.repeat(60));
+    console.log('[TestAgent] NODE_ENV:', process.env.NODE_ENV);
+    console.log('[TestAgent] OPENAI_API_KEY presente:', !!process.env.OPENAI_API_KEY);
+    console.log('[TestAgent] OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length || 0);
+    console.log('[TestAgent] OPENAI_API_KEY primeros 20 chars:', process.env.OPENAI_API_KEY?.substring(0, 20) || 'NO ENCONTRADA');
+    
+    // Verificar todas las variables que contengan "OPENAI" o "AI"
+    const allEnvKeys = Object.keys(process.env).filter(key => 
+      key.toUpperCase().includes('OPENAI') || 
+      key.toUpperCase().includes('ANTHROPIC') ||
+      key.toUpperCase().includes('AI')
+    );
+    console.log('[TestAgent] Variables relacionadas encontradas:', allEnvKeys);
+    console.log('='.repeat(60) + '\n');
+    
     const supabase = await getSupabaseServerClient();
     
     // Verificar conexión a Supabase
@@ -41,14 +59,6 @@ export async function GET() {
     // Verificar variables de entorno de AI
     const hasOpenAI = !!process.env.OPENAI_API_KEY;
     const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
-    
-    // Debug: Log de variables de entorno (solo en desarrollo)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[TestAgent] 🔍 Variables de entorno:');
-      console.log('[TestAgent] OPENAI_API_KEY presente:', hasOpenAI);
-      console.log('[TestAgent] OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length || 0);
-      console.log('[TestAgent] ANTHROPIC_API_KEY presente:', hasAnthropic);
-    }
 
     return NextResponse.json({
       status: 'healthy',
@@ -81,6 +91,16 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
+    // DEBUG: Verificar variables de entorno al inicio del POST
+    console.log('\n' + '='.repeat(60));
+    console.log('[TestAgent POST] 🔍 VERIFICACIÓN DE VARIABLES DE ENTORNO');
+    console.log('='.repeat(60));
+    console.log('[TestAgent POST] process.env.OPENAI_API_KEY:', !!process.env.OPENAI_API_KEY);
+    console.log('[TestAgent POST] process.env.OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length || 0);
+    console.log('[TestAgent POST] process.env.OPENAI_API_KEY primeros 20:', process.env.OPENAI_API_KEY?.substring(0, 20) || 'NO ENCONTRADA');
+    console.log('[TestAgent POST] Todas las variables OPENAI:', Object.keys(process.env).filter(k => k.includes('OPENAI')));
+    console.log('='.repeat(60) + '\n');
+    
     // 1️⃣ OBTENER CONTEXTO DEL TENANT
     const tenantContext = await getTenantContext();
     if (!tenantContext) {
@@ -169,9 +189,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 5️⃣ VERIFICAR API KEY ANTES DE PROCESAR
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('[TestAgent POST] ❌ OPENAI_API_KEY no está disponible en process.env');
+      console.error('[TestAgent POST] Verificando si existe en el archivo...');
+      return NextResponse.json({
+        success: false,
+        error: 'OPENAI_API_KEY no está configurada. Por favor, verifica tu archivo .env.local y reinicia el servidor completamente.',
+        debug: {
+          hasOpenAIKey: !!process.env.OPENAI_API_KEY,
+          nodeEnv: process.env.NODE_ENV,
+          allOpenAIVars: Object.keys(process.env).filter(k => k.includes('OPENAI'))
+        }
+      }, { status: 500 });
+    }
+    
     // 5️⃣ PROCESAR MENSAJE CON AI AGENT
     console.log('🤖 Procesando con AI Agent...');
     console.log('⚠️ Modo prueba: Verificación de horarios deshabilitada');
+    console.log('🔑 API Key presente:', !!process.env.OPENAI_API_KEY);
     
     const startTime = Date.now();
     const result = await processMessage({
