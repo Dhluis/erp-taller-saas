@@ -205,20 +205,23 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Header */}
       <div className="p-6 border-b border-border">
         <div className="flex items-center justify-between">
-          <a href="https://ibb.co/yFmC8Lx6" className="flex items-center gap-3" target="_blank" rel="noreferrer">
+          <a
+            href="https://ibb.co/yFmC8Lx6"
+            className={cn(
+              "flex items-center transition-all",
+              isCollapsed ? "justify-center w-full" : "gap-3"
+            )}
+            target="_blank"
+            rel="noreferrer"
+          >
             <img
               src="https://i.ibb.co/d4svQnHP/Whats-App-Image-2025-11-03-at-6-01-33-PM.png"
               alt="Whats-App-Image-2025-11-03-at-6-01-33-PM"
               className={cn(
                 "rounded-md shadow-sm transition-all",
-                isCollapsed ? "h-10 w-10 object-cover" : "h-12 w-auto"
+                isCollapsed ? "h-10 w-10 object-cover" : "h-16 w-auto"
               )}
             />
-            {!isCollapsed && (
-              <span className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                EAGLES
-              </span>
-            )}
           </a>
           <Button 
             variant="ghost" 
@@ -230,9 +233,6 @@ export function Sidebar({ className }: SidebarProps) {
             {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
         </div>
-        {!isCollapsed && (
-          <p className="text-xs text-muted-foreground mt-1">ERP Taller SaaS</p>
-        )}
       </div>
 
       {/* Navigation */}

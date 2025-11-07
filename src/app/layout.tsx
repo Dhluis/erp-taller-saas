@@ -23,9 +23,13 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/favicon.svg",
+    icon: [
+      { url: "/eagles-logo.png", type: "image/png" },
+    ],
+    shortcut: "/eagles-logo.png",
+    apple: [
+      { url: "/eagles-logo.png", type: "image/png" },
+    ],
   },
   other: {
     "google": "notranslate",
