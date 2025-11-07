@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -42,6 +42,7 @@ interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [expandedSections, setExpandedSections] = useState<string[]>([])
   const { isCollapsed, toggleCollapse } = useSidebar()
   const logoUrl = "https://i.ibb.co/yFmC8Lx/Whats-App-Image-2025-11-03-at-6-01-33-PM.jpg"
@@ -205,24 +206,24 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Header */}
       <div className="p-6 border-b border-border">
         <div className="flex items-center justify-between">
-          <a
-            href="https://ibb.co/yFmC8Lx6"
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard")}
             className={cn(
-              "flex items-center transition-all",
-              isCollapsed ? "justify-center w-full" : "gap-3"
+              "transition-all bg-transparent hover:opacity-95",
+              isCollapsed ? "w-full flex justify-center" : "flex items-center gap-3"
             )}
-            target="_blank"
-            rel="noreferrer"
+            aria-label="Ir al dashboard"
           >
             <img
               src="https://i.ibb.co/d4svQnHP/Whats-App-Image-2025-11-03-at-6-01-33-PM.png"
-              alt="Whats-App-Image-2025-11-03-at-6-01-33-PM"
+              alt="Logo Eagles ERP"
               className={cn(
-                "rounded-md shadow-sm transition-all",
+                "rounded-md shadow-sm transition-all hover:scale-[1.02] focus:outline-none",
                 isCollapsed ? "h-10 w-10 object-cover" : "h-16 w-auto"
               )}
             />
-          </a>
+          </button>
           <Button 
             variant="ghost" 
             size="sm" 
