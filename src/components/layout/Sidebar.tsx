@@ -205,10 +205,10 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Header */}
       <div className="p-6 border-b border-border">
         <div className="flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-3">
+          <a href="https://ibb.co/yFmC8Lx6" className="flex items-center gap-3" target="_blank" rel="noreferrer">
             <img
-              src={logoUrl}
-              alt="Eagles Workshop logo"
+              src="https://i.ibb.co/d4svQnHP/Whats-App-Image-2025-11-03-at-6-01-33-PM.png"
+              alt="Whats-App-Image-2025-11-03-at-6-01-33-PM"
               className={cn(
                 "rounded-md shadow-sm transition-all",
                 isCollapsed ? "h-10 w-10 object-cover" : "h-12 w-auto"
@@ -219,7 +219,7 @@ export function Sidebar({ className }: SidebarProps) {
                 EAGLES
               </span>
             )}
-          </Link>
+          </a>
           <Button 
             variant="ghost" 
             size="sm" 
