@@ -305,32 +305,32 @@ export default function UsuariosPage() {
                 <div className="grid gap-2">
                   <Label htmlFor="role">Rol</Label>
                   <Select value={formData.role} onValueChange={(value) => handleSelectChange('role', value)}>
-                    <SelectTrigger className="w-full h-11 bg-slate-900/80 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
+                    <SelectTrigger className="w-full h-11 bg-slate-900 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
                       <SelectValue placeholder="Selecciona un rol" />
                     </SelectTrigger>
                     <SelectContent
-                      className="bg-slate-900/95 text-white border border-slate-700 shadow-xl backdrop-blur-md"
+                      className="z-[200] bg-slate-900 text-white border border-slate-600 shadow-2xl"
                       sideOffset={4}
                     >
-                      <SelectItem value="admin" className="text-white focus:bg-primary/20">Administrador</SelectItem>
-                      <SelectItem value="manager" className="text-white focus:bg-primary/20">Gerente</SelectItem>
-                      <SelectItem value="employee" className="text-white focus:bg-primary/20">Empleado</SelectItem>
-                      <SelectItem value="viewer" className="text-white focus:bg-primary/20">Visualizador</SelectItem>
+                      <SelectItem value="admin" className="text-white focus:bg-primary/25 focus:text-white">Administrador</SelectItem>
+                      <SelectItem value="manager" className="text-white focus:bg-primary/25 focus:text-white">Gerente</SelectItem>
+                      <SelectItem value="employee" className="text-white focus:bg-primary/25 focus:text-white">Empleado</SelectItem>
+                      <SelectItem value="viewer" className="text-white focus:bg-primary/25 focus:text-white">Visualizador</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="status">Estado</Label>
                   <Select value={formData.status} onValueChange={(value) => handleSelectChange('status', value)}>
-                    <SelectTrigger className="w-full h-11 bg-slate-900/80 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
+                    <SelectTrigger className="w-full h-11 bg-slate-900 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
                       <SelectValue placeholder="Selecciona estado" />
                     </SelectTrigger>
                     <SelectContent
-                      className="bg-slate-900/95 text-white border border-slate-700 shadow-xl backdrop-blur-md"
+                      className="z-[200] bg-slate-900 text-white border border-slate-600 shadow-2xl"
                       sideOffset={4}
                     >
-                      <SelectItem value="active" className="text-white focus:bg-primary/20">Activo</SelectItem>
-                      <SelectItem value="inactive" className="text-white focus:bg-primary/20">Inactivo</SelectItem>
+                      <SelectItem value="active" className="text-white focus:bg-primary/25 focus:text-white">Activo</SelectItem>
+                      <SelectItem value="inactive" className="text-white focus:bg-primary/25 focus:text-white">Inactivo</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
