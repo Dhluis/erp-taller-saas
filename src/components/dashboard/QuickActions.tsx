@@ -53,13 +53,13 @@ export function QuickActions({ onOrderCreated }: QuickActionsProps) {
   }
 
   const handleCotizacion = () => {
-    console.log('🔥 [QuickActions] Navegar a Cotizaciones')
-    router.push('/cotizaciones')
+    console.log('🔥 [QuickActions] Navegar a nueva Cotización')
+    router.push('/cotizaciones/nueva')
   }
 
   const handleCita = () => {
-    console.log('🔥 [QuickActions] Navegar a Órdenes')
-    router.push('/ordenes')
+    console.log('🔥 [QuickActions] Navegar a Citas')
+    router.push('/citas')
   }
 
   const handleOrderCreated = () => {
