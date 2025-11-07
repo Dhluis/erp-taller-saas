@@ -280,59 +280,57 @@ export default function UsuariosPage() {
                   {editingUser ? "Modifica los datos del usuario." : "Ingresa los datos del nuevo usuario."}
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">
-                    Nombre
-                  </Label>
+              <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Nombre</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={handleInputChange}
-                    className="col-span-3"
+                    className="w-full bg-slate-900/70 border-slate-600 text-white h-11"
                     required
                   />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="email" className="text-right">
-                    Email
-                  </Label>
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
                     type="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className="col-span-3"
+                    className="w-full bg-slate-900/70 border-slate-600 text-white h-11"
                     required
                   />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="role" className="text-right">
-                    Rol
-                  </Label>
+                <div className="grid gap-2">
+                  <Label htmlFor="role">Rol</Label>
                   <Select value={formData.role} onValueChange={(value) => handleSelectChange('role', value)}>
-                    <SelectTrigger className="col-span-3 w-full bg-slate-900/70 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
-                      <SelectValue />
+                    <SelectTrigger className="w-full h-11 bg-slate-900/80 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
+                      <SelectValue placeholder="Selecciona un rol" />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 text-white border border-slate-700 shadow-lg">
-                      <SelectItem value="admin">Administrador</SelectItem>
-                      <SelectItem value="manager">Gerente</SelectItem>
-                      <SelectItem value="employee">Empleado</SelectItem>
-                      <SelectItem value="viewer">Visualizador</SelectItem>
+                    <SelectContent
+                      className="bg-slate-900/95 text-white border border-slate-700 shadow-xl backdrop-blur-md"
+                      sideOffset={4}
+                    >
+                      <SelectItem value="admin" className="text-white focus:bg-primary/20">Administrador</SelectItem>
+                      <SelectItem value="manager" className="text-white focus:bg-primary/20">Gerente</SelectItem>
+                      <SelectItem value="employee" className="text-white focus:bg-primary/20">Empleado</SelectItem>
+                      <SelectItem value="viewer" className="text-white focus:bg-primary/20">Visualizador</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="status" className="text-right">
-                    Estado
-                  </Label>
+                <div className="grid gap-2">
+                  <Label htmlFor="status">Estado</Label>
                   <Select value={formData.status} onValueChange={(value) => handleSelectChange('status', value)}>
-                    <SelectTrigger className="col-span-3 w-full bg-slate-900/70 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
-                      <SelectValue />
+                    <SelectTrigger className="w-full h-11 bg-slate-900/80 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
+                      <SelectValue placeholder="Selecciona estado" />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 text-white border border-slate-700 shadow-lg">
-                      <SelectItem value="active">Activo</SelectItem>
-                      <SelectItem value="inactive">Inactivo</SelectItem>
+                    <SelectContent
+                      className="bg-slate-900/95 text-white border border-slate-700 shadow-xl backdrop-blur-md"
+                      sideOffset={4}
+                    >
+                      <SelectItem value="active" className="text-white focus:bg-primary/20">Activo</SelectItem>
+                      <SelectItem value="inactive" className="text-white focus:bg-primary/20">Inactivo</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
