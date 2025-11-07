@@ -273,7 +273,7 @@ export default function UsuariosPage() {
                 <Plus className="mr-2 h-4 w-4" /> Agregar Usuario
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[560px]">
               <DialogHeader>
                 <DialogTitle>{editingUser ? "Editar Usuario" : "Agregar Nuevo Usuario"}</DialogTitle>
                 <DialogDescription>
@@ -311,10 +311,10 @@ export default function UsuariosPage() {
                     Rol
                   </Label>
                   <Select value={formData.role} onValueChange={(value) => handleSelectChange('role', value)}>
-                    <SelectTrigger className="col-span-3">
+                    <SelectTrigger className="col-span-3 w-full bg-slate-900/70 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-slate-900 text-white border border-slate-700 shadow-lg">
                       <SelectItem value="admin">Administrador</SelectItem>
                       <SelectItem value="manager">Gerente</SelectItem>
                       <SelectItem value="employee">Empleado</SelectItem>
@@ -327,10 +327,10 @@ export default function UsuariosPage() {
                     Estado
                   </Label>
                   <Select value={formData.status} onValueChange={(value) => handleSelectChange('status', value)}>
-                    <SelectTrigger className="col-span-3">
+                    <SelectTrigger className="col-span-3 w-full bg-slate-900/70 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-slate-900 text-white border border-slate-700 shadow-lg">
                       <SelectItem value="active">Activo</SelectItem>
                       <SelectItem value="inactive">Inactivo</SelectItem>
                     </SelectContent>
