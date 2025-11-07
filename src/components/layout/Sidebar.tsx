@@ -44,6 +44,7 @@ export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname()
   const [expandedSections, setExpandedSections] = useState<string[]>([])
   const { isCollapsed, toggleCollapse } = useSidebar()
+  const logoUrl = "https://i.ibb.co/yFmC8Lx/Whats-App-Image-2025-11-03-at-6-01-33-PM.jpg"
 
   // Inicializar secciones expandidas después de la hidratación
   useEffect(() => {
@@ -204,11 +205,21 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Header */}
       <div className="p-6 border-b border-border">
         <div className="flex items-center justify-between">
-          {!isCollapsed && (
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              EAGLES
-            </h1>
-          )}
+          <Link href="/dashboard" className="flex items-center gap-3">
+            <img
+              src={logoUrl}
+              alt="Eagles Workshop logo"
+              className={cn(
+                "rounded-md shadow-sm transition-all",
+                isCollapsed ? "h-10 w-10 object-cover" : "h-12 w-auto"
+              )}
+            />
+            {!isCollapsed && (
+              <span className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                EAGLES
+              </span>
+            )}
+          </Link>
           <Button 
             variant="ghost" 
             size="sm" 

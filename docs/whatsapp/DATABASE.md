@@ -159,3 +159,4 @@ OR table_name LIKE 'ai_agent%';
 - RLS activo en todas las tablas
 
 
+

@@ -20,6 +20,41 @@ import {
 import { executeFunction } from './function-executor';
 import type { AIFunctionCall } from '../types';
 
+// NOTA: Next.js debería cargar automáticamente las variables de .env.local
+// Este fallback solo se ejecuta si Next.js no las carga correctamente
+// Si ves este mensaje frecuentemente, investiga por qué Next.js no carga las variables
+if (typeof window === 'undefined' && !process.env.OPENAI_API_KEY) {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const envPath = path.join(process.cwd(), '.env.local');
+    
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf8');
+      let loaded = false;
+      envContent.split(/\r?\n/).forEach((line: string) => {
+        const trimmedLine = line.trim();
+        if (trimmedLine && !trimmedLine.startsWith('#') && trimmedLine.includes('=')) {
+          const [key, ...valueParts] = trimmedLine.split('=');
+          const value = valueParts.join('=').trim();
+          if (key && value && !process.env[key]) {
+            process.env[key] = value;
+            if (key === 'OPENAI_API_KEY') {
+              loaded = true;
+            }
+          }
+        }
+      });
+      if (loaded) {
+        console.warn('[AIAgent] ⚠️ Fallback: Variables cargadas manualmente desde .env.local');
+        console.warn('[AIAgent] ⚠️ Next.js debería cargar esto automáticamente. Verifica la configuración.');
+      }
+    }
+  } catch (error) {
+    console.error('[AIAgent] ❌ Error cargando .env.local manualmente:', error);
+  }
+}
+
 // Cliente OpenAI - inicializado lazy (solo cuando se necesita)
 let openaiClient: OpenAI | null = null;
 

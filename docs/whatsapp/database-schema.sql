@@ -505,3 +505,4 @@ COMMENT ON TABLE whatsapp_appointment_metadata IS 'Metadata de citas creadas ví
 COMMENT ON TABLE whatsapp_customer_metadata IS 'Metadata de clientes que contactaron por WhatsApp';
 
 
+
