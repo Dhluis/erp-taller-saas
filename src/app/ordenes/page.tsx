@@ -1,14 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAllOrders } from '@/lib/database/queries/orders';
+import { deleteWorkOrder } from '@/lib/database/queries/work-orders';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
+import { OrderDetailModal } from '@/components/ordenes/OrderDetailModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Search,
   FileText,
@@ -17,9 +30,8 @@ import {
   Eye,
   Plus,
   Download,
-  Filter,
 } from 'lucide-react';
-import Link from 'next/link';
+import { toast } from 'sonner';
 import type { WorkOrder, OrderStatus } from '@/types/orders';
 
 // Mapeo de estados con colores
@@ -41,6 +53,7 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor
 
 export default function OrdenesPage() {
   const { organization } = useAuth();
+  const router = useRouter();
   const organizationId = organization?.organization_id || null;
 
   const [orders, setOrders] = useState<WorkOrder[]>([]);
@@ -49,9 +62,14 @@ export default function OrdenesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [orderPendingDelete, setOrderPendingDelete] = useState<WorkOrder | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Cargar órdenes - función reutilizable (OPTIMIZADA)
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     if (!organizationId) return;
 
     try {
@@ -64,11 +82,11 @@ export default function OrdenesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [organizationId]);
 
   useEffect(() => {
     loadOrders();
-  }, [organizationId]);
+  }, [loadOrders]);
 
   // Filtrar órdenes
   useEffect(() => {
@@ -118,6 +136,38 @@ export default function OrdenesPage() {
   // Truncar ID
   const truncateId = (id: string) => {
     return id.substring(0, 8) + '...';
+  };
+
+  const handleViewOrder = (order: WorkOrder) => {
+    setSelectedOrder(order);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleEditOrder = (order: WorkOrder) => {
+    router.push(`/ordenes/${order.id}`);
+  };
+
+  const handleRequestDelete = (order: WorkOrder) => {
+    setOrderPendingDelete(order);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!orderPendingDelete) return;
+
+    try {
+      setIsDeleting(true);
+      await deleteWorkOrder(orderPendingDelete.id);
+      toast.success('Orden eliminada correctamente');
+      setIsDeleteDialogOpen(false);
+      setOrderPendingDelete(null);
+      loadOrders();
+    } catch (error) {
+      console.error('Error eliminando orden:', error);
+      toast.error('No se pudo eliminar la orden. Intenta nuevamente.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (!organizationId) {
@@ -387,6 +437,7 @@ export default function OrdenesPage() {
                           size="sm"
                           className="text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
                           title="Ver detalles"
+                          onClick={() => handleViewOrder(order)}
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
@@ -395,6 +446,7 @@ export default function OrdenesPage() {
                           size="sm"
                           className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
                           title="Editar"
+                          onClick={() => handleEditOrder(order)}
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -403,6 +455,7 @@ export default function OrdenesPage() {
                           size="sm"
                           className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                           title="Eliminar"
+                          onClick={() => handleRequestDelete(order)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -424,6 +477,43 @@ export default function OrdenesPage() {
           loadOrders(); // Recargar órdenes después de crear
         }}
       />
+
+      {/* Modal de detalles */}
+      <OrderDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        order={selectedOrder}
+        onUpdate={() => {
+          loadOrders();
+          setIsDetailModalOpen(false);
+        }}
+      />
+
+      {/* Confirmación de eliminado */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className="bg-[#0F172A] border-slate-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar orden?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará la orden{' '}
+              <span className="font-semibold text-white">
+                {orderPendingDelete?.customer?.name ?? 'Sin cliente'}
+              </span>{' '}
+              y todos sus datos. No se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-500 hover:bg-red-600 text-white"
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
