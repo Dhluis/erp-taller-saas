@@ -27,7 +27,7 @@ export async function GET(
     if (error) {
       if (error.code === 'PGRST116') {
         return NextResponse.json(
-          { error: 'Orden no encontrada' },
+          { success: false, error: 'Orden no encontrada' },
           { status: 404 }
         )
       }
@@ -38,16 +38,16 @@ export async function GET(
 
     if (!order) {
       return NextResponse.json(
-        { error: 'Orden no encontrada' },
+        { success: false, error: 'Orden no encontrada' },
         { status: 404 }
       )
     }
 
-    return NextResponse.json(order)
+    return NextResponse.json({ success: true, data: order })
   } catch (error) {
     console.error('Error in GET /api/orders/[id]:', error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { success: false, error: 'Error interno del servidor' },
       { status: 500 }
     )
   }
@@ -64,16 +64,16 @@ export async function PATCH(
     // Si solo se está actualizando el status, usar función específica
     if (body.status && Object.keys(body).length === 1) {
       const order = await updateWorkOrderStatus(params.id, body.status)
-      return NextResponse.json(order)
+      return NextResponse.json({ success: true, data: order })
     }
     
     // Actualización completa
     const order = await updateWorkOrder(params.id, body)
-    return NextResponse.json(order)
+    return NextResponse.json({ success: true, data: order })
   } catch (error) {
     console.error('Error in PATCH /api/orders/[id]:', error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { success: false, error: 'Error interno del servidor' },
       { status: 500 }
     )
   }
@@ -90,7 +90,7 @@ export async function DELETE(
   } catch (error) {
     console.error('Error in DELETE /api/orders/[id]:', error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { success: false, error: 'Error interno del servidor' },
       { status: 500 }
     )
   }
