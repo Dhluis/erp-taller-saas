@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/client'
+import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import { updateWorkOrder, updateWorkOrderStatus, deleteWorkOrder } from '@/lib/database/queries/work-orders'
 import type { WorkOrder } from '@/types/orders'
 
-const supabase = createClient()
+const supabase = getSupabaseServiceClient()
 const ORGANIZATION_ID = '042ab6bd-8979-4166-882a-c244b5e51e51'
 
 // GET /api/orders/[id] - Obtener detalles de una orden
