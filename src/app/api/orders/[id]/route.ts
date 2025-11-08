@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getWorkOrderById, updateWorkOrder, updateWorkOrderStatus, deleteWorkOrder } from '@/lib/database/queries/work-orders'
+import { createClient } from '@/lib/supabase/client'
+import { updateWorkOrder, updateWorkOrderStatus, deleteWorkOrder } from '@/lib/database/queries/work-orders'
+import type { WorkOrder } from '@/types/orders'
+
+const supabase = createClient()
+const ORGANIZATION_ID = '042ab6bd-8979-4166-882a-c244b5e51e51'
 
 // GET /api/orders/[id] - Obtener detalles de una orden
 export async function GET(
@@ -7,7 +12,37 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const order = await getWorkOrderById(params.id)
+    const { data, error } = await supabase
+      .from('work_orders')
+      .select(`
+        *,
+        customer:customers(*),
+        vehicle:vehicles(*),
+        order_items(*)
+      `)
+      .eq('id', params.id)
+      .eq('organization_id', ORGANIZATION_ID)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Orden no encontrada' },
+          { status: 404 }
+        )
+      }
+      throw error
+    }
+
+    const order = data as WorkOrder | null
+
+    if (!order) {
+      return NextResponse.json(
+        { error: 'Orden no encontrada' },
+        { status: 404 }
+      )
+    }
+
     return NextResponse.json(order)
   } catch (error) {
     console.error('Error in GET /api/orders/[id]:', error)
