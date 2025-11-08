@@ -5,6 +5,7 @@
 
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies'
 import { getConfig } from '../core/config'
 import { ConfigurationError, logError } from '../core/errors'
 import { Database } from '@/types/supabase-simple'
@@ -33,11 +34,11 @@ export async function getSupabaseServerClient(): Promise<SupabaseServerClient> {
           get(name: string) {
             return cookieStore.get(name)?.value
           },
-          set(name: string, value: string, options: any) {
-            cookieStore.set({ name, value, ...options })
+          set(name: string, value: string, options?: ResponseCookie['options']) {
+            cookieStore.set({ name, value, ...(options ?? {}) })
           },
-          remove(name: string, options: any) {
-            cookieStore.set({ name, value: '', ...options })
+          remove(name: string, options?: ResponseCookie['options']) {
+            cookieStore.set({ name, value: '', ...(options ?? {}) })
           },
         },
         global: {
@@ -51,7 +52,7 @@ export async function getSupabaseServerClient(): Promise<SupabaseServerClient> {
 
     console.log('✅ Supabase server client initialized')
     return serverClient
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(new ConfigurationError('Failed to initialize Supabase server client', { originalError: error }))
     throw new ConfigurationError('Failed to initialize Supabase server client')
   }
@@ -77,25 +78,25 @@ export function getSupabaseServiceClient(): SupabaseServerClient {
       config.NEXT_PUBLIC_SUPABASE_URL,
       config.SUPABASE_SERVICE_ROLE_KEY,
       {
-      cookies: {
-        get(name: string) {
-          return ''
+        cookies: {
+          get() {
+            return ''
+          },
+          set() {
+            // Service role no necesita cookies
+          },
+          remove() {
+            // Service role no necesita cookies
+          },
         },
-        set(name: string, value: string, options: any) {
-          // Service role no necesita cookies
+        global: {
+          headers: {
+            'X-Client-Info': 'erp-taller-saas-service',
+            'X-App-Version': config.NEXT_PUBLIC_APP_VERSION,
+          },
         },
-        remove(name: string, options: any) {
-          // Service role no necesita cookies
-        },
-      },
-      global: {
-        headers: {
-          'X-Client-Info': 'erp-taller-saas-service',
-          'X-App-Version': config.NEXT_PUBLIC_APP_VERSION,
-        },
-      },
-    }
-  )
+      }
+    )
 }
 
 /**

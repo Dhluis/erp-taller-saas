@@ -1,9 +1,9 @@
 import { getSupabaseClient } from '../../supabase/client';
-import type { SupabaseServerClient } from '../../supabase/server';
-import type { SupabaseClient as BrowserSupabaseClient } from '../../supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase-simple';
 
-type GenericSupabaseClient = BrowserSupabaseClient | SupabaseServerClient;
-let cachedServiceClient: SupabaseServerClient | null = null;
+type GenericSupabaseClient = SupabaseClient<Database>;
+let cachedServiceClient: GenericSupabaseClient | null = null;
 
 async function getClient(): Promise<GenericSupabaseClient> {
   if (typeof window !== 'undefined') {
