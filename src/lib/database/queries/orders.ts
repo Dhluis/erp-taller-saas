@@ -3,7 +3,9 @@ import { withRetry } from '@/lib/supabase/retry-client';
 import type { WorkOrder, OrderStatus } from '@/types/orders';
 
 // Cache simple en memoria (solo para desarrollo/testing)
-let ordersCache: { [key: string]: { data: WorkOrder[]; timestamp: number } } = {}
+type WorkOrderWithOrg = WorkOrder & { organization_id?: string };
+
+const ordersCache: { [key: string]: { data: WorkOrderWithOrg[]; timestamp: number } } = {}
 const CACHE_TTL = 10000 // 10 segundos
 
 // Opciones de paginación
@@ -39,7 +41,7 @@ export async function getAllOrders(organizationId: string, useCache: boolean = t
   const { data, error } = await withRetry(
     async () => await supabaseClient
       .from('work_orders')
-      .select('*, customer:customers(*), vehicle:vehicles(*)')
+      .select('*, organization_id, customer:customers(*), vehicle:vehicles(*)')
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
       .limit(500),
@@ -57,7 +59,7 @@ export async function getAllOrders(organizationId: string, useCache: boolean = t
   // Guardar en cache
   if (useCache && data) {
     ordersCache[cacheKey] = {
-      data: data as WorkOrder[],
+      data: data as WorkOrderWithOrg[],
       timestamp: Date.now()
     }
   }
@@ -67,7 +69,8 @@ export async function getAllOrders(organizationId: string, useCache: boolean = t
     console.log(`✅ Órdenes encontradas: ${data?.length || 0}`)
   }
 
-  return (data || []) as WorkOrder[]
+  const typedData = (data || []) as WorkOrderWithOrg[];
+  return typedData.filter((order: WorkOrderWithOrg) => order.organization_id === organizationId);
 }
 
 // Actualizar estado de una orden
@@ -111,7 +114,11 @@ export async function updateOrderStatus(
     throw error;
   }
   
-  const updateData: any = {
+  const updateData: {
+    status: OrderStatus;
+    updated_at: string;
+    completed_at?: string;
+  } = {
     status: newStatus,
     updated_at: new Date().toISOString()
   };
