@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAllOrders } from '@/lib/database/queries/orders';
-import { deleteWorkOrder } from '@/lib/database/queries/work-orders';
+import { getAllWorkOrders, deleteWorkOrder } from '@/lib/database/queries/work-orders';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
@@ -74,7 +73,7 @@ export default function OrdenesPage() {
 
     try {
       setLoading(true);
-      const data = await getAllOrders(organizationId);
+      const data = await getAllWorkOrders(organizationId);
       setOrders(data);
       setFilteredOrders(data);
     } catch (error) {
