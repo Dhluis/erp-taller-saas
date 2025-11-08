@@ -3,17 +3,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase-simple';
 
 type GenericSupabaseClient = SupabaseClient<Database>;
-let cachedServiceClient: GenericSupabaseClient | null = null;
 
-async function getClient(): Promise<GenericSupabaseClient> {
-  if (typeof window !== 'undefined') {
-    return getSupabaseClient();
-  }
-  if (!cachedServiceClient) {
-    const { getSupabaseServiceClient } = await import('../../supabase/server');
-    cachedServiceClient = getSupabaseServiceClient();
-  }
-  return cachedServiceClient;
+function getClient(): GenericSupabaseClient {
+  return getSupabaseClient();
 }
 
 // Verificar configuración de Supabase
@@ -120,7 +112,7 @@ interface WorkOrderFilters {
 // ============================================================================
 
 export async function getAllWorkOrders(organizationId?: string, filters?: WorkOrderFilters) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   let query = supabase
     .from('work_orders')
@@ -155,7 +147,7 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
 }
 
 export async function getWorkOrderById(id: string) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   const { data, error } = await supabase
     .from('work_orders')
@@ -188,7 +180,7 @@ export async function getWorkOrderById(id: string) {
 }
 
 export async function createWorkOrder(orderData: CreateWorkOrderData) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   const { data, error } = await supabase
     .from('work_orders')
@@ -227,7 +219,7 @@ export async function createWorkOrder(orderData: CreateWorkOrderData) {
 }
 
 export async function updateWorkOrder(id: string, orderData: UpdateWorkOrderData) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   const { data, error } = await supabase
     .from('work_orders')
@@ -261,7 +253,7 @@ export async function updateWorkOrder(id: string, orderData: UpdateWorkOrderData
 }
 
 export async function deleteWorkOrder(id: string) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   console.log('🔧 deleteWorkOrder (DB) - Iniciando eliminación para ID:', id)
   console.log('🔧 deleteWorkOrder (DB) - Organization ID:', ORGANIZATION_ID)
@@ -373,7 +365,7 @@ export async function updateWorkOrderStatus(id: string, status: WorkOrderStatus)
 // ============================================================================
 
 export async function searchWorkOrders(searchTerm: string) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   const { data, error } = await supabase
     .from('work_orders')
@@ -403,7 +395,7 @@ export async function searchWorkOrders(searchTerm: string) {
 }
 
 export async function getWorkOrdersByCustomer(customerId: string) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   const { data, error } = await supabase
     .from('work_orders')
@@ -433,7 +425,7 @@ export async function getWorkOrdersByCustomer(customerId: string) {
 }
 
 export async function getWorkOrdersByVehicle(vehicleId: string) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   const { data, error } = await supabase
     .from('work_orders')
@@ -467,7 +459,7 @@ export async function getWorkOrdersByVehicle(vehicleId: string) {
 // ============================================================================
 
 export async function getOrderItems(workOrderId: string) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   const { data, error } = await supabase
     .from('order_items')
@@ -480,7 +472,7 @@ export async function getOrderItems(workOrderId: string) {
 }
 
 export async function createOrderItem(itemData: CreateOrderItemData) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   // Calcular total_price
   const total_price = itemData.quantity * itemData.unit_price;
@@ -508,7 +500,7 @@ export async function updateOrderItem(
   id: string,
   itemData: Partial<CreateOrderItemData>
 ) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   // Si se actualiza quantity o unit_price, recalcular total_price
   const updateData: Partial<CreateOrderItemData> & { total_price?: number } = { ...itemData };
@@ -554,7 +546,7 @@ export async function updateOrderItem(
 }
 
 export async function deleteOrderItem(id: string) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   // Obtener work_order_id antes de eliminar
   const { data: item } = await supabase
@@ -583,7 +575,7 @@ export async function deleteOrderItem(id: string) {
 // ============================================================================
 
 async function recalculateWorkOrderTotals(workOrderId: string) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   // Obtener todos los items de la orden
   const items = await getOrderItems(workOrderId);
@@ -619,7 +611,7 @@ async function recalculateWorkOrderTotals(workOrderId: string) {
 }
 
 export async function updateWorkOrderDiscount(workOrderId: string, discount: number) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   // Actualizar descuento
   await supabase
@@ -639,7 +631,7 @@ export async function updateWorkOrderDiscount(workOrderId: string, discount: num
 // ============================================================================
 
 export async function getWorkOrderStats() {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   const { data: orders, error } = await supabase
     .from('work_orders')
@@ -679,7 +671,7 @@ export interface WorkOrderStats {
 
 // TODO: Implementar cuando se necesite
 export async function getOrderItemsByWorkOrder(workOrderId: string) {
-  const supabase = await getClient();
+  const supabase = getClient();
 
   const { data, error } = await supabase
     .from('order_items')
