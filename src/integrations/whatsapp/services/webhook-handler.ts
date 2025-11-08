@@ -95,8 +95,8 @@ function parseMetaMessage(
             if (msg.type === 'text' && msg.from) {
               const fromNumber = msg.from.replace('@s.whatsapp.net', '');
               const timestamp = new Date(parseInt(msg.timestamp) * 1000);
-
-              return {
+    
+    return {
                 organization_id: organizationId,
                 from: fromNumber,
                 to: change.value.metadata?.phone_number_id || '',
@@ -136,46 +136,46 @@ async function getOrCreateConversation(
 
   // Buscar conversación existente
   const { data: existing } = await supabase
-    .from('whatsapp_conversations')
+      .from('whatsapp_conversations')
     .select('id')
     .eq('organization_id', organizationId)
     .eq('customer_phone', customerPhone)
-    .eq('status', 'active')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
   if (existing) {
     return existing.id;
-  }
+    }
 
   // Buscar o crear cliente
-  const customerResult = await clientesAdapter.getOrCreate({
+    const customerResult = await clientesAdapter.getOrCreate({
     organization_id: organizationId,
-    name: 'Cliente WhatsApp', // Nombre temporal, AI lo preguntará
+      name: 'Cliente WhatsApp', // Nombre temporal, AI lo preguntará
     phone: customerPhone
-  });
+    });
 
-  if (!customerResult.success || !customerResult.data) {
+    if (!customerResult.success || !customerResult.data) {
     throw new Error('No se pudo obtener/crear cliente');
-  }
+    }
 
   // Crear nueva conversación
   const { data: newConv, error } = await supabase
-    .from('whatsapp_conversations')
-    .insert({
+      .from('whatsapp_conversations')
+      .insert({
       organization_id: organizationId,
-      customer_id: customerResult.data.id,
+        customer_id: customerResult.data.id,
       customer_phone: customerPhone,
-      customer_name: customerResult.data.name,
-      status: 'active',
-      is_bot_active: true,
+        customer_name: customerResult.data.name,
+        status: 'active',
+        is_bot_active: true,
       messages_count: 0,
       last_message_at: new Date().toISOString(),
       created_at: new Date().toISOString()
-    })
+      })
     .select('id')
-    .single();
+      .single();
 
   if (error || !newConv) {
     throw new Error('No se pudo crear conversación');

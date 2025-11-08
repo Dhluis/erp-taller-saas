@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
+import { StandardBreadcrumbs } from "@/components/ui/breadcrumbs"
 import {
   Plus,
   Search,
@@ -21,8 +21,7 @@ import {
   Calendar,
   Edit,
   Trash2,
-  Save,
-  X
+  Save
 } from "lucide-react"
 import { getSystemUsers, getUserStats, createSystemUser, updateSystemUser, deleteSystemUser, SystemUser, UserStats, CreateSystemUserData } from "@/lib/supabase/system-users"
 
@@ -252,6 +251,11 @@ export default function UsuariosPage() {
   if (isLoading) {
     return (
       <div className="flex-1 space-y-4 p-8 pt-6">
+        <StandardBreadcrumbs
+          currentPage="Usuarios"
+          parentPages={[{ label: "Configuraciones", href: "/configuraciones" }]}
+          className="text-xs md:text-sm"
+        />
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -264,7 +268,12 @@ export default function UsuariosPage() {
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
+      <StandardBreadcrumbs
+        currentPage="Usuarios"
+        parentPages={[{ label: "Configuraciones", href: "/configuraciones" }]}
+        className="text-xs md:text-sm"
+      />
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-3xl font-bold tracking-tight">Gestión de Usuarios</h2>
         <div className="flex items-center space-x-2">
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

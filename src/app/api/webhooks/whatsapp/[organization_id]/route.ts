@@ -226,15 +226,15 @@ export async function POST(
       body,
       request.headers,
       organizationId
-    );
+        );
 
-    if (!isValid) {
+        if (!isValid) {
       console.error('❌ Webhook no válido');
-      return NextResponse.json(
+          return NextResponse.json(
         { error: 'Webhook verification failed' },
-        { status: 403 }
-      );
-    }
+            { status: 403 }
+          );
+        }
 
     console.log('✅ Webhook verificado');
 
