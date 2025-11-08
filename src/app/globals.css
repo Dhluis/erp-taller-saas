@@ -203,6 +203,20 @@
   background-clip: text;
 }
 
+@layer components {
+  [data-slot='select-trigger'] {
+    @apply bg-slate-900 border border-slate-600 text-white;
+  }
+
+  [data-slot='select-content'] {
+    @apply bg-slate-950 text-white border border-slate-700 shadow-2xl z-[10000];
+  }
+
+  [data-slot='select-item'] {
+    @apply text-white cursor-pointer rounded-md px-3 py-2 hover:bg-primary/25;
+  }
+}
+
 /* Focus states para accesibilidad */
 .focus-ring {
   outline: 2px solid transparent;
