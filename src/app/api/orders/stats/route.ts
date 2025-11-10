@@ -96,8 +96,14 @@ export async function GET(request: NextRequest) {
       }, { status: 500 })
     }
 
-    console.log('✅ Órdenes encontradas:', orders?.length || 0);
-    console.log('✅ Órdenes por estado:', orders?.reduce((acc: any, o: any) => {
+    const ordersList = (orders ?? []) as Array<{
+      status: string | null;
+      created_at: string | null;
+      entry_date: string | null;
+    }>;
+
+    console.log('✅ Órdenes encontradas:', ordersList.length || 0);
+    console.log('✅ Órdenes por estado:', ordersList.reduce((acc: any, o: any) => {
       acc[o.status] = (acc[o.status] || 0) + 1;
       return acc;
     }, {}));
@@ -106,7 +112,7 @@ export async function GET(request: NextRequest) {
     // Contar órdenes por estado
     const statusCounts: { [key: string]: number } = {}
     
-    orders?.forEach((order: any) => {
+    ordersList.forEach((order: any) => {
       const status = order.status
       if (status) {
         statusCounts[status] = (statusCounts[status] || 0) + 1
@@ -183,7 +189,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       ...statusCounts,
-      total: orders?.length || 0
+      total: ordersList.length || 0,
+      _debug: {
+        organizationId: tenantContext.organizationId,
+        ordersFound: ordersList.length,
+        firstOrderDate: ordersList[0]?.created_at,
+        filterFrom: fromDate.toISOString(),
+        filterTo: toDate.toISOString(),
+      },
     })
 
   } catch (error) {
