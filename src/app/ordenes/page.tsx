@@ -69,15 +69,30 @@ export default function OrdenesPage() {
 
   // Cargar órdenes - función reutilizable (OPTIMIZADA)
   const loadOrders = useCallback(async () => {
-    if (!organizationId) return;
+    if (!organizationId) {
+      console.log('⚠️ No hay organizationId');
+      return;
+    }
 
     try {
       setLoading(true);
+      console.log('🔍 Cargando órdenes...');
+      console.log('🔍 organizationId:', organizationId);
+
       const data = await getAllWorkOrders(organizationId);
-      setOrders(data);
-      setFilteredOrders(data);
+
+      console.log('📊 Órdenes recibidas:', data?.length);
+      console.log('📋 Primera orden:', data?.[0]);
+
+      const normalizedData = (data ?? []).map((order: any) => ({
+        ...order,
+        entry_date: order.entry_date ?? order.created_at ?? '',
+      })) as WorkOrder[];
+
+      setOrders(normalizedData as unknown as WorkOrder[]);
+      setFilteredOrders(normalizedData as unknown as WorkOrder[]);
     } catch (error) {
-      console.error('Error cargando órdenes:', error);
+      console.error('❌ Error cargando órdenes:', error);
     } finally {
       setLoading(false);
     }
