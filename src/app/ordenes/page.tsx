@@ -21,15 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Search,
-  FileText,
-  Edit,
-  Trash2,
-  Eye,
-  Plus,
-  Download,
-} from 'lucide-react';
+import { Search, FileText, Edit, Trash2, Eye, Plus, Download, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import type { WorkOrder, OrderStatus } from '@/types/orders';
 
@@ -204,6 +196,14 @@ export default function OrdenesPage() {
           <p className="text-slate-400 mt-1">Gestiona todas las órdenes del taller</p>
         </div>
         <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={() => loadOrders()}
+            className="gap-2 border-slate-600 text-slate-200 hover:bg-slate-700/40"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Actualizar
+          </Button>
           <Button 
             onClick={() => setIsCreateModalOpen(true)}
             className="gap-2 bg-cyan-500 hover:bg-cyan-600"
