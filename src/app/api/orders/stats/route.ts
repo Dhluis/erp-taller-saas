@@ -71,13 +71,19 @@ export async function GET(request: NextRequest) {
       userId: tenantContext.userId
     })
 
+    const fromISO = fromDate.toISOString()
+    const toISO = toDate.toISOString()
+
     // Consultar órdenes por estado para la organización específica con filtro de fecha
     const { data: orders, error: ordersError } = await supabase
       .from('work_orders')
       .select('status, created_at, entry_date')
-      .eq('organization_id', tenantContext.organizationId)
-      .gte('created_at', fromDate.toISOString())
-      .lte('created_at', toDate.toISOString())
+      .eq('organization_id', organizationIdToUse)
+      // .gte('created_at', fromDate.toISOString())  // ❌ COMENTADO
+      // .lte('created_at', toDate.toISOString())    // ❌ COMENTADO
+      .or(
+        `and(created_at.gte.${fromISO},created_at.lte.${toISO}),and(entry_date.gte.${fromISO},entry_date.lte.${toISO})`
+      )
 
     // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -100,11 +106,24 @@ export async function GET(request: NextRequest) {
       }, { status: 500 })
     }
 
-    const ordersList = (orders ?? []) as Array<{
+    const ordersList = ((orders ?? []) as Array<{
       status: string | null;
       created_at: string | null;
       entry_date: string | null;
-    }>;
+    }>).filter((order) => {
+      const createdAt = order.created_at ? new Date(order.created_at) : null
+      const entryDate = order.entry_date ? new Date(order.entry_date) : null
+
+      if (createdAt && createdAt >= fromDate && createdAt <= toDate) {
+        return true
+      }
+
+      if (entryDate && entryDate >= fromDate && entryDate <= toDate) {
+        return true
+      }
+
+      return false
+    });
 
     console.log('✅ Órdenes encontradas:', ordersList.length || 0);
     console.log('✅ Órdenes por estado:', ordersList.reduce((acc: any, o: any) => {
@@ -198,6 +217,7 @@ export async function GET(request: NextRequest) {
         organizationId: organizationIdToUse,
         ordersFound: ordersList.length,
         firstOrderDate: ordersList[0]?.created_at,
+        firstEntryDate: ordersList[0]?.entry_date,
         filterFrom: fromDate.toISOString(),
         filterTo: toDate.toISOString(),
       },
