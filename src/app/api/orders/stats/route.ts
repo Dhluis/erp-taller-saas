@@ -59,10 +59,14 @@ export async function GET(request: NextRequest) {
     // Crear cliente de Supabase y obtener contexto
     const supabase = await createClient()
     const tenantContext = await getTenantContext()
+
+    const requestedOrganizationId = searchParams.get('organizationId')
+
+    const organizationIdToUse = requestedOrganizationId || tenantContext.organizationId
     
     console.log('✅ Usuario autenticado:', tenantContext.userId)
     console.log('✅ Tenant Context:', {
-      organizationId: tenantContext.organizationId,
+      organizationId: organizationIdToUse,
       workshopId: tenantContext.workshopId,
       userId: tenantContext.userId
     })
@@ -79,7 +83,7 @@ export async function GET(request: NextRequest) {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('🔌 API /orders/stats - QUERY EJECUTADA');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('Organization ID:', tenantContext.organizationId);
+    console.log('Organization ID:', organizationIdToUse);
     console.log('Workshop ID:', tenantContext.workshopId);
     console.log('Filtro de tiempo:', timeFilter);
     console.log('Rango de fechas:', {
@@ -191,7 +195,7 @@ export async function GET(request: NextRequest) {
       ...statusCounts,
       total: ordersList.length || 0,
       _debug: {
-        organizationId: tenantContext.organizationId,
+        organizationId: organizationIdToUse,
         ordersFound: ordersList.length,
         firstOrderDate: ordersList[0]?.created_at,
         filterFrom: fromDate.toISOString(),

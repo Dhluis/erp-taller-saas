@@ -20,6 +20,7 @@ import {
   Package,
   CalendarIcon
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   LineChart,
   Line,
@@ -35,6 +36,8 @@ import {
 } from 'recharts';
 
 export default function DashboardPage() {
+  const { organization } = useAuth();
+  const organizationId = organization?.id;
   const [dateRange, setDateRange] = useState('7d');
   const [customDateRange, setCustomDateRange] = useState<{
     from: Date | undefined
@@ -67,12 +70,18 @@ export default function DashboardPage() {
       
       // Construir URL con parámetro de fecha
       let url = `/api/orders/stats?timeFilter=${dateRange}`;
+      if (organizationId) {
+        url += `&organizationId=${organizationId}`;
+      }
       
       // Si es custom y tiene fechas, agregar parámetros adicionales
       if (dateRange === 'custom' && customDateRange.from && customDateRange.to) {
         const fromISO = customDateRange.from.toISOString();
         const toISO = customDateRange.to.toISOString();
         url = `/api/orders/stats?timeFilter=custom&from=${fromISO}&to=${toISO}`;
+        if (organizationId) {
+          url += `&organizationId=${organizationId}`;
+        }
       }
       
       console.log('🔗 URL de la petición:', url);
@@ -146,7 +155,7 @@ export default function DashboardPage() {
   // Cargar datos al montar el componente y cuando cambia el filtro de fecha o las fechas personalizadas
   useEffect(() => {
     loadOrdersByStatus();
-  }, [dateRange, customDateRange]);
+  }, [dateRange, customDateRange, organizationId]);
 
   // Handler para cuando se crea una nueva orden
   const handleOrderCreated = () => {
