@@ -50,34 +50,39 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4">
+    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white">
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.12),_transparent_55%)]" />
       <div className="w-full max-w-md">
         {/* Logo and Title */}
-        <div className="mb-8">
+        <div className="mb-8 flex flex-col items-center gap-3">
           <AuthLogo size="lg" showText={true} />
+          <p className="text-sm text-slate-400 text-center">
+            Bienvenido de vuelta a tu sistema de gestión de taller
+          </p>
         </div>
 
         {/* Login Form */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6 text-center">
+        <div className="relative bg-slate-900/80 rounded-2xl shadow-2xl p-8 border border-slate-800 backdrop-blur">
+          <div className="absolute -top-10 right-6 h-24 w-24 rounded-full bg-cyan-500/10 blur-2xl" />
+          <h2 className="text-2xl font-semibold text-white mb-6 text-center">
             Iniciar Sesión
           </h2>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-800">{error}</p>
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/40 rounded-lg flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-300 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-200">{error}</p>
             </div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-5">
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
                 Correo electrónico
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                   id="email"
                   type="email"
@@ -85,7 +90,7 @@ function LoginContent() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={loading}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full pl-10 pr-4 py-3 border border-slate-700 bg-slate-800/80 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-slate-500"
                   placeholder="tu@email.com"
                 />
               </div>
@@ -93,11 +98,11 @@ function LoginContent() {
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
                 Contraseña
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                   id="password"
                   type="password"
@@ -105,7 +110,7 @@ function LoginContent() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={loading}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full pl-10 pr-4 py-3 border border-slate-700 bg-slate-800/80 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-slate-500"
                   placeholder="••••••••"
                 />
               </div>
@@ -116,13 +121,13 @@ function LoginContent() {
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-cyan-500 border-slate-600 bg-slate-800 rounded focus:ring-cyan-500"
                 />
-                <span className="text-gray-700">Recordarme</span>
+                <span className="text-slate-300">Recordarme</span>
               </label>
               <Link
                 href="/auth/forgot-password"
-                className="text-blue-600 hover:text-blue-700 font-medium transition"
+                className="text-cyan-400 hover:text-cyan-300 font-medium transition"
               >
                 ¿Olvidaste tu contraseña?
               </Link>
@@ -132,7 +137,7 @@ function LoginContent() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25"
             >
               {loading ? (
                 <>
@@ -148,10 +153,10 @@ function LoginContent() {
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
+              <div className="w-full border-t border-slate-800"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500">O continúa con</span>
+              <span className="px-4 bg-slate-900/80 text-slate-400">O continúa con</span>
             </div>
           </div>
 
@@ -159,11 +164,11 @@ function LoginContent() {
           <OAuthButtons />
 
           {/* Sign Up Link */}
-          <p className="mt-6 text-center text-sm text-gray-600">
+          <p className="mt-6 text-center text-sm text-slate-400">
             ¿No tienes una cuenta?{' '}
             <Link
               href="/auth/register"
-              className="font-medium text-blue-600 hover:text-blue-700 transition"
+              className="font-medium text-cyan-400 hover:text-cyan-300 transition"
             >
               Regístrate gratis
             </Link>
@@ -171,7 +176,7 @@ function LoginContent() {
         </div>
 
         {/* Footer */}
-        <p className="mt-8 text-center text-sm text-gray-500">
+        <p className="mt-8 text-center text-sm text-slate-500">
           © 2024 EAGLES. Todos los derechos reservados.
         </p>
       </div>
@@ -182,8 +187,8 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
       </div>
     }>
       <LoginContent />
