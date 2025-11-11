@@ -39,12 +39,12 @@ interface WorkOrder {
   created_at: string
   updated_at: string
   // Relaciones
-  customers?: {
+  customer?: {
     name: string
     email: string
     phone: string
   }
-  vehicles?: {
+  vehicle?: {
     brand: string
     model: string
     year: number
@@ -83,14 +83,14 @@ export default function OrderDetailPage() {
       const result = await safeFetch<OrderResponse>(`/api/orders/${orderId}`)
       
       if (!result.success) {
-        if (result.statusCode === 404) {
+        if (result.status === 404) {
           toast({
             title: "Orden no encontrada",
             description: "La orden solicitada no existe",
             variant: "destructive"
           })
           router.push('/ordenes')
-        } else if (result.statusCode === 403) {
+        } else if (result.status === 403) {
           toast({
             title: "Sin permisos",
             description: "No tienes permiso para ver esta orden",
@@ -178,12 +178,12 @@ export default function OrderDetailPage() {
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       reception: { label: 'Recepción', variant: 'secondary' as const, color: 'bg-gray-100 text-gray-800' },
-      diagnostic: { label: 'Diagnóstico', variant: 'default' as const, color: 'bg-blue-100 text-blue-800' },
-      approval: { label: 'Aprobación', variant: 'default' as const, color: 'bg-yellow-100 text-yellow-800' },
-      repair: { label: 'Reparación', variant: 'default' as const, color: 'bg-orange-100 text-orange-800' },
-      parts: { label: 'Esperando Repuestos', variant: 'default' as const, color: 'bg-purple-100 text-purple-800' },
-      quality: { label: 'Control de Calidad', variant: 'default' as const, color: 'bg-indigo-100 text-indigo-800' },
-      delivery: { label: 'Listo para Entrega', variant: 'default' as const, color: 'bg-green-100 text-green-800' },
+      diagnostic: { label: 'Diagnóstico', variant: 'primary' as const, color: 'bg-blue-100 text-blue-800' },
+      approval: { label: 'Aprobación', variant: 'warning' as const, color: 'bg-yellow-100 text-yellow-800' },
+      repair: { label: 'Reparación', variant: 'primary' as const, color: 'bg-orange-100 text-orange-800' },
+      parts: { label: 'Esperando Repuestos', variant: 'info' as const, color: 'bg-purple-100 text-purple-800' },
+      quality: { label: 'Control de Calidad', variant: 'info' as const, color: 'bg-indigo-100 text-indigo-800' },
+      delivery: { label: 'Listo para Entrega', variant: 'success' as const, color: 'bg-green-100 text-green-800' },
       completed: { label: 'Completado', variant: 'success' as const, color: 'bg-green-100 text-green-800' }
     }
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.reception
@@ -266,7 +266,7 @@ export default function OrderDetailPage() {
       {/* Page Header con Breadcrumbs */}
       <PageHeader
         title={`Orden #${order.order_number}`}
-        description={`${order.customers?.name} - ${order.vehicles?.brand} ${order.vehicles?.model} ${order.vehicles?.year}`}
+        description={`${order.customer?.name} - ${order.vehicle?.brand} ${order.vehicle?.model} ${order.vehicle?.year}`}
         breadcrumbs={[
           { label: 'Órdenes', href: '/ordenes' },
           { label: `#${order.order_number}`, href: `/ordenes/${order.id}` }
@@ -326,9 +326,9 @@ export default function OrderDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="font-medium">{order.customers?.name}</p>
-              <p className="text-sm text-muted-foreground">{order.customers?.email}</p>
-              <p className="text-sm text-muted-foreground">{order.customers?.phone}</p>
+              <p className="font-medium">{order.customer?.name}</p>
+              <p className="text-sm text-muted-foreground">{order.customer?.email}</p>
+              <p className="text-sm text-muted-foreground">{order.customer?.phone}</p>
             </div>
           </CardContent>
         </Card>
@@ -344,13 +344,13 @@ export default function OrderDetailPage() {
           <CardContent className="space-y-4">
             <div>
               <p className="font-medium">
-                {order.vehicles?.brand} {order.vehicles?.model} {order.vehicles?.year}
+                {order.vehicle?.brand} {order.vehicle?.model} {order.vehicle?.year}
               </p>
               <p className="text-sm text-muted-foreground">
-                Placas: {order.vehicles?.license_plate}
+                Placas: {order.vehicle?.license_plate}
               </p>
               <p className="text-sm text-muted-foreground">
-                VIN: {order.vehicles?.vin}
+                VIN: {order.vehicle?.vin}
               </p>
             </div>
           </CardContent>
