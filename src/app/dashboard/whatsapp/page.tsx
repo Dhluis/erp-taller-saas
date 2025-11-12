@@ -18,7 +18,6 @@ import {
   Sparkles
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { toast } from 'sonner'
 
 export default function WhatsAppPage() {
   const { organization } = useAuth()
@@ -55,18 +54,15 @@ export default function WhatsAppPage() {
   }
 
   const handleTestAgent = () => {
-    // TODO: Implementar página de prueba
-    toast.info('Próximamente: página de pruebas del agente')
+    router.push('/dashboard/whatsapp/test')
   }
 
   return (
     <div className="min-h-screen bg-bg-primary p-6">
       <div className="max-w-6xl mx-auto">
         <StandardBreadcrumbs
-          items={[
-            { label: 'Dashboard', href: '/dashboard' },
-            { label: 'WhatsApp' }
-          ]}
+          currentPage="WhatsApp"
+          parentPages={[]}
         />
 
         <div className="mt-6">
@@ -90,7 +86,7 @@ export default function WhatsAppPage() {
                     Configuración actual de tu bot de WhatsApp
                   </CardDescription>
                 </div>
-                <Badge variant={config?.enabled ? "default" : "secondary"}>
+                <Badge variant={config?.enabled ? "success" : "secondary"}>
                   {config?.enabled ? (
                     <>
                       <CheckCircle2 className="w-3 h-3 mr-1" />
