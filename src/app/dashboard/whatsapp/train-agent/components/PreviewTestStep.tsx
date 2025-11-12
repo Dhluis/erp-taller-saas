@@ -62,10 +62,11 @@ export function PreviewTestStep({ data, onSave, loading }: PreviewTestStepProps)
     await new Promise(resolve => setTimeout(resolve, 800))
     
     try {
-      const response = await fetch('/api/whatsapp/test-agent', {
+      const response = await fetch('/api/whatsapp/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          test: true,
           message: userMessage,
           organizationId: organization?.organization_id
         })

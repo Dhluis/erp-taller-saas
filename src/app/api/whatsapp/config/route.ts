@@ -13,8 +13,33 @@ export async function POST(request: NextRequest) {
       }, { status: 401 })
     }
 
-    const supabase = await getSupabaseServerClient()
     const data = await request.json()
+
+    // ✅ NUEVO: Si es una petición de TEST, procesarla aquí
+    if (data.test === true && data.message) {
+      const { processMessage } = await import('@/integrations/whatsapp/services/ai-agent')
+
+      const result = await processMessage({
+        conversationId: `test-${Date.now()}`,
+        organizationId: data.organizationId || tenantContext.organizationId,
+        customerMessage: data.message,
+        customerPhone: '+521234567890',
+        skipBusinessHoursCheck: true
+      })
+
+      return NextResponse.json({
+        success: result.success,
+        data: result.success ? {
+          response: result.response,
+          functionsCalled: result.functionsCalled || [],
+          processingTime: 0
+        } : undefined,
+        error: result.error
+      })
+    }
+
+    // RESTO DEL CÓDIGO ORIGINAL (guardar configuración)
+    const supabase = await getSupabaseServerClient()
 
     // Validar que el usuario tenga permisos de admin/owner
     const { data: membership, error: membershipError } = await supabase
@@ -48,43 +73,38 @@ export async function POST(request: NextRequest) {
       .single()
 
     // Mapear datos del formulario a la estructura de la BD
-    // Nota: personality es VARCHAR(255), así que guardamos solo el tono
     const personalityTone = data.personality?.tone || 'profesional'
-    
-    // Guardar información adicional en policies como JSONB
+
     const policiesWithExtras = {
       ...data.policies,
-      // Guardar información del negocio dentro de policies
       business_info: data.businessInfo || {},
-      // Guardar personalidad completa en policies
       personality: {
         tone: data.personality?.tone || 'profesional',
         use_emojis: data.personality?.use_emojis || false,
         local_phrases: data.personality?.local_phrases || false,
         greeting_style: data.personality?.greeting_style || ''
       },
-      // Guardar instrucciones personalizadas y reglas de escalamiento
       custom_instructions: data.customInstructions || '',
       escalation_rules: data.escalationRules || {}
     }
-    
+
     const configData = {
       organization_id: tenantContext.organizationId,
       enabled: true,
-      provider: 'openai', // Default, puede cambiarse después
-      model: 'gpt-4o-mini', // Modelo más económico y eficiente
-      system_prompt: '', // Se generará dinámicamente desde loadOrganizationContext
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      system_prompt: '',
       personality: `${personalityTone}${data.personality?.use_emojis ? ', usa emojis' : ''}${data.personality?.local_phrases ? ', modismos locales' : ''}`,
       language: data.personality?.language || 'es-MX',
       temperature: 0.7,
       max_tokens: 1000,
-      auto_schedule_appointments: false, // Por seguridad, requiere aprobación
-      auto_create_orders: false, // Por seguridad, requiere aprobación
+      auto_schedule_appointments: false,
+      auto_create_orders: false,
       require_human_approval: true,
       business_hours_only: false,
       business_hours: data.businessInfo?.businessHours || {},
       services: data.services || [],
-      mechanics: [], // Se puede agregar después
+      mechanics: [],
       faqs: data.faq || [],
       policies: policiesWithExtras,
       updated_at: new Date().toISOString()
@@ -92,7 +112,6 @@ export async function POST(request: NextRequest) {
 
     let result
     if (existingConfig) {
-      // Actualizar configuración existente
       const { error } = await supabase
         .from('ai_agent_config')
         .update(configData)
@@ -108,7 +127,6 @@ export async function POST(request: NextRequest) {
 
       result = { id: existingConfig.id, updated: true }
     } else {
-      // Crear nueva configuración
       const { data: newConfig, error } = await supabase
         .from('ai_agent_config')
         .insert(configData)
@@ -157,7 +175,7 @@ export async function GET(request: NextRequest) {
       .eq('organization_id', tenantContext.organizationId)
       .single()
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+    if (error && error.code !== 'PGRST116') {
       console.error('Error obteniendo configuración:', error)
       return NextResponse.json({
         success: false,
@@ -177,4 +195,3 @@ export async function GET(request: NextRequest) {
     }, { status: 500 })
   }
 }
-
