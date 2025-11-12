@@ -17,25 +17,42 @@ export async function POST(request: NextRequest) {
 
     // ✅ NUEVO: Si es una petición de TEST, procesarla aquí
     if (data.test === true && data.message) {
-      const { processMessage } = await import('@/integrations/whatsapp/services/ai-agent')
+      try {
+        const { processMessage } = await import('@/integrations/whatsapp/services/ai-agent')
 
-      const result = await processMessage({
-        conversationId: `test-${Date.now()}`,
-        organizationId: data.organizationId || tenantContext.organizationId,
-        customerMessage: data.message,
-        customerPhone: '+521234567890',
-        skipBusinessHoursCheck: true
-      })
+        console.log('[Config Test] 🧪 Procesando mensaje de prueba...')
+        console.log('[Config Test] Organization:', data.organizationId || tenantContext.organizationId)
+        console.log('[Config Test] Message:', data.message)
 
-      return NextResponse.json({
-        success: result.success,
-        data: result.success ? {
-          response: result.response,
-          functionsCalled: result.functionsCalled || [],
-          processingTime: 0
-        } : undefined,
-        error: result.error
-      })
+        const result = await processMessage({
+          conversationId: `test-${Date.now()}`,
+          organizationId: data.organizationId || tenantContext.organizationId,
+          customerMessage: data.message,
+          customerPhone: '+521234567890',
+          skipBusinessHoursCheck: true
+        })
+
+        console.log('[Config Test] ✅ Result:', result.success)
+
+        if (!result.success) {
+          console.error('[Config Test] ❌ Error:', result.error)
+        }
+
+        return NextResponse.json({
+          success: result.success,
+          data: result.success ? {
+            response: result.response,
+            functionsCalled: result.functionsCalled || []
+          } : undefined,
+          error: result.error
+        })
+      } catch (error) {
+        console.error('[Config Test] ❌ Exception:', error)
+        return NextResponse.json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Error desconocido en test'
+        }, { status: 500 })
+      }
     }
 
     // RESTO DEL CÓDIGO ORIGINAL (guardar configuración)
