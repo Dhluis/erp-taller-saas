@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -28,6 +28,7 @@ interface KanbanBoardProps {
   organizationId: string;
   searchQuery?: string;
   refreshKey?: number;
+  onCreateOrder?: () => void;
 }
 
 // Definición de columnas del Kanban
@@ -104,7 +105,7 @@ const KANBAN_COLUMNS: Omit<KanbanColumnType, 'orders'>[] = [
   },
 ];
 
-export function KanbanBoard({ organizationId, searchQuery = '', refreshKey }: KanbanBoardProps) {
+export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCreateOrder }: KanbanBoardProps) {
   const [columns, setColumns] = useState<KanbanColumnType[]>([]);
   const [activeOrder, setActiveOrder] = useState<WorkOrder | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
@@ -167,17 +168,11 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey }: Ka
     }
   };
 
-  // Cargar órdenes al montar y cuando cambien los filtros
-  useEffect(() => {
-    loadOrders();
-  }, [organizationId, dateFilter, customDateRange, searchQuery, refreshKey]);
-
-
   // ✅ DIAGNOSTICS ELIMINADO para reducir llamadas duplicadas
   // Las verificaciones se hacen en loadOrders() si es necesario
 
-  // Función para cargar órdenes (OPTIMIZADA)
-  async function loadOrders() {
+  // Función para cargar órdenes (OPTIMIZADA) - Memoizada con useCallback
+  const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -256,7 +251,12 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey }: Ka
     } finally {
       setLoading(false);
     }
-  }
+  }, [organizationId, dateFilter, customDateRange, searchQuery]);
+
+  // Cargar órdenes al montar y cuando cambien los filtros o refreshKey
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders, refreshKey]);
 
   // Manejar inicio de arrastre
   function handleDragStart(event: DragStartEvent) {
@@ -424,7 +424,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey }: Ka
             Comienza creando tu primera orden de trabajo
           </p>
           <button
-            onClick={() => console.log('Crear orden')}
+            onClick={() => onCreateOrder?.()}
             className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors font-medium"
           >
             Crear Primera Orden

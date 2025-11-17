@@ -70,11 +70,12 @@ export default function KanbanPage() {
               </div>
             </div>
 
-      {/* ✅ Pasamos organizationId, searchQuery y refreshKey */}
+      {/* ✅ Pasamos organizationId, searchQuery, refreshKey y onCreateOrder */}
       <KanbanBoard 
         organizationId={organizationId} 
         searchQuery={searchQuery}
         refreshKey={refreshKey}
+        onCreateOrder={() => setIsCreateModalOpen(true)}
       />
 
       {/* Modal de crear orden */}
