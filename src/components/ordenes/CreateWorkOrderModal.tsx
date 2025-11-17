@@ -190,18 +190,6 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
   const { user, profile } = useAuth()
 
-  
-
-  // ✅ VALIDACIÓN TEMPRANA - ANTES DE CREAR SUPABASE CLIENT
-
-  if (!user || !profile) {
-
-    return null
-
-  }
-
-  
-
   const supabase = createClient()
 
   const [loading, setLoading] = useState(false)
@@ -803,6 +791,12 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     setErrors({})
 
     setTouched({})
+
+  }
+
+  if (!user || !profile) {
+
+    return null
 
   }
 
