@@ -8,6 +8,23 @@ type WorkOrderWithOrg = WorkOrder & { organization_id?: string };
 const ordersCache: { [key: string]: { data: WorkOrderWithOrg[]; timestamp: number } } = {}
 const CACHE_TTL = 10000 // 10 segundos
 
+// Función para limpiar el cache manualmente
+export function clearOrdersCache(organizationId?: string) {
+  if (organizationId) {
+    const cacheKey = `orders_${organizationId}`
+    delete ordersCache[cacheKey]
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🗑️ [clearOrdersCache] Cache limpiado para:', organizationId)
+    }
+  } else {
+    // Limpiar todo el cache
+    Object.keys(ordersCache).forEach(key => delete ordersCache[key])
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🗑️ [clearOrdersCache] Todo el cache limpiado')
+    }
+  }
+}
+
 // Opciones de paginación
 export interface PaginationOptions {
   page?: number;
