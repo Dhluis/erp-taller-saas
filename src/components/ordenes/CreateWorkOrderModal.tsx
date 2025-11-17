@@ -764,7 +764,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
       resetForm()
 
+      console.log('✅ [CreateWorkOrderModal] Orden creada, llamando onSuccess...');
       onSuccess?.()
+      console.log('✅ [CreateWorkOrderModal] onSuccess llamado');
 
     } catch (error: any) {
 

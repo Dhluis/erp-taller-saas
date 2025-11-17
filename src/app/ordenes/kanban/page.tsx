@@ -48,7 +48,14 @@ export default function KanbanPage() {
               Nueva Orden
             </Button>
           <Button
-              onClick={() => setRefreshKey(prev => prev + 1)}
+              onClick={() => {
+                console.log('🔄 [KanbanPage] Botón Actualizar clickeado');
+                setRefreshKey(prev => {
+                  const newKey = prev + 1;
+                  console.log('🔄 [KanbanPage] refreshKey actualizado:', newKey);
+                  return newKey;
+                });
+              }}
             variant="outline"
             size="sm"
               className="flex items-center gap-2"
@@ -83,7 +90,12 @@ export default function KanbanPage() {
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
         onSuccess={() => {
-          setRefreshKey(prev => prev + 1); // Forzar recarga del Kanban
+          console.log('✅ [KanbanPage] Orden creada exitosamente, actualizando...');
+          setRefreshKey(prev => {
+            const newKey = prev + 1;
+            console.log('🔄 [KanbanPage] refreshKey actualizado después de crear orden:', newKey);
+            return newKey;
+          });
         }}
       />
     </div>

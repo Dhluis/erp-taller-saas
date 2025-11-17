@@ -134,40 +134,6 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
     })
   );
 
-  // Función para obtener rango de fechas según el filtro
-  const getDateRange = () => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-    
-    switch (dateFilter) {
-      case '7days':
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 7);
-        sevenDaysAgo.setHours(0, 0, 0, 0);
-        return { from: sevenDaysAgo, to: today };
-        
-      case '30days':
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(today.getDate() - 30);
-        thirtyDaysAgo.setHours(0, 0, 0, 0);
-        return { from: thirtyDaysAgo, to: today };
-        
-      case 'month':
-        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-        const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-        return { from: firstDayOfMonth, to: lastDayOfMonth };
-        
-      case 'custom':
-        return customDateRange.from && customDateRange.to
-          ? { from: customDateRange.from, to: customDateRange.to }
-          : null;
-        
-      case 'all':
-      default:
-        return null;
-    }
-  };
-
   // ✅ DIAGNOSTICS ELIMINADO para reducir llamadas duplicadas
   // Las verificaciones se hacen en loadOrders() si es necesario
 
@@ -176,6 +142,9 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
     try {
       setLoading(true);
       setError(null);
+      
+      console.log('🔄 [KanbanBoard] loadOrders() ejecutándose...');
+      console.log('🔄 [KanbanBoard] organizationId:', organizationId);
       
       const orders = await getAllOrders(organizationId);
       
@@ -186,6 +155,40 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
       console.log('Total de órdenes obtenidas de DB:', orders.length);
       console.log('Filtro de fecha activo:', dateFilter);
       console.log('Organization ID:', organizationId);
+      
+      // Función para obtener rango de fechas según el filtro (dentro del callback)
+      const getDateRange = () => {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        
+        switch (dateFilter) {
+          case '7days':
+            const sevenDaysAgo = new Date(today);
+            sevenDaysAgo.setDate(today.getDate() - 7);
+            sevenDaysAgo.setHours(0, 0, 0, 0);
+            return { from: sevenDaysAgo, to: today };
+            
+          case '30days':
+            const thirtyDaysAgo = new Date(today);
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+            thirtyDaysAgo.setHours(0, 0, 0, 0);
+            return { from: thirtyDaysAgo, to: today };
+            
+          case 'month':
+            const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+            const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+            return { from: firstDayOfMonth, to: lastDayOfMonth };
+            
+          case 'custom':
+            return customDateRange.from && customDateRange.to
+              ? { from: customDateRange.from, to: customDateRange.to }
+              : null;
+            
+          case 'all':
+          default:
+            return null;
+        }
+      };
       
       // Obtener rango de fechas
       const dateRange = getDateRange();
@@ -253,10 +256,18 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
     }
   }, [organizationId, dateFilter, customDateRange, searchQuery]);
 
-  // Cargar órdenes al montar y cuando cambien los filtros o refreshKey
+  // Cargar órdenes al montar y cuando cambien los filtros
   useEffect(() => {
+    console.log('🔄 [KanbanBoard] useEffect triggered - filtros cambiaron');
     loadOrders();
-  }, [loadOrders, refreshKey]);
+  }, [loadOrders]);
+
+  // Cargar órdenes cuando cambie refreshKey (para botón Actualizar y después de crear orden)
+  useEffect(() => {
+    console.log('🔄 [KanbanBoard] useEffect triggered - refreshKey:', refreshKey);
+    loadOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
 
   // Manejar inicio de arrastre
   function handleDragStart(event: DragStartEvent) {
