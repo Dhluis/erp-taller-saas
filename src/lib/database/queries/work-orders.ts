@@ -9,6 +9,7 @@ function getClient(): GenericSupabaseClient {
 }
 
 // ✅ ACTUALIZACIÓN: Filtro workshop_id removido - mostrar todas las órdenes
+// ✅ Última actualización: Mejoras en logs y refresh de órdenes
 
 // Verificar configuración de Supabase
 console.log('🔧 Configuración de Supabase:', {
