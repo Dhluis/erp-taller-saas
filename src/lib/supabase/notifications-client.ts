@@ -11,61 +11,146 @@ export interface Notification {
   type: 'info' | 'warning' | 'success' | 'error' | 'stock_low' | 'order_completed' | 'quotation_created'
   title: string
   message: string
-  read: boolean
+  read?: boolean
+  is_read?: boolean
   created_at: string
   updated_at: string
+}
+
+/**
+ * Obtener organization_id del usuario actual
+ */
+async function getUserOrganizationId(): Promise<string> {
+  const supabase = createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error('Usuario no autenticado')
+  }
+
+  // Intentar obtener desde user_metadata
+  if (user.user_metadata?.organization_id) {
+    return user.user_metadata.organization_id
+  }
+
+  // Si no está en metadata, obtener desde el perfil
+  const { data: profile, error: profileError } = await supabase
+    .from('users')
+    .select('workshop_id')
+    .eq('auth_user_id', user.id)
+    .single()
+
+  if (profileError || !profile?.workshop_id) {
+    console.warn('No se pudo obtener organization_id, usando fallback')
+    return '00000000-0000-0000-0000-000000000001'
+  }
+
+  // Obtener organization_id desde el workshop
+  const { data: workshop, error: workshopError } = await supabase
+    .from('workshops')
+    .select('organization_id')
+    .eq('id', profile.workshop_id)
+    .single()
+
+  if (workshopError || !workshop?.organization_id) {
+    console.warn('No se pudo obtener organization_id del workshop, usando fallback')
+    return '00000000-0000-0000-0000-000000000001'
+  }
+
+  return workshop.organization_id
 }
 
 /**
  * Obtener todas las notificaciones del usuario actual
  */
 export async function getAllNotifications(): Promise<Notification[]> {
-  const supabase = createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('Usuario no autenticado')
+  try {
+    const supabase = createClient()
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      console.warn('Usuario no autenticado')
+      return []
+    }
+
+    // Obtener organization_id
+    const organizationId = await getUserOrganizationId()
+
+    // Construir query con filtros correctos
+    // Filtrar por usuario o notificaciones generales (user_id null)
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .or(`user_id.eq.${user.id},user_id.is.null`)
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    if (error) {
+      console.error('Error obteniendo notificaciones:', error)
+      // Si hay error, retornar array vacío en lugar de lanzar excepción
+      return []
+    }
+
+    // Normalizar campo read/is_read
+    const normalized = (data || []).map((n: any) => ({
+      ...n,
+      read: n.read !== undefined ? n.read : n.is_read || false,
+      is_read: n.is_read !== undefined ? n.is_read : n.read || false
+    }))
+
+    return normalized
+  } catch (error) {
+    console.error('Error en getAllNotifications:', error)
+    return []
   }
-
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .or(`user_id.eq.${user.id},user_id.is.null`) // Usuario específico o notificaciones generales
-    .order('created_at', { ascending: false })
-    .limit(50) // Limitar a las últimas 50
-
-  if (error) {
-    console.error('Error obteniendo notificaciones:', error)
-    throw error
-  }
-
-  return data || []
 }
 
 /**
  * Obtener solo notificaciones no leídas
  */
 export async function getUnreadNotifications(): Promise<Notification[]> {
-  const supabase = createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('Usuario no autenticado')
+  try {
+    const supabase = createClient()
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      console.warn('Usuario no autenticado')
+      return []
+    }
+
+    // Obtener organization_id
+    const organizationId = await getUserOrganizationId()
+
+    // Obtener todas las notificaciones y filtrar en memoria
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .or(`user_id.eq.${user.id},user_id.is.null`)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error obteniendo notificaciones no leídas:', error)
+      return []
+    }
+
+    // Normalizar y filtrar solo las no leídas
+    const normalized = (data || []).map((n: any) => ({
+      ...n,
+      read: n.read !== undefined ? n.read : (n.is_read !== undefined ? n.is_read : false),
+      is_read: n.is_read !== undefined ? n.is_read : (n.read !== undefined ? n.read : false)
+    }))
+
+    // Filtrar solo las no leídas
+    return normalized.filter(n => {
+      const isRead = n.read !== undefined ? n.read : (n.is_read !== undefined ? n.is_read : false)
+      return !isRead
+    })
+  } catch (error) {
+    console.error('Error en getUnreadNotifications:', error)
+    return []
   }
-
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .or(`user_id.eq.${user.id},user_id.is.null`)
-    .eq('read', false)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error obteniendo notificaciones no leídas:', error)
-    throw error
-  }
-
-  return data || []
 }
 
 /**
@@ -92,24 +177,59 @@ export async function markNotificationAsRead(notificationId: string): Promise<vo
  * Marcar todas las notificaciones como leídas
  */
 export async function markAllNotificationsAsRead(): Promise<void> {
-  const supabase = createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('Usuario no autenticado')
-  }
+  try {
+    const supabase = createClient()
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      throw new Error('Usuario no autenticado')
+    }
 
-  const { error } = await supabase
-    .from('notifications')
-    .update({ 
+    // Obtener organization_id
+    const organizationId = await getUserOrganizationId()
+
+    // Actualizar con ambos campos por compatibilidad
+    const updateData: any = {
+      updated_at: new Date().toISOString(),
       read: true,
-      updated_at: new Date().toISOString()
-    })
-    .or(`user_id.eq.${user.id},user_id.is.null`)
-    .eq('read', false)
+      is_read: true
+    }
+    
+    // Obtener IDs de notificaciones no leídas primero
+    const { data: unreadNotifications } = await supabase
+      .from('notifications')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .or(`user_id.eq.${user.id},user_id.is.null`)
+    
+    if (!unreadNotifications || unreadNotifications.length === 0) {
+      return // No hay notificaciones para actualizar
+    }
+    
+    // Filtrar en memoria las que realmente están sin leer
+    const unreadIds = unreadNotifications
+      .map((n: any) => {
+        const isRead = n.read !== undefined ? n.read : (n.is_read !== undefined ? n.is_read : true)
+        return !isRead ? n.id : null
+      })
+      .filter((id: string | null) => id !== null)
+    
+    if (unreadIds.length === 0) {
+      return // No hay notificaciones realmente sin leer
+    }
+    
+    // Actualizar todas las notificaciones no leídas
+    const { error } = await supabase
+      .from('notifications')
+      .update(updateData)
+      .in('id', unreadIds)
 
-  if (error) {
-    console.error('Error marcando todas como leídas:', error)
+    if (error) {
+      console.error('Error marcando todas como leídas:', error)
+      throw error
+    }
+  } catch (error) {
+    console.error('Error en markAllNotificationsAsRead:', error)
     throw error
   }
 }
@@ -135,23 +255,38 @@ export async function deleteNotification(notificationId: string): Promise<void> 
  * Obtener el conteo de notificaciones no leídas
  */
 export async function getUnreadCount(): Promise<number> {
-  const supabase = createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  try {
+    const supabase = createClient()
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return 0
+    }
+
+    // Obtener organization_id
+    const organizationId = await getUserOrganizationId()
+
+    // Obtener todas las notificaciones y contar las no leídas en memoria
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .or(`user_id.eq.${user.id},user_id.is.null`)
+
+    if (error) {
+      console.error('Error obteniendo contador:', error)
+      return 0
+    }
+
+    // Contar las no leídas en memoria
+    const unreadCount = (data || []).filter((n: any) => {
+      const isRead = n.read !== undefined ? n.read : (n.is_read !== undefined ? n.is_read : false)
+      return !isRead
+    }).length
+
+    return unreadCount
+  } catch (error) {
+    console.error('Error en getUnreadCount:', error)
     return 0
   }
-
-  const { count, error } = await supabase
-    .from('notifications')
-    .select('*', { count: 'exact', head: true })
-    .or(`user_id.eq.${user.id},user_id.is.null`)
-    .eq('read', false)
-
-  if (error) {
-    console.error('Error obteniendo contador:', error)
-    return 0
-  }
-
-  return count || 0
 }

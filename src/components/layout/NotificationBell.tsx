@@ -77,16 +77,29 @@ export function NotificationBell() {
     setLoading(true)
     try {
       const all = await getAllNotifications()
-      const sorted = all.sort((a, b) => {
-        if (a.read === b.read) {
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        }
-        return a.read ? 1 : -1
-      })
-      setNotifications(sorted)
+      
+      // Si getAllNotifications retorna array vacío, puede ser error o realmente no hay notificaciones
+      if (Array.isArray(all)) {
+        const sorted = all.sort((a, b) => {
+          const aRead = a.read !== undefined ? a.read : a.is_read || false
+          const bRead = b.read !== undefined ? b.read : b.is_read || false
+          
+          if (aRead === bRead) {
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          }
+          return aRead ? 1 : -1
+        })
+        setNotifications(sorted)
+      } else {
+        setNotifications([])
+      }
     } catch (error) {
       console.error('Error cargando notificaciones:', error)
-      toast.error('Error al cargar notificaciones')
+      // No mostrar toast si es un error silencioso (usuario no autenticado, etc.)
+      if (error instanceof Error && !error.message.includes('autenticado')) {
+        toast.error('Error al cargar notificaciones')
+      }
+      setNotifications([])
     } finally {
       setLoading(false)
     }
@@ -229,7 +242,7 @@ export function NotificationBell() {
                   key={notification.id}
                   className={cn(
                     "group relative p-4 transition-colors hover:bg-[#1E293B]/80",
-                    !notification.read && "bg-[#1E293B]/50"
+                    (!notification.read && !notification.is_read) && "bg-[#1E293B]/50"
                   )}
                 >
                   <div className="flex gap-3">
@@ -244,11 +257,11 @@ export function NotificationBell() {
                       <div className="flex items-start justify-between gap-2">
                         <h4 className={cn(
                           "text-sm leading-tight text-white",
-                          !notification.read && "font-semibold"
+                          (!notification.read && !notification.is_read) && "font-semibold"
                         )}>
                           {notification.title}
                         </h4>
-                        {!notification.read && (
+                        {(!notification.read && !notification.is_read) && (
                           <div className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0 mt-1.5" />
                         )}
                       </div>
@@ -266,7 +279,7 @@ export function NotificationBell() {
 
                         {/* Botones de acción */}
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {!notification.read && (
+                          {(!notification.read && !notification.is_read) && (
                             <Button
                               variant="ghost"
                               size="sm"
