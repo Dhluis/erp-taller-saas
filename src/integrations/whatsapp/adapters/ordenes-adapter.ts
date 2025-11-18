@@ -12,7 +12,7 @@
  * - Mantiene aislado el código del bot
  */
 
-import { createOrder } from '@/lib/database/queries/orders';
+import { createWorkOrder } from '@/lib/database/queries/work-orders';
 import type { WorkOrder } from '@/types/orders';
 import type { 
   BotCreatedOrder, 
@@ -71,13 +71,13 @@ export async function createOrderFromBot(
 ${params.notes ? `\n📝 Notas adicionales: ${params.notes}` : ''}`;
 
     // 3. Llamar a la función EXISTENTE sin modificarla
-    const workOrder = await createOrder({
-      organization_id: params.organization_id,
+    const workOrder = await createWorkOrder({
       customer_id: params.customer_id,
       vehicle_id: params.vehicle_id,
       description,
-      estimated_cost: params.estimated_cost,
-      notes: params.notes
+      total_amount: params.estimated_cost,
+      // Nota: organization_id se maneja internamente en createWorkOrder
+      // Nota: notes se puede agregar después si es necesario
     });
 
     // 4. Guardar metadata adicional específica de WhatsApp

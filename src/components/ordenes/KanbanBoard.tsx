@@ -14,7 +14,7 @@ import {
 import type { WorkOrder, OrderStatus, KanbanColumn as KanbanColumnType } from '@/types/orders';
 import { KanbanColumn } from './KanbanColumn';
 import { OrderCard } from './OrderCard';
-import { getAllOrders, updateOrderStatus, clearOrdersCache } from '@/lib/database/queries/orders';
+import { getAllWorkOrders, updateWorkOrder } from '@/lib/database/queries/work-orders';
 import { FileText, CalendarIcon } from 'lucide-react';
 import { OrderDetailModal } from './OrderDetailModal';
 import { WorkOrderDetailsModal } from '@/components/work-orders/WorkOrderDetailsModal';
@@ -147,13 +147,8 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
       console.log('🔄 [KanbanBoard] organizationId:', organizationId);
       console.log('🔄 [KanbanBoard] refreshKey:', refreshKey);
       
-      // Limpiar cache cuando hay refreshKey (botón Actualizar o después de crear orden)
-      if (refreshKey !== undefined && refreshKey > 0) {
-        console.log('🗑️ [KanbanBoard] Limpiando cache antes de recargar...');
-        clearOrdersCache(organizationId);
-      }
-      
-      const orders = await getAllOrders(organizationId, false); // Siempre sin cache para asegurar datos frescos
+      // Cargar órdenes (work-orders.ts no usa cache, siempre datos frescos)
+      const orders = await getAllWorkOrders(organizationId);
       
       // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -332,8 +327,8 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
 
     try {
       // Actualizar estado en la base de datos
-      console.log('🔄 [handleDragEnd] Llamando updateOrderStatus con:', { orderId, newStatus });
-      await updateOrderStatus(orderId, newStatus);
+      console.log('🔄 [handleDragEnd] Llamando updateWorkOrder con:', { orderId, newStatus });
+      await updateWorkOrder(orderId, { status: newStatus as any });
 
       // Actualizar estado local inmediatamente
       setColumns(prevColumns => {

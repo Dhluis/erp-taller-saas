@@ -14,7 +14,7 @@ import {
 import type { WorkOrder, OrderStatus, KanbanColumn as KanbanColumnType } from '@/types/orders';
 import { KanbanColumn } from './KanbanColumn';
 import { OrderCard } from './OrderCard';
-import { getAllOrders, updateOrderStatus } from '@/lib/database/queries/orders';
+import { getAllWorkOrders, updateWorkOrder } from '@/lib/database/queries/work-orders';
 import { FileText } from 'lucide-react';
 
 interface KanbanBoardProps {
@@ -56,7 +56,7 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
       setLoading(true);
       setError(null);
 
-      const orders = await getAllOrders(organizationId);
+      const orders = await getAllWorkOrders(organizationId);
       console.log('✅ [KanbanBoardNoModal] Órdenes cargadas:', orders.length);
 
       // Agrupar órdenes por estado
@@ -126,7 +126,7 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
     setActiveOrder(null);
 
     try {
-      await updateOrderStatus(orderId, newStatus);
+      await updateWorkOrder(orderId, { status: newStatus as any });
       console.log('✅ [handleDragEnd] Orden actualizada:', orderId, '→', newStatus);
     } catch (err) {
       console.error('❌ [handleDragEnd] Error actualizando orden:', err);
