@@ -82,6 +82,8 @@ export interface CreateWorkOrderData {
   estimated_completion?: string;
   total_amount?: number;
   status?: WorkOrderStatus;
+  workshop_id?: string;  // ✅ Agregar workshop_id opcional
+  organization_id?: string;  // ✅ Agregar organization_id opcional
 }
 
 export interface UpdateWorkOrderData extends Partial<CreateWorkOrderData> {
@@ -134,7 +136,7 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
       order_items(*)
     `)
     .eq('organization_id', organizationId || ORGANIZATION_ID)
-    .not('workshop_id', 'is', null)  // ✅ Solo órdenes con workshop asignado
+    // ✅ REMOVIDO: .not('workshop_id', 'is', null) - Mostrar todas las órdenes, con o sin workshop
     .order('created_at', { ascending: false });
 
   if (filters?.status) {
@@ -188,12 +190,13 @@ export async function createWorkOrder(orderData: CreateWorkOrderData) {
     .insert([
       {
         ...orderData,
-        organization_id: ORGANIZATION_ID,
-        status: 'pending',
+        organization_id: orderData.organization_id || ORGANIZATION_ID,
+        workshop_id: orderData.workshop_id || null,  // ✅ Incluir workshop_id si viene
+        status: orderData.status || 'pending',
         subtotal: 0,
         tax: 0,
         discount: 0,
-        total_amount: 0,
+        total_amount: orderData.total_amount || 0,
       },
     ])
     .select(`
