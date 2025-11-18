@@ -60,6 +60,7 @@ export async function getAllOrders(organizationId: string, useCache: boolean = t
       .from('work_orders')
       .select('*, organization_id, customer:customers(*), vehicle:vehicles(*)')
       .eq('organization_id', organizationId)
+      .not('workshop_id', 'is', null)  // ✅ AGREGAR ESTO - solo órdenes con workshop
       .order('created_at', { ascending: false })
       .limit(500),
     { maxRetries: 2, delayMs: 300 }
@@ -149,7 +150,8 @@ export async function updateOrderStatus(
 
   try {
     const supabaseClient = createClient()
-    const { data, error } = await supabaseClient
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabaseClient as any)
       .from('work_orders')
       .update(updateData)
       .eq('id', orderId)
@@ -200,7 +202,7 @@ export async function createOrder(orderData: {
       entry_date: new Date().toISOString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    })
+    } as any)
     .select(`
       *,
       customer:customers!customer_id (
