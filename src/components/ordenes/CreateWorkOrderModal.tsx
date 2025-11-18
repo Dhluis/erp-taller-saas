@@ -680,7 +680,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
         estimated_cost: parseFloat(formData.estimated_cost) || 0,
 
-        status: 'reception',
+        status: 'diagnosis',  // ✅ CORRECTO - usa el mismo que en tu DB
 
         entry_date: new Date().toISOString(),
 
