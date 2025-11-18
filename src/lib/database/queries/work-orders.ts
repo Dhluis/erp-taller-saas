@@ -8,6 +8,8 @@ function getClient(): GenericSupabaseClient {
   return getSupabaseClient();
 }
 
+// ✅ ACTUALIZACIÓN: Filtro workshop_id removido - mostrar todas las órdenes
+
 // Verificar configuración de Supabase
 console.log('🔧 Configuración de Supabase:', {
   url: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Configurado' : 'No configurado',
