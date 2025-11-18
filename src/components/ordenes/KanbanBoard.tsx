@@ -146,9 +146,11 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
       console.log('🔄 [KanbanBoard] loadOrders() ejecutándose...');
       console.log('🔄 [KanbanBoard] organizationId:', organizationId);
       console.log('🔄 [KanbanBoard] refreshKey:', refreshKey);
+      console.log('🔄 [KanbanBoard] Timestamp:', new Date().toISOString());
       
       // Cargar órdenes (work-orders.ts no usa cache, siempre datos frescos)
       const orders = await getAllWorkOrders(organizationId);
+      console.log('📊 [KanbanBoard] Órdenes recibidas de getAllWorkOrders:', orders?.length || 0);
       
       // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

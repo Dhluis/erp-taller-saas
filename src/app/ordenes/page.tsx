@@ -488,7 +488,12 @@ export default function OrdenesPage() {
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
         onSuccess={() => {
-          loadOrders(); // Recargar órdenes después de crear
+          console.log('🔄 [OrdenesPage] onSuccess llamado, recargando órdenes...');
+          // Forzar recarga después de un pequeño delay
+          setTimeout(() => {
+            loadOrders();
+            console.log('✅ [OrdenesPage] Órdenes recargadas');
+          }, 300);
         }}
       />
 

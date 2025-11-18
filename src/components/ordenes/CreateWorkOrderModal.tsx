@@ -703,16 +703,36 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         .single()
 
       if (orderError) {
-
+        console.error('❌ [CreateWorkOrderModal] Error de Supabase al crear orden:', orderError);
+        console.error('❌ [CreateWorkOrderModal] Detalles del error:', {
+          message: orderError.message,
+          details: orderError.details,
+          hint: orderError.hint,
+          code: orderError.code
+        });
         throw new Error(`Error creando orden: ${orderError.message}`)
-
       }
 
       if (!newOrder) {
-
+        console.error('❌ [CreateWorkOrderModal] newOrder es null o undefined');
         throw new Error('No se pudo crear la orden')
-
       }
+      
+      console.log('✅ [CreateWorkOrderModal] Orden creada en DB:', {
+        id: (newOrder as any).id,
+        status: (newOrder as any).status,
+        organization_id: (newOrder as any).organization_id,
+        workshop_id: (newOrder as any).workshop_id,
+        customer_id: (newOrder as any).customer_id,
+        vehicle_id: (newOrder as any).vehicle_id
+      });
+
+      console.log('✅ [CreateWorkOrderModal] Orden creada exitosamente:', {
+        id: (newOrder as any).id,
+        status: (newOrder as any).status,
+        customer: formData.customerName,
+        vehicle: `${formData.vehicleBrand} ${formData.vehicleModel}`
+      });
 
       // ✅ NUEVO: Guardar inspección
 
@@ -748,8 +768,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
       if (inspectionError) {
 
-        console.warn('Advertencia: No se pudo guardar la inspección', inspectionError)
+        console.warn('⚠️ [CreateWorkOrderModal] Advertencia: No se pudo guardar la inspección', inspectionError)
 
+      } else {
+        console.log('✅ [CreateWorkOrderModal] Inspección guardada correctamente');
       }
 
       toast.success('Orden creada exitosamente', {
@@ -765,8 +787,15 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       resetForm()
 
       console.log('✅ [CreateWorkOrderModal] Orden creada, llamando onSuccess...');
-      onSuccess?.()
-      console.log('✅ [CreateWorkOrderModal] onSuccess llamado');
+      console.log('✅ [CreateWorkOrderModal] Orden ID:', (newOrder as any).id);
+      console.log('✅ [CreateWorkOrderModal] Orden Status:', (newOrder as any).status);
+      
+      // Llamar onSuccess después de un pequeño delay para asegurar que la DB esté actualizada
+      setTimeout(() => {
+        console.log('✅ [CreateWorkOrderModal] Ejecutando onSuccess después de delay...');
+        onSuccess?.()
+        console.log('✅ [CreateWorkOrderModal] onSuccess ejecutado');
+      }, 500);
 
     } catch (error: any) {
 
