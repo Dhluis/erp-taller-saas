@@ -134,7 +134,7 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
       order_items(*)
     `)
     .eq('organization_id', organizationId || ORGANIZATION_ID)
-    .not('workshop_id', 'is', null)  // ✅ Solo órdenes con workshop
+    .not('workshop_id', 'is', null)  // ✅ Solo órdenes con workshop asignado
     .order('created_at', { ascending: false });
 
   if (filters?.status) {
