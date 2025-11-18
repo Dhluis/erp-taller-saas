@@ -692,6 +692,16 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
       }
 
+      console.log('📝 [CreateWorkOrderModal] Datos de orden a insertar:', {
+        organization_id: orderData.organization_id,
+        workshop_id: orderData.workshop_id,
+        customer_id: orderData.customer_id,
+        vehicle_id: orderData.vehicle_id,
+        status: orderData.status,
+        description: orderData.description?.substring(0, 50) + '...',
+        estimated_cost: orderData.estimated_cost
+      });
+
       const { data: newOrder, error: orderError } = await supabase
 
         .from('work_orders')
@@ -791,10 +801,16 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       console.log('✅ [CreateWorkOrderModal] Orden Status:', (newOrder as any).status);
       
       // Llamar onSuccess después de un pequeño delay para asegurar que la DB esté actualizada
+      console.log('⏳ [CreateWorkOrderModal] Esperando 500ms antes de llamar onSuccess...');
       setTimeout(() => {
         console.log('✅ [CreateWorkOrderModal] Ejecutando onSuccess después de delay...');
-        onSuccess?.()
-        console.log('✅ [CreateWorkOrderModal] onSuccess ejecutado');
+        console.log('✅ [CreateWorkOrderModal] onSuccess existe?', !!onSuccess);
+        if (onSuccess) {
+          onSuccess();
+          console.log('✅ [CreateWorkOrderModal] onSuccess ejecutado');
+        } else {
+          console.warn('⚠️ [CreateWorkOrderModal] onSuccess no está definido');
+        }
       }, 500);
 
     } catch (error: any) {

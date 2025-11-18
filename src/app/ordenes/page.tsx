@@ -489,11 +489,13 @@ export default function OrdenesPage() {
         onOpenChange={setIsCreateModalOpen}
         onSuccess={() => {
           console.log('🔄 [OrdenesPage] onSuccess llamado, recargando órdenes...');
+          console.log('🔄 [OrdenesPage] organizationId:', organizationId);
           // Forzar recarga después de un pequeño delay
           setTimeout(() => {
+            console.log('🔄 [OrdenesPage] Ejecutando loadOrders...');
             loadOrders();
-            console.log('✅ [OrdenesPage] Órdenes recargadas');
-          }, 300);
+            console.log('✅ [OrdenesPage] loadOrders ejecutado');
+          }, 500);
         }}
       />
 
