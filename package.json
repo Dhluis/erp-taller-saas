@@ -15,6 +15,7 @@
     "setup": "node scripts/setup-initial.js",
     "sync-auth": "tsx src/scripts/sync-auth-users.ts",
     "migrate": "node scripts/run-migration.js",
+    "migrate:orders": "tsx scripts/run-migration.ts",
     "diagnose": "npm run type-check && npm run test",
     "full-check": "npm run type-check && npm run test && npm run build",
     "env:check": "node scripts/verify-env.js",
