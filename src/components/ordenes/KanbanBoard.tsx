@@ -328,9 +328,10 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
     if (!currentColumn || currentColumn.id === newStatus) return;
 
     try {
-      // Actualizar estado en la base de datos
+      // Actualizar estado en la base de datos PRIMERO
       console.log('🔄 [handleDragEnd] Llamando updateWorkOrder con:', { orderId, newStatus });
-      await updateWorkOrder(orderId, { status: newStatus as any });
+      const updatedOrder = await updateWorkOrder(orderId, { status: newStatus as any });
+      console.log('✅ [handleDragEnd] Orden actualizada en DB:', updatedOrder);
 
       // Actualizar estado local inmediatamente
       setColumns(prevColumns => {
@@ -357,14 +358,22 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
           return col;
         });
         
+        console.log('🔄 [handleDragEnd] Columnas actualizadas localmente');
         return newColumns;
       });
 
-      console.log('✅ Orden movida exitosamente');
+      // Recargar órdenes después de un pequeño delay para asegurar que la DB esté actualizada
+      setTimeout(() => {
+        console.log('🔄 [handleDragEnd] Recargando órdenes después del update...');
+        loadOrders();
+      }, 300);
+
+      console.log('✅ [handleDragEnd] Orden movida exitosamente');
     } catch (err) {
-      console.error('❌ Error al mover orden:', err);
+      console.error('❌ [handleDragEnd] Error al mover orden:', err);
+      console.error('❌ [handleDragEnd] Error details:', err instanceof Error ? err.message : String(err));
       setError('Error al actualizar el estado de la orden');
-      // Recargar órdenes en caso de error
+      // Recargar órdenes en caso de error para restaurar el estado
       loadOrders();
     }
   }

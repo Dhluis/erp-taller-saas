@@ -320,6 +320,14 @@ export async function createWorkOrder(orderData: CreateWorkOrderData) {
 export async function updateWorkOrder(id: string, orderData: UpdateWorkOrderData) {
   const supabase = getClient();
   const organizationId = await getOrganizationId();
+  
+  // ⚠️ TEMPORAL: No filtrar por organization_id al actualizar para permitir actualizar órdenes antiguas
+  // TODO: Una vez que todas las órdenes tengan el organization_id correcto, restaurar el filtro
+  const oldOrgId = '042ab6bd-8979-4166-882a-c244b5e51e51';
+  
+  console.log('🔄 [updateWorkOrder] Actualizando orden:', id);
+  console.log('🔄 [updateWorkOrder] Datos:', orderData);
+  console.log('🔄 [updateWorkOrder] Organization ID actual:', organizationId);
 
   const { data, error } = await supabase
     .from('work_orders')
@@ -328,7 +336,8 @@ export async function updateWorkOrder(id: string, orderData: UpdateWorkOrderData
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
-    .eq('organization_id', organizationId)
+    // ⚠️ TEMPORAL: Buscar órdenes con el organization_id actual O el antiguo
+    .in('organization_id', [organizationId, oldOrgId])
     .select(`
       *,
       customer:customers(
