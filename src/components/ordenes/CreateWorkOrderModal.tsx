@@ -43,10 +43,8 @@ import {
 import { toast } from 'sonner'
 
 import { useAuth } from '@/contexts/AuthContext'
-
+import { useOrganization } from '@/contexts/OrganizationContext'
 import { createClient } from '@/lib/supabase/client'
-// ✅ Usar versión CLIENTE (componente del cliente)
-import { getOrganizationId } from '@/lib/auth/organization-client'
 
 import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench } from 'lucide-react'
 
@@ -59,6 +57,8 @@ interface CreateWorkOrderModalProps {
   onSuccess?: () => void
 
   prefilledServiceType?: string
+
+  organizationId?: string | null  // ✅ Opcional: si no se proporciona, usa el context
 
 }
 
@@ -186,9 +186,14 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
   onSuccess,
 
-  prefilledServiceType
+  prefilledServiceType,
+
+  organizationId: propOrganizationId
 
 }: CreateWorkOrderModalProps) {
+  // ✅ Usar context si no se proporciona como prop
+  const { organizationId: contextOrganizationId } = useOrganization();
+  const organizationId = propOrganizationId ?? contextOrganizationId;
 
   const { user, profile } = useAuth()
 
@@ -552,10 +557,12 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
       }
 
-      // ✅ USAR HELPER CENTRALIZADO - NUNCA obtener organization_id manualmente
-      const organizationId = await getOrganizationId();
+      // ✅ Usar organizationId del context o prop
+      if (!organizationId) {
+        throw new Error('No se pudo obtener organization_id');
+      }
       
-      console.log('🔍 [CreateWorkOrderModal] organizationId obtenido del helper:', organizationId);
+      console.log('🔍 [CreateWorkOrderModal] organizationId:', organizationId);
       console.log('🔍 [CreateWorkOrderModal] workshopId:', workshopId);
 
       const { data: existingCustomer } = await supabase

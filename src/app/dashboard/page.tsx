@@ -21,7 +21,7 @@ import {
   CalendarIcon
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getOrganizationId } from '@/lib/auth/organization-client';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import {
   LineChart,
   Line,
@@ -38,7 +38,7 @@ import {
 
 export default function DashboardPage() {
   const { organization } = useAuth();
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const { organizationId, loading: orgLoading } = useOrganization();
   const [dateRange, setDateRange] = useState('7d');
   const [customDateRange, setCustomDateRange] = useState<{
     from: Date | undefined
@@ -62,19 +62,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // ✅ Obtener organization_id dinámicamente - igual que el Kanban
-  useEffect(() => {
-    getOrganizationId()
-      .then(setOrganizationId)
-      .catch((error) => {
-        console.error('Error obteniendo organization_id:', error);
-      });
-  }, []);
-
   // Función para cargar datos de órdenes por estado
   const loadOrdersByStatus = async () => {
-    // ✅ No cargar si no hay organizationId (igual que el Kanban)
-    if (!organizationId) {
+    // ✅ No cargar si no hay organizationId o está cargando
+    if (!organizationId || orgLoading) {
       console.log('⚠️ Esperando organizationId...');
       return;
     }

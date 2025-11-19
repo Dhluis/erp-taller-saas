@@ -4,6 +4,7 @@ import { ReactNode } from 'react'
 import { Toaster } from 'sonner'
 import { SidebarProvider } from '@/contexts/SidebarContext'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { OrganizationProvider } from '@/contexts/OrganizationContext'
 
 interface ProvidersProps {
   children: ReactNode
@@ -12,15 +13,17 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <AuthProvider>
-      <SidebarProvider>
-        {children}
-        <Toaster 
-          position="top-right"
-          richColors
-          closeButton
-          duration={5000}
-        />
-      </SidebarProvider>
+      <OrganizationProvider>
+        <SidebarProvider>
+          {children}
+          <Toaster 
+            position="top-right"
+            richColors
+            closeButton
+            duration={5000}
+          />
+        </SidebarProvider>
+      </OrganizationProvider>
     </AuthProvider>
   )
 }

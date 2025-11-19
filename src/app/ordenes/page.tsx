@@ -41,19 +41,11 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor
   in_progress: { label: 'En Proceso', color: 'text-blue-700', bgColor: 'bg-blue-100' },
 };
 
+import { useOrganization } from '@/contexts/OrganizationContext';
+
 export default function OrdenesPage() {
   const router = useRouter();
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
-  
-  useEffect(() => {
-    import('@/lib/auth/organization-client').then(({ getOrganizationId }) => {
-      getOrganizationId()
-        .then(setOrganizationId)
-        .catch((error) => {
-          console.error('Error obteniendo organization_id:', error);
-        });
-    });
-  }, []);
+  const { organizationId, loading: orgLoading } = useOrganization();
 
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<WorkOrder[]>([]);

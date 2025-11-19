@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { KanbanBoard } from '@/components/ordenes/KanbanBoard';
-import { getOrganizationId } from '@/lib/auth/organization-client';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { Search, RefreshCw, Plus } from 'lucide-react';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
@@ -10,20 +10,12 @@ import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
 import { Button } from '@/components/ui/button';
 
 export default function KanbanPage() {
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
-  
-  useEffect(() => {
-    getOrganizationId()
-      .then(setOrganizationId)
-      .catch((error) => {
-        console.error('Error obteniendo organization_id:', error);
-      });
-  }, []);
+  const { organizationId, loading: orgLoading } = useOrganization();
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  if (!organizationId) {
+  if (!organizationId || orgLoading) {
     return (
       <div className="flex items-center justify-center h-64">
           <p className="text-slate-400">Cargando organización...</p>
