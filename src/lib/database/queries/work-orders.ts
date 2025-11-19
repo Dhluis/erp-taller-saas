@@ -128,6 +128,10 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
   console.log('🔍 [getAllWorkOrders] Buscando órdenes con organization_id:', finalOrgId);
   console.log('🔍 [getAllWorkOrders] organizationId recibido:', organizationId);
 
+  // ⚠️ TEMPORAL: Buscar órdenes con el organization_id actual Y el antiguo hardcodeado
+  // Esto asegura que aparezcan tanto las órdenes nuevas como las antiguas
+  const oldOrgId = '042ab6bd-8979-4166-882a-c244b5e51e51'; // El organization_id antiguo hardcodeado
+  
   let query = supabase
     .from('work_orders')
     .select(`
@@ -148,9 +152,16 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
       order_items(*)
     `);
   
-  // Filtrar por organization_id
+  // Buscar órdenes con el organization_id actual O el antiguo
   if (finalOrgId) {
-    query = query.eq('organization_id', finalOrgId);
+    if (finalOrgId !== oldOrgId) {
+      // Si son diferentes, buscar ambos usando .in() con array
+      query = query.in('organization_id', [finalOrgId, oldOrgId]);
+      console.log('🔍 [getAllWorkOrders] Buscando órdenes con organization_id:', finalOrgId, 'O', oldOrgId);
+    } else {
+      // Si son iguales, solo buscar uno
+      query = query.eq('organization_id', finalOrgId);
+    }
   }
   
   // ✅ REMOVIDO: .not('workshop_id', 'is', null) - Mostrar todas las órdenes, con o sin workshop

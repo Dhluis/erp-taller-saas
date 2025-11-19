@@ -31,7 +31,6 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    cursor: isDragging ? 'grabbing' : 'grab',
   };
 
   // Formatear fecha
@@ -57,15 +56,15 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
       ref={setNodeRef}
       style={style}
       className={`bg-slate-800/50 border border-slate-700/50 rounded-lg mb-3 overflow-hidden hover:bg-slate-800/70 hover:border-cyan-500/30 transition-all group ${
-        isDragging ? 'ring-2 ring-cyan-500 shadow-lg shadow-cyan-500/50' : ''
+        isDragging ? 'ring-2 ring-cyan-500 shadow-lg shadow-cyan-500/50 z-50' : ''
       }`}
     >
       {/* Header - SOLO DRAGGABLE */}
       <div
         {...attributes}
         {...listeners}
-        className="flex items-center justify-between px-4 py-2 bg-slate-900/30 border-b border-slate-700/50 cursor-grab active:cursor-grabbing hover:bg-slate-800/50 transition-colors touch-none select-none"
-        style={{ touchAction: 'none' }}
+        className="flex items-center justify-between px-4 py-2 bg-slate-900/30 border-b border-slate-700/50 cursor-grab active:cursor-grabbing hover:bg-slate-800/50 transition-colors"
+        style={{ touchAction: 'none', userSelect: 'none' }}
       >
         <span className="text-xs text-slate-500 font-medium pointer-events-none">
           {formatDate(order.entry_date || order.created_at)}

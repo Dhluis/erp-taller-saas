@@ -127,7 +127,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 3, // Reducido aún más para mayor sensibilidad
+        distance: 0, // Sin distancia mínima - activa inmediatamente
       },
     })
   );
@@ -275,6 +275,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
   function handleDragStart(event: DragStartEvent) {
     const { active } = event;
     console.log('🎯 [handleDragStart] Iniciando drag:', active.id);
+    console.log('🎯 [handleDragStart] active.data:', active.data);
     
     const order = columns
       .flatMap(col => col.orders)
@@ -285,6 +286,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
       setActiveOrder(order);
     } else {
       console.warn('⚠️ [handleDragStart] Orden no encontrada');
+      console.warn('⚠️ [handleDragStart] IDs disponibles:', columns.flatMap(col => col.orders.map(o => o.id)));
       setActiveOrder(null);
     }
   }
