@@ -329,15 +329,22 @@ export async function updateWorkOrder(id: string, orderData: UpdateWorkOrderData
   console.log('🔄 [updateWorkOrder] Datos:', orderData);
   console.log('🔄 [updateWorkOrder] Organization ID actual:', organizationId);
 
-  const { data, error } = await supabase
+  // Construir la query base
+  let query = supabase
     .from('work_orders')
     .update({
       ...orderData,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', id)
-    // ⚠️ TEMPORAL: Buscar órdenes con el organization_id actual O el antiguo
-    .in('organization_id', [organizationId, oldOrgId])
+    .eq('id', id);
+  
+  // ⚠️ TEMPORAL: No filtrar por organization_id al actualizar
+  // Esto permite actualizar órdenes antiguas que tienen un organization_id diferente
+  // TODO: Una vez que todas las órdenes tengan el organization_id correcto, restaurar el filtro
+  // Por ahora, solo filtramos por ID de orden para permitir actualizar cualquier orden
+  console.log('🔄 [updateWorkOrder] Actualizando sin filtro de organization_id (modo temporal)');
+  
+  const { data, error } = await query
     .select(`
       *,
       customer:customers(
