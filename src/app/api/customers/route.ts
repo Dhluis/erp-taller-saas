@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getTenantContext } from '@/lib/core/multi-tenant-server'
+import { getSupabaseServerClient } from '@/lib/supabase/server'
+import { getOrganizationId } from '@/lib/auth/organization-server'
 
 export async function GET(request: NextRequest) {
   try {
     console.log('🔄 GET /api/customers - Iniciando...')
     
-    // Obtener contexto del tenant
-    const tenantContext = await getTenantContext()
-    if (!tenantContext) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'No autorizado' 
-      }, { status: 401 })
-    }
+    // ✅ USAR HELPER CENTRALIZADO - igual que órdenes y citas
+    const organizationId = await getOrganizationId()
+    console.log('✅ [GET /api/customers] Organization ID:', organizationId)
 
-    const supabase = await createClient()
+    const supabase = await getSupabaseServerClient()
     
     // Obtener todos los clientes de la organización
     const { data: customers, error } = await supabase
@@ -31,7 +26,7 @@ export async function GET(request: NextRequest) {
           color
         )
       `)
-      .eq('organization_id', tenantContext.organizationId)
+      .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -63,26 +58,38 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔄 POST /api/customers - Iniciando...')
     
-    // Obtener contexto del tenant
-    const tenantContext = await getTenantContext()
-    if (!tenantContext) {
+    // ✅ USAR HELPER CENTRALIZADO - igual que órdenes y citas
+    const organizationId = await getOrganizationId()
+    console.log('✅ [POST /api/customers] Organization ID:', organizationId)
+
+    const body = await request.json()
+    console.log('📝 Datos recibidos:', body)
+
+    const supabase = await getSupabaseServerClient()
+    
+    // ✅ Obtener workshop_id del usuario autenticado
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
       return NextResponse.json({ 
         success: false, 
         error: 'No autorizado' 
       }, { status: 401 })
     }
 
-    const body = await request.json()
-    console.log('📝 Datos recibidos:', body)
+    const { data: userData } = await supabase
+      .from('users')
+      .select('workshop_id')
+      .eq('auth_user_id', user.id)
+      .single()
 
-    const supabase = await createClient()
+    const workshopId = userData?.workshop_id || null
     
     // Crear nuevo cliente
     const { data: customer, error } = await supabase
       .from('customers')
       .insert({
-        organization_id: tenantContext.organizationId,
-        workshop_id: tenantContext.workshopId,
+        organization_id: organizationId,
+        workshop_id: workshopId,
         name: body.name,
         email: body.email,
         phone: body.phone,
