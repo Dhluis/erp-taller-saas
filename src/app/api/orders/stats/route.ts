@@ -1,6 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
+import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { getTenantContext } from '@/lib/core/multi-tenant-server'
+import { getOrganizationId } from '@/lib/auth/organization-server'
 
 export async function GET(request: NextRequest) {
   try {
@@ -56,20 +56,14 @@ export async function GET(request: NextRequest) {
       to: toDate.toISOString()
     })
 
-    // Crear cliente de Supabase y obtener contexto
-    const supabase = await createClient()
-    const tenantContext = await getTenantContext()
-
-    const requestedOrganizationId = searchParams.get('organizationId')
-
-    const organizationIdToUse = requestedOrganizationId || tenantContext.organizationId
+    // Crear cliente de Supabase y obtener organization_id
+    const supabase = await getSupabaseServerClient()
     
-    console.log('✅ Usuario autenticado:', tenantContext.userId)
-    console.log('✅ Tenant Context:', {
-      organizationId: organizationIdToUse,
-      workshopId: tenantContext.workshopId,
-      userId: tenantContext.userId
-    })
+    // ✅ USAR HELPER CENTRALIZADO - igual que el Kanban
+    const requestedOrganizationId = searchParams.get('organizationId')
+    const organizationIdToUse = requestedOrganizationId || await getOrganizationId()
+    
+    console.log('✅ Organization ID usado:', organizationIdToUse)
 
     const fromISO = fromDate.toISOString()
     const toISO = toDate.toISOString()
@@ -90,7 +84,6 @@ export async function GET(request: NextRequest) {
     console.log('🔌 API /orders/stats - QUERY EJECUTADA');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('Organization ID:', organizationIdToUse);
-    console.log('Workshop ID:', tenantContext.workshopId);
     console.log('Filtro de tiempo:', timeFilter);
     console.log('Rango de fechas:', {
       from: fromDate.toISOString(),

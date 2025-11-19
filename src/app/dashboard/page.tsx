@@ -21,6 +21,7 @@ import {
   CalendarIcon
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getOrganizationId } from '@/lib/auth/organization-client';
 import {
   LineChart,
   Line,
@@ -37,8 +38,7 @@ import {
 
 export default function DashboardPage() {
   const { organization } = useAuth();
-  // ✅ CORRECCIÓN: Usar organization_id del workshop, no el id del workshop
-  const organizationId = organization?.organization_id;
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState('7d');
   const [customDateRange, setCustomDateRange] = useState<{
     from: Date | undefined
@@ -62,27 +62,39 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // ✅ Obtener organization_id dinámicamente - igual que el Kanban
+  useEffect(() => {
+    getOrganizationId()
+      .then(setOrganizationId)
+      .catch((error) => {
+        console.error('Error obteniendo organization_id:', error);
+      });
+  }, []);
+
   // Función para cargar datos de órdenes por estado
   const loadOrdersByStatus = async () => {
+    // ✅ No cargar si no hay organizationId (igual que el Kanban)
+    if (!organizationId) {
+      console.log('⚠️ Esperando organizationId...');
+      return;
+    }
+    
     try {
       console.log('🔄 Cargando estadísticas de órdenes...');
       console.log('📅 Filtro de fecha activo:', dateRange);
+      console.log('🔍 Organization ID:', organizationId);
       setLoading(true);
       
       // Construir URL con parámetro de fecha
       let url = `/api/orders/stats?timeFilter=${dateRange}`;
-      if (organizationId) {
-        url += `&organizationId=${organizationId}`;
-      }
+      // ✅ Enviar organizationId para consistencia (aunque el API también lo obtiene)
+      url += `&organizationId=${organizationId}`;
       
       // Si es custom y tiene fechas, agregar parámetros adicionales
       if (dateRange === 'custom' && customDateRange.from && customDateRange.to) {
         const fromISO = customDateRange.from.toISOString();
         const toISO = customDateRange.to.toISOString();
-        url = `/api/orders/stats?timeFilter=custom&from=${fromISO}&to=${toISO}`;
-        if (organizationId) {
-          url += `&organizationId=${organizationId}`;
-        }
+        url = `/api/orders/stats?timeFilter=custom&from=${fromISO}&to=${toISO}&organizationId=${organizationId}`;
       }
       
       console.log('🔗 URL de la petición:', url);
