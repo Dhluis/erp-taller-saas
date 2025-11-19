@@ -146,10 +146,15 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
         license_plate
       ),
       order_items(*)
-    `)
-    .eq('organization_id', finalOrgId)
-    // ✅ REMOVIDO: .not('workshop_id', 'is', null) - Mostrar todas las órdenes, con o sin workshop
-    .order('created_at', { ascending: false });
+    `);
+  
+  // Filtrar por organization_id
+  if (finalOrgId) {
+    query = query.eq('organization_id', finalOrgId);
+  }
+  
+  // ✅ REMOVIDO: .not('workshop_id', 'is', null) - Mostrar todas las órdenes, con o sin workshop
+  query = query.order('created_at', { ascending: false });
 
   if (filters?.status) {
     query = query.eq('status', filters.status);
@@ -168,6 +173,7 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
   if (data && data.length > 0) {
     const orgIds = [...new Set(data.map((o: any) => o.organization_id))];
     console.log('📋 [getAllWorkOrders] Organization IDs encontrados:', orgIds);
+    console.log('📋 [getAllWorkOrders] Organization ID buscado:', finalOrgId);
     console.log('📋 [getAllWorkOrders] Primera orden:', {
       id: data[0].id,
       organization_id: (data[0] as any).organization_id,
@@ -175,20 +181,26 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
       created_at: (data[0] as any).created_at
     });
     
-    // Buscar órdenes recientes (últimos 5 minutos)
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const recentOrders = data.filter((o: any) => {
-      const createdAt = new Date(o.created_at || o.entry_date);
-      return createdAt >= new Date(fiveMinutesAgo);
-    });
-    console.log('🕐 [getAllWorkOrders] Órdenes creadas en últimos 5 minutos:', recentOrders.length);
-    if (recentOrders.length > 0) {
-      console.log('📋 [getAllWorkOrders] Órdenes recientes:', recentOrders.map((o: any) => ({
-        id: o.id,
-        organization_id: o.organization_id,
-        status: o.status,
-        created_at: o.created_at
-      })));
+    // Si hay órdenes con organization_id diferente, buscar todas las órdenes
+    if (orgIds.length > 1 || (orgIds.length === 1 && orgIds[0] !== finalOrgId)) {
+      console.warn('⚠️ [getAllWorkOrders] Se encontraron órdenes con organization_id diferente. Buscando todas las órdenes...');
+      const { data: allData, error: allError } = await supabase
+        .from('work_orders')
+        .select('id, organization_id, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      
+      if (!allError && allData) {
+        const allOrgIds = [...new Set(allData.map((o: any) => o.organization_id))];
+        console.log('🔍 [getAllWorkOrders] Total de órdenes en DB:', allData.length);
+        console.log('🔍 [getAllWorkOrders] Organization IDs en DB:', allOrgIds);
+        console.log('🔍 [getAllWorkOrders] Distribución por organization_id:', 
+          allOrgIds.map(orgId => ({
+            orgId,
+            count: allData.filter((o: any) => o.organization_id === orgId).length
+          }))
+        );
+      }
     }
   }
   
@@ -199,10 +211,20 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
       .from('work_orders')
       .select('id, organization_id, status, created_at')
       .order('created_at', { ascending: false })
-      .limit(5);
+      .limit(50);
     
     if (!allError && allData) {
-      console.log('🔍 [getAllWorkOrders] Últimas 5 órdenes en DB (sin filtro):', allData);
+      const allOrgIds = [...new Set(allData.map((o: any) => o.organization_id))];
+      console.log('🔍 [getAllWorkOrders] Total de órdenes en DB (sin filtro):', allData.length);
+      console.log('🔍 [getAllWorkOrders] Organization IDs en DB:', allOrgIds);
+      console.log('🔍 [getAllWorkOrders] Organization ID buscado:', finalOrgId);
+      console.log('🔍 [getAllWorkOrders] Distribución:', 
+        allOrgIds.map(orgId => ({
+          orgId,
+          count: allData.filter((o: any) => o.organization_id === orgId).length,
+          matches: orgId === finalOrgId
+        }))
+      );
     }
   }
   

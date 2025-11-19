@@ -127,9 +127,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5, // Reducido para mayor sensibilidad
-        delay: 0,
-        tolerance: 5,
+        distance: 3, // Reducido aún más para mayor sensibilidad
       },
     })
   );
