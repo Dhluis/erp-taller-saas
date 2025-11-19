@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '../../supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase-simple';
+import { getOrganizationId } from '@/lib/auth/organization';
 
 type GenericSupabaseClient = SupabaseClient<Database>;
 
@@ -9,7 +10,7 @@ function getClient(): GenericSupabaseClient {
 }
 
 // ✅ ACTUALIZACIÓN: Filtro workshop_id removido - mostrar todas las órdenes
-// ✅ Última actualización: Mejoras en logs y refresh de órdenes
+// ✅ Última actualización: Usando getOrganizationId() helper centralizado
 
 // Verificar configuración de Supabase
 console.log('🔧 Configuración de Supabase:', {
@@ -106,7 +107,8 @@ export interface CreateOrderItemData {
   unit_price: number;
 }
 
-const ORGANIZATION_ID = '042ab6bd-8979-4166-882a-c244b5e51e51';
+// ❌ ELIMINADO: ORGANIZATION_ID hardcodeado
+// ✅ AHORA: Usar getOrganizationId() de @/lib/auth/organization
 
 interface WorkOrderFilters {
   status?: WorkOrderStatus;
@@ -119,11 +121,11 @@ interface WorkOrderFilters {
 export async function getAllWorkOrders(organizationId?: string, filters?: WorkOrderFilters) {
   const supabase = getClient();
 
-  const finalOrgId = organizationId || ORGANIZATION_ID;
+  // ✅ SIEMPRE usar el helper si no se proporciona organizationId
+  const finalOrgId = organizationId || await getOrganizationId();
   
   console.log('🔍 [getAllWorkOrders] Buscando órdenes con organization_id:', finalOrgId);
   console.log('🔍 [getAllWorkOrders] organizationId recibido:', organizationId);
-  console.log('🔍 [getAllWorkOrders] ORGANIZATION_ID fallback:', ORGANIZATION_ID);
 
   let query = supabase
     .from('work_orders')
@@ -208,6 +210,7 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
 
 export async function getWorkOrderById(id: string) {
   const supabase = getClient();
+  const organizationId = await getOrganizationId();
 
   const { data, error } = await supabase
     .from('work_orders')
@@ -229,7 +232,7 @@ export async function getWorkOrderById(id: string) {
       order_items(*)
     `)
     .eq('id', id)
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
     .gte('created_at', '1970-01-01')  // Forzar bypass de cache
     .single()
     // NO usar cache para obtener datos actualizados de notas
@@ -241,13 +244,14 @@ export async function getWorkOrderById(id: string) {
 
 export async function createWorkOrder(orderData: CreateWorkOrderData) {
   const supabase = getClient();
+  const organizationId = orderData.organization_id || await getOrganizationId();
 
   const { data, error } = await supabase
     .from('work_orders')
     .insert([
       {
         ...orderData,
-        organization_id: orderData.organization_id || ORGANIZATION_ID,
+        organization_id: organizationId,
         workshop_id: orderData.workshop_id || null,  // ✅ Incluir workshop_id si viene
         status: orderData.status || 'pending',
         subtotal: 0,
@@ -281,6 +285,7 @@ export async function createWorkOrder(orderData: CreateWorkOrderData) {
 
 export async function updateWorkOrder(id: string, orderData: UpdateWorkOrderData) {
   const supabase = getClient();
+  const organizationId = await getOrganizationId();
 
   const { data, error } = await supabase
     .from('work_orders')
@@ -289,7 +294,7 @@ export async function updateWorkOrder(id: string, orderData: UpdateWorkOrderData
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
     .select(`
       *,
       customer:customers(
@@ -316,8 +321,9 @@ export async function updateWorkOrder(id: string, orderData: UpdateWorkOrderData
 export async function deleteWorkOrder(id: string) {
   const supabase = getClient();
 
+  const organizationId = await getOrganizationId();
   console.log('🔧 deleteWorkOrder (DB) - Iniciando eliminación para ID:', id)
-  console.log('🔧 deleteWorkOrder (DB) - Organization ID:', ORGANIZATION_ID)
+  console.log('🔧 deleteWorkOrder (DB) - Organization ID:', organizationId)
   
   // Verificar si la tabla work_orders existe y tiene datos
   console.log('🔍 Verificando tabla work_orders...')
@@ -387,10 +393,10 @@ export async function deleteWorkOrder(id: string) {
     existingOrder = (orderData as ExistingOrderRecord) ?? null;
     console.log('✅ Orden encontrada:', existingOrder)
     
-    if ((existingOrder?.organization_id ?? null) !== ORGANIZATION_ID) {
+    if ((existingOrder?.organization_id ?? null) !== organizationId) {
       console.error('❌ La orden no pertenece a la organización correcta')
       console.error('❌ Organization ID de la orden:', existingOrder?.organization_id)
-      console.error('❌ Organization ID esperado:', ORGANIZATION_ID)
+      console.error('❌ Organization ID esperado:', organizationId)
       throw new Error(`La orden no pertenece a la organización correcta`)
     }
     
@@ -406,7 +412,7 @@ export async function deleteWorkOrder(id: string) {
     .from('work_orders')
     .delete()
     .eq('id', id)
-    .eq('organization_id', ORGANIZATION_ID);
+    .eq('organization_id', organizationId);
 
   if (error) {
     console.error('❌ Error al eliminar orden en BD:', error)
@@ -427,6 +433,7 @@ export async function updateWorkOrderStatus(id: string, status: WorkOrderStatus)
 
 export async function searchWorkOrders(searchTerm: string) {
   const supabase = getClient();
+  const organizationId = await getOrganizationId();
 
   const { data, error } = await supabase
     .from('work_orders')
@@ -447,7 +454,7 @@ export async function searchWorkOrders(searchTerm: string) {
       ),
       order_items(*)
     `)
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
     .or(`description.ilike.%${searchTerm}%,diagnosis.ilike.%${searchTerm}%`)
     .order('created_at', { ascending: false });
 
@@ -457,6 +464,7 @@ export async function searchWorkOrders(searchTerm: string) {
 
 export async function getWorkOrdersByCustomer(customerId: string) {
   const supabase = getClient();
+  const organizationId = await getOrganizationId();
 
   const { data, error } = await supabase
     .from('work_orders')
@@ -478,7 +486,7 @@ export async function getWorkOrdersByCustomer(customerId: string) {
       order_items(*)
     `)
     .eq('customer_id', customerId)
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -487,6 +495,7 @@ export async function getWorkOrdersByCustomer(customerId: string) {
 
 export async function getWorkOrdersByVehicle(vehicleId: string) {
   const supabase = getClient();
+  const organizationId = await getOrganizationId();
 
   const { data, error } = await supabase
     .from('work_orders')
@@ -508,7 +517,7 @@ export async function getWorkOrdersByVehicle(vehicleId: string) {
       order_items(*)
     `)
     .eq('vehicle_id', vehicleId)
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -693,11 +702,12 @@ export async function updateWorkOrderDiscount(workOrderId: string, discount: num
 
 export async function getWorkOrderStats() {
   const supabase = getClient();
+  const organizationId = await getOrganizationId();
 
   const { data: orders, error } = await supabase
     .from('work_orders')
     .select('status, total_amount')
-    .eq('organization_id', ORGANIZATION_ID);
+    .eq('organization_id', organizationId);
 
   if (error) throw error;
 

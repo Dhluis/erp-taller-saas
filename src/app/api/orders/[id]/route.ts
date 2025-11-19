@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import { updateWorkOrder, updateWorkOrderStatus, deleteWorkOrder } from '@/lib/database/queries/work-orders'
+import { getOrganizationId } from '@/lib/auth/organization'
 import type { WorkOrder } from '@/types/orders'
 
 const supabase = getSupabaseServiceClient()
-const ORGANIZATION_ID = '042ab6bd-8979-4166-882a-c244b5e51e51'
 
 // GET /api/orders/[id] - Obtener detalles de una orden
 export async function GET(
@@ -12,6 +12,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const organizationId = await getOrganizationId();
+    
     const { data, error } = await supabase
       .from('work_orders')
       .select(`
@@ -21,7 +23,7 @@ export async function GET(
         order_items(*)
       `)
       .eq('id', params.id)
-      .eq('organization_id', ORGANIZATION_ID)
+      .eq('organization_id', organizationId)
       .single()
 
     if (error) {

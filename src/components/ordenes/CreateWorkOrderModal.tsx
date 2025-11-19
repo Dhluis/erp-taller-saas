@@ -45,6 +45,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 
 import { createClient } from '@/lib/supabase/client'
+import { getOrganizationId } from '@/lib/auth/organization'
 
 import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench } from 'lucide-react'
 
@@ -550,25 +551,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
       }
 
-      const { data: workshopData, error: workshopError } = await supabase
-
-        .from('workshops')
-
-        .select('organization_id')
-
-        .eq('id', workshopId)
-
-        .single()
-
-      if (workshopError || !workshopData) {
-
-        throw new Error('No se pudo obtener los datos del taller')
-
-      }
-
-      const organizationId = (workshopData as any).organization_id
+      // ✅ USAR HELPER CENTRALIZADO - NUNCA obtener organization_id manualmente
+      const organizationId = await getOrganizationId();
       
-      console.log('🔍 [CreateWorkOrderModal] organizationId obtenido del workshop:', organizationId);
+      console.log('🔍 [CreateWorkOrderModal] organizationId obtenido del helper:', organizationId);
       console.log('🔍 [CreateWorkOrderModal] workshopId:', workshopId);
 
       const { data: existingCustomer } = await supabase
