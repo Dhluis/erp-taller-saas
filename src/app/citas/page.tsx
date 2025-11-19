@@ -41,7 +41,9 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import {
   getAppointments,
@@ -104,6 +106,8 @@ export default function CitasPage() {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [currentMonth, setCurrentMonth] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month')
   const [stats, setStats] = useState<AppointmentStats>({
     total: 0,
     scheduled: 0,
@@ -488,6 +492,48 @@ export default function CitasPage() {
     }
   }
 
+  // Función para obtener los días del calendario
+  const getCalendarDays = () => {
+    const year = currentMonth.getFullYear()
+    const month = currentMonth.getMonth()
+    
+    // Primer día del mes
+    const firstDay = new Date(year, month, 1)
+    const firstDayOfWeek = firstDay.getDay() // 0 = domingo, 6 = sábado
+    
+    // Último día del mes
+    const lastDay = new Date(year, month + 1, 0)
+    const daysInMonth = lastDay.getDate()
+    
+    // Días del mes anterior para completar la primera semana
+    const prevMonth = new Date(year, month, 0)
+    const daysInPrevMonth = prevMonth.getDate()
+    
+    const days: Array<{ day: number; isCurrentMonth: boolean; date: Date }> = []
+    
+    // Agregar días del mes anterior
+    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+      const day = daysInPrevMonth - i
+      const date = new Date(year, month - 1, day)
+      days.push({ day, isCurrentMonth: false, date })
+    }
+    
+    // Agregar días del mes actual
+    for (let i = 1; i <= daysInMonth; i++) {
+      const date = new Date(year, month, i)
+      days.push({ day: i, isCurrentMonth: true, date })
+    }
+    
+    // Agregar días del mes siguiente para completar la última semana
+    const remainingDays = 42 - days.length // 6 semanas * 7 días = 42
+    for (let i = 1; i <= remainingDays; i++) {
+      const date = new Date(year, month + 1, i)
+      days.push({ day: i, isCurrentMonth: false, date })
+    }
+    
+    return days
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Breadcrumbs */}
@@ -802,6 +848,139 @@ export default function CitasPage() {
               )}
             </TableBody>
           </Table>
+        )}
+      </div>
+
+      {/* Calendario de Citas */}
+      <div className="bg-card rounded-lg border p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Calendario de Citas</h2>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const today = new Date()
+                setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1))
+              }}
+            >
+              Hoy
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setIsDialogOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nueva Cita!
+            </Button>
+          </div>
+        </div>
+
+        {/* Navegación y Selector de Vista */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const prevMonth = new Date(currentMonth)
+                prevMonth.setMonth(prevMonth.getMonth() - 1)
+                setCurrentMonth(prevMonth)
+              }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <h3 className="text-lg font-semibold min-w-[200px] text-center">
+              {currentMonth.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
+            </h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const nextMonth = new Date(currentMonth)
+                nextMonth.setMonth(nextMonth.getMonth() + 1)
+                setCurrentMonth(nextMonth)
+              }}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant={viewMode === 'month' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('month')}
+            >
+              Mes
+            </Button>
+            <Button
+              variant={viewMode === 'week' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('week')}
+            >
+              Semana
+            </Button>
+            <Button
+              variant={viewMode === 'day' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('day')}
+            >
+              Día
+            </Button>
+          </div>
+        </div>
+
+        {/* Grid del Calendario */}
+        {viewMode === 'month' && (
+          <div className="grid grid-cols-7 gap-1">
+            {/* Días de la semana */}
+            {['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'].map((day) => (
+              <div key={day} className="p-2 text-center text-sm font-medium text-muted-foreground">
+                {day}
+              </div>
+            ))}
+            
+            {/* Celdas del calendario */}
+            {getCalendarDays().map(({ day, isCurrentMonth, date }, index) => {
+              const dayAppointments = appointments.filter(apt => {
+                const aptDate = new Date(apt.appointment_date)
+                return aptDate.toDateString() === date.toDateString()
+              })
+              const isToday = date.toDateString() === new Date().toDateString()
+              
+              return (
+                <div
+                  key={index}
+                  className={`min-h-[100px] p-2 border rounded ${
+                    isCurrentMonth ? 'bg-background' : 'bg-muted/30'
+                  } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                >
+                  <div className={`text-sm font-medium mb-1 ${isCurrentMonth ? '' : 'text-muted-foreground'}`}>
+                    {day}
+                  </div>
+                  <div className="space-y-1">
+                    {dayAppointments.slice(0, 3).map((apt) => (
+                      <div
+                        key={apt.id}
+                        className="text-xs p-1 rounded bg-green-500/20 text-green-700 dark:text-green-400 flex items-center gap-1 cursor-pointer hover:bg-green-500/30"
+                        onClick={() => handleEdit(apt)}
+                      >
+                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                        <span className="truncate">
+                          {apt.appointment_time} {apt.service_type}
+                        </span>
+                      </div>
+                    ))}
+                    {dayAppointments.length > 3 && (
+                      <div className="text-xs text-muted-foreground">
+                        +{dayAppointments.length - 3} más
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
     </div>
