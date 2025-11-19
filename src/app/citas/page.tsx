@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,7 +28,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { 
+import {
   Plus, 
   Search, 
   Calendar, 
@@ -43,8 +44,10 @@ import {
   AlertCircle,
   Loader2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Wrench
 } from "lucide-react"
+import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal'
 import {
   getAppointments,
   createAppointment,
@@ -98,6 +101,7 @@ interface CreateAppointmentData {
 export default function CitasPage() {
   // Obtener organization del contexto (los IDs se extraen en handleSubmit)
   const { organization } = useAuth()
+  const { organizationId, loading: orgLoading } = useOrganization()
 
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([])
@@ -108,6 +112,8 @@ export default function CitasPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [currentMonth, setCurrentMonth] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month')
+  const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false)
+  const [selectedAppointmentForOrder, setSelectedAppointmentForOrder] = useState<Appointment | null>(null)
   const [stats, setStats] = useState<AppointmentStats>({
     total: 0,
     scheduled: 0,
@@ -145,8 +151,12 @@ export default function CitasPage() {
     })
   }, [organization])
 
-  // Cargar datos al montar el componente
+  // Cargar datos al montar el componente y cuando cambie organizationId
   useEffect(() => {
+    if (!organizationId || orgLoading) {
+      return
+    }
+    
     loadData()
 
     // Suscribirse a cambios en tiempo real
@@ -158,7 +168,7 @@ export default function CitasPage() {
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
+  }, [organizationId, orgLoading])
 
   // Filtrar citas cuando cambie el término de búsqueda
   useEffect(() => {
@@ -180,9 +190,14 @@ export default function CitasPage() {
   }, [searchTerm, appointments])
 
   const loadData = async () => {
+    if (!organizationId) {
+      console.log('⚠️ Esperando organizationId...')
+      return
+    }
+    
     setIsLoading(true)
     try {
-      // Obtener citas con datos de cliente y vehículo
+      // Obtener citas con datos de cliente y vehículo, filtradas por organization_id
       const supabase = createClient()
       const { data: appointmentsData, error } = await supabase
         .from('appointments')
@@ -191,6 +206,7 @@ export default function CitasPage() {
           customer:customers(id, name, phone, email),
           vehicle:vehicles(id, brand, model, license_plate)
         `)
+        .eq('organization_id', organizationId)
         .order('appointment_date', { ascending: false })
       
       if (error) {
@@ -198,7 +214,8 @@ export default function CitasPage() {
         throw error
       }
       
-      const statsData = await getAppointmentStats()
+      // Obtener estadísticas filtradas por organization_id
+      const statsData = await getAppointmentStats(organizationId)
 
       setAppointments(appointmentsData || [])
       setFilteredAppointments(appointmentsData || [])
@@ -828,6 +845,18 @@ export default function CitasPage() {
                     <Button 
                       variant="ghost" 
                       size="sm"
+                      onClick={() => {
+                        setSelectedAppointmentForOrder(appointment)
+                        setIsCreateOrderModalOpen(true)
+                      }}
+                      className="h-8 w-8 p-0"
+                      title="Crear orden desde esta cita"
+                    >
+                      <Wrench className="h-4 w-4 text-blue-500" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
                       onClick={() => handleEdit(appointment)}
                       className="h-8 w-8 p-0"
                     >
@@ -983,6 +1012,24 @@ export default function CitasPage() {
           </div>
         )}
       </div>
+
+      {/* Modal para crear orden desde cita */}
+      <CreateWorkOrderModal
+        open={isCreateOrderModalOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrderModalOpen(open)
+          if (!open) {
+            setSelectedAppointmentForOrder(null)
+          }
+        }}
+        onSuccess={() => {
+          setIsCreateOrderModalOpen(false)
+          setSelectedAppointmentForOrder(null)
+          toast.success('Orden creada desde la cita')
+        }}
+        appointmentId={selectedAppointmentForOrder?.id || null}
+        organizationId={organizationId}
+      />
     </div>
   )
 }

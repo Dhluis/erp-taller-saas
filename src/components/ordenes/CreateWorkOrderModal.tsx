@@ -60,6 +60,8 @@ interface CreateWorkOrderModalProps {
 
   organizationId?: string | null  // ✅ Opcional: si no se proporciona, usa el context
 
+  appointmentId?: string | null  // ✅ ID de la cita para pre-llenar datos
+
 }
 
 interface ValidationErrors {
@@ -188,7 +190,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
   prefilledServiceType,
 
-  organizationId: propOrganizationId
+  organizationId: propOrganizationId,
+
+  appointmentId
 
 }: CreateWorkOrderModalProps) {
   // ✅ Usar context si no se proporciona como prop
@@ -422,6 +426,71 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     }
 
   }, [open, loadMechanics])
+
+  // ✅ Cargar datos de la cita cuando se proporciona appointmentId
+  useEffect(() => {
+    if (open && appointmentId && organizationId) {
+      const loadAppointmentData = async () => {
+        try {
+          const { data: appointment, error } = await supabase
+            .from('appointments')
+            .select(`
+              *,
+              customer:customers(id, name, phone, email),
+              vehicle:vehicles(id, brand, model, year, license_plate, color, vin, mileage)
+            `)
+            .eq('id', appointmentId)
+            .eq('organization_id', organizationId)
+            .single()
+
+          if (error || !appointment) {
+            console.error('Error cargando cita:', error)
+            return
+          }
+
+          // Pre-llenar datos del cliente
+          const appointmentData = appointment as any
+          if (appointmentData.customer) {
+            setFormData(prev => ({
+              ...prev,
+              customerName: appointmentData.customer.name || '',
+              customerPhone: appointmentData.customer.phone || '',
+              customerEmail: appointmentData.customer.email || ''
+            }))
+          }
+
+          // Pre-llenar datos del vehículo
+          if (appointmentData.vehicle) {
+            const vehicle = appointmentData.vehicle
+            setFormData(prev => ({
+              ...prev,
+              vehicleBrand: vehicle.brand || '',
+              vehicleModel: vehicle.model || '',
+              vehicleYear: vehicle.year?.toString() || '',
+              vehiclePlate: vehicle.license_plate || '',
+              vehicleColor: vehicle.color || '',
+              vehicleVin: vehicle.vin || '',
+              vehicleMileage: vehicle.mileage?.toString() || ''
+            }))
+          }
+
+          // Pre-llenar descripción con el tipo de servicio de la cita
+          if (appointmentData.service_type) {
+            setFormData(prev => ({
+              ...prev,
+              description: `Servicio: ${appointmentData.service_type}${appointmentData.notes ? ` - ${appointmentData.notes}` : ''}`
+            }))
+          }
+
+          console.log('✅ Datos de cita cargados y pre-llenados')
+        } catch (error) {
+          console.error('Error cargando datos de cita:', error)
+        }
+      }
+
+      loadAppointmentData()
+    }
+  }, [open, appointmentId, organizationId, supabase])
 
   useEffect(() => {
 

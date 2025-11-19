@@ -101,14 +101,21 @@ export async function getAppointments(filters?: {
 /**
  * Obtener estadísticas de citas
  */
-export async function getAppointmentStats(): Promise<AppointmentStats> {
+export async function getAppointmentStats(organizationId?: string): Promise<AppointmentStats> {
   return executeWithErrorHandling(
     async () => {
       const client = getSupabaseClient()
       
-      const { data, error } = await client
+      let query = client
         .from('appointments')
         .select('status, appointment_date')
+      
+      // ✅ Filtrar por organization_id si se proporciona
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId)
+      }
+      
+      const { data, error } = await query
       
       if (error) {
         throw new Error(`Failed to fetch appointment stats: ${error.message}`)
