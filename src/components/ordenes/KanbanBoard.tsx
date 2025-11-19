@@ -328,12 +328,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
     if (!currentColumn || currentColumn.id === newStatus) return;
 
     try {
-      // Actualizar estado en la base de datos PRIMERO
-      console.log('🔄 [handleDragEnd] Llamando updateWorkOrder con:', { orderId, newStatus });
-      const updatedOrder = await updateWorkOrder(orderId, { status: newStatus as any });
-      console.log('✅ [handleDragEnd] Orden actualizada en DB:', updatedOrder);
-
-      // Actualizar estado local inmediatamente
+      // Actualizar estado local PRIMERO para feedback inmediato
       setColumns(prevColumns => {
         const newColumns = prevColumns.map(col => {
           // Remover de columna actual
@@ -362,19 +357,50 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
         return newColumns;
       });
 
-      // Recargar órdenes después de un pequeño delay para asegurar que la DB esté actualizada
-      setTimeout(() => {
-        console.log('🔄 [handleDragEnd] Recargando órdenes después del update...');
-        loadOrders();
-      }, 300);
-
+      // Actualizar estado en la base de datos DESPUÉS
+      console.log('🔄 [handleDragEnd] Llamando updateWorkOrder con:', { orderId, newStatus });
+      const updatedOrder = await updateWorkOrder(orderId, { status: newStatus as any });
+      console.log('✅ [handleDragEnd] Orden actualizada en DB:', updatedOrder);
       console.log('✅ [handleDragEnd] Orden movida exitosamente');
+
+      // NO recargar órdenes - confiar en la actualización local y DB
+      // Esto evita que la recarga sobrescriba los cambios visuales
     } catch (err) {
       console.error('❌ [handleDragEnd] Error al mover orden:', err);
       console.error('❌ [handleDragEnd] Error details:', err instanceof Error ? err.message : String(err));
+      
+      // Revertir cambios locales en caso de error
+      // Guardar la orden antes de moverla para poder revertir
+      const orderToRevert = currentColumn.orders.find(o => o.id === orderId);
+      
+      setColumns(prevColumns => {
+        const newColumns = prevColumns.map(col => {
+          // Revertir: volver a agregar a columna original
+          if (col.id === currentColumn.id && orderToRevert) {
+            // Verificar que no esté ya en la columna
+            if (!col.orders.some(o => o.id === orderId)) {
+              return {
+                ...col,
+                orders: [...col.orders, orderToRevert],
+              };
+            }
+          }
+          
+          // Revertir: remover de nueva columna
+          if (col.id === newStatus) {
+            return {
+              ...col,
+              orders: col.orders.filter(order => order.id !== orderId),
+            };
+          }
+          
+          return col;
+        });
+        
+        return newColumns;
+      });
+      
       setError('Error al actualizar el estado de la orden');
-      // Recargar órdenes en caso de error para restaurar el estado
-      loadOrders();
     }
   }
 
