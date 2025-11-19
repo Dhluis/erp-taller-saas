@@ -45,7 +45,8 @@ import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 
 import { createClient } from '@/lib/supabase/client'
-import { getOrganizationId } from '@/lib/auth/organization'
+// ✅ Usar versión CLIENTE (componente del cliente)
+import { getOrganizationId } from '@/lib/auth/organization-client'
 
 import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench } from 'lucide-react'
 

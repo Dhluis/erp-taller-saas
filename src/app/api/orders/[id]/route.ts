@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import { updateWorkOrder, updateWorkOrderStatus, deleteWorkOrder } from '@/lib/database/queries/work-orders'
-import { getOrganizationId } from '@/lib/auth/organization'
+// ✅ Usar versión SERVIDOR (API route)
+import { getOrganizationId } from '@/lib/auth/organization-server'
 import type { WorkOrder } from '@/types/orders'
 
 const supabase = getSupabaseServiceClient()

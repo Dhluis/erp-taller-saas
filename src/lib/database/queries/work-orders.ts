@@ -1,7 +1,8 @@
 import { getSupabaseClient } from '../../supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase-simple';
-import { getOrganizationId } from '@/lib/auth/organization';
+// ✅ Usar versión CLIENTE (work-orders.ts se usa en componentes del cliente)
+import { getOrganizationId } from '@/lib/auth/organization-client';
 
 type GenericSupabaseClient = SupabaseClient<Database>;
 
