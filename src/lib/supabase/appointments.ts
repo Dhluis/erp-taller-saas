@@ -174,6 +174,8 @@ export async function createAppointment(appointment: CreateAppointment): Promise
     async () => {
       const client = getSupabaseClient()
       
+      console.log('🔍 [createAppointment] Datos recibidos:', appointment)
+      
       // ✅ Crear cita sin appointment_number (esa columna no existe en la tabla)
       const { data, error } = await client
         .from('appointments')
@@ -190,10 +192,25 @@ export async function createAppointment(appointment: CreateAppointment): Promise
         .select()
         .single()
       
+      console.log('📥 [createAppointment] Respuesta de Supabase:', { data, error })
+      
       if (error) {
+        console.error('❌ [createAppointment] Error de Supabase:', error)
+        console.error('❌ [createAppointment] Detalles del error:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        })
         throw new Error(`Failed to create appointment: ${error.message}`)
       }
       
+      if (!data) {
+        console.error('❌ [createAppointment] No se devolvió data de Supabase')
+        throw new Error('No se pudo crear la cita: respuesta vacía del servidor')
+      }
+      
+      console.log('✅ [createAppointment] Cita creada exitosamente:', data.id)
       return data
     },
     {

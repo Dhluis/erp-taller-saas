@@ -455,14 +455,40 @@ export default function CitasPage() {
       
       // 3. CREAR LA CITA
       // Combinar fecha y hora en un solo timestamp ISO
-      const appointmentDateTime = `${formData.appointment_date}T${formData.appointment_time || '09:00'}:00`
+      // Asegurar que appointment_time tenga formato correcto
+      let appointmentTime = formData.appointment_time || '09:00'
+      if (!appointmentTime.includes(':')) {
+        // Si solo viene la hora sin minutos, agregar :00
+        appointmentTime = `${appointmentTime}:00`
+      }
+      if (appointmentTime.split(':').length === 2) {
+        // Asegurar que tenga segundos
+        appointmentTime = `${appointmentTime}:00`
+      }
+      
+      const appointmentDateTime = `${formData.appointment_date}T${appointmentTime}`
       
       console.log('📅 Creando cita con datos:', {
         customer_id: customerId,
         vehicle_id: vehicleId,
         organization_id: organizationId,
-        appointment_date: appointmentDateTime
+        appointment_date: appointmentDateTime,
+        service_type: formData.service_type,
+        duration: formData.estimated_duration,
+        notes: formData.notes
       })
+      
+      // Validar que todos los campos requeridos estén presentes
+      if (!customerId || !vehicleId || !organizationId || !formData.service_type || !appointmentDateTime) {
+        console.error('❌ Campos faltantes:', {
+          customer_id: !!customerId,
+          vehicle_id: !!vehicleId,
+          organization_id: !!organizationId,
+          service_type: !!formData.service_type,
+          appointment_date: !!appointmentDateTime
+        })
+        throw new Error('Faltan campos requeridos para crear la cita')
+      }
       
       const appointmentData = {
         customer_id: customerId,
@@ -471,22 +497,55 @@ export default function CitasPage() {
         appointment_date: appointmentDateTime,
         duration: formData.estimated_duration,
         notes: formData.notes || null,
-        organization_id: organizationId
+        organization_id: organizationId,
+        status: 'scheduled' // ✅ Asegurar que siempre tenga un status
       }
       
-      const result = await createAppointment(appointmentData)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('📤 [Citas] Enviando datos de cita a createAppointment:')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log(JSON.stringify(appointmentData, null, 2))
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
       
-      if (result) {
-        console.log('✅ Cita creada exitosamente:', result.id)
-        toast.success('¡Cita creada exitosamente!')
-        handleClose()
-        await loadData()
-      } else {
-        throw new Error('No se pudo crear la cita')
+      try {
+        const result = await createAppointment(appointmentData)
+        
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        console.log('📥 [Citas] Resultado de createAppointment:')
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        console.log(result)
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        
+        if (result && result.id) {
+          console.log('✅ [Citas] Cita creada exitosamente:', result.id)
+          toast.success('¡Cita creada exitosamente!')
+          handleClose()
+          // Esperar un momento antes de recargar para asegurar que la DB esté actualizada
+          setTimeout(async () => {
+            console.log('🔄 [Citas] Recargando datos después de crear cita...')
+            await loadData()
+            console.log('✅ [Citas] Datos recargados')
+          }, 500)
+        } else {
+          console.error('❌ [Citas] createAppointment no devolvió resultado válido:', result)
+          console.error('❌ [Citas] Tipo de resultado:', typeof result)
+          console.error('❌ [Citas] Resultado completo:', JSON.stringify(result, null, 2))
+          throw new Error('No se pudo crear la cita: respuesta inválida del servidor')
+        }
+      } catch (createError) {
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        console.error('❌ [Citas] Error al llamar createAppointment:')
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        console.error('Error:', createError)
+        console.error('Error message:', createError instanceof Error ? createError.message : String(createError))
+        console.error('Error stack:', createError instanceof Error ? createError.stack : 'No stack')
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        throw createError // Re-lanzar para que se maneje en el catch externo
       }
       
     } catch (error) {
-      console.error('❌ Error completo:', error)
+      console.error('❌ Error completo al crear cita:', error)
+      console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
       toast.error('Error al crear cita', {
         description: error instanceof Error ? error.message : 'Error desconocido'
       })
