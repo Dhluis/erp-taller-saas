@@ -290,33 +290,43 @@ export default function CitasPage() {
     // ✅ VALIDACIÓN MEJORADA CON LOGGING DETALLADO
     console.log('📋 handleSubmit iniciado')
     console.log('📦 organization completo:', organization)
+    console.log('📦 organizationId del context:', organizationId)
     
-    if (!organization) {
-      console.error('❌ Organization no disponible:', organization)
+    // ✅ USAR organizationId del OrganizationContext (más confiable)
+    if (!organizationId) {
+      console.error('❌ organizationId no disponible del context')
       toast.error('Error al crear cita', {
         description: 'Esperando información de la organización. Por favor intenta de nuevo.'
       })
       return
     }
     
-    const organizationId = organization.organization_id
+    // ✅ Obtener workshopId de organization (necesario para crear cliente/vehículo)
+    if (!organization) {
+      console.error('❌ Organization no disponible:', organization)
+      toast.error('Error al crear cita', {
+        description: 'Esperando información del taller. Por favor intenta de nuevo.'
+      })
+      return
+    }
+    
     const workshopId = organization.id  // ✅ CORRECCIÓN: es 'id', no 'workshop_id'
     
     console.log('🔍 Extrayendo IDs:', { 
-      organizationId, 
+      organizationId,  // ✅ Del context
       workshopId,
-      organization_id_exists: !!organization.organization_id,
-      workshop_id_exists: !!organization.id 
+      organization_id_from_context: organizationId,
+      workshop_id_from_org: workshopId
     })
     
-    if (!organizationId || !workshopId) {
-      console.error('❌ IDs faltantes:', { 
+    if (!workshopId) {
+      console.error('❌ workshopId faltante:', { 
         organizationId, 
         workshopId,
         organization: organization 
       })
       toast.error('Error al crear cita', {
-        description: 'No se pudo obtener la información de la organización'
+        description: 'No se pudo obtener la información del taller'
       })
       return
     }
