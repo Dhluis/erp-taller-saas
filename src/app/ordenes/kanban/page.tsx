@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { KanbanBoard } from '@/components/ordenes/KanbanBoard';
-import { useAuth } from '@/contexts/AuthContext';
+import { getOrganizationId } from '@/lib/auth/organization-client';
 import { Search, RefreshCw, Plus } from 'lucide-react';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
@@ -10,9 +10,15 @@ import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
 import { Button } from '@/components/ui/button';
 
 export default function KanbanPage() {
-  const { organization } = useAuth();
-  // ✅ CORRECCIÓN: Usar organization_id del workshop, no el id del workshop
-  const organizationId = organization?.organization_id || null;
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    getOrganizationId()
+      .then(setOrganizationId)
+      .catch((error) => {
+        console.error('Error obteniendo organization_id:', error);
+      });
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

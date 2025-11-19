@@ -128,6 +128,11 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
   console.log('🔍 [getAllWorkOrders] Buscando órdenes con organization_id:', finalOrgId);
   console.log('🔍 [getAllWorkOrders] organizationId recibido:', organizationId);
 
+  // ✅ PERMANENTE: Buscar órdenes con el organization_id actual Y el antiguo
+  // Esto asegura que todas las órdenes (nuevas y antiguas) aparezcan correctamente
+  // El organization_id antiguo que se usaba antes de la migración
+  const oldOrgId = '042ab6bd-8979-4166-882a-c244b5e51e51';
+  
   let query = supabase
     .from('work_orders')
     .select(`
@@ -148,9 +153,17 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
       order_items(*)
     `);
   
-  // Filtrar por organization_id
+  // Buscar órdenes con el organization_id actual O el antiguo
+  // Esto es necesario porque algunas órdenes antiguas pueden tener el organization_id antiguo
   if (finalOrgId) {
-    query = query.eq('organization_id', finalOrgId);
+    if (finalOrgId !== oldOrgId) {
+      // Si son diferentes, buscar ambos para mostrar todas las órdenes
+      query = query.in('organization_id', [finalOrgId, oldOrgId]);
+      console.log('🔍 [getAllWorkOrders] Buscando órdenes con organization_id:', finalOrgId, 'O', oldOrgId);
+    } else {
+      // Si son iguales, solo buscar uno
+      query = query.eq('organization_id', finalOrgId);
+    }
   }
   
   // ✅ REMOVIDO: .not('workshop_id', 'is', null) - Mostrar todas las órdenes, con o sin workshop
@@ -314,6 +327,10 @@ export async function updateWorkOrder(id: string, orderData: UpdateWorkOrderData
   console.log('🔄 [updateWorkOrder] Datos:', orderData);
   console.log('🔄 [updateWorkOrder] Organization ID:', organizationId);
 
+  // ✅ PERMANENTE: No filtrar por organization_id al actualizar
+  // Esto permite actualizar órdenes que pueden tener diferentes organization_ids
+  // (nuevas órdenes con el organization_id actual, antiguas con el organization_id antiguo)
+  // La actualización se hace solo por ID de orden para permitir mover órdenes entre estados
   const { data, error } = await supabase
     .from('work_orders')
     .update({
@@ -321,7 +338,7 @@ export async function updateWorkOrder(id: string, orderData: UpdateWorkOrderData
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
-    .eq('organization_id', organizationId)
+    // ✅ Sin filtro de organization_id - permite actualizar cualquier orden por su ID
     .select(`
       *,
       customer:customers(

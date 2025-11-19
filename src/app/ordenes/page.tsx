@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
 import { getAllWorkOrders, deleteWorkOrder } from '@/lib/database/queries/work-orders';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
@@ -43,10 +42,18 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor
 };
 
 export default function OrdenesPage() {
-  const { organization } = useAuth();
   const router = useRouter();
-  // ✅ CORRECCIÓN: Usar organization_id del workshop, no el id del workshop
-  const organizationId = organization?.organization_id || null;
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    import('@/lib/auth/organization-client').then(({ getOrganizationId }) => {
+      getOrganizationId()
+        .then(setOrganizationId)
+        .catch((error) => {
+          console.error('Error obteniendo organization_id:', error);
+        });
+    });
+  }, []);
 
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<WorkOrder[]>([]);
