@@ -37,7 +37,8 @@ import {
 
 export default function DashboardPage() {
   const { organization } = useAuth();
-  const organizationId = organization?.id;
+  // ✅ CORRECCIÓN: Usar organization_id del workshop, no el id del workshop
+  const organizationId = organization?.organization_id;
   const [dateRange, setDateRange] = useState('7d');
   const [customDateRange, setCustomDateRange] = useState<{
     from: Date | undefined

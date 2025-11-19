@@ -45,7 +45,8 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor
 export default function OrdenesPage() {
   const { organization } = useAuth();
   const router = useRouter();
-  const organizationId = organization?.id || null;
+  // ✅ CORRECCIÓN: Usar organization_id del workshop, no el id del workshop
+  const organizationId = organization?.organization_id || null;
 
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<WorkOrder[]>([]);

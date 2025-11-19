@@ -567,6 +567,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       }
 
       const organizationId = (workshopData as any).organization_id
+      
+      console.log('🔍 [CreateWorkOrderModal] organizationId obtenido del workshop:', organizationId);
+      console.log('🔍 [CreateWorkOrderModal] workshopId:', workshopId);
 
       const { data: existingCustomer } = await supabase
 

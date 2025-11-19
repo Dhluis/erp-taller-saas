@@ -119,6 +119,12 @@ interface WorkOrderFilters {
 export async function getAllWorkOrders(organizationId?: string, filters?: WorkOrderFilters) {
   const supabase = getClient();
 
+  const finalOrgId = organizationId || ORGANIZATION_ID;
+  
+  console.log('🔍 [getAllWorkOrders] Buscando órdenes con organization_id:', finalOrgId);
+  console.log('🔍 [getAllWorkOrders] organizationId recibido:', organizationId);
+  console.log('🔍 [getAllWorkOrders] ORGANIZATION_ID fallback:', ORGANIZATION_ID);
+
   let query = supabase
     .from('work_orders')
     .select(`
@@ -138,7 +144,7 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
       ),
       order_items(*)
     `)
-    .eq('organization_id', organizationId || ORGANIZATION_ID)
+    .eq('organization_id', finalOrgId)
     // ✅ REMOVIDO: .not('workshop_id', 'is', null) - Mostrar todas las órdenes, con o sin workshop
     .order('created_at', { ascending: false });
 
@@ -148,7 +154,55 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
 
   const { data, error } = await query;
 
-  if (error) throw error;
+  if (error) {
+    console.error('❌ [getAllWorkOrders] Error fetching work orders:', error);
+    throw error;
+  }
+
+  console.log('✅ [getAllWorkOrders] Órdenes encontradas:', data?.length || 0);
+  
+  // Verificar si hay órdenes con diferentes organization_id
+  if (data && data.length > 0) {
+    const orgIds = [...new Set(data.map((o: any) => o.organization_id))];
+    console.log('📋 [getAllWorkOrders] Organization IDs encontrados:', orgIds);
+    console.log('📋 [getAllWorkOrders] Primera orden:', {
+      id: data[0].id,
+      organization_id: (data[0] as any).organization_id,
+      status: (data[0] as any).status,
+      created_at: (data[0] as any).created_at
+    });
+    
+    // Buscar órdenes recientes (últimos 5 minutos)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const recentOrders = data.filter((o: any) => {
+      const createdAt = new Date(o.created_at || o.entry_date);
+      return createdAt >= new Date(fiveMinutesAgo);
+    });
+    console.log('🕐 [getAllWorkOrders] Órdenes creadas en últimos 5 minutos:', recentOrders.length);
+    if (recentOrders.length > 0) {
+      console.log('📋 [getAllWorkOrders] Órdenes recientes:', recentOrders.map((o: any) => ({
+        id: o.id,
+        organization_id: o.organization_id,
+        status: o.status,
+        created_at: o.created_at
+      })));
+    }
+  }
+  
+  // Si no hay datos pero debería haber, intentar sin filtro de organization_id para debug
+  if (!data || data.length === 0) {
+    console.warn('⚠️ [getAllWorkOrders] No se encontraron órdenes. Verificando sin filtro de organization_id...');
+    const { data: allData, error: allError } = await supabase
+      .from('work_orders')
+      .select('id, organization_id, status, created_at')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    
+    if (!allError && allData) {
+      console.log('🔍 [getAllWorkOrders] Últimas 5 órdenes en DB (sin filtro):', allData);
+    }
+  }
+  
   return data as WorkOrder[];
 }
 

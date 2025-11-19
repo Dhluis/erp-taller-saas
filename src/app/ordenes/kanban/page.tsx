@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 
 export default function KanbanPage() {
   const { organization } = useAuth();
-  const organizationId = organization?.id || null;
+  // ✅ CORRECCIÓN: Usar organization_id del workshop, no el id del workshop
+  const organizationId = organization?.organization_id || null;
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
