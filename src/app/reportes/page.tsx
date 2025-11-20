@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { safeFetch } from '@/lib/api';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useVehicles } from '@/hooks/useVehicles';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { getAllWorkOrders } from '@/lib/database/queries/work-orders';
 import { 
   ChartBarIcon,
   DocumentArrowDownIcon,
@@ -47,25 +49,48 @@ export default function ReportesPage() {
   // Usar hooks para obtener datos reales
   const { customers, loading: customersLoading } = useCustomers();
   const { vehicles, loading: vehiclesLoading } = useVehicles();
+  const { organizationId, loading: orgLoading } = useOrganization();
 
   useEffect(() => {
     const loadReportData = async () => {
+      // ✅ Esperar a que organizationId esté disponible
+      if (!organizationId || orgLoading || customersLoading || vehiclesLoading) {
+        return;
+      }
+
       try {
         setLoading(true);
         
-        // Cargar órdenes
-        const ordersResult = await safeFetch('/api/orders');
-        const orders = ordersResult.success ? ordersResult.data : [];
+        // ✅ Cargar órdenes usando getAllWorkOrders con organizationId correcto
+        const orders = await getAllWorkOrders(organizationId);
+        
+        console.log('📊 [Reportes] Órdenes cargadas:', orders.length);
         
         // Calcular estadísticas
         const totalCustomers = customers?.length || 0;
         const totalVehicles = vehicles?.length || 0;
         const totalOrders = orders.length || 0;
-        const pendingOrders = orders.filter((order: any) => order.status === 'pending').length || 0;
-        const completedOrders = orders.filter((order: any) => order.status === 'completed').length || 0;
-        const totalRevenue = orders.reduce((sum: number, order: any) => sum + (order.total || 0), 0);
+        const pendingOrders = orders.filter((order: any) => 
+          order.status === 'pending' || order.status === 'diagnosis' || order.status === 'reception'
+        ).length || 0;
+        const completedOrders = orders.filter((order: any) => 
+          order.status === 'completed' || order.status === 'completado'
+        ).length || 0;
+        const totalRevenue = orders.reduce((sum: number, order: any) => 
+          sum + (order.total_amount || order.total || 0), 0
+        );
         const monthlyRevenue = totalRevenue; // Simplificado para este ejemplo
         const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+        
+        console.log('📊 [Reportes] Estadísticas calculadas:', {
+          totalCustomers,
+          totalVehicles,
+          totalOrders,
+          totalRevenue,
+          pendingOrders,
+          completedOrders,
+          averageOrderValue
+        });
         
         setReportData({
           totalCustomers,
@@ -78,16 +103,14 @@ export default function ReportesPage() {
           averageOrderValue,
         });
       } catch (error) {
-        console.error('Error loading report data:', error);
+        console.error('❌ [Reportes] Error loading report data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    if (!customersLoading && !vehiclesLoading) {
-      loadReportData();
-    }
-  }, [customers, vehicles, customersLoading, vehiclesLoading]);
+    loadReportData();
+  }, [customers, vehicles, customersLoading, vehiclesLoading, organizationId, orgLoading]);
 
   const breadcrumbs = [
     { label: 'Reportes', href: '/reportes' }
