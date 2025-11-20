@@ -11,6 +11,7 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { useVehicles } from '@/hooks/useVehicles';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { getAllWorkOrders } from '@/lib/database/queries/work-orders';
+import { toast } from 'sonner';
 import { 
   ChartBarIcon,
   DocumentArrowDownIcon,
@@ -165,10 +166,12 @@ Fecha: ${new Date().toLocaleString('es-ES')}
       window.URL.revokeObjectURL(url);
 
       // Mostrar mensaje de éxito
-      alert('Reporte exportado exitosamente');
+      toast.success('Reporte exportado exitosamente');
     } catch (error) {
       console.error('Error al exportar reporte:', error);
-      alert('Error al exportar el reporte. Intenta nuevamente.');
+      toast.error('Error al exportar el reporte', {
+        description: 'Intenta nuevamente'
+      });
     }
   };
 
@@ -407,7 +410,7 @@ RECOMENDACIONES
           break;
 
         default:
-          alert('Tipo de reporte no válido');
+          toast.error('Tipo de reporte no válido');
           return;
       }
 
@@ -423,10 +426,12 @@ RECOMENDACIONES
       window.URL.revokeObjectURL(url);
 
       // Mostrar mensaje de éxito
-      alert(`Reporte de ${type} exportado exitosamente`);
+      toast.success(`Reporte de ${type} exportado exitosamente`);
     } catch (error) {
       console.error('Error al generar reporte:', error);
-      alert('Error al generar el reporte. Intenta nuevamente.');
+      toast.error('Error al generar el reporte', {
+        description: 'Intenta nuevamente'
+      });
     }
   };
 
