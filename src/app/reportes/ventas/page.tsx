@@ -42,6 +42,235 @@ export default function ReportesVentasPage() {
     setSelectedPeriod(period)
   }
 
+  const handleExportPDF = () => {
+    try {
+      // Crear contenido HTML para el PDF
+      const periodLabels: Record<string, string> = {
+        today: 'Hoy',
+        this_week: 'Esta semana',
+        this_month: 'Este mes',
+        last_month: 'Mes pasado',
+        this_quarter: 'Este trimestre',
+        this_year: 'Este año',
+        last_year: 'Año pasado'
+      }
+
+      const periodLabel = periodLabels[selectedPeriod] || 'Este mes'
+      const currentDate = new Date().toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Reporte de Ventas - ${periodLabel}</title>
+          <style>
+            @media print {
+              body { margin: 0; padding: 20px; }
+            }
+            body {
+              font-family: Arial, sans-serif;
+              color: #333;
+              padding: 20px;
+            }
+            .header {
+              text-align: center;
+              border-bottom: 2px solid #333;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .header h1 {
+              margin: 0;
+              font-size: 24px;
+            }
+            .header p {
+              margin: 5px 0;
+              color: #666;
+            }
+            .section {
+              margin-bottom: 30px;
+            }
+            .section h2 {
+              background: #f0f0f0;
+              padding: 10px;
+              margin: 0 0 15px 0;
+              border-left: 4px solid #3b82f6;
+            }
+            .metrics {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 15px;
+              margin-bottom: 30px;
+            }
+            .metric-card {
+              border: 1px solid #ddd;
+              padding: 15px;
+              border-radius: 5px;
+              text-align: center;
+            }
+            .metric-value {
+              font-size: 24px;
+              font-weight: bold;
+              color: #3b82f6;
+              margin: 10px 0;
+            }
+            .metric-label {
+              color: #666;
+              font-size: 12px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 15px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 10px;
+              text-align: left;
+            }
+            th {
+              background: #f0f0f0;
+              font-weight: bold;
+            }
+            .footer {
+              margin-top: 40px;
+              padding-top: 20px;
+              border-top: 1px solid #ddd;
+              text-align: center;
+              color: #666;
+              font-size: 12px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Reporte de Ventas</h1>
+            <p>Período: ${periodLabel}</p>
+            <p>Fecha de generación: ${currentDate}</p>
+          </div>
+
+          <div class="section">
+            <div class="metrics">
+              <div class="metric-card">
+                <div class="metric-label">Ventas Totales</div>
+                <div class="metric-value">$${(report.totalSales || 0).toLocaleString()}</div>
+                <div class="metric-label">+12.5% del mes anterior</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Total Órdenes</div>
+                <div class="metric-value">${report.totalOrders}</div>
+                <div class="metric-label">Órdenes completadas</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Ticket Promedio</div>
+                <div class="metric-value">$${(report.averageOrderValue || 0).toLocaleString()}</div>
+                <div class="metric-label">Por orden de trabajo</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Crecimiento</div>
+                <div class="metric-value" style="color: #10b981;">+12.5%</div>
+                <div class="metric-label">vs mes anterior</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Servicios Más Populares</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Servicio</th>
+                  <th>Ingresos</th>
+                  <th>Órdenes</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${report.topServices.map((service, index) => `
+                  <tr>
+                    <td>${index + 1}</td>
+                    <td>${service.name}</td>
+                    <td>$${(service.revenue || 0).toLocaleString()}</td>
+                    <td>${service.orders || 0}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="section">
+            <h2>Ventas por Empleado</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Empleado</th>
+                  <th>Total Vendido</th>
+                  <th>Órdenes</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${report.salesByEmployee.map((employee) => `
+                  <tr>
+                    <td>${employee.name || employee.employee_name || 'N/A'}</td>
+                    <td>$${(employee.total_revenue || 0).toLocaleString()}</td>
+                    <td>${employee.orders || employee.sales_count || 0}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="section">
+            <h2>Análisis de Rendimiento</h2>
+            <div class="metrics">
+              <div class="metric-card">
+                <div class="metric-value" style="color: #10b981;">${report.totalOrders}</div>
+                <div class="metric-label">Órdenes Completadas</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-value" style="color: #3b82f6;">$${(report.averageOrderValue || 0).toLocaleString()}</div>
+                <div class="metric-label">Ticket Promedio</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-value" style="color: #8b5cf6;">${report.topServices.length}</div>
+                <div class="metric-label">Servicios Activos</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p>Generado por EAGLES ERP Taller SaaS</p>
+            <p>${currentDate}</p>
+          </div>
+        </body>
+        </html>
+      `
+
+      // Crear ventana para imprimir
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(htmlContent)
+        printWindow.document.close()
+        
+        // Esperar a que cargue el contenido y luego imprimir/guardar como PDF
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+          }, 250)
+        }
+      } else {
+        alert('Por favor, permite las ventanas emergentes para exportar el PDF')
+      }
+    } catch (error) {
+      console.error('Error al exportar PDF:', error)
+      alert('Error al exportar el reporte. Por favor, intenta de nuevo.')
+    }
+  }
+
   const loadReport = async () => {
     setIsLoading(true)
     try {
@@ -177,17 +406,17 @@ export default function ReportesVentasPage() {
               <Calendar className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Seleccionar período" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="today">Hoy</SelectItem>
-              <SelectItem value="this_week">Esta semana</SelectItem>
-              <SelectItem value="this_month">Este mes</SelectItem>
-              <SelectItem value="last_month">Mes pasado</SelectItem>
-              <SelectItem value="this_quarter">Este trimestre</SelectItem>
-              <SelectItem value="this_year">Este año</SelectItem>
-              <SelectItem value="last_year">Año pasado</SelectItem>
+            <SelectContent className="bg-slate-900 border-slate-700 text-white">
+              <SelectItem value="today" className="text-white hover:bg-slate-800 focus:bg-slate-800">Hoy</SelectItem>
+              <SelectItem value="this_week" className="text-white hover:bg-slate-800 focus:bg-slate-800">Esta semana</SelectItem>
+              <SelectItem value="this_month" className="text-white hover:bg-slate-800 focus:bg-slate-800">Este mes</SelectItem>
+              <SelectItem value="last_month" className="text-white hover:bg-slate-800 focus:bg-slate-800">Mes pasado</SelectItem>
+              <SelectItem value="this_quarter" className="text-white hover:bg-slate-800 focus:bg-slate-800">Este trimestre</SelectItem>
+              <SelectItem value="this_year" className="text-white hover:bg-slate-800 focus:bg-slate-800">Este año</SelectItem>
+              <SelectItem value="last_year" className="text-white hover:bg-slate-800 focus:bg-slate-800">Año pasado</SelectItem>
             </SelectContent>
           </Select>
-          <Button>
+          <Button onClick={handleExportPDF}>
             <Download className="mr-2 h-4 w-4" /> Exportar PDF
           </Button>
         </div>
@@ -310,15 +539,15 @@ export default function ReportesVentasPage() {
             <div className="grid gap-4 md:grid-cols-3">
               <div className="text-center p-4 bg-green-50 rounded-lg">
                 <div className="text-2xl font-bold text-green-600">{report.totalOrders}</div>
-                <div className="text-sm text-muted-foreground">Órdenes Completadas</div>
+                <div className="text-sm text-black">Órdenes Completadas</div>
               </div>
               <div className="text-center p-4 bg-blue-50 rounded-lg">
                 <div className="text-2xl font-bold text-blue-600">${(report.averageOrderValue || 0).toLocaleString()}</div>
-                <div className="text-sm text-muted-foreground">Ticket Promedio</div>
+                <div className="text-sm text-black">Ticket Promedio</div>
               </div>
               <div className="text-center p-4 bg-purple-50 rounded-lg">
                 <div className="text-2xl font-bold text-purple-600">{report.topServices.length}</div>
-                <div className="text-sm text-muted-foreground">Servicios Activos</div>
+                <div className="text-sm text-black">Servicios Activos</div>
               </div>
             </div>
           </div>
