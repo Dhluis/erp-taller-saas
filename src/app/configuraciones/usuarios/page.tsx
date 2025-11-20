@@ -23,9 +23,12 @@ import {
   Trash2,
   Save
 } from "lucide-react"
-import { getSystemUsers, getUserStats, createSystemUser, updateSystemUser, deleteSystemUser, SystemUser, UserStats, CreateSystemUserData } from "@/lib/supabase/system-users"
+import { getSystemUsers, getUserStats, createSystemUser, updateSystemUser, deleteSystemUser, SystemUser, UserStats } from "@/lib/supabase/system-users"
+import { useOrganization } from "@/contexts/OrganizationContext"
+import { toast } from "sonner"
 
 export default function UsuariosPage() {
+  const { organizationId, loading: orgLoading } = useOrganization()
   const [searchTerm, setSearchTerm] = useState("")
   const [users, setUsers] = useState<SystemUser[]>([])
   const [stats, setStats] = useState<UserStats>({
@@ -43,97 +46,65 @@ export default function UsuariosPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<SystemUser | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState<CreateSystemUserData>({
-    name: '',
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
     email: '',
-    role: 'employee',
-    status: 'active'
+    role: 'employee' as 'admin' | 'manager' | 'employee' | 'viewer',
+    is_active: true
   })
 
   useEffect(() => {
-    loadData()
-  }, [])
+    if (!orgLoading && organizationId) {
+      loadData()
+    }
+  }, [organizationId, orgLoading])
 
   const loadData = async () => {
+    if (!organizationId) {
+      console.log('⚠️ No hay organizationId, esperando...')
+      return
+    }
+
     setIsLoading(true)
     try {
+      console.log('🔄 Cargando usuarios para organizationId:', organizationId)
+      
       const [usersData, statsData] = await Promise.all([
-        getSystemUsers(),
-        getUserStats()
+        getSystemUsers({ organization_id: organizationId }),
+        getUserStats(organizationId)
       ])
       
-      // Si no hay usuarios, usar datos mock
-      if (usersData.length === 0) {
-        console.log('Using mock data for system users')
-        const mockUsers = [
-          {
-            id: '1',
-            name: 'Admin Principal',
-            email: 'admin@eagles.com',
-            role: 'admin' as const,
-            status: 'active' as const,
-            created_at: '2025-01-01T00:00:00Z',
-            updated_at: '2025-01-01T00:00:00Z',
-            last_login: '2025-01-15T10:30:00Z'
-          },
-          {
-            id: '2',
-            name: 'María García',
-            email: 'maria@eagles.com',
-            role: 'manager' as const,
-            status: 'active' as const,
-            created_at: '2025-01-01T00:00:00Z',
-            updated_at: '2025-01-01T00:00:00Z',
-            last_login: '2025-01-14T15:20:00Z'
-          },
-          {
-            id: '3',
-            name: 'Carlos Ruiz',
-            email: 'carlos@eagles.com',
-            role: 'employee' as const,
-            status: 'active' as const,
-            created_at: '2025-01-01T00:00:00Z',
-            updated_at: '2025-01-01T00:00:00Z',
-            last_login: '2025-01-15T09:15:00Z'
-          }
-        ]
-        setUsers(mockUsers)
-        setStats({
-          totalUsers: mockUsers.length,
-          activeUsers: mockUsers.filter(u => u.status === 'active').length,
-          inactiveUsers: mockUsers.filter(u => u.status === 'inactive').length,
-          usersByRole: {
-            admin: mockUsers.filter(u => u.role === 'admin').length,
-            manager: mockUsers.filter(u => u.role === 'manager').length,
-            employee: mockUsers.filter(u => u.role === 'employee').length,
-            viewer: mockUsers.filter(u => u.role === 'viewer').length
-          }
-        })
-      } else {
-        setUsers(usersData)
-        setStats(statsData)
-      }
-    } catch (error) {
-      console.error('Error loading data:', error)
-      // En caso de error, usar datos mock
-      const mockUsers = [
-        {
-          id: '1',
-          name: 'Admin Principal',
-          email: 'admin@eagles.com',
-          role: 'admin' as const,
-          status: 'active' as const,
-          created_at: '2025-01-01T00:00:00Z',
-          updated_at: '2025-01-01T00:00:00Z',
-          last_login: '2025-01-15T10:30:00Z'
-        }
-      ]
-      setUsers(mockUsers)
+      console.log('✅ Usuarios cargados:', usersData.length)
+      console.log('✅ Estadísticas:', statsData)
+      
+      // ✅ USAR DATOS REALES - NO MOCKS
+      setUsers(usersData)
+      
+      // Convertir usersByRole de array a objeto para compatibilidad
+      const usersByRoleObj = statsData.usersByRole.reduce((acc: any, item: any) => {
+        acc[item.role] = item.count
+        return acc
+      }, { admin: 0, manager: 0, employee: 0, viewer: 0 })
+      
       setStats({
-        totalUsers: 1,
-        activeUsers: 1,
+        totalUsers: statsData.totalUsers,
+        activeUsers: statsData.activeUsers,
+        inactiveUsers: statsData.inactiveUsers,
+        usersByRole: usersByRoleObj
+      })
+    } catch (error) {
+      console.error('❌ Error loading data:', error)
+      toast.error('Error al cargar usuarios', {
+        description: error instanceof Error ? error.message : 'Intenta recargar la página'
+      })
+      // ✅ NO USAR MOCKS - Dejar arrays vacíos
+      setUsers([])
+      setStats({
+        totalUsers: 0,
+        activeUsers: 0,
         inactiveUsers: 0,
-        usersByRole: { admin: 1, manager: 0, employee: 0, viewer: 0 }
+        usersByRole: { admin: 0, manager: 0, employee: 0, viewer: 0 }
       })
     } finally {
       setIsLoading(false)
@@ -142,7 +113,7 @@ export default function UsuariosPage() {
 
   const filteredUsers = users.filter(
     (user) =>
-      (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.role || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -178,33 +149,55 @@ export default function UsuariosPage() {
     setFormData(prev => ({ ...prev, [id]: value }))
   }
 
-  const handleSelectChange = (id: string, value: string) => {
+  const handleSelectChange = (id: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [id]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!organizationId) {
+      toast.error('Error', {
+        description: 'No se pudo obtener la organización. Intenta recargar la página.'
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
-      if (editingUser) {
-        await updateSystemUser(editingUser.id, formData)
-      } else {
-        await createSystemUser(formData)
+      const userData = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        email: formData.email,
+        role: formData.role,
+        organization_id: organizationId,
+        is_active: formData.is_active
       }
+
+      if (editingUser) {
+        await updateSystemUser(editingUser.id, userData)
+        toast.success('Usuario actualizado exitosamente')
+      } else {
+        await createSystemUser(userData)
+        toast.success('Usuario creado exitosamente')
+      }
+      
       await loadData()
       setIsDialogOpen(false)
       setEditingUser(null)
       setFormData({
-        name: '',
+        first_name: '',
+        last_name: '',
         email: '',
         role: 'employee',
-        status: 'active'
+        is_active: true
       })
-      alert(editingUser ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente')
     } catch (error) {
-      console.error("Error submitting user:", error)
-      alert("Error al guardar el usuario. Inténtalo de nuevo.")
+      console.error("❌ Error submitting user:", error)
+      toast.error("Error al guardar el usuario", {
+        description: error instanceof Error ? error.message : 'Inténtalo de nuevo.'
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -213,10 +206,11 @@ export default function UsuariosPage() {
   const handleEdit = (user: SystemUser) => {
     setEditingUser(user)
     setFormData({
-      name: user.name,
+      first_name: user.first_name || '',
+      last_name: user.last_name || '',
       email: user.email,
       role: user.role,
-      status: user.status
+      is_active: user.is_active ?? true
     })
     setIsDialogOpen(true)
   }
@@ -227,10 +221,12 @@ export default function UsuariosPage() {
       try {
         await deleteSystemUser(id)
         await loadData()
-        alert('Usuario eliminado exitosamente')
+        toast.success('Usuario eliminado exitosamente')
       } catch (error) {
-        console.error("Error deleting user:", error)
-        alert("Error al eliminar el usuario. Inténtalo de nuevo.")
+        console.error("❌ Error deleting user:", error)
+        toast.error("Error al eliminar el usuario", {
+          description: error instanceof Error ? error.message : 'Inténtalo de nuevo.'
+        })
       } finally {
         setIsSubmitting(false)
       }
@@ -240,10 +236,11 @@ export default function UsuariosPage() {
   const handleAddUser = () => {
     setEditingUser(null)
     setFormData({
-      name: '',
+      first_name: '',
+      last_name: '',
       email: '',
       role: 'employee',
-      status: 'active'
+      is_active: true
     })
     setIsDialogOpen(true)
   }
@@ -291,10 +288,20 @@ export default function UsuariosPage() {
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Nombre</Label>
+                  <Label htmlFor="first_name">Nombre</Label>
                   <Input
-                    id="name"
-                    value={formData.name}
+                    id="first_name"
+                    value={formData.first_name}
+                    onChange={handleInputChange}
+                    className="w-full bg-slate-900/70 border-slate-600 text-white h-11"
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="last_name">Apellido</Label>
+                  <Input
+                    id="last_name"
+                    value={formData.last_name}
                     onChange={handleInputChange}
                     className="w-full bg-slate-900/70 border-slate-600 text-white h-11"
                     required
@@ -329,8 +336,8 @@ export default function UsuariosPage() {
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="status">Estado</Label>
-                  <Select value={formData.status} onValueChange={(value) => handleSelectChange('status', value)}>
+                  <Label htmlFor="is_active">Estado</Label>
+                  <Select value={formData.is_active ? 'active' : 'inactive'} onValueChange={(value) => handleSelectChange('is_active', value === 'active')}>
                     <SelectTrigger className="w-full h-11 bg-slate-900 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
                       <SelectValue placeholder="Selecciona estado" />
                     </SelectTrigger>
@@ -442,7 +449,7 @@ export default function UsuariosPage() {
                           <User className="h-4 w-4 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">{user.name}</p>
+                          <p className="font-medium">{`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Sin nombre'}</p>
                           <p className="text-sm text-muted-foreground">ID: {user.id}</p>
                         </div>
                       </div>
@@ -452,7 +459,7 @@ export default function UsuariosPage() {
                       {user.email}
                     </td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{getRoleBadge(user.role)}</td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{getStatusBadge(user.status)}</td>
+                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{getStatusBadge(user.is_active ? 'active' : 'inactive')}</td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Nunca'}
