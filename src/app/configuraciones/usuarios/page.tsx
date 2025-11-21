@@ -325,13 +325,14 @@ export default function UsuariosPage() {
                       <SelectValue placeholder="Selecciona un rol" />
                     </SelectTrigger>
                     <SelectContent
-                      className="z-[200] bg-slate-900 text-white border border-slate-600 shadow-2xl"
+                      className="z-[9999] bg-slate-900 text-white border border-slate-600 shadow-2xl"
                       sideOffset={4}
+                      position="popper"
                     >
-                      <SelectItem value="admin" className="text-white focus:bg-primary/25 focus:text-white">Administrador</SelectItem>
-                      <SelectItem value="manager" className="text-white focus:bg-primary/25 focus:text-white">Gerente</SelectItem>
-                      <SelectItem value="employee" className="text-white focus:bg-primary/25 focus:text-white">Empleado</SelectItem>
-                      <SelectItem value="viewer" className="text-white focus:bg-primary/25 focus:text-white">Visualizador</SelectItem>
+                      <SelectItem value="admin" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">Administrador</SelectItem>
+                      <SelectItem value="manager" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">Gerente</SelectItem>
+                      <SelectItem value="employee" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">Empleado</SelectItem>
+                      <SelectItem value="viewer" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">Visualizador</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -342,11 +343,12 @@ export default function UsuariosPage() {
                       <SelectValue placeholder="Selecciona estado" />
                     </SelectTrigger>
                     <SelectContent
-                      className="z-[200] bg-slate-900 text-white border border-slate-600 shadow-2xl"
+                      className="z-[9999] bg-slate-900 text-white border border-slate-600 shadow-2xl"
                       sideOffset={4}
+                      position="popper"
                     >
-                      <SelectItem value="active" className="text-white focus:bg-primary/25 focus:text-white">Activo</SelectItem>
-                      <SelectItem value="inactive" className="text-white focus:bg-primary/25 focus:text-white">Inactivo</SelectItem>
+                      <SelectItem value="active" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">Activo</SelectItem>
+                      <SelectItem value="inactive" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">Inactivo</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
