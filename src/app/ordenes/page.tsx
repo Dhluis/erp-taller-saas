@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, FileText, Edit, Trash2, Eye, Plus, Download, RefreshCw } from 'lucide-react';
+import { Search, FileText, Edit, Trash2, Eye, Plus, Download, RefreshCw, User } from 'lucide-react';
 import { toast } from 'sonner';
 import type { WorkOrder, OrderStatus } from '@/types/orders';
 
@@ -362,6 +362,9 @@ export default function OrdenesPage() {
                     Servicio
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    Empleado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     Total
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
@@ -420,6 +423,29 @@ export default function OrdenesPage() {
                       <div className="text-sm text-slate-300 max-w-xs truncate" title={order.description}>
                         {order.description || 'Sin descripción'}
                       </div>
+                    </td>
+
+                    {/* Empleado */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {(order as any).assigned_user ? (
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-slate-400" />
+                          <div>
+                            <div className="text-sm text-white">
+                              {(order as any).assigned_user.first_name} {(order as any).assigned_user.last_name}
+                            </div>
+                            <div className="text-xs text-slate-400">
+                              {((order as any).assigned_user.role === 'admin' ? 'Administrador' :
+                                (order as any).assigned_user.role === 'manager' ? 'Gerente' :
+                                (order as any).assigned_user.role === 'employee' ? 'Empleado' :
+                                (order as any).assigned_user.role === 'viewer' ? 'Visualizador' :
+                                (order as any).assigned_user.role)}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-slate-500 italic">Sin asignar</span>
+                      )}
                     </td>
 
                     {/* Total */}

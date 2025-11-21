@@ -90,15 +90,19 @@ interface ValidationErrors {
 
 }
 
-interface Mechanic {
+interface SystemUser {
 
   id: string
 
-  name: string
+  first_name: string
+
+  last_name: string
 
   role: string
 
-  is_active: boolean
+  email?: string
+
+  is_active?: boolean
 
 }
 
@@ -209,9 +213,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
-  const [mechanics, setMechanics] = useState<Mechanic[]>([])
+  const [systemUsers, setSystemUsers] = useState<SystemUser[]>([])
 
-  const [loadingMechanics, setLoadingMechanics] = useState(false)
+  const [loadingSystemUsers, setLoadingSystemUsers] = useState(false)
 
   
 
@@ -369,63 +373,41 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
   }
 
-  const loadMechanics = useCallback(async () => {
-
-    if (!profile?.workshop_id) return
-
-    
+  const loadSystemUsers = useCallback(async () => {
+    if (!organizationId) return
 
     try {
-
-      setLoadingMechanics(true)
-
+      setLoadingSystemUsers(true)
       const client = createClient()
 
-      
-
+      // Cargar usuarios del sistema activos de la organización
       const { data, error } = await client
-
-        .from('employees')
-
-        .select('id, name, role, email')
-
-        .eq('workshop_id', profile.workshop_id)
-
+        .from('system_users')
+        .select('id, first_name, last_name, role, email')
+        .eq('organization_id', organizationId)
         .eq('is_active', true)
-
-        .in('role', ['mechanic', 'technician'])
-
-        .order('name')
-
-      
+        .order('last_name')
+        .order('first_name')
 
       if (error) throw error
 
-      
-
-      setMechanics(data || [])
-
+      setSystemUsers(data || [])
     } catch (error) {
-
-      console.error('Error cargando mecánicos:', error)
-
+      console.error('Error cargando usuarios del sistema:', error)
     } finally {
-
-      setLoadingMechanics(false)
-
+      setLoadingSystemUsers(false)
     }
-
-  }, [profile?.workshop_id])
+  }, [organizationId])
 
   useEffect(() => {
 
     if (open) {
 
-      loadMechanics()
+      loadSystemUsers()
 
     }
 
-  }, [open, loadMechanics])
+  }, [open, loadSystemUsers])
 
   // ✅ Cargar datos de la cita cuando se proporciona appointmentId
   useEffect(() => {
@@ -1707,7 +1689,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             <div>
 
-              <Label htmlFor="assigned_to">Asignar Mecánico (opcional)</Label>
+              <Label htmlFor="assigned_to">Asignar Empleado (opcional)</Label>
 
               <Select
 
@@ -1721,23 +1703,23 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 }}
 
-                disabled={loading || loadingMechanics || mechanics.length === 0}
+                disabled={loading || loadingSystemUsers || systemUsers.length === 0}
 
               >
 
-                <SelectTrigger>
+                <SelectTrigger className="w-full h-11 bg-slate-900 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
 
                   <SelectValue 
 
                     placeholder={
 
-                      loadingMechanics 
+                      loadingSystemUsers 
 
-                        ? "Cargando mecánicos..." 
+                        ? "Cargando empleados..." 
 
-                        : mechanics.length === 0 
+                        : systemUsers.length === 0 
 
-                          ? "No hay mecánicos disponibles" 
+                          ? "No hay empleados disponibles" 
 
                           : "Sin asignar"
 
@@ -1747,35 +1729,46 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 </SelectTrigger>
 
-                <SelectContent>
+                <SelectContent className="z-[9999] bg-slate-900 text-white border border-slate-600 shadow-2xl" sideOffset={4} position="popper">
 
-                  {mechanics.length > 0 ? (
+                  {systemUsers.length > 0 ? (
 
-                    mechanics
+                    systemUsers
 
-                      .filter(m => m.id && m.id.trim() !== '')
+                      .filter(u => u.id && u.id.trim() !== '')
 
-                      .map((mechanic) => (
+                      .map((user) => {
 
-                        <SelectItem key={mechanic.id} value={mechanic.id}>
+                        const roleLabels: Record<string, string> = {
+                          'admin': 'Administrador',
+                          'manager': 'Gerente',
+                          'employee': 'Empleado',
+                          'viewer': 'Visualizador'
+                        }
 
-                          <div className="flex items-center gap-2">
+                        return (
 
-                            <User className="h-4 w-4" />
+                          <SelectItem key={user.id} value={user.id} className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
 
-                            {mechanic.name} ({mechanic.role})
+                            <div className="flex items-center gap-2">
 
-                          </div>
+                              <User className="h-4 w-4" />
 
-                        </SelectItem>
+                              {user.first_name} {user.last_name} ({roleLabels[user.role] || user.role})
 
-                      ))
+                            </div>
+
+                          </SelectItem>
+
+                        )
+
+                      })
 
                   ) : (
 
                     <div className="px-2 py-1.5 text-sm text-muted-foreground">
 
-                      No hay mecánicos disponibles
+                      No hay empleados disponibles
 
                     </div>
 
