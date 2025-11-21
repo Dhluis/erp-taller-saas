@@ -54,8 +54,12 @@ export default function ReportesPage() {
 
   useEffect(() => {
     const loadReportData = async () => {
-      // ✅ Esperar a que organizationId esté disponible
-      if (!organizationId || orgLoading || customersLoading || vehiclesLoading) {
+      // ✅ FIX: Solo cargar cuando organizationId esté listo (no esperar customers/vehicles indefinidamente)
+      if (!organizationId || orgLoading) {
+        // Si está cargando organizationId, mantener loading state
+        if (orgLoading) {
+          setLoading(true);
+        }
         return;
       }
 
@@ -67,7 +71,7 @@ export default function ReportesPage() {
         
         console.log('📊 [Reportes] Órdenes cargadas:', orders.length);
         
-        // Calcular estadísticas
+        // Calcular estadísticas usando los datos disponibles (customers y vehicles pueden venir después)
         const totalCustomers = customers?.length || 0;
         const totalVehicles = vehicles?.length || 0;
         const totalOrders = orders.length || 0;
@@ -105,13 +109,16 @@ export default function ReportesPage() {
         });
       } catch (error) {
         console.error('❌ [Reportes] Error loading report data:', error);
+        toast.error('Error al cargar datos del reporte', {
+          description: error instanceof Error ? error.message : 'Error desconocido'
+        });
       } finally {
         setLoading(false);
       }
     };
 
     loadReportData();
-  }, [customers, vehicles, customersLoading, vehiclesLoading, organizationId, orgLoading]);
+  }, [organizationId, orgLoading, customers, vehicles]); // ✅ FIX: Removido customersLoading y vehiclesLoading de dependencias
 
   const breadcrumbs = [
     { label: 'Reportes', href: '/reportes' }
@@ -435,26 +442,18 @@ RECOMENDACIONES
     }
   };
 
-  if (loading) {
+  // ✅ FIX: Mostrar loading si organizationId no está listo o está cargando datos
+  if (!organizationId || orgLoading || loading) {
     return (
       <AppLayout title="Reportes" breadcrumbs={breadcrumbs}>
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="h-8 bg-gray-200 rounded w-1/4 animate-pulse"></div>
-            <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <Card key={index} className="animate-pulse">
-                <CardContent className="p-6">
-                  <div className="space-y-3">
-                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                    <div className="h-8 bg-gray-200 rounded w-3/4"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/3"></div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+              <p className="text-slate-400">
+                {!organizationId || orgLoading ? 'Cargando organización...' : 'Cargando reportes...'}
+              </p>
+            </div>
           </div>
         </div>
       </AppLayout>
