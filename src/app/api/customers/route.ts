@@ -7,8 +7,25 @@ export async function GET(request: NextRequest) {
     console.log('🔄 GET /api/customers - Iniciando...')
     
     // ✅ USAR HELPER CENTRALIZADO - igual que órdenes y citas
-    const organizationId = await getOrganizationId()
-    console.log('✅ [GET /api/customers] Organization ID:', organizationId)
+    let organizationId: string;
+    try {
+      organizationId = await getOrganizationId()
+      console.log('✅ [GET /api/customers] Organization ID:', organizationId)
+    } catch (orgError: any) {
+      console.error('❌ [GET /api/customers] Error obteniendo organizationId:', orgError)
+      return NextResponse.json({ 
+        success: false, 
+        error: `Error obteniendo organización: ${orgError?.message || 'Error desconocido'}` 
+      }, { status: 500 })
+    }
+
+    if (!organizationId) {
+      console.error('❌ [GET /api/customers] organizationId es null o undefined')
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No se pudo obtener el ID de la organización' 
+      }, { status: 500 })
+    }
 
     const supabase = await getSupabaseServerClient()
     
@@ -30,14 +47,20 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('❌ Error obteniendo clientes:', error)
+      console.error('❌ [GET /api/customers] Error obteniendo clientes:', error)
+      console.error('❌ [GET /api/customers] Detalles del error:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
       return NextResponse.json({ 
         success: false, 
         error: error.message 
       }, { status: 500 })
     }
 
-    console.log('✅ Clientes obtenidos:', customers?.length || 0)
+    console.log('✅ [GET /api/customers] Clientes obtenidos:', customers?.length || 0)
     
     // ✅ DEVOLVER EN EL FORMATO CORRECTO
     return NextResponse.json({ 
@@ -46,10 +69,11 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('💥 Error en GET /api/customers:', error)
+    console.error('💥 [GET /api/customers] Error inesperado:', error)
+    console.error('💥 [GET /api/customers] Stack:', error?.stack)
     return NextResponse.json({ 
       success: false, 
-      error: error.message 
+      error: error?.message || 'Error desconocido al obtener clientes' 
     }, { status: 500 })
   }
 }
