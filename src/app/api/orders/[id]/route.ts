@@ -63,6 +63,8 @@ export async function PATCH(
 ) {
   try {
     const body = await request.json()
+    console.log('🔄 [PATCH /api/orders/[id]] Actualizando orden:', params.id)
+    console.log('🔄 [PATCH /api/orders/[id]] Datos recibidos:', body)
     
     // Si solo se está actualizando el status, usar función específica
     if (body.status && Object.keys(body).length === 1) {
@@ -72,11 +74,18 @@ export async function PATCH(
     
     // Actualización completa
     const order = await updateWorkOrder(params.id, body)
+    console.log('✅ [PATCH /api/orders/[id]] Orden actualizada exitosamente')
     return NextResponse.json({ success: true, data: order })
-  } catch (error) {
-    console.error('Error in PATCH /api/orders/[id]:', error)
+  } catch (error: any) {
+    console.error('❌ [PATCH /api/orders/[id]] Error:', error)
+    console.error('❌ [PATCH /api/orders/[id]] Error message:', error?.message)
+    console.error('❌ [PATCH /api/orders/[id]] Error stack:', error?.stack)
     return NextResponse.json(
-      { success: false, error: 'Error interno del servidor' },
+      { 
+        success: false, 
+        error: error?.message || 'Error interno del servidor',
+        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      },
       { status: 500 }
     )
   }

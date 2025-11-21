@@ -25,15 +25,16 @@ import {
 
 interface WorkOrder {
   id: string
-  order_number: string
+  order_number?: string
   customer_id: string
   vehicle_id: string
   status: string
   description: string
-  estimated_cost: number
-  final_cost: number
+  estimated_cost?: number
+  final_cost?: number
+  total_amount?: number
   entry_date: string
-  estimated_completion: string
+  estimated_completion?: string
   completed_at?: string
   notes?: string
   created_at: string
@@ -41,16 +42,17 @@ interface WorkOrder {
   // Relaciones
   customer?: {
     name: string
-    email: string
-    phone: string
+    email?: string
+    phone?: string
   }
   vehicle?: {
     brand: string
     model: string
     year: number
     license_plate: string
-    vin: string
+    vin?: string
   }
+  order_items?: Array<any>
 }
 
 // API Response Types
@@ -109,7 +111,12 @@ export default function OrderDetailPage() {
       }
       
       if (result.data?.success) {
-        setOrder(result.data.data)
+        const orderData = result.data.data
+        // Asegurar que order_items sea un array
+        if (orderData && !Array.isArray(orderData.order_items)) {
+          orderData.order_items = orderData.order_items || []
+        }
+        setOrder(orderData)
       } else {
         toast({
           title: "Error",
@@ -138,7 +145,7 @@ export default function OrderDetailPage() {
   const updateOrderTotal = async (total: number) => {
     try {
       setSaving(true)
-      const result = await safePatch(`/api/orders/${orderId}`, { final_cost: total })
+      const result = await safePatch(`/api/orders/${orderId}`, { total_amount: total })
 
       if (!result.success) {
         toast({
@@ -151,7 +158,7 @@ export default function OrderDetailPage() {
 
       if (result.data?.success) {
         // Actualizar el estado local con los nuevos datos
-        setOrder(prev => prev ? { ...prev, final_cost: total } : null)
+        setOrder(prev => prev ? { ...prev, final_cost: total, total_amount: total } : null)
         toast({
           title: "Total actualizado",
           description: "El costo final se ha actualizado correctamente"
@@ -265,11 +272,11 @@ export default function OrderDetailPage() {
     <div className="flex-1 space-y-4 p-8 pt-6">
       {/* Page Header con Breadcrumbs */}
       <PageHeader
-        title={`Orden #${order.order_number}`}
+        title={`Orden ${order.order_number ? `#${order.order_number}` : order.id.substring(0, 8)}`}
         description={`${order.customer?.name} - ${order.vehicle?.brand} ${order.vehicle?.model} ${order.vehicle?.year}`}
         breadcrumbs={[
           { label: 'Órdenes', href: '/ordenes' },
-          { label: `#${order.order_number}`, href: `/ordenes/${order.id}` }
+          { label: order.order_number ? `#${order.order_number}` : order.id.substring(0, 8), href: `/ordenes/${order.id}` }
         ]}
         actions={
           <div className="flex items-center gap-2">
@@ -289,10 +296,12 @@ export default function OrderDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Número:</span>
-              <span className="text-sm">#{order.order_number}</span>
-            </div>
+            {order.order_number && (
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Número:</span>
+                <span className="text-sm">#{order.order_number}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-sm font-medium">Estado:</span>
               {getStatusBadge(order.status)}

@@ -243,7 +243,7 @@ export function OrderItemsManager({ orderId, onTotalChange }: OrderItemsManagerP
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item) => (
+                  {(items || []).map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>
                         <div className="flex items-center gap-2">
