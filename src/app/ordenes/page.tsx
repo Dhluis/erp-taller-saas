@@ -76,15 +76,54 @@ export default function OrdenesPage() {
       console.log('📊 Órdenes recibidas:', data?.length);
       console.log('📋 Primera orden:', data?.[0]);
 
-      const normalizedData = (data ?? []).map((order: any) => ({
+      // Normalizar datos primero (sin usuarios asignados)
+      let normalizedData = (data ?? []).map((order: any) => ({
         ...order,
         entry_date: order.entry_date ?? order.created_at ?? '',
       })) as WorkOrder[];
+
+      // Cargar usuarios asignados por separado (opcional, no debe afectar la carga de órdenes)
+      try {
+        const assignedUserIds = [...new Set(
+          normalizedData
+            .map((order: any) => order.assigned_to)
+            .filter((id: string | null | undefined) => id)
+        )] as string[];
+
+        if (assignedUserIds.length > 0) {
+          const { createClient } = await import('@/lib/supabase/client');
+          const supabase = createClient();
+          
+          const { data: usersData, error: usersError } = await supabase
+            .from('system_users')
+            .select('id, first_name, last_name, role, email')
+            .in('id', assignedUserIds);
+
+          if (!usersError && usersData) {
+            const assignedUsersMap = usersData.reduce((acc: Record<string, any>, user: any) => {
+              acc[user.id] = user;
+              return acc;
+            }, {});
+
+            // Agregar usuarios asignados a las órdenes
+            normalizedData = normalizedData.map((order: any) => ({
+              ...order,
+              assigned_user: order.assigned_to ? assignedUsersMap[order.assigned_to] || null : null,
+            })) as WorkOrder[];
+          }
+        }
+      } catch (error) {
+        // Si falla la carga de usuarios, continuar sin ellos
+        console.warn('⚠️ No se pudieron cargar usuarios asignados (continuando sin ellos):', error);
+      }
 
       setOrders(normalizedData as unknown as WorkOrder[]);
       setFilteredOrders(normalizedData as unknown as WorkOrder[]);
     } catch (error) {
       console.error('❌ Error cargando órdenes:', error);
+      toast.error('Error al cargar órdenes', {
+        description: error instanceof Error ? error.message : 'Error desconocido'
+      });
     } finally {
       setLoading(false);
     }

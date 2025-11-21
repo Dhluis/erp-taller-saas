@@ -147,13 +147,6 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
         year,
         license_plate
       ),
-      assigned_user:system_users(
-        id,
-        first_name,
-        last_name,
-        role,
-        email
-      ),
       order_items(*)
     `);
   
@@ -261,13 +254,6 @@ export async function getWorkOrderById(id: string) {
         model,
         year,
         license_plate
-      ),
-      assigned_user:system_users(
-        id,
-        first_name,
-        last_name,
-        role,
-        email
       ),
       order_items(*)
     `)
