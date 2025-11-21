@@ -150,6 +150,15 @@ export function Sidebar({ className }: SidebarProps) {
         { href: "/reportes/inventario", label: "Inventario", icon: Package },
         { href: "/reportes/financieros", label: "Financieros", icon: Wallet }
       ]
+    },
+    {
+      key: 'configuraciones',
+      label: 'Configuraciones',
+      icon: Settings,
+      items: [
+        { href: "/configuraciones/usuarios", label: "Usuarios", icon: Users },
+        { href: "/configuraciones/empresa", label: "Empresa", icon: Building2 }
+      ]
     }
   ]
 
