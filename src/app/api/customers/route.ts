@@ -30,7 +30,8 @@ export async function GET(request: NextRequest) {
     const supabase = await getSupabaseServerClient()
     
     // Obtener todos los clientes de la organización
-    const { data: customers, error } = await supabase
+    // Intentar primero con vehicles (join opcional)
+    let { data: customers, error } = await supabase
       .from('customers')
       .select(`
         *,
@@ -46,7 +47,30 @@ export async function GET(request: NextRequest) {
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
 
-    if (error) {
+    // Si falla la query con vehicles, intentar sin el join
+    if (error && (error.code === '42P01' || error.message.includes('relation') || error.message.includes('does not exist'))) {
+      console.warn('⚠️ [GET /api/customers] Error con vehicles, intentando sin join:', error.message)
+      const { data: customersSimple, error: errorSimple } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
+      
+      if (errorSimple) {
+        console.error('❌ [GET /api/customers] Error obteniendo clientes:', errorSimple)
+        console.error('❌ [GET /api/customers] Detalles del error:', {
+          message: errorSimple.message,
+          details: errorSimple.details,
+          hint: errorSimple.hint,
+          code: errorSimple.code
+        })
+        return NextResponse.json({ 
+          success: false, 
+          error: errorSimple.message 
+        }, { status: 500 })
+      }
+      customers = customersSimple
+    } else if (error) {
       console.error('❌ [GET /api/customers] Error obteniendo clientes:', error)
       console.error('❌ [GET /api/customers] Detalles del error:', {
         message: error.message,
@@ -100,13 +124,13 @@ export async function POST(request: NextRequest) {
       }, { status: 401 })
     }
 
-    const { data: userData } = await supabase
+    const { data: userData, error: userDataError } = await supabase
       .from('users')
       .select('workshop_id')
       .eq('auth_user_id', user.id)
       .single()
 
-    const workshopId = userData?.workshop_id || null
+    const workshopId = (userData && !userDataError) ? (userData as { workshop_id: string | null }).workshop_id : null
     
     // Crear nuevo cliente
     const { data: customer, error } = await supabase
