@@ -77,11 +77,14 @@ export function OrderItemsManager({ orderId, onTotalChange }: OrderItemsManagerP
       }
       
       if (result.data) {
-        setItems(result.data)
+        const itemsData = Array.isArray(result.data) ? result.data : []
+        setItems(itemsData)
         
         // Calcular total general
-        const total = result.data.reduce((sum: number, item: OrderItem) => sum + item.total, 0)
+        const total = itemsData.reduce((sum: number, item: OrderItem) => sum + (item.total || 0), 0)
         onTotalChange?.(total)
+      } else {
+        setItems([])
       }
     } catch (error) {
       console.error('Error loading order items:', error)
@@ -176,10 +179,10 @@ export function OrderItemsManager({ orderId, onTotalChange }: OrderItemsManagerP
   }
 
   // Calcular totales
-  const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0)
-  const totalDiscounts = items.reduce((sum, item) => sum + item.discount_amount, 0)
-  const totalTax = items.reduce((sum, item) => sum + item.tax_amount, 0)
-  const grandTotal = items.reduce((sum, item) => sum + item.total, 0)
+  const subtotal = (items || []).reduce((sum, item) => sum + (item.subtotal || 0), 0)
+  const totalDiscounts = (items || []).reduce((sum, item) => sum + (item.discount_amount || 0), 0)
+  const totalTax = (items || []).reduce((sum, item) => sum + (item.tax_amount || 0), 0)
+  const grandTotal = (items || []).reduce((sum, item) => sum + (item.total || 0), 0)
 
   if (loading) {
     return (

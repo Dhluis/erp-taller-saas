@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { OrderItemsManager } from "@/components/orders/order-items-manager"
 import { useToast } from "@/components/ui/use-toast"
-import { safeFetch, safePut } from "@/lib/api"
+import { safeFetch, safePatch } from "@/lib/api"
 import { PageHeader } from '@/components/navigation/page-header'
 import { 
   ArrowLeft, 
@@ -138,7 +138,7 @@ export default function OrderDetailPage() {
   const updateOrderTotal = async (total: number) => {
     try {
       setSaving(true)
-      const result = await safePut(`/api/orders/${orderId}`, { final_cost: total })
+      const result = await safePatch(`/api/orders/${orderId}`, { final_cost: total })
 
       if (!result.success) {
         toast({
