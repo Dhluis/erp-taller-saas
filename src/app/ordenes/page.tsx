@@ -409,10 +409,10 @@ export default function OrdenesPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     Estado
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider min-w-[100px]">
                     Fecha
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider sticky right-0 bg-slate-900/50 z-10 min-w-[140px]">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider sticky right-0 bg-slate-800/95 z-20 min-w-[150px] border-l border-slate-700">
                     Acciones
                   </th>
                 </tr>
@@ -509,7 +509,7 @@ export default function OrdenesPage() {
                     </td>
 
                     {/* Acciones */}
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-slate-800/50 z-10">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-slate-800/95 z-20 border-l border-slate-700/50">
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           variant="ghost"
