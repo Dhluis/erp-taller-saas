@@ -137,6 +137,13 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
 
   // Función para cargar órdenes (OPTIMIZADA) - Memoizada con useCallback
   const loadOrders = useCallback(async () => {
+    // ✅ FIX: Verificar que organizationId esté disponible antes de cargar
+    if (!organizationId) {
+      console.log('⚠️ [KanbanBoard] No hay organizationId, saltando carga');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -248,18 +255,22 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
     }
   }, [organizationId, dateFilter, customDateRange, searchQuery, refreshKey]);
 
-  // Cargar órdenes al montar y cuando cambien los filtros
+  // ✅ FIX: Cargar órdenes al montar y cuando cambien los filtros, solo si organizationId está disponible
   useEffect(() => {
-    console.log('🔄 [KanbanBoard] useEffect triggered - filtros cambiaron');
-    loadOrders();
-  }, [loadOrders]);
+    if (organizationId) {
+      console.log('🔄 [KanbanBoard] useEffect triggered - filtros cambiaron');
+      loadOrders();
+    }
+  }, [organizationId, loadOrders]);
 
   // Cargar órdenes cuando cambie refreshKey (para botón Actualizar y después de crear orden)
   useEffect(() => {
-    console.log('🔄 [KanbanBoard] useEffect triggered - refreshKey:', refreshKey);
-    loadOrders();
+    if (organizationId) {
+      console.log('🔄 [KanbanBoard] useEffect triggered - refreshKey:', refreshKey);
+      loadOrders();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey]);
+  }, [refreshKey, organizationId]);
 
   // Manejar inicio de arrastre
   function handleDragStart(event: DragStartEvent) {

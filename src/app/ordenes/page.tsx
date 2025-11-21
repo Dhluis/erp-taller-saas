@@ -137,9 +137,12 @@ export default function OrdenesPage() {
     }
   }, [organizationId]);
 
+  // ✅ FIX: Solo cargar órdenes cuando organizationId esté listo y no esté cargando
   useEffect(() => {
-    loadOrders();
-  }, [loadOrders]);
+    if (!orgLoading && organizationId) {
+      loadOrders();
+    }
+  }, [orgLoading, organizationId, loadOrders]);
 
   // Filtrar órdenes
   useEffect(() => {
@@ -223,10 +226,14 @@ export default function OrdenesPage() {
     }
   };
 
-  if (!organizationId) {
+  // ✅ FIX: Esperar a que organizationId esté listo antes de renderizar
+  if (!organizationId || orgLoading) {
     return (
       <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500 mx-auto mb-4"></div>
           <p className="text-slate-400">Cargando organización...</p>
+        </div>
       </div>
     );
   }
