@@ -113,11 +113,49 @@ export interface CreateOrderItemData {
 
 interface WorkOrderFilters {
   status?: WorkOrderStatus;
+  includeItems?: boolean; // ✅ Opcional: incluir order_items (default: false para mejor rendimiento)
 }
 
 // ============================================================================
 // WORK ORDERS - CRUD
 // ============================================================================
+
+// ✅ CACHE SIMPLE EN MEMORIA (10 segundos)
+const ordersCache = new Map<string, { data: WorkOrder[]; timestamp: number }>();
+const CACHE_TTL = 10000; // 10 segundos
+
+function getCacheKey(organizationId: string, filters?: WorkOrderFilters): string {
+  return `${organizationId}-${filters?.status || 'all'}-${filters?.includeItems ? 'with-items' : 'no-items'}`;
+}
+
+function getCachedOrders(key: string): WorkOrder[] | null {
+  const cached = ordersCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  ordersCache.delete(key);
+  return null;
+}
+
+function setCachedOrders(key: string, data: WorkOrder[]): void {
+  ordersCache.set(key, { data, timestamp: Date.now() });
+}
+
+export function clearOrdersCache(organizationId?: string): void {
+  if (organizationId) {
+    // Limpiar solo las claves de esta organización
+    const keysToDelete: string[] = [];
+    ordersCache.forEach((_, key) => {
+      if (key.startsWith(`${organizationId}-`)) {
+        keysToDelete.push(key);
+      }
+    });
+    keysToDelete.forEach(key => ordersCache.delete(key));
+  } else {
+    // Limpiar todo el cache
+    ordersCache.clear();
+  }
+}
 
 export async function getAllWorkOrders(organizationId?: string, filters?: WorkOrderFilters) {
   const supabase = getClient();
@@ -125,14 +163,28 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
   // ✅ SIEMPRE usar el helper si no se proporciona organizationId
   const finalOrgId = organizationId || await getOrganizationId();
   
-  console.log('🔍 [getAllWorkOrders] Buscando órdenes con organization_id:', finalOrgId);
-  console.log('🔍 [getAllWorkOrders] organizationId recibido:', organizationId);
+  // ✅ OPTIMIZACIÓN: Solo logs en desarrollo
+  const isDev = process.env.NODE_ENV === 'development';
+  if (isDev) {
+    console.log('🔍 [getAllWorkOrders] Buscando órdenes con organization_id:', finalOrgId);
+  }
 
+  // ✅ OPTIMIZACIÓN: Verificar cache primero
+  const cacheKey = getCacheKey(finalOrgId, filters);
+  const cached = getCachedOrders(cacheKey);
+  if (cached) {
+    if (isDev) {
+      console.log('✅ [getAllWorkOrders] Datos desde cache:', cached.length);
+    }
+    return cached;
+  }
+
+  // ✅ OPTIMIZACIÓN: order_items solo si se solicita explícitamente
+  const includeItems = filters?.includeItems === true;
+  
   // ✅ MULTI-TENANT: Solo buscar órdenes del organization_id del usuario actual
   // Cada cliente solo verá sus propias órdenes, garantizando aislamiento de datos
-  let query = supabase
-    .from('work_orders')
-    .select(`
+  let selectQuery = `
       *,
       customer:customers(
         id,
@@ -146,14 +198,20 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
         model,
         year,
         license_plate
-      ),
-      order_items(*)
-    `);
+      )`;
+  
+  // ✅ OPTIMIZACIÓN: Solo incluir order_items si se necesita
+  if (includeItems) {
+    selectQuery += ',\n      order_items(*)';
+  }
+
+  let query = supabase
+    .from('work_orders')
+    .select(selectQuery);
   
   // Filtrar solo por el organization_id del usuario actual
   if (finalOrgId) {
     query = query.eq('organization_id', finalOrgId);
-    console.log('🔍 [getAllWorkOrders] Buscando órdenes con organization_id:', finalOrgId);
   }
   
   // ✅ REMOVIDO: .not('workshop_id', 'is', null) - Mostrar todas las órdenes, con o sin workshop
@@ -166,72 +224,25 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
   const { data, error } = await query;
 
   if (error) {
-    console.error('❌ [getAllWorkOrders] Error fetching work orders:', error);
+    if (isDev) {
+      console.error('❌ [getAllWorkOrders] Error fetching work orders:', error);
+    }
     throw error;
   }
 
-  console.log('✅ [getAllWorkOrders] Órdenes encontradas:', data?.length || 0);
-  
-  // Verificar si hay órdenes con diferentes organization_id
-  if (data && data.length > 0) {
-    const orgIds = [...new Set(data.map((o: any) => o.organization_id))];
-    console.log('📋 [getAllWorkOrders] Organization IDs encontrados:', orgIds);
-    console.log('📋 [getAllWorkOrders] Organization ID buscado:', finalOrgId);
-    console.log('📋 [getAllWorkOrders] Primera orden:', {
-      id: data[0].id,
-      organization_id: (data[0] as any).organization_id,
-      status: (data[0] as any).status,
-      created_at: (data[0] as any).created_at
-    });
-    
-    // Si hay órdenes con organization_id diferente, buscar todas las órdenes
-    if (orgIds.length > 1 || (orgIds.length === 1 && orgIds[0] !== finalOrgId)) {
-      console.warn('⚠️ [getAllWorkOrders] Se encontraron órdenes con organization_id diferente. Buscando todas las órdenes...');
-      const { data: allData, error: allError } = await supabase
-        .from('work_orders')
-        .select('id, organization_id, status, created_at')
-        .order('created_at', { ascending: false })
-        .limit(50);
-      
-      if (!allError && allData) {
-        const allOrgIds = [...new Set(allData.map((o: any) => o.organization_id))];
-        console.log('🔍 [getAllWorkOrders] Total de órdenes en DB:', allData.length);
-        console.log('🔍 [getAllWorkOrders] Organization IDs en DB:', allOrgIds);
-        console.log('🔍 [getAllWorkOrders] Distribución por organization_id:', 
-          allOrgIds.map(orgId => ({
-            orgId,
-            count: allData.filter((o: any) => o.organization_id === orgId).length
-          }))
-        );
-      }
-    }
+  if (isDev) {
+    console.log('✅ [getAllWorkOrders] Órdenes encontradas:', data?.length || 0);
   }
   
-  // Si no hay datos pero debería haber, intentar sin filtro de organization_id para debug
-  if (!data || data.length === 0) {
-    console.warn('⚠️ [getAllWorkOrders] No se encontraron órdenes. Verificando sin filtro de organization_id...');
-    const { data: allData, error: allError } = await supabase
-      .from('work_orders')
-      .select('id, organization_id, status, created_at')
-      .order('created_at', { ascending: false })
-      .limit(50);
-    
-    if (!allError && allData) {
-      const allOrgIds = [...new Set(allData.map((o: any) => o.organization_id))];
-      console.log('🔍 [getAllWorkOrders] Total de órdenes en DB (sin filtro):', allData.length);
-      console.log('🔍 [getAllWorkOrders] Organization IDs en DB:', allOrgIds);
-      console.log('🔍 [getAllWorkOrders] Organization ID buscado:', finalOrgId);
-      console.log('🔍 [getAllWorkOrders] Distribución:', 
-        allOrgIds.map(orgId => ({
-          orgId,
-          count: allData.filter((o: any) => o.organization_id === orgId).length,
-          matches: orgId === finalOrgId
-        }))
-      );
-    }
-  }
+  // ✅ OPTIMIZACIÓN: Removidas queries de debug innecesarias (líneas 175-232)
+  // Estas queries adicionales ralentizaban la carga en producción
   
-  return data as WorkOrder[];
+  const result = (data || []) as WorkOrder[];
+  
+  // ✅ OPTIMIZACIÓN: Guardar en cache
+  setCachedOrders(cacheKey, result);
+  
+  return result;
 }
 
 export async function getWorkOrderById(id: string) {
@@ -265,6 +276,12 @@ export async function getWorkOrderById(id: string) {
     .abortSignal(new AbortController().signal);
 
   if (error) throw error;
+  
+  // ✅ OPTIMIZACIÓN: Limpiar cache al obtener una orden específica
+  if (data) {
+    clearOrdersCache(organizationId);
+  }
+  
   return data as WorkOrder;
 }
 
@@ -306,6 +323,12 @@ export async function createWorkOrder(orderData: CreateWorkOrderData) {
     .single();
 
   if (error) throw error;
+  
+  // ✅ OPTIMIZACIÓN: Limpiar cache al crear una orden
+  if (data) {
+    clearOrdersCache(orderData.organization_id || organizationId);
+  }
+  
   return data as WorkOrder;
 }
 
@@ -348,6 +371,12 @@ export async function updateWorkOrder(id: string, orderData: UpdateWorkOrderData
     .single();
 
   if (error) throw error;
+  
+  // ✅ OPTIMIZACIÓN: Limpiar cache al actualizar una orden
+  if (data) {
+    clearOrdersCache(organizationId);
+  }
+  
   return data as WorkOrder;
 }
 
@@ -440,19 +469,19 @@ export async function deleteWorkOrder(id: string) {
     throw error
   }
   
-  console.log('🔧 Procediendo a eliminar la orden...')
   const { error } = await supabase
     .from('work_orders')
     .delete()
     .eq('id', id)
     .eq('organization_id', organizationId);
 
+  // ✅ OPTIMIZACIÓN: Limpiar cache al eliminar una orden
+  clearOrdersCache(organizationId);
+
   if (error) {
     console.error('❌ Error al eliminar orden en BD:', error)
     throw new Error(`Failed to delete work order: ${error.message}`)
   }
-  
-  console.log('✅ Orden eliminada exitosamente en BD')
   return { success: true };
 }
 

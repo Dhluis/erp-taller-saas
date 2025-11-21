@@ -146,8 +146,8 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
       console.log('🔄 [KanbanBoard] refreshKey:', refreshKey);
       console.log('🔄 [KanbanBoard] Timestamp:', new Date().toISOString());
       
-      // Cargar órdenes (work-orders.ts no usa cache, siempre datos frescos)
-      const orders = await getAllWorkOrders(organizationId);
+      // ✅ OPTIMIZACIÓN: No cargar order_items en Kanban (no se usan)
+      const orders = await getAllWorkOrders(organizationId, { includeItems: false });
       console.log('📊 [KanbanBoard] Órdenes recibidas de getAllWorkOrders:', orders?.length || 0);
       
       // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
@@ -197,25 +197,21 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
       
       // Filtrar por rango de fechas si existe
       let filteredByDate = orders;
+      // ✅ OPTIMIZACIÓN: Solo logs en desarrollo
+      const isDev = process.env.NODE_ENV === 'development';
+      
       if (dateRange && dateRange.from && dateRange.to) {
-        console.log('Rango de fechas aplicado:', {
-          from: dateRange.from.toISOString(),
-          to: dateRange.to.toISOString()
-        });
+        if (isDev) {
+          console.log('Rango de fechas aplicado:', {
+            from: dateRange.from.toISOString(),
+            to: dateRange.to.toISOString()
+          });
+        }
         
-        const beforeFilter = orders.length;
         filteredByDate = orders.filter(order => {
           const orderDate = new Date(order.created_at);
-          const matches = orderDate >= dateRange.from! && orderDate <= dateRange.to!;
-          if (!matches) {
-            console.log(`  ❌ Orden ${order.id.substring(0, 8)}... excluida (fecha: ${orderDate.toISOString()})`);
-          }
-          return matches;
+          return orderDate >= dateRange.from! && orderDate <= dateRange.to!;
         });
-        
-        console.log(`Órdenes filtradas por fecha: ${beforeFilter} → ${filteredByDate.length} (eliminadas: ${beforeFilter - filteredByDate.length})`);
-      } else {
-        console.log('Sin filtro de fecha aplicado');
       }
       
       // Filtrar por búsqueda si existe
@@ -233,15 +229,9 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
           })
         : filteredByDate;
       
-      console.log('Órdenes después de búsqueda:', filteredOrders.length);
-      console.log('Distribución por estado:');
-      KANBAN_COLUMNS.forEach(col => {
-        const count = filteredOrders.filter(o => o.status === col.id).length;
-        if (count > 0) {
-          console.log(`  ${col.title}: ${count}`);
-        }
-      });
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      if (isDev) {
+        console.log('Órdenes después de filtros:', filteredOrders.length);
+      }
       
       // Organizar órdenes por columna
       const newColumns = KANBAN_COLUMNS.map(col => ({

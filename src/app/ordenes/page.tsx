@@ -66,59 +66,67 @@ export default function OrdenesPage() {
       return;
     }
 
+    // ✅ OPTIMIZACIÓN: Solo logs en desarrollo
+    const isDev = process.env.NODE_ENV === 'development';
+
     try {
       setLoading(true);
-      console.log('🔍 Cargando órdenes...');
-      console.log('🔍 organizationId:', organizationId);
+      
+      if (isDev) {
+        console.log('🔍 Cargando órdenes...');
+        console.log('🔍 organizationId:', organizationId);
+      }
 
-      const data = await getAllWorkOrders(organizationId);
+      // ✅ OPTIMIZACIÓN: No cargar order_items en la lista (no se usan)
+      const data = await getAllWorkOrders(organizationId, { includeItems: false });
 
-      console.log('📊 Órdenes recibidas:', data?.length);
-      console.log('📋 Primera orden:', data?.[0]);
+      // ✅ OPTIMIZACIÓN: Cargar usuarios asignados en paralelo con la normalización
+      const assignedUserIds = [...new Set(
+        (data ?? [])
+          .map((order: any) => order.assigned_to)
+          .filter((id: string | null | undefined) => id)
+      )] as string[];
 
-      // Normalizar datos primero (sin usuarios asignados)
+      // Cargar usuarios y normalizar datos en paralelo
+      const [usersData] = await Promise.allSettled([
+        assignedUserIds.length > 0
+          ? (async () => {
+              const { createClient } = await import('@/lib/supabase/client');
+              const supabase = createClient();
+              const { data: users, error } = await supabase
+                .from('system_users')
+                .select('id, first_name, last_name, role, email')
+                .in('id', assignedUserIds);
+              return error ? null : users;
+            })()
+          : Promise.resolve(null),
+      ]);
+
+      // Normalizar datos
       let normalizedData = (data ?? []).map((order: any) => ({
         ...order,
         entry_date: order.entry_date ?? order.created_at ?? '',
       })) as WorkOrder[];
 
-      // Cargar usuarios asignados por separado (opcional, no debe afectar la carga de órdenes)
-      try {
-        const assignedUserIds = [...new Set(
-          normalizedData
-            .map((order: any) => order.assigned_to)
-            .filter((id: string | null | undefined) => id)
-        )] as string[];
+      // Agregar usuarios asignados si se cargaron exitosamente
+      if (usersData.status === 'fulfilled' && usersData.value) {
+        const assignedUsersMap = usersData.value.reduce((acc: Record<string, any>, user: any) => {
+          acc[user.id] = user;
+          return acc;
+        }, {});
 
-        if (assignedUserIds.length > 0) {
-          const { createClient } = await import('@/lib/supabase/client');
-          const supabase = createClient();
-          
-          const { data: usersData, error: usersError } = await supabase
-            .from('system_users')
-            .select('id, first_name, last_name, role, email')
-            .in('id', assignedUserIds);
-
-          if (!usersError && usersData) {
-            const assignedUsersMap = usersData.reduce((acc: Record<string, any>, user: any) => {
-              acc[user.id] = user;
-              return acc;
-            }, {});
-
-            // Agregar usuarios asignados a las órdenes
-            normalizedData = normalizedData.map((order: any) => ({
-              ...order,
-              assigned_user: order.assigned_to ? assignedUsersMap[order.assigned_to] || null : null,
-            })) as WorkOrder[];
-          }
-        }
-      } catch (error) {
-        // Si falla la carga de usuarios, continuar sin ellos
-        console.warn('⚠️ No se pudieron cargar usuarios asignados (continuando sin ellos):', error);
+        normalizedData = normalizedData.map((order: any) => ({
+          ...order,
+          assigned_user: order.assigned_to ? assignedUsersMap[order.assigned_to] || null : null,
+        })) as WorkOrder[];
       }
 
       setOrders(normalizedData as unknown as WorkOrder[]);
       setFilteredOrders(normalizedData as unknown as WorkOrder[]);
+      
+      if (isDev) {
+        console.log('✅ Órdenes cargadas:', normalizedData.length);
+      }
     } catch (error) {
       console.error('❌ Error cargando órdenes:', error);
       toast.error('Error al cargar órdenes', {

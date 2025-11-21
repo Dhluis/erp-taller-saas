@@ -62,8 +62,8 @@ export default function ReportesPage() {
       try {
         setLoading(true);
         
-        // ✅ Cargar órdenes usando getAllWorkOrders con organizationId correcto
-        const orders = await getAllWorkOrders(organizationId);
+        // ✅ OPTIMIZACIÓN: No cargar order_items en reportes (no se usan)
+        const orders = await getAllWorkOrders(organizationId, { includeItems: false });
         
         console.log('📊 [Reportes] Órdenes cargadas:', orders.length);
         
