@@ -96,39 +96,39 @@ export function QuickActions({ onOrderCreated }: QuickActionsProps) {
           {/* Acciones Rápidas Específicas */}
           <div className="grid grid-cols-1 gap-2 pt-2 border-t">
             <Button
-              className="w-full justify-start h-auto py-2 px-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 shadow-sm"
+              className="w-full justify-start h-auto py-2 px-3 bg-gray-800/50 border border-gray-700 hover:bg-blue-500/10 hover:border-blue-500/50 backdrop-blur-sm transition-all duration-300 shadow-sm"
               onClick={handleDiagnostico}
             >
-              <Wrench className="h-4 w-4 mr-2" />
+              <Wrench className="h-4 w-4 mr-2 text-blue-400" />
               <div className="text-left">
-                <div className="font-medium text-sm">Diagnóstico</div>
-                <div className="text-xs text-purple-100 mt-0.5">
+                <div className="font-medium text-sm text-white">Diagnóstico</div>
+                <div className="text-xs text-gray-400 mt-0.5">
                   Evaluación inicial
                 </div>
               </div>
             </Button>
 
             <Button
-              className="w-full justify-start h-auto py-2 px-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-sm"
+              className="w-full justify-start h-auto py-2 px-3 bg-gray-800/50 border border-gray-700 hover:bg-blue-500/10 hover:border-blue-500/50 backdrop-blur-sm transition-all duration-300 shadow-sm"
               onClick={handleMantenimiento}
             >
-              <Settings className="h-4 w-4 mr-2" />
+              <Settings className="h-4 w-4 mr-2 text-blue-400" />
               <div className="text-left">
-                <div className="font-medium text-sm">Mantenimiento</div>
-                <div className="text-xs text-green-100 mt-0.5">
+                <div className="font-medium text-sm text-white">Mantenimiento</div>
+                <div className="text-xs text-gray-400 mt-0.5">
                   Servicio preventivo
                 </div>
               </div>
             </Button>
 
             <Button
-              className="w-full justify-start h-auto py-2 px-3 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 shadow-sm"
+              className="w-full justify-start h-auto py-2 px-3 bg-gray-800/50 border border-gray-700 hover:bg-blue-500/10 hover:border-blue-500/50 backdrop-blur-sm transition-all duration-300 shadow-sm"
               onClick={handleReparacion}
             >
-              <Hammer className="h-4 w-4 mr-2" />
+              <Hammer className="h-4 w-4 mr-2 text-blue-400" />
               <div className="text-left">
-                <div className="font-medium text-sm">Reparación</div>
-                <div className="text-xs text-orange-100 mt-0.5">
+                <div className="font-medium text-sm text-white">Reparación</div>
+                <div className="text-xs text-gray-400 mt-0.5">
                   Servicio correctivo
                 </div>
               </div>
@@ -139,38 +139,38 @@ export function QuickActions({ onOrderCreated }: QuickActionsProps) {
           <div className="grid grid-cols-2 gap-2 pt-2 border-t">
             <Button
               variant="outline"
-              className="h-auto py-2 px-3 flex-col items-start hover:bg-blue-50"
+              className="h-auto py-2 px-3 flex-col items-start border-gray-700 bg-gray-800/50 hover:bg-blue-500/10 hover:border-blue-500/50 backdrop-blur-sm transition-all duration-300"
               onClick={handleCliente}
             >
-              <Users className="h-4 w-4 mb-1 text-blue-600" />
-              <span className="text-xs font-medium">Cliente</span>
+              <Users className="h-4 w-4 mb-1 text-blue-400" />
+              <span className="text-xs font-medium text-white">Cliente</span>
             </Button>
 
             <Button
               variant="outline"
-              className="h-auto py-2 px-3 flex-col items-start hover:bg-green-50"
+              className="h-auto py-2 px-3 flex-col items-start border-gray-700 bg-gray-800/50 hover:bg-blue-500/10 hover:border-blue-500/50 backdrop-blur-sm transition-all duration-300"
               onClick={handleVehiculo}
             >
-              <Car className="h-4 w-4 mb-1 text-green-600" />
-              <span className="text-xs font-medium">Vehículo</span>
+              <Car className="h-4 w-4 mb-1 text-blue-400" />
+              <span className="text-xs font-medium text-white">Vehículo</span>
             </Button>
 
             <Button
               variant="outline"
-              className="h-auto py-2 px-3 flex-col items-start hover:bg-purple-50"
+              className="h-auto py-2 px-3 flex-col items-start border-gray-700 bg-gray-800/50 hover:bg-blue-500/10 hover:border-blue-500/50 backdrop-blur-sm transition-all duration-300"
               onClick={handleCotizacion}
             >
-              <FileText className="h-4 w-4 mb-1 text-purple-600" />
-              <span className="text-xs font-medium">Cotización</span>
+              <FileText className="h-4 w-4 mb-1 text-blue-400" />
+              <span className="text-xs font-medium text-white">Cotización</span>
             </Button>
 
             <Button
               variant="outline"
-              className="h-auto py-2 px-3 flex-col items-start hover:bg-orange-50"
+              className="h-auto py-2 px-3 flex-col items-start border-gray-700 bg-gray-800/50 hover:bg-blue-500/10 hover:border-blue-500/50 backdrop-blur-sm transition-all duration-300"
               onClick={handleCita}
             >
-              <Calendar className="h-4 w-4 mb-1 text-orange-600" />
-              <span className="text-xs font-medium">Cita</span>
+              <Calendar className="h-4 w-4 mb-1 text-blue-400" />
+              <span className="text-xs font-medium text-white">Cita</span>
             </Button>
           </div>
         </CardContent>
