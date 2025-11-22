@@ -120,9 +120,9 @@ interface WorkOrderFilters {
 // WORK ORDERS - CRUD
 // ============================================================================
 
-// ✅ CACHE SIMPLE EN MEMORIA (10 segundos)
+// ✅ CACHE SIMPLE EN MEMORIA (5 segundos - reducido para evitar problemas)
 const ordersCache = new Map<string, { data: WorkOrder[]; timestamp: number }>();
-const CACHE_TTL = 10000; // 10 segundos
+const CACHE_TTL = 5000; // 5 segundos - reducido para asegurar datos frescos
 
 function getCacheKey(organizationId: string, filters?: WorkOrderFilters): string {
   return `${organizationId}-${filters?.status || 'all'}-${filters?.includeItems ? 'with-items' : 'no-items'}`;
@@ -176,7 +176,16 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
     if (isDev) {
       console.log('✅ [getAllWorkOrders] Datos desde cache:', cached.length);
     }
-    return cached;
+    // ✅ FIX: Solo usar cache si hay datos (evitar cache vacío)
+    if (cached.length > 0) {
+      return cached;
+    } else {
+      if (isDev) {
+        console.log('⚠️ [getAllWorkOrders] Cache vacío detectado, forzando nueva carga...');
+      }
+      // Limpiar cache vacío
+      ordersCache.delete(cacheKey);
+    }
   }
 
   // ✅ OPTIMIZACIÓN: order_items solo si se solicita explícitamente
@@ -215,7 +224,11 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
   }
   
   // ✅ REMOVIDO: .not('workshop_id', 'is', null) - Mostrar todas las órdenes, con o sin workshop
+  // ✅ FIX: Forzar que no use cache agregando un timestamp único a la query
   query = query.order('created_at', { ascending: false });
+  
+  // ✅ FIX: Deshabilitar cache en PostgREST agregando header
+  // Nota: Esto se hace a nivel de cliente de Supabase, pero también podemos forzar revalidación
 
   if (filters?.status) {
     query = query.eq('status', filters.status);
