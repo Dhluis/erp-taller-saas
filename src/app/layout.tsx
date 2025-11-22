@@ -24,11 +24,13 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/eagles-logo.png", type: "image/png" },
+      { url: "/eagles-logo-new.png", type: "image/png" },
+      { url: "/eagles-logo-new.png", sizes: "32x32", type: "image/png" },
+      { url: "/eagles-logo-new.png", sizes: "16x16", type: "image/png" },
     ],
-    shortcut: "/eagles-logo.png",
+    shortcut: "/eagles-logo-new.png",
     apple: [
-      { url: "/eagles-logo.png", type: "image/png" },
+      { url: "/eagles-logo-new.png", type: "image/png" },
     ],
   },
   other: {

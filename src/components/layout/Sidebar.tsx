@@ -45,7 +45,8 @@ export function Sidebar({ className }: SidebarProps) {
   const router = useRouter()
   const [expandedSections, setExpandedSections] = useState<string[]>([])
   const { isCollapsed, toggleCollapse } = useSidebar()
-  const logoUrl = "https://i.ibb.co/yFmC8Lx/Whats-App-Image-2025-11-03-at-6-01-33-PM.jpg"
+  // Logo actualizado - EAGLES GEAR SYSTEM
+  const logoUrl = "/eagles-logo-new.png"
 
   // Inicializar secciones expandidas después de la hidratación
   useEffect(() => {
@@ -225,11 +226,11 @@ export function Sidebar({ className }: SidebarProps) {
             aria-label="Ir al dashboard"
           >
             <img
-              src="https://i.ibb.co/d4svQnHP/Whats-App-Image-2025-11-03-at-6-01-33-PM.png"
-              alt="Logo Eagles ERP"
+              src={logoUrl}
+              alt="EAGLES GEAR SYSTEM"
               className={cn(
-                "rounded-md shadow-sm transition-all hover:scale-[1.02] focus:outline-none",
-                isCollapsed ? "h-10 w-10 object-cover" : "h-16 w-auto"
+                "rounded-md shadow-sm transition-all hover:scale-[1.02] focus:outline-none object-contain",
+                isCollapsed ? "h-10 w-10" : "h-16 w-auto max-w-[200px]"
               )}
             />
           </button>

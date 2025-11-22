@@ -118,7 +118,7 @@ export default function RegisterPage() {
         <div className="text-center mb-8">
           <div className="mb-4 flex justify-center">
             <Image
-              src="/eagles-logo.png"
+              src="/eagles-logo-new.png"
               alt="Logo Eagles ERP"
               width={160}
               height={80}
