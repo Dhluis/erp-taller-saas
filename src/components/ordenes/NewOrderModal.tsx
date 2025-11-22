@@ -51,12 +51,16 @@ export function NewOrderModal({ isOpen, onClose, organizationId, onSuccess }: Ne
     authorize_test_drive: false,
   });
 
-  // Cargar clientes al abrir modal
+  // ✅ FIX: Cargar clientes al abrir modal solo si organizationId está disponible
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && organizationId) {
+      console.log('🔄 [NewOrderModal] Cargando clientes para organizationId:', organizationId);
       loadCustomers();
+    } else if (isOpen && !organizationId) {
+      console.warn('⚠️ [NewOrderModal] organizationId no disponible, no se pueden cargar clientes');
+      setError('No se puede cargar la lista de clientes. Por favor, intenta de nuevo.');
     }
-  }, [isOpen]);
+  }, [isOpen, organizationId]);
 
   // Cargar vehículos cuando se selecciona un cliente
   useEffect(() => {
@@ -69,14 +73,53 @@ export function NewOrderModal({ isOpen, onClose, organizationId, onSuccess }: Ne
   }, [formData.customer_id]);
 
   async function loadCustomers() {
+    if (!organizationId) {
+      console.error('❌ [NewOrderModal] No hay organizationId para cargar clientes');
+      return;
+    }
+
     try {
-      const response = await fetch('/api/customers');
+      setLoading(true);
+      setError(null);
+      
+      // ✅ FIX: Forzar sin cache y agregar timestamp
+      const response = await fetch(`/api/customers?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        }
+      });
+      
       if (!response.ok) throw new Error('Error al cargar clientes');
       const data = await response.json();
-      setCustomers(data);
+      
+      // ✅ FIX: Verificar que la respuesta tenga el formato correcto
+      const customersData = data?.success ? data.data : (Array.isArray(data) ? data : []);
+      
+      // ✅ FIX: Filtrar solo clientes de la organización actual
+      const filteredCustomers = customersData.filter((c: any) => {
+        const customerOrgId = c.organization_id;
+        const matches = customerOrgId === organizationId;
+        if (!matches && customerOrgId) {
+          console.warn('⚠️ [NewOrderModal] Cliente con organization_id diferente encontrado:', {
+            customer_id: c.id,
+            customer_name: c.name,
+            customer_org_id: customerOrgId,
+            expected_org_id: organizationId
+          });
+        }
+        return matches;
+      });
+      
+      console.log('✅ [NewOrderModal] Clientes cargados:', filteredCustomers.length);
+      console.log('✅ [NewOrderModal] Primeros clientes:', filteredCustomers.slice(0, 3).map((c: any) => ({ id: c.id, name: c.name })));
+      
+      setCustomers(filteredCustomers);
     } catch (err) {
-      console.error('Error cargando clientes:', err);
+      console.error('❌ [NewOrderModal] Error cargando clientes:', err);
       setError('Error al cargar clientes');
+    } finally {
+      setLoading(false);
     }
   }
 
