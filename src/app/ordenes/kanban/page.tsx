@@ -10,15 +10,19 @@ import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
 import { Button } from '@/components/ui/button';
 
 export default function KanbanPage() {
-  const { organizationId, loading: orgLoading } = useOrganization();
+  const { organizationId, loading: orgLoading, ready } = useOrganization();
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  if (!organizationId || orgLoading) {
+  // ✅ FIX: Esperar a que organizationId esté ready y estable
+  if (!organizationId || orgLoading || !ready) {
     return (
       <div className="flex items-center justify-center h-64">
           <p className="text-slate-400">Cargando organización...</p>
+          {organizationId && !ready && (
+            <p className="text-xs text-slate-500 mt-2">Estabilizando organización...</p>
+          )}
       </div>
     );
   }

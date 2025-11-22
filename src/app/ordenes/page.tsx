@@ -45,7 +45,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 
 export default function OrdenesPage() {
   const router = useRouter();
-  const { organizationId, loading: orgLoading } = useOrganization();
+  const { organizationId, loading: orgLoading, ready } = useOrganization();
 
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<WorkOrder[]>([]);
@@ -147,19 +147,19 @@ export default function OrdenesPage() {
     }
   }, [organizationId]);
 
-  // ✅ FIX: Solo cargar órdenes cuando organizationId esté listo y no esté cargando
-  // IMPORTANTE: Este useEffect se ejecuta cuando organizationId cambia de undefined a un valor
+  // ✅ FIX: Solo cargar órdenes cuando organizationId esté listo, estable y no esté cargando
+  // IMPORTANTE: Ahora usamos el estado 'ready' para asegurar que organizationId está estable
   useEffect(() => {
-    if (!orgLoading && organizationId) {
-      console.log('🔄 [OrdenesPage] useEffect triggered - organizationId disponible:', organizationId);
+    if (ready && organizationId && !orgLoading) {
+      console.log('🔄 [OrdenesPage] useEffect triggered - organizationId READY y disponible:', organizationId);
       console.log('🔄 [OrdenesPage] Ejecutando loadOrders...');
       loadOrders();
-    } else if (orgLoading) {
-      console.log('⏳ [OrdenesPage] Esperando a que organizationId cargue...');
+    } else if (orgLoading || !ready) {
+      console.log('⏳ [OrdenesPage] Esperando a que organizationId esté ready...', { orgLoading, ready, organizationId: !!organizationId });
     } else if (!organizationId) {
       console.log('⚠️ [OrdenesPage] organizationId no disponible todavía');
     }
-  }, [orgLoading, organizationId, loadOrders]);
+  }, [ready, orgLoading, organizationId, loadOrders]);
 
   // Filtrar órdenes
   useEffect(() => {
@@ -243,13 +243,16 @@ export default function OrdenesPage() {
     }
   };
 
-  // ✅ FIX: Esperar a que organizationId esté listo antes de renderizar
-  if (!organizationId || orgLoading) {
+  // ✅ FIX: Esperar a que organizationId esté listo y estable antes de renderizar
+  if (!organizationId || orgLoading || !ready) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500 mx-auto mb-4"></div>
           <p className="text-slate-400">Cargando organización...</p>
+          {organizationId && !ready && (
+            <p className="text-xs text-slate-500 mt-2">Estabilizando organización...</p>
+          )}
         </div>
       </div>
     );

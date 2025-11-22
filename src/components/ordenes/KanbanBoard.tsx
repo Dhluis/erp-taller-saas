@@ -264,21 +264,30 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
 
   // ✅ FIX: Cargar órdenes al montar y cuando cambien los filtros, solo si organizationId está disponible
   // IMPORTANTE: Este useEffect se ejecuta cuando organizationId cambia de undefined a un valor
+  // Ahora también verificamos que organizationId sea una cadena válida (no null/undefined)
   useEffect(() => {
-    if (organizationId) {
+    if (organizationId && typeof organizationId === 'string' && organizationId.length > 0) {
       console.log('🔄 [KanbanBoard] useEffect triggered - organizationId disponible:', organizationId);
       console.log('🔄 [KanbanBoard] Ejecutando loadOrders...');
-      loadOrders();
+      // ✅ FIX: Agregar un pequeño delay para asegurar que el estado se haya propagado
+      const timeoutId = setTimeout(() => {
+        loadOrders();
+      }, 150);
+      return () => clearTimeout(timeoutId);
     } else {
-      console.log('⚠️ [KanbanBoard] organizationId no disponible todavía, esperando...');
+      console.log('⚠️ [KanbanBoard] organizationId no disponible todavía, esperando...', { organizationId });
     }
   }, [organizationId, loadOrders]);
 
   // Cargar órdenes cuando cambie refreshKey (para botón Actualizar y después de crear orden)
   useEffect(() => {
-    if (organizationId) {
+    if (organizationId && typeof organizationId === 'string' && organizationId.length > 0 && refreshKey > 0) {
       console.log('🔄 [KanbanBoard] useEffect triggered - refreshKey:', refreshKey);
-      loadOrders();
+      // ✅ FIX: Agregar un pequeño delay para asegurar que el estado se haya propagado
+      const timeoutId = setTimeout(() => {
+        loadOrders();
+      }, 150);
+      return () => clearTimeout(timeoutId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey, organizationId]);

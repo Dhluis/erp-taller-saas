@@ -8,6 +8,7 @@ interface OrganizationContextType {
   workshopId: string | null;
   loading: boolean;
   error: Error | null;
+  ready: boolean; // ✅ NUEVO: Indica cuando organizationId está estable y listo para usar
   refresh: () => Promise<void>;
 }
 
@@ -18,6 +19,7 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
   const [workshopId, setWorkshopId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [ready, setReady] = useState(false); // ✅ NUEVO: Flag para indicar cuando está listo
 
   const fetchOrganization = async (isRetry = false) => {
     try {
@@ -72,6 +74,11 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
         setOrganizationId(userData.organization_id);
         setError(null);
         setLoading(false);
+        // ✅ FIX: Marcar como ready después de un pequeño delay para asegurar que el estado se propague
+        setTimeout(() => {
+          setReady(true);
+          console.log('✅✅✅ [OrganizationContext] READY = TRUE - organizationId está estable:', userData.organization_id);
+        }, 100);
         return;
       }
 
@@ -98,6 +105,11 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
         setOrganizationId(workshop.organization_id);
         setError(null);
         setLoading(false);
+        // ✅ FIX: Marcar como ready después de un pequeño delay para asegurar que el estado se propague
+        setTimeout(() => {
+          setReady(true);
+          console.log('✅✅✅ [OrganizationContext] READY = TRUE - organizationId está estable:', workshop.organization_id);
+        }, 100);
         return;
       }
 
@@ -106,6 +118,7 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
       console.error('❌ [OrganizationContext] Error en fetchOrganization:', err);
       setError(err as Error);
       setOrganizationId(null);
+      setReady(false); // ✅ FIX: Marcar como no ready si hay error
       setLoading(false);
       
       // Si es un error de autenticación, no reintentar
@@ -140,10 +153,12 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
         setOrganizationId(null);
         setWorkshopId(null);
         setError(null);
+        setReady(false); // ✅ FIX: Marcar como no ready al desloguearse
       } else if (event === 'TOKEN_REFRESHED' && session?.user) {
         console.log('🔄 [OrganizationContext] Token refrescado, verificando organización...');
         // Solo refrescar si no tenemos organizationId
-        if (!organizationId) {
+        if (!organizationId || !ready) {
+          setReady(false); // ✅ FIX: Marcar como no ready durante refresh
           fetchOrganization(false);
         }
       }
@@ -153,17 +168,19 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
       console.log('🧹 [OrganizationContext] Limpiando suscripción de auth...');
       subscription.unsubscribe();
     };
-  }, []);
+  }, [organizationId, ready]);
 
-  // ✅ FIX: Log cuando organizationId cambia
+  // ✅ FIX: Log cuando organizationId o ready cambia
   useEffect(() => {
-    if (organizationId) {
-      console.log('✅✅✅ [OrganizationContext] organizationId DISPONIBLE:', organizationId);
-      console.log('✅✅✅ [OrganizationContext] Esto debería disparar las cargas de datos en los componentes');
-    } else if (!loading) {
+    if (organizationId && ready) {
+      console.log('✅✅✅ [OrganizationContext] organizationId ESTABLE Y READY:', organizationId);
+      console.log('✅✅✅ [OrganizationContext] Los componentes pueden cargar datos de forma segura');
+    } else if (organizationId && !ready) {
+      console.log('⏳ [OrganizationContext] organizationId disponible pero aún NO está ready:', organizationId);
+    } else if (!organizationId && !loading) {
       console.warn('⚠️⚠️⚠️ [OrganizationContext] organizationId es NULL después de cargar');
     }
-  }, [organizationId, loading]);
+  }, [organizationId, ready, loading]);
 
   return (
     <OrganizationContext.Provider 
@@ -171,7 +188,8 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
         organizationId, 
         workshopId,
         loading, 
-        error, 
+        error,
+        ready, // ✅ NUEVO: Exponer el estado ready
         refresh: fetchOrganization 
       }}
     >

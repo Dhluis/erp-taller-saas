@@ -51,16 +51,16 @@ export default function ReportesPage() {
   // Usar hooks para obtener datos reales
   const { customers, loading: customersLoading } = useCustomers();
   const { vehicles, loading: vehiclesLoading } = useVehicles();
-  const { organizationId, loading: orgLoading } = useOrganization();
+  const { organizationId, loading: orgLoading, ready } = useOrganization();
 
   useEffect(() => {
     const loadReportData = async () => {
-      // ✅ FIX: Solo cargar cuando organizationId esté listo (no esperar customers/vehicles indefinidamente)
-      if (!organizationId || orgLoading) {
-        // Si está cargando organizationId, mantener loading state
-        if (orgLoading) {
+      // ✅ FIX: Solo cargar cuando organizationId esté listo y ESTABLE (ready)
+      if (!organizationId || orgLoading || !ready) {
+        // Si está cargando organizationId o no está ready, mantener loading state
+        if (orgLoading || !ready) {
           setLoading(true);
-          console.log('⏳ [Reportes] Esperando a que organizationId cargue...');
+          console.log('⏳ [Reportes] Esperando a que organizationId esté ready...', { orgLoading, ready, organizationId: !!organizationId });
         } else if (!organizationId) {
           console.log('⚠️ [Reportes] organizationId no disponible todavía');
         }
@@ -70,7 +70,7 @@ export default function ReportesPage() {
       try {
         setLoading(true);
         
-        console.log('🔄 [Reportes] useEffect triggered - organizationId disponible:', organizationId);
+        console.log('🔄 [Reportes] useEffect triggered - organizationId READY y disponible:', organizationId);
         console.log('🔄 [Reportes] Primera carga?', !hasLoadedOnce);
         
         // ✅ FIX: Limpiar cache en la primera carga para asegurar datos frescos
@@ -133,7 +133,7 @@ export default function ReportesPage() {
     };
 
     loadReportData();
-  }, [organizationId, orgLoading, customers, vehicles, hasLoadedOnce]); // ✅ FIX: Removido customersLoading y vehiclesLoading de dependencias
+  }, [organizationId, orgLoading, ready, customers, vehicles, hasLoadedOnce]); // ✅ FIX: Agregado 'ready' como dependencia
 
   const breadcrumbs = [
     { label: 'Reportes', href: '/reportes' }

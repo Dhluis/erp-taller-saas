@@ -85,13 +85,17 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
     }
   }
 
-  // ✅ FIX: Cargar órdenes al montar el componente solo si organizationId está disponible
+  // ✅ FIX: Cargar órdenes al montar el componente solo si organizationId está disponible y válido
   useEffect(() => {
-    if (organizationId) {
+    if (organizationId && typeof organizationId === 'string' && organizationId.length > 0) {
       console.log('🔄 [KanbanBoardNoModal] useEffect triggered - organizationId disponible:', organizationId);
-      loadOrders(true);
+      // ✅ FIX: Agregar un pequeño delay para asegurar que el estado se haya propagado
+      const timeoutId = setTimeout(() => {
+        loadOrders(true);
+      }, 150);
+      return () => clearTimeout(timeoutId);
     } else {
-      console.log('⚠️ [KanbanBoardNoModal] organizationId no disponible todavía, esperando...');
+      console.log('⚠️ [KanbanBoardNoModal] organizationId no disponible todavía, esperando...', { organizationId });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId]);
