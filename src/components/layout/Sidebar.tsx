@@ -179,13 +179,7 @@ export function Sidebar({ className }: SidebarProps) {
   ]
 
   const actionButtons = [
-    {
-      href: "/citas",
-      label: "Citas",
-      icon: Calendar,
-      variant: "secondary" as const,
-      badge: "New"
-    },
+    // ✅ CITAS movido al TopBar
     {
       href: "/comercial",
       label: "Comercial",

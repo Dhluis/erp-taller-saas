@@ -1,18 +1,26 @@
 'use client'
 
 import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { Calendar } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { LogoWithText } from '@/components/ui/Logo'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { GlobalSearch } from '@/components/search/GlobalSearch'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 
 interface TopBarProps {
   onMenuClick?: () => void
   title?: string
 }
 
-export function TopBar({ onMenuClick, title = 'EAGLES - ERP Taller SaaS' }: TopBarProps) {
+export function TopBar({ onMenuClick, title }: TopBarProps) {
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
+  const pathname = usePathname()
+  const isCitasActive = pathname?.startsWith('/citas')
 
   // Atajos de teclado para abrir búsqueda global (Ctrl+K / Cmd+K)
   useEffect(() => {
@@ -40,13 +48,22 @@ export function TopBar({ onMenuClick, title = 'EAGLES - ERP Taller SaaS' }: TopB
             </button>
           )}
           
-          {title ? (
-            <h2 className="text-xl font-semibold text-text-primary">
-              {title}
-            </h2>
-          ) : (
-            <LogoWithText size="sm" />
-          )}
+          {/* Botón CITAS - movido desde sidebar */}
+          <Link href="/citas">
+            <Button
+              variant={isCitasActive ? "default" : "outline"}
+              className={cn(
+                "transition-all duration-200 gap-2",
+                isCitasActive && "bg-primary text-white"
+              )}
+            >
+              <Calendar className="h-4 w-4" />
+              <span className="text-sm font-medium">Citas</span>
+              <Badge variant="secondary" className="ml-1 bg-green-500 text-white text-[10px] px-1.5 py-0">
+                New
+              </Badge>
+            </Button>
+          </Link>
         </div>
 
         <div className="flex items-center space-x-4">
