@@ -46,6 +46,7 @@ export default function ReportesPage() {
     monthlyRevenue: 0,
     averageOrderValue: 0,
   });
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   // Usar hooks para obtener datos reales
   const { customers, loading: customersLoading } = useCustomers();
@@ -59,12 +60,26 @@ export default function ReportesPage() {
         // Si está cargando organizationId, mantener loading state
         if (orgLoading) {
           setLoading(true);
+          console.log('⏳ [Reportes] Esperando a que organizationId cargue...');
+        } else if (!organizationId) {
+          console.log('⚠️ [Reportes] organizationId no disponible todavía');
         }
         return;
       }
 
       try {
         setLoading(true);
+        
+        console.log('🔄 [Reportes] useEffect triggered - organizationId disponible:', organizationId);
+        console.log('🔄 [Reportes] Primera carga?', !hasLoadedOnce);
+        
+        // ✅ FIX: Limpiar cache en la primera carga para asegurar datos frescos
+        if (!hasLoadedOnce) {
+          const { clearOrdersCache } = await import('@/lib/database/queries/work-orders');
+          clearOrdersCache(organizationId);
+          console.log('🧹 [Reportes] Cache limpiado para primera carga');
+          setHasLoadedOnce(true);
+        }
         
         // ✅ OPTIMIZACIÓN: No cargar order_items en reportes (no se usan)
         const orders = await getAllWorkOrders(organizationId, { includeItems: false });
@@ -118,7 +133,7 @@ export default function ReportesPage() {
     };
 
     loadReportData();
-  }, [organizationId, orgLoading, customers, vehicles]); // ✅ FIX: Removido customersLoading y vehiclesLoading de dependencias
+  }, [organizationId, orgLoading, customers, vehicles, hasLoadedOnce]); // ✅ FIX: Removido customersLoading y vehiclesLoading de dependencias
 
   const breadcrumbs = [
     { label: 'Reportes', href: '/reportes' }

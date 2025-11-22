@@ -40,6 +40,7 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
   const [activeOrder, setActiveOrder] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -50,11 +51,21 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
   );
 
   // Cargar órdenes
-  async function loadOrders() {
+  async function loadOrders(isFirstLoad = false) {
     try {
       console.log('🔄 [KanbanBoardNoModal] Cargando órdenes...');
+      console.log('🔄 [KanbanBoardNoModal] organizationId:', organizationId);
+      console.log('🔄 [KanbanBoardNoModal] Primera carga?', isFirstLoad);
       setLoading(true);
       setError(null);
+
+      // ✅ FIX: Limpiar cache en la primera carga para asegurar datos frescos
+      if (isFirstLoad || !hasLoadedOnce) {
+        const { clearOrdersCache } = await import('@/lib/database/queries/work-orders');
+        clearOrdersCache(organizationId);
+        console.log('🧹 [KanbanBoardNoModal] Cache limpiado para primera carga');
+        setHasLoadedOnce(true);
+      }
 
       const orders = await getAllWorkOrders(organizationId);
       console.log('✅ [KanbanBoardNoModal] Órdenes cargadas:', orders.length);
@@ -74,9 +85,15 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
     }
   }
 
-  // Cargar órdenes al montar el componente
+  // ✅ FIX: Cargar órdenes al montar el componente solo si organizationId está disponible
   useEffect(() => {
-    loadOrders();
+    if (organizationId) {
+      console.log('🔄 [KanbanBoardNoModal] useEffect triggered - organizationId disponible:', organizationId);
+      loadOrders(true);
+    } else {
+      console.log('⚠️ [KanbanBoardNoModal] organizationId no disponible todavía, esperando...');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId]);
 
   // Manejar inicio de arrastre
