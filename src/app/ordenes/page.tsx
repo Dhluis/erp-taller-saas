@@ -58,6 +58,7 @@ export default function OrdenesPage() {
   const [orderPendingDelete, setOrderPendingDelete] = useState<WorkOrder | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   // Cargar órdenes - función reutilizable (OPTIMIZADA)
   const loadOrders = useCallback(async () => {
@@ -75,6 +76,15 @@ export default function OrdenesPage() {
       if (isDev) {
         console.log('🔍 Cargando órdenes...');
         console.log('🔍 organizationId:', organizationId);
+        console.log('🔍 Primera carga?', !hasLoadedOnce);
+      }
+
+      // ✅ FIX: Limpiar cache en la primera carga para asegurar datos frescos
+      if (!hasLoadedOnce) {
+        const { clearOrdersCache } = await import('@/lib/database/queries/work-orders');
+        clearOrdersCache(organizationId);
+        console.log('🧹 [OrdenesPage] Cache limpiado para primera carga');
+        setHasLoadedOnce(true);
       }
 
       // ✅ OPTIMIZACIÓN: No cargar order_items en la lista (no se usan)
@@ -138,9 +148,16 @@ export default function OrdenesPage() {
   }, [organizationId]);
 
   // ✅ FIX: Solo cargar órdenes cuando organizationId esté listo y no esté cargando
+  // IMPORTANTE: Este useEffect se ejecuta cuando organizationId cambia de undefined a un valor
   useEffect(() => {
     if (!orgLoading && organizationId) {
+      console.log('🔄 [OrdenesPage] useEffect triggered - organizationId disponible:', organizationId);
+      console.log('🔄 [OrdenesPage] Ejecutando loadOrders...');
       loadOrders();
+    } else if (orgLoading) {
+      console.log('⏳ [OrdenesPage] Esperando a que organizationId cargue...');
+    } else if (!organizationId) {
+      console.log('⚠️ [OrdenesPage] organizationId no disponible todavía');
     }
   }, [orgLoading, organizationId, loadOrders]);
 

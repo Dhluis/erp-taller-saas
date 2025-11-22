@@ -153,6 +153,13 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
       console.log('🔄 [KanbanBoard] refreshKey:', refreshKey);
       console.log('🔄 [KanbanBoard] Timestamp:', new Date().toISOString());
       
+      // ✅ FIX: Limpiar cache antes de cargar cuando refreshKey cambia o es la primera carga
+      if (refreshKey > 0 || columns.length === 0) {
+        const { clearOrdersCache } = await import('@/lib/database/queries/work-orders');
+        clearOrdersCache(organizationId);
+        console.log('🧹 [KanbanBoard] Cache limpiado para organizationId:', organizationId);
+      }
+      
       // ✅ OPTIMIZACIÓN: No cargar order_items en Kanban (no se usan)
       const orders = await getAllWorkOrders(organizationId, { includeItems: false });
       console.log('📊 [KanbanBoard] Órdenes recibidas de getAllWorkOrders:', orders?.length || 0);
@@ -256,10 +263,14 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
   }, [organizationId, dateFilter, customDateRange, searchQuery, refreshKey]);
 
   // ✅ FIX: Cargar órdenes al montar y cuando cambien los filtros, solo si organizationId está disponible
+  // IMPORTANTE: Este useEffect se ejecuta cuando organizationId cambia de undefined a un valor
   useEffect(() => {
     if (organizationId) {
-      console.log('🔄 [KanbanBoard] useEffect triggered - filtros cambiaron');
+      console.log('🔄 [KanbanBoard] useEffect triggered - organizationId disponible:', organizationId);
+      console.log('🔄 [KanbanBoard] Ejecutando loadOrders...');
       loadOrders();
+    } else {
+      console.log('⚠️ [KanbanBoard] organizationId no disponible todavía, esperando...');
     }
   }, [organizationId, loadOrders]);
 
