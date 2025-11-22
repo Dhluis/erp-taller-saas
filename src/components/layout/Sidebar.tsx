@@ -214,14 +214,22 @@ export function Sidebar({ className }: SidebarProps) {
       className
     )}>
       {/* Header */}
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center justify-between">
+      <div className={cn(
+        "border-b border-border flex items-center justify-center",
+        isCollapsed ? "p-4 py-6" : "p-6 py-8"
+      )}>
+        <div className={cn(
+          "flex items-center w-full",
+          isCollapsed ? "flex-col justify-center gap-3" : "justify-between gap-3"
+        )}>
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
             className={cn(
-              "transition-all bg-transparent hover:opacity-95",
-              isCollapsed ? "w-full flex justify-center" : "flex items-center gap-3"
+              "transition-all bg-transparent hover:opacity-90 flex items-center justify-center overflow-hidden",
+              isCollapsed 
+                ? "w-full aspect-square" 
+                : "flex-1 min-w-0 h-full"
             )}
             aria-label="Ir al dashboard"
           >
@@ -229,20 +237,39 @@ export function Sidebar({ className }: SidebarProps) {
               src={logoUrl}
               alt="EAGLES GEAR SYSTEM"
               className={cn(
-                "rounded-md shadow-sm transition-all hover:scale-[1.02] focus:outline-none object-contain",
-                isCollapsed ? "h-10 w-10" : "h-16 w-auto max-w-[200px]"
+                "rounded-md shadow-sm transition-all hover:scale-[1.02] focus:outline-none",
+                "object-contain object-center"
               )}
+              style={{
+                width: isCollapsed ? '56px' : 'auto',
+                height: isCollapsed ? '56px' : '80px',
+                maxWidth: isCollapsed ? '56px' : '280px',
+                maxHeight: isCollapsed ? '56px' : '80px'
+              }}
             />
           </button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-foreground hover:text-primary"
-            onClick={toggleCollapse}
-            title={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
-          >
-            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
+          {!isCollapsed && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-foreground hover:text-primary transition-colors flex-shrink-0"
+              onClick={toggleCollapse}
+              title="Colapsar sidebar"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          )}
+          {isCollapsed && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-foreground hover:text-primary transition-colors mt-1"
+              onClick={toggleCollapse}
+              title="Expandir sidebar"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
