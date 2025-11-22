@@ -509,3 +509,4 @@ COMMENT ON TABLE whatsapp_customer_metadata IS 'Metadata de clientes que contact
 
 
 
+
