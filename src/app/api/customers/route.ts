@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
       console.log('✅ [GET /api/customers] Organization ID:', organizationId)
     } catch (orgError: any) {
       console.error('❌ [GET /api/customers] Error obteniendo organizationId:', orgError)
+      console.error('❌ [GET /api/customers] Stack del error:', orgError?.stack)
       return NextResponse.json({ 
         success: false, 
         error: `Error obteniendo organización: ${orgError?.message || 'Error desconocido'}` 
@@ -28,6 +29,12 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await getSupabaseServerClient()
+    
+    // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO - igual que orders/stats
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('🔌 API /customers - INICIANDO QUERY')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('Organization ID:', organizationId)
     
     // Obtener todos los clientes de la organización
     // Intentar primero con vehicles (join opcional)
@@ -47,9 +54,31 @@ export async function GET(request: NextRequest) {
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
 
+    // ✅ LOGS DETALLADOS DEL ERROR SI EXISTE
+    if (error) {
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('❌ ERROR EN QUERY CON VEHICLES')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('Error code:', error.code)
+      console.log('Error message:', error.message)
+      console.log('Error details:', error.details)
+      console.log('Error hint:', error.hint)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    }
+
     // Si falla la query con vehicles, intentar sin el join
-    if (error && (error.code === '42P01' || error.message.includes('relation') || error.message.includes('does not exist'))) {
+    if (error && (
+      error.code === '42P01' || 
+      error.code === 'PGRST301' ||
+      error.code === '42703' ||
+      error.message.includes('relation') || 
+      error.message.includes('does not exist') ||
+      error.message.includes('permission denied') ||
+      error.message.includes('RLS')
+    )) {
       console.warn('⚠️ [GET /api/customers] Error con vehicles, intentando sin join:', error.message)
+      console.log('🔄 [GET /api/customers] Intentando query simple sin join...')
+      
       const { data: customersSimple, error: errorSimple } = await supabase
         .from('customers')
         .select('*')
@@ -57,34 +86,62 @@ export async function GET(request: NextRequest) {
         .order('created_at', { ascending: false })
       
       if (errorSimple) {
-        console.error('❌ [GET /api/customers] Error obteniendo clientes:', errorSimple)
-        console.error('❌ [GET /api/customers] Detalles del error:', {
-          message: errorSimple.message,
-          details: errorSimple.details,
-          hint: errorSimple.hint,
-          code: errorSimple.code
-        })
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        console.error('❌ ERROR EN QUERY SIMPLE (SIN VEHICLES)')
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        console.error('Error code:', errorSimple.code)
+        console.error('Error message:', errorSimple.message)
+        console.error('Error details:', errorSimple.details)
+        console.error('Error hint:', errorSimple.hint)
+        console.error('Organization ID usado:', organizationId)
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        
+        // Verificar si es un error de RLS o de permisos
+        if (errorSimple.code === '42501' || errorSimple.message.includes('permission denied') || errorSimple.message.includes('RLS')) {
+          return NextResponse.json({ 
+            success: false, 
+            error: 'Error de permisos: Verifique las políticas RLS de la tabla customers',
+            code: errorSimple.code,
+            hint: errorSimple.hint
+          }, { status: 500 })
+        }
+        
         return NextResponse.json({ 
           success: false, 
-          error: errorSimple.message 
+          error: errorSimple.message || 'Error al obtener clientes',
+          code: errorSimple.code,
+          details: errorSimple.details,
+          hint: errorSimple.hint
         }, { status: 500 })
       }
+      
       customers = customersSimple
+      console.log('✅ [GET /api/customers] Query simple exitosa, clientes obtenidos:', customers?.length || 0)
     } else if (error) {
-      console.error('❌ [GET /api/customers] Error obteniendo clientes:', error)
-      console.error('❌ [GET /api/customers] Detalles del error:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      })
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.error('❌ ERROR INESPERADO EN QUERY')
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.error('Error code:', error.code)
+      console.error('Error message:', error.message)
+      console.error('Error details:', error.details)
+      console.error('Error hint:', error.hint)
+      console.error('Organization ID usado:', organizationId)
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      
       return NextResponse.json({ 
         success: false, 
-        error: error.message 
+        error: error.message || 'Error al obtener clientes',
+        code: error.code,
+        details: error.details,
+        hint: error.hint
       }, { status: 500 })
     }
 
-    console.log('✅ [GET /api/customers] Clientes obtenidos:', customers?.length || 0)
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('✅ API /customers - QUERY EXITOSA')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('Clientes obtenidos:', customers?.length || 0)
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     
     // ✅ DEVOLVER EN EL FORMATO CORRECTO
     return NextResponse.json({ 
@@ -93,11 +150,18 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('💥 [GET /api/customers] Error inesperado:', error)
-    console.error('💥 [GET /api/customers] Stack:', error?.stack)
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.error('💥 [GET /api/customers] ERROR INESPERADO')
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.error('Error:', error)
+    console.error('Message:', error?.message)
+    console.error('Stack:', error?.stack)
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    
     return NextResponse.json({ 
       success: false, 
-      error: error?.message || 'Error desconocido al obtener clientes' 
+      error: error?.message || 'Error desconocido al obtener clientes',
+      details: error?.stack
     }, { status: 500 })
   }
 }
