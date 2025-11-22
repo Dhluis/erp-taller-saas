@@ -1,7 +1,7 @@
 'use client'
 
 import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
-import { Calendar } from 'lucide-react'
+import { Calendar, FileText, BarChart3, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
@@ -9,7 +9,6 @@ import { LogoWithText } from '@/components/ui/Logo'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { GlobalSearch } from '@/components/search/GlobalSearch'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
 interface TopBarProps {
@@ -21,6 +20,9 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
   const pathname = usePathname()
   const isCitasActive = pathname?.startsWith('/citas')
+  const isOrdenesActive = pathname?.startsWith('/ordenes')
+  const isReportesActive = pathname?.startsWith('/reportes')
+  const isWhatsAppActive = pathname?.startsWith('/dashboard/whatsapp')
 
   // Atajos de teclado para abrir búsqueda global (Ctrl+K / Cmd+K)
   useEffect(() => {
@@ -48,7 +50,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
             </button>
           )}
           
-          {/* Botón CITAS - movido desde sidebar */}
+          {/* Botones de navegación - movidos desde sidebar */}
           <Link href="/citas">
             <Button
               variant={isCitasActive ? "default" : "outline"}
@@ -59,9 +61,45 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
             >
               <Calendar className="h-4 w-4" />
               <span className="text-sm font-medium">Citas</span>
-              <Badge variant="secondary" className="ml-1 bg-green-500 text-white text-[10px] px-1.5 py-0">
-                New
-              </Badge>
+            </Button>
+          </Link>
+          
+          <Link href="/ordenes">
+            <Button
+              variant={isOrdenesActive ? "default" : "outline"}
+              className={cn(
+                "transition-all duration-200 gap-2",
+                isOrdenesActive && "bg-primary text-white"
+              )}
+            >
+              <FileText className="h-4 w-4" />
+              <span className="text-sm font-medium">Órdenes</span>
+            </Button>
+          </Link>
+          
+          <Link href="/reportes">
+            <Button
+              variant={isReportesActive ? "default" : "outline"}
+              className={cn(
+                "transition-all duration-200 gap-2",
+                isReportesActive && "bg-primary text-white"
+              )}
+            >
+              <BarChart3 className="h-4 w-4" />
+              <span className="text-sm font-medium">Reportes</span>
+            </Button>
+          </Link>
+          
+          <Link href="/dashboard/whatsapp">
+            <Button
+              variant={isWhatsAppActive ? "default" : "outline"}
+              className={cn(
+                "transition-all duration-200 gap-2",
+                isWhatsAppActive && "bg-primary text-white"
+              )}
+            >
+              <MessageSquare className="h-4 w-4" />
+              <span className="text-sm font-medium">WhatsApp</span>
             </Button>
           </Link>
         </div>

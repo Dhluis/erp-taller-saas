@@ -308,57 +308,7 @@ export function Sidebar({ className }: SidebarProps) {
             </Button>
           </Link>
           
-          <Link href="/ordenes">
-            <Button
-              variant={isActive("/ordenes") ? "primary" : "ghost"}
-              className={cn(
-                "transition-all duration-200",
-                isCollapsed 
-                  ? "w-12 h-12 mx-auto mb-3 flex items-center justify-center rounded-xl hover:bg-gray-800/60" 
-                  : "w-full gap-3 justify-start h-10",
-                isActive("/ordenes") && "bg-primary text-white"
-              )}
-              title={isCollapsed ? "Órdenes" : ""}
-            >
-              <FileText className={isCollapsed ? "w-6 h-6" : "h-4 w-4 flex-shrink-0"} />
-              {!isCollapsed && <span className="text-sm font-medium">Órdenes</span>}
-            </Button>
-          </Link>
-          
-          <Link href="/reportes">
-            <Button
-              variant={isActive("/reportes") ? "primary" : "ghost"}
-              className={cn(
-                "transition-all duration-200",
-                isCollapsed 
-                  ? "w-12 h-12 mx-auto mb-3 flex items-center justify-center rounded-xl hover:bg-gray-800/60" 
-                  : "w-full gap-3 justify-start h-10",
-                isActive("/reportes") && "bg-primary text-white"
-              )}
-              title={isCollapsed ? "Reportes" : ""}
-            >
-              <BarChart3 className={isCollapsed ? "w-6 h-6" : "h-4 w-4 flex-shrink-0"} />
-              {!isCollapsed && <span className="text-sm font-medium">Reportes</span>}
-            </Button>
-          </Link>
-
-          {/* WhatsApp Business Integration */}
-          <Link href="/dashboard/whatsapp">
-            <Button
-              variant={isActive("/dashboard/whatsapp") ? "primary" : "ghost"}
-              className={cn(
-                "transition-all duration-200",
-                isCollapsed 
-                  ? "w-12 h-12 mx-auto mb-3 flex items-center justify-center rounded-xl hover:bg-gray-800/60" 
-                  : "w-full gap-3 justify-start h-10",
-                isActive("/dashboard/whatsapp") && "bg-primary text-white"
-              )}
-              title={isCollapsed ? "WhatsApp" : ""}
-            >
-              <MessageSquare className={isCollapsed ? "w-6 h-6" : "h-4 w-4 flex-shrink-0"} />
-              {!isCollapsed && <span className="text-sm font-medium">WhatsApp</span>}
-            </Button>
-          </Link>
+          {/* ✅ Órdenes, Reportes y WhatsApp movidos al TopBar */}
         </div>
 
         {/* Collapsible Sections */}
