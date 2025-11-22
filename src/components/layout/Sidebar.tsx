@@ -215,61 +215,62 @@ export function Sidebar({ className }: SidebarProps) {
     )}>
       {/* Header */}
       <div className={cn(
-        "border-b border-border flex items-center justify-center",
-        isCollapsed ? "p-4 py-6" : "p-6 py-8"
+        "border-b border-border overflow-hidden",
+        isCollapsed ? "p-4 py-6" : "px-6 pt-6 pb-4"
       )}>
         <div className={cn(
-          "flex items-center w-full",
-          isCollapsed ? "flex-col justify-center gap-3" : "justify-between gap-3"
+          "flex w-full relative",
+          isCollapsed ? "flex-col items-center justify-center gap-3" : "flex-col items-center justify-center gap-1.5"
         )}>
+          {/* Logo y texto */}
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
             className={cn(
-              "transition-all bg-transparent hover:opacity-90 flex items-center justify-center overflow-hidden",
-              isCollapsed 
-                ? "w-full aspect-square" 
-                : "flex-1 min-w-0 h-full"
+              "transition-all bg-transparent hover:opacity-90 flex flex-col items-center justify-center w-full",
+              isCollapsed && "gap-2"
             )}
             aria-label="Ir al dashboard"
           >
-            <img
-              src={logoUrl}
-              alt="EAGLES GEAR SYSTEM"
-              className={cn(
-                "rounded-md shadow-sm transition-all hover:scale-[1.02] focus:outline-none",
-                "object-contain object-center"
-              )}
-              style={{
-                width: isCollapsed ? '56px' : 'auto',
-                height: isCollapsed ? '56px' : '80px',
-                maxWidth: isCollapsed ? '56px' : '280px',
-                maxHeight: isCollapsed ? '56px' : '80px'
-              }}
-            />
+            <div className="flex items-center justify-center w-full">
+              <img
+                src={logoUrl}
+                alt="EAGLES GEAR SYSTEM"
+                className={cn(
+                  "rounded-md shadow-sm transition-all hover:scale-[1.02] focus:outline-none",
+                  "object-contain object-center"
+                )}
+                style={{
+                  width: isCollapsed ? '56px' : 'auto',
+                  height: isCollapsed ? '56px' : '96px', // ✅ 20% más grande: 80px * 1.2 = 96px
+                  maxWidth: isCollapsed ? '56px' : '280px',
+                  maxHeight: isCollapsed ? '56px' : '96px'
+                }}
+              />
+            </div>
+            {/* Texto EAGLES SYSTEM - solo cuando sidebar no está colapsado */}
+            {!isCollapsed && (
+              <span className="text-xs font-bold text-white/95 mt-0.5 tracking-wider text-center">
+                EAGLES SYSTEM
+              </span>
+            )}
           </button>
-          {!isCollapsed && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-foreground hover:text-primary transition-colors flex-shrink-0"
-              onClick={toggleCollapse}
-              title="Colapsar sidebar"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          )}
-          {isCollapsed && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-foreground hover:text-primary transition-colors mt-1"
-              onClick={toggleCollapse}
-              title="Expandir sidebar"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          )}
+          
+          {/* Botón de colapsar/expandir */}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className={cn(
+              "text-foreground hover:text-primary transition-colors absolute",
+              isCollapsed 
+                ? "top-0 right-2" 
+                : "top-1 right-0"
+            )}
+            onClick={toggleCollapse}
+            title={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+          >
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
         </div>
       </div>
 
