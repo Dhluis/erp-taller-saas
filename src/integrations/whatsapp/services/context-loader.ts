@@ -167,6 +167,7 @@ export async function getAIConfig(
   organizationId: string
 ): Promise<AIAgentConfig | null> {
   try {
+    console.log('[ContextLoader] 🔍 Buscando AI config para organizationId:', organizationId)
     const supabase = await getSupabaseServerClient()
 
     const { data, error } = await supabase
@@ -175,10 +176,34 @@ export async function getAIConfig(
       .eq('organization_id', organizationId)
       .single()
 
-    if (error || !data) {
-      console.error('[ContextLoader] Error obteniendo AI config:', error)
+    if (error) {
+      console.error('[ContextLoader] ❌ Error obteniendo AI config:', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        organizationId
+      })
+      
+      // Si el error es "no rows found" (PGRST116), es esperado si no hay configuración
+      if (error.code === 'PGRST116') {
+        console.log('[ContextLoader] ℹ️ No existe configuración para esta organización (esperado en pruebas)')
+      }
+      
       return null
     }
+
+    if (!data) {
+      console.warn('[ContextLoader] ⚠️ No se encontró configuración (data es null)')
+      return null
+    }
+
+    console.log('[ContextLoader] ✅ Configuración encontrada:', {
+      id: data.id,
+      enabled: data.enabled,
+      provider: data.provider,
+      model: data.model
+    })
 
     return {
       organization_id: data.organization_id,
@@ -197,7 +222,7 @@ export async function getAIConfig(
       business_hours: data.business_hours
     }
   } catch (error) {
-    console.error('[ContextLoader] Error en getAIConfig:', error)
+    console.error('[ContextLoader] ❌ Excepción en getAIConfig:', error)
     return null
   }
 }

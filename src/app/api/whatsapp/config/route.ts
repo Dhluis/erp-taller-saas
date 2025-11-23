@@ -26,69 +26,120 @@ export async function POST(request: NextRequest) {
         console.log('[Config Test] Organization:', organizationId)
         console.log('[Config Test] Message:', data.message)
 
-        // ✅ PRIMERO: Crear/actualizar configuración temporal si se proporcionan datos del formulario
-        // Esto permite probar antes de guardar la configuración final
-        if (data.businessInfo || data.services || data.personality || data.policies) {
-          console.log('[Config Test] 📝 Guardando configuración temporal para la prueba...')
-          
-          const personalityTone = data.personality?.tone || 'profesional'
-          const policiesWithExtras = {
-            ...(data.policies || {}),
-            business_info: data.businessInfo || {},
-            personality: {
-              tone: data.personality?.tone || 'profesional',
-              use_emojis: data.personality?.use_emojis || false,
-              local_phrases: data.personality?.local_phrases || false,
-              greeting_style: data.personality?.greeting_style || ''
-            },
-            custom_instructions: data.customInstructions || '',
-            escalation_rules: data.escalationRules || {}
-          }
+        // ✅ PRIMERO: Crear/actualizar configuración temporal para la prueba
+        // Siempre crear/actualizar para asegurar que existe antes de probar
+        console.log('[Config Test] 📝 Guardando configuración temporal para la prueba...')
+        console.log('[Config Test] Datos recibidos:', {
+          hasBusinessInfo: !!data.businessInfo,
+          hasServices: !!data.services,
+          hasPersonality: !!data.personality,
+          hasPolicies: !!data.policies,
+          hasFAQ: !!data.faq
+        })
+        
+        const personalityTone = data.personality?.tone || 'profesional'
+        const policiesWithExtras = {
+          ...(data.policies || {}),
+          business_info: data.businessInfo || {},
+          personality: {
+            tone: data.personality?.tone || 'profesional',
+            use_emojis: data.personality?.use_emojis || false,
+            local_phrases: data.personality?.local_phrases || false,
+            greeting_style: data.personality?.greeting_style || ''
+          },
+          custom_instructions: data.customInstructions || '',
+          escalation_rules: data.escalationRules || {}
+        }
 
-          const configData = {
-            organization_id: organizationId,
-            enabled: true,
-            provider: 'openai',
-            model: 'gpt-4o-mini',
-            system_prompt: '',
-            personality: `${personalityTone}${data.personality?.use_emojis ? ', usa emojis' : ''}${data.personality?.local_phrases ? ', modismos locales' : ''}`,
-            language: data.personality?.language || 'es-MX',
-            temperature: 0.7,
-            max_tokens: 1000,
-            auto_schedule_appointments: false,
-            auto_create_orders: false,
-            require_human_approval: true,
-            business_hours_only: false,
-            business_hours: data.businessInfo?.businessHours || {},
-            services: data.services || [],
-            mechanics: [],
-            faqs: data.faq || [],
-            policies: policiesWithExtras,
-            updated_at: new Date().toISOString()
-          }
+        const configData = {
+          organization_id: organizationId,
+          enabled: true,
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          system_prompt: '',
+          personality: `${personalityTone}${data.personality?.use_emojis ? ', usa emojis' : ''}${data.personality?.local_phrases ? ', modismos locales' : ''}`,
+          language: data.personality?.language || 'es-MX',
+          temperature: 0.7,
+          max_tokens: 1000,
+          auto_schedule_appointments: false,
+          auto_create_orders: false,
+          require_human_approval: true,
+          business_hours_only: false,
+          business_hours: data.businessInfo?.businessHours || {},
+          services: data.services || [],
+          mechanics: [],
+          faqs: data.faq || [],
+          policies: policiesWithExtras,
+          updated_at: new Date().toISOString()
+        }
 
-          // Verificar si ya existe configuración
-          const { data: existingConfig } = await supabase
+        // Verificar si ya existe configuración
+        const { data: existingConfig, error: checkError } = await supabase
+          .from('ai_agent_config')
+          .select('id')
+          .eq('organization_id', organizationId)
+          .single()
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          console.error('[Config Test] ❌ Error verificando configuración existente:', checkError)
+        }
+
+        let configSaved = false
+        if (existingConfig) {
+          // Actualizar configuración existente
+          const { error: updateError } = await supabase
             .from('ai_agent_config')
-            .select('id')
-            .eq('organization_id', organizationId)
-            .single()
+            .update(configData)
+            .eq('id', existingConfig.id)
 
-          if (existingConfig) {
-            // Actualizar configuración existente
-            await supabase
-              .from('ai_agent_config')
-              .update(configData)
-              .eq('id', existingConfig.id)
-            console.log('[Config Test] ✅ Configuración actualizada temporalmente')
+          if (updateError) {
+            console.error('[Config Test] ❌ Error actualizando configuración:', updateError)
           } else {
-            // Crear nueva configuración temporal
-            await supabase
-              .from('ai_agent_config')
-              .insert(configData)
+            console.log('[Config Test] ✅ Configuración actualizada temporalmente')
+            configSaved = true
+          }
+        } else {
+          // Crear nueva configuración temporal
+          const { error: insertError } = await supabase
+            .from('ai_agent_config')
+            .insert(configData)
+
+          if (insertError) {
+            console.error('[Config Test] ❌ Error creando configuración:', insertError)
+          } else {
             console.log('[Config Test] ✅ Configuración creada temporalmente')
+            configSaved = true
           }
         }
+
+        // Verificar que la configuración se guardó correctamente
+        if (!configSaved) {
+          console.error('[Config Test] ❌ No se pudo guardar la configuración')
+          return NextResponse.json({
+            success: false,
+            error: 'No se pudo guardar la configuración temporal. Por favor, intenta de nuevo.'
+          }, { status: 500 })
+        }
+
+        // Pequeño delay para asegurar que la configuración está disponible
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        // Verificar que la configuración existe antes de procesar
+        const { data: verifyConfig, error: verifyError } = await supabase
+          .from('ai_agent_config')
+          .select('id, enabled')
+          .eq('organization_id', organizationId)
+          .single()
+
+        if (verifyError || !verifyConfig) {
+          console.error('[Config Test] ❌ No se pudo verificar la configuración guardada:', verifyError)
+          return NextResponse.json({
+            success: false,
+            error: 'La configuración no se guardó correctamente. Por favor, intenta de nuevo.'
+          }, { status: 500 })
+        }
+
+        console.log('[Config Test] ✅ Configuración verificada y lista para la prueba')
 
         // ✅ AHORA: Procesar el mensaje de prueba
         const result = await processMessage({
