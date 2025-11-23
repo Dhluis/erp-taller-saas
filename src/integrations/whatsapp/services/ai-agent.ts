@@ -139,6 +139,24 @@ export async function processMessage(
     // 1. Cargar configuración del AI
     const aiConfig = await getAIConfig(params.organizationId);
     
+    // ✅ VALIDAR QUE LA CONFIGURACIÓN EXISTA PRIMERO
+    if (!aiConfig) {
+      console.error('[AIAgent] ❌ AI Agent no está configurado para esta organización');
+      return {
+        success: false,
+        error: 'AI Agent no está configurado para esta organización. Por favor, completa la configuración del agente antes de probarlo.'
+      };
+    }
+    
+    if (!aiConfig.enabled) {
+      console.log('[AIAgent] Bot deshabilitado para esta organización');
+      return {
+        success: false,
+        error: 'Bot no está habilitado'
+      };
+    }
+    
+    // ✅ AHORA SÍ podemos acceder a aiConfig.provider de forma segura
     // Validar API keys antes de procesar
     if (aiConfig.provider === 'openai' && !process.env.OPENAI_API_KEY) {
       console.error('[AIAgent] ❌ OPENAI_API_KEY no está configurada');
@@ -153,14 +171,6 @@ export async function processMessage(
       return {
         success: false,
         error: 'ANTHROPIC_API_KEY no está configurada. Por favor, agrega tu API key en el archivo .env.local. Obtén tu key en: https://console.anthropic.com/settings/keys'
-      };
-    }
-
-    if (!aiConfig || !aiConfig.enabled) {
-      console.log('[AIAgent] Bot deshabilitado para esta organización');
-      return {
-        success: false,
-        error: 'Bot no está habilitado'
       };
     }
 

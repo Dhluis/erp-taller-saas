@@ -68,7 +68,15 @@ export function PreviewTestStep({ data, onSave, loading }: PreviewTestStepProps)
         body: JSON.stringify({
           test: true,
           message: userMessage,
-          organizationId: organization?.organization_id
+          organizationId: organization?.organization_id,
+          // ✅ Enviar todos los datos del formulario para crear configuración temporal
+          businessInfo: data.businessInfo,
+          services: data.services,
+          policies: data.policies,
+          personality: data.personality,
+          faq: data.faq,
+          customInstructions: data.customInstructions,
+          escalationRules: data.escalationRules
         })
       })
       

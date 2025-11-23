@@ -19,14 +19,81 @@ export async function POST(request: NextRequest) {
     if (data.test === true && data.message) {
       try {
         const { processMessage } = await import('@/integrations/whatsapp/services/ai-agent')
+        const supabase = await getSupabaseServerClient()
+        const organizationId = data.organizationId || tenantContext.organizationId
 
         console.log('[Config Test] 🧪 Procesando mensaje de prueba...')
-        console.log('[Config Test] Organization:', data.organizationId || tenantContext.organizationId)
+        console.log('[Config Test] Organization:', organizationId)
         console.log('[Config Test] Message:', data.message)
 
+        // ✅ PRIMERO: Crear/actualizar configuración temporal si se proporcionan datos del formulario
+        // Esto permite probar antes de guardar la configuración final
+        if (data.businessInfo || data.services || data.personality || data.policies) {
+          console.log('[Config Test] 📝 Guardando configuración temporal para la prueba...')
+          
+          const personalityTone = data.personality?.tone || 'profesional'
+          const policiesWithExtras = {
+            ...(data.policies || {}),
+            business_info: data.businessInfo || {},
+            personality: {
+              tone: data.personality?.tone || 'profesional',
+              use_emojis: data.personality?.use_emojis || false,
+              local_phrases: data.personality?.local_phrases || false,
+              greeting_style: data.personality?.greeting_style || ''
+            },
+            custom_instructions: data.customInstructions || '',
+            escalation_rules: data.escalationRules || {}
+          }
+
+          const configData = {
+            organization_id: organizationId,
+            enabled: true,
+            provider: 'openai',
+            model: 'gpt-4o-mini',
+            system_prompt: '',
+            personality: `${personalityTone}${data.personality?.use_emojis ? ', usa emojis' : ''}${data.personality?.local_phrases ? ', modismos locales' : ''}`,
+            language: data.personality?.language || 'es-MX',
+            temperature: 0.7,
+            max_tokens: 1000,
+            auto_schedule_appointments: false,
+            auto_create_orders: false,
+            require_human_approval: true,
+            business_hours_only: false,
+            business_hours: data.businessInfo?.businessHours || {},
+            services: data.services || [],
+            mechanics: [],
+            faqs: data.faq || [],
+            policies: policiesWithExtras,
+            updated_at: new Date().toISOString()
+          }
+
+          // Verificar si ya existe configuración
+          const { data: existingConfig } = await supabase
+            .from('ai_agent_config')
+            .select('id')
+            .eq('organization_id', organizationId)
+            .single()
+
+          if (existingConfig) {
+            // Actualizar configuración existente
+            await supabase
+              .from('ai_agent_config')
+              .update(configData)
+              .eq('id', existingConfig.id)
+            console.log('[Config Test] ✅ Configuración actualizada temporalmente')
+          } else {
+            // Crear nueva configuración temporal
+            await supabase
+              .from('ai_agent_config')
+              .insert(configData)
+            console.log('[Config Test] ✅ Configuración creada temporalmente')
+          }
+        }
+
+        // ✅ AHORA: Procesar el mensaje de prueba
         const result = await processMessage({
           conversationId: `test-${Date.now()}`,
-          organizationId: data.organizationId || tenantContext.organizationId,
+          organizationId,
           customerMessage: data.message,
           customerPhone: '+521234567890',
           skipBusinessHoursCheck: true
