@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/integrations/whatsapp/utils/supabase-server-helpers'
+import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 export async function POST(request: NextRequest) {
@@ -19,7 +20,6 @@ export async function POST(request: NextRequest) {
     if (data.test === true && data.message) {
       try {
         const { processMessage } = await import('@/integrations/whatsapp/services/ai-agent')
-        const supabase = await getSupabaseServerClient()
         const organizationId = data.organizationId || tenantContext.organizationId
 
         console.log('[Config Test] 🧪 Procesando mensaje de prueba...')
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         console.log('[Config Test] Message:', data.message)
 
         // ✅ PRIMERO: Crear/actualizar configuración temporal para la prueba
-        // Siempre crear/actualizar para asegurar que existe antes de probar
+        // Usar service role client para evitar problemas de RLS
         console.log('[Config Test] 📝 Guardando configuración temporal para la prueba...')
         console.log('[Config Test] Datos recibidos:', {
           hasBusinessInfo: !!data.businessInfo,
@@ -73,39 +73,67 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString()
         }
 
+        // Usar service role client para operaciones administrativas (bypass RLS)
+        let serviceClient
+        try {
+          serviceClient = getSupabaseServiceClient()
+        } catch (serviceError) {
+          console.warn('[Config Test] ⚠️ Service role no disponible, usando cliente regular:', serviceError)
+          // Fallback al cliente regular si no hay service role
+          serviceClient = await getSupabaseServerClient()
+        }
+
         // Verificar si ya existe configuración
-        const { data: existingConfig, error: checkError } = await supabase
+        const { data: existingConfig, error: checkError } = await serviceClient
           .from('ai_agent_config')
           .select('id')
           .eq('organization_id', organizationId)
           .single()
 
         if (checkError && checkError.code !== 'PGRST116') {
-          console.error('[Config Test] ❌ Error verificando configuración existente:', checkError)
+          console.error('[Config Test] ❌ Error verificando configuración existente:', {
+            message: checkError.message,
+            code: checkError.code,
+            details: checkError.details
+          })
         }
 
         let configSaved = false
+        let saveError: any = null
+
         if (existingConfig) {
           // Actualizar configuración existente
-          const { error: updateError } = await supabase
+          const { error: updateError } = await serviceClient
             .from('ai_agent_config')
             .update(configData)
             .eq('id', existingConfig.id)
 
           if (updateError) {
-            console.error('[Config Test] ❌ Error actualizando configuración:', updateError)
+            saveError = updateError
+            console.error('[Config Test] ❌ Error actualizando configuración:', {
+              message: updateError.message,
+              code: updateError.code,
+              details: updateError.details,
+              hint: updateError.hint
+            })
           } else {
             console.log('[Config Test] ✅ Configuración actualizada temporalmente')
             configSaved = true
           }
         } else {
           // Crear nueva configuración temporal
-          const { error: insertError } = await supabase
+          const { error: insertError } = await serviceClient
             .from('ai_agent_config')
             .insert(configData)
 
           if (insertError) {
-            console.error('[Config Test] ❌ Error creando configuración:', insertError)
+            saveError = insertError
+            console.error('[Config Test] ❌ Error creando configuración:', {
+              message: insertError.message,
+              code: insertError.code,
+              details: insertError.details,
+              hint: insertError.hint
+            })
           } else {
             console.log('[Config Test] ✅ Configuración creada temporalmente')
             configSaved = true
@@ -114,18 +142,20 @@ export async function POST(request: NextRequest) {
 
         // Verificar que la configuración se guardó correctamente
         if (!configSaved) {
-          console.error('[Config Test] ❌ No se pudo guardar la configuración')
+          console.error('[Config Test] ❌ No se pudo guardar la configuración:', saveError)
           return NextResponse.json({
             success: false,
-            error: 'No se pudo guardar la configuración temporal. Por favor, intenta de nuevo.'
+            error: `No se pudo guardar la configuración temporal: ${saveError?.message || 'Error desconocido'}. ${saveError?.hint ? `Sugerencia: ${saveError.hint}` : ''}`,
+            details: saveError?.details,
+            code: saveError?.code
           }, { status: 500 })
         }
 
         // Pequeño delay para asegurar que la configuración está disponible
-        await new Promise(resolve => setTimeout(resolve, 100))
+        await new Promise(resolve => setTimeout(resolve, 200))
         
         // Verificar que la configuración existe antes de procesar
-        const { data: verifyConfig, error: verifyError } = await supabase
+        const { data: verifyConfig, error: verifyError } = await serviceClient
           .from('ai_agent_config')
           .select('id, enabled')
           .eq('organization_id', organizationId)
@@ -135,7 +165,8 @@ export async function POST(request: NextRequest) {
           console.error('[Config Test] ❌ No se pudo verificar la configuración guardada:', verifyError)
           return NextResponse.json({
             success: false,
-            error: 'La configuración no se guardó correctamente. Por favor, intenta de nuevo.'
+            error: 'La configuración no se guardó correctamente. Por favor, intenta de nuevo.',
+            details: verifyError?.details
           }, { status: 500 })
         }
 
