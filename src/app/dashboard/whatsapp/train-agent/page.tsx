@@ -185,18 +185,11 @@ export default function TrainAgentPage() {
             ← Anterior
           </Button>
           
-          {step < 7 ? (
+          {step < 7 && (
             <Button 
               onClick={() => setStep(Math.min(7, step + 1))}
             >
               Siguiente →
-            </Button>
-          ) : (
-            <Button 
-              onClick={handleSave}
-              disabled={loading}
-            >
-              {loading ? 'Guardando...' : 'Guardar Configuración'}
             </Button>
           )}
         </div>

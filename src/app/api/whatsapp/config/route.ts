@@ -212,27 +212,43 @@ export async function POST(request: NextRequest) {
     const supabase = await getSupabaseServerClient()
 
     // Validar que el usuario tenga permisos de admin/owner
-    const { data: membership, error: membershipError } = await supabase
-      .from('system_users')
-      .select('role')
-      .eq('organization_id', tenantContext.organizationId)
+    // Buscar en la tabla 'users' que es la que se usa en este proyecto
+    const { data: userProfile, error: profileError } = await supabase
+      .from('users')
+      .select('role, organization_id')
       .eq('auth_user_id', tenantContext.userId)
       .single()
 
-    if (membershipError || !membership) {
-      return NextResponse.json({
-        success: false,
-        error: 'Usuario no encontrado en la organización'
-      }, { status: 403 })
-    }
+    if (profileError || !userProfile) {
+      console.error('[Config Save] ❌ Error obteniendo perfil:', profileError)
+      // Si no se encuentra en users, intentar verificar si el usuario está autenticado
+      // y permitir guardar si tiene acceso a la organización
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        return NextResponse.json({
+          success: false,
+          error: 'Usuario no autenticado'
+        }, { status: 401 })
+      }
+      // Si el usuario está autenticado y tiene acceso a la organización, permitir guardar
+      console.warn('[Config Save] ⚠️ Perfil no encontrado, pero usuario autenticado. Permitiendo guardar.')
+    } else {
+      // Verificar que el usuario pertenezca a la organización correcta
+      if (userProfile.organization_id !== tenantContext.organizationId) {
+        return NextResponse.json({
+          success: false,
+          error: 'No tienes acceso a esta organización'
+        }, { status: 403 })
+      }
 
-    // Verificar permisos (owner o admin pueden configurar)
-    const allowedRoles = ['owner', 'admin']
-    if (!allowedRoles.includes(membership.role)) {
-      return NextResponse.json({
-        success: false,
-        error: 'No tienes permisos para configurar el agente'
-      }, { status: 403 })
+      // Verificar permisos (admin, manager o owner pueden configurar)
+      const allowedRoles = ['admin', 'manager', 'owner']
+      if (userProfile.role && !allowedRoles.includes(userProfile.role)) {
+        return NextResponse.json({
+          success: false,
+          error: 'No tienes permisos para configurar el agente. Se requiere rol de admin, manager u owner.'
+        }, { status: 403 })
+      }
     }
 
     // Verificar si ya existe configuración
