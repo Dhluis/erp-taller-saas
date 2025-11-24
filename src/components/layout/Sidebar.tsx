@@ -289,24 +289,7 @@ export function Sidebar({ className }: SidebarProps) {
               <Home className={isCollapsed ? "w-6 h-6" : "h-4 w-4 flex-shrink-0"} />
               {!isCollapsed && <span className="text-sm font-medium">Dashboard</span>}
             </Button>
-          </Link>
-          
-          <Link href="/clientes">
-            <Button
-              variant={isActive("/clientes") ? "primary" : "ghost"}
-              className={cn(
-                "transition-all duration-200",
-                isCollapsed 
-                  ? "w-12 h-12 mx-auto mb-3 flex items-center justify-center rounded-xl hover:bg-gray-800/60" 
-                  : "w-full gap-3 justify-start h-10",
-                isActive("/clientes") && "bg-primary text-white"
-              )}
-              title={isCollapsed ? "Clientes" : ""}
-            >
-              <Users className={isCollapsed ? "w-6 h-6" : "h-4 w-4 flex-shrink-0"} />
-              {!isCollapsed && <span className="text-sm font-medium">Clientes</span>}
-            </Button>
-          </Link>
+          </Link>          {/*  Clientes movido al TopBar */}
           
           {/* ✅ Órdenes, Reportes y WhatsApp movidos al TopBar */}
         </div>
