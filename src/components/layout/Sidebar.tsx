@@ -73,12 +73,7 @@ export function Sidebar({ className }: SidebarProps) {
       icon: Home,
       badge: null
     },
-    { 
-      href: "/clientes", 
-      label: "Clientes", 
-      icon: Users,
-      badge: null
-    },
+    // Clientes movido al TopBar
     { 
       href: "/proveedores", 
       label: "Proveedores", 
@@ -91,24 +86,14 @@ export function Sidebar({ className }: SidebarProps) {
       icon: TruckIcon,
       badge: null
     },
-    { 
-      href: "/ordenes", 
-      label: "Lista de Órdenes", 
-      icon: FileText,
-      badge: null
-    },
+    // Órdenes movido al TopBar
     {
       href: "/cotizaciones",
       label: "Cotizaciones",
       icon: Receipt,
       badge: null
-    },
-    {
-      href: "/dashboard/whatsapp",
-      label: "WhatsApp",
-      icon: MessageSquare,
-      badge: null
     }
+    // WhatsApp movido al TopBar
   ]
 
   const collapsibleSections = [

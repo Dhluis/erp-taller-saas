@@ -1,7 +1,7 @@
 'use client'
 
 import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
-import { Calendar, FileText, BarChart3, MessageSquare } from 'lucide-react'
+import { Calendar, FileText, BarChart3, MessageSquare, Users } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
@@ -20,6 +20,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
   const pathname = usePathname()
   const isCitasActive = pathname?.startsWith('/citas')
+  const isClientesActive = pathname?.startsWith('/clientes')
   const isOrdenesActive = pathname?.startsWith('/ordenes')
   const isReportesActive = pathname?.startsWith('/reportes')
   const isWhatsAppActive = pathname?.startsWith('/dashboard/whatsapp')
@@ -61,6 +62,19 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
             >
               <Calendar className="h-4 w-4" />
               <span className="text-sm font-medium">Citas</span>
+            </Button>
+          </Link>
+          
+          <Link href="/clientes">
+            <Button
+              variant={isClientesActive ? "default" : "outline"}
+              className={cn(
+                "transition-all duration-200 gap-2",
+                isClientesActive && "bg-primary text-white"
+              )}
+            >
+              <Users className="h-4 w-4" />
+              <span className="text-sm font-medium">Clientes</span>
             </Button>
           </Link>
           
