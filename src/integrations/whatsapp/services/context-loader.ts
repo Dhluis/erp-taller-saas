@@ -3,19 +3,59 @@ import type { AIContext, AIAgentConfig } from '../types'
 
 export async function loadAIContext(
   organizationId: string,
-  conversationId: string
+  conversationId: string,
+  useServiceClient: boolean = false
 ): Promise<AIContext | null> {
   try {
-    const supabase = await getSupabaseServerClient()
+    // Usar service client si se solicita (para bypass RLS en pruebas)
+    let supabase
+    if (useServiceClient) {
+      try {
+        const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+        supabase = getSupabaseServiceClient()
+        console.log('[ContextLoader] 🔑 Usando service client para cargar contexto (bypass RLS)')
+      } catch (serviceError) {
+        console.warn('[ContextLoader] ⚠️ Service client no disponible, usando cliente regular:', serviceError)
+        supabase = await getSupabaseServerClient()
+      }
+    } else {
+      supabase = await getSupabaseServerClient()
+    }
 
-    const { data: aiConfig, error: aiError } = await supabase
+    let { data: aiConfig, error: aiError } = await supabase
       .from('ai_agent_config')
       .select('*')
       .eq('organization_id', organizationId)
       .single()
 
+    // Si falla y no estamos usando service client, intentar con service client como fallback
+    if ((aiError || !aiConfig) && !useServiceClient) {
+      console.warn('[ContextLoader] ⚠️ No se pudo cargar con cliente regular, intentando con service client...')
+      try {
+        const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+        const serviceSupabase = getSupabaseServiceClient()
+        const retry = await serviceSupabase
+          .from('ai_agent_config')
+          .select('*')
+          .eq('organization_id', organizationId)
+          .single()
+        
+        if (!retry.error && retry.data) {
+          console.log('[ContextLoader] ✅ Configuración encontrada con service client (fallback)')
+          aiConfig = retry.data
+          aiError = null
+        }
+      } catch (fallbackError) {
+        console.error('[ContextLoader] ❌ Fallback con service client también falló:', fallbackError)
+      }
+    }
+
     if (aiError || !aiConfig) {
-      console.error('[ContextLoader] No se encontró configuración AI:', aiError)
+      console.error('[ContextLoader] ❌ No se encontró configuración AI:', {
+        error: aiError?.message,
+        code: aiError?.code,
+        organizationId
+      })
       return null
     }
 

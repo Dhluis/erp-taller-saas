@@ -177,7 +177,8 @@ export async function processMessage(
     }
 
     // 2. Cargar contexto del taller
-    const context = await loadAIContext(params.organizationId, params.conversationId);
+    // Usar service client si se solicita (para pruebas que acaban de guardar la config)
+    const context = await loadAIContext(params.organizationId, params.conversationId, params.useServiceClient || false);
 
     if (!context) {
       console.error('[AIAgent] No se pudo cargar contexto');
