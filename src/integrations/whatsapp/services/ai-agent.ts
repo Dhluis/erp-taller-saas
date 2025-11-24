@@ -118,6 +118,7 @@ interface ProcessMessageParams {
   customerMessage: string;
   customerPhone: string;
   skipBusinessHoursCheck?: boolean; // Para pruebas, saltar verificación de horarios
+  useServiceClient?: boolean; // Para pruebas, usar service client (bypass RLS)
 }
 
 interface ProcessMessageResult {
@@ -137,7 +138,8 @@ export async function processMessage(
     console.log('[AIAgent] Procesando mensaje para conversación:', params.conversationId);
 
     // 1. Cargar configuración del AI
-    const aiConfig = await getAIConfig(params.organizationId);
+    // Usar service client si se solicita (para pruebas que acaban de guardar la config)
+    const aiConfig = await getAIConfig(params.organizationId, params.useServiceClient || false);
     
     // ✅ VALIDAR QUE LA CONFIGURACIÓN EXISTA PRIMERO
     if (!aiConfig) {

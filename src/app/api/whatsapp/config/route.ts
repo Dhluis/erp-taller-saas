@@ -173,12 +173,16 @@ export async function POST(request: NextRequest) {
         console.log('[Config Test] ✅ Configuración verificada y lista para la prueba')
 
         // ✅ AHORA: Procesar el mensaje de prueba
+        // Usar un pequeño delay adicional para asegurar que la configuración esté disponible
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
         const result = await processMessage({
           conversationId: `test-${Date.now()}`,
           organizationId,
           customerMessage: data.message,
           customerPhone: '+521234567890',
-          skipBusinessHoursCheck: true
+          skipBusinessHoursCheck: true,
+          useServiceClient: true // ✅ Indicar que use service client para leer la config
         })
 
         console.log('[Config Test] ✅ Result:', result.success)

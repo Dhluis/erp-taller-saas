@@ -164,11 +164,26 @@ Siempre sé ${personality.tone || 'profesional'}, ${personality.use_emojis ? 'am
 }
 
 export async function getAIConfig(
-  organizationId: string
+  organizationId: string,
+  useServiceClient: boolean = false
 ): Promise<AIAgentConfig | null> {
   try {
     console.log('[ContextLoader] 🔍 Buscando AI config para organizationId:', organizationId)
-    const supabase = await getSupabaseServerClient()
+    
+    // Usar service client si se solicita (para bypass RLS en pruebas)
+    let supabase
+    if (useServiceClient) {
+      try {
+        const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+        supabase = getSupabaseServiceClient()
+        console.log('[ContextLoader] 🔑 Usando service client (bypass RLS)')
+      } catch (serviceError) {
+        console.warn('[ContextLoader] ⚠️ Service client no disponible, usando cliente regular:', serviceError)
+        supabase = await getSupabaseServerClient()
+      }
+    } else {
+      supabase = await getSupabaseServerClient()
+    }
 
     const { data, error } = await supabase
       .from('ai_agent_config')
