@@ -107,15 +107,35 @@ export function PreviewTestStep({ data, onSave, loading }: PreviewTestStepProps)
     } catch (error) {
       console.error('Error testing agent:', error)
       
-      // Mostrar mensaje de error al usuario
+      // Detectar si el error es por configuración faltante
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+      const isConfigError = errorMessage.includes('no está configurado') || 
+                          errorMessage.includes('no configurado') ||
+                          errorMessage.includes('no está habilitado')
+      
+      // Mostrar mensaje de error más amigable
+      let errorContent = ''
+      if (isConfigError) {
+        errorContent = `⚠️ **Agente no configurado**\n\nEl AI Agent aún no está configurado para tu organización. Por favor, completa todos los pasos del formulario y guarda la configuración antes de probar el agente.\n\n💡 **Sugerencia:** Asegúrate de haber completado:\n• Información del negocio\n• Servicios\n• Personalidad del bot\n• Preguntas frecuentes\n\nUna vez guardada la configuración, podrás probar el agente aquí.`
+        toast.error('Agente no configurado', {
+          description: 'Completa y guarda la configuración antes de probar',
+          duration: 5000
+        })
+      } else {
+        errorContent = `⚠️ **Error al procesar mensaje**\n\n${errorMessage}\n\nPor favor, verifica que el AI Agent esté configurado correctamente.`
+        toast.error('Error al procesar mensaje', {
+          description: errorMessage,
+          duration: 5000
+        })
+      }
+      
       const errorMsg: TestMessage = {
         role: 'assistant',
-        content: `⚠️ Lo siento, hubo un error al procesar tu mensaje: ${error instanceof Error ? error.message : 'Error desconocido'}. Por favor, verifica que el AI Agent esté configurado correctamente.`,
+        content: errorContent,
         timestamp: new Date()
       }
       
       setTestMessages(prev => [...prev, errorMsg])
-      toast.error('Error al procesar mensaje')
     } finally {
       setIsTesting(false)
       setIsTyping(false)

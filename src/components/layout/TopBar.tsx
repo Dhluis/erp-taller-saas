@@ -57,7 +57,9 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
               variant={isCitasActive ? "default" : "outline"}
               className={cn(
                 "transition-all duration-200 gap-2",
-                isCitasActive && "bg-primary text-white"
+                isCitasActive 
+                  ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                  : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
               )}
             >
               <Calendar className="h-4 w-4" />
@@ -70,7 +72,9 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
               variant={isClientesActive ? "default" : "outline"}
               className={cn(
                 "transition-all duration-200 gap-2",
-                isClientesActive && "bg-primary text-white"
+                isClientesActive 
+                  ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                  : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
               )}
             >
               <Users className="h-4 w-4" />
@@ -83,7 +87,9 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
               variant={isOrdenesActive ? "default" : "outline"}
               className={cn(
                 "transition-all duration-200 gap-2",
-                isOrdenesActive && "bg-primary text-white"
+                isOrdenesActive 
+                  ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                  : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
               )}
             >
               <FileText className="h-4 w-4" />
@@ -96,7 +102,9 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
               variant={isReportesActive ? "default" : "outline"}
               className={cn(
                 "transition-all duration-200 gap-2",
-                isReportesActive && "bg-primary text-white"
+                isReportesActive 
+                  ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                  : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
               )}
             >
               <BarChart3 className="h-4 w-4" />
@@ -109,7 +117,9 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
               variant={isWhatsAppActive ? "default" : "outline"}
               className={cn(
                 "transition-all duration-200 gap-2",
-                isWhatsAppActive && "bg-primary text-white"
+                isWhatsAppActive 
+                  ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                  : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
               )}
             >
               <MessageSquare className="h-4 w-4" />
