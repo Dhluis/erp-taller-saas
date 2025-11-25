@@ -96,25 +96,33 @@ export default function WhatsAppPage() {
   }
 
   const handleGenerateQR = async () => {
-    if (!organization?.organization_id) {
-      toast.error('No se encontró la organización')
+    if (!phoneNumber.trim()) {
+      toast.error('Por favor ingresa primero el número de WhatsApp')
+      return
+    }
+
+    // Validar formato básico de teléfono
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/
+    const cleanPhone = phoneNumber.replace(/\s|-|\(|\)/g, '')
+    
+    if (!phoneRegex.test(cleanPhone)) {
+      toast.error('Por favor ingresa un número de teléfono válido antes de generar el QR')
       return
     }
 
     try {
-      // Generar un token único para el QR
-      const qrData = {
-        organization_id: organization.organization_id,
-        timestamp: Date.now(),
-        action: 'link_whatsapp'
-      }
+      // Opción 1: WhatsApp Click-to-Chat (Simple - funciona inmediatamente)
+      // Formato: https://wa.me/número (sin +, sin espacios)
+      const phoneForQR = cleanPhone.replace(/^\+/, '') // Remover el + si existe
+      const whatsappUrl = `https://wa.me/${phoneForQR}`
       
-      // Codificar los datos en base64 para el QR
-      const qrString = btoa(JSON.stringify(qrData))
-      const qrUrl = `${window.location.origin}/dashboard/whatsapp/link?token=${qrString}`
-      
-      setQrCode(qrUrl)
+      setQrCode(whatsappUrl)
       setShowQR(true)
+      
+      // Opción 2: Si tienes WhatsApp Business API configurada, usar esa
+      // Por ahora usamos la opción simple que funciona de inmediato
+      
+      toast.success('Código QR generado. Escanea con WhatsApp para iniciar una conversación.')
     } catch (error) {
       console.error('Error generando QR:', error)
       toast.error('Error al generar código QR')
@@ -403,12 +411,12 @@ export default function WhatsAppPage() {
                         </TabsContent>
                         <TabsContent value="qr" className="space-y-4 mt-4">
                           <div className="text-center">
-                            <p className="text-sm text-text-secondary mb-4">
-                              Escanea este código QR con WhatsApp para vincular tu cuenta
-                            </p>
                             {qrCode ? (
                               <div className="flex flex-col items-center gap-4">
-                                <div className="p-4 bg-white rounded-lg">
+                                <p className="text-sm text-text-secondary mb-2">
+                                  Escanea este código QR con WhatsApp para iniciar una conversación
+                                </p>
+                                <div className="p-4 bg-white rounded-lg border-2 border-primary/20">
                                   <QRCodeSVG 
                                     value={qrCode} 
                                     size={256}
@@ -416,26 +424,62 @@ export default function WhatsAppPage() {
                                     includeMargin={true}
                                   />
                                 </div>
-                                <p className="text-xs text-text-secondary">
-                                  Abre WhatsApp → Configuración → Dispositivos vinculados → Vincular dispositivo
-                                </p>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setQrCode('')
-                                    setShowQR(false)
-                                  }}
-                                >
-                                  Generar nuevo código
-                                </Button>
+                                <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg w-full">
+                                  <p className="text-xs text-text-secondary mb-1">
+                                    <strong>Número:</strong> {phoneNumber || 'No especificado'}
+                                  </p>
+                                  <p className="text-xs text-text-secondary">
+                                    Al escanear, se abrirá WhatsApp con este número
+                                  </p>
+                                </div>
+                                <div className="flex gap-2 w-full">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => {
+                                      setQrCode('')
+                                      setShowQR(false)
+                                    }}
+                                  >
+                                    Generar nuevo código
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => {
+                                      window.open(qrCode, '_blank')
+                                    }}
+                                  >
+                                    Abrir en WhatsApp
+                                  </Button>
+                                </div>
                               </div>
                             ) : (
                               <div className="flex flex-col items-center gap-4 py-8">
-                                <p className="text-sm text-text-secondary">
-                                  Haz clic en el botón para generar el código QR
+                                <p className="text-sm text-text-secondary mb-2">
+                                  Ingresa tu número de WhatsApp y genera el código QR
                                 </p>
-                                <Button onClick={handleGenerateQR}>
+                                <div className="w-full">
+                                  <Label htmlFor="phone-qr">Número de WhatsApp</Label>
+                                  <Input
+                                    id="phone-qr"
+                                    type="tel"
+                                    placeholder="+521234567890"
+                                    value={phoneNumber}
+                                    onChange={(e) => setPhoneNumber(e.target.value)}
+                                    className="mt-2"
+                                  />
+                                  <p className="text-xs text-text-secondary mt-1 mb-4">
+                                    Formato: +[código de país][número] (ej: +521234567890)
+                                  </p>
+                                </div>
+                                <Button 
+                                  onClick={handleGenerateQR}
+                                  disabled={!phoneNumber.trim()}
+                                  className="w-full"
+                                >
                                   Generar Código QR
                                 </Button>
                               </div>
