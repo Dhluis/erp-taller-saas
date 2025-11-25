@@ -61,8 +61,16 @@ export default function WhatsAppPage() {
       const result = await response.json()
       
       if (result.success && result.data) {
-        setConfig(result.data)
-        console.log('[WhatsApp] ✅ Configuración cargada:', result.data)
+        const configData = result.data
+        
+        // Si whatsapp está en policies (fallback), extraerlo
+        if (configData.policies?.whatsapp && !configData.whatsapp_phone) {
+          configData.whatsapp_phone = configData.policies.whatsapp.phone
+          configData.whatsapp_connected = configData.policies.whatsapp.connected
+        }
+        
+        setConfig(configData)
+        console.log('[WhatsApp] ✅ Configuración cargada:', configData)
       } else {
         setConfig(null)
         console.log('[WhatsApp] ⚠️ No hay configuración disponible')

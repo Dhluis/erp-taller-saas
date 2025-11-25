@@ -270,44 +270,102 @@ export async function POST(request: NextRequest) {
 
     // Si solo se está actualizando WhatsApp (viene whatsapp_phone)
     if (data.whatsapp_phone !== undefined && !data.businessInfo) {
-      // Actualizar solo campos de WhatsApp
-      const updateData: any = {
-        whatsapp_phone: data.whatsapp_phone,
-        whatsapp_connected: data.whatsapp_connected !== undefined ? data.whatsapp_connected : true,
-        updated_at: new Date().toISOString()
-      }
-
       // Verificar si existe configuración
-      const { data: existingConfig } = await serviceClient
+      const { data: existingConfig, error: checkError } = await serviceClient
         .from('ai_agent_config')
-        .select('id')
+        .select('id, policies')
         .eq('organization_id', tenantContext.organizationId)
         .single()
 
-      if (existingConfig) {
-        const { error } = await serviceClient
-          .from('ai_agent_config')
-          .update(updateData)
-          .eq('id', existingConfig.id)
-
-        if (error) {
-          console.error('[Config Save] ❌ Error actualizando WhatsApp:', error)
-          return NextResponse.json({
-            success: false,
-            error: error.message || 'Error al actualizar configuración de WhatsApp'
-          }, { status: 500 })
-        }
-
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('[Config Save] ❌ Error verificando configuración:', checkError)
         return NextResponse.json({
-          success: true,
-          data: { id: existingConfig.id, updated: true }
-        })
-      } else {
+          success: false,
+          error: 'Error al verificar configuración existente'
+        }, { status: 500 })
+      }
+
+      if (!existingConfig) {
         return NextResponse.json({
           success: false,
           error: 'Primero debes entrenar el asistente antes de vincular WhatsApp'
         }, { status: 400 })
       }
+
+      // Intentar actualizar con campos directos primero
+      const updateData: any = {
+        updated_at: new Date().toISOString()
+      }
+
+      // Intentar agregar campos de WhatsApp (pueden no existir aún)
+      try {
+        updateData.whatsapp_phone = data.whatsapp_phone
+        updateData.whatsapp_connected = data.whatsapp_connected !== undefined ? data.whatsapp_connected : true
+      } catch (e) {
+        // Ignorar si no se pueden agregar
+      }
+
+      // Actualizar
+      let updateError = null
+      const { error } = await serviceClient
+        .from('ai_agent_config')
+        .update(updateData)
+        .eq('id', existingConfig.id)
+
+      updateError = error
+
+      // Si falla porque las columnas no existen, usar policies como fallback
+      if (updateError && (updateError.message?.includes('whatsapp_phone') || updateError.message?.includes('whatsapp_connected'))) {
+        console.warn('[Config Save] ⚠️ Campos de WhatsApp no existen, usando policies como fallback')
+        
+        // Usar policies JSONB para almacenar temporalmente
+        const currentPolicies = existingConfig.policies || {}
+        const updatedPolicies = {
+          ...currentPolicies,
+          whatsapp: {
+            phone: data.whatsapp_phone,
+            connected: data.whatsapp_connected !== undefined ? data.whatsapp_connected : true,
+            updated_at: new Date().toISOString()
+          }
+        }
+
+        const { error: fallbackError } = await serviceClient
+          .from('ai_agent_config')
+          .update({
+            policies: updatedPolicies,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingConfig.id)
+
+        if (fallbackError) {
+          console.error('[Config Save] ❌ Error actualizando WhatsApp en policies:', fallbackError)
+          return NextResponse.json({
+            success: false,
+            error: 'Error al actualizar configuración de WhatsApp. Por favor, ejecuta la migración SQL primero.',
+            hint: 'Ejecuta la migración en supabase/migrations/012_add_whatsapp_fields.sql'
+          }, { status: 500 })
+        }
+
+        console.log('[Config Save] ✅ WhatsApp guardado en policies (fallback)')
+        return NextResponse.json({
+          success: true,
+          data: { id: existingConfig.id, updated: true, using_fallback: true }
+        })
+      }
+
+      if (updateError) {
+        console.error('[Config Save] ❌ Error actualizando WhatsApp:', updateError)
+        return NextResponse.json({
+          success: false,
+          error: updateError.message || 'Error al actualizar configuración de WhatsApp'
+        }, { status: 500 })
+      }
+
+      console.log('[Config Save] ✅ WhatsApp actualizado exitosamente')
+      return NextResponse.json({
+        success: true,
+        data: { id: existingConfig.id, updated: true }
+      })
     }
 
     const configData = {
