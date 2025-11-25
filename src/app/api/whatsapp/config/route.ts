@@ -268,6 +268,48 @@ export async function POST(request: NextRequest) {
       escalation_rules: data.escalationRules || {}
     }
 
+    // Si solo se está actualizando WhatsApp (viene whatsapp_phone)
+    if (data.whatsapp_phone !== undefined && !data.businessInfo) {
+      // Actualizar solo campos de WhatsApp
+      const updateData: any = {
+        whatsapp_phone: data.whatsapp_phone,
+        whatsapp_connected: data.whatsapp_connected !== undefined ? data.whatsapp_connected : true,
+        updated_at: new Date().toISOString()
+      }
+
+      // Verificar si existe configuración
+      const { data: existingConfig } = await serviceClient
+        .from('ai_agent_config')
+        .select('id')
+        .eq('organization_id', tenantContext.organizationId)
+        .single()
+
+      if (existingConfig) {
+        const { error } = await serviceClient
+          .from('ai_agent_config')
+          .update(updateData)
+          .eq('id', existingConfig.id)
+
+        if (error) {
+          console.error('[Config Save] ❌ Error actualizando WhatsApp:', error)
+          return NextResponse.json({
+            success: false,
+            error: error.message || 'Error al actualizar configuración de WhatsApp'
+          }, { status: 500 })
+        }
+
+        return NextResponse.json({
+          success: true,
+          data: { id: existingConfig.id, updated: true }
+        })
+      } else {
+        return NextResponse.json({
+          success: false,
+          error: 'Primero debes entrenar el asistente antes de vincular WhatsApp'
+        }, { status: 400 })
+      }
+    }
+
     const configData = {
       organization_id: tenantContext.organizationId,
       enabled: true,
@@ -287,6 +329,8 @@ export async function POST(request: NextRequest) {
       mechanics: [],
       faqs: data.faq || [],
       policies: policiesWithExtras,
+      whatsapp_phone: data.whatsapp_phone || null,
+      whatsapp_connected: data.whatsapp_connected || false,
       updated_at: new Date().toISOString()
     }
 

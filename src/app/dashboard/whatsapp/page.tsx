@@ -15,15 +15,25 @@ import {
   CheckCircle2, 
   XCircle,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Phone,
+  Link2
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useState } from 'react'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { toast } from 'sonner'
 
 export default function WhatsAppPage() {
   const { organization } = useAuth()
   const router = useRouter()
   const [config, setConfig] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [linkModalOpen, setLinkModalOpen] = useState(false)
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [linking, setLinking] = useState(false)
 
   useEffect(() => {
     loadConfig()
@@ -72,6 +82,50 @@ export default function WhatsAppPage() {
 
   const handleTestAgent = () => {
     router.push('/dashboard/whatsapp/test')
+  }
+
+  const handleLinkWhatsApp = async () => {
+    if (!phoneNumber.trim()) {
+      toast.error('Por favor ingresa un número de teléfono')
+      return
+    }
+
+    // Validar formato básico de teléfono
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/
+    const cleanPhone = phoneNumber.replace(/\s|-|\(|\)/g, '')
+    
+    if (!phoneRegex.test(cleanPhone)) {
+      toast.error('Por favor ingresa un número de teléfono válido (ej: +521234567890)')
+      return
+    }
+
+    setLinking(true)
+    try {
+      const response = await fetch('/api/whatsapp/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          whatsapp_phone: cleanPhone,
+          whatsapp_connected: true
+        })
+      })
+
+      const result = await response.json()
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Error al vincular WhatsApp')
+      }
+
+      toast.success('WhatsApp vinculado exitosamente')
+      setLinkModalOpen(false)
+      setPhoneNumber('')
+      loadConfig() // Recargar configuración
+    } catch (error) {
+      console.error('Error vinculando WhatsApp:', error)
+      toast.error(error instanceof Error ? error.message : 'Error al vincular WhatsApp')
+    } finally {
+      setLinking(false)
+    }
   }
 
   return (
@@ -222,17 +276,89 @@ export default function WhatsAppPage() {
                       ? 'Tu asistente está activo y listo para recibir mensajes'
                       : 'Activa el asistente para comenzar a recibir mensajes'}
                   </p>
-                  <Button 
-                    variant={config.enabled ? "outline" : "default"}
-                    className="w-full"
-                    onClick={() => {
-                      // TODO: Implementar vinculación de WhatsApp
-                      alert('Funcionalidad de vinculación próximamente')
-                    }}
-                  >
-                    {config.enabled ? 'Gestionar Conexión' : 'Vincular WhatsApp'}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
+                  <Dialog open={linkModalOpen} onOpenChange={setLinkModalOpen}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant={config.enabled ? "outline" : "default"}
+                        className="w-full"
+                        onClick={() => {
+                          // Inicializar el número cuando se abre el modal
+                          setPhoneNumber(config.whatsapp_phone || '')
+                        }}
+                      >
+                        {config.whatsapp_connected ? (
+                          <>
+                            <Link2 className="w-4 h-4 mr-2" />
+                            Gestionar Conexión
+                          </>
+                        ) : (
+                          <>
+                            <Phone className="w-4 h-4 mr-2" />
+                            Vincular WhatsApp
+                          </>
+                        )}
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <Phone className="w-5 h-5" />
+                          {config.whatsapp_connected ? 'Gestionar Conexión WhatsApp' : 'Vincular WhatsApp Business'}
+                        </DialogTitle>
+                        <DialogDescription>
+                          {config.whatsapp_connected 
+                            ? 'Tu número de WhatsApp está conectado. Puedes actualizarlo o desconectarlo.'
+                            : 'Ingresa el número de teléfono de WhatsApp Business que deseas vincular.'}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 mt-4">
+                        <div>
+                          <Label htmlFor="phone">Número de WhatsApp</Label>
+                          <Input
+                            id="phone"
+                            type="tel"
+                            placeholder="+521234567890"
+                            value={phoneNumber}
+                            onChange={(e) => setPhoneNumber(e.target.value)}
+                            disabled={linking}
+                            className="mt-2"
+                          />
+                          <p className="text-xs text-text-secondary mt-1">
+                            Formato: +[código de país][número] (ej: +521234567890)
+                          </p>
+                        </div>
+                        {config.whatsapp_connected && (
+                          <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                            <p className="text-sm text-text-secondary">
+                              <strong>Estado:</strong> <span className="text-success">Conectado</span>
+                            </p>
+                            <p className="text-sm text-text-secondary">
+                              <strong>Número:</strong> {config.whatsapp_phone || 'No especificado'}
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setLinkModalOpen(false)
+                              setPhoneNumber('')
+                            }}
+                            disabled={linking}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            onClick={handleLinkWhatsApp}
+                            disabled={linking || !phoneNumber.trim()}
+                          >
+                            {linking ? 'Vinculando...' : config.whatsapp_connected ? 'Actualizar' : 'Vincular'}
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
             )}
