@@ -363,7 +363,17 @@ export async function GET(request: NextRequest) {
       }, { status: 401 })
     }
 
-    const supabase = await getSupabaseServerClient()
+    // Intentar primero con service client (bypass RLS) para evitar problemas
+    let supabase
+    let useServiceClient = false
+    try {
+      supabase = getSupabaseServiceClient()
+      useServiceClient = true
+      console.log('[Config GET] ✅ Usando service client (bypass RLS)')
+    } catch (serviceError) {
+      console.warn('[Config GET] ⚠️ Service client no disponible, usando cliente regular:', serviceError)
+      supabase = await getSupabaseServerClient()
+    }
 
     const { data: config, error } = await supabase
       .from('ai_agent_config')
@@ -371,20 +381,59 @@ export async function GET(request: NextRequest) {
       .eq('organization_id', tenantContext.organizationId)
       .single()
 
-    if (error && error.code !== 'PGRST116') {
-      console.error('Error obteniendo configuración:', error)
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No encontrado - esto es normal si no hay configuración
+        console.log('[Config GET] ℹ️ No se encontró configuración para esta organización')
+        return NextResponse.json({
+          success: true,
+          data: null
+        })
+      }
+      
+      // Si falla con service client, intentar con cliente regular como fallback
+      if (useServiceClient) {
+        console.warn('[Config GET] ⚠️ Error con service client, intentando con cliente regular...')
+        const regularClient = await getSupabaseServerClient()
+        const retry = await regularClient
+          .from('ai_agent_config')
+          .select('*')
+          .eq('organization_id', tenantContext.organizationId)
+          .single()
+        
+        if (retry.error && retry.error.code !== 'PGRST116') {
+          console.error('[Config GET] ❌ Error obteniendo configuración:', retry.error)
+          return NextResponse.json({
+            success: false,
+            error: retry.error.message
+          }, { status: 500 })
+        }
+        
+        return NextResponse.json({
+          success: true,
+          data: retry.data || null
+        })
+      }
+      
+      console.error('[Config GET] ❌ Error obteniendo configuración:', error)
       return NextResponse.json({
         success: false,
         error: error.message
       }, { status: 500 })
     }
 
+    console.log('[Config GET] ✅ Configuración encontrada:', {
+      id: config?.id,
+      enabled: config?.enabled,
+      organization_id: config?.organization_id
+    })
+
     return NextResponse.json({
       success: true,
       data: config || null
     })
   } catch (error) {
-    console.error('Error en GET /api/whatsapp/config:', error)
+    console.error('[Config GET] ❌ Error en GET /api/whatsapp/config:', error)
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Error desconocido'
