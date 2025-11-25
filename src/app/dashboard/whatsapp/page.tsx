@@ -24,6 +24,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { QRCodeSVG } from 'qrcode.react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function WhatsAppPage() {
   const { organization } = useAuth()
@@ -33,6 +35,8 @@ export default function WhatsAppPage() {
   const [linkModalOpen, setLinkModalOpen] = useState(false)
   const [phoneNumber, setPhoneNumber] = useState('')
   const [linking, setLinking] = useState(false)
+  const [showQR, setShowQR] = useState(false)
+  const [qrCode, setQrCode] = useState('')
 
   useEffect(() => {
     loadConfig()
@@ -91,6 +95,32 @@ export default function WhatsAppPage() {
     router.push('/dashboard/whatsapp/test')
   }
 
+  const handleGenerateQR = async () => {
+    if (!organization?.organization_id) {
+      toast.error('No se encontró la organización')
+      return
+    }
+
+    try {
+      // Generar un token único para el QR
+      const qrData = {
+        organization_id: organization.organization_id,
+        timestamp: Date.now(),
+        action: 'link_whatsapp'
+      }
+      
+      // Codificar los datos en base64 para el QR
+      const qrString = btoa(JSON.stringify(qrData))
+      const qrUrl = `${window.location.origin}/dashboard/whatsapp/link?token=${qrString}`
+      
+      setQrCode(qrUrl)
+      setShowQR(true)
+    } catch (error) {
+      console.error('Error generando QR:', error)
+      toast.error('Error al generar código QR')
+    }
+  }
+
   const handleLinkWhatsApp = async () => {
     if (!phoneNumber.trim()) {
       toast.error('Por favor ingresa un número de teléfono')
@@ -126,6 +156,7 @@ export default function WhatsAppPage() {
       toast.success('WhatsApp vinculado exitosamente')
       setLinkModalOpen(false)
       setPhoneNumber('')
+      setShowQR(false)
       loadConfig() // Recargar configuración
     } catch (error) {
       console.error('Error vinculando WhatsApp:', error)
@@ -307,7 +338,7 @@ export default function WhatsAppPage() {
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="max-w-md">
                       <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                           <Phone className="w-5 h-5" />
@@ -316,54 +347,115 @@ export default function WhatsAppPage() {
                         <DialogDescription>
                           {config.whatsapp_connected 
                             ? 'Tu número de WhatsApp está conectado. Puedes actualizarlo o desconectarlo.'
-                            : 'Ingresa el número de teléfono de WhatsApp Business que deseas vincular.'}
+                            : 'Elige cómo deseas vincular tu WhatsApp Business.'}
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="space-y-4 mt-4">
-                        <div>
-                          <Label htmlFor="phone">Número de WhatsApp</Label>
-                          <Input
-                            id="phone"
-                            type="tel"
-                            placeholder="+521234567890"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            disabled={linking}
-                            className="mt-2"
-                          />
-                          <p className="text-xs text-text-secondary mt-1">
-                            Formato: +[código de país][número] (ej: +521234567890)
-                          </p>
-                        </div>
-                        {config.whatsapp_connected && (
-                          <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg">
-                            <p className="text-sm text-text-secondary">
-                              <strong>Estado:</strong> <span className="text-success">Conectado</span>
-                            </p>
-                            <p className="text-sm text-text-secondary">
-                              <strong>Número:</strong> {config.whatsapp_phone || 'No especificado'}
+                      <Tabs defaultValue="number" className="mt-4">
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="number">Número</TabsTrigger>
+                          <TabsTrigger value="qr">Código QR</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="number" className="space-y-4 mt-4">
+                          <div>
+                            <Label htmlFor="phone">Número de WhatsApp</Label>
+                            <Input
+                              id="phone"
+                              type="tel"
+                              placeholder="+521234567890"
+                              value={phoneNumber}
+                              onChange={(e) => setPhoneNumber(e.target.value)}
+                              disabled={linking}
+                              className="mt-2"
+                            />
+                            <p className="text-xs text-text-secondary mt-1">
+                              Formato: +[código de país][número] (ej: +521234567890)
                             </p>
                           </div>
-                        )}
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setLinkModalOpen(false)
-                              setPhoneNumber('')
-                            }}
-                            disabled={linking}
-                          >
-                            Cancelar
-                          </Button>
-                          <Button
-                            onClick={handleLinkWhatsApp}
-                            disabled={linking || !phoneNumber.trim()}
-                          >
-                            {linking ? 'Vinculando...' : config.whatsapp_connected ? 'Actualizar' : 'Vincular'}
-                          </Button>
-                        </div>
-                      </div>
+                          {config.whatsapp_connected && (
+                            <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                              <p className="text-sm text-text-secondary">
+                                <strong>Estado:</strong> <span className="text-success">Conectado</span>
+                              </p>
+                              <p className="text-sm text-text-secondary">
+                                <strong>Número:</strong> {config.whatsapp_phone || 'No especificado'}
+                              </p>
+                            </div>
+                          )}
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setLinkModalOpen(false)
+                                setPhoneNumber('')
+                                setShowQR(false)
+                              }}
+                              disabled={linking}
+                            >
+                              Cancelar
+                            </Button>
+                            <Button
+                              onClick={handleLinkWhatsApp}
+                              disabled={linking || !phoneNumber.trim()}
+                            >
+                              {linking ? 'Vinculando...' : config.whatsapp_connected ? 'Actualizar' : 'Vincular'}
+                            </Button>
+                          </div>
+                        </TabsContent>
+                        <TabsContent value="qr" className="space-y-4 mt-4">
+                          <div className="text-center">
+                            <p className="text-sm text-text-secondary mb-4">
+                              Escanea este código QR con WhatsApp para vincular tu cuenta
+                            </p>
+                            {qrCode ? (
+                              <div className="flex flex-col items-center gap-4">
+                                <div className="p-4 bg-white rounded-lg">
+                                  <QRCodeSVG 
+                                    value={qrCode} 
+                                    size={256}
+                                    level="H"
+                                    includeMargin={true}
+                                  />
+                                </div>
+                                <p className="text-xs text-text-secondary">
+                                  Abre WhatsApp → Configuración → Dispositivos vinculados → Vincular dispositivo
+                                </p>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setQrCode('')
+                                    setShowQR(false)
+                                  }}
+                                >
+                                  Generar nuevo código
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-4 py-8">
+                                <p className="text-sm text-text-secondary">
+                                  Haz clic en el botón para generar el código QR
+                                </p>
+                                <Button onClick={handleGenerateQR}>
+                                  Generar Código QR
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setLinkModalOpen(false)
+                                setPhoneNumber('')
+                                setShowQR(false)
+                                setQrCode('')
+                              }}
+                            >
+                              Cerrar
+                            </Button>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
                     </DialogContent>
                   </Dialog>
                 </CardContent>
