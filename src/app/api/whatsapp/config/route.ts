@@ -211,19 +211,10 @@ export async function POST(request: NextRequest) {
     // RESTO DEL CÓDIGO ORIGINAL (guardar configuración)
     // ✅ Si llegamos aquí, el usuario está autenticado y tiene acceso a la organización
     // (ya fue verificado en getTenantContext)
-    // Usar service client para bypass RLS al guardar configuración
-    let serviceClient
-    try {
-      serviceClient = getSupabaseServiceClient()
-      console.log('[Config Save] ✅ Usando service client (bypass RLS)')
-    } catch (serviceError) {
-      console.warn('[Config Save] ⚠️ Service role no disponible, usando cliente regular:', serviceError)
-      // Fallback al cliente regular si no hay service role
-      serviceClient = await getSupabaseServerClient()
-    }
-
-    // Verificar que el usuario esté autenticado (ya verificado en getTenantContext)
-    const { data: { user }, error: userError } = await serviceClient.auth.getUser()
+    
+    // Verificar autenticación con cliente regular (tiene sesión)
+    const supabase = await getSupabaseServerClient()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError || !user) {
       return NextResponse.json({
         success: false,
@@ -238,6 +229,17 @@ export async function POST(request: NextRequest) {
     // - El workshop pertenece a una organización
     // Por lo tanto, permitimos guardar la configuración
     console.log('[Config Save] ✅ Usuario autenticado y con acceso a la organización, permitiendo guardar configuración')
+
+    // Usar service client para bypass RLS al guardar configuración
+    let serviceClient
+    try {
+      serviceClient = getSupabaseServiceClient()
+      console.log('[Config Save] ✅ Usando service client para operaciones de BD (bypass RLS)')
+    } catch (serviceError) {
+      console.warn('[Config Save] ⚠️ Service role no disponible, usando cliente regular:', serviceError)
+      // Fallback al cliente regular si no hay service role
+      serviceClient = supabase
+    }
 
     // Verificar si ya existe configuración
     const { data: existingConfig, error: checkError } = await serviceClient
