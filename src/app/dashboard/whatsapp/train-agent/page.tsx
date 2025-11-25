@@ -85,13 +85,26 @@ export default function TrainAgentPage() {
         })
       })
 
-      if (!response.ok) throw new Error('Error al guardar configuración')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error || 'Error al guardar configuración'
+        throw new Error(errorMessage)
+      }
+
+      const result = await response.json()
+      if (!result.success) {
+        throw new Error(result.error || 'Error al guardar configuración')
+      }
 
       toast.success('Configuración del agente guardada exitosamente')
       router.push('/dashboard/whatsapp')
     } catch (error) {
       console.error('Error saving config:', error)
-      toast.error('Error al guardar la configuración')
+      const errorMessage = error instanceof Error ? error.message : 'Error al guardar la configuración'
+      toast.error(errorMessage, {
+        description: 'Por favor, verifica que tengas permisos para guardar la configuración',
+        duration: 5000
+      })
     } finally {
       setLoading(false)
     }
