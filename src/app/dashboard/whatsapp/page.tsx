@@ -27,6 +27,15 @@ export default function WhatsAppPage() {
 
   useEffect(() => {
     loadConfig()
+  }, [organization?.organization_id])
+
+  // Recargar cuando se regresa de otra página
+  useEffect(() => {
+    const handleFocus = () => {
+      loadConfig()
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
   }, [])
 
   const loadConfig = async () => {
@@ -36,14 +45,22 @@ export default function WhatsAppPage() {
     }
 
     try {
-      const response = await fetch('/api/whatsapp/config')
+      setLoading(true)
+      const response = await fetch('/api/whatsapp/config', {
+        cache: 'no-store' // Evitar cache para obtener datos frescos
+      })
       const result = await response.json()
       
       if (result.success && result.data) {
         setConfig(result.data)
+        console.log('[WhatsApp] ✅ Configuración cargada:', result.data)
+      } else {
+        setConfig(null)
+        console.log('[WhatsApp] ⚠️ No hay configuración disponible')
       }
     } catch (error) {
-      console.error('Error cargando configuración:', error)
+      console.error('[WhatsApp] ❌ Error cargando configuración:', error)
+      setConfig(null)
     } finally {
       setLoading(false)
     }
@@ -188,6 +205,38 @@ export default function WhatsAppPage() {
               </CardContent>
             </Card>
 
+            {config && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5" />
+                    Vincular WhatsApp
+                  </CardTitle>
+                  <CardDescription>
+                    Conecta tu número de WhatsApp Business
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-text-secondary mb-4">
+                    {config.enabled 
+                      ? 'Tu asistente está activo y listo para recibir mensajes'
+                      : 'Activa el asistente para comenzar a recibir mensajes'}
+                  </p>
+                  <Button 
+                    variant={config.enabled ? "outline" : "default"}
+                    className="w-full"
+                    onClick={() => {
+                      // TODO: Implementar vinculación de WhatsApp
+                      alert('Funcionalidad de vinculación próximamente')
+                    }}
+                  >
+                    {config.enabled ? 'Gestionar Conexión' : 'Vincular WhatsApp'}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -202,8 +251,13 @@ export default function WhatsAppPage() {
                 <p className="text-sm text-text-secondary mb-4">
                   Configura providers, modelos y parámetros avanzados del asistente.
                 </p>
-                <Button variant="outline" className="w-full" disabled>
-                  Próximamente
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleTrainAgent}
+                >
+                  Editar Configuración
+                  <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </CardContent>
             </Card>

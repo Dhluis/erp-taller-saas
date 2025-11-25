@@ -97,7 +97,10 @@ export default function TrainAgentPage() {
       }
 
       toast.success('Configuración del agente guardada exitosamente')
-      router.push('/dashboard/whatsapp')
+      // Pequeño delay para asegurar que la BD se actualice
+      setTimeout(() => {
+        router.push('/dashboard/whatsapp')
+      }, 500)
     } catch (error) {
       console.error('Error saving config:', error)
       const errorMessage = error instanceof Error ? error.message : 'Error al guardar la configuración'
