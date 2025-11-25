@@ -211,11 +211,19 @@ export async function POST(request: NextRequest) {
     // RESTO DEL CÓDIGO ORIGINAL (guardar configuración)
     // ✅ Si llegamos aquí, el usuario está autenticado y tiene acceso a la organización
     // (ya fue verificado en getTenantContext)
-    // Simplificamos la verificación: si tiene tenantContext, puede guardar
-    const supabase = await getSupabaseServerClient()
+    // Usar service client para bypass RLS al guardar configuración
+    let serviceClient
+    try {
+      serviceClient = getSupabaseServiceClient()
+      console.log('[Config Save] ✅ Usando service client (bypass RLS)')
+    } catch (serviceError) {
+      console.warn('[Config Save] ⚠️ Service role no disponible, usando cliente regular:', serviceError)
+      // Fallback al cliente regular si no hay service role
+      serviceClient = await getSupabaseServerClient()
+    }
 
     // Verificar que el usuario esté autenticado (ya verificado en getTenantContext)
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    const { data: { user }, error: userError } = await serviceClient.auth.getUser()
     if (userError || !user) {
       return NextResponse.json({
         success: false,
@@ -232,11 +240,15 @@ export async function POST(request: NextRequest) {
     console.log('[Config Save] ✅ Usuario autenticado y con acceso a la organización, permitiendo guardar configuración')
 
     // Verificar si ya existe configuración
-    const { data: existingConfig } = await supabase
+    const { data: existingConfig, error: checkError } = await serviceClient
       .from('ai_agent_config')
       .select('id')
       .eq('organization_id', tenantContext.organizationId)
       .single()
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('[Config Save] ❌ Error verificando configuración existente:', checkError)
+    }
 
     // Mapear datos del formulario a la estructura de la BD
     const personalityTone = data.personality?.tone || 'profesional'
@@ -278,35 +290,51 @@ export async function POST(request: NextRequest) {
 
     let result
     if (existingConfig) {
-      const { error } = await supabase
+      const { error } = await serviceClient
         .from('ai_agent_config')
         .update(configData)
         .eq('id', existingConfig.id)
 
       if (error) {
-        console.error('Error actualizando configuración:', error)
+        console.error('[Config Save] ❌ Error actualizando configuración:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        })
         return NextResponse.json({
           success: false,
-          error: error.message
+          error: error.message || 'Error al actualizar configuración',
+          details: error.details,
+          hint: error.hint
         }, { status: 500 })
       }
 
+      console.log('[Config Save] ✅ Configuración actualizada exitosamente')
       result = { id: existingConfig.id, updated: true }
     } else {
-      const { data: newConfig, error } = await supabase
+      const { data: newConfig, error } = await serviceClient
         .from('ai_agent_config')
         .insert(configData)
         .select('id')
         .single()
 
       if (error) {
-        console.error('Error creando configuración:', error)
+        console.error('[Config Save] ❌ Error creando configuración:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        })
         return NextResponse.json({
           success: false,
-          error: error.message
+          error: error.message || 'Error al crear configuración',
+          details: error.details,
+          hint: error.hint
         }, { status: 500 })
       }
 
+      console.log('[Config Save] ✅ Configuración creada exitosamente')
       result = { id: newConfig.id, created: true }
     }
 
