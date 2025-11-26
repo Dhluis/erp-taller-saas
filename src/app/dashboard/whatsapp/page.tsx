@@ -624,7 +624,10 @@ export default function WhatsAppPage() {
                 <Button 
                   variant="outline" 
                   className="w-full"
-                  onClick={() => router.push('/dashboard/whatsapp/conversaciones')}
+                  onClick={() => {
+                    const url = window.location.origin + '/dashboard/whatsapp/conversaciones'
+                    window.open(url, '_blank', 'noopener,noreferrer')
+                  }}
                 >
                   Ver Conversaciones
                   <ArrowRight className="w-4 h-4 ml-2" />

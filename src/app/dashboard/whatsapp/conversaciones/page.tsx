@@ -52,7 +52,9 @@ import {
   File,
   X,
   Sparkles,
-  Plus
+  Plus,
+  Home,
+  ArrowLeft
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -624,6 +626,24 @@ export default function ConversacionesPage() {
         )}>
           <div className="max-w-full mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-6">
+              {/* Botón para volver al Dashboard */}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => {
+                  const dashboardUrl = window.location.origin + '/dashboard'
+                  window.location.href = dashboardUrl
+                }}
+                className={cn(
+                  "flex items-center gap-2 font-semibold",
+                  darkMode ? "bg-cyan-600 hover:bg-cyan-700 text-white border-cyan-500" : "bg-blue-600 hover:bg-blue-700 text-white border-blue-500"
+                )}
+              >
+                <Home className="w-4 h-4" />
+                <span>Dashboard</span>
+                <ArrowLeft className="w-3 h-3 ml-1" />
+              </Button>
+              <div className={cn("h-6 w-px", darkMode ? "bg-gray-700" : "bg-gray-300")}></div>
               <Button
                 variant="ghost"
                 className={cn(
