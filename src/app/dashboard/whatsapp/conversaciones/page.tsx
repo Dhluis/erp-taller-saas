@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
@@ -110,6 +112,45 @@ export default function ConversacionesPage() {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('all')
+  const [messageText, setMessageText] = useState('')
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false)
+  
+  // Emojis comunes
+  const commonEmojis = [
+    '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃',
+    '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙',
+    '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔',
+    '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥',
+    '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮',
+    '👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙', '👏', '🙌',
+    '👐', '🤲', '🤝', '🙏', '✍️', '💪', '🦵', '🦶', '👂', '👃',
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
+    '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️',
+    '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐',
+    '⛎', '♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐',
+    '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳',
+    '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮', '🉐', '㊙️',
+    '㊗️', '🈴', '🈵', '🈹', '🈲', '🅰️', '🅱️', '🆎', '🆑', '🅾️',
+    '🆘', '❌', '⭕', '🛑', '⛔', '📛', '🚫', '💯', '💢', '♨️',
+    '🚷', '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '❗', '❓', '❕',
+    '❔', '‼️', '⁉️', '🔅', '🔆', '〽️', '⚠️', '🚸', '🔱', '⚜️',
+    '🔰', '♻️', '✅', '🈯', '💹', '❇️', '✳️', '❎', '🌐', '💠',
+    'Ⓜ️', '🌀', '💤', '🏧', '🚾', '♿', '🅿️', '🈳', '🈂️', '🛂',
+    '🛃', '🛄', '🛅', '🚹', '🚺', '🚼', '🚻', '🚮', '🎦', '📶',
+    '🈁', '🔣', 'ℹ️', '🔤', '🔡', '🔠', '🆖', '🆗', '🆙', '🆒',
+    '🆕', '🆓', '0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣',
+    '8️⃣', '9️⃣', '🔟', '🔢', '#️⃣', '*️⃣', '▶️', '⏸️', '⏯️', '⏹️',
+    '⏺️', '⏭️', '⏮️', '⏩', '⏪', '⏫', '⏬', '◀️', '🔼', '🔽',
+    '➡️', '⬅️', '⬆️', '⬇️', '↗️', '↘️', '↙️', '↖️', '↕️', '↔️',
+    '↪️', '↩️', '⤴️', '⤵️', '🔀', '🔁', '🔂', '🔄', '🔃', '🎵',
+    '🎶', '➕', '➖', '➗', '✖️', '💲', '💱', '™️', '©️', '®️',
+    '〰️', '➰', '➿', '🔚', '🔙', '🔛', '🔜', '🔝', '🛐', '✡️'
+  ]
+  
+  const insertEmoji = (emoji: string) => {
+    setMessageText(prev => prev + emoji)
+    setEmojiPickerOpen(false)
+  }
 
   // Datos de ejemplo
   const [conversations] = useState<Conversation[]>([
@@ -117,7 +158,7 @@ export default function ConversacionesPage() {
       id: '1',
       contactName: 'Jennifer Fritz',
       contactPhone: '+1234567890',
-      lastMessage: 'Sam is typing on this chat...',
+      lastMessage: 'Sam está escribiendo en este chat...',
       lastMessageTime: '13h',
       unread: false,
       status: 'active',
@@ -128,7 +169,7 @@ export default function ConversacionesPage() {
       id: '2',
       contactName: 'Laney Gray',
       contactPhone: '+1234567891',
-      lastMessage: 'Hello! Good morning',
+      lastMessage: '¡Hola! Buenos días',
       lastMessageTime: '13h',
       unread: false,
       status: 'active',
@@ -139,7 +180,7 @@ export default function ConversacionesPage() {
       contactName: 'Kendra Lord',
       contactPhone: '+0123456789',
       contactEmail: 'kendralord@company.com',
-      lastMessage: 'Mark is typing on this chat...',
+      lastMessage: 'Mark está escribiendo en este chat...',
       lastMessageTime: '17h',
       unread: true,
       status: 'resolved',
@@ -151,7 +192,7 @@ export default function ConversacionesPage() {
       id: '4',
       contactName: 'Oscar Thomsen',
       contactPhone: '+1234567892',
-      lastMessage: 'Image',
+      lastMessage: 'Imagen',
       lastMessageTime: '5h',
       unread: false,
       status: 'active',
@@ -161,7 +202,7 @@ export default function ConversacionesPage() {
       id: '5',
       contactName: 'Gatlin Huber',
       contactPhone: '+1234567893',
-      lastMessage: 'I will let you know as soon as we know...',
+      lastMessage: 'Te avisaré tan pronto como sepamos...',
       lastMessageTime: '8h',
       unread: false,
       status: 'active',
@@ -171,7 +212,7 @@ export default function ConversacionesPage() {
       id: '6',
       contactName: 'Tim Morrison',
       contactPhone: '+1234567894',
-      lastMessage: 'Hello! I was wondering if your could help...',
+      lastMessage: '¡Hola! Me preguntaba si podrías ayudar...',
       lastMessageTime: '6h',
       unread: false,
       status: 'active',
@@ -181,7 +222,7 @@ export default function ConversacionesPage() {
       id: '7',
       contactName: 'Mate Harris',
       contactPhone: '+1234567895',
-      lastMessage: 'Image',
+      lastMessage: 'Imagen',
       lastMessageTime: '7h',
       unread: false,
       status: 'active',
@@ -191,7 +232,7 @@ export default function ConversacionesPage() {
       id: '8',
       contactName: 'Jon Doe',
       contactPhone: '+1234567896',
-      lastMessage: 'May I know your name?',
+      lastMessage: '¿Puedo saber tu nombre?',
       lastMessageTime: '8h',
       unread: false,
       status: 'active',
@@ -201,7 +242,7 @@ export default function ConversacionesPage() {
       id: '9',
       contactName: 'Jahlil Kyle',
       contactPhone: '+1234567897',
-      lastMessage: 'Great! I will reach you when the package...',
+      lastMessage: '¡Genial! Te contactaré cuando el paquete...',
       lastMessageTime: '9h',
       unread: false,
       status: 'active',
@@ -212,49 +253,49 @@ export default function ConversacionesPage() {
   const [messages] = useState<Message[]>([
     {
       id: '1',
-      text: 'Hi Kendra! This is Home Haven Marketplace support. How can I help you today?',
+      text: '¡Hola Kendra! Este es el soporte de Home Haven Marketplace. ¿Cómo puedo ayudarte hoy?',
       sender: 'agent',
       timestamp: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
       read: true
     },
     {
       id: '2',
-      text: 'Hi! I placed an order a few days ago, and I wanted to check on the shipping status. Can you help me with that?',
+      text: '¡Hola! Hice un pedido hace unos días y quería verificar el estado del envío. ¿Puedes ayudarme con eso?',
       sender: 'customer',
       timestamp: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
       read: true
     },
     {
       id: '3',
-      text: 'Of course, Kendra! Could you please provide your order number or the name of the product you purchased? I\'ll look it up right away.',
+      text: '¡Por supuesto, Kendra! ¿Podrías proporcionar el número de pedido o el nombre del producto que compraste? Lo buscaré de inmediato.',
       sender: 'agent',
       timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
       read: true
     },
     {
       id: '4',
-      text: 'Sure! The order number is HH12345678. I ordered the Rustic Ceramic Mug Set.',
+      text: '¡Claro! El número de pedido es HH12345678. Pedí el Set de Tazas de Cerámica Rústica.',
       sender: 'customer',
       timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
       read: true
     },
     {
       id: '5',
-      text: 'Thank you for the details! Let me check on that for you. One moment, please.',
+      text: '¡Gracias por los detalles! Déjame verificar eso por ti. Un momento, por favor.',
       sender: 'agent',
       timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
       read: true
     },
     {
       id: '6',
-      text: 'Got it! Your order was shipped on December 7th and it\'s scheduled to be delivered to your address by December 10th. Here\'s your tracking link: track.homehaven.com/HH12345678',
+      text: '¡Listo! Tu pedido fue enviado el 7 de diciembre y está programado para ser entregado en tu dirección antes del 10 de diciembre. Aquí está tu enlace de seguimiento: track.homehaven.com/HH12345678',
       sender: 'agent',
       timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
       read: true
     },
     {
       id: '7',
-      text: 'Hello! How can I help you today?',
+      text: '¡Hola! ¿Cómo puedo ayudarte hoy?',
       sender: 'agent',
       timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
       read: true,
@@ -262,7 +303,7 @@ export default function ConversacionesPage() {
     },
     {
       id: '8',
-      text: 'Thank you for the heads up! I will pass your issue to the technical team.',
+      text: '¡Gracias por el aviso! Pasaré tu problema al equipo técnico.',
       sender: 'agent',
       timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
       read: true,
@@ -274,17 +315,17 @@ export default function ConversacionesPage() {
     name: 'Kendra Lord',
     phone: '+0123456789',
     email: 'kendralord@company.com',
-    lastMessage: '17 hours ago',
-    accountType: 'Personal account',
-    country: 'United States',
-    language: 'English',
-    currency: 'United States Dollar',
-    started: '17 hours ago',
+    lastMessage: 'hace 17 horas',
+    accountType: 'Cuenta personal',
+    country: 'Estados Unidos',
+    language: 'Español',
+    currency: 'Dólar Estadounidense',
+    started: 'hace 17 horas',
     status: 'resolved',
-    device: 'iPhone user',
-    labels: ['Important'],
-    address: '1234 Maple Street, Anytown, USA 12345',
-    notes: 'Send invoice from the last 2 months'
+    device: 'Usuario de iPhone',
+    labels: ['Importante'],
+    address: '1234 Calle Maple, Ciudad, USA 12345',
+    notes: 'Enviar factura de los últimos 2 meses'
   })
 
   const selectedConv = conversations.find(c => c.id === selectedConversation) || conversations[2]
@@ -340,7 +381,7 @@ export default function ConversacionesPage() {
                 )}
               >
                 <span className="flex items-center gap-2">
-                  Customer Service
+                  Atención al Cliente
                   <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                 </span>
               </Button>
@@ -351,7 +392,7 @@ export default function ConversacionesPage() {
                   darkMode ? "text-gray-400 hover:text-cyan-400" : "text-gray-500 hover:text-blue-600"
                 )}
               >
-                Sales
+                Ventas
               </Button>
               <Button
                 variant="ghost"
@@ -360,7 +401,7 @@ export default function ConversacionesPage() {
                   darkMode ? "text-gray-400 hover:text-cyan-400" : "text-gray-500 hover:text-blue-600"
                 )}
               >
-                Recruiting
+                Reclutamiento
               </Button>
             </div>
             <div className="flex items-center gap-4">
@@ -370,6 +411,23 @@ export default function ConversacionesPage() {
               <Button variant="ghost" size="icon" className={darkMode ? "text-gray-400" : "text-gray-600"}>
                 <span className="text-sm font-semibold">24</span>
               </Button>
+              {/* Dark Theme Toggle */}
+              <div className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-lg border",
+                darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+              )}>
+                <Label htmlFor="dark-mode-toggle" className={cn(
+                  "text-sm font-medium cursor-pointer flex items-center gap-2",
+                  darkMode ? "text-white" : "text-gray-900"
+                )}>
+                  {darkMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                </Label>
+                <Switch
+                  id="dark-mode-toggle"
+                  checked={darkMode}
+                  onCheckedChange={setDarkMode}
+                />
+              </div>
               <Button variant="ghost" size="icon" className={darkMode ? "text-gray-400" : "text-gray-600"}>
                 <User className="w-5 h-5" />
               </Button>
@@ -393,7 +451,7 @@ export default function ConversacionesPage() {
                 darkMode ? "text-gray-500" : "text-gray-400"
               )} />
               <Input
-                placeholder="Contacts, message, @agent or label"
+                placeholder="Contactos, mensaje, @agente o etiqueta"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={cn(
@@ -432,7 +490,7 @@ export default function ConversacionesPage() {
                       : (darkMode ? "text-gray-400 hover:text-gray-300" : "text-gray-600 hover:text-gray-800")
                   )}
                 >
-                  {filter === 'all' ? 'All' : filter === 'unread' ? 'Unread' : filter === 'resolved' ? 'Resolved' : 'Favorite'}
+                  {filter === 'all' ? 'Todos' : filter === 'unread' ? 'No leídos' : filter === 'resolved' ? 'Resueltos' : 'Favoritos'}
                 </Button>
               ))}
             </div>
@@ -537,15 +595,15 @@ export default function ConversacionesPage() {
                     {isResolved ? (
                       <>
                         <CheckCircle2 className="w-4 h-4 mr-2" />
-                        Resolve chat
+                        Resolver chat
                       </>
                     ) : (
-                      'Resolve chat'
+                      'Resolver chat'
                     )}
                     <ChevronDown className="w-4 h-4 ml-2" />
                   </Button>
                   <Button variant="outline" size="sm">
-                    Reassign
+                    Reasignar
                   </Button>
                 </div>
                 <div className="flex items-center gap-2">
@@ -562,15 +620,15 @@ export default function ConversacionesPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className={darkMode ? "bg-gray-800 border-gray-700" : ""}>
-                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Mark as unread</DropdownMenuItem>
-                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Export chat</DropdownMenuItem>
-                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Pin chat</DropdownMenuItem>
-                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Mute chat</DropdownMenuItem>
+                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Marcar como no leído</DropdownMenuItem>
+                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Exportar chat</DropdownMenuItem>
+                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Fijar chat</DropdownMenuItem>
+                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Silenciar chat</DropdownMenuItem>
                       <DropdownMenuSeparator className={darkMode ? "bg-gray-700" : ""} />
-                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Sync messages</DropdownMenuItem>
-                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Lock chat</DropdownMenuItem>
-                      <DropdownMenuItem className={darkMode ? "text-red-400" : "text-red-600"}>Block contact</DropdownMenuItem>
-                      <DropdownMenuItem className={darkMode ? "text-red-400" : "text-red-600"}>Delete chat</DropdownMenuItem>
+                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Sincronizar mensajes</DropdownMenuItem>
+                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Bloquear chat</DropdownMenuItem>
+                      <DropdownMenuItem className={darkMode ? "text-red-400" : "text-red-600"}>Bloquear contacto</DropdownMenuItem>
+                      <DropdownMenuItem className={darkMode ? "text-red-400" : "text-red-600"}>Eliminar chat</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <div className="flex items-center gap-2 ml-2">
@@ -612,7 +670,7 @@ export default function ConversacionesPage() {
                             "text-xs font-medium mb-1 block",
                             darkMode ? "text-yellow-400" : "text-yellow-700"
                           )}>
-                            Internal Note
+                            Nota Interna
                           </span>
                         )}
                         <p className={cn(
@@ -642,7 +700,7 @@ export default function ConversacionesPage() {
                               )}
                             </>
                           )}
-                          {new Date(message.timestamp).toLocaleTimeString('en-US', { 
+                          {new Date(message.timestamp).toLocaleTimeString('es-ES', { 
                             hour: '2-digit', 
                             minute: '2-digit' 
                           })}
@@ -663,7 +721,7 @@ export default function ConversacionesPage() {
                     "text-sm italic",
                     darkMode ? "text-gray-400" : "text-gray-600"
                   )}>
-                    Mark is typing on this chat...
+                    Mark está escribiendo en este chat...
                   </p>
                 </div>
               )}
@@ -674,14 +732,14 @@ export default function ConversacionesPage() {
                 darkMode ? "border-gray-800" : "border-gray-200"
               )}>
                 <div className="flex items-center gap-2 mb-2">
-                  {['Reply', 'Note', 'Replies', 'Scheduled', 'AI Reply'].map((tab) => (
+                  {['Responder', 'Nota', 'Respuestas', 'Programado', 'IA Respuesta'].map((tab) => (
                     <Button
                       key={tab}
-                      variant={tab === 'Reply' ? "default" : "ghost"}
+                      variant={tab === 'Responder' ? "default" : "ghost"}
                       size="sm"
                       className={cn(
                         "text-xs",
-                        tab === 'Reply' 
+                        tab === 'Responder' 
                           ? (darkMode ? "bg-cyan-600 hover:bg-cyan-700" : "bg-blue-600 hover:bg-blue-700")
                           : (darkMode ? "text-gray-400 hover:text-gray-300" : "text-gray-600 hover:text-gray-800")
                       )}
@@ -690,23 +748,56 @@ export default function ConversacionesPage() {
                     </Button>
                   ))}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon">
+                <div className="flex items-start gap-2">
+                  <Button variant="ghost" size="icon" className="mt-2">
                     <Paperclip className="w-5 h-5" />
                   </Button>
-                  <Input
-                    placeholder="Type a message..."
+                  <Textarea
+                    placeholder="Escribe un mensaje..."
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
                     className={cn(
-                      "flex-1",
+                      "flex-1 min-h-[100px] resize-none",
                       darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-300"
                     )}
+                    rows={4}
                   />
-                  <Button variant="ghost" size="icon">
-                    <Smile className="w-5 h-5" />
-                  </Button>
+                  <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="mt-2">
+                        <Smile className="w-5 h-5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent 
+                      className={cn(
+                        "w-80 p-4",
+                        darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+                      )}
+                      align="end"
+                    >
+                      <div className="grid grid-cols-8 gap-2 max-h-64 overflow-y-auto">
+                        {commonEmojis.map((emoji, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => insertEmoji(emoji)}
+                            className={cn(
+                              "text-2xl hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-1 transition-colors",
+                              darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"
+                            )}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <Button 
                     size="icon"
-                    className={darkMode ? "bg-cyan-600 hover:bg-cyan-700" : "bg-blue-600 hover:bg-blue-700"}
+                    className={cn(
+                      "mt-2",
+                      darkMode ? "bg-cyan-600 hover:bg-cyan-700" : "bg-blue-600 hover:bg-blue-700"
+                    )}
+                    disabled={!messageText.trim()}
                   >
                     <Send className="w-5 h-5" />
                   </Button>
@@ -758,35 +849,35 @@ export default function ConversacionesPage() {
                       "text-sm font-semibold mb-3",
                       darkMode ? "text-gray-300" : "text-gray-700"
                     )}>
-                      Information
+                      Información
                     </h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Last message:</span>
+                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Último mensaje:</span>
                         <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.lastMessage}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Account:</span>
+                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Cuenta:</span>
                         <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.accountType}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Country:</span>
+                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>País:</span>
                         <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.country}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Language:</span>
+                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Idioma:</span>
                         <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.language}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Currency:</span>
+                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Moneda:</span>
                         <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.currency}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Started:</span>
+                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Iniciado:</span>
                         <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.started}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Status:</span>
+                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Estado:</span>
                         <div className="flex items-center gap-1">
                           {contactDetails.status === 'resolved' && (
                             <CheckCircle2 className={cn("w-4 h-4", darkMode ? "text-green-400" : "text-green-600")} />
@@ -795,12 +886,12 @@ export default function ConversacionesPage() {
                             "capitalize",
                             darkMode ? "text-gray-300" : "text-gray-900"
                           )}>
-                            Chat is {contactDetails.status}
+                            Chat {contactDetails.status === 'resolved' ? 'resuelto' : contactDetails.status === 'active' ? 'activo' : 'archivado'}
                           </span>
                         </div>
                       </div>
                       <div className="flex justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Device:</span>
+                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Dispositivo:</span>
                         <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.device}</span>
                       </div>
                     </div>
@@ -813,7 +904,7 @@ export default function ConversacionesPage() {
                         "text-sm font-semibold mb-3",
                         darkMode ? "text-gray-300" : "text-gray-700"
                       )}>
-                        Labels
+                        Etiquetas
                       </h4>
                       <div className="flex flex-wrap gap-2">
                         {contactDetails.labels.map((label, idx) => (
@@ -839,20 +930,20 @@ export default function ConversacionesPage() {
                       "text-sm font-semibold mb-3",
                       darkMode ? "text-gray-300" : "text-gray-700"
                     )}>
-                      Contact
+                      Contacto
                     </h4>
                     <div className="space-y-2 text-sm">
                       <div>
-                        <span className={cn("block mb-1", darkMode ? "text-gray-400" : "text-gray-600")}>Name:</span>
+                        <span className={cn("block mb-1", darkMode ? "text-gray-400" : "text-gray-600")}>Nombre:</span>
                         <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.name}</span>
                       </div>
                       <div>
-                        <span className={cn("block mb-1", darkMode ? "text-gray-400" : "text-gray-600")}>Email:</span>
+                        <span className={cn("block mb-1", darkMode ? "text-gray-400" : "text-gray-600")}>Correo:</span>
                         <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.email}</span>
                       </div>
                       {contactDetails.address && (
                         <div>
-                          <span className={cn("block mb-1", darkMode ? "text-gray-400" : "text-gray-600")}>Address:</span>
+                          <span className={cn("block mb-1", darkMode ? "text-gray-400" : "text-gray-600")}>Dirección:</span>
                           <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.address}</span>
                         </div>
                       )}
@@ -866,7 +957,7 @@ export default function ConversacionesPage() {
                         "text-sm font-semibold mb-3",
                         darkMode ? "text-gray-300" : "text-gray-700"
                       )}>
-                        Notes
+                        Notas
                       </h4>
                       <p className={cn(
                         "text-sm p-3 rounded-lg",
@@ -882,26 +973,6 @@ export default function ConversacionesPage() {
           )}
         </div>
 
-        {/* Dark Theme Toggle Button - Fixed Position */}
-        <div className="fixed bottom-6 right-6 z-50">
-          <div className={cn(
-            "flex items-center gap-3 p-3 rounded-lg shadow-lg border",
-            darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
-          )}>
-            <Label htmlFor="dark-mode-toggle" className={cn(
-              "text-sm font-medium cursor-pointer flex items-center gap-2",
-              darkMode ? "text-white" : "text-gray-900"
-            )}>
-              {darkMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-              {darkMode ? 'Dark' : 'Light'}
-            </Label>
-            <Switch
-              id="dark-mode-toggle"
-              checked={darkMode}
-              onCheckedChange={setDarkMode}
-            />
-          </div>
-        </div>
       </div>
     </div>
   )
