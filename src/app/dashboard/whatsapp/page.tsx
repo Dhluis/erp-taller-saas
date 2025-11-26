@@ -95,7 +95,7 @@ export default function WhatsAppPage() {
     router.push('/dashboard/whatsapp/test')
   }
 
-  const handleGenerateQR = async () => {
+  const handleGenerateQR = async (useCoexistence: boolean = false) => {
     if (!phoneNumber.trim()) {
       toast.error('Por favor ingresa primero el número de WhatsApp')
       return
@@ -111,18 +111,66 @@ export default function WhatsAppPage() {
     }
 
     try {
-      // Opción 1: WhatsApp Click-to-Chat (Simple - funciona inmediatamente)
-      // Formato: https://wa.me/número (sin +, sin espacios)
-      const phoneForQR = cleanPhone.replace(/^\+/, '') // Remover el + si existe
-      const whatsappUrl = `https://wa.me/${phoneForQR}`
-      
-      setQrCode(whatsappUrl)
-      setShowQR(true)
-      
-      // Opción 2: Si tienes WhatsApp Business API configurada, usar esa
-      // Por ahora usamos la opción simple que funciona de inmediato
-      
-      toast.success('Código QR generado. Escanea con WhatsApp para iniciar una conversación.')
+      if (useCoexistence) {
+        // QR de Coexistencia (como Kommo/ManyChat) - requiere WAHA o WhatsApp Business API
+        const response = await fetch('/api/whatsapp/qr-coexistence?provider=waha')
+        const result = await response.json()
+        
+        if (result.success && result.data?.qr_code) {
+          // WAHA puede retornar QR como string base64, URL, o objeto
+          let qrUrl = result.data.qr_code
+          
+          if (typeof qrUrl === 'string') {
+            // Si es base64, convertir a data URL
+            if (qrUrl.startsWith('data:')) {
+              setQrCode(qrUrl)
+            } else if (qrUrl.startsWith('http')) {
+              // Si es una URL, usarla directamente
+              setQrCode(qrUrl)
+            } else {
+              // Si es código base64 sin prefijo, agregarlo
+              setQrCode(`data:image/png;base64,${qrUrl}`)
+            }
+          } else if (qrUrl?.qr) {
+            // Si viene como objeto con propiedad qr
+            setQrCode(qrUrl.qr.startsWith('data:') ? qrUrl.qr : `data:image/png;base64,${qrUrl.qr}`)
+          } else {
+            // Intentar convertir a string
+            setQrCode(String(qrUrl))
+          }
+          
+          setShowQR(true)
+          toast.success('QR de coexistencia generado. Escanea con WhatsApp para vincular tu dispositivo.')
+          
+          // Si el QR expira, recargarlo automáticamente
+          if (result.data.expires_in) {
+            setTimeout(() => {
+              toast.info('El QR expiró. Generando uno nuevo...')
+              handleGenerateQR(true)
+            }, result.data.expires_in * 1000)
+          }
+        } else if (result.success && result.data?.config_url) {
+          // Meta Business API - redirigir a configuración
+          toast.info('Para obtener el QR de coexistencia, ve a WhatsApp Business Manager')
+          window.open(result.data.config_url, '_blank')
+          return
+        } else {
+          // Fallback a Click-to-Chat si no hay configuración
+          toast.warning('WhatsApp Business API no configurada. Usando QR Click-to-Chat.')
+          const phoneForQR = cleanPhone.replace(/^\+/, '')
+          const whatsappUrl = `https://wa.me/${phoneForQR}`
+          setQrCode(whatsappUrl)
+          setShowQR(true)
+        }
+      } else {
+        // Opción 1: WhatsApp Click-to-Chat (Simple - funciona inmediatamente)
+        const phoneForQR = cleanPhone.replace(/^\+/, '')
+        const whatsappUrl = `https://wa.me/${phoneForQR}`
+        
+        setQrCode(whatsappUrl)
+        setShowQR(true)
+        toast.success('Código QR generado. Escanea con WhatsApp para iniciar una conversación.')
+      }
     } catch (error) {
       console.error('Error generando QR:', error)
       toast.error('Error al generar código QR')
@@ -414,16 +462,30 @@ export default function WhatsAppPage() {
                             {qrCode ? (
                               <div className="flex flex-col items-center gap-4">
                                 <p className="text-sm text-text-secondary mb-2">
-                                  Escanea este código QR con WhatsApp para iniciar una conversación
+                                  {qrCode.startsWith('data:image') 
+                                    ? 'Escanea este código QR con WhatsApp para vincular tu dispositivo (Coexistencia)'
+                                    : 'Escanea este código QR con WhatsApp para iniciar una conversación'}
                                 </p>
-                                <div className="p-4 bg-white rounded-lg border-2 border-primary/20">
-                                  <QRCodeSVG 
-                                    value={qrCode} 
-                                    size={256}
-                                    level="H"
-                                    includeMargin={true}
-                                  />
-                                </div>
+                                {qrCode.startsWith('data:image') ? (
+                                  // QR base64 de Evolution API
+                                  <div className="p-4 bg-white rounded-lg border-2 border-primary/20">
+                                    <img 
+                                      src={qrCode} 
+                                      alt="QR Code WhatsApp Coexistencia"
+                                      className="w-64 h-64"
+                                    />
+                                  </div>
+                                ) : (
+                                  // QR generado localmente (Click-to-Chat)
+                                  <div className="p-4 bg-white rounded-lg border-2 border-primary/20">
+                                    <QRCodeSVG 
+                                      value={qrCode} 
+                                      size={256}
+                                      level="H"
+                                      includeMargin={true}
+                                    />
+                                  </div>
+                                )}
                                 <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg w-full">
                                   <p className="text-xs text-text-secondary mb-1">
                                     <strong>Número:</strong> {phoneNumber || 'No especificado'}
@@ -475,13 +537,27 @@ export default function WhatsAppPage() {
                                     Formato: +[código de país][número] (ej: +521234567890)
                                   </p>
                                 </div>
-                                <Button 
-                                  onClick={handleGenerateQR}
-                                  disabled={!phoneNumber.trim()}
-                                  className="w-full"
-                                >
-                                  Generar Código QR
-                                </Button>
+                                <div className="flex flex-col gap-2 w-full">
+                                  <Button 
+                                    onClick={() => handleGenerateQR(false)}
+                                    disabled={!phoneNumber.trim()}
+                                    className="w-full"
+                                    variant="default"
+                                  >
+                                    Generar QR Click-to-Chat
+                                  </Button>
+                                  <Button 
+                                    onClick={() => handleGenerateQR(true)}
+                                    disabled={!phoneNumber.trim()}
+                                    className="w-full"
+                                    variant="outline"
+                                  >
+                                    Generar QR Coexistencia (Business API)
+                                  </Button>
+                                  <p className="text-xs text-text-secondary text-center mt-2">
+                                    <strong>QR Coexistencia:</strong> Permite recibir mensajes automáticamente (requiere WhatsApp Business API)
+                                  </p>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -545,8 +621,13 @@ export default function WhatsAppPage() {
                 <p className="text-sm text-text-secondary mb-4">
                   Ve todas las conversaciones y mensajes recibidos por WhatsApp.
                 </p>
-                <Button variant="outline" className="w-full" disabled>
-                  Próximamente
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => router.push('/dashboard/whatsapp/conversaciones')}
+                >
+                  Ver Conversaciones
+                  <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </CardContent>
             </Card>

@@ -2,7 +2,22 @@
 
 ## 🎯 Resumen
 
-Esta guía explica cómo configurar la integración real con WhatsApp Business API para que el código QR funcione completamente y puedas recibir y enviar mensajes automáticamente.
+Esta guía explica cómo configurar la integración real con WhatsApp Business API para generar códigos QR de **coexistencia** (como Kommo o ManyChat) que permiten vincular tu WhatsApp y recibir/enviar mensajes automáticamente.
+
+## 🔑 Diferencia: Click-to-Chat vs Coexistencia
+
+### **Click-to-Chat (Simple)**
+- ✅ Funciona inmediatamente, sin configuración
+- ✅ Genera QR con `https://wa.me/número`
+- ⚠️ Solo abre WhatsApp, no recibe mensajes automáticamente
+- ⚠️ No permite automatización
+
+### **Coexistencia (Business API)** ⭐
+- ✅ Permite recibir mensajes automáticamente
+- ✅ Permite enviar mensajes desde la API
+- ✅ Permite automatización completa (como Kommo/ManyChat)
+- ⚠️ Requiere configuración de WhatsApp Business API
+- ⚠️ Requiere verificación de Meta
 
 ---
 
@@ -20,6 +35,8 @@ Esta guía explica cómo configurar la integración real con WhatsApp Business A
 
 ### 3. Variables de Entorno Necesarias
 
+#### **Opción A: WhatsApp Business API (Meta - Oficial)**
+
 Agrega estas variables a tu `.env.local`:
 
 ```env
@@ -31,6 +48,36 @@ WHATSAPP_APP_SECRET=tu_app_secret
 WHATSAPP_VERIFY_TOKEN=tu_verify_token_personalizado
 WHATSAPP_WEBHOOK_URL=https://tu-dominio.com/api/whatsapp/webhook
 ```
+
+**Nota:** Meta no genera el QR directamente desde la API. El QR se obtiene desde WhatsApp Business Manager.
+
+#### **Opción B: Evolution API (Alternativa - Recomendada para QR de Coexistencia)**
+
+Evolution API es una solución open-source que permite generar QR de coexistencia directamente:
+
+```env
+# Evolution API (Alternativa a Meta)
+EVOLUTION_API_URL=https://tu-evolution-api.com
+EVOLUTION_API_KEY=tu_api_key
+```
+
+**Ventajas de Evolution API:**
+- ✅ Genera QR de coexistencia directamente
+- ✅ No requiere verificación de Meta
+- ✅ Open-source y gratuito
+- ✅ Funciona similar a Kommo/ManyChat
+- ✅ Permite recibir/enviar mensajes automáticamente
+
+**Instalación de Evolution API:**
+```bash
+# Opción 1: Docker (Recomendado)
+docker run -d -p 8080:8080 atendai/evolution-api
+
+# Opción 2: NPM
+npm install -g @evolution-api/api
+```
+
+**Documentación:** https://doc.evolution-api.com/
 
 ---
 
