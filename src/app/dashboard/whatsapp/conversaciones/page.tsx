@@ -50,7 +50,9 @@ import {
   Image as ImageIcon,
   Video,
   File,
-  X
+  X,
+  Sparkles,
+  Plus
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -62,6 +64,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 
 // Tipos
 interface Message {
@@ -114,6 +118,13 @@ export default function ConversacionesPage() {
   const [activeFilter, setActiveFilter] = useState('all')
   const [messageText, setMessageText] = useState('')
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<'Responder' | 'Nota' | 'Respuestas' | 'Programado' | 'IA Respuesta'>('Responder')
+  const [scheduledDateTime, setScheduledDateTime] = useState('')
+  const [isEditingNotes, setIsEditingNotes] = useState(false)
+  const [isAddingLabel, setIsAddingLabel] = useState(false)
+  const [newLabel, setNewLabel] = useState('')
+  const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
+  const [selectedAgent, setSelectedAgent] = useState('')
   
   // Emojis comunes
   const commonEmojis = [
@@ -152,8 +163,8 @@ export default function ConversacionesPage() {
     setEmojiPickerOpen(false)
   }
 
-  // Datos de ejemplo
-  const [conversations] = useState<Conversation[]>([
+  // Datos de ejemplo - ahora mutables
+  const [conversations, setConversations] = useState<Conversation[]>([
     {
       id: '1',
       contactName: 'Jennifer Fritz',
@@ -250,7 +261,7 @@ export default function ConversacionesPage() {
     }
   ])
 
-  const [messages] = useState<Message[]>([
+  const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       text: '¡Hola Kendra! Este es el soporte de Home Haven Marketplace. ¿Cómo puedo ayudarte hoy?',
@@ -311,7 +322,7 @@ export default function ConversacionesPage() {
     }
   ])
 
-  const [contactDetails] = useState<ContactDetails>({
+  const [contactDetails, setContactDetails] = useState<ContactDetails>({
     name: 'Kendra Lord',
     phone: '+0123456789',
     email: 'kendralord@company.com',
@@ -359,6 +370,246 @@ export default function ConversacionesPage() {
       setSelectedConversation(conversations[2].id) // Seleccionar Kendra Lord por defecto
     }
   }, [])
+
+  // Marcar mensajes como leídos cuando se selecciona una conversación
+  useEffect(() => {
+    if (selectedConversation) {
+      // Marcar conversación como leída
+      updateConversation(selectedConversation, { unread: false })
+      
+      // Marcar mensajes como leídos
+      setMessages(prev => prev.map(msg => ({ ...msg, read: true })))
+    }
+  }, [selectedConversation])
+
+  // Respuestas rápidas
+  const quickReplies = [
+    '¡Hola! ¿En qué puedo ayudarte?',
+    'Gracias por contactarnos. Estamos revisando tu solicitud.',
+    'Tu solicitud ha sido recibida. Te responderemos pronto.',
+    '¿Necesitas ayuda con algo más?',
+    '¡Perfecto! ¿Hay algo más en lo que pueda ayudarte?',
+    'Entendido. Voy a revisar eso ahora mismo.',
+    'Gracias por tu paciencia. Estamos trabajando en tu caso.',
+    '¿Podrías proporcionar más detalles sobre tu consulta?'
+  ]
+
+  const insertQuickReply = (reply: string) => {
+    setMessageText(reply)
+    setActiveTab('Responder')
+  }
+
+  // Funciones de utilidad
+  const updateConversation = (id: string, updates: Partial<Conversation>) => {
+    setConversations(prev => prev.map(conv => 
+      conv.id === id ? { ...conv, ...updates } : conv
+    ))
+  }
+
+  const updateContactDetails = (updates: Partial<ContactDetails>) => {
+    setContactDetails(prev => ({ ...prev, ...updates }))
+  }
+
+  // Funciones de mensajes
+  const sendMessage = () => {
+    if (!messageText.trim() || !selectedConversation) return
+
+    const messageToSend = messageText
+    setMessageText('') // Limpiar inmediatamente para mejor UX
+
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      text: messageToSend,
+      sender: 'agent',
+      timestamp: new Date(),
+      read: false,
+      type: activeTab === 'Nota' ? 'internal' : 'text'
+    }
+
+    setMessages(prev => [...prev, newMessage])
+    
+    // Actualizar última conversación
+    const conv = conversations.find(c => c.id === selectedConversation)
+    if (conv) {
+      const shortMessage = messageToSend.length > 50 ? messageToSend.substring(0, 50) + '...' : messageToSend
+      updateConversation(selectedConversation, {
+        lastMessage: shortMessage,
+        lastMessageTime: 'Ahora',
+        unread: false,
+        isTyping: false
+      })
+    }
+
+    // Simular envío con delay
+    setTimeout(() => {
+      setMessages(prev => prev.map(msg => 
+        msg.id === newMessage.id ? { ...msg, read: true } : msg
+      ))
+      toast.success(activeTab === 'Nota' ? 'Nota interna agregada' : 'Mensaje enviado')
+    }, 500)
+  }
+
+  const scheduleMessage = () => {
+    if (!messageText.trim() || !scheduledDateTime) {
+      toast.error('Por favor completa el mensaje y la fecha/hora')
+      return
+    }
+
+    toast.success(`Mensaje programado para ${new Date(scheduledDateTime).toLocaleString('es-ES')}`)
+    setMessageText('')
+    setScheduledDateTime('')
+    setActiveTab('Responder')
+  }
+
+  const generateAIResponse = async () => {
+    if (!messageText.trim()) {
+      toast.error('Por favor escribe un mensaje primero')
+      return
+    }
+
+    toast.loading('Generando respuesta con IA...')
+    
+    // Simular respuesta de IA
+    setTimeout(() => {
+      const aiResponse = `Basado en tu mensaje "${messageText}", aquí está una respuesta sugerida: "Gracias por contactarnos. Estamos revisando tu solicitud y te responderemos pronto."`
+      setMessageText(aiResponse)
+      toast.dismiss()
+      toast.success('Respuesta de IA generada')
+    }, 2000)
+  }
+
+  // Funciones de acciones del chat
+  const handleResolveChat = () => {
+    if (!selectedConversation) return
+    
+    const newStatus = isResolved ? 'active' : 'resolved'
+    updateConversation(selectedConversation, { status: newStatus })
+    updateContactDetails({ status: newStatus })
+    toast.success(newStatus === 'resolved' ? 'Chat resuelto' : 'Chat reactivado')
+  }
+
+  const handleReassign = () => {
+    if (!selectedAgent) {
+      toast.error('Por favor selecciona un agente')
+      return
+    }
+    
+    toast.success(`Chat reasignado a ${selectedAgent}`)
+    setReassignDialogOpen(false)
+    setSelectedAgent('')
+  }
+
+  const handleMenuAction = (action: string) => {
+    switch (action) {
+      case 'Mark as unread':
+        if (selectedConversation) {
+          updateConversation(selectedConversation, { unread: true })
+          toast.success('Chat marcado como no leído')
+        }
+        break
+      case 'Export chat':
+        const chatData = {
+          conversation: selectedConv,
+          messages: messages.filter(m => selectedConv?.id === selectedConversation)
+        }
+        const blob = new Blob([JSON.stringify(chatData, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `chat-${selectedConv?.contactName}-${Date.now()}.json`
+        a.click()
+        toast.success('Chat exportado')
+        break
+      case 'Pin chat':
+        toast.success('Chat fijado')
+        break
+      case 'Mute chat':
+        toast.success('Chat silenciado')
+        break
+      case 'Sync messages':
+        toast.loading('Sincronizando mensajes...')
+        setTimeout(() => toast.success('Mensajes sincronizados'), 1500)
+        break
+      case 'Lock chat':
+        toast.success('Chat bloqueado')
+        break
+      case 'Block contact':
+        if (selectedConversation) {
+          updateConversation(selectedConversation, { status: 'archived' })
+          toast.success('Contacto bloqueado')
+        }
+        break
+      case 'Delete chat':
+        if (selectedConversation && confirm('¿Estás seguro de eliminar este chat?')) {
+          setConversations(prev => prev.filter(c => c.id !== selectedConversation))
+          setSelectedConversation(null)
+          toast.success('Chat eliminado')
+        }
+        break
+    }
+  }
+
+  // Funciones de etiquetas y notas
+  const addLabel = () => {
+    if (!newLabel.trim()) {
+      toast.error('Por favor ingresa una etiqueta')
+      return
+    }
+    
+    const currentLabels = contactDetails.labels || []
+    if (currentLabels.includes(newLabel)) {
+      toast.error('Esta etiqueta ya existe')
+      return
+    }
+    
+    updateContactDetails({ labels: [...currentLabels, newLabel] })
+    if (selectedConversation) {
+      const conv = conversations.find(c => c.id === selectedConversation)
+      if (conv) {
+        updateConversation(selectedConversation, { labels: [...conv.labels, newLabel] })
+      }
+    }
+    
+    setNewLabel('')
+    setIsAddingLabel(false)
+    toast.success('Etiqueta agregada')
+  }
+
+  const removeLabel = (label: string) => {
+    const currentLabels = contactDetails.labels.filter(l => l !== label)
+    updateContactDetails({ labels: currentLabels })
+    
+    if (selectedConversation) {
+      const conv = conversations.find(c => c.id === selectedConversation)
+      if (conv) {
+        updateConversation(selectedConversation, { labels: conv.labels.filter(l => l !== label) })
+      }
+    }
+    
+    toast.success('Etiqueta eliminada')
+  }
+
+  const saveNotes = () => {
+    toast.success('Notas guardadas')
+    setIsEditingNotes(false)
+  }
+
+  const handleFileUpload = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*,video/*,.pdf,.doc,.docx'
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (file) {
+        toast.success(`Archivo "${file.name}" seleccionado (simulado)`)
+        // Aquí se podría agregar la lógica real de subida
+      }
+    }
+    input.click()
+  }
+
+  // Agentes disponibles para reasignación
+  const availableAgents = ['Juan Pérez', 'María García', 'Carlos López', 'Ana Martínez']
 
   return (
     <div className={cn(
@@ -558,9 +809,21 @@ export default function ConversacionesPage() {
                             {conversation.labels[0]}
                           </Badge>
                         )}
-                        {conversation.isFavorite && (
-                          <Star className={cn("w-3 h-3", darkMode ? "text-yellow-400 fill-yellow-400" : "text-yellow-500 fill-yellow-500")} />
-                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            updateConversation(conversation.id, { isFavorite: !conversation.isFavorite })
+                            toast.success(conversation.isFavorite ? 'Eliminado de favoritos' : 'Agregado a favoritos')
+                          }}
+                          className="ml-1"
+                        >
+                          <Star className={cn(
+                            "w-3 h-3 transition-colors",
+                            conversation.isFavorite 
+                              ? (darkMode ? "text-yellow-400 fill-yellow-400" : "text-yellow-500 fill-yellow-500")
+                              : (darkMode ? "text-gray-600 hover:text-yellow-400" : "text-gray-400 hover:text-yellow-500")
+                          )} />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -586,6 +849,7 @@ export default function ConversacionesPage() {
                   <Button
                     variant={isResolved ? "default" : "outline"}
                     size="sm"
+                    onClick={handleResolveChat}
                     className={cn(
                       isResolved 
                         ? (darkMode ? "bg-green-600 hover:bg-green-700" : "bg-green-500 hover:bg-green-600")
@@ -602,9 +866,47 @@ export default function ConversacionesPage() {
                     )}
                     <ChevronDown className="w-4 h-4 ml-2" />
                   </Button>
-                  <Button variant="outline" size="sm">
-                    Reasignar
-                  </Button>
+                  <Dialog open={reassignDialogOpen} onOpenChange={setReassignDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" onClick={() => setReassignDialogOpen(true)}>
+                        Reasignar
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className={darkMode ? "bg-gray-800 border-gray-700" : ""}>
+                      <DialogHeader>
+                        <DialogTitle className={darkMode ? "text-white" : ""}>Reasignar Chat</DialogTitle>
+                        <DialogDescription className={darkMode ? "text-gray-400" : ""}>
+                          Selecciona un agente para reasignar este chat
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 mt-4">
+                        <div>
+                          <Label className={darkMode ? "text-white" : ""}>Agente</Label>
+                          <select
+                            value={selectedAgent}
+                            onChange={(e) => setSelectedAgent(e.target.value)}
+                            className={cn(
+                              "w-full mt-2 p-2 rounded-md border",
+                              darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300"
+                            )}
+                          >
+                            <option value="">Selecciona un agente</option>
+                            {availableAgents.map(agent => (
+                              <option key={agent} value={agent}>{agent}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" onClick={() => setReassignDialogOpen(false)}>
+                            Cancelar
+                          </Button>
+                          <Button onClick={handleReassign} disabled={!selectedAgent}>
+                            Reasignar
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="ghost" size="icon">
@@ -620,15 +922,55 @@ export default function ConversacionesPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className={darkMode ? "bg-gray-800 border-gray-700" : ""}>
-                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Marcar como no leído</DropdownMenuItem>
-                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Exportar chat</DropdownMenuItem>
-                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Fijar chat</DropdownMenuItem>
-                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Silenciar chat</DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className={darkMode ? "text-white" : ""}
+                        onClick={() => handleMenuAction('Mark as unread')}
+                      >
+                        Marcar como no leído
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className={darkMode ? "text-white" : ""}
+                        onClick={() => handleMenuAction('Export chat')}
+                      >
+                        Exportar chat
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className={darkMode ? "text-white" : ""}
+                        onClick={() => handleMenuAction('Pin chat')}
+                      >
+                        Fijar chat
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className={darkMode ? "text-white" : ""}
+                        onClick={() => handleMenuAction('Mute chat')}
+                      >
+                        Silenciar chat
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator className={darkMode ? "bg-gray-700" : ""} />
-                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Sincronizar mensajes</DropdownMenuItem>
-                      <DropdownMenuItem className={darkMode ? "text-white" : ""}>Bloquear chat</DropdownMenuItem>
-                      <DropdownMenuItem className={darkMode ? "text-red-400" : "text-red-600"}>Bloquear contacto</DropdownMenuItem>
-                      <DropdownMenuItem className={darkMode ? "text-red-400" : "text-red-600"}>Eliminar chat</DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className={darkMode ? "text-white" : ""}
+                        onClick={() => handleMenuAction('Sync messages')}
+                      >
+                        Sincronizar mensajes
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className={darkMode ? "text-white" : ""}
+                        onClick={() => handleMenuAction('Lock chat')}
+                      >
+                        Bloquear chat
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className={darkMode ? "text-red-400" : "text-red-600"}
+                        onClick={() => handleMenuAction('Block contact')}
+                      >
+                        Bloquear contacto
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className={darkMode ? "text-red-400" : "text-red-600"}
+                        onClick={() => handleMenuAction('Delete chat')}
+                      >
+                        Eliminar chat
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <div className="flex items-center gap-2 ml-2">
@@ -732,14 +1074,20 @@ export default function ConversacionesPage() {
                 darkMode ? "border-gray-800" : "border-gray-200"
               )}>
                 <div className="flex items-center gap-2 mb-2">
-                  {['Responder', 'Nota', 'Respuestas', 'Programado', 'IA Respuesta'].map((tab) => (
+                  {(['Responder', 'Nota', 'Respuestas', 'Programado', 'IA Respuesta'] as const).map((tab) => (
                     <Button
                       key={tab}
-                      variant={tab === 'Responder' ? "default" : "ghost"}
+                      variant={activeTab === tab ? "default" : "ghost"}
                       size="sm"
+                      onClick={() => {
+                        setActiveTab(tab)
+                        if (tab === 'Programado') {
+                          setScheduledDateTime('')
+                        }
+                      }}
                       className={cn(
                         "text-xs",
-                        tab === 'Responder' 
+                        activeTab === tab 
                           ? (darkMode ? "bg-cyan-600 hover:bg-cyan-700" : "bg-blue-600 hover:bg-blue-700")
                           : (darkMode ? "text-gray-400 hover:text-gray-300" : "text-gray-600 hover:text-gray-800")
                       )}
@@ -748,14 +1096,61 @@ export default function ConversacionesPage() {
                     </Button>
                   ))}
                 </div>
+                {activeTab === 'Programado' && (
+                  <div className="mb-2">
+                    <Input
+                      type="datetime-local"
+                      value={scheduledDateTime}
+                      onChange={(e) => setScheduledDateTime(e.target.value)}
+                      className={cn(
+                        "w-full text-sm",
+                        darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-300"
+                      )}
+                      min={new Date().toISOString().slice(0, 16)}
+                    />
+                  </div>
+                )}
+                {activeTab === 'Respuestas' && (
+                  <div className={cn(
+                    "mb-2 p-3 rounded-lg max-h-40 overflow-y-auto",
+                    darkMode ? "bg-gray-800 border border-gray-700" : "bg-gray-50 border border-gray-200"
+                  )}>
+                    <p className={cn(
+                      "text-xs mb-2 font-medium",
+                      darkMode ? "text-gray-400" : "text-gray-600"
+                    )}>
+                      Respuestas rápidas:
+                    </p>
+                    <div className="grid grid-cols-1 gap-1">
+                      {quickReplies.map((reply, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => insertQuickReply(reply)}
+                          className={cn(
+                            "text-left text-sm p-2 rounded hover:bg-opacity-50 transition-colors",
+                            darkMode ? "hover:bg-gray-700 text-gray-300" : "hover:bg-gray-200 text-gray-700"
+                          )}
+                        >
+                          {reply}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start gap-2">
-                  <Button variant="ghost" size="icon" className="mt-2">
+                  <Button variant="ghost" size="icon" className="mt-2" onClick={handleFileUpload}>
                     <Paperclip className="w-5 h-5" />
                   </Button>
                   <Textarea
-                    placeholder="Escribe un mensaje..."
+                    placeholder={activeTab === 'Nota' ? "Escribe una nota interna..." : activeTab === 'IA Respuesta' ? "Escribe el mensaje para generar respuesta..." : "Escribe un mensaje..."}
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey && activeTab !== 'Programado' && activeTab !== 'IA Respuesta') {
+                        e.preventDefault()
+                        sendMessage()
+                      }
+                    }}
                     className={cn(
                       "flex-1 min-h-[100px] resize-none",
                       darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-300"
@@ -791,16 +1186,43 @@ export default function ConversacionesPage() {
                       </div>
                     </PopoverContent>
                   </Popover>
-                  <Button 
-                    size="icon"
-                    className={cn(
-                      "mt-2",
-                      darkMode ? "bg-cyan-600 hover:bg-cyan-700" : "bg-blue-600 hover:bg-blue-700"
-                    )}
-                    disabled={!messageText.trim()}
-                  >
-                    <Send className="w-5 h-5" />
-                  </Button>
+                  {activeTab === 'IA Respuesta' ? (
+                    <Button 
+                      size="icon"
+                      className={cn(
+                        "mt-2",
+                        darkMode ? "bg-purple-600 hover:bg-purple-700" : "bg-purple-600 hover:bg-purple-700"
+                      )}
+                      onClick={generateAIResponse}
+                      disabled={!messageText.trim()}
+                    >
+                      <Sparkles className="w-5 h-5" />
+                    </Button>
+                  ) : activeTab === 'Programado' ? (
+                    <Button 
+                      size="icon"
+                      className={cn(
+                        "mt-2",
+                        darkMode ? "bg-cyan-600 hover:bg-cyan-700" : "bg-blue-600 hover:bg-blue-700"
+                      )}
+                      onClick={scheduleMessage}
+                      disabled={!messageText.trim() || !scheduledDateTime}
+                    >
+                      <ClockIcon className="w-5 h-5" />
+                    </Button>
+                  ) : (
+                    <Button 
+                      size="icon"
+                      className={cn(
+                        "mt-2",
+                        darkMode ? "bg-cyan-600 hover:bg-cyan-700" : "bg-blue-600 hover:bg-blue-700"
+                      )}
+                      onClick={sendMessage}
+                      disabled={!messageText.trim()}
+                    >
+                      <Send className="w-5 h-5" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </>
@@ -898,14 +1320,49 @@ export default function ConversacionesPage() {
                   </div>
 
                   {/* Labels */}
-                  {contactDetails.labels.length > 0 && (
-                    <div>
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
                       <h4 className={cn(
-                        "text-sm font-semibold mb-3",
+                        "text-sm font-semibold",
                         darkMode ? "text-gray-300" : "text-gray-700"
                       )}>
                         Etiquetas
                       </h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsAddingLabel(!isAddingLabel)}
+                        className="h-6 px-2"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    {isAddingLabel && (
+                      <div className="flex gap-2 mb-2">
+                        <Input
+                          placeholder="Nueva etiqueta"
+                          value={newLabel}
+                          onChange={(e) => setNewLabel(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              addLabel()
+                            } else if (e.key === 'Escape') {
+                              setIsAddingLabel(false)
+                              setNewLabel('')
+                            }
+                          }}
+                          className={cn(
+                            "flex-1 h-8 text-sm",
+                            darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-300"
+                          )}
+                          autoFocus
+                        />
+                        <Button size="sm" onClick={addLabel} className="h-8">
+                          Agregar
+                        </Button>
+                      </div>
+                    )}
+                    {contactDetails.labels.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {contactDetails.labels.map((label, idx) => (
                           <Badge
@@ -917,12 +1374,15 @@ export default function ConversacionesPage() {
                             )}
                           >
                             {label}
-                            <X className="w-3 h-3 cursor-pointer" />
+                            <X 
+                              className="w-3 h-3 cursor-pointer hover:text-red-500" 
+                              onClick={() => removeLabel(label)}
+                            />
                           </Badge>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   {/* Contact */}
                   <div>
@@ -951,22 +1411,61 @@ export default function ConversacionesPage() {
                   </div>
 
                   {/* Notes */}
-                  {contactDetails.notes && (
-                    <div>
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
                       <h4 className={cn(
-                        "text-sm font-semibold mb-3",
+                        "text-sm font-semibold",
                         darkMode ? "text-gray-300" : "text-gray-700"
                       )}>
                         Notas
                       </h4>
+                      {!isEditingNotes && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsEditingNotes(true)}
+                          className="h-6 px-2"
+                        >
+                          <Settings className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                    {isEditingNotes ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          value={contactDetails.notes || ''}
+                          onChange={(e) => updateContactDetails({ notes: e.target.value })}
+                          className={cn(
+                            "text-sm min-h-[80px]",
+                            darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-300"
+                          )}
+                          placeholder="Escribe notas sobre este contacto..."
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={saveNotes}>
+                            Guardar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              setIsEditingNotes(false)
+                              // Restaurar notas originales si se cancela
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
                       <p className={cn(
-                        "text-sm p-3 rounded-lg",
+                        "text-sm p-3 rounded-lg min-h-[60px]",
                         darkMode ? "bg-gray-800 text-gray-300" : "bg-gray-100 text-gray-900"
                       )}>
-                        {contactDetails.notes}
+                        {contactDetails.notes || 'No hay notas. Haz clic en el icono para agregar.'}
                       </p>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </ScrollArea>
             </>
