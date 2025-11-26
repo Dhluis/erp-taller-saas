@@ -33,7 +33,9 @@ import {
   Building2,
   Users,
   Settings,
-  Loader2
+  Loader2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { useSidebar } from '@/contexts/SidebarContext';
@@ -53,6 +55,11 @@ export function SidebarUserProfile({ className = '' }: SidebarUserProfileProps) 
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
   });
   const { isCollapsed } = useSidebar();
   const router = useRouter();
@@ -86,28 +93,64 @@ export function SidebarUserProfile({ className = '' }: SidebarUserProfileProps) 
       return;
     }
 
+    if (passwordData.currentPassword === passwordData.newPassword) {
+      toast.error('La nueva contraseña debe ser diferente a la actual');
+      return;
+    }
+
     setIsChangingPassword(true);
 
     try {
       const supabase = createClient();
       
+      // Obtener el usuario actual y su email
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        toast.error('Error al obtener información del usuario');
+        return;
+      }
+
+      if (!user.email) {
+        toast.error('No se pudo obtener el email del usuario');
+        return;
+      }
+
       // Verificar contraseña actual reautenticando
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: profile?.email || '',
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
         password: passwordData.currentPassword,
       });
 
       if (signInError) {
-        toast.error('La contraseña actual es incorrecta');
+        console.error('Error de autenticación:', signInError);
+        // Mensajes de error más específicos
+        if (signInError.message.includes('Invalid login credentials') || 
+            signInError.message.includes('Email not confirmed') ||
+            signInError.status === 400) {
+          toast.error('La contraseña actual es incorrecta');
+        } else {
+          toast.error(`Error: ${signInError.message}`);
+        }
+        return;
+      }
+
+      // Verificar que la autenticación fue exitosa
+      if (!signInData.user) {
+        toast.error('Error al verificar la contraseña actual');
         return;
       }
 
       // Actualizar contraseña
-      const { error } = await supabase.auth.updateUser({
+      const { error: updateError } = await supabase.auth.updateUser({
         password: passwordData.newPassword
       });
 
-      if (error) throw error;
+      if (updateError) {
+        console.error('Error al actualizar contraseña:', updateError);
+        toast.error(`Error al actualizar: ${updateError.message}`);
+        return;
+      }
 
       toast.success('Contraseña actualizada correctamente');
       setIsPasswordModalOpen(false);
@@ -116,9 +159,14 @@ export function SidebarUserProfile({ className = '' }: SidebarUserProfileProps) 
         newPassword: '',
         confirmPassword: ''
       });
-    } catch (error) {
+      setShowPasswords({
+        current: false,
+        new: false,
+        confirm: false
+      });
+    } catch (error: any) {
       console.error('Error changing password:', error);
-      toast.error('Error al cambiar la contraseña');
+      toast.error(error?.message || 'Error al cambiar la contraseña');
     } finally {
       setIsChangingPassword(false);
     }
@@ -275,33 +323,81 @@ export function SidebarUserProfile({ className = '' }: SidebarUserProfileProps) 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="current-password">Contraseña Actual</Label>
-              <Input
-                id="current-password"
-                type="password"
-                value={passwordData.currentPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                placeholder="Ingresa tu contraseña actual"
-              />
+              <div className="relative">
+                <Input
+                  id="current-password"
+                  type={showPasswords.current ? "text" : "password"}
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  placeholder="Ingresa tu contraseña actual"
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
+                >
+                  {showPasswords.current ? (
+                    <EyeOff className="h-4 w-4 text-gray-500" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-500" />
+                  )}
+                </Button>
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="new-password">Nueva Contraseña</Label>
-              <Input
-                id="new-password"
-                type="password"
-                value={passwordData.newPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                placeholder="Mínimo 6 caracteres"
-              />
+              <div className="relative">
+                <Input
+                  id="new-password"
+                  type={showPasswords.new ? "text" : "password"}
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  placeholder="Mínimo 6 caracteres"
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
+                >
+                  {showPasswords.new ? (
+                    <EyeOff className="h-4 w-4 text-gray-500" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-500" />
+                  )}
+                </Button>
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="confirm-password">Confirmar Nueva Contraseña</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                value={passwordData.confirmPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                placeholder="Repite la nueva contraseña"
-              />
+              <div className="relative">
+                <Input
+                  id="confirm-password"
+                  type={showPasswords.confirm ? "text" : "password"}
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  placeholder="Repite la nueva contraseña"
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
+                >
+                  {showPasswords.confirm ? (
+                    <EyeOff className="h-4 w-4 text-gray-500" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-500" />
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -313,6 +409,11 @@ export function SidebarUserProfile({ className = '' }: SidebarUserProfileProps) 
                   currentPassword: '',
                   newPassword: '',
                   confirmPassword: ''
+                });
+                setShowPasswords({
+                  current: false,
+                  new: false,
+                  confirm: false
                 });
               }}
               disabled={isChangingPassword}
