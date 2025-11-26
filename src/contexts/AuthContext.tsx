@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -49,9 +49,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [organization, setOrganization] = useState<Workshop | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  
+  // ✅ FIX: Usar refs para evitar dependencias circulares
+  const isLoadingDataRef = useRef(false)
 
-  // Cargar perfil y workshop del usuario
-  const loadUserData = async (userId: string) => {
+  // ✅ FIX: Memoizar loadUserData para evitar recreaciones
+  const loadUserData = useCallback(async (userId: string) => {
+    // ✅ FIX: Prevenir llamadas concurrentes
+    if (isLoadingDataRef.current) {
+      console.log('⏸️ [AuthContext] loadUserData ya en progreso, ignorando...');
+      return;
+    }
     try {
       console.log('🔍 [AuthContext] Loading user data for userId:', userId)
       
@@ -171,8 +179,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('❌ [AuthContext] Error loading user data:', error)
+    } finally {
+      isLoadingDataRef.current = false;
     }
-  }
+  }, [])
 
   // Efecto para manejar cambios de autenticación
   useEffect(() => {
@@ -221,10 +231,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [loadUserData])
 
-  // Cerrar sesión
-  const signOut = async () => {
+  // ✅ FIX: Memoizar signOut
+  const signOut = useCallback(async () => {
     try {
       await supabase.auth.signOut()
       setUser(null)
@@ -235,16 +245,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Error signing out:', error)
     }
-  }
+  }, [router])
 
-  // Refrescar perfil (útil después de actualizaciones)
-  const refreshProfile = async () => {
+  // ✅ FIX: Memoizar refreshProfile
+  const refreshProfile = useCallback(async () => {
     if (user) {
       await loadUserData(user.id)
     }
-  }
+  }, [user, loadUserData])
 
-  const value = {
+  // ✅ FIX: Memoizar el valor del contexto para evitar re-renders innecesarios
+  const value = useMemo(() => ({
     user,
     session,
     profile,
@@ -252,7 +263,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signOut,
     refreshProfile,
-  }
+  }), [user, session, profile, organization, loading, signOut, refreshProfile])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

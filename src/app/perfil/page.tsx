@@ -348,6 +348,7 @@ export default function PerfilPage() {
                         value={passwordData.currentPassword}
                         onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
                         placeholder="Ingresa tu contraseña actual"
+                        autoComplete="current-password"
                         required
                       />
                       <Button
@@ -375,6 +376,7 @@ export default function PerfilPage() {
                         value={passwordData.newPassword}
                         onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
                         placeholder="Ingresa tu nueva contraseña"
+                        autoComplete="new-password"
                         required
                       />
                       <Button
@@ -405,6 +407,7 @@ export default function PerfilPage() {
                         value={passwordData.confirmPassword}
                         onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                         placeholder="Confirma tu nueva contraseña"
+                        autoComplete="new-password"
                         required
                       />
                       <Button

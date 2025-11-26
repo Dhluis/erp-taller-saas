@@ -86,3 +86,4 @@ COMMENT ON COLUMN public.whatsapp_sessions.waha_session_status IS 'Estado de la 
 COMMENT ON COLUMN public.whatsapp_sessions.phone_number IS 'Número de teléfono vinculado a esta sesión';
 
 
+

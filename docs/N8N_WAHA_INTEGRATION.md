@@ -349,3 +349,4 @@ NEXT_PUBLIC_APP_URL=https://tu-dominio.com
 - Asegúrate de que el workflow esté activo
 
 
+
