@@ -27,16 +27,27 @@ export async function GET(request: NextRequest) {
     const wahaUrl = process.env.WAHA_API_URL;
     const wahaKey = process.env.WAHA_API_KEY;
     
-    // Log detallado para diagnóstico
-    console.log('[WhatsApp Session] 🔍 Verificando variables de entorno:', {
+    // Log detallado para diagnóstico - INCLUIR EN LOGS DE VERCEL
+    const envDiagnostics = {
       WAHA_API_URL_exists: !!wahaUrl,
       WAHA_API_URL_length: wahaUrl?.length || 0,
       WAHA_API_URL_preview: wahaUrl ? `${wahaUrl.substring(0, 20)}...` : 'NOT SET',
       WAHA_API_KEY_exists: !!wahaKey,
       WAHA_API_KEY_length: wahaKey?.length || 0,
       allWAHAKeys: Object.keys(process.env).filter(k => k.includes('WAHA')),
-      nodeEnv: process.env.NODE_ENV
-    });
+      allWAHAKeys_lowercase: Object.keys(process.env).filter(k => k.toLowerCase().includes('waha')),
+      nodeEnv: process.env.NODE_ENV,
+      vercelEnv: process.env.VERCEL_ENV,
+      vercelUrl: process.env.VERCEL_URL,
+      // Mostrar TODAS las claves que empiezan con WAHA (por si hay diferencia de mayúsculas)
+      processEnvKeys: Object.keys(process.env).filter(k => 
+        k.toUpperCase().includes('WAHA') || k.toLowerCase().includes('waha')
+      ),
+      // Contar total de variables de entorno
+      totalEnvVars: Object.keys(process.env).length
+    };
+    
+    console.error('[WhatsApp Session] 🔍 DIAGNÓSTICO COMPLETO DE VARIABLES:', JSON.stringify(envDiagnostics, null, 2));
     
     if (!wahaUrl || !wahaKey) {
       console.error('[WhatsApp Session] ❌ Variables de entorno faltantes:', {
@@ -45,15 +56,41 @@ export async function GET(request: NextRequest) {
         allEnvKeys: Object.keys(process.env).filter(k => k.includes('WAHA'))
       });
       
+      // Incluir diagnóstico completo en la respuesta
+      const diagnosticInfo = {
+        WAHA_API_URL_configured: !!wahaUrl,
+        WAHA_API_KEY_configured: !!wahaKey,
+        environment: process.env.NODE_ENV,
+        vercelEnv: process.env.VERCEL_ENV,
+        allWAHAKeys: Object.keys(process.env).filter(k => 
+          k.toUpperCase().includes('WAHA') || k.toLowerCase().includes('waha')
+        ),
+        totalEnvVars: Object.keys(process.env).length,
+        // Mostrar algunas variables de ejemplo para verificar que process.env funciona
+        sampleEnvVars: {
+          NODE_ENV: process.env.NODE_ENV,
+          VERCEL_ENV: process.env.VERCEL_ENV,
+          NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ? '✅' : '❌',
+          NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅' : '❌'
+        }
+      };
+      
+      console.error('[WhatsApp Session] ❌ DIAGNÓSTICO COMPLETO:', JSON.stringify(diagnosticInfo, null, 2));
+      
       return NextResponse.json({
         success: false,
         error: 'Configuración de WAHA incompleta. Por favor, verifica que WAHA_API_URL y WAHA_API_KEY estén configuradas en Vercel.',
-        hint: 'Ve a Settings > Environment Variables en Vercel y agrega las variables. Luego haz redeploy.',
-        debug: {
-          WAHA_API_URL_configured: !!wahaUrl,
-          WAHA_API_KEY_configured: !!wahaKey,
-          environment: process.env.NODE_ENV
-        }
+        hint: 'Ve a Settings > Environment Variables en Vercel y agrega las variables. Luego haz redeploy COMPLETO (sin caché).',
+        debug: diagnosticInfo,
+        nextSteps: [
+          '1. Ve a Vercel Dashboard > Settings > Environment Variables',
+          '2. Verifica que WAHA_API_URL y WAHA_API_KEY estén configuradas',
+          '3. Asegúrate de que estén seleccionadas para Production',
+          '4. Ve a Deployments > Último deployment > ⋯ > Redeploy',
+          '5. DESMARCA "Use existing Build Cache"',
+          '6. Espera a que termine el deployment',
+          '7. Recarga esta página'
+        ]
       }, { status: 500 });
     }
 

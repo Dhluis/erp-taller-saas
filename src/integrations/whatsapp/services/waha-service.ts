@@ -61,46 +61,86 @@ export function formatPhoneNumber(phone: string): string {
 }
 
 /**
- * Obtiene la URL base de WAHA desde variables de entorno
+ * Obtiene la configuración de WAHA desde variables de entorno O desde la base de datos
+ * SOLUCIÓN DEFINITIVA: Si las variables de entorno no están disponibles, lee de la BD
  */
-function getWAHAUrl(): string {
-  // Intentar obtener de diferentes fuentes
-  const url = process.env.WAHA_API_URL || 
-              process.env.NEXT_PUBLIC_WAHA_API_URL;
+async function getWAHAConfig(organizationId?: string): Promise<{ url: string; key: string }> {
+  // 1. PRIMERO: Intentar desde variables de entorno (más rápido)
+  const envUrl = process.env.WAHA_API_URL || process.env.NEXT_PUBLIC_WAHA_API_URL;
+  const envKey = process.env.WAHA_API_KEY || process.env.NEXT_PUBLIC_WAHA_API_KEY;
   
-  if (!url) {
-    const errorMsg = 'WAHA_API_URL no está configurada en las variables de entorno. ' +
-      'Por favor, configura WAHA_API_URL en Vercel (Settings > Environment Variables) o en tu archivo .env.local';
-    console.error('[WAHA Service] ❌', errorMsg);
-    throw new Error(errorMsg);
+  if (envUrl && envKey) {
+    console.log('[WAHA Service] ✅ Usando configuración de variables de entorno');
+    return {
+      url: envUrl.replace(/\/$/, ''),
+      key: envKey
+    };
   }
-  return url.replace(/\/$/, ''); // Remover trailing slash
+  
+  // 2. SEGUNDO: Si no hay variables de entorno, leer de la base de datos
+  if (organizationId) {
+    try {
+      console.log('[WAHA Service] ⚠️ Variables de entorno no disponibles, intentando leer de BD...');
+      const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
+      const supabase = getSupabaseServiceClient();
+      
+      const { data: config, error } = await supabase
+        .from('ai_agent_config')
+        .select('policies, whatsapp_session_name')
+        .eq('organization_id', organizationId)
+        .single();
+      
+      if (!error && config) {
+        // Intentar leer de policies (JSONB)
+        const policies = config.policies as any;
+        const dbUrl = policies?.waha_api_url || policies?.WAHA_API_URL;
+        const dbKey = policies?.waha_api_key || policies?.WAHA_API_KEY;
+        
+        if (dbUrl && dbKey) {
+          console.log('[WAHA Service] ✅ Usando configuración de base de datos');
+          return {
+            url: dbUrl.replace(/\/$/, ''),
+            key: dbKey
+          };
+        }
+      }
+    } catch (dbError) {
+      console.warn('[WAHA Service] ⚠️ Error leyendo configuración de BD:', dbError);
+    }
+  }
+  
+  // 3. Si nada funciona, lanzar error con instrucciones
+  const errorMsg = 'WAHA_API_URL y WAHA_API_KEY no están configuradas. ' +
+    'Opciones: 1) Configura las variables en Vercel y haz redeploy, ' +
+    '2) Guarda la configuración en la base de datos usando /api/whatsapp/config con waha_api_url y waha_api_key en policies';
+  console.error('[WAHA Service] ❌', errorMsg);
+  throw new Error(errorMsg);
 }
 
 /**
- * Obtiene la API Key de WAHA desde variables de entorno
+ * Obtiene la URL base de WAHA desde variables de entorno O base de datos
  */
-function getWAHAKey(): string {
-  // Intentar obtener de diferentes fuentes
-  const key = process.env.WAHA_API_KEY || 
-               process.env.NEXT_PUBLIC_WAHA_API_KEY;
-  
-  if (!key) {
-    const errorMsg = 'WAHA_API_KEY no está configurada en las variables de entorno. ' +
-      'Por favor, configura WAHA_API_KEY en Vercel (Settings > Environment Variables) o en tu archivo .env.local';
-    console.error('[WAHA Service] ❌', errorMsg);
-    throw new Error(errorMsg);
-  }
-  return key;
+async function getWAHAUrl(organizationId?: string): Promise<string> {
+  const config = await getWAHAConfig(organizationId);
+  return config.url;
+}
+
+/**
+ * Obtiene la API Key de WAHA desde variables de entorno O base de datos
+ */
+async function getWAHAKey(organizationId?: string): Promise<string> {
+  const config = await getWAHAConfig(organizationId);
+  return config.key;
 }
 
 /**
  * Obtiene los headers para autenticación con WAHA
  */
-function getWAHAHeaders(): HeadersInit {
+async function getWAHAHeaders(organizationId?: string): Promise<HeadersInit> {
+  const key = await getWAHAKey(organizationId);
   return {
     'Content-Type': 'application/json',
-    'X-Api-Key': getWAHAKey()
+    'X-Api-Key': key
   };
 }
 
@@ -131,7 +171,7 @@ export async function createSession(organizationId: string): Promise<WAHASession
     try {
       const createResponse = await fetch(`${wahaUrl}/api/sessions`, {
         method: 'POST',
-        headers: getWAHAHeaders(),
+        headers: await getWAHAHeaders(organizationId),
         body: JSON.stringify({
           name: sessionName,
           config: {
@@ -159,7 +199,7 @@ export async function createSession(organizationId: string): Promise<WAHASession
     // Si no se pudo crear directamente, usar /start que crea la sesión si no existe
     const startResponse = await fetch(`${wahaUrl}/api/sessions/${sessionName}/start`, {
       method: 'POST',
-      headers: getWAHAHeaders(),
+      headers: await getWAHAHeaders(organizationId),
       body: JSON.stringify({
         config: {
           proxy: null,
@@ -202,15 +242,15 @@ export async function createSession(organizationId: string): Promise<WAHASession
 /**
  * 2. Obtiene información de una sesión
  */
-export async function getSession(sessionName: string): Promise<WAHASessionInfo> {
+export async function getSession(sessionName: string, organizationId?: string): Promise<WAHASessionInfo> {
   try {
-    const wahaUrl = getWAHAUrl();
+    const wahaUrl = await getWAHAUrl(organizationId);
     
     console.log(`[WAHA] Obteniendo sesión: ${sessionName}`);
     
     const response = await fetch(`${wahaUrl}/api/sessions/${sessionName}`, {
       method: 'GET',
-      headers: getWAHAHeaders()
+      headers: await getWAHAHeaders(organizationId)
     });
 
     if (!response.ok) {
@@ -234,15 +274,15 @@ export async function getSession(sessionName: string): Promise<WAHASessionInfo> 
 /**
  * 2.1. Lista todas las sesiones disponibles en WAHA
  */
-export async function listSessions(): Promise<WAHASessionInfo[]> {
+export async function listSessions(organizationId?: string): Promise<WAHASessionInfo[]> {
   try {
-    const wahaUrl = getWAHAUrl();
+    const wahaUrl = await getWAHAUrl(organizationId);
     
     console.log(`[WAHA] Listando todas las sesiones...`);
     
     const response = await fetch(`${wahaUrl}/api/sessions`, {
       method: 'GET',
-      headers: getWAHAHeaders()
+      headers: await getWAHAHeaders(organizationId)
     });
 
     if (!response.ok) {
@@ -263,9 +303,9 @@ export async function listSessions(): Promise<WAHASessionInfo[]> {
 /**
  * 2.2. Busca una sesión WORKING existente (puede ser "default" u otra)
  */
-export async function findWorkingSession(): Promise<WAHASessionInfo | null> {
+export async function findWorkingSession(organizationId?: string): Promise<WAHASessionInfo | null> {
   try {
-    const sessions = await listSessions();
+    const sessions = await listSessions(organizationId);
     
     // Buscar sesión "default" primero (común en WAHA)
     const defaultSession = sessions.find((s: any) => s.name === 'default' && (s.status === 'WORKING' || s.status === 'connected'));
@@ -298,13 +338,13 @@ export async function getQRCode(organizationId: string): Promise<{
   expiresIn: number;
 }> {
   try {
-    const wahaUrl = getWAHAUrl();
+    const wahaUrl = await getWAHAUrl(organizationId);
     const sessionName = getSessionName(organizationId);
     
     console.log(`[WAHA] Obteniendo QR para: ${sessionName}`);
     
     // PRIMERO: Verificar si hay una sesión WORKING existente (como "default")
-    const workingSession = await findWorkingSession();
+    const workingSession = await findWorkingSession(organizationId);
     if (workingSession) {
       console.log(`[WAHA] ⚠️ Ya existe una sesión WORKING: ${workingSession.name}`);
       throw new Error('Sesión ya conectada. No se necesita QR.');
@@ -313,7 +353,7 @@ export async function getQRCode(organizationId: string): Promise<{
     // SEGUNDO: Verificar si la sesión específica de la organización existe
     let sessionExists = false;
     try {
-      const existingSession = await getSession(sessionName);
+      const existingSession = await getSession(sessionName, organizationId);
       sessionExists = true;
       
       // Si la sesión ya está WORKING, no se puede obtener QR
@@ -336,7 +376,7 @@ export async function getQRCode(organizationId: string): Promise<{
     // Verificar estado de la sesión e iniciarla si está detenida
     let sessionInfo;
     try {
-      sessionInfo = await getSession(sessionName);
+      sessionInfo = await getSession(sessionName, organizationId);
       console.log(`[WAHA] Estado actual de sesión: ${sessionInfo.status}`);
       
       // Si la sesión está STOPPED o FAILED, iniciarla
@@ -344,7 +384,7 @@ export async function getQRCode(organizationId: string): Promise<{
         console.log(`[WAHA] Sesión está ${sessionInfo.status}, iniciando...`);
         const startResponse = await fetch(`${wahaUrl}/api/sessions/${sessionName}/start`, {
           method: 'POST',
-          headers: getWAHAHeaders()
+          headers: await getWAHAHeaders(organizationId)
         });
         
         if (!startResponse.ok && startResponse.status !== 409) {
@@ -363,7 +403,7 @@ export async function getQRCode(organizationId: string): Promise<{
           await new Promise(resolve => setTimeout(resolve, 1500));
           
           try {
-            sessionInfo = await getSession(sessionName);
+            sessionInfo = await getSession(sessionName, organizationId);
             console.log(`[WAHA] Estado después de iniciar (intento ${attempts + 1}): ${sessionInfo.status}`);
             
             // Si está en SCAN_QR_CODE o WORKING, está lista
@@ -400,7 +440,7 @@ export async function getQRCode(organizationId: string): Promise<{
         try {
           await fetch(`${wahaUrl}/api/sessions/${sessionName}/start`, {
             method: 'POST',
-            headers: getWAHAHeaders()
+            headers: await getWAHAHeaders(organizationId)
           });
           await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (startError: any) {
@@ -414,12 +454,12 @@ export async function getQRCode(organizationId: string): Promise<{
     // Obtener QR code
     const qrResponse = await fetch(`${wahaUrl}/api/${sessionName}/auth/qr`, {
       method: 'GET',
-      headers: getWAHAHeaders()
+      headers: await getWAHAHeaders(organizationId)
     });
 
     if (!qrResponse.ok) {
       // Verificar si la sesión ya está conectada
-      const sessionInfo = await getSession(sessionName);
+      const sessionInfo = await getSession(sessionName, organizationId);
       if (sessionInfo.status === 'WORKING' || sessionInfo.status === 'connected') {
         throw new Error('Sesión ya conectada. No se necesita QR.');
       }
@@ -495,11 +535,11 @@ export async function getQRCode(organizationId: string): Promise<{
  */
 export async function checkConnectionStatus(organizationId: string): Promise<WAHAConnectionStatus> {
   try {
-    const wahaUrl = getWAHAUrl();
+    const wahaUrl = await getWAHAUrl(organizationId);
     const sessionName = getSessionName(organizationId);
     
     // Primero, buscar si hay una sesión WORKING existente (como "default")
-    const workingSession = await findWorkingSession();
+    const workingSession = await findWorkingSession(organizationId);
     if (workingSession) {
       console.log(`[WAHA] ✅ Usando sesión WORKING existente: ${workingSession.name}`);
       
@@ -507,7 +547,7 @@ export async function checkConnectionStatus(organizationId: string): Promise<WAH
       try {
         const meResponse = await fetch(`${wahaUrl}/api/sessions/${workingSession.name}/me`, {
           method: 'GET',
-          headers: getWAHAHeaders()
+          headers: await getWAHAHeaders(organizationId)
         });
 
         if (meResponse.ok) {
@@ -541,7 +581,7 @@ export async function checkConnectionStatus(organizationId: string): Promise<WAH
     
     // Si no hay sesión WORKING existente, verificar la sesión específica de la organización
     try {
-      const sessionInfo = await getSession(sessionName);
+      const sessionInfo = await getSession(sessionName, organizationId);
       const isConnected = sessionInfo.status === 'WORKING' || sessionInfo.status === 'connected';
       
       if (!isConnected) {
@@ -555,7 +595,7 @@ export async function checkConnectionStatus(organizationId: string): Promise<WAH
       try {
         const meResponse = await fetch(`${wahaUrl}/api/sessions/${sessionName}/me`, {
           method: 'GET',
-          headers: getWAHAHeaders()
+          headers: await getWAHAHeaders(organizationId)
         });
 
         if (meResponse.ok) {
@@ -609,7 +649,7 @@ export async function sendTextMessage(
   text: string
 ): Promise<WAHAMessageResponse> {
   try {
-    const wahaUrl = getWAHAUrl();
+    const wahaUrl = await getWAHAUrl(organizationId);
     const sessionName = getSessionName(organizationId);
     const formattedPhone = formatPhoneNumber(to);
     
@@ -617,7 +657,7 @@ export async function sendTextMessage(
     
     const response = await fetch(`${wahaUrl}/api/sendText`, {
       method: 'POST',
-      headers: getWAHAHeaders(),
+      headers: await getWAHAHeaders(organizationId),
       body: JSON.stringify({
         session: sessionName,
         chatId: formattedPhone,
@@ -656,7 +696,7 @@ export async function sendImage(
   caption?: string
 ): Promise<WAHAMessageResponse> {
   try {
-    const wahaUrl = getWAHAUrl();
+    const wahaUrl = await getWAHAUrl(organizationId);
     const sessionName = getSessionName(organizationId);
     const formattedPhone = formatPhoneNumber(to);
     
@@ -664,7 +704,7 @@ export async function sendImage(
     
     const response = await fetch(`${wahaUrl}/api/sendImage`, {
       method: 'POST',
-      headers: getWAHAHeaders(),
+      headers: await getWAHAHeaders(organizationId),
       body: JSON.stringify({
         session: sessionName,
         chatId: formattedPhone,
@@ -705,7 +745,7 @@ export async function sendFile(
   caption?: string
 ): Promise<WAHAMessageResponse> {
   try {
-    const wahaUrl = getWAHAUrl();
+    const wahaUrl = await getWAHAUrl(organizationId);
     const sessionName = getSessionName(organizationId);
     const formattedPhone = formatPhoneNumber(to);
     
@@ -713,7 +753,7 @@ export async function sendFile(
     
     const response = await fetch(`${wahaUrl}/api/sendFile`, {
       method: 'POST',
-      headers: getWAHAHeaders(),
+      headers: await getWAHAHeaders(organizationId),
       body: JSON.stringify({
         session: sessionName,
         chatId: formattedPhone,
@@ -749,14 +789,14 @@ export async function sendFile(
  */
 export async function disconnectSession(organizationId: string): Promise<void> {
   try {
-    const wahaUrl = getWAHAUrl();
+    const wahaUrl = await getWAHAUrl(organizationId);
     const sessionName = getSessionName(organizationId);
     
     console.log(`[WAHA] Desconectando sesión: ${sessionName}`);
     
     const response = await fetch(`${wahaUrl}/api/sessions/${sessionName}/stop`, {
       method: 'POST',
-      headers: getWAHAHeaders()
+      headers: await getWAHAHeaders(organizationId)
     });
 
     if (!response.ok) {
@@ -780,7 +820,7 @@ export async function disconnectSession(organizationId: string): Promise<void> {
  */
 export async function deleteSession(organizationId: string): Promise<void> {
   try {
-    const wahaUrl = getWAHAUrl();
+    const wahaUrl = await getWAHAUrl(organizationId);
     const sessionName = getSessionName(organizationId);
     
     console.log(`[WAHA] Eliminando sesión: ${sessionName}`);
@@ -796,7 +836,7 @@ export async function deleteSession(organizationId: string): Promise<void> {
     
     const response = await fetch(`${wahaUrl}/api/sessions/${sessionName}`, {
       method: 'DELETE',
-      headers: getWAHAHeaders()
+      headers: await getWAHAHeaders(organizationId)
     });
 
     if (!response.ok) {
