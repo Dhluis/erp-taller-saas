@@ -268,8 +268,8 @@ export async function POST(request: NextRequest) {
       escalation_rules: data.escalationRules || {}
     }
 
-    // Si solo se está actualizando WhatsApp (viene whatsapp_phone)
-    if (data.whatsapp_phone !== undefined && !data.businessInfo) {
+    // Si solo se está actualizando WhatsApp (viene whatsapp_phone) o configuración de WAHA
+    if ((data.whatsapp_phone !== undefined || data.waha_api_url || data.waha_api_key) && !data.businessInfo) {
       // Verificar si existe configuración
       const { data: existingConfig, error: checkError } = await serviceClient
         .from('ai_agent_config')
@@ -286,6 +286,39 @@ export async function POST(request: NextRequest) {
       }
 
       if (!existingConfig) {
+        // Si solo se está guardando configuración de WAHA (sin whatsapp_phone), permitir crear/actualizar
+        if (data.waha_api_url || data.waha_api_key) {
+          // Intentar crear configuración básica si no existe
+          const { data: newConfig, error: createError } = await serviceClient
+            .from('ai_agent_config')
+            .insert({
+              organization_id: tenantContext.organizationId,
+              enabled: false,
+              policies: {
+                waha_api_url: data.waha_api_url,
+                waha_api_key: data.waha_api_key,
+                WAHA_API_URL: data.waha_api_url,
+                WAHA_API_KEY: data.waha_api_key
+              },
+              updated_at: new Date().toISOString()
+            })
+            .select()
+            .single()
+
+          if (createError) {
+            return NextResponse.json({
+              success: false,
+              error: 'Error al crear configuración: ' + createError.message
+            }, { status: 500 })
+          }
+
+          return NextResponse.json({
+            success: true,
+            message: 'Configuración de WAHA guardada exitosamente',
+            data: newConfig
+          })
+        }
+        
         return NextResponse.json({
           success: false,
           error: 'Primero debes entrenar el asistente antes de vincular WhatsApp'
@@ -320,13 +353,27 @@ export async function POST(request: NextRequest) {
         
         // Usar policies JSONB para almacenar temporalmente
         const currentPolicies = existingConfig.policies || {}
-        const updatedPolicies = {
-          ...currentPolicies,
-          whatsapp: {
+        const updatedPolicies: any = {
+          ...currentPolicies
+        }
+        
+        // Actualizar WhatsApp si viene
+        if (data.whatsapp_phone !== undefined) {
+          updatedPolicies.whatsapp = {
             phone: data.whatsapp_phone,
             connected: data.whatsapp_connected !== undefined ? data.whatsapp_connected : true,
             updated_at: new Date().toISOString()
           }
+        }
+        
+        // ✅ NUEVO: Actualizar configuración de WAHA si viene
+        if (data.waha_api_url) {
+          updatedPolicies.waha_api_url = data.waha_api_url
+          updatedPolicies.WAHA_API_URL = data.waha_api_url // También con mayúsculas
+        }
+        if (data.waha_api_key) {
+          updatedPolicies.waha_api_key = data.waha_api_key
+          updatedPolicies.WAHA_API_KEY = data.waha_api_key // También con mayúsculas
         }
 
         const { error: fallbackError } = await serviceClient
@@ -346,7 +393,23 @@ export async function POST(request: NextRequest) {
           }, { status: 500 })
         }
 
-        console.log('[Config Save] ✅ WhatsApp guardado en policies (fallback)')
+        console.log('[Config Save] ✅ Configuración guardada en policies (fallback)')
+        
+        // Si se guardó configuración de WAHA, retornar mensaje específico
+        if (data.waha_api_url || data.waha_api_key) {
+          return NextResponse.json({
+            success: true,
+            message: 'Configuración de WAHA guardada exitosamente',
+            data: { 
+              id: existingConfig.id, 
+              updated: true, 
+              using_fallback: true,
+              waha_api_url: data.waha_api_url,
+              waha_api_key_configured: !!data.waha_api_key
+            }
+          })
+        }
+        
         return NextResponse.json({
           success: true,
           data: { id: existingConfig.id, updated: true, using_fallback: true }
