@@ -64,9 +64,15 @@ export function formatPhoneNumber(phone: string): string {
  * Obtiene la URL base de WAHA desde variables de entorno
  */
 function getWAHAUrl(): string {
-  const url = process.env.WAHA_API_URL;
+  // Intentar obtener de diferentes fuentes
+  const url = process.env.WAHA_API_URL || 
+              process.env.NEXT_PUBLIC_WAHA_API_URL;
+  
   if (!url) {
-    throw new Error('WAHA_API_URL no está configurada en las variables de entorno');
+    const errorMsg = 'WAHA_API_URL no está configurada en las variables de entorno. ' +
+      'Por favor, configura WAHA_API_URL en Vercel (Settings > Environment Variables) o en tu archivo .env.local';
+    console.error('[WAHA Service] ❌', errorMsg);
+    throw new Error(errorMsg);
   }
   return url.replace(/\/$/, ''); // Remover trailing slash
 }
@@ -75,9 +81,15 @@ function getWAHAUrl(): string {
  * Obtiene la API Key de WAHA desde variables de entorno
  */
 function getWAHAKey(): string {
-  const key = process.env.WAHA_API_KEY;
+  // Intentar obtener de diferentes fuentes
+  const key = process.env.WAHA_API_KEY || 
+               process.env.NEXT_PUBLIC_WAHA_API_KEY;
+  
   if (!key) {
-    throw new Error('WAHA_API_KEY no está configurada en las variables de entorno');
+    const errorMsg = 'WAHA_API_KEY no está configurada en las variables de entorno. ' +
+      'Por favor, configura WAHA_API_KEY en Vercel (Settings > Environment Variables) o en tu archivo .env.local';
+    console.error('[WAHA Service] ❌', errorMsg);
+    throw new Error(errorMsg);
   }
   return key;
 }

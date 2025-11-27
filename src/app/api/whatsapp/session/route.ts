@@ -19,6 +19,40 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
+    // 0. Verificar que las variables de entorno estén configuradas
+    const wahaUrl = process.env.WAHA_API_URL;
+    const wahaKey = process.env.WAHA_API_KEY;
+    
+    // Log detallado para diagnóstico
+    console.log('[WhatsApp Session] 🔍 Verificando variables de entorno:', {
+      WAHA_API_URL_exists: !!wahaUrl,
+      WAHA_API_URL_length: wahaUrl?.length || 0,
+      WAHA_API_URL_preview: wahaUrl ? `${wahaUrl.substring(0, 20)}...` : 'NOT SET',
+      WAHA_API_KEY_exists: !!wahaKey,
+      WAHA_API_KEY_length: wahaKey?.length || 0,
+      allWAHAKeys: Object.keys(process.env).filter(k => k.includes('WAHA')),
+      nodeEnv: process.env.NODE_ENV
+    });
+    
+    if (!wahaUrl || !wahaKey) {
+      console.error('[WhatsApp Session] ❌ Variables de entorno faltantes:', {
+        WAHA_API_URL: !!wahaUrl,
+        WAHA_API_KEY: !!wahaKey,
+        allEnvKeys: Object.keys(process.env).filter(k => k.includes('WAHA'))
+      });
+      
+      return NextResponse.json({
+        success: false,
+        error: 'Configuración de WAHA incompleta. Por favor, verifica que WAHA_API_URL y WAHA_API_KEY estén configuradas en Vercel.',
+        hint: 'Ve a Settings > Environment Variables en Vercel y agrega las variables. Luego haz redeploy.',
+        debug: {
+          WAHA_API_URL_configured: !!wahaUrl,
+          WAHA_API_KEY_configured: !!wahaKey,
+          environment: process.env.NODE_ENV
+        }
+      }, { status: 500 });
+    }
+
     // 1. Obtener contexto del tenant
     const tenantContext = await getTenantContext();
     if (!tenantContext) {
@@ -102,9 +136,23 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error('[WhatsApp Session] ❌ Error en GET:', error);
+    
+    // Log detallado del error
+    if (error instanceof Error) {
+      console.error('[WhatsApp Session] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+    }
+    
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : 'Error desconocido al verificar estado de sesión'
+      error: error instanceof Error ? error.message : 'Error desconocido al verificar estado de sesión',
+      debug: error instanceof Error ? {
+        name: error.name,
+        message: error.message
+      } : undefined
     }, { status: 500 });
   }
 }
@@ -123,6 +171,19 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // 0. Verificar que las variables de entorno estén configuradas
+    const wahaUrl = process.env.WAHA_API_URL;
+    const wahaKey = process.env.WAHA_API_KEY;
+    
+    if (!wahaUrl || !wahaKey) {
+      console.error('[WhatsApp Session] ❌ Variables de entorno faltantes en POST');
+      return NextResponse.json({
+        success: false,
+        error: 'Configuración de WAHA incompleta. Por favor, verifica que WAHA_API_URL y WAHA_API_KEY estén configuradas en Vercel.',
+        hint: 'Ve a Settings > Environment Variables en Vercel y agrega las variables. Luego haz redeploy.'
+      }, { status: 500 });
+    }
+
     // 1. Obtener contexto del tenant
     const tenantContext = await getTenantContext();
     if (!tenantContext) {
@@ -197,6 +258,18 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
+    // 0. Verificar que las variables de entorno estén configuradas
+    const wahaUrl = process.env.WAHA_API_URL;
+    const wahaKey = process.env.WAHA_API_KEY;
+    
+    if (!wahaUrl || !wahaKey) {
+      console.error('[WhatsApp Session] ❌ Variables de entorno faltantes en DELETE');
+      return NextResponse.json({
+        success: false,
+        error: 'Configuración de WAHA incompleta. Por favor, verifica que WAHA_API_URL y WAHA_API_KEY estén configuradas en Vercel.'
+      }, { status: 500 });
+    }
+
     // 1. Obtener contexto del tenant
     const tenantContext = await getTenantContext();
     if (!tenantContext) {

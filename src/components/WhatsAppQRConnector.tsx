@@ -51,11 +51,24 @@ export function WhatsAppQRConnector({
   // Función para verificar estado de sesión
   const checkSessionStatus = useCallback(async () => {
     try {
+      console.log('[WhatsAppQRConnector] 🔍 Verificando estado de sesión...')
       const response = await fetch('/api/whatsapp/session')
+      
+      // Verificar si la respuesta es OK
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('[WhatsAppQRConnector] ❌ Error HTTP:', response.status, errorText)
+        throw new Error(`Error ${response.status}: ${errorText || 'Error al verificar estado'}`)
+      }
+      
       const data = await response.json()
+      console.log('[WhatsAppQRConnector] 📦 Respuesta recibida:', { success: data.success, status: data.data?.status })
 
       if (!data.success) {
-        throw new Error(data.error || 'Error al verificar estado')
+        const errorMsg = data.error || 'Error al verificar estado'
+        const hint = data.hint ? `\n\n💡 ${data.hint}` : ''
+        const debug = data.debug ? `\n\n🔍 Debug: ${JSON.stringify(data.debug, null, 2)}` : ''
+        throw new Error(`${errorMsg}${hint}${debug}`)
       }
 
       const statusData = data.data
@@ -92,9 +105,19 @@ export function WhatsAppQRConnector({
       setErrorMessage('Estado de sesión desconocido')
       onStatusChange?.('error')
     } catch (error) {
-      console.error('[WhatsAppQRConnector] Error verificando estado:', error)
+      console.error('[WhatsAppQRConnector] ❌ Error verificando estado:', error)
+      
+      // Log detallado del error
+      if (error instanceof Error) {
+        console.error('[WhatsAppQRConnector] Error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        })
+      }
+      
       setState('error')
-      setErrorMessage(error instanceof Error ? error.message : 'Error desconocido')
+      setErrorMessage(error instanceof Error ? error.message : 'Error desconocido al verificar estado de WhatsApp')
       onStatusChange?.('error')
       stopPolling()
     }
