@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { useAuth } from '@/hooks/useAuth'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import {
   MessageSquare,
   Search,
@@ -54,7 +56,8 @@ import {
   Sparkles,
   Plus,
   Home,
-  ArrowLeft
+  ArrowLeft,
+  Loader2
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -114,6 +117,9 @@ interface ContactDetails {
 
 export default function ConversacionesPage() {
   const router = useRouter()
+  const { organization } = useAuth()
+  const supabase = getSupabaseClient()
+  const subscriptionRef = useRef<any>(null)
   const [darkMode, setDarkMode] = useState(true)
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -127,6 +133,10 @@ export default function ConversacionesPage() {
   const [newLabel, setNewLabel] = useState('')
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState('')
+  const [loadingConversations, setLoadingConversations] = useState(true)
+  const [loadingMessages, setLoadingMessages] = useState(false)
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const [isBotTyping, setIsBotTyping] = useState(false)
   
   // Emojis comunes
   const commonEmojis = [
@@ -165,184 +175,167 @@ export default function ConversacionesPage() {
     setEmojiPickerOpen(false)
   }
 
-  // Datos de ejemplo - ahora mutables
-  const [conversations, setConversations] = useState<Conversation[]>([
-    {
-      id: '1',
-      contactName: 'Jennifer Fritz',
-      contactPhone: '+1234567890',
-      lastMessage: 'Sam está escribiendo en este chat...',
-      lastMessageTime: '13h',
-      unread: false,
-      status: 'active',
-      labels: ['SO'],
-      isTyping: true
-    },
-    {
-      id: '2',
-      contactName: 'Laney Gray',
-      contactPhone: '+1234567891',
-      lastMessage: '¡Hola! Buenos días',
-      lastMessageTime: '13h',
-      unread: false,
-      status: 'active',
-      labels: ['TE']
-    },
-    {
-      id: '3',
-      contactName: 'Kendra Lord',
-      contactPhone: '+0123456789',
-      contactEmail: 'kendralord@company.com',
-      lastMessage: 'Mark está escribiendo en este chat...',
-      lastMessageTime: '17h',
-      unread: true,
-      status: 'resolved',
-      labels: ['RE'],
-      isTyping: true,
-      isFavorite: true
-    },
-    {
-      id: '4',
-      contactName: 'Oscar Thomsen',
-      contactPhone: '+1234567892',
-      lastMessage: 'Imagen',
-      lastMessageTime: '5h',
-      unread: false,
-      status: 'active',
-      labels: ['LR']
-    },
-    {
-      id: '5',
-      contactName: 'Gatlin Huber',
-      contactPhone: '+1234567893',
-      lastMessage: 'Te avisaré tan pronto como sepamos...',
-      lastMessageTime: '8h',
-      unread: false,
-      status: 'active',
-      labels: ['SA']
-    },
-    {
-      id: '6',
-      contactName: 'Tim Morrison',
-      contactPhone: '+1234567894',
-      lastMessage: '¡Hola! Me preguntaba si podrías ayudar...',
-      lastMessageTime: '6h',
-      unread: false,
-      status: 'active',
-      labels: ['PA']
-    },
-    {
-      id: '7',
-      contactName: 'Mate Harris',
-      contactPhone: '+1234567895',
-      lastMessage: 'Imagen',
-      lastMessageTime: '7h',
-      unread: false,
-      status: 'active',
-      labels: []
-    },
-    {
-      id: '8',
-      contactName: 'Jon Doe',
-      contactPhone: '+1234567896',
-      lastMessage: '¿Puedo saber tu nombre?',
-      lastMessageTime: '8h',
-      unread: false,
-      status: 'active',
-      labels: []
-    },
-    {
-      id: '9',
-      contactName: 'Jahlil Kyle',
-      contactPhone: '+1234567897',
-      lastMessage: '¡Genial! Te contactaré cuando el paquete...',
-      lastMessageTime: '9h',
-      unread: false,
-      status: 'active',
-      labels: []
-    }
-  ])
+  // Estado de conversaciones y mensajes reales
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [messages, setMessages] = useState<Message[]>([])
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: '¡Hola Kendra! Este es el soporte de Home Haven Marketplace. ¿Cómo puedo ayudarte hoy?',
-      sender: 'agent',
-      timestamp: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
-      read: true
-    },
-    {
-      id: '2',
-      text: '¡Hola! Hice un pedido hace unos días y quería verificar el estado del envío. ¿Puedes ayudarme con eso?',
-      sender: 'customer',
-      timestamp: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
-      read: true
-    },
-    {
-      id: '3',
-      text: '¡Por supuesto, Kendra! ¿Podrías proporcionar el número de pedido o el nombre del producto que compraste? Lo buscaré de inmediato.',
-      sender: 'agent',
-      timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
-      read: true
-    },
-    {
-      id: '4',
-      text: '¡Claro! El número de pedido es HH12345678. Pedí el Set de Tazas de Cerámica Rústica.',
-      sender: 'customer',
-      timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
-      read: true
-    },
-    {
-      id: '5',
-      text: '¡Gracias por los detalles! Déjame verificar eso por ti. Un momento, por favor.',
-      sender: 'agent',
-      timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
-      read: true
-    },
-    {
-      id: '6',
-      text: '¡Listo! Tu pedido fue enviado el 7 de diciembre y está programado para ser entregado en tu dirección antes del 10 de diciembre. Aquí está tu enlace de seguimiento: track.homehaven.com/HH12345678',
-      sender: 'agent',
-      timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
-      read: true
-    },
-    {
-      id: '7',
-      text: '¡Hola! ¿Cómo puedo ayudarte hoy?',
-      sender: 'agent',
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      read: true,
-      type: 'internal'
-    },
-    {
-      id: '8',
-      text: '¡Gracias por el aviso! Pasaré tu problema al equipo técnico.',
-      sender: 'agent',
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      read: true,
-      type: 'internal'
-    }
-  ])
+  const [contactDetails, setContactDetails] = useState<ContactDetails | null>(null)
 
-  const [contactDetails, setContactDetails] = useState<ContactDetails>({
-    name: 'Kendra Lord',
-    phone: '+0123456789',
-    email: 'kendralord@company.com',
-    lastMessage: 'hace 17 horas',
-    accountType: 'Cuenta personal',
-    country: 'Estados Unidos',
-    language: 'Español',
-    currency: 'Dólar Estadounidense',
-    started: 'hace 17 horas',
-    status: 'resolved',
-    device: 'Usuario de iPhone',
-    labels: ['Importante'],
-    address: '1234 Calle Maple, Ciudad, USA 12345',
-    notes: 'Enviar factura de los últimos 2 meses'
-  })
-
-  const selectedConv = conversations.find(c => c.id === selectedConversation) || conversations[2]
+  const selectedConv = conversations.find(c => c.id === selectedConversation)
   const isResolved = selectedConv?.status === 'resolved'
+
+  // Función para formatear tiempo relativo
+  const formatRelativeTime = (date: Date | string): string => {
+    const now = new Date()
+    const messageDate = typeof date === 'string' ? new Date(date) : date
+    const diffMs = now.getTime() - messageDate.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Ahora'
+    if (diffMins < 60) return `${diffMins}m`
+    if (diffHours < 24) return `${diffHours}h`
+    if (diffDays < 7) return `${diffDays}d`
+    return messageDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+  }
+
+  // Cargar conversaciones desde la BD
+  const loadConversations = useCallback(async () => {
+    if (!organization?.organization_id) {
+      setLoadingConversations(false)
+      return
+    }
+
+    try {
+      setLoadingConversations(true)
+      
+      // Construir query base
+      let query = supabase
+        .from('whatsapp_conversations')
+        .select('*')
+        .eq('organization_id', organization.organization_id)
+
+      // Aplicar filtro de status solo si no es 'all', 'unread' o 'favorite'
+      if (activeFilter === 'resolved') {
+        query = query.eq('status', 'resolved')
+      } else if (activeFilter === 'all') {
+        // No filtrar por status
+      } else {
+        // Para 'unread' y 'favorite', cargar todas y filtrar en el frontend
+        // (ya que estos campos no están en la BD directamente)
+      }
+
+      query = query.order('last_message_at', { ascending: false, nullsFirst: false })
+        .limit(100) // Aumentar límite para permitir filtrado en frontend
+
+      const { data, error } = await query
+
+      if (error) throw error
+
+      const formattedConversations: Conversation[] = (data || []).map((conv: any) => ({
+        id: conv.id,
+        contactName: conv.customer_name || 'Cliente sin nombre',
+        contactPhone: conv.customer_phone,
+        contactEmail: undefined, // Se puede obtener del customer_id si es necesario
+        lastMessage: conv.last_message || 'Sin mensajes',
+        lastMessageTime: conv.last_message_at ? formatRelativeTime(conv.last_message_at) : 'Nunca',
+        unread: false, // Se puede calcular basado en mensajes no leídos
+        status: conv.status as 'active' | 'resolved' | 'archived',
+        labels: conv.labels || [],
+        avatar: undefined,
+        isTyping: false,
+        isFavorite: false
+      }))
+
+      setConversations(formattedConversations)
+
+      // Seleccionar primera conversación si no hay seleccionada
+      if (formattedConversations.length > 0 && !selectedConversation) {
+        setSelectedConversation(formattedConversations[0].id)
+      }
+    } catch (error) {
+      console.error('Error cargando conversaciones:', error)
+      toast.error('Error al cargar conversaciones')
+    } finally {
+      setLoadingConversations(false)
+    }
+  }, [organization?.organization_id, activeFilter, supabase, selectedConversation])
+
+  // Cargar mensajes de una conversación
+  const loadMessages = useCallback(async (conversationId: string) => {
+    if (!conversationId || !organization?.organization_id) return
+
+    try {
+      setLoadingMessages(true)
+      const { data, error } = await supabase
+        .from('whatsapp_messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .eq('organization_id', organization.organization_id)
+        .order('timestamp', { ascending: true })
+        .limit(100)
+
+      if (error) throw error
+
+      const formattedMessages: Message[] = (data || []).map((msg: any) => ({
+        id: msg.id,
+        text: msg.content || msg.body || '',
+        sender: msg.direction === 'inbound' ? 'customer' : 'agent',
+        timestamp: new Date(msg.timestamp || msg.created_at),
+        read: msg.status === 'read' || msg.status === 'delivered',
+        type: msg.is_internal_note ? 'internal' : (msg.type || 'text')
+      }))
+
+      setMessages(formattedMessages)
+
+      // Cargar detalles del contacto
+      const conv = conversations.find(c => c.id === conversationId)
+      if (conv) {
+        // Obtener información del cliente si hay customer_id
+        const { data: customerData } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('phone', conv.contactPhone)
+          .eq('organization_id', organization.organization_id)
+          .maybeSingle()
+
+        setContactDetails({
+          name: conv.contactName,
+          phone: conv.contactPhone,
+          email: customerData?.email,
+          lastMessage: conv.lastMessageTime,
+          accountType: 'Cuenta personal',
+          country: 'México',
+          language: 'Español',
+          currency: 'Peso Mexicano',
+          started: conv.lastMessageTime,
+          status: conv.status,
+          device: 'WhatsApp',
+          labels: conv.labels,
+          address: customerData?.address,
+          notes: undefined
+        })
+      }
+    } catch (error) {
+      console.error('Error cargando mensajes:', error)
+      toast.error('Error al cargar mensajes')
+    } finally {
+      setLoadingMessages(false)
+    }
+  }, [organization?.organization_id, supabase, conversations])
+
+  // Cargar conversaciones al montar y cuando cambia el filtro
+  useEffect(() => {
+    loadConversations()
+  }, [loadConversations])
+
+  // Cargar mensajes cuando se selecciona una conversación
+  useEffect(() => {
+    if (selectedConversation) {
+      loadMessages(selectedConversation)
+    }
+  }, [selectedConversation, loadMessages])
 
   // Aplicar dark mode al body
   useEffect(() => {
@@ -367,20 +360,84 @@ export default function ConversacionesPage() {
     return matchesSearch && matchesFilter
   })
 
+  // Suscripción realtime para nuevos mensajes
   useEffect(() => {
-    if (conversations.length > 0 && !selectedConversation) {
-      setSelectedConversation(conversations[2].id) // Seleccionar Kendra Lord por defecto
+    if (!organization?.organization_id) return
+
+    // Limpiar suscripción anterior
+    if (subscriptionRef.current) {
+      supabase.removeChannel(subscriptionRef.current)
     }
-  }, [])
+
+    // Crear nueva suscripción
+    const channel = supabase
+      .channel('whatsapp-messages-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'whatsapp_messages',
+          filter: `organization_id=eq.${organization.organization_id}`
+        },
+        (payload) => {
+          console.log('📨 Nuevo mensaje recibido:', payload)
+          
+          // Si es un INSERT y pertenece a la conversación seleccionada
+          if (payload.eventType === 'INSERT' && payload.new.conversation_id === selectedConversation) {
+            const newMsg = payload.new as any
+            
+            // Mostrar indicador de "escribiendo" si es del bot
+            if (newMsg.is_from_bot && newMsg.direction === 'outbound') {
+              setIsBotTyping(true)
+              // El indicador se ocultará cuando se cargue el mensaje completo
+            }
+
+            // Recargar mensajes
+            loadMessages(selectedConversation)
+            
+            // Recargar conversaciones para actualizar last_message
+            loadConversations()
+          }
+
+          // Si es un UPDATE y es un mensaje del bot que se completó
+          if (payload.eventType === 'UPDATE' && payload.new.is_from_bot) {
+            setIsBotTyping(false)
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'whatsapp_conversations',
+          filter: `organization_id=eq.${organization.organization_id}`
+        },
+        (payload) => {
+          console.log('💬 Cambio en conversación:', payload)
+          // Recargar conversaciones cuando hay cambios
+          loadConversations()
+        }
+      )
+      .subscribe()
+
+    subscriptionRef.current = channel
+
+    // Cleanup al desmontar
+    return () => {
+      if (subscriptionRef.current) {
+        supabase.removeChannel(subscriptionRef.current)
+        subscriptionRef.current = null
+      }
+    }
+  }, [organization?.organization_id, selectedConversation, supabase, loadMessages, loadConversations])
 
   // Marcar mensajes como leídos cuando se selecciona una conversación
   useEffect(() => {
     if (selectedConversation) {
-      // Marcar conversación como leída
+      // Marcar conversación como leída (actualizar en BD si es necesario)
       updateConversation(selectedConversation, { unread: false })
-      
-      // Marcar mensajes como leídos
-      setMessages(prev => prev.map(msg => ({ ...msg, read: true })))
     }
   }, [selectedConversation])
 
@@ -413,42 +470,70 @@ export default function ConversacionesPage() {
   }
 
   // Funciones de mensajes
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!messageText.trim() || !selectedConversation) return
 
     const messageToSend = messageText
+    const isInternalNote = activeTab === 'Nota'
+    const conv = conversations.find(c => c.id === selectedConversation)
+    
+    if (!conv) {
+      toast.error('Conversación no encontrada')
+      return
+    }
+
+    setIsSendingMessage(true)
     setMessageText('') // Limpiar inmediatamente para mejor UX
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: messageToSend,
-      sender: 'agent',
-      timestamp: new Date(),
-      read: false,
-      type: activeTab === 'Nota' ? 'internal' : 'text'
-    }
+    try {
+      // Si es nota interna, solo guardar localmente (no enviar por WhatsApp)
+      if (isInternalNote) {
+        const newMessage: Message = {
+          id: Date.now().toString(),
+          text: messageToSend,
+          sender: 'agent',
+          timestamp: new Date(),
+          read: true,
+          type: 'internal'
+        }
+        setMessages(prev => [...prev, newMessage])
+        toast.success('Nota interna agregada')
+        setIsSendingMessage(false)
+        return
+      }
 
-    setMessages(prev => [...prev, newMessage])
-    
-    // Actualizar última conversación
-    const conv = conversations.find(c => c.id === selectedConversation)
-    if (conv) {
-      const shortMessage = messageToSend.length > 50 ? messageToSend.substring(0, 50) + '...' : messageToSend
-      updateConversation(selectedConversation, {
-        lastMessage: shortMessage,
-        lastMessageTime: 'Ahora',
-        unread: false,
-        isTyping: false
+      // Enviar mensaje real usando el API
+      const response = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: selectedConversation,
+          to: conv.contactPhone,
+          message: messageToSend,
+          type: 'text'
+        })
       })
-    }
 
-    // Simular envío con delay
-    setTimeout(() => {
-      setMessages(prev => prev.map(msg => 
-        msg.id === newMessage.id ? { ...msg, read: true } : msg
-      ))
-      toast.success(activeTab === 'Nota' ? 'Nota interna agregada' : 'Mensaje enviado')
-    }, 500)
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'Error al enviar mensaje')
+      }
+
+      // Recargar mensajes para obtener el mensaje guardado en BD
+      await loadMessages(selectedConversation)
+      
+      // Recargar conversaciones para actualizar last_message
+      await loadConversations()
+
+      toast.success('Mensaje enviado')
+    } catch (error) {
+      console.error('Error enviando mensaje:', error)
+      toast.error(error instanceof Error ? error.message : 'Error al enviar mensaje')
+      setMessageText(messageToSend) // Restaurar texto en caso de error
+    } finally {
+      setIsSendingMessage(false)
+    }
   }
 
   const scheduleMessage = () => {
@@ -481,13 +566,27 @@ export default function ConversacionesPage() {
   }
 
   // Funciones de acciones del chat
-  const handleResolveChat = () => {
+  const handleResolveChat = async () => {
     if (!selectedConversation) return
     
     const newStatus = isResolved ? 'active' : 'resolved'
-    updateConversation(selectedConversation, { status: newStatus })
-    updateContactDetails({ status: newStatus })
-    toast.success(newStatus === 'resolved' ? 'Chat resuelto' : 'Chat reactivado')
+    
+    try {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ status: newStatus })
+        .eq('id', selectedConversation)
+
+      if (error) throw error
+
+      updateConversation(selectedConversation, { status: newStatus })
+      updateContactDetails({ status: newStatus })
+      await loadConversations() // Recargar para actualizar filtros
+      toast.success(newStatus === 'resolved' ? 'Chat resuelto' : 'Chat reactivado')
+    } catch (error) {
+      console.error('Error actualizando estado:', error)
+      toast.error('Error al actualizar estado del chat')
+    }
   }
 
   const handleReassign = () => {
@@ -552,43 +651,72 @@ export default function ConversacionesPage() {
   }
 
   // Funciones de etiquetas y notas
-  const addLabel = () => {
+  const addLabel = async () => {
     if (!newLabel.trim()) {
       toast.error('Por favor ingresa una etiqueta')
       return
     }
     
-    const currentLabels = contactDetails.labels || []
+    if (!selectedConversation) return
+
+    const conv = conversations.find(c => c.id === selectedConversation)
+    if (!conv) return
+
+    const currentLabels = contactDetails?.labels || conv.labels || []
     if (currentLabels.includes(newLabel)) {
       toast.error('Esta etiqueta ya existe')
       return
     }
     
-    updateContactDetails({ labels: [...currentLabels, newLabel] })
-    if (selectedConversation) {
-      const conv = conversations.find(c => c.id === selectedConversation)
-      if (conv) {
-        updateConversation(selectedConversation, { labels: [...conv.labels, newLabel] })
-      }
-    }
+    const newLabels = [...currentLabels, newLabel]
     
-    setNewLabel('')
-    setIsAddingLabel(false)
-    toast.success('Etiqueta agregada')
+    // Actualizar en BD
+    try {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ labels: newLabels })
+        .eq('id', selectedConversation)
+
+      if (error) throw error
+
+      updateConversation(selectedConversation, { labels: newLabels })
+      updateContactDetails({ labels: newLabels })
+      
+      setNewLabel('')
+      setIsAddingLabel(false)
+      toast.success('Etiqueta agregada')
+    } catch (error) {
+      console.error('Error agregando etiqueta:', error)
+      toast.error('Error al agregar etiqueta')
+    }
   }
 
-  const removeLabel = (label: string) => {
-    const currentLabels = contactDetails.labels.filter(l => l !== label)
-    updateContactDetails({ labels: currentLabels })
+  const removeLabel = async (label: string) => {
+    if (!selectedConversation) return
+
+    const conv = conversations.find(c => c.id === selectedConversation)
+    if (!conv) return
+
+    const currentLabels = contactDetails?.labels || conv.labels || []
+    const newLabels = currentLabels.filter(l => l !== label)
     
-    if (selectedConversation) {
-      const conv = conversations.find(c => c.id === selectedConversation)
-      if (conv) {
-        updateConversation(selectedConversation, { labels: conv.labels.filter(l => l !== label) })
-      }
+    // Actualizar en BD
+    try {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ labels: newLabels })
+        .eq('id', selectedConversation)
+
+      if (error) throw error
+
+      updateConversation(selectedConversation, { labels: newLabels })
+      updateContactDetails({ labels: newLabels })
+      
+      toast.success('Etiqueta eliminada')
+    } catch (error) {
+      console.error('Error eliminando etiqueta:', error)
+      toast.error('Error al eliminar etiqueta')
     }
-    
-    toast.success('Etiqueta eliminada')
   }
 
   const saveNotes = () => {
@@ -770,7 +898,21 @@ export default function ConversacionesPage() {
           {/* Conversation List */}
           <ScrollArea className="flex-1">
             <div className="p-2">
-              {filteredConversations.map((conversation) => (
+              {loadingConversations ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                </div>
+              ) : filteredConversations.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <p className={cn(
+                    "text-sm",
+                    darkMode ? "text-gray-400" : "text-gray-600"
+                  )}>
+                    No hay conversaciones
+                  </p>
+                </div>
+              ) : (
+                filteredConversations.map((conversation) => (
                 <div
                   key={conversation.id}
                   onClick={() => setSelectedConversation(conversation.id)}
@@ -858,7 +1000,19 @@ export default function ConversacionesPage() {
           "flex-1 flex flex-col transition-colors pt-16",
           darkMode ? "bg-[#0A0E1A]" : "bg-white"
         )}>
-          {selectedConv && (
+          {!selectedConv ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <MessageSquare className={cn("w-16 h-16 mx-auto mb-4", darkMode ? "text-gray-600" : "text-gray-400")} />
+                <p className={cn("text-lg font-medium mb-2", darkMode ? "text-gray-300" : "text-gray-700")}>
+                  Selecciona una conversación
+                </p>
+                <p className={cn("text-sm", darkMode ? "text-gray-500" : "text-gray-500")}>
+                  Elige una conversación de la lista para comenzar a chatear
+                </p>
+              </div>
+            </div>
+          ) : selectedConv && (
             <>
               {/* Chat Header */}
               <div className={cn(
@@ -1074,16 +1228,45 @@ export default function ConversacionesPage() {
               </ScrollArea>
 
               {/* Typing Indicator */}
-              {selectedConv.isTyping && (
+              {(isBotTyping || (selectedConv?.isTyping)) && (
                 <div className={cn(
                   "px-4 py-2 border-t",
                   darkMode ? "border-gray-800 bg-gray-900/50" : "border-gray-200 bg-gray-50"
                 )}>
                   <p className={cn(
-                    "text-sm italic",
+                    "text-sm italic flex items-center gap-2",
                     darkMode ? "text-gray-400" : "text-gray-600"
                   )}>
-                    Mark está escribiendo en este chat...
+                    <span className="flex gap-1">
+                      <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                      <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                      <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                    </span>
+                    El asistente está escribiendo...
+                  </p>
+                </div>
+              )}
+
+              {/* Loading Messages */}
+              {loadingMessages && messages.length === 0 && (
+                <div className="flex items-center justify-center py-8">
+                  <p className={cn(
+                    "text-sm",
+                    darkMode ? "text-gray-400" : "text-gray-600"
+                  )}>
+                    Cargando mensajes...
+                  </p>
+                </div>
+              )}
+
+              {/* Empty Messages */}
+              {!loadingMessages && messages.length === 0 && (
+                <div className="flex items-center justify-center py-8">
+                  <p className={cn(
+                    "text-sm",
+                    darkMode ? "text-gray-400" : "text-gray-600"
+                  )}>
+                    No hay mensajes en esta conversación
                   </p>
                 </div>
               )}
@@ -1238,9 +1421,13 @@ export default function ConversacionesPage() {
                         darkMode ? "bg-cyan-600 hover:bg-cyan-700" : "bg-blue-600 hover:bg-blue-700"
                       )}
                       onClick={sendMessage}
-                      disabled={!messageText.trim()}
+                      disabled={isSendingMessage || !messageText.trim()}
                     >
-                      <Send className="w-5 h-5" />
+                      {isSendingMessage ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Send className="w-5 h-5" />
+                      )}
                     </Button>
                   )}
                 </div>
@@ -1270,10 +1457,10 @@ export default function ConversacionesPage() {
                     </Avatar>
                     <div>
                       <h3 className={cn("font-semibold", darkMode ? "text-white" : "text-gray-900")}>
-                        {contactDetails.name}
+                        {contactDetails?.name || selectedConv.contactName}
                       </h3>
                       <p className={cn("text-sm", darkMode ? "text-gray-400" : "text-gray-600")}>
-                        {contactDetails.phone}
+                        {contactDetails?.phone || selectedConv.contactPhone}
                       </p>
                     </div>
                   </div>
@@ -1296,45 +1483,45 @@ export default function ConversacionesPage() {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Último mensaje:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.lastMessage}</span>
+                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.lastMessage || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Cuenta:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.accountType}</span>
+                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.accountType || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className={darkMode ? "text-gray-400" : "text-gray-600"}>País:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.country}</span>
+                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.country || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Idioma:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.language}</span>
+                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.language || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Moneda:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.currency}</span>
+                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.currency || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Iniciado:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.started}</span>
+                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.started || 'N/A'}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Estado:</span>
                         <div className="flex items-center gap-1">
-                          {contactDetails.status === 'resolved' && (
+                          {contactDetails?.status === 'resolved' && (
                             <CheckCircle2 className={cn("w-4 h-4", darkMode ? "text-green-400" : "text-green-600")} />
                           )}
                           <span className={cn(
                             "capitalize",
                             darkMode ? "text-gray-300" : "text-gray-900"
                           )}>
-                            Chat {contactDetails.status === 'resolved' ? 'resuelto' : contactDetails.status === 'active' ? 'activo' : 'archivado'}
+                            Chat {contactDetails?.status === 'resolved' ? 'resuelto' : contactDetails?.status === 'active' ? 'activo' : 'archivado'}
                           </span>
                         </div>
                       </div>
                       <div className="flex justify-between">
                         <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Dispositivo:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.device}</span>
+                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.device || 'N/A'}</span>
                       </div>
                     </div>
                   </div>
@@ -1382,9 +1569,9 @@ export default function ConversacionesPage() {
                         </Button>
                       </div>
                     )}
-                    {contactDetails.labels.length > 0 && (
+                    {(contactDetails?.labels || selectedConv.labels || []).length > 0 && (
                       <div className="flex flex-wrap gap-2">
-                        {contactDetails.labels.map((label, idx) => (
+                        {(contactDetails?.labels || selectedConv.labels || []).map((label, idx) => (
                           <Badge
                             key={idx}
                             variant="secondary"

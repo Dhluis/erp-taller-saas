@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { ProgressBar } from './components/ProgressBar'
@@ -11,6 +11,7 @@ import { PersonalityStep } from './components/PersonalityStep'
 import { FAQStep } from './components/FAQStep'
 import { CustomInstructionsStep } from './components/CustomInstructionsStep'
 import { PreviewTestStep } from './components/PreviewTestStep'
+import { WhatsAppQRConnector } from '@/components/WhatsAppQRConnector'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -120,6 +121,41 @@ export default function TrainAgentPage() {
     }))
   }
 
+  // Manejar cambio de estado de WhatsApp
+  const handleWhatsAppStatusChange = useCallback(async (status: 'loading' | 'connected' | 'pending' | 'error') => {
+    if (status === 'connected') {
+      try {
+        // Obtener información de la sesión conectada
+        const sessionResponse = await fetch('/api/whatsapp/session')
+        const sessionData = await sessionResponse.json()
+
+        if (sessionData.success && sessionData.data.status === 'connected' && sessionData.data.phone) {
+          // Guardar número de teléfono en la configuración del AI agent
+          const configResponse = await fetch('/api/whatsapp/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              whatsapp_phone: sessionData.data.phone,
+              whatsapp_connected: true
+            })
+          })
+
+          const configResult = await configResponse.json()
+
+          if (configResult.success) {
+            toast.success('WhatsApp conectado y guardado en la configuración')
+          } else {
+            console.error('Error guardando configuración de WhatsApp:', configResult.error)
+            toast.warning('WhatsApp conectado, pero hubo un error al guardar en la configuración')
+          }
+        }
+      } catch (error) {
+        console.error('Error al guardar configuración de WhatsApp:', error)
+        toast.error('Error al guardar la configuración de WhatsApp')
+      }
+    }
+  }, [])
+
   return (
     <div className="min-h-screen bg-bg-primary">
       <div className="max-w-4xl mx-auto p-6">
@@ -132,8 +168,30 @@ export default function TrainAgentPage() {
         />
 
         <h1 className="text-3xl font-bold mb-8 text-text-primary mt-6">
-          Entrena tu Asistente de WhatsApp
+          Configuración de WhatsApp
         </h1>
+
+        {/* Sección: Conexión de WhatsApp */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4 text-text-primary">
+            Conexión de WhatsApp
+          </h2>
+          <WhatsAppQRConnector
+            onStatusChange={handleWhatsAppStatusChange}
+            darkMode={true}
+            className="mb-6"
+          />
+        </div>
+
+        {/* Separador */}
+        <div className="border-t border-border my-8"></div>
+
+        {/* Sección: Entrenamiento del Bot */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4 text-text-primary">
+            Entrena tu Asistente de WhatsApp
+          </h2>
+        </div>
         
         {/* Progress Bar */}
         <ProgressBar currentStep={step} totalSteps={7} />
