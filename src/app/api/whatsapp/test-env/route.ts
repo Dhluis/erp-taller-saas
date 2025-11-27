@@ -18,6 +18,12 @@ export async function GET(request: NextRequest) {
     const wahaKey = process.env.WAHA_API_KEY;
     const nextPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL;
 
+    // Obtener TODAS las variables de entorno (para diagnóstico completo)
+    const allEnvKeys = Object.keys(process.env).sort();
+    const envKeysWithWAHA = allEnvKeys.filter(key => 
+      key.includes('WAHA') || key.includes('waha') || key.includes('WAHA')
+    );
+
     // Obtener todas las variables relacionadas con WAHA
     const envVars = {
       WAHA_API_URL: wahaUrl ? '✅ Configurada' : '❌ No configurada',
@@ -69,21 +75,34 @@ export async function GET(request: NextRequest) {
       data: {
         environment: process.env.NODE_ENV || 'unknown',
         vercelEnv: process.env.VERCEL_ENV || 'unknown',
+        vercelUrl: process.env.VERCEL_URL || 'unknown',
         variables: envVars,
         allWahaKeys: allWahaKeys,
+        envKeysWithWAHA: envKeysWithWAHA,
+        totalEnvKeys: allEnvKeys.length,
         hasWAHA_API_URL: !!wahaUrl,
         hasWAHA_API_KEY: !!wahaKey,
         wahaUrlValue: wahaUrl ? 
           `${wahaUrl.substring(0, 30)}...` : 
           'No disponible',
+        wahaKeyLength: wahaKey ? wahaKey.length : 0,
         wahaConnectionTest,
+        // Mostrar las primeras 20 variables de entorno (para diagnóstico)
+        sampleEnvKeys: allEnvKeys.slice(0, 20),
         instructions: {
           step1: 'Ve a Vercel Dashboard > Tu Proyecto > Settings > Environment Variables',
-          step2: 'Agrega WAHA_API_URL con valor: https://waha-erp-eagles-sistem.0rfifc.easypanel.host',
-          step3: 'Agrega WAHA_API_KEY con valor: mi_clave_segura_2025',
-          step4: 'Selecciona todos los ambientes (Production, Preview, Development)',
-          step5: 'Guarda y haz REDEPLOY completo (no solo push)',
-          step6: 'Espera a que el deployment termine completamente'
+          step2: 'Verifica que WAHA_API_URL y WAHA_API_KEY estén configuradas',
+          step3: 'Asegúrate de que estén seleccionadas para Production, Preview y Development',
+          step4: 'IMPORTANTE: Haz REDEPLOY completo (sin usar caché)',
+          step5: 'Ve a Deployments > Último deployment > ⋯ > Redeploy',
+          step6: 'Desmarca "Use existing Build Cache"',
+          step7: 'Espera a que el deployment termine completamente',
+          step8: 'Recarga esta página para verificar'
+        },
+        troubleshooting: {
+          note: 'Si las variables están configuradas pero no aparecen aquí, necesitas hacer redeploy',
+          checkLogs: 'Revisa los logs de Vercel para ver si hay errores durante el build',
+          verifyFormat: 'Asegúrate de que los nombres de las variables sean exactamente: WAHA_API_URL y WAHA_API_KEY (sin espacios)'
         }
       }
     });
