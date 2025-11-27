@@ -90,10 +90,31 @@ export function WhatsAppQRConnector({
       }
 
       if (statusData.status === 'pending') {
+        // Asegurar que el QR tenga el formato correcto para mostrarse como imagen
+        let qrCode = statusData.qr || ''
+        
+        // Si el QR no tiene el prefijo data:image, agregarlo
+        if (qrCode && !qrCode.startsWith('data:image')) {
+          // Si es base64 puro, agregar el prefijo
+          if (qrCode.match(/^[A-Za-z0-9+/=]+$/)) {
+            qrCode = `data:image/png;base64,${qrCode}`
+            console.log('[WhatsAppQRConnector] ✅ QR formateado correctamente (agregado prefijo data:image)')
+          } else {
+            console.warn('[WhatsAppQRConnector] ⚠️ QR en formato desconocido:', qrCode.substring(0, 50))
+          }
+        }
+        
+        console.log('[WhatsAppQRConnector] 📱 QR recibido:', {
+          hasQR: !!qrCode,
+          qrLength: qrCode.length,
+          qrPreview: qrCode.substring(0, 50),
+          hasDataPrefix: qrCode.startsWith('data:image')
+        })
+        
         setState('pending')
         setSessionData({
           status: 'pending',
-          qr: statusData.qr,
+          qr: qrCode,
           sessionName: statusData.sessionName,
           expiresIn: statusData.expiresIn
         })
@@ -194,11 +215,19 @@ export function WhatsAppQRConnector({
         throw new Error(data.error || 'Error al generar QR')
       }
 
+      // Formatear QR correctamente
+      let qrCode = data.data.qr || ''
+      if (qrCode && !qrCode.startsWith('data:image')) {
+        if (qrCode.match(/^[A-Za-z0-9+/=]+$/)) {
+          qrCode = `data:image/png;base64,${qrCode}`
+        }
+      }
+
       // Actualizar estado con nuevo QR
       setState('pending')
       setSessionData({
         status: 'pending',
-        qr: data.data.qr,
+        qr: qrCode,
         sessionName: data.data.sessionName,
         expiresIn: data.data.expiresIn
       })
@@ -257,11 +286,19 @@ export function WhatsAppQRConnector({
         throw new Error(data.error || 'Error al reiniciar sesión')
       }
 
+      // Formatear QR correctamente
+      let qrCode = data.data.qr || ''
+      if (qrCode && !qrCode.startsWith('data:image')) {
+        if (qrCode.match(/^[A-Za-z0-9+/=]+$/)) {
+          qrCode = `data:image/png;base64,${qrCode}`
+        }
+      }
+      
       // Actualizar estado con nuevo QR
       setState('pending')
       setSessionData({
         status: 'pending',
-        qr: data.data.qr,
+        qr: qrCode,
         sessionName: data.data.sessionName,
         expiresIn: data.data.expiresIn
       })
@@ -381,11 +418,19 @@ export function WhatsAppQRConnector({
             </div>
 
             <div className="flex flex-col items-center space-y-4">
-              <div className="p-4 bg-bg-secondary border border-border rounded-lg">
+              <div className="p-4 bg-white border border-border rounded-lg">
                 <img
                   src={sessionData.qr}
                   alt="QR Code para vincular WhatsApp"
-                  className="w-64 h-64 mx-auto"
+                  className="w-64 h-64 mx-auto object-contain"
+                  style={{ imageRendering: 'crisp-edges' }}
+                  onError={(e) => {
+                    console.error('[WhatsAppQRConnector] ❌ Error cargando imagen QR:', e)
+                    console.error('[WhatsAppQRConnector] QR value:', sessionData.qr?.substring(0, 100))
+                  }}
+                  onLoad={() => {
+                    console.log('[WhatsAppQRConnector] ✅ Imagen QR cargada correctamente')
+                  }}
                 />
               </div>
 

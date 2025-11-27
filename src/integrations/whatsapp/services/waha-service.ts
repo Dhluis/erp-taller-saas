@@ -295,13 +295,52 @@ export async function getQRCode(organizationId: string): Promise<{
 
     const qrData = await qrResponse.json();
     
+    console.log(`[WAHA] 📦 Respuesta QR de WAHA:`, {
+      hasQr: !!qrData.qr,
+      hasQrcode: !!qrData.qrcode,
+      hasQrCode: !!qrData.qrCode,
+      keys: Object.keys(qrData),
+      qrType: typeof qrData.qr,
+      qrPreview: typeof qrData.qr === 'string' ? qrData.qr.substring(0, 50) : 'not a string'
+    });
+    
     // WAHA puede retornar el QR en diferentes formatos
     let qrCode = qrData.qr || qrData.qrcode || qrData.qrCode || qrData;
-    if (typeof qrCode === 'object' && qrCode.base64) {
-      qrCode = qrCode.base64;
+    
+    // Si es un objeto, extraer el base64
+    if (typeof qrCode === 'object') {
+      if (qrCode.base64) {
+        qrCode = qrCode.base64;
+      } else if (qrCode.qr) {
+        qrCode = qrCode.qr;
+      } else {
+        // Intentar convertir el objeto a string
+        qrCode = JSON.stringify(qrCode);
+      }
     }
     
-    console.log(`[WAHA] ✅ QR obtenido para: ${sessionName}`);
+    // Si el QR es una string pero no tiene el prefijo data:image, puede ser base64 puro
+    // No agregamos el prefijo aquí porque el componente lo hará si es necesario
+    // Pero sí validamos que sea base64 válido
+    if (typeof qrCode === 'string') {
+      // Remover espacios en blanco y saltos de línea
+      qrCode = qrCode.trim().replace(/\s/g, '');
+      
+      // Si ya tiene el prefijo data:image, dejarlo así
+      if (qrCode.startsWith('data:image')) {
+        console.log(`[WAHA] ✅ QR ya tiene prefijo data:image`);
+      } else if (qrCode.match(/^[A-Za-z0-9+/=]+$/)) {
+        // Es base64 válido sin prefijo
+        console.log(`[WAHA] ✅ QR es base64 válido (sin prefijo)`);
+      } else {
+        console.warn(`[WAHA] ⚠️ QR en formato desconocido:`, qrCode.substring(0, 50));
+      }
+    }
+    
+    console.log(`[WAHA] ✅ QR procesado para: ${sessionName}`, {
+      qrLength: typeof qrCode === 'string' ? qrCode.length : 0,
+      hasDataPrefix: typeof qrCode === 'string' && qrCode.startsWith('data:image')
+    });
     
     return {
       qrCode: qrCode as string,
