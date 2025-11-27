@@ -38,6 +38,8 @@ export function WhatsAppQRConnector({
   className,
   darkMode = true
 }: WhatsAppQRConnectorProps) {
+  console.log('[WhatsAppQRConnector] 🚀 Componente montándose...')
+  
   const [state, setState] = useState<'loading' | 'connected' | 'pending' | 'error'>('loading')
   const [sessionData, setSessionData] = useState<SessionStatus | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -155,7 +157,11 @@ export function WhatsAppQRConnector({
 
   // Verificar estado al montar
   useEffect(() => {
-    checkSessionStatus()
+    console.log('[WhatsAppQRConnector] 🔄 useEffect ejecutándose, llamando checkSessionStatus...')
+    console.log('[WhatsAppQRConnector] 📍 Estado actual:', { state, hasSessionData: !!sessionData })
+    checkSessionStatus().catch(err => {
+      console.error('[WhatsAppQRConnector] ❌ Error en checkSessionStatus desde useEffect:', err)
+    })
   }, [checkSessionStatus])
 
   // Iniciar polling si hay QR
