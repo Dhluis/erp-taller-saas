@@ -913,84 +913,85 @@ export default function ConversacionesPage() {
                 </div>
               ) : (
                 filteredConversations.map((conversation) => (
-                <div
-                  key={conversation.id}
-                  onClick={() => setSelectedConversation(conversation.id)}
-                  className={cn(
-                    "p-3 rounded-lg cursor-pointer mb-1 transition-colors",
-                    selectedConversation === conversation.id
-                      ? (darkMode ? "bg-gray-800" : "bg-blue-50")
-                      : (darkMode ? "hover:bg-gray-800/50" : "hover:bg-gray-100")
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <Avatar className="w-10 h-10">
-                      <AvatarFallback className={darkMode ? "bg-gray-700" : "bg-gray-300"}>
-                        {conversation.contactName.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={cn(
-                          "text-sm font-medium truncate",
-                          conversation.unread && !darkMode ? "font-semibold" : "",
-                          darkMode ? "text-white" : "text-gray-900"
-                        )}>
-                          {conversation.contactName}
-                        </span>
-                        <span className={cn(
-                          "text-xs whitespace-nowrap ml-2",
-                          darkMode ? "text-gray-500" : "text-gray-500"
-                        )}>
-                          {conversation.lastMessageTime}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <p className={cn(
-                          "text-xs truncate flex-1",
-                          conversation.unread 
-                            ? (darkMode ? "text-white font-medium" : "text-gray-900 font-semibold")
-                            : (darkMode ? "text-gray-400" : "text-gray-600")
-                        )}>
-                          {conversation.isTyping ? (
-                            <span className={cn(darkMode ? "text-cyan-400" : "text-blue-600")}>
-                              {conversation.lastMessage}
-                            </span>
-                          ) : (
-                            conversation.lastMessage
-                          )}
-                        </p>
-                        {conversation.labels.length > 0 && (
-                          <Badge 
-                            variant="secondary" 
-                            className={cn(
-                              "text-xs px-1.5 py-0",
-                              darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-200 text-gray-700"
+                  <div
+                    key={conversation.id}
+                    onClick={() => setSelectedConversation(conversation.id)}
+                    className={cn(
+                      "p-3 rounded-lg cursor-pointer mb-1 transition-colors",
+                      selectedConversation === conversation.id
+                        ? (darkMode ? "bg-gray-800" : "bg-blue-50")
+                        : (darkMode ? "hover:bg-gray-800/50" : "hover:bg-gray-100")
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Avatar className="w-10 h-10">
+                        <AvatarFallback className={darkMode ? "bg-gray-700" : "bg-gray-300"}>
+                          {conversation.contactName.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={cn(
+                            "text-sm font-medium truncate",
+                            conversation.unread && !darkMode ? "font-semibold" : "",
+                            darkMode ? "text-white" : "text-gray-900"
+                          )}>
+                            {conversation.contactName}
+                          </span>
+                          <span className={cn(
+                            "text-xs whitespace-nowrap ml-2",
+                            darkMode ? "text-gray-500" : "text-gray-500"
+                          )}>
+                            {conversation.lastMessageTime}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <p className={cn(
+                            "text-xs truncate flex-1",
+                            conversation.unread 
+                              ? (darkMode ? "text-white font-medium" : "text-gray-900 font-semibold")
+                              : (darkMode ? "text-gray-400" : "text-gray-600")
+                          )}>
+                            {conversation.isTyping ? (
+                              <span className={cn(darkMode ? "text-cyan-400" : "text-blue-600")}>
+                                {conversation.lastMessage}
+                              </span>
+                            ) : (
+                              conversation.lastMessage
                             )}
+                          </p>
+                          {conversation.labels.length > 0 && (
+                            <Badge 
+                              variant="secondary" 
+                              className={cn(
+                                "text-xs px-1.5 py-0",
+                                darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-200 text-gray-700"
+                              )}
+                            >
+                              {conversation.labels[0]}
+                            </Badge>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              updateConversation(conversation.id, { isFavorite: !conversation.isFavorite })
+                              toast.success(conversation.isFavorite ? 'Eliminado de favoritos' : 'Agregado a favoritos')
+                            }}
+                            className="ml-1"
                           >
-                            {conversation.labels[0]}
-                          </Badge>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            updateConversation(conversation.id, { isFavorite: !conversation.isFavorite })
-                            toast.success(conversation.isFavorite ? 'Eliminado de favoritos' : 'Agregado a favoritos')
-                          }}
-                          className="ml-1"
-                        >
-                          <Star className={cn(
-                            "w-3 h-3 transition-colors",
-                            conversation.isFavorite 
-                              ? (darkMode ? "text-yellow-400 fill-yellow-400" : "text-yellow-500 fill-yellow-500")
-                              : (darkMode ? "text-gray-600 hover:text-yellow-400" : "text-gray-400 hover:text-yellow-500")
-                          )} />
-                        </button>
+                            <Star className={cn(
+                              "w-3 h-3 transition-colors",
+                              conversation.isFavorite 
+                                ? (darkMode ? "text-yellow-400 fill-yellow-400" : "text-yellow-500 fill-yellow-500")
+                                : (darkMode ? "text-gray-600 hover:text-yellow-400" : "text-gray-400 hover:text-yellow-500")
+                            )} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </ScrollArea>
         </div>
