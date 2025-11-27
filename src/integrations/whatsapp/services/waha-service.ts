@@ -81,6 +81,7 @@ async function getWAHAConfig(organizationId?: string): Promise<{ url: string; ke
   if (organizationId) {
     try {
       console.log('[WAHA Service] ⚠️ Variables de entorno no disponibles, intentando leer de BD...');
+      console.log('[WAHA Service] 🔍 Organization ID:', organizationId);
       const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
       const supabase = getSupabaseServiceClient();
       
@@ -90,11 +91,28 @@ async function getWAHAConfig(organizationId?: string): Promise<{ url: string; ke
         .eq('organization_id', organizationId)
         .single();
       
-      if (!error && config) {
+      if (error) {
+        console.error('[WAHA Service] ❌ Error leyendo de BD:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+      } else if (config) {
+        console.log('[WAHA Service] 📋 Configuración encontrada en BD');
         // Intentar leer de policies (JSONB)
         const policies = config.policies as any;
+        console.log('[WAHA Service] 🔍 Policies keys:', policies ? Object.keys(policies) : 'null');
+        
         const dbUrl = policies?.waha_api_url || policies?.WAHA_API_URL;
         const dbKey = policies?.waha_api_key || policies?.WAHA_API_KEY;
+        
+        console.log('[WAHA Service] 🔍 Valores encontrados:', {
+          hasUrl: !!dbUrl,
+          hasKey: !!dbKey,
+          urlPreview: dbUrl ? `${dbUrl.substring(0, 30)}...` : 'NO URL',
+          keyPreview: dbKey ? `${dbKey.substring(0, 10)}...` : 'NO KEY'
+        });
         
         if (dbUrl && dbKey) {
           console.log('[WAHA Service] ✅ Usando configuración de base de datos');
@@ -102,11 +120,22 @@ async function getWAHAConfig(organizationId?: string): Promise<{ url: string; ke
             url: dbUrl.replace(/\/$/, ''),
             key: dbKey
           };
+        } else {
+          console.warn('[WAHA Service] ⚠️ Configuración encontrada pero faltan waha_api_url o waha_api_key');
+          console.warn('[WAHA Service] ⚠️ Policies completo:', JSON.stringify(policies, null, 2));
         }
+      } else {
+        console.warn('[WAHA Service] ⚠️ No se encontró configuración en BD para organization_id:', organizationId);
       }
-    } catch (dbError) {
-      console.warn('[WAHA Service] ⚠️ Error leyendo configuración de BD:', dbError);
+    } catch (dbError: any) {
+      console.error('[WAHA Service] ❌ Error leyendo configuración de BD:', {
+        message: dbError?.message,
+        stack: dbError?.stack,
+        name: dbError?.name
+      });
     }
+  } else {
+    console.warn('[WAHA Service] ⚠️ No se proporcionó organizationId, no se puede leer de BD');
   }
   
   // 3. Si nada funciona, lanzar error con instrucciones

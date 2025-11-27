@@ -325,6 +325,51 @@ export async function POST(request: NextRequest) {
         }, { status: 400 })
       }
 
+      // Si solo se está actualizando WAHA (sin whatsapp_phone), actualizar policies directamente
+      if ((data.waha_api_url || data.waha_api_key) && data.whatsapp_phone === undefined) {
+        const currentPolicies = existingConfig.policies || {}
+        const updatedPolicies: any = {
+          ...currentPolicies
+        }
+        
+        if (data.waha_api_url) {
+          updatedPolicies.waha_api_url = data.waha_api_url
+          updatedPolicies.WAHA_API_URL = data.waha_api_url
+        }
+        if (data.waha_api_key) {
+          updatedPolicies.waha_api_key = data.waha_api_key
+          updatedPolicies.WAHA_API_KEY = data.waha_api_key
+        }
+        
+        const { error: updateError } = await serviceClient
+          .from('ai_agent_config')
+          .update({
+            policies: updatedPolicies,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingConfig.id)
+        
+        if (updateError) {
+          console.error('[Config Save] ❌ Error actualizando WAHA en policies:', updateError)
+          return NextResponse.json({
+            success: false,
+            error: 'Error al actualizar configuración: ' + updateError.message
+          }, { status: 500 })
+        }
+        
+        console.log('[Config Save] ✅ Configuración de WAHA guardada en policies')
+        return NextResponse.json({
+          success: true,
+          message: 'Configuración de WAHA guardada exitosamente',
+          data: { 
+            id: existingConfig.id, 
+            updated: true,
+            waha_api_url: data.waha_api_url,
+            waha_api_key_configured: !!data.waha_api_key
+          }
+        })
+      }
+
       // Intentar actualizar con campos directos primero
       const updateData: any = {
         updated_at: new Date().toISOString()
