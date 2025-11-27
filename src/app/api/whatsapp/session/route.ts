@@ -85,18 +85,27 @@ export async function GET(request: NextRequest) {
     // 4. Si no está conectado, obtener QR
     console.log(`[WhatsApp Session] ⏳ No conectado (${connectionStatus.status}), obteniendo QR...`);
     
-    try {
-      const qrData = await getQRCode(organizationId);
-      
-      return NextResponse.json({
-        success: true,
-        data: {
-          status: 'pending',
-          qr: qrData.qrCode,
-          sessionName: qrData.sessionName,
-          expiresIn: qrData.expiresIn
-        }
-      });
+      try {
+        const qrData = await getQRCode(organizationId);
+        
+        // Log para diagnóstico
+        console.log('[WhatsApp Session] 📱 QR obtenido:', {
+          hasQR: !!qrData.qrCode,
+          qrLength: qrData.qrCode?.length || 0,
+          qrPreview: qrData.qrCode?.substring(0, 50) || 'NO QR',
+          hasDataPrefix: qrData.qrCode?.startsWith('data:image') || false,
+          sessionName: qrData.sessionName
+        });
+        
+        return NextResponse.json({
+          success: true,
+          data: {
+            status: 'pending',
+            qr: qrData.qrCode,
+            sessionName: qrData.sessionName,
+            expiresIn: qrData.expiresIn
+          }
+        });
     } catch (qrError: any) {
       // Si el error es que ya está conectado, retornar estado conectado
       if (qrError.message?.includes('ya conectado') || qrError.message?.includes('already connected')) {

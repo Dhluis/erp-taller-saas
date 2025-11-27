@@ -232,6 +232,64 @@ export async function getSession(sessionName: string): Promise<WAHASessionInfo> 
 }
 
 /**
+ * 2.1. Lista todas las sesiones disponibles en WAHA
+ */
+export async function listSessions(): Promise<WAHASessionInfo[]> {
+  try {
+    const wahaUrl = getWAHAUrl();
+    
+    console.log(`[WAHA] Listando todas las sesiones...`);
+    
+    const response = await fetch(`${wahaUrl}/api/sessions`, {
+      method: 'GET',
+      headers: getWAHAHeaders()
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Error listando sesiones: ${response.status} - ${errorText}`);
+    }
+
+    const sessions = await response.json();
+    console.log(`[WAHA] ✅ Sesiones encontradas: ${sessions.length}`, sessions.map((s: any) => ({ name: s.name, status: s.status })));
+    
+    return Array.isArray(sessions) ? sessions : [];
+  } catch (error) {
+    console.error('[WAHA] ❌ Error listando sesiones:', error);
+    return [];
+  }
+}
+
+/**
+ * 2.2. Busca una sesión WORKING existente (puede ser "default" u otra)
+ */
+export async function findWorkingSession(): Promise<WAHASessionInfo | null> {
+  try {
+    const sessions = await listSessions();
+    
+    // Buscar sesión "default" primero (común en WAHA)
+    const defaultSession = sessions.find((s: any) => s.name === 'default' && (s.status === 'WORKING' || s.status === 'connected'));
+    if (defaultSession) {
+      console.log(`[WAHA] ✅ Sesión "default" encontrada y WORKING`);
+      return defaultSession;
+    }
+    
+    // Buscar cualquier sesión WORKING
+    const workingSession = sessions.find((s: any) => s.status === 'WORKING' || s.status === 'connected');
+    if (workingSession) {
+      console.log(`[WAHA] ✅ Sesión WORKING encontrada: ${workingSession.name}`);
+      return workingSession;
+    }
+    
+    console.log(`[WAHA] ℹ️ No se encontró ninguna sesión WORKING`);
+    return null;
+  } catch (error) {
+    console.error('[WAHA] ❌ Error buscando sesión WORKING:', error);
+    return null;
+  }
+}
+
+/**
  * 3. Obtiene el código QR para vincular WhatsApp
  */
 export async function getQRCode(organizationId: string): Promise<{
@@ -245,34 +303,111 @@ export async function getQRCode(organizationId: string): Promise<{
     
     console.log(`[WAHA] Obteniendo QR para: ${sessionName}`);
     
-    // Primero verificar si la sesión existe, si no, crearla
+    // PRIMERO: Verificar si hay una sesión WORKING existente (como "default")
+    const workingSession = await findWorkingSession();
+    if (workingSession) {
+      console.log(`[WAHA] ⚠️ Ya existe una sesión WORKING: ${workingSession.name}`);
+      throw new Error('Sesión ya conectada. No se necesita QR.');
+    }
+    
+    // SEGUNDO: Verificar si la sesión específica de la organización existe
     let sessionExists = false;
     try {
-      await getSession(sessionName);
+      const existingSession = await getSession(sessionName);
       sessionExists = true;
+      
+      // Si la sesión ya está WORKING, no se puede obtener QR
+      if (existingSession.status === 'WORKING' || existingSession.status === 'connected') {
+        throw new Error('Sesión ya conectada. No se necesita QR.');
+      }
     } catch (error: any) {
-      if (error.message?.includes('no encontrada')) {
-        console.log(`[WAHA] Sesión no existe, creando...`);
+      if (error.message?.includes('no encontrada') || error.message?.includes('not found')) {
+        console.log(`[WAHA] Sesión ${sessionName} no existe, creando...`);
         await createSession(organizationId);
         // Esperar un momento para que la sesión se inicialice
         await new Promise(resolve => setTimeout(resolve, 1000));
+      } else if (error.message?.includes('ya conectada')) {
+        throw error;
       } else {
         throw error;
       }
     }
     
-    // Iniciar sesión si no está iniciada
+    // Verificar estado de la sesión e iniciarla si está detenida
+    let sessionInfo;
     try {
-      await fetch(`${wahaUrl}/api/sessions/${sessionName}/start`, {
-        method: 'POST',
-        headers: getWAHAHeaders()
-      });
-      // Esperar un momento para que se inicialice
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      sessionInfo = await getSession(sessionName);
+      console.log(`[WAHA] Estado actual de sesión: ${sessionInfo.status}`);
+      
+      // Si la sesión está STOPPED o FAILED, iniciarla
+      if (sessionInfo.status === 'STOPPED' || sessionInfo.status === 'FAILED') {
+        console.log(`[WAHA] Sesión está ${sessionInfo.status}, iniciando...`);
+        const startResponse = await fetch(`${wahaUrl}/api/sessions/${sessionName}/start`, {
+          method: 'POST',
+          headers: getWAHAHeaders()
+        });
+        
+        if (!startResponse.ok && startResponse.status !== 409) {
+          // 409 = sesión ya iniciada, está bien
+          const errorText = await startResponse.text();
+          console.warn(`[WAHA] Error al iniciar sesión: ${startResponse.status} - ${errorText}`);
+        } else {
+          console.log(`[WAHA] ✅ Sesión iniciada, esperando a que esté lista...`);
+        }
+        
+        // Esperar a que la sesión cambie de estado
+        let attempts = 0;
+        const maxAttempts = 10; // 10 intentos = ~15 segundos
+        
+        while (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          try {
+            sessionInfo = await getSession(sessionName);
+            console.log(`[WAHA] Estado después de iniciar (intento ${attempts + 1}): ${sessionInfo.status}`);
+            
+            // Si está en SCAN_QR_CODE o WORKING, está lista
+            if (sessionInfo.status === 'SCAN_QR_CODE' || sessionInfo.status === 'WORKING') {
+              break;
+            }
+            
+            // Si sigue STOPPED después de varios intentos, puede haber un problema
+            if (attempts >= 5 && sessionInfo.status === 'STOPPED') {
+              throw new Error('La sesión no se pudo iniciar. Verifica que WAHA esté funcionando correctamente.');
+            }
+          } catch (error: any) {
+            if (error.message?.includes('no encontrada')) {
+              throw error;
+            }
+            console.warn(`[WAHA] Error verificando estado (intento ${attempts + 1}):`, error.message);
+          }
+          
+          attempts++;
+        }
+      } else if (sessionInfo.status === 'WORKING') {
+        // Si ya está conectada, no se puede obtener QR
+        throw new Error('Sesión ya conectada. No se necesita QR.');
+      }
     } catch (error: any) {
-      // Si ya está iniciada, está bien
-      if (!error.message?.includes('already started')) {
-        console.warn('[WAHA] Advertencia al iniciar sesión:', error.message);
+      // Si el error es que la sesión no existe, crearla
+      if (error.message?.includes('no encontrada') || error.message?.includes('not found')) {
+        console.log(`[WAHA] Sesión no existe, creando...`);
+        await createSession(organizationId);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } else if (!error.message?.includes('ya conectada')) {
+        // Si no es un error de "ya conectada", reintentar iniciar
+        console.log(`[WAHA] Reintentando iniciar sesión...`);
+        try {
+          await fetch(`${wahaUrl}/api/sessions/${sessionName}/start`, {
+            method: 'POST',
+            headers: getWAHAHeaders()
+          });
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (startError: any) {
+          console.warn('[WAHA] Error al reiniciar sesión:', startError.message);
+        }
+      } else {
+        throw error;
       }
     }
     
@@ -356,64 +491,110 @@ export async function getQRCode(organizationId: string): Promise<{
 /**
  * 4. Verifica el estado de conexión de WhatsApp
  * Retorna phone y name si está conectado
+ * Primero busca sesiones WORKING existentes (como "default"), luego la sesión específica de la organización
  */
 export async function checkConnectionStatus(organizationId: string): Promise<WAHAConnectionStatus> {
   try {
     const wahaUrl = getWAHAUrl();
     const sessionName = getSessionName(organizationId);
     
-    // Primero verificar el estado de la sesión
-    const sessionInfo = await getSession(sessionName);
-    const isConnected = sessionInfo.status === 'WORKING' || sessionInfo.status === 'connected';
-    
-    if (!isConnected) {
+    // Primero, buscar si hay una sesión WORKING existente (como "default")
+    const workingSession = await findWorkingSession();
+    if (workingSession) {
+      console.log(`[WAHA] ✅ Usando sesión WORKING existente: ${workingSession.name}`);
+      
+      // Obtener información de la cuenta de la sesión WORKING
+      try {
+        const meResponse = await fetch(`${wahaUrl}/api/sessions/${workingSession.name}/me`, {
+          method: 'GET',
+          headers: getWAHAHeaders()
+        });
+
+        if (meResponse.ok) {
+          const meData = await meResponse.json();
+          return {
+            connected: true,
+            phone: meData.phone || meData.id?.split('@')[0] || undefined,
+            name: meData.name || meData.pushname || undefined,
+            status: workingSession.status
+          };
+        }
+      } catch (meError) {
+        console.warn('[WAHA] No se pudo obtener info de cuenta de sesión WORKING:', meError);
+      }
+      
+      // Fallback: usar datos de workingSession si están disponibles
+      if (workingSession.me) {
+        return {
+          connected: true,
+          phone: workingSession.me.phone,
+          name: workingSession.me.name,
+          status: workingSession.status
+        };
+      }
+      
       return {
-        connected: false,
-        status: sessionInfo.status
+        connected: true,
+        status: workingSession.status
       };
     }
     
-    // Si está conectada, obtener información de la cuenta
+    // Si no hay sesión WORKING existente, verificar la sesión específica de la organización
     try {
-      const meResponse = await fetch(`${wahaUrl}/api/sessions/${sessionName}/me`, {
-        method: 'GET',
-        headers: getWAHAHeaders()
-      });
-
-      if (meResponse.ok) {
-        const meData = await meResponse.json();
+      const sessionInfo = await getSession(sessionName);
+      const isConnected = sessionInfo.status === 'WORKING' || sessionInfo.status === 'connected';
+      
+      if (!isConnected) {
         return {
-          connected: true,
-          phone: meData.phone || meData.id?.split('@')[0] || undefined,
-          name: meData.name || meData.pushname || undefined,
+          connected: false,
           status: sessionInfo.status
         };
       }
-    } catch (meError) {
-      console.warn('[WAHA] No se pudo obtener info de cuenta, usando datos de sesión:', meError);
-    }
-    
-    // Fallback: usar datos de sessionInfo si están disponibles
-    if (sessionInfo.me) {
+      
+      // Si está conectada, obtener información de la cuenta
+      try {
+        const meResponse = await fetch(`${wahaUrl}/api/sessions/${sessionName}/me`, {
+          method: 'GET',
+          headers: getWAHAHeaders()
+        });
+
+        if (meResponse.ok) {
+          const meData = await meResponse.json();
+          return {
+            connected: true,
+            phone: meData.phone || meData.id?.split('@')[0] || undefined,
+            name: meData.name || meData.pushname || undefined,
+            status: sessionInfo.status
+          };
+        }
+      } catch (meError) {
+        console.warn('[WAHA] No se pudo obtener info de cuenta, usando datos de sesión:', meError);
+      }
+      
+      // Fallback: usar datos de sessionInfo si están disponibles
+      if (sessionInfo.me) {
+        return {
+          connected: true,
+          phone: sessionInfo.me.phone,
+          name: sessionInfo.me.name,
+          status: sessionInfo.status
+        };
+      }
+      
       return {
         connected: true,
-        phone: sessionInfo.me.phone,
-        name: sessionInfo.me.name,
         status: sessionInfo.status
       };
+    } catch (sessionError: any) {
+      if (sessionError.message?.includes('no encontrada')) {
+        return {
+          connected: false,
+          status: 'NOT_FOUND'
+        };
+      }
+      throw sessionError;
     }
-    
-    return {
-      connected: true,
-      status: sessionInfo.status
-    };
   } catch (error: any) {
-    if (error.message?.includes('no encontrada')) {
-      return {
-        connected: false,
-        status: 'NOT_FOUND'
-      };
-    }
     console.error('[WAHA] ❌ Error verificando conexión:', error);
     throw error;
   }
