@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
+
+// Forzar que este endpoint use Node.js runtime para tener acceso a process.env
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 import {
   createSession,
   getSession,
