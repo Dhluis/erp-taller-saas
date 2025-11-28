@@ -564,10 +564,17 @@ export async function getQRCode(organizationId: string): Promise<{
     
     // Obtener QR code con formato raw (devuelve JSON con base64)
     // format=raw devuelve: { "mimetype": "image/png", "data": "base64string..." }
-    const qrResponse = await fetch(`${wahaUrl}/api/${sessionName}/auth/qr?format=raw`, {
+    const qrUrl = `${wahaUrl}/api/${sessionName}/auth/qr?format=raw`;
+    console.log(`[WAHA] 🔍 URL de QR: ${qrUrl}`);
+    
+    const qrResponse = await fetch(qrUrl, {
       method: 'GET',
       headers: await getWAHAHeaders(organizationId)
     });
+
+    console.log(`[WAHA] 📡 QR Response Status: ${qrResponse.status}`);
+    console.log(`[WAHA] 📡 QR Response Headers:`, Object.fromEntries(qrResponse.headers.entries()));
+    console.log(`[WAHA] 📡 QR Response Content-Type:`, qrResponse.headers.get('content-type'));
 
     if (!qrResponse.ok) {
       // Verificar si la sesión ya está conectada
@@ -577,11 +584,26 @@ export async function getQRCode(organizationId: string): Promise<{
       }
       
       const errorText = await qrResponse.text();
+      console.error(`[WAHA] ❌ Error obteniendo QR: ${qrResponse.status} - ${errorText}`);
       throw new Error(`Error obteniendo QR: ${qrResponse.status} - ${errorText}`);
     }
 
-    // Parsear respuesta JSON (format=raw devuelve JSON)
-    const qrData = await qrResponse.json();
+    // Leer el body como texto primero para debug
+    const responseText = await qrResponse.text();
+    console.log(`[WAHA] 📦 QR Response Body (primeros 500 chars):`, responseText.substring(0, 500));
+    console.log(`[WAHA] 📦 QR Response Body Length:`, responseText.length);
+    console.log(`[WAHA] 📦 QR Response Body Type:`, typeof responseText);
+
+    // Intentar parsear como JSON
+    let qrData: any;
+    try {
+      qrData = JSON.parse(responseText);
+      console.log(`[WAHA] ✅ QR Response parseado como JSON exitosamente`);
+    } catch (parseError: any) {
+      console.error(`[WAHA] ❌ Error parseando QR Response como JSON:`, parseError.message);
+      console.error(`[WAHA] ❌ Response Text completo:`, responseText);
+      throw new Error(`Error parseando respuesta de QR como JSON. Content-Type: ${qrResponse.headers.get('content-type')}, Body preview: ${responseText.substring(0, 200)}`);
+    }
     
     console.log(`[WAHA] 📦 Respuesta QR de WAHA (format=raw):`, {
       hasMimetype: !!qrData.mimetype,
@@ -596,11 +618,23 @@ export async function getQRCode(organizationId: string): Promise<{
     let qrCode: string;
     let mimetype = 'image/png'; // Por defecto
     
+    console.log(`[WAHA] 🔍 Analizando estructura de QR Data:`, {
+      keys: Object.keys(qrData),
+      hasMimetype: !!qrData.mimetype,
+      hasData: !!qrData.data,
+      hasQr: !!qrData.qr,
+      hasQrcode: !!qrData.qrcode,
+      hasQrCode: !!qrData.qrCode,
+      hasBase64: !!qrData.base64,
+      isString: typeof qrData === 'string',
+      fullStructure: JSON.stringify(qrData).substring(0, 500)
+    });
+    
     // Formato raw de WAHA: { "mimetype": "image/png", "data": "base64..." }
     if (qrData.mimetype && qrData.data) {
       mimetype = qrData.mimetype;
       qrCode = qrData.data;
-      console.log(`[WAHA] ✅ QR obtenido en formato raw: ${mimetype}`);
+      console.log(`[WAHA] ✅ QR obtenido en formato raw: ${mimetype}, data length: ${qrCode.length}`);
     } 
     // Compatibilidad con otros formatos (por si acaso)
     else if (qrData.qr || qrData.qrcode || qrData.qrCode) {
@@ -610,13 +644,16 @@ export async function getQRCode(organizationId: string): Promise<{
     // Si es un string directo
     else if (typeof qrData === 'string') {
       qrCode = qrData;
+      console.log(`[WAHA] ⚠️ QR es string directo`);
     }
     // Si tiene base64 directamente
     else if (qrData.base64) {
       qrCode = qrData.base64;
+      console.log(`[WAHA] ⚠️ QR tiene base64 directo`);
     }
     else {
-      throw new Error('Formato de QR no reconocido en la respuesta de WAHA');
+      console.error(`[WAHA] ❌ Formato de QR no reconocido. Estructura completa:`, JSON.stringify(qrData, null, 2));
+      throw new Error(`Formato de QR no reconocido en la respuesta de WAHA. Keys encontrados: ${Object.keys(qrData).join(', ')}. Estructura: ${JSON.stringify(qrData).substring(0, 300)}`);
     }
     
     // Limpiar y formatear el base64
