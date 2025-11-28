@@ -638,30 +638,6 @@ export function WhatsAppQRConnector({
                   </>
                 )}
               </Button>
-              {(errorMessage?.includes('Configuración del servidor') || 
-                errorMessage?.includes('WAHA_API_URL') ||
-                errorMessage?.includes('no encontrada')) && (
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    // Scroll a la sección de configuración del servidor (solo para administradores)
-                    const configSection = document.querySelector('[data-waha-config-section]')
-                    if (configSection) {
-                      configSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                      // Expandir si está colapsado
-                      const collapsible = configSection.closest('[data-state]')
-                      if (collapsible && collapsible.getAttribute('data-state') === 'closed') {
-                        const trigger = configSection.querySelector('button')
-                        trigger?.click()
-                      }
-                    }
-                  }}
-                  className="flex-1"
-                >
-                  <Settings className="mr-2 h-4 w-4" />
-                  Configuración avanzada
-                </Button>
-              )}
             </div>
           </div>
         )}

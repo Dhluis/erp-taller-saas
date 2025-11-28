@@ -15,24 +15,12 @@ import { WhatsAppQRConnector } from '@/components/WhatsAppQRConnector'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { ChevronDown, ChevronUp, Settings, CheckCircle2, Loader2 } from 'lucide-react'
 
 export default function TrainAgentPage() {
   const { organization } = useAuth()
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [showAdvancedConfig, setShowAdvancedConfig] = useState(false)
-  const [wahaConfig, setWahaConfig] = useState({
-    waha_api_url: 'https://waha-erp-eagles-sistem.0rfifc.easypanel.host',
-    waha_api_key: 'mi_clave_segura_2025'
-  })
-  const [savingWahaConfig, setSavingWahaConfig] = useState(false)
-  const [wahaConfigSaved, setWahaConfigSaved] = useState(false)
   const [formData, setFormData] = useState({
     businessInfo: {
       name: organization?.name || '',
@@ -133,37 +121,6 @@ export default function TrainAgentPage() {
     }))
   }
 
-  // Guardar configuración de WAHA
-  const handleSaveWahaConfig = async () => {
-    setSavingWahaConfig(true)
-    setWahaConfigSaved(false)
-    
-    try {
-      const response = await fetch('/api/whatsapp/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          waha_api_url: wahaConfig.waha_api_url.trim(),
-          waha_api_key: wahaConfig.waha_api_key.trim()
-        })
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        setWahaConfigSaved(true)
-        toast.success('Configuración de servidor guardada exitosamente')
-        setTimeout(() => setWahaConfigSaved(false), 3000)
-      } else {
-        throw new Error(data.error || 'Error al guardar configuración')
-      }
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar configuración')
-    } finally {
-      setSavingWahaConfig(false)
-    }
-  }
-
   // Manejar cambio de estado de WhatsApp
   const handleWhatsAppStatusChange = useCallback(async (status: 'loading' | 'connected' | 'pending' | 'error') => {
     if (status === 'connected') {
@@ -224,86 +181,6 @@ export default function TrainAgentPage() {
             darkMode={true}
             className="mb-6"
           />
-          
-          {/* Configuración avanzada (colapsable) - Solo para administradores técnicos */}
-          <Card className="mt-4 border-border opacity-60" data-waha-config-section>
-            <div 
-              className="cursor-pointer hover:bg-bg-secondary transition-colors"
-              onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
-            >
-              <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Settings className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-base text-muted-foreground">Configuración avanzada del servidor</CardTitle>
-                </div>
-                {showAdvancedConfig ? (
-                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
-              <CardDescription className="text-xs mt-1 text-muted-foreground">
-                Solo para administradores técnicos. No es necesario para usuarios finales.
-              </CardDescription>
-              </CardHeader>
-            </div>
-            
-            {showAdvancedConfig && (
-              <CardContent className="space-y-4">
-                <Alert>
-                  <AlertDescription className="text-sm">
-                    ⚠️ Esta sección es solo para administradores técnicos. Si no eres administrador técnico, por favor contacta al soporte en lugar de modificar esta configuración.
-                  </AlertDescription>
-                </Alert>
-                
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="waha-url">URL del servidor</Label>
-                    <Input
-                      id="waha-url"
-                      type="url"
-                      value={wahaConfig.waha_api_url}
-                      onChange={(e) => setWahaConfig(prev => ({ ...prev, waha_api_url: e.target.value }))}
-                      placeholder="https://..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="waha-key">Clave de acceso</Label>
-                    <Input
-                      id="waha-key"
-                      type="password"
-                      value={wahaConfig.waha_api_key}
-                      onChange={(e) => setWahaConfig(prev => ({ ...prev, waha_api_key: e.target.value }))}
-                      placeholder="Ingresa la clave de acceso"
-                    />
-                  </div>
-
-                  <Button
-                    onClick={handleSaveWahaConfig}
-                    disabled={savingWahaConfig || !wahaConfig.waha_api_url.trim() || !wahaConfig.waha_api_key.trim()}
-                    className="w-full"
-                    variant="outline"
-                  >
-                    {savingWahaConfig ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Guardando...
-                      </>
-                    ) : wahaConfigSaved ? (
-                      <>
-                        <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
-                        Guardado
-                      </>
-                    ) : (
-                      'Guardar configuración'
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            )}
-          </Card>
         </div>
 
         {/* Separador */}
