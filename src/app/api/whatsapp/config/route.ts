@@ -358,6 +358,26 @@ export async function POST(request: NextRequest) {
         }
         
         console.log('[Config Save] ✅ Configuración de WAHA guardada en policies')
+        console.log('[Config Save] 📋 Policies actualizado:', JSON.stringify(updatedPolicies, null, 2))
+        console.log('[Config Save] 🔍 Organization ID:', tenantContext.organizationId)
+        
+        // Verificar que se guardó correctamente leyendo de vuelta
+        const { data: verifyConfig, error: verifyError } = await serviceClient
+          .from('ai_agent_config')
+          .select('policies')
+          .eq('id', existingConfig.id)
+          .single()
+        
+        if (!verifyError && verifyConfig) {
+          const verifyPolicies = verifyConfig.policies as any
+          console.log('[Config Save] ✅ Verificación - Policies guardado:', {
+            has_waha_api_url: !!verifyPolicies?.waha_api_url,
+            has_waha_api_key: !!verifyPolicies?.waha_api_key,
+            has_WAHA_API_URL: !!verifyPolicies?.WAHA_API_URL,
+            has_WAHA_API_KEY: !!verifyPolicies?.WAHA_API_KEY
+          })
+        }
+        
         return NextResponse.json({
           success: true,
           message: 'Configuración de WAHA guardada exitosamente',
@@ -365,7 +385,8 @@ export async function POST(request: NextRequest) {
             id: existingConfig.id, 
             updated: true,
             waha_api_url: data.waha_api_url,
-            waha_api_key_configured: !!data.waha_api_key
+            waha_api_key_configured: !!data.waha_api_key,
+            organization_id: tenantContext.organizationId
           }
         })
       }

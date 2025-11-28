@@ -186,7 +186,7 @@ export function getSessionName(organizationId: string): string {
  */
 export async function createSession(organizationId: string): Promise<WAHASession> {
   try {
-    const wahaUrl = getWAHAUrl();
+    const wahaUrl = await getWAHAUrl(organizationId);
     const sessionName = getSessionName(organizationId);
     
     console.log(`[WAHA] Creando sesión: ${sessionName}`);
@@ -249,7 +249,7 @@ export async function createSession(organizationId: string): Promise<WAHASession
     }
 
     // Obtener información de la sesión creada
-    const sessionInfo = await getSession(sessionName);
+    const sessionInfo = await getSession(sessionName, organizationId);
     console.log(`[WAHA] ✅ Sesión creada/iniciada: ${sessionName}`, sessionInfo.status);
     
     return {

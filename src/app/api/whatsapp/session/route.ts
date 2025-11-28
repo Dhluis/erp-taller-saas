@@ -54,16 +54,27 @@ export async function GET(request: NextRequest) {
       connectionStatus = await checkConnectionStatus(organizationId);
     } catch (error: any) {
       // Si el error es por configuración faltante, dar mensaje más útil
-      if (error.message?.includes('WAHA_API_URL') || error.message?.includes('WAHA_API_KEY')) {
+      if (error.message?.includes('WAHA_API_URL') || error.message?.includes('WAHA_API_KEY') || error.message?.includes('no están configuradas')) {
         console.error('[WhatsApp Session] ❌ Configuración de WAHA no encontrada:', error.message);
+        console.error('[WhatsApp Session] 🔍 Organization ID usado:', organizationId);
+        
         return NextResponse.json({
           success: false,
           error: 'Configuración de WAHA no encontrada',
-          hint: 'Guarda la configuración en la base de datos usando POST /api/whatsapp/config con waha_api_url y waha_api_key, o configura las variables de entorno en Vercel.',
+          hint: `Para resolver este problema, ve a la página de entrenamiento del bot (/dashboard/whatsapp/train-agent) y guarda la configuración del servidor en la sección "Configuración del servidor".`,
           details: error.message,
+          organizationId,
           solution: {
-            option1: 'Guardar en BD: POST /api/whatsapp/config con { "waha_api_url": "...", "waha_api_key": "..." }',
-            option2: 'Variables de entorno: Configura WAHA_API_URL y WAHA_API_KEY en Vercel'
+            step1: 'Ve a /dashboard/whatsapp/train-agent',
+            step2: 'Busca la sección "Configuración del servidor" (puede estar colapsada)',
+            step3: 'Ingresa la URL del servidor WAHA y la clave de acceso',
+            step4: 'Haz clic en "Guardar configuración"',
+            alternative: 'O configura las variables de entorno WAHA_API_URL y WAHA_API_KEY en Vercel y haz redeploy'
+          },
+          diagnostic: {
+            hasEnvVars: !!(process.env.WAHA_API_URL && process.env.WAHA_API_KEY),
+            organizationId,
+            checkEndpoint: '/api/whatsapp/diagnose'
           }
         }, { status: 500 });
       }
@@ -182,20 +193,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // 0. Verificar que las variables de entorno estén configuradas
-    const wahaUrl = process.env.WAHA_API_URL;
-    const wahaKey = process.env.WAHA_API_KEY;
-    
-    if (!wahaUrl || !wahaKey) {
-      console.error('[WhatsApp Session] ❌ Variables de entorno faltantes en POST');
-      return NextResponse.json({
-        success: false,
-        error: 'Configuración de WAHA incompleta. Por favor, verifica que WAHA_API_URL y WAHA_API_KEY estén configuradas en Vercel.',
-        hint: 'Ve a Settings > Environment Variables en Vercel y agrega las variables. Luego haz redeploy.'
-      }, { status: 500 });
-    }
-
-    // 1. Obtener contexto del tenant
+    // 1. Obtener contexto del tenant PRIMERO (necesario para leer de BD)
     const tenantContext = await getTenantContext();
     if (!tenantContext) {
       return NextResponse.json({
@@ -269,19 +267,7 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    // 0. Verificar que las variables de entorno estén configuradas
-    const wahaUrl = process.env.WAHA_API_URL;
-    const wahaKey = process.env.WAHA_API_KEY;
-    
-    if (!wahaUrl || !wahaKey) {
-      console.error('[WhatsApp Session] ❌ Variables de entorno faltantes en DELETE');
-      return NextResponse.json({
-        success: false,
-        error: 'Configuración de WAHA incompleta. Por favor, verifica que WAHA_API_URL y WAHA_API_KEY estén configuradas en Vercel.'
-      }, { status: 500 });
-    }
-
-    // 1. Obtener contexto del tenant
+    // 1. Obtener contexto del tenant PRIMERO (necesario para leer de BD)
     const tenantContext = await getTenantContext();
     if (!tenantContext) {
       return NextResponse.json({

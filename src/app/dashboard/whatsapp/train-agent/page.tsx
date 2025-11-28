@@ -226,7 +226,7 @@ export default function TrainAgentPage() {
           />
           
           {/* Configuración avanzada (colapsable) */}
-          <Card className="mt-4 border-border">
+          <Card className="mt-4 border-border" data-waha-config-section>
             <div 
               className="cursor-pointer hover:bg-bg-secondary transition-colors"
               onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}

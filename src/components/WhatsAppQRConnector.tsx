@@ -11,7 +11,8 @@ import {
   XCircle,
   RefreshCw,
   Unplug,
-  Loader2
+  Loader2,
+  Settings
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -519,14 +520,59 @@ export function WhatsAppQRConnector({
               </div>
             </div>
 
-            <Button
-              variant="primary"
-              onClick={handleRetry}
-              className="w-full"
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Reintentar
-            </Button>
+            {/* Mensaje especial si es error de configuración faltante */}
+            {(errorMessage?.includes('Configuración de WAHA no encontrada') || 
+              errorMessage?.includes('WAHA_API_URL') || 
+              errorMessage?.includes('no están configuradas')) && (
+              <div className="p-4 bg-warning/10 border border-warning/20 rounded-lg space-y-3">
+                <p className="text-sm font-medium text-text-primary">
+                  ⚠️ Configuración del servidor faltante
+                </p>
+                <p className="text-sm text-text-secondary">
+                  Necesitas guardar la configuración del servidor WAHA antes de conectar WhatsApp.
+                </p>
+                <ol className="text-xs text-text-secondary space-y-1 list-decimal list-inside ml-2">
+                  <li>Ve a la sección "Configuración del servidor" (arriba en esta página)</li>
+                  <li>Ingresa la URL del servidor y la clave de acceso</li>
+                  <li>Haz clic en "Guardar configuración"</li>
+                  <li>Luego intenta conectar WhatsApp nuevamente</li>
+                </ol>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                onClick={handleRetry}
+                className="flex-1"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Reintentar
+              </Button>
+              {(errorMessage?.includes('Configuración de WAHA no encontrada') || 
+                errorMessage?.includes('WAHA_API_URL')) && (
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    // Scroll a la sección de configuración del servidor
+                    const configSection = document.querySelector('[data-waha-config-section]')
+                    if (configSection) {
+                      configSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      // Expandir si está colapsado
+                      const collapsible = configSection.closest('[data-state]')
+                      if (collapsible && collapsible.getAttribute('data-state') === 'closed') {
+                        const trigger = configSection.querySelector('button')
+                        trigger?.click()
+                      }
+                    }
+                  }}
+                  className="flex-1"
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  Ir a configuración
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </CardContent>
