@@ -101,9 +101,10 @@ async function getWAHAConfig(organizationId?: string): Promise<{ url: string; ke
       } else if (config) {
         console.log('[WAHA Service] 📋 Configuración encontrada en BD');
         // Intentar leer de policies (JSONB)
-        const policies = config.policies as any;
+        const policies = (config as any)?.policies;
         console.log('[WAHA Service] 🔍 Policies keys:', policies ? Object.keys(policies) : 'null');
         
+        // Buscar en ambos formatos (minúsculas y mayúsculas) para compatibilidad
         const dbUrl = policies?.waha_api_url || policies?.WAHA_API_URL;
         const dbKey = policies?.waha_api_key || policies?.WAHA_API_KEY;
         
@@ -111,11 +112,19 @@ async function getWAHAConfig(organizationId?: string): Promise<{ url: string; ke
           hasUrl: !!dbUrl,
           hasKey: !!dbKey,
           urlPreview: dbUrl ? `${dbUrl.substring(0, 30)}...` : 'NO URL',
-          keyPreview: dbKey ? `${dbKey.substring(0, 10)}...` : 'NO KEY'
+          keyPreview: dbKey ? `${dbKey.substring(0, 10)}...` : 'NO KEY',
+          foundKeys: {
+            waha_api_url: !!policies?.waha_api_url,
+            WAHA_API_URL: !!policies?.WAHA_API_URL,
+            waha_api_key: !!policies?.waha_api_key,
+            WAHA_API_KEY: !!policies?.WAHA_API_KEY
+          }
         });
         
         if (dbUrl && dbKey) {
           console.log('[WAHA Service] ✅ Usando configuración de base de datos');
+          console.log('[WAHA Service] ✅ URL encontrada:', dbUrl.substring(0, 50) + '...');
+          console.log('[WAHA Service] ✅ Key encontrada:', dbKey.substring(0, 10) + '...');
           return {
             url: dbUrl.replace(/\/$/, ''),
             key: dbKey
@@ -123,9 +132,20 @@ async function getWAHAConfig(organizationId?: string): Promise<{ url: string; ke
         } else {
           console.warn('[WAHA Service] ⚠️ Configuración encontrada pero faltan waha_api_url o waha_api_key');
           console.warn('[WAHA Service] ⚠️ Policies completo:', JSON.stringify(policies, null, 2));
+          console.warn('[WAHA Service] ⚠️ Keys en policies:', policies ? Object.keys(policies) : 'null');
+          console.warn('[WAHA Service] ⚠️ Valores específicos:', {
+            'policies.waha_api_url': policies?.waha_api_url ? 'EXISTE' : 'NO EXISTE',
+            'policies.WAHA_API_URL': policies?.WAHA_API_URL ? 'EXISTE' : 'NO EXISTE',
+            'policies.waha_api_key': policies?.waha_api_key ? 'EXISTE' : 'NO EXISTE',
+            'policies.WAHA_API_KEY': policies?.WAHA_API_KEY ? 'EXISTE' : 'NO EXISTE'
+          });
         }
       } else {
         console.warn('[WAHA Service] ⚠️ No se encontró configuración en BD para organization_id:', organizationId);
+        console.warn('[WAHA Service] ⚠️ Esto puede significar que:');
+        console.warn('[WAHA Service]   1. No se ha guardado configuración en ai_agent_config');
+        console.warn('[WAHA Service]   2. El organization_id no coincide');
+        console.warn('[WAHA Service]   3. Hay un problema de permisos RLS');
       }
     } catch (dbError: any) {
       console.error('[WAHA Service] ❌ Error leyendo configuración de BD:', {
@@ -138,11 +158,13 @@ async function getWAHAConfig(organizationId?: string): Promise<{ url: string; ke
     console.warn('[WAHA Service] ⚠️ No se proporcionó organizationId, no se puede leer de BD');
   }
   
-  // 3. Si nada funciona, lanzar error con instrucciones
-  const errorMsg = 'WAHA_API_URL y WAHA_API_KEY no están configuradas. ' +
-    'Opciones: 1) Configura las variables en Vercel y haz redeploy, ' +
-    '2) Guarda la configuración en la base de datos usando /api/whatsapp/config con waha_api_url y waha_api_key en policies';
-  console.error('[WAHA Service] ❌', errorMsg);
+  // 3. Si nada funciona, lanzar error amigable (sin mencionar WAHA)
+  const errorMsg = 'Configuración del servidor de WhatsApp no encontrada';
+  console.error('[WAHA Service] ❌ Configuración faltante - detalles técnicos:', {
+    hasEnvVars: !!(process.env.WAHA_API_URL && process.env.WAHA_API_KEY),
+    organizationId: organizationId || 'no proporcionado',
+    hint: 'La configuración debe estar en variables de entorno o en la base de datos (policies.waha_api_url y policies.waha_api_key)'
+  });
   throw new Error(errorMsg);
 }
 

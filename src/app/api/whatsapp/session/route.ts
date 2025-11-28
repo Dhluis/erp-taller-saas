@@ -53,29 +53,28 @@ export async function GET(request: NextRequest) {
     try {
       connectionStatus = await checkConnectionStatus(organizationId);
     } catch (error: any) {
-      // Si el error es por configuración faltante, dar mensaje más útil
-      if (error.message?.includes('WAHA_API_URL') || error.message?.includes('WAHA_API_KEY') || error.message?.includes('no están configuradas')) {
-        console.error('[WhatsApp Session] ❌ Configuración de WAHA no encontrada:', error.message);
+      // Si el error es por configuración faltante, dar mensaje amigable (sin mencionar WAHA)
+      if (error.message?.includes('Configuración del servidor') || 
+          error.message?.includes('WAHA_API_URL') || 
+          error.message?.includes('WAHA_API_KEY') || 
+          error.message?.includes('no están configuradas')) {
+        console.error('[WhatsApp Session] ❌ Configuración del servidor no encontrada:', error.message);
         console.error('[WhatsApp Session] 🔍 Organization ID usado:', organizationId);
+        console.error('[WhatsApp Session] 🔍 Detalles técnicos (solo para logs):', {
+          hasEnvVars: !!(process.env.WAHA_API_URL && process.env.WAHA_API_KEY),
+          organizationId
+        });
         
         return NextResponse.json({
           success: false,
-          error: 'Configuración de WAHA no encontrada',
-          hint: `Para resolver este problema, ve a la página de entrenamiento del bot (/dashboard/whatsapp/train-agent) y guarda la configuración del servidor en la sección "Configuración del servidor".`,
-          details: error.message,
-          organizationId,
-          solution: {
-            step1: 'Ve a /dashboard/whatsapp/train-agent',
-            step2: 'Busca la sección "Configuración del servidor" (puede estar colapsada)',
-            step3: 'Ingresa la URL del servidor WAHA y la clave de acceso',
-            step4: 'Haz clic en "Guardar configuración"',
-            alternative: 'O configura las variables de entorno WAHA_API_URL y WAHA_API_KEY en Vercel y haz redeploy'
-          },
-          diagnostic: {
-            hasEnvVars: !!(process.env.WAHA_API_URL && process.env.WAHA_API_KEY),
+          error: 'Configuración del servidor de WhatsApp no encontrada',
+          hint: 'Por favor, contacta al administrador del sistema para configurar la conexión con WhatsApp.',
+          userFriendlyMessage: 'No se pudo conectar con el servidor de WhatsApp. Por favor, contacta al soporte técnico.',
+          // Detalles técnicos solo en debug (no se muestran al usuario)
+          debug: process.env.NODE_ENV === 'development' ? {
             organizationId,
             checkEndpoint: '/api/whatsapp/diagnose'
-          }
+          } : undefined
         }, { status: 500 });
       }
       throw error;

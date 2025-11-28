@@ -225,8 +225,8 @@ export default function TrainAgentPage() {
             className="mb-6"
           />
           
-          {/* Configuración avanzada (colapsable) */}
-          <Card className="mt-4 border-border" data-waha-config-section>
+          {/* Configuración avanzada (colapsable) - Solo para administradores técnicos */}
+          <Card className="mt-4 border-border opacity-60" data-waha-config-section>
             <div 
               className="cursor-pointer hover:bg-bg-secondary transition-colors"
               onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
@@ -235,7 +235,7 @@ export default function TrainAgentPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Settings className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-base">Configuración del servidor</CardTitle>
+                  <CardTitle className="text-base text-muted-foreground">Configuración avanzada del servidor</CardTitle>
                 </div>
                 {showAdvancedConfig ? (
                   <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -243,8 +243,8 @@ export default function TrainAgentPage() {
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
-              <CardDescription className="text-xs mt-1">
-                Solo necesitas configurar esto si tienes problemas de conexión
+              <CardDescription className="text-xs mt-1 text-muted-foreground">
+                Solo para administradores técnicos. No es necesario para usuarios finales.
               </CardDescription>
               </CardHeader>
             </div>
@@ -253,7 +253,7 @@ export default function TrainAgentPage() {
               <CardContent className="space-y-4">
                 <Alert>
                   <AlertDescription className="text-sm">
-                    Esta configuración es opcional. Solo configúrala si el sistema no puede conectarse automáticamente al servidor de WhatsApp.
+                    ⚠️ Esta sección es solo para administradores técnicos. Si no eres administrador técnico, por favor contacta al soporte en lugar de modificar esta configuración.
                   </AlertDescription>
                 </Alert>
                 

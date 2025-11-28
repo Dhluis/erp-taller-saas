@@ -47,6 +47,8 @@ export function WhatsAppQRConnector({
   const [isGeneratingQR, setIsGeneratingQR] = useState(false)
   const [isDisconnecting, setIsDisconnecting] = useState(false)
   const [isChangingNumber, setIsChangingNumber] = useState(false)
+  const [isDiagnosing, setIsDiagnosing] = useState(false)
+  const [diagnosticResult, setDiagnosticResult] = useState<any>(null)
 
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const pollingStartTimeRef = useRef<number | null>(null)
@@ -319,8 +321,27 @@ export function WhatsAppQRConnector({
   const handleRetry = () => {
     setState('loading')
     setErrorMessage(null)
+    setDiagnosticResult(null)
     onStatusChange?.('loading')
     checkSessionStatus()
+  }
+
+  // Función para ejecutar diagnóstico
+  const handleDiagnose = async () => {
+    setIsDiagnosing(true)
+    setDiagnosticResult(null)
+    try {
+      const response = await fetch('/api/whatsapp/diagnose')
+      const data = await response.json()
+      setDiagnosticResult(data.diagnostics)
+    } catch (error) {
+      console.error('[WhatsAppQRConnector] Error ejecutando diagnóstico:', error)
+      setDiagnosticResult({
+        error: 'Error al ejecutar diagnóstico: ' + (error instanceof Error ? error.message : 'Error desconocido')
+      })
+    } finally {
+      setIsDiagnosing(false)
+    }
   }
 
   return (
@@ -521,22 +542,72 @@ export function WhatsAppQRConnector({
             </div>
 
             {/* Mensaje especial si es error de configuración faltante */}
-            {(errorMessage?.includes('Configuración de WAHA no encontrada') || 
+            {(errorMessage?.includes('Configuración del servidor') || 
               errorMessage?.includes('WAHA_API_URL') || 
-              errorMessage?.includes('no están configuradas')) && (
+              errorMessage?.includes('no están configuradas') ||
+              errorMessage?.includes('no encontrada')) && (
               <div className="p-4 bg-warning/10 border border-warning/20 rounded-lg space-y-3">
                 <p className="text-sm font-medium text-text-primary">
-                  ⚠️ Configuración del servidor faltante
+                  ⚠️ No se puede conectar con WhatsApp
                 </p>
                 <p className="text-sm text-text-secondary">
-                  Necesitas guardar la configuración del servidor WAHA antes de conectar WhatsApp.
+                  El servidor de WhatsApp no está configurado correctamente. Por favor, contacta al administrador del sistema o al soporte técnico para resolver este problema.
                 </p>
-                <ol className="text-xs text-text-secondary space-y-1 list-decimal list-inside ml-2">
-                  <li>Ve a la sección "Configuración del servidor" (arriba en esta página)</li>
-                  <li>Ingresa la URL del servidor y la clave de acceso</li>
-                  <li>Haz clic en "Guardar configuración"</li>
-                  <li>Luego intenta conectar WhatsApp nuevamente</li>
-                </ol>
+                <p className="text-xs text-text-muted italic">
+                  Si eres administrador, puedes configurar el servidor en la sección de configuración avanzada (arriba en esta página).
+                </p>
+              </div>
+            )}
+
+            {/* Resultado de diagnóstico */}
+            {diagnosticResult && (
+              <div className="p-4 bg-bg-secondary border border-border rounded-lg space-y-3 max-h-96 overflow-y-auto">
+                <p className="text-sm font-medium text-text-primary">
+                  🔍 Resultado del diagnóstico
+                </p>
+                {diagnosticResult.summary && (
+                  <p className="text-sm text-text-secondary">{diagnosticResult.summary}</p>
+                )}
+                {diagnosticResult.errors && diagnosticResult.errors.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-error">Errores encontrados:</p>
+                    <ul className="text-xs text-text-secondary list-disc list-inside space-y-1">
+                      {diagnosticResult.errors.map((err: string, idx: number) => (
+                        <li key={idx}>{err}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {diagnosticResult.warnings && diagnosticResult.warnings.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-warning">Advertencias:</p>
+                    <ul className="text-xs text-text-secondary list-disc list-inside space-y-1">
+                      {diagnosticResult.warnings.map((warn: string, idx: number) => (
+                        <li key={idx}>{warn}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {diagnosticResult.recommendations && diagnosticResult.recommendations.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-text-primary">Recomendaciones:</p>
+                    <ul className="text-xs text-text-secondary list-disc list-inside space-y-1">
+                      {diagnosticResult.recommendations.map((rec: string, idx: number) => (
+                        <li key={idx}>{rec}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {diagnosticResult.checks && (
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-text-muted hover:text-text-secondary">
+                      Ver detalles técnicos
+                    </summary>
+                    <pre className="mt-2 p-2 bg-bg-primary rounded text-xs overflow-auto">
+                      {JSON.stringify(diagnosticResult.checks, null, 2)}
+                    </pre>
+                  </details>
+                )}
               </div>
             )}
 
@@ -549,12 +620,31 @@ export function WhatsAppQRConnector({
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Reintentar
               </Button>
-              {(errorMessage?.includes('Configuración de WAHA no encontrada') || 
-                errorMessage?.includes('WAHA_API_URL')) && (
+              <Button
+                variant="outline"
+                onClick={handleDiagnose}
+                disabled={isDiagnosing}
+                className="flex-1"
+              >
+                {isDiagnosing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Diagnosticando...
+                  </>
+                ) : (
+                  <>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Diagnosticar
+                  </>
+                )}
+              </Button>
+              {(errorMessage?.includes('Configuración del servidor') || 
+                errorMessage?.includes('WAHA_API_URL') ||
+                errorMessage?.includes('no encontrada')) && (
                 <Button
                   variant="primary"
                   onClick={() => {
-                    // Scroll a la sección de configuración del servidor
+                    // Scroll a la sección de configuración del servidor (solo para administradores)
                     const configSection = document.querySelector('[data-waha-config-section]')
                     if (configSection) {
                       configSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -569,7 +659,7 @@ export function WhatsAppQRConnector({
                   className="flex-1"
                 >
                   <Settings className="mr-2 h-4 w-4" />
-                  Ir a configuración
+                  Configuración avanzada
                 </Button>
               )}
             </div>
