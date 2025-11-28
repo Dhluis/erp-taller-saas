@@ -197,9 +197,14 @@ async function getWAHAHeaders(organizationId?: string): Promise<HeadersInit> {
 
 /**
  * Genera el nombre de sesión para una organización
+ * 
+ * NOTA: WAHA Core solo soporta la sesión "default"
+ * Para multi-tenant con WAHA Plus, usar: return `org_${organizationId}`;
  */
 export function getSessionName(organizationId: string): string {
-  return `org_${organizationId}`;
+  // WAHA Core solo soporta la sesión "default"
+  // Para multi-tenant con WAHA Plus, usar: return `org_${organizationId}`;
+  return 'default';
 }
 
 /**
