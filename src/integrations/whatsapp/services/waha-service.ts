@@ -562,8 +562,9 @@ export async function getQRCode(organizationId: string): Promise<{
       }
     }
     
-    // Obtener QR code con formato image
-    const qrResponse = await fetch(`${wahaUrl}/api/${sessionName}/auth/qr?format=image`, {
+    // Obtener QR code con formato raw (devuelve JSON con base64)
+    // format=raw devuelve: { "mimetype": "image/png", "data": "base64string..." }
+    const qrResponse = await fetch(`${wahaUrl}/api/${sessionName}/auth/qr?format=raw`, {
       method: 'GET',
       headers: await getWAHAHeaders(organizationId)
     });
@@ -579,48 +580,59 @@ export async function getQRCode(organizationId: string): Promise<{
       throw new Error(`Error obteniendo QR: ${qrResponse.status} - ${errorText}`);
     }
 
+    // Parsear respuesta JSON (format=raw devuelve JSON)
     const qrData = await qrResponse.json();
     
-    console.log(`[WAHA] 📦 Respuesta QR de WAHA:`, {
-      hasQr: !!qrData.qr,
-      hasQrcode: !!qrData.qrcode,
-      hasQrCode: !!qrData.qrCode,
-      keys: Object.keys(qrData),
-      qrType: typeof qrData.qr,
-      qrPreview: typeof qrData.qr === 'string' ? qrData.qr.substring(0, 50) : 'not a string'
+    console.log(`[WAHA] 📦 Respuesta QR de WAHA (format=raw):`, {
+      hasMimetype: !!qrData.mimetype,
+      hasData: !!qrData.data,
+      mimetype: qrData.mimetype,
+      dataLength: qrData.data?.length || 0,
+      dataPreview: qrData.data ? qrData.data.substring(0, 50) + '...' : 'NO DATA',
+      keys: Object.keys(qrData)
     });
     
-    // WAHA puede retornar el QR en diferentes formatos
-    let qrCode = qrData.qr || qrData.qrcode || qrData.qrCode || qrData;
+    // Extraer datos del QR
+    let qrCode: string;
+    let mimetype = 'image/png'; // Por defecto
     
-    // Si es un objeto, extraer el base64
-    if (typeof qrCode === 'object') {
-      if (qrCode.base64) {
-        qrCode = qrCode.base64;
-      } else if (qrCode.qr) {
-        qrCode = qrCode.qr;
-      } else {
-        // Intentar convertir el objeto a string
-        qrCode = JSON.stringify(qrCode);
-      }
+    // Formato raw de WAHA: { "mimetype": "image/png", "data": "base64..." }
+    if (qrData.mimetype && qrData.data) {
+      mimetype = qrData.mimetype;
+      qrCode = qrData.data;
+      console.log(`[WAHA] ✅ QR obtenido en formato raw: ${mimetype}`);
+    } 
+    // Compatibilidad con otros formatos (por si acaso)
+    else if (qrData.qr || qrData.qrcode || qrData.qrCode) {
+      qrCode = qrData.qr || qrData.qrcode || qrData.qrCode;
+      console.log(`[WAHA] ⚠️ QR en formato alternativo (compatibilidad)`);
+    }
+    // Si es un string directo
+    else if (typeof qrData === 'string') {
+      qrCode = qrData;
+    }
+    // Si tiene base64 directamente
+    else if (qrData.base64) {
+      qrCode = qrData.base64;
+    }
+    else {
+      throw new Error('Formato de QR no reconocido en la respuesta de WAHA');
     }
     
-    // Si el QR es una string pero no tiene el prefijo data:image, puede ser base64 puro
-    // No agregamos el prefijo aquí porque el componente lo hará si es necesario
-    // Pero sí validamos que sea base64 válido
+    // Limpiar y formatear el base64
     if (typeof qrCode === 'string') {
       // Remover espacios en blanco y saltos de línea
       qrCode = qrCode.trim().replace(/\s/g, '');
       
-      // Si ya tiene el prefijo data:image, dejarlo así
-      if (qrCode.startsWith('data:image')) {
-        console.log(`[WAHA] ✅ QR ya tiene prefijo data:image`);
-      } else if (qrCode.match(/^[A-Za-z0-9+/=]+$/)) {
-        // Es base64 válido sin prefijo
-        console.log(`[WAHA] ✅ QR es base64 válido (sin prefijo)`);
+      // Construir data URI completo: data:image/png;base64,{base64}
+      if (!qrCode.startsWith('data:')) {
+        qrCode = `data:${mimetype};base64,${qrCode}`;
+        console.log(`[WAHA] ✅ QR formateado como data URI: data:${mimetype};base64,...`);
       } else {
-        console.warn(`[WAHA] ⚠️ QR en formato desconocido:`, qrCode.substring(0, 50));
+        console.log(`[WAHA] ✅ QR ya tiene formato data URI`);
       }
+    } else {
+      throw new Error('QR code no es un string válido');
     }
     
     console.log(`[WAHA] ✅ QR procesado para: ${sessionName}`, {
