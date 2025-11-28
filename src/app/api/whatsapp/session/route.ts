@@ -9,8 +9,7 @@ import {
   getSession,
   getQRCode,
   checkConnectionStatus,
-  disconnectSession,
-  deleteSession,
+  logoutSession,
   getSessionName
 } from '@/integrations/whatsapp/services/waha-service';
 
@@ -209,25 +208,50 @@ export async function POST(request: NextRequest) {
     
     console.log(`[WhatsApp Session] POST - Acción: ${action} para organización: ${organizationId}`);
 
-    // 3. Si es restart, eliminar sesión existente primero
+    // 3. Si es restart, hacer logout de la sesión "default" (WAHA Core)
     if (action === 'restart') {
-      console.log(`[WhatsApp Session] Reiniciando sesión (eliminando existente)...`);
+      console.log(`[WhatsApp Session] Reiniciando sesión (haciendo logout para cambiar número)...`);
       try {
-        await deleteSession(organizationId);
-        // Esperar un momento para que se elimine completamente
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log(`[WhatsApp Session] ✅ Sesión anterior eliminada`);
+        // Para WAHA Core, hacer logout en lugar de eliminar la sesión
+        // Esto desconecta el número actual pero mantiene la sesión "default"
+        await logoutSession(organizationId);
+        // Esperar un momento para que el logout se complete
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        console.log(`[WhatsApp Session] ✅ Logout exitoso, sesión lista para nuevo número`);
       } catch (error: any) {
-        // Si no existe, está bien, continuamos
+        // Si no existe o ya está desconectada, está bien, continuamos
         if (!error.message?.includes('no encontrada') && !error.message?.includes('not found')) {
-          console.warn(`[WhatsApp Session] Advertencia al eliminar sesión:`, error.message);
+          console.warn(`[WhatsApp Session] Advertencia al hacer logout:`, error.message);
+          // Continuar de todas formas para intentar obtener QR
         }
       }
     }
 
-    // 4. Crear/iniciar sesión
-    console.log(`[WhatsApp Session] Creando/iniciando sesión...`);
-    const session = await createSession(organizationId);
+    // 4. Verificar estado de la sesión e iniciarla si es necesario
+    const sessionName = getSessionName(organizationId);
+    let session;
+    try {
+      session = await getSession(sessionName, organizationId);
+      console.log(`[WhatsApp Session] Sesión encontrada: ${sessionName}, estado: ${session.status}`);
+      
+      // Si la sesión está STOPPED o FAILED, iniciarla
+      if (session.status === 'STOPPED' || session.status === 'FAILED') {
+        console.log(`[WhatsApp Session] Sesión ${session.status}, iniciando...`);
+        // Usar createSession que maneja la iniciación internamente
+        session = await createSession(organizationId);
+        // Esperar un momento para que la sesión esté lista
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        console.log(`[WhatsApp Session] ✅ Sesión iniciada`);
+      }
+    } catch (error: any) {
+      // Si la sesión no existe, crearla
+      if (error.message?.includes('no encontrada') || error.message?.includes('not found')) {
+        console.log(`[WhatsApp Session] Sesión no existe, creando...`);
+        session = await createSession(organizationId);
+      } else {
+        throw error;
+      }
+    }
     
     // 5. Obtener QR para vincular
     console.log(`[WhatsApp Session] Obteniendo QR...`);
@@ -258,11 +282,10 @@ export async function POST(request: NextRequest) {
 
 /**
  * DELETE /api/whatsapp/session
- * Desconecta o elimina una sesión de WhatsApp
+ * Desconecta el número de WhatsApp (hace logout)
  * 
- * Query params:
- * - permanent=true: Elimina la sesión completamente
- * - permanent=false o sin param: Solo desconecta (detiene)
+ * IMPORTANTE: En WAHA Core, NUNCA eliminamos la sesión "default".
+ * Solo hacemos logout para desconectar el número actual.
  */
 export async function DELETE(request: NextRequest) {
   try {
@@ -277,44 +300,28 @@ export async function DELETE(request: NextRequest) {
 
     const organizationId = tenantContext.organizationId;
     
-    // 2. Obtener query params
-    const searchParams = request.nextUrl.searchParams;
-    const permanent = searchParams.get('permanent') === 'true';
-    
-    console.log(`[WhatsApp Session] DELETE - ${permanent ? 'Eliminando' : 'Desconectando'} sesión para organización: ${organizationId}`);
+    console.log(`[WhatsApp Session] DELETE - Desconectando número de WhatsApp para organización: ${organizationId}`);
 
-    // 3. Desconectar o eliminar según el parámetro
-    if (permanent) {
-      await deleteSession(organizationId);
-      console.log(`[WhatsApp Session] ✅ Sesión eliminada completamente`);
-      
-      return NextResponse.json({
-        success: true,
-        data: {
-          message: 'Sesión eliminada completamente',
-          sessionName: getSessionName(organizationId)
-        }
-      });
-    } else {
-      await disconnectSession(organizationId);
-      console.log(`[WhatsApp Session] ✅ Sesión desconectada (puede reiniciarse)`);
-      
-      return NextResponse.json({
-        success: true,
-        data: {
-          message: 'Sesión desconectada. Puedes reiniciarla con POST /api/whatsapp/session',
-          sessionName: getSessionName(organizationId)
-        }
-      });
-    }
+    // 2. Hacer logout (desconecta el número pero mantiene la sesión "default")
+    // NUNCA eliminamos la sesión en WAHA Core
+    await logoutSession(organizationId);
+    console.log(`[WhatsApp Session] ✅ Número desconectado (logout exitoso)`);
+    
+    return NextResponse.json({
+      success: true,
+      data: {
+        message: 'Número de WhatsApp desconectado. Puedes vincular un nuevo número.',
+        sessionName: getSessionName(organizationId)
+      }
+    });
   } catch (error: any) {
-    // Si la sesión no existe, no es un error crítico
+    // Si la sesión no existe o ya está desconectada, no es un error crítico
     if (error.message?.includes('no encontrada') || error.message?.includes('not found')) {
-      console.log(`[WhatsApp Session] Sesión no encontrada (ya eliminada o no existe)`);
+      console.log(`[WhatsApp Session] Sesión no encontrada o ya desconectada`);
       return NextResponse.json({
         success: true,
         data: {
-          message: 'Sesión no encontrada (ya eliminada o no existe)',
+          message: 'Sesión no encontrada o ya desconectada',
           sessionName: getSessionName((await getTenantContext())?.organizationId || '')
         }
       });
@@ -323,7 +330,7 @@ export async function DELETE(request: NextRequest) {
     console.error('[WhatsApp Session] ❌ Error en DELETE:', error);
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : 'Error desconocido al desconectar/eliminar sesión'
+      error: error instanceof Error ? error.message : 'Error desconocido al desconectar número'
     }, { status: 500 });
   }
 }

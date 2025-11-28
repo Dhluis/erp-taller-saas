@@ -507,8 +507,8 @@ export async function getQRCode(organizationId: string): Promise<{
       }
     }
     
-    // Obtener QR code
-    const qrResponse = await fetch(`${wahaUrl}/api/${sessionName}/auth/qr`, {
+    // Obtener QR code con formato image
+    const qrResponse = await fetch(`${wahaUrl}/api/${sessionName}/auth/qr?format=image`, {
       method: 'GET',
       headers: await getWAHAHeaders(organizationId)
     });
@@ -841,73 +841,64 @@ export async function sendFile(
 }
 
 /**
- * 8. Desconecta una sesión (detiene pero no elimina)
+ * 8. Desconecta una sesión (hace logout del número)
+ * DEPRECATED: Usar logoutSession en su lugar
+ * Mantenida para compatibilidad, pero ahora usa logout internamente
  */
 export async function disconnectSession(organizationId: string): Promise<void> {
+  // Para WAHA Core, usar logout en lugar de stop
+  return logoutSession(organizationId);
+}
+
+/**
+ * 8.1. Hace logout de una sesión (desconecta el número pero mantiene la sesión)
+ * Útil para cambiar de número en WAHA Core que solo soporta sesión "default"
+ */
+export async function logoutSession(organizationId: string): Promise<void> {
   try {
     const wahaUrl = await getWAHAUrl(organizationId);
     const sessionName = getSessionName(organizationId);
     
-    console.log(`[WAHA] Desconectando sesión: ${sessionName}`);
+    console.log(`[WAHA] Haciendo logout de sesión: ${sessionName}`);
     
-    const response = await fetch(`${wahaUrl}/api/sessions/${sessionName}/stop`, {
+    const response = await fetch(`${wahaUrl}/api/${sessionName}/auth/logout`, {
       method: 'POST',
       headers: await getWAHAHeaders(organizationId)
     });
 
     if (!response.ok) {
       if (response.status === 404) {
-        console.warn(`[WAHA] Sesión ${sessionName} no encontrada para desconectar`);
+        console.warn(`[WAHA] Sesión ${sessionName} no encontrada para logout`);
         return; // No es un error si no existe
       }
       const errorText = await response.text();
-      throw new Error(`Error desconectando sesión: ${response.status} - ${errorText}`);
+      throw new Error(`Error haciendo logout: ${response.status} - ${errorText}`);
     }
 
-    console.log(`[WAHA] ✅ Sesión desconectada: ${sessionName}`);
+    console.log(`[WAHA] ✅ Logout exitoso de sesión: ${sessionName}`);
   } catch (error) {
-    console.error('[WAHA] ❌ Error desconectando sesión:', error);
+    console.error('[WAHA] ❌ Error haciendo logout:', error);
     throw error;
   }
 }
 
 /**
  * 9. Elimina una sesión completamente
+ * 
+ * ⚠️ DEPRECATED para WAHA Core: NO usar esta función para WhatsApp
+ * 
+ * En WAHA Core, la sesión "default" NO debe eliminarse nunca.
+ * Usar logoutSession() en su lugar para desconectar el número.
+ * 
+ * Esta función se mantiene solo para casos especiales o migraciones,
+ * pero NO debe usarse en el flujo normal de WhatsApp.
  */
 export async function deleteSession(organizationId: string): Promise<void> {
-  try {
-    const wahaUrl = await getWAHAUrl(organizationId);
-    const sessionName = getSessionName(organizationId);
-    
-    console.log(`[WAHA] Eliminando sesión: ${sessionName}`);
-    
-    // Primero desconectar si está conectada
-    try {
-      await disconnectSession(organizationId);
-      await new Promise(resolve => setTimeout(resolve, 500));
-    } catch (error) {
-      // Ignorar errores al desconectar, puede que ya esté desconectada
-      console.warn('[WAHA] Advertencia al desconectar antes de eliminar:', error);
-    }
-    
-    const response = await fetch(`${wahaUrl}/api/sessions/${sessionName}`, {
-      method: 'DELETE',
-      headers: await getWAHAHeaders(organizationId)
-    });
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        console.warn(`[WAHA] Sesión ${sessionName} no encontrada para eliminar`);
-        return; // No es un error si no existe
-      }
-      const errorText = await response.text();
-      throw new Error(`Error eliminando sesión: ${response.status} - ${errorText}`);
-    }
-
-    console.log(`[WAHA] ✅ Sesión eliminada: ${sessionName}`);
-  } catch (error) {
-    console.error('[WAHA] ❌ Error eliminando sesión:', error);
-    throw error;
-  }
+  console.warn('[WAHA] ⚠️ deleteSession llamado - esto NO debe usarse para WhatsApp en WAHA Core');
+  console.warn('[WAHA] ⚠️ En su lugar, usar logoutSession() para desconectar el número');
+  
+  // Para WAHA Core, hacer logout en lugar de eliminar
+  // La sesión "default" debe mantenerse siempre
+  return logoutSession(organizationId);
 }
 
