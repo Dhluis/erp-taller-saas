@@ -438,6 +438,29 @@ export async function getQRCode(organizationId: string): Promise<{
       // Si la sesión está STOPPED o FAILED, iniciarla
       if (sessionInfo.status === 'STOPPED' || sessionInfo.status === 'FAILED') {
         console.log(`[WAHA] Sesión está ${sessionInfo.status}, iniciando...`);
+        
+        // Si está en FAILED, intentar restart primero para limpiar el estado
+        if (sessionInfo.status === 'FAILED') {
+          console.log(`[WAHA] Sesión en FAILED, intentando restart...`);
+          try {
+            const restartResponse = await fetch(`${wahaUrl}/api/sessions/${sessionName}/restart`, {
+              method: 'POST',
+              headers: await getWAHAHeaders(organizationId)
+            });
+            
+            if (restartResponse.ok) {
+              console.log(`[WAHA] ✅ Sesión reiniciada, esperando a que esté lista...`);
+              // Esperar más tiempo después de restart
+              await new Promise(resolve => setTimeout(resolve, 3000));
+            } else {
+              console.warn(`[WAHA] Restart no disponible o falló, intentando start...`);
+            }
+          } catch (restartError) {
+            console.warn(`[WAHA] Error en restart, intentando start normal:`, restartError);
+          }
+        }
+        
+        // Iniciar la sesión
         const startResponse = await fetch(`${wahaUrl}/api/sessions/${sessionName}/start`, {
           method: 'POST',
           headers: await getWAHAHeaders(organizationId)
@@ -451,9 +474,9 @@ export async function getQRCode(organizationId: string): Promise<{
           console.log(`[WAHA] ✅ Sesión iniciada, esperando a que esté lista...`);
         }
         
-        // Esperar a que la sesión cambie de estado
+        // Esperar a que la sesión cambie de estado a SCAN_QR_CODE
         let attempts = 0;
-        const maxAttempts = 10; // 10 intentos = ~15 segundos
+        const maxAttempts = 15; // 15 intentos = ~22 segundos (más tiempo para FAILED)
         
         while (attempts < maxAttempts) {
           await new Promise(resolve => setTimeout(resolve, 1500));
@@ -462,23 +485,55 @@ export async function getQRCode(organizationId: string): Promise<{
             sessionInfo = await getSession(sessionName, organizationId);
             console.log(`[WAHA] Estado después de iniciar (intento ${attempts + 1}): ${sessionInfo.status}`);
             
-            // Si está en SCAN_QR_CODE o WORKING, está lista
-            if (sessionInfo.status === 'SCAN_QR_CODE' || sessionInfo.status === 'WORKING') {
+            // Si está en SCAN_QR_CODE, está lista para QR
+            if (sessionInfo.status === 'SCAN_QR_CODE') {
+              console.log(`[WAHA] ✅ Sesión lista para QR (SCAN_QR_CODE)`);
               break;
             }
             
+            // Si está WORKING, ya está conectada
+            if (sessionInfo.status === 'WORKING') {
+              throw new Error('Sesión ya conectada. No se necesita QR.');
+            }
+            
+            // Si sigue FAILED después de varios intentos, puede haber un problema
+            if (attempts >= 8 && sessionInfo.status === 'FAILED') {
+              console.warn(`[WAHA] ⚠️ Sesión sigue en FAILED después de ${attempts} intentos`);
+              // Intentar restart una vez más
+              try {
+                await fetch(`${wahaUrl}/api/sessions/${sessionName}/restart`, {
+                  method: 'POST',
+                  headers: await getWAHAHeaders(organizationId)
+                });
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                attempts = 0; // Reiniciar contador
+                continue;
+              } catch (retryError) {
+                throw new Error('La sesión no se pudo iniciar después de múltiples intentos. Verifica que WAHA esté funcionando correctamente.');
+              }
+            }
+            
             // Si sigue STOPPED después de varios intentos, puede haber un problema
-            if (attempts >= 5 && sessionInfo.status === 'STOPPED') {
+            if (attempts >= 10 && sessionInfo.status === 'STOPPED') {
               throw new Error('La sesión no se pudo iniciar. Verifica que WAHA esté funcionando correctamente.');
             }
           } catch (error: any) {
             if (error.message?.includes('no encontrada')) {
               throw error;
             }
+            if (error.message?.includes('ya conectada')) {
+              throw error;
+            }
             console.warn(`[WAHA] Error verificando estado (intento ${attempts + 1}):`, error.message);
           }
           
           attempts++;
+        }
+        
+        // Verificar estado final antes de obtener QR
+        sessionInfo = await getSession(sessionName, organizationId);
+        if (sessionInfo.status !== 'SCAN_QR_CODE' && sessionInfo.status !== 'WORKING') {
+          throw new Error(`La sesión no está lista para QR. Estado actual: ${sessionInfo.status}. Intenta nuevamente en unos momentos.`);
         }
       } else if (sessionInfo.status === 'WORKING') {
         // Si ya está conectada, no se puede obtener QR
