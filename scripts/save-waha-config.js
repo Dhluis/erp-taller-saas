@@ -106,3 +106,4 @@ async function saveWAHAConfig() {
 // Ejecutar
 saveWAHAConfig();
 
+

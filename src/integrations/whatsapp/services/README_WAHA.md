@@ -204,3 +204,4 @@ El servicio usa automáticamente el header `X-Api-Key` con el valor de `WAHA_API
 4. **QR Codes**: Expiran en ~60 segundos, necesitas regenerarlos si no se escanean
 5. **Errores**: Todas las funciones incluyen manejo de errores y logging detallado
 
+

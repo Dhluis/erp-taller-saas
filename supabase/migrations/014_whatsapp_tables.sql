@@ -337,3 +337,4 @@ CREATE TRIGGER trigger_update_conversation_messages_count
     FOR EACH ROW
     EXECUTE FUNCTION update_conversation_messages_count();
 
+
