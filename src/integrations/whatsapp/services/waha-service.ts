@@ -608,20 +608,25 @@ export async function getQRCode(organizationId: string): Promise<{
     console.log(`[WAHA] 📦 Respuesta QR de WAHA (format=raw):`, {
       hasMimetype: !!qrData.mimetype,
       hasData: !!qrData.data,
+      hasValue: !!qrData.value,
       mimetype: qrData.mimetype,
       dataLength: qrData.data?.length || 0,
+      valueLength: qrData.value?.length || 0,
       dataPreview: qrData.data ? qrData.data.substring(0, 50) + '...' : 'NO DATA',
+      valuePreview: qrData.value ? qrData.value.substring(0, 50) + '...' : 'NO VALUE',
       keys: Object.keys(qrData)
     });
     
     // Extraer datos del QR
     let qrCode: string;
     let mimetype = 'image/png'; // Por defecto
+    let isQRString = false; // Indica si es un string que debe convertirse a QR
     
     console.log(`[WAHA] 🔍 Analizando estructura de QR Data:`, {
       keys: Object.keys(qrData),
       hasMimetype: !!qrData.mimetype,
       hasData: !!qrData.data,
+      hasValue: !!qrData.value,
       hasQr: !!qrData.qr,
       hasQrcode: !!qrData.qrcode,
       hasQrCode: !!qrData.qrCode,
@@ -630,8 +635,14 @@ export async function getQRCode(organizationId: string): Promise<{
       fullStructure: JSON.stringify(qrData).substring(0, 500)
     });
     
+    // NUEVO FORMATO: WAHA devuelve { "value": "2@lGKFF..." } - string que debe convertirse a QR
+    if (qrData.value && typeof qrData.value === 'string') {
+      qrCode = qrData.value;
+      isQRString = true;
+      console.log(`[WAHA] ✅ QR obtenido en formato 'value' (string para convertir a QR): length=${qrCode.length}`);
+    }
     // Formato raw de WAHA: { "mimetype": "image/png", "data": "base64..." }
-    if (qrData.mimetype && qrData.data) {
+    else if (qrData.mimetype && qrData.data) {
       mimetype = qrData.mimetype;
       qrCode = qrData.data;
       console.log(`[WAHA] ✅ QR obtenido en formato raw: ${mimetype}, data length: ${qrCode.length}`);
@@ -656,7 +667,17 @@ export async function getQRCode(organizationId: string): Promise<{
       throw new Error(`Formato de QR no reconocido en la respuesta de WAHA. Keys encontrados: ${Object.keys(qrData).join(', ')}. Estructura: ${JSON.stringify(qrData).substring(0, 300)}`);
     }
     
-    // Limpiar y formatear el base64
+    // Si es un string que debe convertirse a QR (formato 'value'), devolverlo tal cual
+    if (isQRString) {
+      console.log(`[WAHA] ✅ QR en formato string (value), devolviendo para conversión en frontend`);
+      return {
+        qrCode: qrCode.trim(),
+        sessionName,
+        expiresIn: 60 // WAHA QR codes expiran en ~60 segundos
+      };
+    }
+    
+    // Limpiar y formatear el base64 (solo para formatos antiguos)
     if (typeof qrCode === 'string') {
       // Remover espacios en blanco y saltos de línea
       qrCode = qrCode.trim().replace(/\s/g, '');

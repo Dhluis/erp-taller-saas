@@ -100,11 +100,18 @@ export async function GET(request: NextRequest) {
         const qrData = await getQRCode(organizationId);
         
         // Log para diagnóstico
+        const isQRString = qrData.qrCode && 
+          !qrData.qrCode.startsWith('data:image') && 
+          !qrData.qrCode.match(/^[A-Za-z0-9+/=]+$/) &&
+          qrData.qrCode.length > 0;
+        
         console.log('[WhatsApp Session] 📱 QR obtenido:', {
           hasQR: !!qrData.qrCode,
           qrLength: qrData.qrCode?.length || 0,
           qrPreview: qrData.qrCode?.substring(0, 50) || 'NO QR',
           hasDataPrefix: qrData.qrCode?.startsWith('data:image') || false,
+          isQRString: isQRString || false,
+          format: isQRString ? 'value (string-to-qr)' : (qrData.qrCode?.startsWith('data:image') ? 'image-base64' : 'unknown'),
           sessionName: qrData.sessionName
         });
         

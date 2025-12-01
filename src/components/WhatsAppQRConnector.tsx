@@ -15,6 +15,7 @@ import {
   Settings
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { QRCodeSVG } from 'qrcode.react'
 
 interface WhatsAppQRConnectorProps {
   onStatusChange?: (status: 'loading' | 'connected' | 'pending' | 'error') => void
@@ -93,26 +94,45 @@ export function WhatsAppQRConnector({
       }
 
       if (statusData.status === 'pending') {
-        // Asegurar que el QR tenga el formato correcto para mostrarse como imagen
+        // El QR puede venir en dos formatos:
+        // 1. String que debe convertirse a QR (formato 'value' de WAHA)
+        // 2. Data URI de imagen base64 (formato antiguo)
         let qrCode = statusData.qr || ''
         
-        // Si el QR no tiene el prefijo data:image, agregarlo
-        if (qrCode && !qrCode.startsWith('data:image')) {
-          // Si es base64 puro, agregar el prefijo
-          if (qrCode.match(/^[A-Za-z0-9+/=]+$/)) {
-            qrCode = `data:image/png;base64,${qrCode}`
-            console.log('[WhatsAppQRConnector] ✅ QR formateado correctamente (agregado prefijo data:image)')
-          } else {
-            console.warn('[WhatsAppQRConnector] ⚠️ QR en formato desconocido:', qrCode.substring(0, 50))
-          }
-        }
+        // Detectar si es un string que debe convertirse a QR (no es base64 ni data URI)
+        const isQRString = qrCode && 
+          !qrCode.startsWith('data:image') && 
+          !qrCode.match(/^[A-Za-z0-9+/=]+$/) &&
+          qrCode.length > 0
         
-        console.log('[WhatsAppQRConnector] 📱 QR recibido:', {
-          hasQR: !!qrCode,
-          qrLength: qrCode.length,
-          qrPreview: qrCode.substring(0, 50),
-          hasDataPrefix: qrCode.startsWith('data:image')
-        })
+        // Si es un string que debe convertirse a QR, guardarlo tal cual
+        if (isQRString) {
+          console.log('[WhatsAppQRConnector] 📱 QR recibido como string (formato value):', {
+            hasQR: !!qrCode,
+            qrLength: qrCode.length,
+            qrPreview: qrCode.substring(0, 50),
+            type: 'string-to-qr'
+          })
+        } else {
+          // Formato antiguo: intentar formatear como imagen base64
+          if (qrCode && !qrCode.startsWith('data:image')) {
+            // Si es base64 puro, agregar el prefijo
+            if (qrCode.match(/^[A-Za-z0-9+/=]+$/)) {
+              qrCode = `data:image/png;base64,${qrCode}`
+              console.log('[WhatsAppQRConnector] ✅ QR formateado correctamente (agregado prefijo data:image)')
+            } else {
+              console.warn('[WhatsAppQRConnector] ⚠️ QR en formato desconocido:', qrCode.substring(0, 50))
+            }
+          }
+          
+          console.log('[WhatsAppQRConnector] 📱 QR recibido como imagen:', {
+            hasQR: !!qrCode,
+            qrLength: qrCode.length,
+            qrPreview: qrCode.substring(0, 50),
+            hasDataPrefix: qrCode.startsWith('data:image'),
+            type: 'image-base64'
+          })
+        }
         
         setState('pending')
         setSessionData({
@@ -218,9 +238,17 @@ export function WhatsAppQRConnector({
         throw new Error(data.error || 'Error al generar QR')
       }
 
-      // Formatear QR correctamente
+      // El QR puede venir como string (formato 'value') o como imagen base64
       let qrCode = data.data.qr || ''
-      if (qrCode && !qrCode.startsWith('data:image')) {
+      
+      // Detectar si es un string que debe convertirse a QR
+      const isQRString = qrCode && 
+        !qrCode.startsWith('data:image') && 
+        !qrCode.match(/^[A-Za-z0-9+/=]+$/) &&
+        qrCode.length > 0
+      
+      // Solo formatear como imagen si es base64 puro (formato antiguo)
+      if (!isQRString && qrCode && !qrCode.startsWith('data:image')) {
         if (qrCode.match(/^[A-Za-z0-9+/=]+$/)) {
           qrCode = `data:image/png;base64,${qrCode}`
         }
@@ -289,9 +317,17 @@ export function WhatsAppQRConnector({
         throw new Error(data.error || 'Error al reiniciar sesión')
       }
 
-      // Formatear QR correctamente
+      // El QR puede venir como string (formato 'value') o como imagen base64
       let qrCode = data.data.qr || ''
-      if (qrCode && !qrCode.startsWith('data:image')) {
+      
+      // Detectar si es un string que debe convertirse a QR
+      const isQRString = qrCode && 
+        !qrCode.startsWith('data:image') && 
+        !qrCode.match(/^[A-Za-z0-9+/=]+$/) &&
+        qrCode.length > 0
+      
+      // Solo formatear como imagen si es base64 puro (formato antiguo)
+      if (!isQRString && qrCode && !qrCode.startsWith('data:image')) {
         if (qrCode.match(/^[A-Za-z0-9+/=]+$/)) {
           qrCode = `data:image/png;base64,${qrCode}`
         }
@@ -441,19 +477,34 @@ export function WhatsAppQRConnector({
 
             <div className="flex flex-col items-center space-y-4">
               <div className="p-4 bg-white border border-border rounded-lg">
-                <img
-                  src={sessionData.qr}
-                  alt="QR Code para vincular WhatsApp"
-                  className="w-64 h-64 mx-auto object-contain"
-                  style={{ imageRendering: 'crisp-edges' }}
-                  onError={(e) => {
-                    console.error('[WhatsAppQRConnector] ❌ Error cargando imagen QR:', e)
-                    console.error('[WhatsAppQRConnector] QR value:', sessionData.qr?.substring(0, 100))
-                  }}
-                  onLoad={() => {
-                    console.log('[WhatsAppQRConnector] ✅ Imagen QR cargada correctamente')
-                  }}
-                />
+                {/* Detectar si el QR es un string que debe convertirse a QR o una imagen base64 */}
+                {sessionData.qr && !sessionData.qr.startsWith('data:image') && 
+                 !sessionData.qr.match(/^[A-Za-z0-9+/=]+$/) ? (
+                  // Formato 'value': string que debe convertirse a QR visualmente
+                  <div className="flex items-center justify-center">
+                    <QRCodeSVG 
+                      value={sessionData.qr} 
+                      size={256}
+                      level="M"
+                      includeMargin={true}
+                    />
+                  </div>
+                ) : (
+                  // Formato antiguo: imagen base64
+                  <img
+                    src={sessionData.qr}
+                    alt="QR Code para vincular WhatsApp"
+                    className="w-64 h-64 mx-auto object-contain"
+                    style={{ imageRendering: 'crisp-edges' }}
+                    onError={(e) => {
+                      console.error('[WhatsAppQRConnector] ❌ Error cargando imagen QR:', e)
+                      console.error('[WhatsAppQRConnector] QR value:', sessionData.qr?.substring(0, 100))
+                    }}
+                    onLoad={() => {
+                      console.log('[WhatsAppQRConnector] ✅ Imagen QR cargada correctamente')
+                    }}
+                  />
+                )}
               </div>
 
               <div className="text-center space-y-2 max-w-md">
