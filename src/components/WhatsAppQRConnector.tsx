@@ -68,7 +68,12 @@ export function WhatsAppQRConnector({
       }
       
       const data = await response.json()
-      console.log('[WhatsAppQRConnector] 📦 Respuesta recibida:', { success: data.success, status: data.data?.status })
+      console.log('[WhatsAppQRConnector] 📦 Respuesta recibida:', { 
+        success: data.success, 
+        status: data.status,
+        connected: data.connected,
+        dataStatus: data.data?.status 
+      })
 
       if (!data.success) {
         const errorMsg = data.error || 'Error al verificar estado'
@@ -79,12 +84,18 @@ export function WhatsAppQRConnector({
 
       const statusData = data.data
 
-      if (statusData.status === 'connected') {
+      // Detectar si está conectado: status 'connected', 'WORKING', o connected: true
+      const isConnected = statusData?.status === 'connected' || 
+                         data.status === 'WORKING' || 
+                         data.connected === true ||
+                         statusData?.sessionStatus === 'WORKING'
+
+      if (isConnected) {
         setState('connected')
         setSessionData({
           status: 'connected',
-          phone: statusData.phone,
-          name: statusData.name
+          phone: statusData?.phone || data.data?.phone,
+          name: statusData?.name || data.data?.name
         })
         setErrorMessage(null)
         // Detener polling si está conectado
@@ -238,6 +249,25 @@ export function WhatsAppQRConnector({
         throw new Error(data.error || 'Error al generar QR')
       }
 
+      // Verificar si la sesión ya está conectada (status WORKING o connected: true)
+      const isConnected = data.status === 'WORKING' || 
+                         data.connected === true ||
+                         data.data?.status === 'connected' ||
+                         data.data?.sessionStatus === 'WORKING'
+
+      if (isConnected) {
+        // Sesión ya conectada, mostrar estado conectado
+        setState('connected')
+        setSessionData({
+          status: 'connected',
+          phone: data.data?.phone,
+          name: data.data?.name
+        })
+        setErrorMessage(null)
+        onStatusChange?.('connected')
+        return
+      }
+
       // El QR puede venir como string (formato 'value') o como imagen base64
       let qrCode = data.data.qr || ''
       
@@ -315,6 +345,25 @@ export function WhatsAppQRConnector({
 
       if (!data.success) {
         throw new Error(data.error || 'Error al reiniciar sesión')
+      }
+
+      // Verificar si la sesión ya está conectada (status WORKING o connected: true)
+      const isConnected = data.status === 'WORKING' || 
+                         data.connected === true ||
+                         data.data?.status === 'connected' ||
+                         data.data?.sessionStatus === 'WORKING'
+
+      if (isConnected) {
+        // Sesión ya conectada, mostrar estado conectado
+        setState('connected')
+        setSessionData({
+          status: 'connected',
+          phone: data.data?.phone,
+          name: data.data?.name
+        })
+        setErrorMessage(null)
+        onStatusChange?.('connected')
+        return
       }
 
       // El QR puede venir como string (formato 'value') o como imagen base64

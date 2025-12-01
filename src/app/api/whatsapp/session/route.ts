@@ -262,22 +262,45 @@ export async function POST(request: NextRequest) {
     
     // 5. Obtener QR para vincular
     console.log(`[WhatsApp Session] Obteniendo QR...`);
-    const qrData = await getQRCode(organizationId);
-    
-    console.log(`[WhatsApp Session] ✅ Sesión ${action === 'restart' ? 'reiniciada' : 'creada'}`);
-    
-    return NextResponse.json({
-      success: true,
-      data: {
-        sessionName: session.name,
-        status: session.status,
-        qr: qrData.qrCode,
-        expiresIn: qrData.expiresIn,
-        message: action === 'restart' 
-          ? 'Sesión reiniciada. Escanea el nuevo código QR para vincular WhatsApp.'
-          : 'Sesión creada. Escanea el código QR para vincular WhatsApp.'
+    try {
+      const qrData = await getQRCode(organizationId);
+      
+      console.log(`[WhatsApp Session] ✅ Sesión ${action === 'restart' ? 'reiniciada' : 'creada'}`);
+      
+      return NextResponse.json({
+        success: true,
+        data: {
+          sessionName: session.name,
+          status: session.status,
+          qr: qrData.qrCode,
+          expiresIn: qrData.expiresIn,
+          message: action === 'restart' 
+            ? 'Sesión reiniciada. Escanea el nuevo código QR para vincular WhatsApp.'
+            : 'Sesión creada. Escanea el código QR para vincular WhatsApp.'
+        }
+      });
+    } catch (qrError: any) {
+      // Si el error es que ya está conectada, devolver éxito con estado WORKING
+      if (qrError.message?.includes('ya conectada') || qrError.message?.includes('already connected')) {
+        console.log(`[WhatsApp Session] ✅ Sesión ya conectada, devolviendo estado WORKING`);
+        const connectionStatus = await checkConnectionStatus(organizationId);
+        return NextResponse.json({
+          success: true,
+          status: 'WORKING',
+          connected: true,
+          message: 'Sesión conectada',
+          data: {
+            status: 'connected',
+            phone: connectionStatus.phone,
+            name: connectionStatus.name,
+            sessionStatus: connectionStatus.status || 'WORKING',
+            sessionName: session.name
+          }
+        }, { status: 200 });
       }
-    });
+      // Si no es error de "ya conectada", relanzar el error
+      throw qrError;
+    }
   } catch (error) {
     console.error('[WhatsApp Session] ❌ Error en POST:', error);
     return NextResponse.json({
