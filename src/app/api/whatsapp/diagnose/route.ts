@@ -40,18 +40,23 @@ export async function GET(request: NextRequest) {
     const organizationId = diagnostics.checks.tenantContext.organizationId;
 
     // 2. Verificar variables de entorno
-    const envUrl = process.env.WAHA_API_URL || process.env.NEXT_PUBLIC_WAHA_API_URL;
-    const envKey = process.env.WAHA_API_KEY || process.env.NEXT_PUBLIC_WAHA_API_KEY;
+    // NOTA: NO usar NEXT_PUBLIC_* para claves secretas
+    const envUrl = process.env.WAHA_API_URL;
+    const envKey = process.env.WAHA_API_KEY;
     
     diagnostics.checks.environmentVariables = {
       hasUrl: !!envUrl,
       hasKey: !!envKey,
       urlPreview: envUrl ? `${envUrl.substring(0, 30)}...` : null,
-      keyLength: envKey ? envKey.length : 0
+      keyLength: envKey ? envKey.length : 0,
+      allWAHAEnvKeys: Object.keys(process.env).filter(k => k.includes('WAHA')).join(', ')
     };
 
     if (!envUrl || !envKey) {
-      diagnostics.warnings.push('Variables de entorno WAHA no configuradas');
+      diagnostics.warnings.push('Variables de entorno WAHA no configuradas (WAHA_API_URL y WAHA_API_KEY)');
+      diagnostics.recommendations.push('Configura WAHA_API_URL y WAHA_API_KEY en Vercel (Settings → Environment Variables)');
+    } else {
+      diagnostics.checks.environmentVariables.status = '✅ Configuradas correctamente';
     }
 
     // 3. Verificar configuración en base de datos

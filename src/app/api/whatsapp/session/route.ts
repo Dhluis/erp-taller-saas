@@ -38,11 +38,25 @@ export async function GET(request: NextRequest) {
     const wahaUrl = process.env.WAHA_API_URL;
     const wahaKey = process.env.WAHA_API_KEY;
     
+    // Log detallado para diagnóstico
+    console.log('[WhatsApp Session] 🔍 Verificando configuración:', {
+      hasWAHA_API_URL: !!wahaUrl,
+      hasWAHA_API_KEY: !!wahaKey,
+      urlLength: wahaUrl?.length || 0,
+      keyLength: wahaKey?.length || 0,
+      urlPreview: wahaUrl ? `${wahaUrl.substring(0, 40)}...` : 'NO URL',
+      organizationId,
+      allWAHAEnvKeys: Object.keys(process.env).filter(k => k.includes('WAHA')).join(', ')
+    });
+    
     if (!wahaUrl || !wahaKey) {
       console.log('[WhatsApp Session] ⚠️ Variables de entorno no disponibles, el servicio intentará leer de BD...');
       console.log('[WhatsApp Session] Organization ID:', organizationId);
+      console.log('[WhatsApp Session] 💡 Asegúrate de que WAHA_API_URL y WAHA_API_KEY estén configuradas en Vercel');
     } else {
       console.log('[WhatsApp Session] ✅ Variables de entorno disponibles');
+      console.log('[WhatsApp Session] ✅ URL:', wahaUrl.substring(0, 50) + '...');
+      console.log('[WhatsApp Session] ✅ Key:', wahaKey.substring(0, 10) + '...');
     }
 
     // 3. Verificar estado de conexión

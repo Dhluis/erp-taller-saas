@@ -66,11 +66,25 @@ export function formatPhoneNumber(phone: string): string {
  */
 async function getWAHAConfig(organizationId?: string): Promise<{ url: string; key: string }> {
   // 1. PRIMERO: Intentar desde variables de entorno (más rápido)
-  const envUrl = process.env.WAHA_API_URL || process.env.NEXT_PUBLIC_WAHA_API_URL;
-  const envKey = process.env.WAHA_API_KEY || process.env.NEXT_PUBLIC_WAHA_API_KEY;
+  // NOTA: NO usar NEXT_PUBLIC_* para claves secretas, solo para URLs públicas si es necesario
+  const envUrl = process.env.WAHA_API_URL;
+  const envKey = process.env.WAHA_API_KEY;
+  
+  // Log detallado para diagnóstico
+  console.log('[WAHA Service] 🔍 Verificando variables de entorno:', {
+    hasWAHA_API_URL: !!envUrl,
+    hasWAHA_API_KEY: !!envKey,
+    urlLength: envUrl?.length || 0,
+    keyLength: envKey?.length || 0,
+    urlPreview: envUrl ? `${envUrl.substring(0, 30)}...` : 'NO URL',
+    keyPreview: envKey ? `${envKey.substring(0, 5)}...` : 'NO KEY',
+    allEnvKeys: Object.keys(process.env).filter(k => k.includes('WAHA')).join(', ')
+  });
   
   if (envUrl && envKey) {
     console.log('[WAHA Service] ✅ Usando configuración de variables de entorno');
+    console.log('[WAHA Service] ✅ URL:', envUrl.replace(/\/$/, ''));
+    console.log('[WAHA Service] ✅ Key:', envKey.substring(0, 10) + '...');
     return {
       url: envUrl.replace(/\/$/, ''),
       key: envKey
