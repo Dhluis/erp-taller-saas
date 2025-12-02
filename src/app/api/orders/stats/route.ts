@@ -68,16 +68,13 @@ export async function GET(request: NextRequest) {
     const fromISO = fromDate.toISOString()
     const toISO = toDate.toISOString()
 
-    // Consultar órdenes por estado para la organización específica con filtro de fecha
+    // Consultar órdenes por estado para la organización específica
+    // Primero obtener todas las órdenes de la organización (sin filtro de fecha en la query)
+    // Luego filtrar en JavaScript para mayor flexibilidad
     const { data: orders, error: ordersError } = await supabase
       .from('work_orders')
       .select('status, created_at, entry_date')
       .eq('organization_id', organizationIdToUse)
-      // .gte('created_at', fromDate.toISOString())  // ❌ COMENTADO
-      // .lte('created_at', toDate.toISOString())    // ❌ COMENTADO
-      .or(
-        `and(created_at.gte.${fromISO},created_at.lte.${toISO}),and(entry_date.gte.${fromISO},entry_date.lte.${toISO})`
-      )
 
     // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -99,30 +96,66 @@ export async function GET(request: NextRequest) {
       }, { status: 500 })
     }
 
+    // Filtrar órdenes por rango de fechas en JavaScript
+    // Una orden se incluye si su created_at O entry_date está en el rango
     const ordersList = ((orders ?? []) as Array<{
       status: string | null;
       created_at: string | null;
       entry_date: string | null;
     }>).filter((order) => {
-      const createdAt = order.created_at ? new Date(order.created_at) : null
-      const entryDate = order.entry_date ? new Date(order.entry_date) : null
-
-      if (createdAt && createdAt >= fromDate && createdAt <= toDate) {
-        return true
+      // Si no tiene ninguna fecha, excluir
+      if (!order.created_at && !order.entry_date) {
+        return false
       }
 
-      if (entryDate && entryDate >= fromDate && entryDate <= toDate) {
-        return true
+      // Verificar created_at
+      if (order.created_at) {
+        const createdAt = new Date(order.created_at)
+        // Ajustar horas para comparación (solo fecha)
+        createdAt.setHours(0, 0, 0, 0)
+        const fromDateNormalized = new Date(fromDate)
+        fromDateNormalized.setHours(0, 0, 0, 0)
+        const toDateNormalized = new Date(toDate)
+        toDateNormalized.setHours(23, 59, 59, 999)
+        
+        if (createdAt >= fromDateNormalized && createdAt <= toDateNormalized) {
+          return true
+        }
+      }
+
+      // Verificar entry_date
+      if (order.entry_date) {
+        const entryDate = new Date(order.entry_date)
+        entryDate.setHours(0, 0, 0, 0)
+        const fromDateNormalized = new Date(fromDate)
+        fromDateNormalized.setHours(0, 0, 0, 0)
+        const toDateNormalized = new Date(toDate)
+        toDateNormalized.setHours(23, 59, 59, 999)
+        
+        if (entryDate >= fromDateNormalized && entryDate <= toDateNormalized) {
+          return true
+        }
       }
 
       return false
     });
 
-    console.log('✅ Órdenes encontradas:', ordersList.length || 0);
+    console.log('✅ Total órdenes en BD (sin filtro de fecha):', orders?.length || 0);
+    console.log('✅ Órdenes después de filtrar por fecha:', ordersList.length || 0);
     console.log('✅ Órdenes por estado:', ordersList.reduce((acc: any, o: any) => {
       acc[o.status] = (acc[o.status] || 0) + 1;
       return acc;
     }, {}));
+    
+    // Log de muestra de órdenes para diagnóstico
+    if (orders && orders.length > 0) {
+      console.log('📋 Muestra de órdenes (primeras 3):', orders.slice(0, 3).map((o: any) => ({
+        status: o.status,
+        created_at: o.created_at,
+        entry_date: o.entry_date
+      })));
+    }
+    
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     // Contar órdenes por estado

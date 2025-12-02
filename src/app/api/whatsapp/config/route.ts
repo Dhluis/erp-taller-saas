@@ -6,7 +6,7 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server'
 export async function POST(request: NextRequest) {
   try {
     // Obtener contexto del tenant
-    const tenantContext = await getTenantContext()
+    const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({
         success: false,
@@ -586,7 +586,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const tenantContext = await getTenantContext()
+    const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({
         success: false,

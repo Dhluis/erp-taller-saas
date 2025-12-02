@@ -32,7 +32,7 @@ interface SendMessageBody {
 export async function POST(request: NextRequest) {
   try {
     // 1. Validar autenticación
-    const tenantContext = await getTenantContext();
+    const tenantContext = await getTenantContext(request);
     if (!tenantContext) {
       return NextResponse.json({
         success: false,

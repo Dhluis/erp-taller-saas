@@ -8,7 +8,7 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server'
  */
 export async function GET(request: NextRequest) {
   try {
-    const tenantContext = await getTenantContext()
+    const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({
         success: false,

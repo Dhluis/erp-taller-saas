@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     console.log('='.repeat(60) + '\n');
     
     // 1️⃣ OBTENER CONTEXTO DEL TENANT
-    const tenantContext = await getTenantContext();
+    const tenantContext = await getTenantContext(request);
     if (!tenantContext) {
       return NextResponse.json({
         success: false,
