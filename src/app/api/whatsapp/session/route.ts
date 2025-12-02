@@ -41,7 +41,18 @@ export async function GET(request: NextRequest) {
 
     // 3. Obtener estado de la sesión (pasar organizationId para usar su configuración)
     const status = await getSessionStatus(sessionName, organizationId);
-    console.log(`[WhatsApp Session] 📊 Estado: ${status.status || 'UNKNOWN'}`);
+    
+    // Verificar que status existe y tiene status
+    if (!status || !status.status) {
+      console.error('[WhatsApp Session] ❌ No se pudo obtener estado de sesión');
+      return NextResponse.json({
+        success: false,
+        error: 'No se pudo obtener estado de sesión',
+        details: status?.error || 'Estado indefinido'
+      }, { status: 500 });
+    }
+
+    console.log(`[WhatsApp Session] 📊 Estado: ${status.status}`);
 
     // 4. Si la sesión está conectada (WORKING), devolver estado
     if (status.status === 'WORKING') {
@@ -89,7 +100,7 @@ export async function GET(request: NextRequest) {
         // Si el error es que ya está conectado, verificar estado nuevamente
         if (qrError.message?.includes('already connected') || qrError.message?.includes('ya conectado')) {
           const newStatus = await getSessionStatus(sessionName, organizationId);
-          if (newStatus.status === 'WORKING') {
+          if (newStatus && newStatus.status === 'WORKING') {
             const phone = newStatus.me?.id?.split('@')[0] || newStatus.me?.phone || null;
             return NextResponse.json({
               success: true,
@@ -103,7 +114,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
           success: true,
-          status: status.status || 'STARTING',
+          status: (status && status.status) ? status.status : 'STARTING',
           connected: false,
           session: sessionName,
           message: 'Esperando QR...'
@@ -125,13 +136,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 7. Otro estado (STOPPED, FAILED, etc.)
+    // 7. Otro estado (STOPPED, FAILED, ERROR, etc.)
+    const currentStatus = (status && status.status) ? status.status : 'UNKNOWN';
     return NextResponse.json({
       success: true,
-      status: status.status || 'UNKNOWN',
+      status: currentStatus,
       connected: false,
       session: sessionName,
-      message: `Estado: ${status.status || 'UNKNOWN'}`
+      message: `Estado: ${currentStatus}`,
+      error: status?.error || undefined
     });
 
   } catch (error: any) {

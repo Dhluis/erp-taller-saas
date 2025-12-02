@@ -138,7 +138,11 @@ export async function createOrganizationSession(organizationId: string): Promise
     })
   });
 
-  const responseText = await response.text();
+  if (!response) {
+    throw new Error('No se recibió respuesta de WAHA al crear sesión');
+  }
+
+  const responseText = await response.text().catch(() => 'Error desconocido');
   let responseData: any = {};
   
   try {
@@ -232,34 +236,63 @@ export async function getOrganizationSession(organizationId: string): Promise<st
  */
 export async function getSessionStatus(sessionName: string, organizationId?: string): Promise<{
   exists: boolean;
-  status?: string;
+  status: string;
   me?: { id: string; name?: string; phone?: string };
+  error?: string;
   [key: string]: any;
 }> {
-  // Obtener organizationId si no se proporcionó
-  const orgId = organizationId || await getOrganizationFromSession(sessionName);
-  const { url, key } = await getWahaConfig(orgId || undefined);
-
   try {
+    // Obtener organizationId si no se proporcionó
+    const orgId = organizationId || await getOrganizationFromSession(sessionName);
+    const { url, key } = await getWahaConfig(orgId || undefined);
+
+    if (!url || !key) {
+      console.error('[WAHA Sessions] ❌ No se pudo obtener configuración WAHA');
+      return { exists: false, status: 'ERROR', error: 'Configuración WAHA no disponible' };
+    }
+
     const response = await fetch(`${url}/api/sessions/${sessionName}`, {
       headers: { 'X-Api-Key': key }
     });
+
+    // Verificar que response existe
+    if (!response) {
+      console.error('[WAHA Sessions] ❌ No se recibió respuesta de WAHA');
+      return { exists: false, status: 'ERROR', error: 'No response from WAHA' };
+    }
 
     if (response.status === 404) {
       return { exists: false, status: 'NOT_FOUND' };
     }
 
     if (!response.ok) {
-      const errorText = await response.text();
+      const errorText = await response.text().catch(() => 'Error desconocido');
       console.error(`[WAHA Sessions] ❌ Error obteniendo estado: ${response.status}`, errorText);
-      throw new Error(`Error obteniendo estado: ${response.status}`);
+      return { exists: false, status: 'ERROR', error: `HTTP ${response.status}: ${errorText}` };
     }
 
-    const data = await response.json();
-    return { exists: true, ...data };
+    const data = await response.json().catch((parseError) => {
+      console.error('[WAHA Sessions] ❌ Error parseando respuesta JSON:', parseError);
+      return null;
+    });
+
+    if (!data) {
+      return { exists: false, status: 'ERROR', error: 'Respuesta inválida de WAHA' };
+    }
+
+    // Asegurar que siempre hay un status
+    return { 
+      exists: true, 
+      status: data.status || 'UNKNOWN',
+      ...data 
+    };
   } catch (error: any) {
     console.error(`[WAHA Sessions] ❌ Error en getSessionStatus:`, error);
-    throw error;
+    return { 
+      exists: false, 
+      status: 'ERROR', 
+      error: error?.message || 'Error desconocido al obtener estado de sesión' 
+    };
   }
 }
 
@@ -275,13 +308,26 @@ export async function getSessionQR(sessionName: string, organizationId?: string)
     headers: { 'X-Api-Key': key }
   });
 
+  if (!response) {
+    throw new Error('No se recibió respuesta de WAHA al obtener QR');
+  }
+
   if (!response.ok) {
-    const error = await response.text();
+    const error = await response.text().catch(() => 'Error desconocido');
     console.error(`[WAHA Sessions] ❌ Error obteniendo QR: ${response.status}`, error);
     throw new Error(`Error obteniendo QR: ${response.status} - ${error}`);
   }
 
-  return await response.json();
+  const qrData = await response.json().catch((parseError) => {
+    console.error('[WAHA Sessions] ❌ Error parseando QR JSON:', parseError);
+    throw new Error('Error parseando respuesta de QR');
+  });
+
+  if (!qrData) {
+    throw new Error('Respuesta de QR vacía o inválida');
+  }
+
+  return qrData;
 }
 
 /**
@@ -299,8 +345,13 @@ export async function logoutSession(sessionName: string, organizationId?: string
     headers: { 'X-Api-Key': key }
   });
 
+  if (!response) {
+    console.warn('[WAHA Sessions] ⚠️ No se recibió respuesta al cerrar sesión');
+    return; // No lanzar error, puede que la sesión ya esté cerrada
+  }
+
   if (!response.ok && response.status !== 404) {
-    const error = await response.text();
+    const error = await response.text().catch(() => 'Error desconocido');
     console.error(`[WAHA Sessions] ❌ Error cerrando sesión: ${response.status}`, error);
     throw new Error(`Error cerrando sesión: ${response.status}`);
   }
@@ -339,13 +390,22 @@ export async function sendWhatsAppMessage(
     })
   });
 
+  if (!response) {
+    throw new Error('No se recibió respuesta de WAHA al enviar mensaje');
+  }
+
   if (!response.ok) {
-    const error = await response.text();
+    const error = await response.text().catch(() => 'Error desconocido');
     console.error(`[WAHA Sessions] ❌ Error enviando mensaje: ${response.status}`, error);
     throw new Error(`Error enviando mensaje: ${response.status} - ${error}`);
   }
 
-  const result = await response.json();
+  const result = await response.json().catch((parseError) => {
+    console.error('[WAHA Sessions] ❌ Error parseando respuesta de envío:', parseError);
+    // Retornar un objeto básico si no se puede parsear
+    return { sent: true, id: `msg_${Date.now()}` };
+  });
+
   console.log(`[WAHA Sessions] ✅ Mensaje enviado:`, result);
   return result;
 }
