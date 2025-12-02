@@ -58,6 +58,7 @@ export function WhatsAppQRConnector({
   const [isChangingNumber, setIsChangingNumber] = useState(false)
   const [isDiagnosing, setIsDiagnosing] = useState(false)
   const [diagnosticResult, setDiagnosticResult] = useState<any>(null)
+  const [waitingForQR, setWaitingForQR] = useState(false)
 
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const pollingStartTimeRef = useRef<number | null>(null)
@@ -84,6 +85,12 @@ export function WhatsAppQRConnector({
 
   // Función para verificar estado de sesión
   const checkSessionStatus = useCallback(async () => {
+    // Si estamos esperando QR después de logout, no verificar
+    if (waitingForQR) {
+      console.log(`[WhatsAppQRConnector] ⏸️ Esperando QR después de logout, saltando verificación... [ID: ${componentIdRef.current}]`)
+      return
+    }
+    
     // Evitar múltiples llamadas simultáneas (pero permitir la primera)
     if (isCheckingStatusRef.current) {
       console.log(`[WhatsAppQRConnector] ⏸️ Verificación ya en progreso, omitiendo... [ID: ${componentIdRef.current}]`)
@@ -255,7 +262,7 @@ export function WhatsAppQRConnector({
       // Siempre liberar el flag al terminar (éxito o error)
       isCheckingStatusRef.current = false
     }
-  }, [stopPolling])
+  }, [stopPolling, waitingForQR])
 
   // Función para iniciar polling
   const startPolling = useCallback(() => {
@@ -345,9 +352,13 @@ export function WhatsAppQRConnector({
 
   // Iniciar polling solo si hay QR y no está conectado
   useEffect(() => {
-    // Si ya está conectado, no hacer polling
-    if (state === 'connected') {
-      console.log(`[WhatsAppQRConnector] ✅ Conectado, deteniendo polling [ID: ${componentIdRef.current}]`)
+    // Si estamos esperando QR o ya conectado, no hacer polling
+    if (waitingForQR || state === 'connected') {
+      if (waitingForQR) {
+        console.log(`[WhatsAppQRConnector] ⏸️ Esperando QR, deteniendo polling [ID: ${componentIdRef.current}]`)
+      } else {
+        console.log(`[WhatsAppQRConnector] ✅ Conectado, deteniendo polling [ID: ${componentIdRef.current}]`)
+      }
       stopPolling()
       return
     }
@@ -374,7 +385,7 @@ export function WhatsAppQRConnector({
     return () => {
       stopPolling()
     }
-  }, [state, sessionData?.qr, startPolling, stopPolling]) // Dependencias necesarias
+  }, [state, sessionData?.qr, startPolling, stopPolling, waitingForQR]) // Dependencias necesarias
 
   // Función para generar nuevo QR
   const handleGenerateQR = async () => {
@@ -455,6 +466,8 @@ export function WhatsAppQRConnector({
   // Función para desconectar
   const handleDisconnect = async () => {
     setIsDisconnecting(true)
+    setWaitingForQR(true) // Bloquear polling
+    
     try {
       const response = await fetch('/api/whatsapp/session', {
         method: 'POST',
@@ -482,22 +495,48 @@ export function WhatsAppQRConnector({
           session: data.session
         })
       } else {
-        // Si no hay QR, limpiar y reiniciar polling
+        // Si no hay QR, esperar y hacer verificación manual
         setSessionData({
           status: 'SCAN_QR',
           session: data.session
         })
-        // Reiniciar polling para obtener el QR
-        setTimeout(() => {
-          checkSessionStatus()
-        }, 2000)
+        
+        // Esperar 2 segundos para que WAHA procese el logout
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        
+        // Hacer una verificación manual
+        try {
+          const statusResponse = await fetch('/api/whatsapp/session', {
+            credentials: 'include',
+            cache: 'no-store'
+          })
+          const statusData = await statusResponse.json()
+          
+          if (statusData.qr) {
+            const qrValue = typeof statusData.qr === 'string' ? statusData.qr : (statusData.qr.value || statusData.qr.data || null)
+            setSessionData(prev => ({
+              ...(prev || { status: 'SCAN_QR' }),
+              qr: qrValue,
+              session: statusData.session || prev?.session
+            }))
+          }
+        } catch (statusError) {
+          console.warn('[WhatsAppQRConnector] Error obteniendo QR después de logout:', statusError)
+        }
       }
+      
+      // Desbloquear polling después de 5 segundos
+      setTimeout(() => {
+        setWaitingForQR(false)
+        console.log('[WhatsAppQRConnector] ✅ Bloqueo de polling desactivado después de logout')
+      }, 5000)
       
       setErrorMessage(null)
       onStatusChangeRef.current?.('pending')
     } catch (error) {
       console.error('[WhatsAppQRConnector] Error desconectando:', error)
       setErrorMessage(error instanceof Error ? error.message : 'Error al desconectar')
+      setWaitingForQR(false) // Desbloquear en caso de error
     } finally {
       setIsDisconnecting(false)
     }
@@ -506,6 +545,8 @@ export function WhatsAppQRConnector({
   // Función para cambiar número (reiniciar sesión)
   const handleChangeNumber = async () => {
     setIsChangingNumber(true)
+    setWaitingForQR(true) // Bloquear polling
+    
     try {
       const response = await fetch('/api/whatsapp/session', {
         method: 'POST',
@@ -533,16 +574,41 @@ export function WhatsAppQRConnector({
           session: data.session
         })
       } else {
-        // Si no hay QR, limpiar y reiniciar polling
+        // Si no hay QR, esperar y hacer verificación manual
         setSessionData({
           status: 'SCAN_QR',
           session: data.session
         })
-        // Reiniciar polling para obtener el QR
-        setTimeout(() => {
-          checkSessionStatus()
-        }, 2000)
+        
+        // Esperar 2 segundos para que WAHA procese el logout
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        
+        // Hacer una verificación manual
+        try {
+          const statusResponse = await fetch('/api/whatsapp/session', {
+            credentials: 'include',
+            cache: 'no-store'
+          })
+          const statusData = await statusResponse.json()
+          
+          if (statusData.qr) {
+            const qrValue = typeof statusData.qr === 'string' ? statusData.qr : (statusData.qr.value || statusData.qr.data || null)
+            setSessionData(prev => ({
+              ...(prev || { status: 'SCAN_QR' }),
+              qr: qrValue,
+              session: statusData.session || prev?.session
+            }))
+          }
+        } catch (statusError) {
+          console.warn('[WhatsAppQRConnector] Error obteniendo QR después de cambiar número:', statusError)
+        }
       }
+      
+      // Desbloquear polling después de 5 segundos
+      setTimeout(() => {
+        setWaitingForQR(false)
+        console.log('[WhatsAppQRConnector] ✅ Bloqueo de polling desactivado después de cambiar número')
+      }, 5000)
       
       setErrorMessage(null)
       onStatusChangeRef.current?.('pending')
@@ -552,6 +618,7 @@ export function WhatsAppQRConnector({
       setState('error')
       setErrorMessage(error instanceof Error ? error.message : 'Error al cambiar número')
       onStatusChangeRef.current?.('error')
+      setWaitingForQR(false) // Desbloquear en caso de error
     } finally {
       setIsChangingNumber(false)
     }
