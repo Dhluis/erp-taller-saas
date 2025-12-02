@@ -137,11 +137,25 @@ export function WhatsAppQRConnector({
         throw new Error('No se recibió información de estado de sesión')
       }
 
-      // Detectar si está conectado: status 'connected', 'WORKING', o connected: true
-      const isConnected = statusData?.status === 'connected' || 
-                         data.status === 'WORKING' || 
-                         data.connected === true ||
-                         statusData?.sessionStatus === 'WORKING'
+      // Detectar si está conectado: verificar múltiples formas
+      // El endpoint devuelve: { success: true, status: 'WORKING', connected: true, ... }
+      // O puede estar en: data.status, statusData.status, statusData.sessionStatus
+      const isConnected = 
+        data.status === 'WORKING' || 
+        data.status === 'connected' ||
+        data.connected === true ||
+        statusData?.status === 'WORKING' ||
+        statusData?.status === 'connected' ||
+        statusData?.sessionStatus === 'WORKING' ||
+        statusData?.sessionStatus === 'connected'
+      
+      console.log('[WhatsAppQRConnector] 🔍 Verificando conexión:', {
+        dataStatus: data.status,
+        dataConnected: data.connected,
+        statusDataStatus: statusData?.status,
+        statusDataSessionStatus: statusData?.sessionStatus,
+        isConnected
+      })
 
       if (isConnected) {
         currentStateRef.current = 'connected'
@@ -164,14 +178,24 @@ export function WhatsAppQRConnector({
 
       // Verificar que statusData.status existe antes de usarlo
       // Manejar múltiples estados que requieren QR: pending, SCAN_QR, SCAN_QR_CODE, STARTING
-      const needsQR = statusData && (
+      // IMPORTANTE: No mostrar QR si ya está conectado
+      const needsQR = !isConnected && statusData && (
         statusData.status === 'pending' ||
         statusData.status === 'SCAN_QR' ||
         statusData.status === 'SCAN_QR_CODE' ||
         statusData.status === 'STARTING' ||
         data.status === 'SCAN_QR' ||
-        data.status === 'SCAN_QR_CODE'
+        data.status === 'SCAN_QR_CODE' ||
+        data.status === 'STARTING' ||
+        data.status === 'pending'
       )
+      
+      console.log('[WhatsAppQRConnector] 🔍 Verificando si necesita QR:', {
+        isConnected,
+        statusDataStatus: statusData?.status,
+        dataStatus: data.status,
+        needsQR
+      })
 
       if (needsQR) {
         // El QR puede venir en dos formatos:

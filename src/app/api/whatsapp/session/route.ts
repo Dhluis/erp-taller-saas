@@ -80,7 +80,13 @@ export async function GET(request: NextRequest) {
       const name = status.me?.name || null;
 
       console.log(`[WhatsApp Session] ✅ Conectado: ${phone || 'N/A'}`);
+      console.log(`[WhatsApp Session] 📱 Datos de conexión:`, {
+        phone,
+        name,
+        me: status.me
+      });
 
+      // IMPORTANTE: Devolver en el nivel raíz, no dentro de data
       return NextResponse.json({
         success: true,
         status: 'WORKING',
@@ -88,7 +94,15 @@ export async function GET(request: NextRequest) {
         session: sessionName,
         phone,
         name,
-        sessionStatus: status.status
+        sessionStatus: status.status,
+        // También incluir en data para compatibilidad
+        data: {
+          status: 'connected',
+          connected: true,
+          phone,
+          name,
+          sessionStatus: 'WORKING'
+        }
       });
     }
 
