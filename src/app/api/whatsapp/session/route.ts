@@ -108,7 +108,13 @@ export async function GET(request: NextRequest) {
 
     // 5. Si necesita QR, obtenerlo
     if (status.status === 'SCAN_QR_CODE' || status.status === 'SCAN_QR' || status.status === 'STARTING') {
-      console.log(`[WhatsApp Session] 📱 Estado requiere QR, obteniendo...`);
+      console.log(`[WhatsApp Session] 📱 Estado requiere QR (${status.status}), obteniendo...`);
+      
+      // Si el estado es STARTING, esperar un poco antes de obtener el QR
+      if (status.status === 'STARTING') {
+        console.log(`[WhatsApp Session] ⏳ Estado STARTING, esperando 2 segundos antes de obtener QR...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
       
       try {
         const qrResponse = await getSessionQR(sessionName, organizationId);
@@ -117,20 +123,54 @@ export async function GET(request: NextRequest) {
           hasValue: !!qrResponse?.value,
           hasData: !!qrResponse?.data,
           type: typeof qrResponse,
-          keys: qrResponse ? Object.keys(qrResponse) : []
+          keys: qrResponse ? Object.keys(qrResponse) : [],
+          error: qrResponse?.error
         });
         
         // Extraer el valor del QR - WAHA devuelve {value: "..."} 
         const qrValue = qrResponse?.value || qrResponse?.data || null;
         
-        if (!qrValue) {
-          console.warn(`[WhatsApp Session] ⚠️ QR obtenido pero valor vacío:`, JSON.stringify(qrResponse));
+        // Validar que el QR no esté vacío
+        const isValidQR = qrValue && 
+                         typeof qrValue === 'string' && 
+                         qrValue.trim().length > 0;
+        
+        if (!isValidQR) {
+          console.warn(`[WhatsApp Session] ⚠️ QR obtenido pero valor vacío o inválido:`, {
+            qrResponse: JSON.stringify(qrResponse).substring(0, 200),
+            qrValue: qrValue,
+            qrValueType: typeof qrValue,
+            qrValueLength: qrValue?.length || 0,
+            status: status.status
+          });
+          
+          // Si el estado es STARTING y el QR está vacío, puede ser que necesite más tiempo
+          if (status.status === 'STARTING') {
+            return NextResponse.json({
+              success: true,
+              status: 'STARTING',
+              connected: false,
+              session: sessionName,
+              qr: null,
+              message: 'Sesión iniciando. El QR estará disponible en unos segundos. Por favor, recarga la página.'
+            });
+          }
+          
+          // Para SCAN_QR_CODE o SCAN_QR, devolver sin QR para que el frontend reintente
+          return NextResponse.json({
+            success: true,
+            status: 'SCAN_QR',
+            connected: false,
+            session: sessionName,
+            qr: null,
+            message: 'QR no disponible aún. Por favor, espera unos segundos y recarga.'
+          });
         }
         
-        console.log(`[WhatsApp Session] 📱 QR extraído:`, {
+        console.log(`[WhatsApp Session] 📱 QR extraído exitosamente:`, {
           hasQR: !!qrValue,
-          qrLength: qrValue?.length || 0,
-          qrPreview: qrValue ? qrValue.substring(0, 50) + '...' : 'NULL'
+          qrLength: qrValue.length,
+          qrPreview: qrValue.substring(0, 50) + '...'
         });
 
         return NextResponse.json({

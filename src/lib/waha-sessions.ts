@@ -395,6 +395,9 @@ export async function getSessionQR(sessionName: string, organizationId?: string)
   const orgId = organizationId || await getOrganizationFromSession(sessionName);
   const { url, key } = await getWahaConfig(orgId || undefined);
 
+  console.log(`[WAHA Sessions] 📱 Obteniendo QR para sesión: ${sessionName}`);
+  console.log(`[WAHA Sessions] 📱 URL: ${url}/api/${sessionName}/auth/qr?format=raw`);
+
   const response = await fetch(`${url}/api/${sessionName}/auth/qr?format=raw`, {
     headers: { 'X-Api-Key': key }
   });
@@ -406,6 +409,13 @@ export async function getSessionQR(sessionName: string, organizationId?: string)
   if (!response.ok) {
     const error = await response.text().catch(() => 'Error desconocido');
     console.error(`[WAHA Sessions] ❌ Error obteniendo QR: ${response.status}`, error);
+    
+    // Si el error es 404 o 400, puede ser que el QR no esté disponible aún
+    if (response.status === 404 || response.status === 400) {
+      console.warn(`[WAHA Sessions] ⚠️ QR no disponible aún (status: ${response.status})`);
+      return { value: null, data: null, error: 'QR no disponible aún' };
+    }
+    
     throw new Error(`Error obteniendo QR: ${response.status} - ${error}`);
   }
 
@@ -414,9 +424,34 @@ export async function getSessionQR(sessionName: string, organizationId?: string)
     throw new Error('Error parseando respuesta de QR');
   });
 
+  console.log(`[WAHA Sessions] 📱 Respuesta QR de WAHA (raw):`, {
+    type: typeof qrData,
+    isObject: typeof qrData === 'object' && qrData !== null,
+    keys: qrData ? Object.keys(qrData) : [],
+    hasValue: !!qrData?.value,
+    hasData: !!qrData?.data,
+    valueLength: qrData?.value?.length || 0,
+    dataLength: qrData?.data?.length || 0,
+    stringified: JSON.stringify(qrData).substring(0, 200)
+  });
+
   if (!qrData) {
-    throw new Error('Respuesta de QR vacía o inválida');
+    console.warn(`[WAHA Sessions] ⚠️ Respuesta de QR vacía o inválida`);
+    return { value: null, data: null, error: 'QR vacío' };
   }
+
+  // Si el QR está vacío o no tiene valor, devolver objeto con error
+  const qrValue = qrData.value || qrData.data || null;
+  if (!qrValue || (typeof qrValue === 'string' && qrValue.trim().length === 0)) {
+    console.warn(`[WAHA Sessions] ⚠️ QR obtenido pero valor vacío o inválido`);
+    return { value: null, data: null, error: 'QR vacío', raw: qrData };
+  }
+
+  console.log(`[WAHA Sessions] ✅ QR obtenido exitosamente:`, {
+    hasQR: !!qrValue,
+    qrLength: qrValue.length,
+    qrPreview: qrValue.substring(0, 50) + '...'
+  });
 
   return qrData;
 }
