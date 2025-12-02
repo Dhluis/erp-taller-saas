@@ -45,17 +45,42 @@ export async function GET(request: NextRequest) {
     const envUrl = process.env.WAHA_API_URL;
     const envKey = process.env.WAHA_API_KEY;
     
+    // Obtener todas las variables de entorno relacionadas con WAHA para debugging
+    const allEnvKeys = Object.keys(process.env);
+    const wahaEnvKeys = allEnvKeys.filter(k => k.toUpperCase().includes('WAHA'));
+    const allEnvKeysPreview = allEnvKeys.slice(0, 50).join(', '); // Primeras 50 para no exponer todo
+    
     diagnostics.checks.environmentVariables = {
       hasUrl: !!envUrl,
       hasKey: !!envKey,
       urlPreview: envUrl ? `${envUrl.substring(0, 30)}...` : null,
       keyLength: envKey ? envKey.length : 0,
-      allWAHAEnvKeys: Object.keys(process.env).filter(k => k.includes('WAHA')).join(', ')
+      allWAHAEnvKeys: wahaEnvKeys.join(', '),
+      totalEnvKeys: allEnvKeys.length,
+      envKeysPreview: allEnvKeysPreview,
+      nodeEnv: process.env.NODE_ENV,
+      vercelEnv: process.env.VERCEL_ENV,
+      vercelUrl: process.env.VERCEL_URL,
+      // Información adicional para debugging
+      urlIsEmpty: envUrl === '',
+      keyIsEmpty: envKey === '',
+      urlIsUndefined: envUrl === undefined,
+      keyIsUndefined: envKey === undefined
     };
 
     if (!envUrl || !envKey) {
-      diagnostics.warnings.push('Variables de entorno WAHA no configuradas (WAHA_API_URL y WAHA_API_KEY)');
+      // Mensaje más detallado
+      let reason = 'No encontradas';
+      if (envUrl === '' || envKey === '') {
+        reason = 'Están vacías (string vacío)';
+      } else if (envUrl === undefined || envKey === undefined) {
+        reason = 'No están definidas (undefined)';
+      }
+      
+      diagnostics.warnings.push(`Variables de entorno WAHA no configuradas (WAHA_API_URL y WAHA_API_KEY) - ${reason}`);
       diagnostics.recommendations.push('Configura WAHA_API_URL y WAHA_API_KEY en Vercel (Settings → Environment Variables)');
+      diagnostics.recommendations.push('Si ya las configuraste, verifica que: 1) Estén en el proyecto correcto, 2) Estén en el ambiente correcto (Production/Preview/Development), 3) Haya hecho redeploy después de agregarlas');
+      diagnostics.recommendations.push('Las variables deben llamarse exactamente: WAHA_API_URL y WAHA_API_KEY (sin NEXT_PUBLIC_ ni otros prefijos)');
     } else {
       diagnostics.checks.environmentVariables.status = '✅ Configuradas correctamente';
     }
