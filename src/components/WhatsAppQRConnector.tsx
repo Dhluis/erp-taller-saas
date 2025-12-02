@@ -216,42 +216,82 @@ export function WhatsAppQRConnector({
         // 1. String que debe convertirse a QR (formato 'value' de WAHA) - contiene @ o &
         // 2. Data URI de imagen base64 (formato antiguo) - empieza con "data:image"
         // El QR puede estar en statusData.qr o data.qr
-        let qrCode = statusData.qr || data.qr || ''
+        let qrCode = statusData.qr || data.qr || null
         
-        console.log('[WhatsAppQRConnector] 🔍 QR recibido (raw):', 
-          'type:', typeof qrCode,
-          'isObject:', typeof qrCode === 'object' && qrCode !== null,
-          'keys:', typeof qrCode === 'object' && qrCode !== null ? Object.keys(qrCode) : [],
-          'stringified:', JSON.stringify(qrCode)
-        )
+        console.log('[WhatsAppQRConnector] 🔍 QR recibido (raw):', {
+          type: typeof qrCode,
+          isObject: typeof qrCode === 'object' && qrCode !== null,
+          keys: typeof qrCode === 'object' && qrCode !== null ? Object.keys(qrCode) : [],
+          stringified: JSON.stringify(qrCode),
+          isNull: qrCode === null,
+          isEmptyString: qrCode === ''
+        })
         
         // Si viene como objeto {value: "..."} o {data: "..."}, extraer
         if (typeof qrCode === 'object' && qrCode !== null) {
-          qrCode = qrCode.value || qrCode.data || ''
+          qrCode = qrCode.value || qrCode.data || null
         }
         
-        // Si el QR está vacío o es muy corto, no guardarlo
-        if (!qrCode || typeof qrCode !== 'string' || qrCode.length < 20) {
-          console.log('[WhatsAppQRConnector] ⚠️ QR vacío o inválido, no guardando')
-          qrCode = ''
+        // Si el QR está null, undefined, vacío o es muy corto, no procesarlo
+        if (!qrCode || 
+            (typeof qrCode === 'string' && (qrCode.trim().length === 0 || qrCode.length < 20))) {
+          console.log('[WhatsAppQRConnector] ⚠️ QR vacío o inválido, no procesando. Estado:', {
+            qrCode,
+            qrCodeType: typeof qrCode,
+            qrCodeLength: typeof qrCode === 'string' ? qrCode.length : 0,
+            status: statusData?.status || data?.status,
+            message: data?.message || statusData?.message
+          })
+          
+          // Si el QR está vacío, establecer estado pending sin QR para que el polling lo reintente
+          currentStateRef.current = 'pending'
+          setState('pending')
+          setSessionData({
+            status: 'pending',
+            qr: null,  // null en lugar de string vacío
+            sessionName: statusData.sessionName || data.sessionName || data.session,
+            expiresIn: statusData.expiresIn || data.expiresIn
+          })
+          setErrorMessage(data?.message || statusData?.message || 'QR no disponible aún. Esperando...')
+          if (isMountedRef.current) {
+            onStatusChangeRef.current?.('pending')
+          }
+          // Liberar flag de verificación
+          isCheckingStatusRef.current = false
+          return
+        }
+        
+        // Validar que qrCode es un string válido antes de procesarlo
+        if (typeof qrCode !== 'string') {
+          console.warn('[WhatsAppQRConnector] ⚠️ QR no es un string válido:', typeof qrCode)
+          currentStateRef.current = 'pending'
+          setState('pending')
+          setSessionData({
+            status: 'pending',
+            qr: null,
+            sessionName: statusData.sessionName || data.sessionName || data.session,
+            expiresIn: statusData.expiresIn || data.expiresIn
+          })
+          setErrorMessage('Formato de QR inválido')
+          isCheckingStatusRef.current = false
+          return
         }
         
         // Detectar el formato del QR:
         // - WAHA format (value): contiene @ o &, NO es data URI
         // - Base64 image: empieza con "data:image" O es base64 puro muy largo (>500 chars) sin @
-        const isDataUri = typeof qrCode === 'string' && qrCode.startsWith('data:image')
-        const isWahaFormat = typeof qrCode === 'string' && 
-                             qrCode.length > 10 && 
+        const isDataUri = qrCode.startsWith('data:image')
+        const isWahaFormat = qrCode.length > 10 && 
                              !isDataUri && 
                              (qrCode.includes('@') || qrCode.includes('&'))  // WAHA QR strings tienen @ o &
         
         console.log('[WhatsAppQRConnector] 📱 QR formato detectado:', {
           isDataUri,
           isWahaFormat,
-          qrLength: qrCode?.length || 0,
-          qrPreview: typeof qrCode === 'string' ? qrCode.substring(0, 50) : 'not-a-string',
-          startsWithData: typeof qrCode === 'string' && qrCode.startsWith('data:'),
-          containsAt: typeof qrCode === 'string' && qrCode.includes('@')
+          qrLength: qrCode.length,
+          qrPreview: qrCode.substring(0, 50),
+          startsWithData: qrCode.startsWith('data:'),
+          containsAt: qrCode.includes('@')
         })
         
         // Formatear según el tipo detectado
@@ -271,7 +311,7 @@ export function WhatsAppQRConnector({
             qrPreview: qrCode.substring(0, 50),
             type: 'data-uri-image'
           })
-        } else if (qrCode && qrCode.length > 500 && !qrCode.includes('@') && !qrCode.includes('&')) {
+        } else if (qrCode.length > 500 && !qrCode.includes('@') && !qrCode.includes('&')) {
           // Base64 puro muy largo sin @ o &: agregar prefijo data:image
           qrCode = `data:image/png;base64,${qrCode}`
           console.log('[WhatsAppQRConnector] ✅ QR formateado correctamente (agregado prefijo data:image a base64)')
