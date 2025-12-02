@@ -218,14 +218,12 @@ export function WhatsAppQRConnector({
         // El QR puede estar en statusData.qr o data.qr
         let qrCode = statusData.qr || data.qr || ''
         
-        console.log('[WhatsAppQRConnector] 🔍 QR recibido (raw):', {
-          type: typeof qrCode,
-          isObject: typeof qrCode === 'object' && qrCode !== null,
-          keys: typeof qrCode === 'object' && qrCode !== null ? Object.keys(qrCode) : [],
-          fullObject: qrCode,
-          valueField: qrCode?.value,
-          dataField: qrCode?.data
-        })
+        console.log('[WhatsAppQRConnector] 🔍 QR recibido (raw):', 
+          'type:', typeof qrCode,
+          'isObject:', typeof qrCode === 'object' && qrCode !== null,
+          'keys:', typeof qrCode === 'object' && qrCode !== null ? Object.keys(qrCode) : [],
+          'stringified:', JSON.stringify(qrCode)
+        )
         
         // Si viene como objeto {value: "..."} o {data: "..."}, extraer
         if (typeof qrCode === 'object' && qrCode !== null) {
