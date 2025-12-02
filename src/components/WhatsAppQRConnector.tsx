@@ -213,43 +213,68 @@ export function WhatsAppQRConnector({
 
       if (needsQR) {
         // El QR puede venir en dos formatos:
-        // 1. String que debe convertirse a QR (formato 'value' de WAHA)
-        // 2. Data URI de imagen base64 (formato antiguo)
+        // 1. String que debe convertirse a QR (formato 'value' de WAHA) - contiene @ o &
+        // 2. Data URI de imagen base64 (formato antiguo) - empieza con "data:image"
         // El QR puede estar en statusData.qr o data.qr
         let qrCode = statusData.qr || data.qr || ''
         
-        // Detectar si es un string que debe convertirse a QR (no es base64 ni data URI)
-        const isQRString = qrCode && 
-          !qrCode.startsWith('data:image') && 
-          !qrCode.match(/^[A-Za-z0-9+/=]+$/) &&
-          qrCode.length > 0
+        // Si viene como objeto {value: "..."} o {data: "..."}, extraer
+        if (typeof qrCode === 'object' && qrCode !== null) {
+          qrCode = qrCode.value || qrCode.data || ''
+        }
         
-        // Si es un string que debe convertirse a QR, guardarlo tal cual
-        if (isQRString) {
-          console.log('[WhatsAppQRConnector] 📱 QR recibido como string (formato value):', {
+        // Si el QR está vacío o es muy corto, no guardarlo
+        if (!qrCode || typeof qrCode !== 'string' || qrCode.length < 20) {
+          console.log('[WhatsAppQRConnector] ⚠️ QR vacío o inválido, no guardando')
+          qrCode = ''
+        }
+        
+        // Detectar el formato del QR:
+        // - WAHA format (value): contiene @ o &, NO es data URI
+        // - Base64 image: empieza con "data:image" O es base64 puro muy largo (>500 chars) sin @
+        const isDataUri = typeof qrCode === 'string' && qrCode.startsWith('data:image')
+        const isWahaFormat = typeof qrCode === 'string' && 
+                             qrCode.length > 10 && 
+                             !isDataUri && 
+                             (qrCode.includes('@') || qrCode.includes('&'))  // WAHA QR strings tienen @ o &
+        
+        console.log('[WhatsAppQRConnector] 📱 QR formato detectado:', {
+          isDataUri,
+          isWahaFormat,
+          qrLength: qrCode?.length || 0,
+          qrPreview: typeof qrCode === 'string' ? qrCode.substring(0, 50) : 'not-a-string',
+          startsWithData: typeof qrCode === 'string' && qrCode.startsWith('data:'),
+          containsAt: typeof qrCode === 'string' && qrCode.includes('@')
+        })
+        
+        // Formatear según el tipo detectado
+        if (isWahaFormat) {
+          // Formato WAHA: string con @ o &, usar tal cual para QRCodeSVG
+          console.log('[WhatsAppQRConnector] 📱 QR recibido como string WAHA (formato value):', {
             hasQR: !!qrCode,
             qrLength: qrCode.length,
             qrPreview: qrCode.substring(0, 50),
-            type: 'string-to-qr'
+            type: 'waha-string-to-qr'
           })
-        } else {
-          // Formato antiguo: intentar formatear como imagen base64
-          if (qrCode && !qrCode.startsWith('data:image')) {
-            // Si es base64 puro, agregar el prefijo
-            if (qrCode.match(/^[A-Za-z0-9+/=]+$/)) {
-              qrCode = `data:image/png;base64,${qrCode}`
-              console.log('[WhatsAppQRConnector] ✅ QR formateado correctamente (agregado prefijo data:image)')
-            } else {
-              console.warn('[WhatsAppQRConnector] ⚠️ QR en formato desconocido:', qrCode.substring(0, 50))
-            }
-          }
-          
-          console.log('[WhatsAppQRConnector] 📱 QR recibido como imagen:', {
+        } else if (isDataUri) {
+          // Formato data URI: ya tiene el prefijo, usar tal cual
+          console.log('[WhatsAppQRConnector] 📱 QR recibido como data URI:', {
             hasQR: !!qrCode,
             qrLength: qrCode.length,
             qrPreview: qrCode.substring(0, 50),
-            hasDataPrefix: qrCode.startsWith('data:image'),
-            type: 'image-base64'
+            type: 'data-uri-image'
+          })
+        } else if (qrCode && qrCode.length > 500 && !qrCode.includes('@') && !qrCode.includes('&')) {
+          // Base64 puro muy largo sin @ o &: agregar prefijo data:image
+          qrCode = `data:image/png;base64,${qrCode}`
+          console.log('[WhatsAppQRConnector] ✅ QR formateado correctamente (agregado prefijo data:image a base64)')
+        } else {
+          console.warn('[WhatsAppQRConnector] ⚠️ QR en formato desconocido:', {
+            qrPreview: qrCode.substring(0, 50),
+            length: qrCode.length,
+            hasAt: qrCode.includes('@'),
+            hasAmpersand: qrCode.includes('&'),
+            startsWithData: qrCode.startsWith('data:')
           })
         }
         
@@ -843,10 +868,16 @@ export function WhatsAppQRConnector({
 
             <div className="flex flex-col items-center space-y-4">
               <div className="p-4 bg-white border border-border rounded-lg">
-                {/* Detectar si el QR es un string que debe convertirse a QR o una imagen base64 */}
-                {sessionData.qr && !sessionData.qr.startsWith('data:image') && 
-                 !sessionData.qr.match(/^[A-Za-z0-9+/=]+$/) ? (
-                  // Formato 'value': string que debe convertirse a QR visualmente
+                {/* Detectar formato del QR:
+                    - WAHA format: contiene @ o & (string que debe convertirse a QR)
+                    - Base64 image: data URI o base64 puro largo sin @
+                */}
+                {sessionData.qr && (
+                  sessionData.qr.includes('@') || 
+                  sessionData.qr.includes('&') || 
+                  (!sessionData.qr.startsWith('data:image') && sessionData.qr.length < 500)
+                ) ? (
+                  // Formato WAHA 'value': string con @ o & que debe convertirse a QR visualmente
                   <div className="flex items-center justify-center">
                     <QRCodeSVG 
                       value={sessionData.qr} 
@@ -856,7 +887,7 @@ export function WhatsAppQRConnector({
                     />
                   </div>
                 ) : (
-                  // Formato antiguo: imagen base64
+                  // Formato imagen base64: data URI o base64 puro
                   <img
                     src={sessionData.qr}
                     alt="QR Code para vincular WhatsApp"
