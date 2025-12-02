@@ -142,18 +142,43 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Total órdenes en BD (sin filtro de fecha):', orders?.length || 0);
     console.log('✅ Órdenes después de filtrar por fecha:', ordersList.length || 0);
-    console.log('✅ Órdenes por estado:', ordersList.reduce((acc: any, o: any) => {
-      acc[o.status] = (acc[o.status] || 0) + 1;
-      return acc;
-    }, {}));
     
-    // Log de muestra de órdenes para diagnóstico
     if (orders && orders.length > 0) {
-      console.log('📋 Muestra de órdenes (primeras 3):', orders.slice(0, 3).map((o: any) => ({
+      console.log('✅ Órdenes por estado (después de filtro):', ordersList.reduce((acc: any, o: any) => {
+        acc[o.status] = (acc[o.status] || 0) + 1;
+        return acc;
+      }, {}));
+      
+      // Log de muestra de órdenes para diagnóstico
+      console.log('📋 Muestra de órdenes (primeras 5):', orders.slice(0, 5).map((o: any) => ({
         status: o.status,
-        created_at: o.created_at,
-        entry_date: o.entry_date
+        created_at: o.created_at ? new Date(o.created_at).toLocaleString('es-MX') : null,
+        entry_date: o.entry_date ? new Date(o.entry_date).toLocaleString('es-MX') : null,
+        inDateRange: (() => {
+          if (o.created_at) {
+            const created = new Date(o.created_at);
+            created.setHours(0, 0, 0, 0);
+            const from = new Date(fromDate);
+            from.setHours(0, 0, 0, 0);
+            const to = new Date(toDate);
+            to.setHours(23, 59, 59, 999);
+            if (created >= from && created <= to) return true;
+          }
+          if (o.entry_date) {
+            const entry = new Date(o.entry_date);
+            entry.setHours(0, 0, 0, 0);
+            const from = new Date(fromDate);
+            from.setHours(0, 0, 0, 0);
+            const to = new Date(toDate);
+            to.setHours(23, 59, 59, 999);
+            if (entry >= from && entry <= to) return true;
+          }
+          return false;
+        })()
       })));
+    } else {
+      console.warn('⚠️ No se encontraron órdenes en la BD para organization_id:', organizationIdToUse);
+      console.warn('   Verifica que existan órdenes con este organization_id en la tabla work_orders');
     }
     
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

@@ -46,11 +46,27 @@ export interface WorkshopInfo {
  */
 export async function getTenantContext(request?: any): Promise<TenantContext> {
   try {
-    // Si hay un request, usar las cookies del request (para API routes)
-    // Si no, usar cookies() de next/headers (para Server Components)
-    const supabase = request 
-      ? createClientFromRequest(request)
-      : await createClient()
+    // Intentar primero con request si está disponible (para API routes)
+    // Si falla o no hay request, usar cookies() de next/headers (para Server Components)
+    let supabase;
+    try {
+      if (request) {
+        supabase = createClientFromRequest(request);
+        // Verificar que el cliente funciona intentando obtener el usuario
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          // Si no hay usuario con request, intentar con el método original
+          console.log('[getTenantContext] ⚠️ No se pudo obtener usuario con request, usando método original');
+          supabase = await createClient();
+        }
+      } else {
+        supabase = await createClient();
+      }
+    } catch (requestError: any) {
+      // Si falla con request, hacer fallback al método original
+      console.warn('[getTenantContext] ⚠️ Error con request, usando método original:', requestError.message);
+      supabase = await createClient();
+    }
     
     // Obtener usuario autenticado
     const { data: { user }, error: userError } = await supabase.auth.getUser()

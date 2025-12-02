@@ -14,11 +14,27 @@ import type { NextRequest } from 'next/server';
 export async function getOrganizationId(request?: NextRequest): Promise<string> {
   const { getSupabaseServerClient, createClientFromRequest } = await import('@/lib/supabase/server');
   
-  // Si hay request, usar las cookies del request (para API routes)
-  // Si no, usar cookies() de next/headers (para Server Components)
-  const supabase = request 
-    ? createClientFromRequest(request)
-    : await getSupabaseServerClient();
+  // Intentar primero con request si está disponible (para API routes)
+  // Si falla o no hay request, usar cookies() de next/headers (para Server Components)
+  let supabase;
+  try {
+    if (request) {
+      supabase = createClientFromRequest(request);
+      // Verificar que el cliente funciona intentando obtener el usuario
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        // Si no hay usuario con request, intentar con el método original
+        console.log('[getOrganizationId] ⚠️ No se pudo obtener usuario con request, usando método original');
+        supabase = await getSupabaseServerClient();
+      }
+    } else {
+      supabase = await getSupabaseServerClient();
+    }
+  } catch (requestError: any) {
+    // Si falla con request, hacer fallback al método original
+    console.warn('[getOrganizationId] ⚠️ Error con request, usando método original:', requestError.message);
+    supabase = await getSupabaseServerClient();
+  }
   
   // 1. Obtener usuario autenticado
   const { data: { user }, error: userError } = await supabase.auth.getUser();

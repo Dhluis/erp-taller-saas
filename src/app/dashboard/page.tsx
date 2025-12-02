@@ -124,13 +124,27 @@ export default function DashboardPage() {
       
       // Mostrar información de debug si está disponible
       if (data._debug) {
-        console.log('🔍 DEBUG INFO:', {
-          totalOrdersInDB: data._debug.totalOrdersInDB,
-          ordersAfterDateFilter: data._debug.ordersAfterDateFilter,
-          filterFrom: data._debug.filterFrom,
-          filterTo: data._debug.filterTo,
-          sampleOrders: data._debug.sampleOrders
+        console.log('🔍 DEBUG INFO:');
+        console.log('  📊 Total órdenes en BD (sin filtro):', data._debug.totalOrdersInDB || 0);
+        console.log('  📅 Órdenes después de filtrar por fecha:', data._debug.ordersAfterDateFilter || 0);
+        console.log('  📆 Rango de fechas:', {
+          desde: data._debug.filterFrom,
+          hasta: data._debug.filterTo
         });
+        console.log('  📋 Muestra de órdenes (primeras 3):', data._debug.sampleOrders || []);
+        console.log('  🏢 Organization ID:', data._debug.organizationId);
+        
+        // Si hay órdenes en BD pero no pasan el filtro, mostrar advertencia
+        if (data._debug.totalOrdersInDB > 0 && data._debug.ordersAfterDateFilter === 0) {
+          console.warn('⚠️ Hay órdenes en la BD pero ninguna está en el rango de fechas seleccionado');
+          console.warn('   Considera cambiar el filtro de fecha o verificar las fechas de las órdenes');
+        }
+        
+        // Si no hay órdenes en BD, mostrar mensaje informativo
+        if (data._debug.totalOrdersInDB === 0) {
+          console.info('ℹ️ No hay órdenes en la base de datos para esta organización');
+          console.info('   Organization ID:', data._debug.organizationId);
+        }
       }
       
       const totalFromAPI = Object.entries(data)
