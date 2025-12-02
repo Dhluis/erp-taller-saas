@@ -5,11 +5,12 @@
  * 
  * Soporta múltiples providers:
  * - OpenAI (GPT-4, GPT-3.5)
- * - Anthropic (Claude)
+ * - Anthropic (Claude) - Opcional, requiere @anthropic-ai/sdk
  */
 
 import OpenAI from 'openai';
 // Anthropic se importa dinámicamente solo cuando se necesita
+// NOTA: @anthropic-ai/sdk es opcional. Si no está instalado, el provider Anthropic no funcionará
 import {
   loadAIContext,
   getAIConfig,
@@ -105,10 +106,17 @@ async function getAnthropicClient() {
       // Intentar importar dinámicamente usando una función para evitar que Next.js lo resuelva en build
       const loadAnthropic = async () => {
         try {
+          // Usar import dinámico con string literal para evitar que Next.js lo resuelva en build
           // @ts-ignore - Importación dinámica opcional
-          return await import('@anthropic-ai/sdk');
-        } catch {
-          return null;
+          const moduleName = '@anthropic-ai/sdk';
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          return await import(moduleName);
+        } catch (err: any) {
+          // Si el módulo no está disponible, retornar null
+          if (err?.code === 'MODULE_NOT_FOUND' || err?.message?.includes('Cannot find module')) {
+            return null;
+          }
+          throw err;
         }
       };
       
@@ -207,11 +215,12 @@ export async function processMessage(
       }
       
       if (!process.env.ANTHROPIC_API_KEY) {
-      console.error('[AIAgent] ❌ ANTHROPIC_API_KEY no está configurada');
-      return {
-        success: false,
-        error: 'ANTHROPIC_API_KEY no está configurada. Por favor, agrega tu API key en el archivo .env.local. Obtén tu key en: https://console.anthropic.com/settings/keys'
-      };
+        console.error('[AIAgent] ❌ ANTHROPIC_API_KEY no está configurada');
+        return {
+          success: false,
+          error: 'ANTHROPIC_API_KEY no está configurada. Por favor, agrega tu API key en el archivo .env.local. Obtén tu key en: https://console.anthropic.com/settings/keys'
+        };
+      }
     }
 
     // 2. Cargar contexto del taller
