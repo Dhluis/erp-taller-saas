@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const supabase = await getSupabaseServiceClient();
     
     // Obtener el organization_id correcto del usuario actual
-    const correctOrgId = await getOrganizationId();
+    const correctOrgId = await getOrganizationId(request);
     console.log('🔄 [Migrate API] Organization ID correcto:', correctOrgId);
     
     // Los organization_ids antiguos que se usaban antes

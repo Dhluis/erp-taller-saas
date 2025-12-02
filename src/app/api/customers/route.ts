@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     // ✅ USAR HELPER CENTRALIZADO - igual que órdenes y citas
     let organizationId: string;
     try {
-      organizationId = await getOrganizationId()
+      organizationId = await getOrganizationId(request)
       console.log('✅ [GET /api/customers] Organization ID:', organizationId)
     } catch (orgError: any) {
       console.error('❌ [GET /api/customers] Error obteniendo organizationId:', orgError)
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
     console.log('🔄 POST /api/customers - Iniciando...')
     
     // ✅ USAR HELPER CENTRALIZADO - igual que órdenes y citas
-    const organizationId = await getOrganizationId()
+    const organizationId = await getOrganizationId(request)
     console.log('✅ [POST /api/customers] Organization ID:', organizationId)
 
     const body = await request.json()

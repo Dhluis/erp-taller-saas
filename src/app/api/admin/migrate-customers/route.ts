@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await getSupabaseServiceClient();
     
-    const correctOrgId = await getOrganizationId();
+    const correctOrgId = await getOrganizationId(request);
     console.log('🔄 [Migrate Customers API] Organization ID correcto:', correctOrgId);
     
     const oldOrgIds = [

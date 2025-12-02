@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     // 1. Obtener contexto del tenant
     let tenantContext;
     try {
-      tenantContext = await getTenantContext();
+      tenantContext = await getTenantContext(request);
     } catch (authError: any) {
       // Si el error es de autenticación, devolver 401
       if (authError.message?.includes('no autenticado') || 
@@ -271,7 +271,7 @@ export async function POST(request: NextRequest) {
     // 1. Obtener contexto del tenant
     let tenantContext;
     try {
-      tenantContext = await getTenantContext();
+      tenantContext = await getTenantContext(request);
     } catch (authError: any) {
       // Si el error es de autenticación, devolver 401
       if (authError.message?.includes('no autenticado') || 
@@ -744,7 +744,7 @@ export async function DELETE(request: NextRequest) {
     // 1. Obtener contexto del tenant
     let tenantContext;
     try {
-      tenantContext = await getTenantContext();
+      tenantContext = await getTenantContext(request);
     } catch (authError: any) {
       // Si el error es de autenticación, devolver 401
       if (authError.message?.includes('no autenticado') || 

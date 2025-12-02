@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     // 1. Verificar autenticación y tenant context
     let tenantContext;
     try {
-      tenantContext = await getTenantContext();
+      tenantContext = await getTenantContext(request);
       diagnostics.checks.tenantContext = {
         success: true,
         organizationId: tenantContext.organizationId,

@@ -5,7 +5,7 @@
  * NO importar en componentes con 'use client'
  */
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createClientFromRequest } from '@/lib/supabase/server'
 
 // =====================================================
 // TYPES
@@ -41,10 +41,16 @@ export interface WorkshopInfo {
 /**
  * Obtiene el contexto completo del tenant (organization + workshop + user)
  * Para usar SOLO en API routes (server-side)
+ * 
+ * @param request - Opcional: NextRequest para obtener cookies del request
  */
-export async function getTenantContext(): Promise<TenantContext> {
+export async function getTenantContext(request?: any): Promise<TenantContext> {
   try {
-    const supabase = await createClient()
+    // Si hay un request, usar las cookies del request (para API routes)
+    // Si no, usar cookies() de next/headers (para Server Components)
+    const supabase = request 
+      ? createClientFromRequest(request)
+      : await createClient()
     
     // Obtener usuario autenticado
     const { data: { user }, error: userError } = await supabase.auth.getUser()

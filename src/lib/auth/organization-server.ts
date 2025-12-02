@@ -4,12 +4,21 @@
  * NO importa código del cliente
  */
 
+import type { NextRequest } from 'next/server';
+
 /**
  * Obtiene el organization_id del usuario autenticado (SOLO SERVIDOR)
+ * 
+ * @param request - Opcional: NextRequest para obtener cookies del request (para API routes)
  */
-export async function getOrganizationId(): Promise<string> {
-  const { getSupabaseServerClient } = await import('@/lib/supabase/server');
-  const supabase = await getSupabaseServerClient();
+export async function getOrganizationId(request?: NextRequest): Promise<string> {
+  const { getSupabaseServerClient, createClientFromRequest } = await import('@/lib/supabase/server');
+  
+  // Si hay request, usar las cookies del request (para API routes)
+  // Si no, usar cookies() de next/headers (para Server Components)
+  const supabase = request 
+    ? createClientFromRequest(request)
+    : await getSupabaseServerClient();
   
   // 1. Obtener usuario autenticado
   const { data: { user }, error: userError } = await supabase.auth.getUser();

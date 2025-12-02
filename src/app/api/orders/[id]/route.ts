@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const organizationId = await getOrganizationId();
+    const organizationId = await getOrganizationId(request);
     
     const { data, error } = await supabase
       .from('work_orders')

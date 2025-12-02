@@ -6,6 +6,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies'
+import type { NextRequest } from 'next/server'
 import { getConfig } from '../core/config'
 import { ConfigurationError, logError } from '../core/errors'
 import { Database } from '@/types/supabase-simple'
@@ -104,6 +105,38 @@ export function getSupabaseServiceClient(): SupabaseServerClient {
  */
 export function clearSupabaseServerCache() {
   serverClient = null
+}
+
+/**
+ * Crear cliente Supabase desde un NextRequest (para API routes)
+ * Esto permite leer las cookies directamente del request
+ */
+export function createClientFromRequest(request: NextRequest): SupabaseServerClient {
+  const config = getConfig()
+  
+  return createServerClient<Database>(
+    config.NEXT_PUBLIC_SUPABASE_URL,
+    config.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options?: ResponseCookie['options']) {
+          request.cookies.set({ name, value, ...(options ?? {}) })
+        },
+        remove(name: string, options?: ResponseCookie['options']) {
+          request.cookies.set({ name, value: '', ...(options ?? {}) })
+        },
+      },
+      global: {
+        headers: {
+          'X-Client-Info': 'erp-taller-saas-server',
+          'X-App-Version': config.NEXT_PUBLIC_APP_VERSION,
+        },
+      },
+    }
+  )
 }
 
 // Exportar cliente por defecto para compatibilidad

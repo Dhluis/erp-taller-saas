@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     
     // ✅ USAR HELPER CENTRALIZADO - igual que el Kanban
     const requestedOrganizationId = searchParams.get('organizationId')
-    const organizationIdToUse = requestedOrganizationId || await getOrganizationId()
+    const organizationIdToUse = requestedOrganizationId || await getOrganizationId(request)
     
     console.log('✅ Organization ID usado:', organizationIdToUse)
 
