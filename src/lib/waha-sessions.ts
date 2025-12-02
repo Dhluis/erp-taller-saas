@@ -18,16 +18,54 @@ export function generateSessionName(organizationId: string): string {
 }
 
 /**
- * Obtener configuración WAHA desde variables de entorno
+ * Obtener configuración WAHA
+ * Primero busca en BD (si hay organizationId), luego en variables de entorno
  */
-export function getWahaConfig(): { url: string; key: string } {
+export async function getWahaConfig(organizationId?: string): Promise<{ url: string; key: string }> {
+  // 1. PRIMERO: Intentar desde BD si hay organizationId
+  if (organizationId) {
+    try {
+      const supabase = getSupabaseServiceClient();
+      
+      const { data, error } = await supabase
+        .from('ai_agent_config')
+        .select('policies')
+        .eq('organization_id', organizationId)
+        .single();
+
+      if (!error && data?.policies) {
+        const policies = data.policies as any;
+        
+        // Buscar en ambos formatos (minúsculas y mayúsculas) para compatibilidad
+        const dbUrl = policies?.waha_api_url || policies?.WAHA_API_URL;
+        const dbKey = policies?.waha_api_key || policies?.WAHA_API_KEY;
+
+        if (dbUrl && dbKey) {
+          console.log('[WAHA Sessions] ✅ Usando configuración de BD para organización:', organizationId);
+          return {
+            url: dbUrl.replace(/\/$/, ''),
+            key: dbKey
+          };
+        } else {
+          console.log('[WAHA Sessions] ⚠️ Configuración en BD incompleta, usando variables de entorno');
+        }
+      } else if (error) {
+        console.warn('[WAHA Sessions] ⚠️ Error leyendo configuración de BD:', error.message);
+      }
+    } catch (dbError: any) {
+      console.warn('[WAHA Sessions] ⚠️ Error accediendo a BD, usando variables de entorno:', dbError.message);
+    }
+  }
+
+  // 2. FALLBACK: Variables de entorno
   const url = process.env.WAHA_API_URL;
   const key = process.env.WAHA_API_KEY;
 
   if (!url || !key) {
-    throw new Error('WAHA_API_URL y WAHA_API_KEY son requeridos en variables de entorno');
+    throw new Error('WAHA_API_URL y WAHA_API_KEY son requeridos. Configúralos en variables de entorno o en ai_agent_config.policies');
   }
 
+  console.log('[WAHA Sessions] ✅ Usando configuración de variables de entorno');
   return { url: url.replace(/\/$/, ''), key };
 }
 
@@ -35,7 +73,7 @@ export function getWahaConfig(): { url: string; key: string } {
  * Crear sesión para una organización
  */
 export async function createOrganizationSession(organizationId: string): Promise<string> {
-  const { url, key } = getWahaConfig();
+  const { url, key } = await getWahaConfig(organizationId);
   const sessionName = generateSessionName(organizationId);
 
   console.log(`[WAHA Sessions] 🚀 Creando sesión para organización: ${organizationId}`);
@@ -108,6 +146,26 @@ export async function createOrganizationSession(organizationId: string): Promise
 }
 
 /**
+ * Obtener organizationId desde nombre de sesión (para webhooks y obtener configuración)
+ */
+export async function getOrganizationFromSession(sessionName: string): Promise<string | null> {
+  const supabase = getSupabaseServiceClient();
+
+  const { data, error } = await supabase
+    .from('ai_agent_config')
+    .select('organization_id')
+    .eq('whatsapp_session_name', sessionName)
+    .single();
+
+  if (error) {
+    console.warn(`[WAHA Sessions] ⚠️ Error obteniendo organización de sesión:`, error);
+    return null;
+  }
+
+  return data?.organization_id || null;
+}
+
+/**
  * Obtener sesión de una organización (crear si no existe)
  */
 export async function getOrganizationSession(organizationId: string): Promise<string> {
@@ -143,7 +201,9 @@ export async function getSessionStatus(sessionName: string): Promise<{
   me?: { id: string; name?: string; phone?: string };
   [key: string]: any;
 }> {
-  const { url, key } = getWahaConfig();
+  // Obtener organizationId desde sessionName para usar su configuración
+  const organizationId = await getOrganizationFromSession(sessionName);
+  const { url, key } = await getWahaConfig(organizationId || undefined);
 
   try {
     const response = await fetch(`${url}/api/sessions/${sessionName}`, {
@@ -172,7 +232,9 @@ export async function getSessionStatus(sessionName: string): Promise<{
  * Obtener QR de sesión
  */
 export async function getSessionQR(sessionName: string): Promise<any> {
-  const { url, key } = getWahaConfig();
+  // Obtener organizationId desde sessionName para usar su configuración
+  const organizationId = await getOrganizationFromSession(sessionName);
+  const { url, key } = await getWahaConfig(organizationId || undefined);
 
   const response = await fetch(`${url}/api/${sessionName}/auth/qr?format=raw`, {
     headers: { 'X-Api-Key': key }
@@ -191,7 +253,9 @@ export async function getSessionQR(sessionName: string): Promise<any> {
  * Cerrar sesión (logout sin eliminar)
  */
 export async function logoutSession(sessionName: string): Promise<void> {
-  const { url, key } = getWahaConfig();
+  // Obtener organizationId desde sessionName para usar su configuración
+  const organizationId = await getOrganizationFromSession(sessionName);
+  const { url, key } = await getWahaConfig(organizationId || undefined);
 
   console.log(`[WAHA Sessions] 🔓 Cerrando sesión: ${sessionName}`);
 
@@ -210,26 +274,6 @@ export async function logoutSession(sessionName: string): Promise<void> {
 }
 
 /**
- * Obtener organizationId desde nombre de sesión (para webhooks)
- */
-export async function getOrganizationFromSession(sessionName: string): Promise<string | null> {
-  const supabase = getSupabaseServiceClient();
-
-  const { data, error } = await supabase
-    .from('ai_agent_config')
-    .select('organization_id')
-    .eq('whatsapp_session_name', sessionName)
-    .single();
-
-  if (error) {
-    console.warn(`[WAHA Sessions] ⚠️ Error obteniendo organización de sesión:`, error);
-    return null;
-  }
-
-  return data?.organization_id || null;
-}
-
-/**
  * Enviar mensaje de WhatsApp
  */
 export async function sendWhatsAppMessage(
@@ -237,7 +281,9 @@ export async function sendWhatsAppMessage(
   to: string, 
   text: string
 ): Promise<any> {
-  const { url, key } = getWahaConfig();
+  // Obtener organizationId desde sessionName para usar su configuración
+  const organizationId = await getOrganizationFromSession(sessionName);
+  const { url, key } = await getWahaConfig(organizationId || undefined);
 
   // Formatear número si no tiene @
   const chatId = to.includes('@') ? to : `${to}@c.us`;
