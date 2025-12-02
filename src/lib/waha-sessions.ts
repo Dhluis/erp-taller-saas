@@ -24,6 +24,12 @@ export function generateSessionName(organizationId: string): string {
  * 3. Finalmente busca en cualquier registro de BD que tenga la config
  */
 export async function getWahaConfig(organizationId?: string): Promise<{ url: string; key: string }> {
+  console.log('[WAHA Sessions] 🔍 Buscando configuración WAHA...', { 
+    hasEnvUrl: !!process.env.WAHA_API_URL, 
+    hasEnvKey: !!process.env.WAHA_API_KEY,
+    organizationId: organizationId || 'no proporcionado'
+  });
+
   // 1. PRIMERO: Intentar desde variables de entorno
   if (process.env.WAHA_API_URL && process.env.WAHA_API_KEY) {
     console.log('[WAHA Sessions] ✅ Usando configuración de variables de entorno');
@@ -33,9 +39,12 @@ export async function getWahaConfig(organizationId?: string): Promise<{ url: str
     };
   }
 
+  console.log('[WAHA Sessions] ⚠️ Variables de entorno no encontradas, buscando en BD...');
+
   // 2. Si no hay env vars, buscar en BD con organizationId específico
   if (organizationId) {
     try {
+      console.log('[WAHA Sessions] 🔍 Buscando configuración en BD para organización:', organizationId);
       const supabase = getSupabaseServiceClient();
       
       const { data, error } = await supabase
@@ -44,12 +53,22 @@ export async function getWahaConfig(organizationId?: string): Promise<{ url: str
         .eq('organization_id', organizationId)
         .single();
 
-      if (!error && data?.policies) {
+      if (error) {
+        console.warn('[WAHA Sessions] ⚠️ Error leyendo configuración de BD para organización:', error.message, error.code);
+      } else if (data?.policies) {
         const policies = data.policies as any;
+        console.log('[WAHA Sessions] 📦 Policies encontradas:', Object.keys(policies || {}));
         
         // Buscar en ambos formatos (minúsculas y mayúsculas) para compatibilidad
         const dbUrl = policies?.waha_api_url || policies?.WAHA_API_URL;
         const dbKey = policies?.waha_api_key || policies?.WAHA_API_KEY;
+
+        console.log('[WAHA Sessions] 🔑 Valores encontrados:', { 
+          hasUrl: !!dbUrl, 
+          hasKey: !!dbKey,
+          urlPreview: dbUrl ? `${dbUrl.substring(0, 30)}...` : null,
+          keyLength: dbKey ? dbKey.length : 0
+        });
 
         if (dbUrl && dbKey) {
           console.log('[WAHA Sessions] ✅ Usando configuración de BD para organización:', organizationId);
@@ -57,26 +76,36 @@ export async function getWahaConfig(organizationId?: string): Promise<{ url: str
             url: dbUrl.replace(/\/$/, ''),
             key: dbKey
           };
+        } else {
+          console.warn('[WAHA Sessions] ⚠️ Configuración incompleta en BD para organización:', {
+            hasUrl: !!dbUrl,
+            hasKey: !!dbKey
+          });
         }
-      } else if (error) {
-        console.warn('[WAHA Sessions] ⚠️ Error leyendo configuración de BD para organización:', error.message);
+      } else {
+        console.warn('[WAHA Sessions] ⚠️ No se encontró configuración en BD para organización:', organizationId);
       }
     } catch (dbError: any) {
-      console.warn('[WAHA Sessions] ⚠️ Error accediendo a BD:', dbError.message);
+      console.error('[WAHA Sessions] ❌ Error accediendo a BD:', dbError.message, dbError.stack);
     }
   }
 
   // 3. Buscar en cualquier registro de BD que tenga la config
   try {
+    console.log('[WAHA Sessions] 🔍 Buscando configuración en cualquier registro de BD...');
     const supabase = getSupabaseServiceClient();
     
     // Obtener todos los registros y buscar el primero que tenga la configuración
     const { data: allConfigs, error: anyError } = await supabase
       .from('ai_agent_config')
-      .select('policies')
+      .select('policies, organization_id')
       .limit(100); // Limitar a 100 para no sobrecargar
 
-    if (!anyError && allConfigs && allConfigs.length > 0) {
+    if (anyError) {
+      console.error('[WAHA Sessions] ❌ Error obteniendo configuraciones de BD:', anyError.message);
+    } else if (allConfigs && allConfigs.length > 0) {
+      console.log('[WAHA Sessions] 📊 Registros encontrados en BD:', allConfigs.length);
+      
       // Buscar el primer registro que tenga waha_api_url y waha_api_key
       for (const config of allConfigs) {
         if (config?.policies) {
@@ -87,7 +116,11 @@ export async function getWahaConfig(organizationId?: string): Promise<{ url: str
           const dbKey = policies?.waha_api_key || policies?.WAHA_API_KEY;
 
           if (dbUrl && dbKey) {
-            console.log('[WAHA Sessions] ✅ Usando configuración de BD (cualquier organización)');
+            console.log('[WAHA Sessions] ✅ Usando configuración de BD (cualquier organización):', {
+              organizationId: config.organization_id,
+              urlPreview: `${dbUrl.substring(0, 30)}...`,
+              keyLength: dbKey.length
+            });
             return {
               url: dbUrl.replace(/\/$/, ''),
               key: dbKey
@@ -95,12 +128,16 @@ export async function getWahaConfig(organizationId?: string): Promise<{ url: str
           }
         }
       }
+      console.warn('[WAHA Sessions] ⚠️ Ningún registro en BD tiene configuración WAHA completa');
+    } else {
+      console.warn('[WAHA Sessions] ⚠️ No se encontraron registros en ai_agent_config');
     }
   } catch (anyDbError: any) {
-    console.warn('[WAHA Sessions] ⚠️ Error buscando configuración en BD:', anyDbError.message);
+    console.error('[WAHA Sessions] ❌ Error buscando configuración en BD:', anyDbError.message, anyDbError.stack);
   }
 
   // 4. Si nada funciona, lanzar error
+  console.error('[WAHA Sessions] ❌ No se pudo encontrar configuración WAHA en ningún lugar');
   throw new Error('WAHA_API_URL y WAHA_API_KEY son requeridos. Configúralos en variables de entorno o en ai_agent_config.policies');
 }
 

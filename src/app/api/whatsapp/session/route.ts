@@ -138,6 +138,20 @@ export async function GET(request: NextRequest) {
 
     // 7. Otro estado (STOPPED, FAILED, ERROR, etc.)
     const currentStatus = (status && status.status) ? status.status : 'UNKNOWN';
+    
+    // Si es un error de configuración, proporcionar más información
+    if (currentStatus === 'ERROR' && status?.error) {
+      console.error(`[WhatsApp Session] ❌ Error de configuración:`, status.error);
+      return NextResponse.json({
+        success: false,
+        status: 'ERROR',
+        connected: false,
+        session: sessionName,
+        error: status.error,
+        message: 'Error de configuración de WAHA. Verifica que la configuración esté en la base de datos o en variables de entorno.'
+      }, { status: 500 });
+    }
+    
     return NextResponse.json({
       success: true,
       status: currentStatus,
