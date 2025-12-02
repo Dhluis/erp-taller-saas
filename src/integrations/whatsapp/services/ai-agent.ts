@@ -96,19 +96,51 @@ function getOpenAIClient(): OpenAI {
 
 // Anthropic se inicializa dinámicamente solo cuando se necesita
 let anthropicClient: any = null;
+let anthropicAvailable: boolean | null = null;
 
 async function getAnthropicClient() {
-  if (!anthropicClient) {
+  // Verificar si Anthropic está disponible (solo una vez)
+  if (anthropicAvailable === null) {
     try {
-      const Anthropic = (await import('@anthropic-ai/sdk')).default;
+      // Intentar importar dinámicamente usando una función para evitar que Next.js lo resuelva en build
+      const loadAnthropic = async () => {
+        try {
+          // @ts-ignore - Importación dinámica opcional
+          return await import('@anthropic-ai/sdk');
+        } catch {
+          return null;
+        }
+      };
+      
+      const anthropicModule = await loadAnthropic();
+      
+      if (!anthropicModule) {
+        anthropicAvailable = false;
+        throw new Error('Anthropic SDK no está disponible');
+      }
+      
+      const Anthropic = anthropicModule.default || anthropicModule.Anthropic;
+      
+      if (!Anthropic) {
+        anthropicAvailable = false;
+        throw new Error('Anthropic SDK no está disponible');
+      }
+      
       anthropicClient = new Anthropic({
         apiKey: process.env.ANTHROPIC_API_KEY || ''
       });
-    } catch (error) {
-      console.error('[AIAgent] Error cargando Anthropic SDK:', error);
-      throw new Error('Anthropic SDK no está instalado. Ejecuta: npm install @anthropic-ai/sdk');
+      anthropicAvailable = true;
+    } catch (error: any) {
+      anthropicAvailable = false;
+      // No lanzar error aquí, solo marcar como no disponible
+      console.warn('[AI Agent] Anthropic SDK no está disponible:', error.message);
     }
   }
+  
+  if (!anthropicAvailable || !anthropicClient) {
+    throw new Error('Anthropic SDK no está instalado. Ejecuta: npm install @anthropic-ai/sdk');
+  }
+  
   return anthropicClient;
 }
 
@@ -168,7 +200,13 @@ export async function processMessage(
       };
     }
     
-    if (aiConfig.provider === 'anthropic' && !process.env.ANTHROPIC_API_KEY) {
+    if (aiConfig.provider === 'anthropic') {
+      // Verificar si Anthropic está disponible
+      if (anthropicAvailable === false) {
+        throw new Error('Anthropic SDK no está instalado. Ejecuta: npm install @anthropic-ai/sdk');
+      }
+      
+      if (!process.env.ANTHROPIC_API_KEY) {
       console.error('[AIAgent] ❌ ANTHROPIC_API_KEY no está configurada');
       return {
         success: false,

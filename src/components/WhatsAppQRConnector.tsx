@@ -665,7 +665,10 @@ export function WhatsAppQRConnector({
     setIsDiagnosing(true)
     setDiagnosticResult(null)
     try {
-      const response = await fetch('/api/whatsapp/diagnose')
+      const response = await fetch('/api/whatsapp/diagnose', {
+        credentials: 'include',
+        cache: 'no-store'
+      })
       const data = await response.json()
       setDiagnosticResult(data.diagnostics)
     } catch (error) {

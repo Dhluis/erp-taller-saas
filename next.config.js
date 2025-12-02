@@ -29,7 +29,7 @@ const nextConfig = {
     ],
   },
 
-  // Configuración de webpack para Supabase
+  // Configuración de webpack para Supabase y módulos opcionales
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -39,6 +39,13 @@ const nextConfig = {
         tls: false,
       }
     }
+    
+    // Hacer que @anthropic-ai/sdk sea opcional (no fallar si no está instalado)
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@anthropic-ai/sdk': false, // Hacer que sea opcional
+    }
+    
     return config
   },
 

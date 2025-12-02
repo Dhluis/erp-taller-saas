@@ -43,40 +43,92 @@ export interface WorkshopInfo {
  * Para usar SOLO en API routes (server-side)
  */
 export async function getTenantContext(): Promise<TenantContext> {
-  const supabase = await createClient()
-  
-  // Obtener usuario autenticado
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) {
-    throw new Error('Usuario no autenticado')
-  }
+  try {
+    const supabase = await createClient()
+    
+    // Obtener usuario autenticado
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    if (userError) {
+      console.error('[getTenantContext] ❌ Error obteniendo usuario:', {
+        message: userError.message,
+        status: userError.status,
+        name: userError.name
+      })
+      throw new Error('Usuario no autenticado')
+    }
+    
+    if (!user) {
+      console.warn('[getTenantContext] ⚠️ No se encontró usuario autenticado')
+      throw new Error('Usuario no autenticado')
+    }
+    
+    console.log('[getTenantContext] ✅ Usuario obtenido:', user.id)
 
-  // Obtener perfil del usuario con workshop_id
-  const { data: userProfile, error: profileError } = await supabase
-    .from('users')
-    .select('workshop_id')
-    .eq('auth_user_id', user.id)
-    .single()
+    // Obtener perfil del usuario con workshop_id
+    const { data: userProfile, error: profileError } = await supabase
+      .from('users')
+      .select('workshop_id')
+      .eq('auth_user_id', user.id)
+      .single()
 
-  if (profileError || !userProfile) {
-    throw new Error('Perfil de usuario no encontrado')
-  }
+    if (profileError) {
+      console.error('[getTenantContext] ❌ Error obteniendo perfil:', {
+        message: profileError.message,
+        code: profileError.code,
+        details: profileError.details,
+        hint: profileError.hint
+      })
+      throw new Error('Perfil de usuario no encontrado')
+    }
+    
+    if (!userProfile) {
+      console.warn('[getTenantContext] ⚠️ Perfil de usuario no encontrado para user:', user.id)
+      throw new Error('Perfil de usuario no encontrado')
+    }
+    
+    console.log('[getTenantContext] ✅ Perfil obtenido, workshop_id:', userProfile.workshop_id)
 
-  // Obtener workshop y organization_id
-  const { data: workshop, error: workshopError } = await supabase
-    .from('workshops')
-    .select('id, organization_id')
-    .eq('id', userProfile.workshop_id)
-    .single()
+    // Obtener workshop y organization_id
+    const { data: workshop, error: workshopError } = await supabase
+      .from('workshops')
+      .select('id, organization_id')
+      .eq('id', userProfile.workshop_id)
+      .single()
 
-  if (workshopError || !workshop) {
-    throw new Error('Workshop no encontrado')
-  }
+    if (workshopError) {
+      console.error('[getTenantContext] ❌ Error obteniendo workshop:', {
+        message: workshopError.message,
+        code: workshopError.code,
+        workshopId: userProfile.workshop_id
+      })
+      throw new Error('Workshop no encontrado')
+    }
+    
+    if (!workshop) {
+      console.warn('[getTenantContext] ⚠️ Workshop no encontrado con id:', userProfile.workshop_id)
+      throw new Error('Workshop no encontrado')
+    }
+    
+    console.log('[getTenantContext] ✅ Workshop obtenido:', {
+      workshopId: workshop.id,
+      organizationId: workshop.organization_id
+    })
 
-  return {
-    organizationId: workshop.organization_id,
-    workshopId: workshop.id,
-    userId: user.id
+    return {
+      organizationId: workshop.organization_id,
+      workshopId: workshop.id,
+      userId: user.id
+    }
+  } catch (error: any) {
+    // Si el error ya tiene un mensaje, re-lanzarlo
+    if (error.message && (error.message.includes('no autenticado') || 
+                          error.message.includes('no encontrado'))) {
+      throw error
+    }
+    // Otros errores
+    console.error('[getTenantContext] ❌ Error inesperado:', error)
+    throw new Error('Error obteniendo contexto del tenant: ' + error.message)
   }
 }
 

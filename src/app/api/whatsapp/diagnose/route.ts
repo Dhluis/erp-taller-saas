@@ -18,20 +18,39 @@ export async function GET(request: NextRequest) {
     };
 
     // 1. Verificar autenticación y tenant context
+    let tenantContext;
     try {
-      const tenantContext = await getTenantContext();
+      tenantContext = await getTenantContext();
       diagnostics.checks.tenantContext = {
         success: true,
         organizationId: tenantContext.organizationId,
         workshopId: tenantContext.workshopId,
         userId: tenantContext.userId
       };
-    } catch (error: any) {
+    } catch (authError: any) {
+      // Si el error es de autenticación, devolver 401
+      if (authError.message?.includes('no autenticado') || 
+          authError.message?.includes('Usuario no autenticado') ||
+          authError.message?.includes('Perfil de usuario no encontrado')) {
+        diagnostics.checks.tenantContext = {
+          success: false,
+          error: 'Usuario no autenticado'
+        };
+        diagnostics.errors.push('No se pudo obtener el contexto del tenant: Usuario no autenticado');
+        diagnostics.recommendations.push('Por favor, inicia sesión para acceder al diagnóstico');
+        
+        return NextResponse.json({
+          success: false,
+          diagnostics
+        }, { status: 401 });
+      }
+      
+      // Otros errores
       diagnostics.checks.tenantContext = {
         success: false,
-        error: error.message
+        error: authError.message
       };
-      diagnostics.errors.push('No se pudo obtener el contexto del tenant: ' + error.message);
+      diagnostics.errors.push('No se pudo obtener el contexto del tenant: ' + authError.message);
       return NextResponse.json({
         success: false,
         diagnostics
