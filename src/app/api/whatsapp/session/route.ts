@@ -108,16 +108,29 @@ export async function GET(request: NextRequest) {
 
     // 5. Si necesita QR, obtenerlo
     if (status.status === 'SCAN_QR_CODE' || status.status === 'SCAN_QR' || status.status === 'STARTING') {
+      console.log(`[WhatsApp Session] 📱 Estado requiere QR, obteniendo...`);
+      
       try {
-        const qr = await getSessionQR(sessionName, organizationId);
+        const qrResponse = await getSessionQR(sessionName, organizationId);
         
-        // El QR puede venir en formato { value: "..." } o { data: "...", mimetype: "..." }
-        const qrValue = qr.value || qr.data || null;
+        console.log(`[WhatsApp Session] 📱 Respuesta QR de WAHA:`, {
+          hasValue: !!qrResponse?.value,
+          hasData: !!qrResponse?.data,
+          type: typeof qrResponse,
+          keys: qrResponse ? Object.keys(qrResponse) : []
+        });
         
-        console.log(`[WhatsApp Session] 📱 QR obtenido:`, {
-          hasValue: !!qr.value,
-          hasData: !!qr.data,
-          format: qr.value ? 'value' : (qr.data ? 'data' : 'unknown')
+        // Extraer el valor del QR - WAHA devuelve {value: "..."} 
+        const qrValue = qrResponse?.value || qrResponse?.data || null;
+        
+        if (!qrValue) {
+          console.warn(`[WhatsApp Session] ⚠️ QR obtenido pero valor vacío:`, JSON.stringify(qrResponse));
+        }
+        
+        console.log(`[WhatsApp Session] 📱 QR extraído:`, {
+          hasQR: !!qrValue,
+          qrLength: qrValue?.length || 0,
+          qrPreview: qrValue ? qrValue.substring(0, 50) + '...' : 'NULL'
         });
 
         return NextResponse.json({
@@ -125,11 +138,11 @@ export async function GET(request: NextRequest) {
           status: 'SCAN_QR',
           connected: false,
           session: sessionName,
-          qr: qrValue,
-          expiresIn: 60 // QR codes expiran en ~60 segundos
+          qr: qrValue,  // Este es el string del QR
+          expiresIn: 60
         });
       } catch (qrError: any) {
-        console.warn(`[WhatsApp Session] ⚠️ Error obteniendo QR:`, qrError.message);
+        console.error(`[WhatsApp Session] ❌ Error obteniendo QR:`, qrError.message);
         
         // Si el error es que ya está conectado, verificar estado nuevamente
         if (qrError.message?.includes('already connected') || qrError.message?.includes('ya conectado')) {
@@ -146,12 +159,14 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        // Devolver sin QR pero con el estado correcto para que el frontend pueda reintentar
         return NextResponse.json({
           success: true,
-          status: (status && status.status) ? status.status : 'STARTING',
+          status: status.status || 'SCAN_QR',
           connected: false,
           session: sessionName,
-          message: 'Esperando QR...'
+          qr: null,
+          message: 'QR no disponible temporalmente: ' + qrError.message
         });
       }
     }
