@@ -32,8 +32,9 @@ interface SessionStatus {
   expiresIn?: number
 }
 
-const POLLING_INTERVAL = 3000 // 3 segundos
+const POLLING_INTERVAL = 5000 // 5 segundos (reducido de 3 para evitar spam)
 const MAX_POLLING_TIME = 5 * 60 * 1000 // 5 minutos
+const QR_POLLING_INTERVAL = 10000 // 10 segundos cuando hay QR (menos frecuente)
 
 export function WhatsAppQRConnector({
   onStatusChange,
@@ -146,6 +147,8 @@ export function WhatsAppQRConnector({
         if (isMountedRef.current) {
           onStatusChangeRef.current?.('connected')
         }
+        // Liberar flag de verificación
+        isCheckingStatusRef.current = false
         return
       }
 
@@ -207,13 +210,15 @@ export function WhatsAppQRConnector({
         setSessionData({
           status: 'pending',
           qr: qrCode,
-          sessionName: statusData.sessionName,
-          expiresIn: statusData.expiresIn
+          sessionName: statusData.sessionName || data.sessionName || data.session,
+          expiresIn: statusData.expiresIn || data.expiresIn
         })
         setErrorMessage(null)
         if (isMountedRef.current) {
           onStatusChangeRef.current?.('pending')
         }
+        // Liberar flag de verificación
+        isCheckingStatusRef.current = false
         return
       }
 
@@ -253,7 +258,7 @@ export function WhatsAppQRConnector({
   const startPolling = useCallback(() => {
     // Si ya está conectado, no hacer polling
     if (currentStateRef.current === 'connected') {
-      console.log('[WhatsAppQRConnector] ⚠️ Ya conectado, no iniciar polling')
+      console.log(`[WhatsAppQRConnector] ⚠️ Ya conectado, no iniciar polling [ID: ${componentIdRef.current}]`)
       return
     }
 
@@ -261,6 +266,12 @@ export function WhatsAppQRConnector({
     stopPolling()
 
     pollingStartTimeRef.current = Date.now()
+
+    // Usar intervalo más largo si ya hay un QR (para evitar spam)
+    const hasQR = sessionData?.qr
+    const interval = hasQR ? QR_POLLING_INTERVAL : POLLING_INTERVAL
+    
+    console.log(`[WhatsAppQRConnector] 🔄 Iniciando polling (intervalo: ${interval}ms) [ID: ${componentIdRef.current}]`)
 
     pollingIntervalRef.current = setInterval(() => {
       // Verificar si el componente sigue montado
@@ -271,7 +282,7 @@ export function WhatsAppQRConnector({
 
       // Si ya está conectado, detener polling (usar ref para evitar closure)
       if (currentStateRef.current === 'connected') {
-        console.log('[WhatsAppQRConnector] ✅ Conectado durante polling, deteniendo...')
+        console.log(`[WhatsAppQRConnector] ✅ Conectado durante polling, deteniendo... [ID: ${componentIdRef.current}]`)
         stopPolling()
         return
       }
@@ -280,14 +291,19 @@ export function WhatsAppQRConnector({
       
       // Detener si pasaron 5 minutos
       if (elapsed >= MAX_POLLING_TIME) {
-        console.log('[WhatsAppQRConnector] Polling detenido: tiempo máximo alcanzado')
+        console.log(`[WhatsAppQRConnector] Polling detenido: tiempo máximo alcanzado [ID: ${componentIdRef.current}]`)
         stopPolling()
         return
       }
 
-      checkSessionStatus()
-    }, POLLING_INTERVAL)
-  }, [checkSessionStatus, stopPolling])
+      // Solo verificar si no hay una verificación en progreso
+      if (!isCheckingStatusRef.current) {
+        checkSessionStatus()
+      } else {
+        console.log(`[WhatsAppQRConnector] ⏸️ Verificación en progreso, omitiendo polling [ID: ${componentIdRef.current}]`)
+      }
+    }, interval)
+  }, [checkSessionStatus, stopPolling, sessionData?.qr])
 
   // Verificar estado al montar (solo una vez)
   useEffect(() => {
@@ -328,13 +344,25 @@ export function WhatsAppQRConnector({
   useEffect(() => {
     // Si ya está conectado, no hacer polling
     if (state === 'connected') {
+      console.log(`[WhatsAppQRConnector] ✅ Conectado, deteniendo polling [ID: ${componentIdRef.current}]`)
       stopPolling()
       return
     }
 
-    // Solo hacer polling si hay QR pendiente
-    if (state === 'pending' && sessionData?.qr) {
-      startPolling()
+    // Solo hacer polling si hay QR pendiente Y no hay una verificación en progreso
+    if (state === 'pending' && sessionData?.qr && !isCheckingStatusRef.current) {
+      // Esperar un poco antes de iniciar polling para evitar spam
+      const timeoutId = setTimeout(() => {
+        if (state === 'pending' && sessionData?.qr && !isCheckingStatusRef.current) {
+          console.log(`[WhatsAppQRConnector] 🔄 Iniciando polling para verificar conexión... [ID: ${componentIdRef.current}]`)
+          startPolling()
+        }
+      }, 2000) // Esperar 2 segundos antes de iniciar polling
+
+      return () => {
+        clearTimeout(timeoutId)
+        stopPolling()
+      }
     } else {
       stopPolling()
     }
@@ -349,10 +377,11 @@ export function WhatsAppQRConnector({
   const handleGenerateQR = async () => {
     setIsGeneratingQR(true)
     try {
+      // Si ya hay una sesión, usar reconnect. Si no, el GET creará una nueva
       const response = await fetch('/api/whatsapp/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start' })
+        body: JSON.stringify({ action: 'reconnect' })
       })
 
       const data = await response.json()
