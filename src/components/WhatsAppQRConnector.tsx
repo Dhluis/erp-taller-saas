@@ -476,7 +476,6 @@ export function WhatsAppQRConnector({
       // Si hay QR en la respuesta, usarlo
       if (data.qr) {
         const qrValue = typeof data.qr === 'string' ? data.qr : (data.qr.value || data.qr.data || null)
-        setQrCode(qrValue)
         setSessionData({
           status: 'SCAN_QR',
           qr: qrValue,
@@ -484,8 +483,10 @@ export function WhatsAppQRConnector({
         })
       } else {
         // Si no hay QR, limpiar y reiniciar polling
-        setQrCode(null)
-        setSessionData(null)
+        setSessionData({
+          status: 'SCAN_QR',
+          session: data.session
+        })
         // Reiniciar polling para obtener el QR
         setTimeout(() => {
           checkSessionStatus()
@@ -526,7 +527,6 @@ export function WhatsAppQRConnector({
       // Si hay QR en la respuesta, usarlo
       if (data.qr) {
         const qrValue = typeof data.qr === 'string' ? data.qr : (data.qr.value || data.qr.data || null)
-        setQrCode(qrValue)
         setSessionData({
           status: 'SCAN_QR',
           qr: qrValue,
@@ -534,7 +534,6 @@ export function WhatsAppQRConnector({
         })
       } else {
         // Si no hay QR, limpiar y reiniciar polling
-        setQrCode(null)
         setSessionData({
           status: 'SCAN_QR',
           session: data.session
