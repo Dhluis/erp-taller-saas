@@ -40,7 +40,14 @@ export function WhatsAppQRConnector({
   className,
   darkMode = true
 }: WhatsAppQRConnectorProps) {
-  console.log('[WhatsAppQRConnector] 🚀 Componente montándose...')
+  // Usar un ref para evitar logs múltiples en Strict Mode
+  const mountCountRef = useRef(0)
+  const componentIdRef = useRef(Math.random().toString(36).substring(7))
+  
+  mountCountRef.current += 1
+  if (mountCountRef.current === 1) {
+    console.log(`[WhatsAppQRConnector] 🚀 Componente montándose... [ID: ${componentIdRef.current}]`)
+  }
   
   const [state, setState] = useState<'loading' | 'connected' | 'pending' | 'error'>('loading')
   const [sessionData, setSessionData] = useState<SessionStatus | null>(null)
@@ -57,6 +64,7 @@ export function WhatsAppQRConnector({
   const hasCheckedInitialStatusRef = useRef(false)
   const currentStateRef = useRef<'loading' | 'connected' | 'pending' | 'error'>('loading')
   const onStatusChangeRef = useRef(onStatusChange)
+  const isInitializingRef = useRef(false)
 
   // Actualizar ref cuando cambia onStatusChange
   useEffect(() => {
@@ -74,8 +82,14 @@ export function WhatsAppQRConnector({
 
   // Función para verificar estado de sesión
   const checkSessionStatus = useCallback(async () => {
+    // Evitar múltiples llamadas simultáneas
+    if (isInitializingRef.current) {
+      console.log(`[WhatsAppQRConnector] ⏸️ Verificación ya en progreso, omitiendo... [ID: ${componentIdRef.current}]`)
+      return
+    }
+    
     try {
-      console.log('[WhatsAppQRConnector] 🔍 Verificando estado de sesión...')
+      console.log(`[WhatsAppQRConnector] 🔍 Verificando estado de sesión... [ID: ${componentIdRef.current}]`)
       const response = await fetch('/api/whatsapp/session')
       
       // Verificar si la respuesta es OK
@@ -259,24 +273,33 @@ export function WhatsAppQRConnector({
 
   // Verificar estado al montar (solo una vez)
   useEffect(() => {
-    // Solo verificar una vez al montar
-    if (hasCheckedInitialStatusRef.current) {
+    // Protección contra múltiples inicializaciones
+    if (hasCheckedInitialStatusRef.current || isInitializingRef.current) {
       return
     }
 
-    console.log('[WhatsAppQRConnector] 🔄 Verificando estado inicial...')
+    // Marcar como inicializando
+    isInitializingRef.current = true
     hasCheckedInitialStatusRef.current = true
+
+    console.log(`[WhatsAppQRConnector] 🔄 Verificando estado inicial... [ID: ${componentIdRef.current}]`)
     
     checkSessionStatus().catch(err => {
-      console.error('[WhatsAppQRConnector] ❌ Error en checkSessionStatus desde useEffect:', err)
+      console.error(`[WhatsAppQRConnector] ❌ Error en checkSessionStatus desde useEffect [ID: ${componentIdRef.current}]:`, err)
+    }).finally(() => {
+      isInitializingRef.current = false
     })
 
     // Cleanup al desmontar
     return () => {
+      console.log(`[WhatsAppQRConnector] 🧹 Limpiando componente... [ID: ${componentIdRef.current}]`)
       isMountedRef.current = false
       stopPolling()
+      // Resetear flags para permitir re-inicialización si el componente se vuelve a montar
+      hasCheckedInitialStatusRef.current = false
+      isInitializingRef.current = false
     }
-  }, []) // Sin dependencias - solo ejecutar una vez al montar
+  }, [checkSessionStatus, stopPolling]) // Incluir dependencias necesarias
 
   // Actualizar ref cuando cambia el estado
   useEffect(() => {
