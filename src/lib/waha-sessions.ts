@@ -142,6 +142,36 @@ export async function getWahaConfig(organizationId?: string): Promise<{ url: str
 }
 
 /**
+ * Iniciar/reiniciar una sesión existente
+ */
+export async function startSession(sessionName: string, organizationId?: string): Promise<void> {
+  const orgId = organizationId || await getOrganizationFromSession(sessionName);
+  const { url, key } = await getWahaConfig(orgId || undefined);
+
+  console.log(`[WAHA Sessions] ▶️ Iniciando sesión: ${sessionName}`);
+
+  const response = await fetch(`${url}/api/sessions/${sessionName}/start`, {
+    method: 'POST',
+    headers: {
+      'X-Api-Key': key,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response) {
+    throw new Error('No se recibió respuesta de WAHA al iniciar sesión');
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Error desconocido');
+    console.error(`[WAHA Sessions] ❌ Error iniciando sesión: ${response.status}`, errorText);
+    throw new Error(`Error iniciando sesión: ${response.status} - ${errorText}`);
+  }
+
+  console.log(`[WAHA Sessions] ✅ Sesión iniciada: ${sessionName}`);
+}
+
+/**
  * Crear sesión para una organización
  */
 export async function createOrganizationSession(organizationId: string): Promise<string> {
@@ -197,6 +227,23 @@ export async function createOrganizationSession(organizationId: string): Promise
 
   if (response.status === 409) {
     console.log(`[WAHA Sessions] ℹ️ Sesión ${sessionName} ya existe`);
+    
+    // Si la sesión ya existe, verificar su estado y reiniciarla si está en FAILED
+    try {
+      const status = await getSessionStatus(sessionName, organizationId);
+      if (status.status === 'FAILED' || status.status === 'STOPPED') {
+        console.log(`[WAHA Sessions] 🔄 Sesión en estado ${status.status}, reiniciando...`);
+        await startSession(sessionName, organizationId);
+      }
+    } catch (statusError: any) {
+      console.warn(`[WAHA Sessions] ⚠️ Error verificando estado de sesión existente:`, statusError.message);
+      // Intentar iniciar de todas formas
+      try {
+        await startSession(sessionName, organizationId);
+      } catch (startError: any) {
+        console.warn(`[WAHA Sessions] ⚠️ Error iniciando sesión existente:`, startError.message);
+      }
+    }
   } else {
     console.log(`[WAHA Sessions] ✅ Sesión ${sessionName} creada exitosamente`);
   }

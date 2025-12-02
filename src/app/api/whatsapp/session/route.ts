@@ -5,7 +5,8 @@ import {
   getSessionStatus, 
   getSessionQR,
   logoutSession,
-  createOrganizationSession
+  createOrganizationSession,
+  startSession
 } from '@/lib/waha-sessions';
 
 // Forzar que este endpoint use Node.js runtime para tener acceso a process.env
@@ -136,7 +137,47 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 7. Otro estado (STOPPED, FAILED, ERROR, etc.)
+    // 7. Si la sesión está en estado FAILED o STOPPED, intentar reiniciarla
+    if (status.status === 'FAILED' || status.status === 'STOPPED') {
+      console.log(`[WhatsApp Session] 🔄 Sesión en estado ${status.status}, intentando reiniciar...`);
+      try {
+        await startSession(sessionName, organizationId);
+        // Esperar un momento y verificar el estado nuevamente
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const newStatus = await getSessionStatus(sessionName, organizationId);
+        
+        if (newStatus.status === 'WORKING') {
+          const phone = newStatus.me?.id?.split('@')[0] || newStatus.me?.phone || null;
+          return NextResponse.json({
+            success: true,
+            status: 'WORKING',
+            connected: true,
+            session: sessionName,
+            phone
+          });
+        }
+        
+        return NextResponse.json({
+          success: true,
+          status: newStatus.status || 'STARTING',
+          connected: false,
+          session: sessionName,
+          message: `Sesión reiniciada, estado: ${newStatus.status || 'STARTING'}`
+        });
+      } catch (restartError: any) {
+        console.error(`[WhatsApp Session] ❌ Error reiniciando sesión:`, restartError.message);
+        return NextResponse.json({
+          success: true,
+          status: status.status,
+          connected: false,
+          session: sessionName,
+          message: `Sesión en estado ${status.status}. Error al reiniciar: ${restartError.message}`,
+          error: restartError.message
+        });
+      }
+    }
+
+    // 8. Otro estado (ERROR, etc.)
     const currentStatus = (status && status.status) ? status.status : 'UNKNOWN';
     
     // Si es un error de configuración, proporcionar más información
