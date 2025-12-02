@@ -290,18 +290,83 @@ export async function POST(request: NextRequest) {
 
     // 3. Procesar acción
     if (action === 'logout' || action === 'change_number') {
-      console.log(`[WhatsApp Session] 🔓 Cerrando sesión: ${sessionName}`);
+      console.log('=== LOGOUT/CHANGE_NUMBER ===');
+      console.log(`[WhatsApp Session] 🔓 Acción: ${action} para organización: ${organizationId}`);
       
       // Obtener configuración WAHA
       const { url, key } = await getWahaConfig(organizationId);
+      const sessionName = await getOrganizationSession(organizationId);
       
-      // Hacer logout en WAHA (NO delete - solo desvincula el número)
-      const logoutResponse = await fetch(`${url}/api/${sessionName}/auth/logout`, {
+      console.log('1. Config:', { 
+        url: url.substring(0, 50) + '...', 
+        sessionName,
+        hasKey: !!key,
+        keyLength: key?.length || 0
+      });
+      
+      // Primero verificar estado actual
+      let statusBeforeData: any = null;
+      try {
+        const statusBefore = await fetch(`${url}/api/sessions/${sessionName}`, {
+          headers: { 'X-Api-Key': key }
+        });
+        
+        if (statusBefore.ok) {
+          statusBeforeData = await statusBefore.json();
+          console.log('2. Estado ANTES del logout:', {
+            status: statusBeforeData.status,
+            connected: statusBeforeData.status === 'WORKING',
+            phone: statusBeforeData.me?.id || statusBeforeData.me?.phone || 'N/A'
+          });
+        } else {
+          const errorText = await statusBefore.text();
+          console.warn('2. Error obteniendo estado antes:', statusBefore.status, errorText);
+        }
+      } catch (statusError: any) {
+        console.error('2. Excepción obteniendo estado antes:', statusError.message);
+      }
+      
+      // Hacer logout
+      const logoutUrl = `${url}/api/${sessionName}/auth/logout`;
+      console.log('3. Llamando logout:', logoutUrl);
+      
+      const logoutResponse = await fetch(logoutUrl, {
         method: 'POST',
         headers: { 'X-Api-Key': key }
       });
       
-      console.log(`[WhatsApp Session] 📊 Logout response: ${logoutResponse.status}`);
+      const logoutText = await logoutResponse.text();
+      console.log('4. Respuesta logout:', {
+        status: logoutResponse.status,
+        statusText: logoutResponse.statusText,
+        body: logoutText.substring(0, 200)
+      });
+      
+      // Si logout falla, intentar con stop + start
+      if (!logoutResponse.ok && logoutResponse.status !== 404) {
+        console.log('5. Logout falló, intentando stop + start...');
+        
+        try {
+          // Stop session
+          const stopResponse = await fetch(`${url}/api/sessions/${sessionName}/stop`, {
+            method: 'POST',
+            headers: { 'X-Api-Key': key }
+          });
+          console.log('5a. Stop response:', stopResponse.status);
+          
+          // Esperar
+          await new Promise(r => setTimeout(r, 2000));
+          
+          // Start session
+          const startResponse = await fetch(`${url}/api/sessions/${sessionName}/start`, {
+            method: 'POST',
+            headers: { 'X-Api-Key': key }
+          });
+          console.log('5b. Start response:', startResponse.status);
+        } catch (fallbackError: any) {
+          console.error('5. Error en fallback stop+start:', fallbackError.message);
+        }
+      }
       
       // Actualizar BD - marcar como desconectado
       const supabase = getSupabaseServiceClient();
@@ -309,47 +374,95 @@ export async function POST(request: NextRequest) {
         .from('ai_agent_config')
         .update({ whatsapp_connected: false, updated_at: new Date().toISOString() })
         .eq('organization_id', organizationId);
+      console.log('6. BD actualizada: whatsapp_connected = false');
       
-      // Esperar un momento para que WAHA procese el logout
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Esperar a que WAHA procese
+      await new Promise(r => setTimeout(r, 3000));
+      console.log('7. Espera completada (3 segundos)');
       
-      // Intentar obtener nuevo QR
+      // Verificar estado después
+      let statusAfterData: any = null;
       try {
-        const qrResponse = await fetch(`${url}/api/${sessionName}/auth/qr?format=raw`, {
+        const statusAfter = await fetch(`${url}/api/sessions/${sessionName}`, {
           headers: { 'X-Api-Key': key }
         });
         
-        if (qrResponse.ok) {
-          const qrData = await qrResponse.json();
-          const qrValue = qrData.value || qrData.data || null;
-          
-          console.log(`[WhatsApp Session] ✅ QR obtenido después de logout`);
-          
-          return NextResponse.json({
-            success: true,
-            status: 'SCAN_QR',
-            connected: false,
-            session: sessionName,
-            qr: qrValue,
-            expiresIn: 60,
-            message: 'Escanea el QR para conectar nuevo número'
+        if (statusAfter.ok) {
+          statusAfterData = await statusAfter.json();
+          console.log('8. Estado DESPUÉS:', {
+            status: statusAfterData.status,
+            connected: statusAfterData.status === 'WORKING',
+            phone: statusAfterData.me?.id || statusAfterData.me?.phone || 'N/A'
           });
         } else {
-          console.log(`[WhatsApp Session] ⚠️ QR aún no disponible (status: ${qrResponse.status}), el cliente debe hacer polling`);
+          const errorText = await statusAfter.text();
+          console.warn('8. Error obteniendo estado después:', statusAfter.status, errorText);
         }
-      } catch (qrError: any) {
-        console.log(`[WhatsApp Session] ⚠️ Error obteniendo QR después de logout:`, qrError.message);
-        // Continuar y devolver respuesta sin QR - el cliente hará polling
+      } catch (statusError: any) {
+        console.error('8. Excepción obteniendo estado después:', statusError.message);
       }
       
-      // Si no se pudo obtener QR inmediatamente, devolver estado SCAN_QR sin QR
-      // El cliente hará polling para obtenerlo
+      // Intentar obtener QR
+      let qrData: any = null;
+      const needsQR = !statusAfterData || 
+                      statusAfterData.status === 'SCAN_QR' || 
+                      statusAfterData.status === 'SCAN_QR_CODE' ||
+                      statusAfterData.status === 'STARTING';
+      
+      if (needsQR) {
+        try {
+          const qrResponse = await fetch(`${url}/api/${sessionName}/auth/qr?format=raw`, {
+            headers: { 'X-Api-Key': key }
+          });
+          
+          if (qrResponse.ok) {
+            qrData = await qrResponse.json();
+            const qrValue = qrData.value || qrData.data || null;
+            console.log('9. QR obtenido:', {
+              hasValue: !!qrData?.value,
+              hasData: !!qrData?.data,
+              qrLength: qrValue?.length || 0
+            });
+            
+            return NextResponse.json({
+              success: true,
+              status: statusAfterData?.status || 'SCAN_QR',
+              connected: false,
+              session: sessionName,
+              qr: qrValue,
+              expiresIn: 60,
+              message: 'Escanea el QR para conectar nuevo número',
+              debug: {
+                statusBefore: statusBeforeData?.status || 'unknown',
+                statusAfter: statusAfterData?.status || 'unknown',
+                logoutStatus: logoutResponse.status
+              }
+            });
+          } else {
+            const qrErrorText = await qrResponse.text();
+            console.log('9. QR no disponible:', qrResponse.status, qrErrorText.substring(0, 200));
+          }
+        } catch (qrError: any) {
+          console.log('9. Error obteniendo QR:', qrError.message);
+        }
+      } else {
+        console.log('9. No se necesita QR, estado actual:', statusAfterData?.status);
+      }
+      
+      // Si no se pudo obtener QR inmediatamente, devolver estado actual
       return NextResponse.json({
         success: true,
-        status: 'SCAN_QR',
-        connected: false,
+        status: statusAfterData?.status || 'SCAN_QR',
+        connected: statusAfterData?.status === 'WORKING',
         session: sessionName,
-        message: 'Sesión cerrada. Recarga para ver el nuevo QR.'
+        message: statusAfterData?.status === 'WORKING' 
+          ? 'Sesión aún conectada. Intenta nuevamente.' 
+          : 'Sesión cerrada. Recarga para ver el nuevo QR.',
+        debug: {
+          statusBefore: statusBeforeData?.status || 'unknown',
+          statusAfter: statusAfterData?.status || 'unknown',
+          logoutStatus: logoutResponse.status
+        }
       });
     }
 
