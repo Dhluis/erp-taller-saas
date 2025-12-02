@@ -100,7 +100,13 @@ export function WhatsAppQRConnector({
         throw new Error(`${errorMsg}${hint}${debug}`)
       }
 
-      const statusData = data.data
+      const statusData = data.data || data
+
+      // Verificar que statusData existe antes de usarlo
+      if (!statusData) {
+        console.error('[WhatsAppQRConnector] ❌ statusData es undefined')
+        throw new Error('No se recibió información de estado de sesión')
+      }
 
       // Detectar si está conectado: status 'connected', 'WORKING', o connected: true
       const isConnected = statusData?.status === 'connected' || 
@@ -113,8 +119,8 @@ export function WhatsAppQRConnector({
         setState('connected')
         setSessionData({
           status: 'connected',
-          phone: statusData?.phone || data.data?.phone,
-          name: statusData?.name || data.data?.name
+          phone: statusData?.phone || data.phone,
+          name: statusData?.name || data.name
         })
         setErrorMessage(null)
         // Detener polling si está conectado
@@ -125,7 +131,8 @@ export function WhatsAppQRConnector({
         return
       }
 
-      if (statusData.status === 'pending') {
+      // Verificar que statusData.status existe antes de usarlo
+      if (statusData && statusData.status === 'pending') {
         // El QR puede venir en dos formatos:
         // 1. String que debe convertirse a QR (formato 'value' de WAHA)
         // 2. Data URI de imagen base64 (formato antiguo)
@@ -324,8 +331,8 @@ export function WhatsAppQRConnector({
         setState('connected')
         setSessionData({
           status: 'connected',
-          phone: data.data?.phone,
-          name: data.data?.name
+          phone: data.data?.phone || data.phone,
+          name: data.data?.name || data.name
         })
         setErrorMessage(null)
         onStatusChangeRef.current?.('connected')
@@ -333,7 +340,8 @@ export function WhatsAppQRConnector({
       }
 
       // El QR puede venir como string (formato 'value') o como imagen base64
-      let qrCode = data.data.qr || ''
+      const responseData = data.data || data
+      let qrCode = responseData?.qr || ''
       
       // Detectar si es un string que debe convertirse a QR
       const isQRString = qrCode && 
@@ -354,8 +362,8 @@ export function WhatsAppQRConnector({
       setSessionData({
         status: 'pending',
         qr: qrCode,
-        sessionName: data.data.sessionName,
-        expiresIn: data.data.expiresIn
+        sessionName: responseData?.sessionName || data.sessionName,
+        expiresIn: responseData?.expiresIn || data.expiresIn
       })
       setErrorMessage(null)
       onStatusChangeRef.current?.('pending')
@@ -426,8 +434,8 @@ export function WhatsAppQRConnector({
         setState('connected')
         setSessionData({
           status: 'connected',
-          phone: data.data?.phone,
-          name: data.data?.name
+          phone: data.data?.phone || data.phone,
+          name: data.data?.name || data.name
         })
         setErrorMessage(null)
         onStatusChangeRef.current?.('connected')
@@ -435,7 +443,8 @@ export function WhatsAppQRConnector({
       }
 
       // El QR puede venir como string (formato 'value') o como imagen base64
-      let qrCode = data.data.qr || ''
+      const responseData = data.data || data
+      let qrCode = responseData?.qr || ''
       
       // Detectar si es un string que debe convertirse a QR
       const isQRString = qrCode && 
@@ -456,8 +465,8 @@ export function WhatsAppQRConnector({
       setSessionData({
         status: 'pending',
         qr: qrCode,
-        sessionName: data.data.sessionName,
-        expiresIn: data.data.expiresIn
+        sessionName: responseData?.sessionName || data.sessionName,
+        expiresIn: responseData?.expiresIn || data.expiresIn
       })
       setErrorMessage(null)
       onStatusChangeRef.current?.('pending')
