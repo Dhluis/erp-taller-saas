@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
+import { getWahaConfig } from '@/lib/waha-sessions';
 
 /**
  * GET /api/whatsapp/diagnose
@@ -116,16 +117,32 @@ export async function GET(request: NextRequest) {
       diagnostics.errors.push('Error al acceder a la base de datos: ' + dbError.message);
     }
 
-    // 4. Intentar conectar con el servidor WAHA (si tenemos configuración)
-    const wahaUrl = envUrl || diagnostics.checks.databaseConfig?.urlPreview;
-    const wahaKey = envKey || (diagnostics.checks.databaseConfig?.hasKey ? '***' : null);
+    // 4. Intentar obtener configuración WAHA (de env vars o BD)
+    let wahaConfig: { url: string; key: string } | null = null;
+    try {
+      wahaConfig = await getWahaConfig(organizationId);
+      diagnostics.checks.wahaConfig = {
+        success: true,
+        source: envUrl && envKey ? 'environment' : 'database',
+        urlPreview: wahaConfig.url.substring(0, 30) + '...',
+        keyLength: wahaConfig.key.length
+      };
+    } catch (configError: any) {
+      diagnostics.checks.wahaConfig = {
+        success: false,
+        error: configError.message
+      };
+      diagnostics.errors.push('No se pudo obtener configuración WAHA: ' + configError.message);
+    }
 
-    if (wahaUrl && wahaKey && envKey) {
+    // 5. Intentar conectar con el servidor WAHA (si tenemos configuración)
+    if (wahaConfig) {
       try {
-        const testResponse = await fetch(`${envUrl.replace(/\/$/, '')}/api/sessions`, {
+        console.log('[Diagnose] 🔍 Probando conexión con WAHA:', wahaConfig.url);
+        const testResponse = await fetch(`${wahaConfig.url}/api/sessions`, {
           method: 'GET',
           headers: {
-            'X-Api-Key': envKey,
+            'X-Api-Key': wahaConfig.key,
             'Content-Type': 'application/json'
           },
           signal: AbortSignal.timeout(5000) // 5 segundos timeout
@@ -134,17 +151,27 @@ export async function GET(request: NextRequest) {
         diagnostics.checks.wahaServerConnection = {
           success: testResponse.ok,
           status: testResponse.status,
-          statusText: testResponse.statusText
+          statusText: testResponse.statusText,
+          source: diagnostics.checks.wahaConfig?.source || 'unknown'
         };
 
         if (!testResponse.ok) {
           const errorText = await testResponse.text();
           diagnostics.errors.push(`Error al conectar con servidor WAHA: ${testResponse.status} - ${errorText}`);
+        } else {
+          // Intentar parsear la respuesta para ver si hay sesiones
+          try {
+            const sessions = await testResponse.json();
+            diagnostics.checks.wahaServerConnection.sessionsCount = Array.isArray(sessions) ? sessions.length : 0;
+          } catch (e) {
+            // No es JSON, está bien
+          }
         }
       } catch (serverError: any) {
         diagnostics.checks.wahaServerConnection = {
           success: false,
-          error: serverError.message
+          error: serverError.message,
+          source: diagnostics.checks.wahaConfig?.source || 'unknown'
         };
         diagnostics.errors.push('No se pudo conectar con el servidor WAHA: ' + serverError.message);
         diagnostics.recommendations.push('Verifica que el servidor WAHA esté funcionando y accesible');
