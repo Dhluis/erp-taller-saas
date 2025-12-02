@@ -187,12 +187,18 @@ export async function GET(request: NextRequest) {
 
     // 7. Si la sesión está en estado FAILED o STOPPED, intentar reiniciarla
     if (status.status === 'FAILED' || status.status === 'STOPPED') {
-      console.log(`[WhatsApp Session] 🔄 Sesión en estado ${status.status}, intentando reiniciar...`);
+      console.log(`[WhatsApp Session] 🔄 Sesión en estado ${status.status}, reiniciando...`);
+      
       try {
         await startSession(sessionName, organizationId);
-        // Esperar un momento y verificar el estado nuevamente
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Esperar un momento para que la sesión se inicialice
+        console.log(`[WhatsApp Session] ⏳ Esperando inicialización...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Verificar el nuevo estado
         const newStatus = await getSessionStatus(sessionName, organizationId);
+        console.log(`[WhatsApp Session] 📊 Nuevo estado después de reinicio: ${newStatus.status}`);
         
         if (newStatus.status === 'WORKING') {
           const phone = newStatus.me?.id?.split('@')[0] || newStatus.me?.phone || null;
@@ -205,23 +211,58 @@ export async function GET(request: NextRequest) {
           });
         }
         
+        // Si necesita QR después de reiniciar, obtenerlo
+        if (newStatus.status === 'SCAN_QR_CODE' || newStatus.status === 'SCAN_QR' || newStatus.status === 'STARTING') {
+          console.log(`[WhatsApp Session] 📱 Sesión reiniciada, obteniendo QR...`);
+          
+          try {
+            const qr = await getSessionQR(sessionName, organizationId);
+            const qrValue = qr.value || qr.data || null;
+            
+            console.log(`[WhatsApp Session] 📱 QR obtenido después de reinicio:`, {
+              hasQR: !!qrValue,
+              qrLength: qrValue?.length || 0
+            });
+            
+            return NextResponse.json({
+              success: true,
+              status: 'SCAN_QR',
+              connected: false,
+              session: sessionName,
+              qr: qrValue,
+              expiresIn: 60,
+              message: 'Sesión reiniciada. Escanea el código QR.'
+            });
+          } catch (qrError: any) {
+            console.warn(`[WhatsApp Session] ⚠️ Error obteniendo QR después de reinicio:`, qrError.message);
+            return NextResponse.json({
+              success: true,
+              status: newStatus.status || 'STARTING',
+              connected: false,
+              session: sessionName,
+              message: `Sesión reiniciada. Estado: ${newStatus.status}. QR no disponible aún.`
+            });
+          }
+        }
+        
+        // Otro estado después de reiniciar
         return NextResponse.json({
           success: true,
-          status: newStatus.status || 'STARTING',
+          status: newStatus.status || 'UNKNOWN',
           connected: false,
           session: sessionName,
-          message: `Sesión reiniciada, estado: ${newStatus.status || 'STARTING'}`
+          message: `Sesión reiniciada. Estado: ${newStatus.status || 'UNKNOWN'}`
         });
+        
       } catch (restartError: any) {
         console.error(`[WhatsApp Session] ❌ Error reiniciando sesión:`, restartError.message);
         return NextResponse.json({
-          success: true,
-          status: status.status,
+          success: false,
+          status: 'ERROR',
           connected: false,
           session: sessionName,
-          message: `Sesión en estado ${status.status}. Error al reiniciar: ${restartError.message}`,
-          error: restartError.message
-        });
+          error: `Error al reiniciar sesión: ${restartError.message}`
+        }, { status: 500 });
       }
     }
 
