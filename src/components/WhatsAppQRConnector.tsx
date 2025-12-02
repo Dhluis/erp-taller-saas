@@ -150,11 +150,22 @@ export function WhatsAppQRConnector({
       }
 
       // Verificar que statusData.status existe antes de usarlo
-      if (statusData && statusData.status === 'pending') {
+      // Manejar múltiples estados que requieren QR: pending, SCAN_QR, SCAN_QR_CODE, STARTING
+      const needsQR = statusData && (
+        statusData.status === 'pending' ||
+        statusData.status === 'SCAN_QR' ||
+        statusData.status === 'SCAN_QR_CODE' ||
+        statusData.status === 'STARTING' ||
+        data.status === 'SCAN_QR' ||
+        data.status === 'SCAN_QR_CODE'
+      )
+
+      if (needsQR) {
         // El QR puede venir en dos formatos:
         // 1. String que debe convertirse a QR (formato 'value' de WAHA)
         // 2. Data URI de imagen base64 (formato antiguo)
-        let qrCode = statusData.qr || ''
+        // El QR puede estar en statusData.qr o data.qr
+        let qrCode = statusData.qr || data.qr || ''
         
         // Detectar si es un string que debe convertirse a QR (no es base64 ni data URI)
         const isQRString = qrCode && 
