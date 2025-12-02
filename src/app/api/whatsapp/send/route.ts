@@ -10,11 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
-import {
-  sendTextMessage,
-  sendImage,
-  sendFile
-} from '@/integrations/whatsapp/services/waha-service';
+import { getOrganizationSession, sendWhatsAppMessage } from '@/lib/waha-sessions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -93,8 +89,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 7. Enviar mensaje según el tipo
-    let sendResult;
+    // 7. Obtener sesión de la organización
+    const sessionName = await getOrganizationSession(organizationId);
+    console.log(`[WhatsApp Send] 📝 Usando sesión: ${sessionName}`);
+
+    // 8. Enviar mensaje según el tipo
+    let sendResult: any;
     let messageBody = '';
     let messageId: string | undefined;
 
@@ -107,47 +107,25 @@ export async function POST(request: NextRequest) {
           }, { status: 400 });
         }
         
-        console.log(`[WhatsApp Send] Enviando mensaje de texto a ${body.to}`);
-        sendResult = await sendTextMessage(organizationId, body.to, body.message);
+        console.log(`[WhatsApp Send] 📤 Enviando mensaje de texto a ${body.to}`);
+        sendResult = await sendWhatsAppMessage(sessionName, body.to, body.message);
         messageBody = body.message;
+        messageId = sendResult?.id || sendResult?.messageId || `text_${Date.now()}`;
         break;
 
       case 'image':
-        if (!body.mediaUrl) {
-          return NextResponse.json({
-            success: false,
-            error: 'El campo "mediaUrl" es requerido para mensajes de imagen'
-          }, { status: 400 });
-        }
-        
-        console.log(`[WhatsApp Send] Enviando imagen a ${body.to}`);
-        sendResult = await sendImage(
-          organizationId,
-          body.to,
-          body.mediaUrl,
-          body.caption
-        );
-        messageBody = body.caption || '';
-        break;
+        // Por ahora solo soportamos texto, imágenes se pueden agregar después
+        return NextResponse.json({
+          success: false,
+          error: 'Envío de imágenes aún no implementado con el nuevo sistema multi-tenant'
+        }, { status: 501 });
 
       case 'file':
-        if (!body.mediaUrl || !body.filename) {
-          return NextResponse.json({
-            success: false,
-            error: 'Los campos "mediaUrl" y "filename" son requeridos para mensajes de archivo'
-          }, { status: 400 });
-        }
-        
-        console.log(`[WhatsApp Send] Enviando archivo a ${body.to}`);
-        sendResult = await sendFile(
-          organizationId,
-          body.to,
-          body.mediaUrl,
-          body.filename,
-          body.caption
-        );
-        messageBody = body.caption || body.filename || '';
-        break;
+        // Por ahora solo soportamos texto, archivos se pueden agregar después
+        return NextResponse.json({
+          success: false,
+          error: 'Envío de archivos aún no implementado con el nuevo sistema multi-tenant'
+        }, { status: 501 });
 
       default:
         return NextResponse.json({
@@ -156,16 +134,16 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
     }
 
-    // 8. Verificar resultado del envío
-    if (!sendResult.sent) {
-      console.error('[WhatsApp Send] ❌ Error enviando mensaje:', sendResult.error);
+    // 9. Verificar resultado del envío
+    if (!sendResult) {
+      console.error('[WhatsApp Send] ❌ Error enviando mensaje: sin resultado');
       return NextResponse.json({
         success: false,
-        error: sendResult.error || 'Error desconocido al enviar mensaje'
+        error: 'Error desconocido al enviar mensaje'
       }, { status: 500 });
     }
 
-    messageId = sendResult.messageId;
+    console.log(`[WhatsApp Send] ✅ Mensaje enviado exitosamente: ${messageId}`);
     console.log(`[WhatsApp Send] ✅ Mensaje enviado exitosamente: ${messageId}`);
 
     // 9. Guardar mensaje en la base de datos

@@ -19,8 +19,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { processMessage } from '@/integrations/whatsapp/services/ai-agent';
-import { sendTextMessage } from '@/integrations/whatsapp/services/waha-service';
-import { formatPhoneNumber } from '@/integrations/whatsapp/services/waha-service';
+import { getOrganizationFromSession, sendWhatsAppMessage } from '@/lib/waha-sessions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -107,10 +106,10 @@ async function handleMessageEvent(body: any) {
       return;
     }
 
-    // 4. Extraer organizationId del nombre de sesión (org_{id} -> id)
-    const organizationId = extractOrganizationId(sessionName);
+    // 4. Obtener organizationId desde la sesión (multi-tenant)
+    const organizationId = await getOrganizationFromSession(sessionName);
     if (!organizationId) {
-      console.error('[WAHA Webhook] ❌ No se pudo extraer organizationId de:', sessionName);
+      console.error('[WAHA Webhook] ❌ No se pudo obtener organizationId de sesión:', sessionName);
       return;
     }
 
@@ -181,28 +180,30 @@ async function handleMessageEvent(body: any) {
     if (aiResult.success && aiResult.response) {
       console.log('[WAHA Webhook] ✅ AI generó respuesta, enviando...');
       
-      const sendResult = await sendTextMessage(
-        organizationId,
-        customerPhone,
-        aiResult.response
-      );
-
-      if (sendResult.sent) {
-        // 13. Guardar mensaje saliente
-        await saveOutgoingMessage(
-          supabase,
-          conversationId,
-          organizationId,
-          {
-            messageId: sendResult.messageId || `out_${Date.now()}`,
-            to: customerPhone,
-            body: aiResult.response,
-            timestamp: new Date()
-          }
+      try {
+        const sendResult = await sendWhatsAppMessage(
+          sessionName,
+          customerPhone,
+          aiResult.response
         );
-        console.log('[WAHA Webhook] ✅ Respuesta enviada y guardada');
-      } else {
-        console.error('[WAHA Webhook] ❌ Error enviando respuesta:', sendResult.error);
+
+        if (sendResult) {
+          // 13. Guardar mensaje saliente
+          await saveOutgoingMessage(
+            supabase,
+            conversationId,
+            organizationId,
+            {
+              messageId: sendResult.id || sendResult.messageId || `out_${Date.now()}`,
+              to: customerPhone,
+              body: aiResult.response,
+              timestamp: new Date()
+            }
+          );
+          console.log('[WAHA Webhook] ✅ Respuesta enviada y guardada');
+        }
+      } catch (sendError: any) {
+        console.error('[WAHA Webhook] ❌ Error enviando respuesta:', sendError.message);
       }
     } else {
       console.log('[WAHA Webhook] ⚠️ AI no generó respuesta:', aiResult.error);
@@ -229,10 +230,10 @@ async function handleSessionStatusEvent(body: any) {
       return;
     }
 
-    // Extraer organizationId
-    const organizationId = extractOrganizationId(sessionName);
+    // Obtener organizationId desde la sesión (multi-tenant)
+    const organizationId = await getOrganizationFromSession(sessionName);
     if (!organizationId) {
-      console.error('[WAHA Webhook] ❌ No se pudo extraer organizationId');
+      console.error('[WAHA Webhook] ❌ No se pudo obtener organizationId de sesión:', sessionName);
       return;
     }
 
@@ -280,20 +281,7 @@ async function handleReactionEvent(body: any) {
   }
 }
 
-/**
- * Extrae organizationId del nombre de sesión
- * Formato: org_{organizationId} -> organizationId
- */
-function extractOrganizationId(sessionName: string): string | null {
-  if (!sessionName) return null;
-  
-  const match = sessionName.match(/^org_(.+)$/);
-  if (match && match[1]) {
-    return match[1];
-  }
-  
-  return null;
-}
+// Función extractOrganizationId eliminada - ahora se usa getOrganizationFromSession de waha-sessions.ts
 
 /**
  * Extrae número de teléfono del chatId
