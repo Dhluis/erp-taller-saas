@@ -95,7 +95,10 @@ export function WhatsAppQRConnector({
     
     try {
       console.log(`[WhatsAppQRConnector] 🔍 Verificando estado de sesión... [ID: ${componentIdRef.current}]`)
-      const response = await fetch('/api/whatsapp/session')
+      const response = await fetch('/api/whatsapp/session', {
+        credentials: 'include',
+        cache: 'no-store'
+      })
       
       // Verificar si la respuesta es OK
       if (!response.ok) {
@@ -381,6 +384,7 @@ export function WhatsAppQRConnector({
       const response = await fetch('/api/whatsapp/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ action: 'reconnect' })
       })
 
@@ -453,7 +457,8 @@ export function WhatsAppQRConnector({
     setIsDisconnecting(true)
     try {
       const response = await fetch('/api/whatsapp/session', {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       })
 
       const data = await response.json()
@@ -483,6 +488,7 @@ export function WhatsAppQRConnector({
       const response = await fetch('/api/whatsapp/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ action: 'restart' })
       })
 

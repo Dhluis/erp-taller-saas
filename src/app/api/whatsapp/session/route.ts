@@ -25,7 +25,24 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     // 1. Obtener contexto del tenant
-    const tenantContext = await getTenantContext();
+    let tenantContext;
+    try {
+      tenantContext = await getTenantContext();
+    } catch (authError: any) {
+      // Si el error es de autenticación, devolver 401
+      if (authError.message?.includes('no autenticado') || 
+          authError.message?.includes('Usuario no autenticado') ||
+          authError.message?.includes('Perfil de usuario no encontrado')) {
+        console.warn('[WhatsApp Session] ⚠️ Error de autenticación:', authError.message);
+        return NextResponse.json({
+          success: false,
+          error: 'Usuario no autenticado'
+        }, { status: 401 });
+      }
+      // Re-lanzar otros errores
+      throw authError;
+    }
+    
     if (!tenantContext) {
       return NextResponse.json({
         success: false,
@@ -205,6 +222,16 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('[WhatsApp Session] ❌ Error en GET:', error);
     
+    // Detectar errores de autenticación
+    if (error.message?.includes('no autenticado') || 
+        error.message?.includes('Usuario no autenticado') ||
+        error.message?.includes('Perfil de usuario no encontrado')) {
+      return NextResponse.json({
+        success: false,
+        error: 'Usuario no autenticado'
+      }, { status: 401 });
+    }
+    
     return NextResponse.json({
       success: false,
       error: error.message || 'Error desconocido al verificar estado de sesión',
@@ -226,7 +253,24 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // 1. Obtener contexto del tenant
-    const tenantContext = await getTenantContext();
+    let tenantContext;
+    try {
+      tenantContext = await getTenantContext();
+    } catch (authError: any) {
+      // Si el error es de autenticación, devolver 401
+      if (authError.message?.includes('no autenticado') || 
+          authError.message?.includes('Usuario no autenticado') ||
+          authError.message?.includes('Perfil de usuario no encontrado')) {
+        console.warn('[WhatsApp Session] ⚠️ Error de autenticación:', authError.message);
+        return NextResponse.json({
+          success: false,
+          error: 'Usuario no autenticado'
+        }, { status: 401 });
+      }
+      // Re-lanzar otros errores
+      throw authError;
+    }
+    
     if (!tenantContext) {
       return NextResponse.json({
         success: false,
@@ -418,6 +462,17 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('[WhatsApp Session] ❌ Error en POST:', error);
+    
+    // Detectar errores de autenticación
+    if (error.message?.includes('no autenticado') || 
+        error.message?.includes('Usuario no autenticado') ||
+        error.message?.includes('Perfil de usuario no encontrado')) {
+      return NextResponse.json({
+        success: false,
+        error: 'Usuario no autenticado'
+      }, { status: 401 });
+    }
+    
     return NextResponse.json({
       success: false,
       error: error.message || 'Error desconocido al procesar acción'
@@ -432,7 +487,24 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // 1. Obtener contexto del tenant
-    const tenantContext = await getTenantContext();
+    let tenantContext;
+    try {
+      tenantContext = await getTenantContext();
+    } catch (authError: any) {
+      // Si el error es de autenticación, devolver 401
+      if (authError.message?.includes('no autenticado') || 
+          authError.message?.includes('Usuario no autenticado') ||
+          authError.message?.includes('Perfil de usuario no encontrado')) {
+        console.warn('[WhatsApp Session] ⚠️ Error de autenticación:', authError.message);
+        return NextResponse.json({
+          success: false,
+          error: 'Usuario no autenticado'
+        }, { status: 401 });
+      }
+      // Re-lanzar otros errores
+      throw authError;
+    }
+    
     if (!tenantContext) {
       return NextResponse.json({
         success: false,
@@ -456,6 +528,17 @@ export async function DELETE(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('[WhatsApp Session] ❌ Error en DELETE:', error);
+    
+    // Detectar errores de autenticación
+    if (error.message?.includes('no autenticado') || 
+        error.message?.includes('Usuario no autenticado') ||
+        error.message?.includes('Perfil de usuario no encontrado')) {
+      return NextResponse.json({
+        success: false,
+        error: 'Usuario no autenticado'
+      }, { status: 401 });
+    }
+    
     return NextResponse.json({
       success: false,
       error: error.message || 'Error desconocido al desconectar número'
