@@ -65,6 +65,7 @@ export function WhatsAppQRConnector({
   const currentStateRef = useRef<'loading' | 'connected' | 'pending' | 'error'>('loading')
   const onStatusChangeRef = useRef(onStatusChange)
   const isInitializingRef = useRef(false)
+  const isCheckingStatusRef = useRef(false)
 
   // Actualizar ref cuando cambia onStatusChange
   useEffect(() => {
@@ -82,11 +83,14 @@ export function WhatsAppQRConnector({
 
   // Función para verificar estado de sesión
   const checkSessionStatus = useCallback(async () => {
-    // Evitar múltiples llamadas simultáneas
-    if (isInitializingRef.current) {
+    // Evitar múltiples llamadas simultáneas (pero permitir la primera)
+    if (isCheckingStatusRef.current) {
       console.log(`[WhatsAppQRConnector] ⏸️ Verificación ya en progreso, omitiendo... [ID: ${componentIdRef.current}]`)
       return
     }
+    
+    // Marcar como en progreso
+    isCheckingStatusRef.current = true
     
     try {
       console.log(`[WhatsAppQRConnector] 🔍 Verificando estado de sesión... [ID: ${componentIdRef.current}]`)
@@ -210,7 +214,7 @@ export function WhatsAppQRConnector({
         onStatusChangeRef.current?.('error')
       }
     } catch (error) {
-      console.error('[WhatsAppQRConnector] ❌ Error verificando estado:', error)
+      console.error(`[WhatsAppQRConnector] ❌ Error verificando estado [ID: ${componentIdRef.current}]:`, error)
       
       // Log detallado del error
       if (error instanceof Error) {
@@ -228,6 +232,9 @@ export function WhatsAppQRConnector({
         onStatusChangeRef.current?.('error')
         stopPolling()
       }
+    } finally {
+      // Siempre liberar el flag al terminar (éxito o error)
+      isCheckingStatusRef.current = false
     }
   }, [stopPolling])
 
