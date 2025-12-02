@@ -457,8 +457,10 @@ export function WhatsAppQRConnector({
     setIsDisconnecting(true)
     try {
       const response = await fetch('/api/whatsapp/session', {
-        method: 'DELETE',
-        credentials: 'include'
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'logout' })
       })
 
       const data = await response.json()
@@ -467,10 +469,29 @@ export function WhatsAppQRConnector({
         throw new Error(data.error || 'Error al desconectar')
       }
 
-      // Actualizar estado
+      // Resetear estado
       currentStateRef.current = 'pending'
       setState('pending')
-      setSessionData(null)
+      
+      // Si hay QR en la respuesta, usarlo
+      if (data.qr) {
+        const qrValue = typeof data.qr === 'string' ? data.qr : (data.qr.value || data.qr.data || null)
+        setQrCode(qrValue)
+        setSessionData({
+          status: 'SCAN_QR',
+          qr: qrValue,
+          session: data.session
+        })
+      } else {
+        // Si no hay QR, limpiar y reiniciar polling
+        setQrCode(null)
+        setSessionData(null)
+        // Reiniciar polling para obtener el QR
+        setTimeout(() => {
+          checkSessionStatus()
+        }, 2000)
+      }
+      
       setErrorMessage(null)
       onStatusChangeRef.current?.('pending')
     } catch (error) {
@@ -489,61 +510,41 @@ export function WhatsAppQRConnector({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ action: 'restart' })
+        body: JSON.stringify({ action: 'change_number' })
       })
 
       const data = await response.json()
 
       if (!data.success) {
-        throw new Error(data.error || 'Error al reiniciar sesión')
+        throw new Error(data.error || 'Error al cambiar número')
       }
 
-      // Verificar si la sesión ya está conectada (status WORKING o connected: true)
-      const isConnected = data.status === 'WORKING' || 
-                         data.connected === true ||
-                         data.data?.status === 'connected' ||
-                         data.data?.sessionStatus === 'WORKING'
-
-      if (isConnected) {
-        // Sesión ya conectada, mostrar estado conectado
-        currentStateRef.current = 'connected'
-        setState('connected')
-        setSessionData({
-          status: 'connected',
-          phone: data.data?.phone || data.phone,
-          name: data.data?.name || data.name
-        })
-        setErrorMessage(null)
-        onStatusChangeRef.current?.('connected')
-        return
-      }
-
-      // El QR puede venir como string (formato 'value') o como imagen base64
-      const responseData = data.data || data
-      let qrCode = responseData?.qr || ''
-      
-      // Detectar si es un string que debe convertirse a QR
-      const isQRString = qrCode && 
-        !qrCode.startsWith('data:image') && 
-        !qrCode.match(/^[A-Za-z0-9+/=]+$/) &&
-        qrCode.length > 0
-      
-      // Solo formatear como imagen si es base64 puro (formato antiguo)
-      if (!isQRString && qrCode && !qrCode.startsWith('data:image')) {
-        if (qrCode.match(/^[A-Za-z0-9+/=]+$/)) {
-          qrCode = `data:image/png;base64,${qrCode}`
-        }
-      }
-      
-      // Actualizar estado con nuevo QR
+      // Resetear estado a pending/SCAN_QR
       currentStateRef.current = 'pending'
       setState('pending')
-      setSessionData({
-        status: 'pending',
-        qr: qrCode,
-        sessionName: responseData?.sessionName || data.sessionName,
-        expiresIn: responseData?.expiresIn || data.expiresIn
-      })
+      
+      // Si hay QR en la respuesta, usarlo
+      if (data.qr) {
+        const qrValue = typeof data.qr === 'string' ? data.qr : (data.qr.value || data.qr.data || null)
+        setQrCode(qrValue)
+        setSessionData({
+          status: 'SCAN_QR',
+          qr: qrValue,
+          session: data.session
+        })
+      } else {
+        // Si no hay QR, limpiar y reiniciar polling
+        setQrCode(null)
+        setSessionData({
+          status: 'SCAN_QR',
+          session: data.session
+        })
+        // Reiniciar polling para obtener el QR
+        setTimeout(() => {
+          checkSessionStatus()
+        }, 2000)
+      }
+      
       setErrorMessage(null)
       onStatusChangeRef.current?.('pending')
     } catch (error) {

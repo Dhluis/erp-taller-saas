@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { 
   getOrganizationSession, 
   getSessionStatus, 
   getSessionQR,
   logoutSession,
   createOrganizationSession,
-  startSession
+  startSession,
+  getWahaConfig
 } from '@/lib/waha-sessions';
 
 // Forzar que este endpoint use Node.js runtime para tener acceso a process.env
@@ -289,12 +291,65 @@ export async function POST(request: NextRequest) {
     // 3. Procesar acción
     if (action === 'logout' || action === 'change_number') {
       console.log(`[WhatsApp Session] 🔓 Cerrando sesión: ${sessionName}`);
-      await logoutSession(sessionName, organizationId);
       
+      // Obtener configuración WAHA
+      const { url, key } = await getWahaConfig(organizationId);
+      
+      // Hacer logout en WAHA (NO delete - solo desvincula el número)
+      const logoutResponse = await fetch(`${url}/api/${sessionName}/auth/logout`, {
+        method: 'POST',
+        headers: { 'X-Api-Key': key }
+      });
+      
+      console.log(`[WhatsApp Session] 📊 Logout response: ${logoutResponse.status}`);
+      
+      // Actualizar BD - marcar como desconectado
+      const supabase = getSupabaseServiceClient();
+      await supabase
+        .from('ai_agent_config')
+        .update({ whatsapp_connected: false, updated_at: new Date().toISOString() })
+        .eq('organization_id', organizationId);
+      
+      // Esperar un momento para que WAHA procese el logout
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Intentar obtener nuevo QR
+      try {
+        const qrResponse = await fetch(`${url}/api/${sessionName}/auth/qr?format=raw`, {
+          headers: { 'X-Api-Key': key }
+        });
+        
+        if (qrResponse.ok) {
+          const qrData = await qrResponse.json();
+          const qrValue = qrData.value || qrData.data || null;
+          
+          console.log(`[WhatsApp Session] ✅ QR obtenido después de logout`);
+          
+          return NextResponse.json({
+            success: true,
+            status: 'SCAN_QR',
+            connected: false,
+            session: sessionName,
+            qr: qrValue,
+            expiresIn: 60,
+            message: 'Escanea el QR para conectar nuevo número'
+          });
+        } else {
+          console.log(`[WhatsApp Session] ⚠️ QR aún no disponible (status: ${qrResponse.status}), el cliente debe hacer polling`);
+        }
+      } catch (qrError: any) {
+        console.log(`[WhatsApp Session] ⚠️ Error obteniendo QR después de logout:`, qrError.message);
+        // Continuar y devolver respuesta sin QR - el cliente hará polling
+      }
+      
+      // Si no se pudo obtener QR inmediatamente, devolver estado SCAN_QR sin QR
+      // El cliente hará polling para obtenerlo
       return NextResponse.json({
         success: true,
-        message: 'Sesión cerrada. Escanea el nuevo código QR para conectar un nuevo número.',
-        session: sessionName
+        status: 'SCAN_QR',
+        connected: false,
+        session: sessionName,
+        message: 'Sesión cerrada. Recarga para ver el nuevo QR.'
       });
     }
 
