@@ -288,7 +288,16 @@ export async function POST(request: NextRequest) {
         try {
           await logoutSession(sessionName, organizationId);
           // Esperar un momento para que se cierre
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // Verificar que se cerró correctamente
+          const statusAfterLogout = await getSessionStatus(sessionName, organizationId);
+          if (statusAfterLogout.status === 'WORKING') {
+            console.warn(`[WhatsApp Session] ⚠️ Sesión aún conectada después de logout, forzando...`);
+            // Intentar cerrar de nuevo
+            await logoutSession(sessionName, organizationId);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
         } catch (e) {
           console.warn(`[WhatsApp Session] ⚠️ Error cerrando sesión:`, e);
         }
@@ -298,38 +307,104 @@ export async function POST(request: NextRequest) {
       try {
         const newSessionName = await createOrganizationSession(organizationId);
         
-        // Obtener el QR de la nueva sesión
-        const qr = await getSessionQR(newSessionName, organizationId);
-        const qrValue = qr.value || qr.data || null;
+        // Esperar un momento para que la sesión se inicialice
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
-        return NextResponse.json({
-          success: true,
-          status: 'SCAN_QR',
-          connected: false,
-          session: newSessionName,
-          qr: qrValue,
-          expiresIn: 60,
-          message: 'Sesión reiniciada. Escanea el código QR para vincular WhatsApp.'
-        });
-      } catch (createError: any) {
-        // Si falla porque la sesión ya existe (422), obtener el QR actual
-        if (createError.message?.includes('422') || createError.message?.includes('already exists')) {
-          console.log(`[WhatsApp Session] ℹ️ Sesión ya existe, obteniendo QR actual...`);
+        // Verificar el estado antes de obtener QR
+        const newStatus = await getSessionStatus(newSessionName, organizationId);
+        
+        // Solo obtener QR si la sesión está en estado que requiere QR
+        if (newStatus.status === 'SCAN_QR_CODE' || newStatus.status === 'SCAN_QR' || newStatus.status === 'STARTING') {
           try {
-            const qr = await getSessionQR(sessionName, organizationId);
+            const qr = await getSessionQR(newSessionName, organizationId);
             const qrValue = qr.value || qr.data || null;
             
             return NextResponse.json({
               success: true,
               status: 'SCAN_QR',
               connected: false,
-              session: sessionName,
+              session: newSessionName,
               qr: qrValue,
               expiresIn: 60,
-              message: 'Escanea el código QR para vincular WhatsApp.'
+              message: 'Sesión reiniciada. Escanea el código QR para vincular WhatsApp.'
             });
           } catch (qrError: any) {
-            throw createError; // Lanzar el error original si no se puede obtener QR
+            console.warn(`[WhatsApp Session] ⚠️ Error obteniendo QR:`, qrError.message);
+            // Si no se puede obtener QR, devolver el estado actual
+            return NextResponse.json({
+              success: true,
+              status: newStatus.status || 'STARTING',
+              connected: false,
+              session: newSessionName,
+              message: `Sesión reiniciada. Estado: ${newStatus.status || 'STARTING'}`
+            });
+          }
+        } else if (newStatus.status === 'WORKING') {
+          // Si ya está conectada después de reiniciar
+          const phone = newStatus.me?.id?.split('@')[0] || newStatus.me?.phone || null;
+          return NextResponse.json({
+            success: true,
+            status: 'WORKING',
+            connected: true,
+            session: newSessionName,
+            phone,
+            message: 'Sesión ya conectada.'
+          });
+        } else {
+          // Otro estado
+          return NextResponse.json({
+            success: true,
+            status: newStatus.status || 'UNKNOWN',
+            connected: false,
+            session: newSessionName,
+            message: `Sesión reiniciada. Estado: ${newStatus.status || 'UNKNOWN'}`
+          });
+        }
+      } catch (createError: any) {
+        // Si falla porque la sesión ya existe (422), verificar estado y obtener QR si es necesario
+        if (createError.message?.includes('422') || createError.message?.includes('already exists')) {
+          console.log(`[WhatsApp Session] ℹ️ Sesión ya existe, verificando estado...`);
+          try {
+            const existingStatus = await getSessionStatus(sessionName, organizationId);
+            
+            if (existingStatus.status === 'WORKING') {
+              // Ya está conectada, devolver estado conectado
+              const phone = existingStatus.me?.id?.split('@')[0] || existingStatus.me?.phone || null;
+              return NextResponse.json({
+                success: true,
+                status: 'WORKING',
+                connected: true,
+                session: sessionName,
+                phone,
+                message: 'Sesión ya conectada.'
+              });
+            } else if (existingStatus.status === 'SCAN_QR_CODE' || existingStatus.status === 'SCAN_QR') {
+              // Está esperando QR, obtenerlo
+              const qr = await getSessionQR(sessionName, organizationId);
+              const qrValue = qr.value || qr.data || null;
+              
+              return NextResponse.json({
+                success: true,
+                status: 'SCAN_QR',
+                connected: false,
+                session: sessionName,
+                qr: qrValue,
+                expiresIn: 60,
+                message: 'Escanea el código QR para vincular WhatsApp.'
+              });
+            } else {
+              // Otro estado
+              return NextResponse.json({
+                success: true,
+                status: existingStatus.status || 'UNKNOWN',
+                connected: false,
+                session: sessionName,
+                message: `Estado actual: ${existingStatus.status || 'UNKNOWN'}`
+              });
+            }
+          } catch (statusError: any) {
+            console.error(`[WhatsApp Session] ❌ Error verificando estado de sesión existente:`, statusError);
+            throw createError; // Lanzar el error original
           }
         }
         throw createError;

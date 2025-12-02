@@ -129,13 +129,26 @@ export default function TrainAgentPage() {
         const sessionResponse = await fetch('/api/whatsapp/session')
         const sessionData = await sessionResponse.json()
 
-        if (sessionData.success && sessionData.data.status === 'connected' && sessionData.data.phone) {
+        // Verificar que sessionData existe y tiene la estructura correcta
+        if (!sessionData || !sessionData.success) {
+          console.warn('No se pudo obtener información de la sesión:', sessionData);
+          return;
+        }
+
+        // El phone puede estar en sessionData.data.phone, sessionData.phone, o sessionData.data?.phone
+        const phone = sessionData.data?.phone || sessionData.phone || null;
+        const isConnected = sessionData.connected === true || 
+                           sessionData.status === 'WORKING' ||
+                           sessionData.data?.status === 'connected' ||
+                           sessionData.data?.sessionStatus === 'WORKING';
+
+        if (isConnected && phone) {
           // Guardar número de teléfono en la configuración del AI agent
           const configResponse = await fetch('/api/whatsapp/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              whatsapp_phone: sessionData.data.phone,
+              whatsapp_phone: phone,
               whatsapp_connected: true
             })
           })
@@ -148,6 +161,12 @@ export default function TrainAgentPage() {
             console.error('Error guardando configuración de WhatsApp:', configResult.error)
             toast.warning('WhatsApp conectado, pero hubo un error al guardar en la configuración')
           }
+        } else {
+          console.warn('Sesión no está completamente conectada o no tiene teléfono:', {
+            isConnected,
+            phone,
+            sessionData
+          });
         }
       } catch (error) {
         console.error('Error al guardar configuración de WhatsApp:', error)
