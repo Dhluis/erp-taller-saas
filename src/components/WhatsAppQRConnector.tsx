@@ -318,7 +318,8 @@ export function WhatsAppQRConnector({
   // Verificar estado al montar (solo una vez)
   useEffect(() => {
     // Protección contra múltiples inicializaciones
-    if (hasCheckedInitialStatusRef.current || isInitializingRef.current) {
+    if (hasCheckedInitialStatusRef.current || isInitializingRef.current || isCheckingStatusRef.current) {
+      console.log(`[WhatsAppQRConnector] ⏸️ Verificación inicial ya en progreso o completada, omitiendo... [ID: ${componentIdRef.current}]`)
       return
     }
 
@@ -342,8 +343,9 @@ export function WhatsAppQRConnector({
       // Resetear flags para permitir re-inicialización si el componente se vuelve a montar
       hasCheckedInitialStatusRef.current = false
       isInitializingRef.current = false
+      isCheckingStatusRef.current = false
     }
-  }, [checkSessionStatus, stopPolling]) // Incluir dependencias necesarias
+  }, []) // Sin dependencias - solo ejecutar una vez al montar
 
   // Actualizar ref cuando cambia el estado
   useEffect(() => {
