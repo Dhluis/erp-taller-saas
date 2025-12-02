@@ -219,14 +219,16 @@ export async function createOrganizationSession(organizationId: string): Promise
     console.warn('[WAHA Sessions] ⚠️ Respuesta no es JSON:', responseText);
   }
 
-  // 409 = sesión ya existe, está bien
-  if (!response.ok && response.status !== 409) {
+  // 409 o 422 = sesión ya existe, está bien
+  const sessionExists = response.status === 409 || response.status === 422;
+  
+  if (!response.ok && !sessionExists) {
     console.error(`[WAHA Sessions] ❌ Error creando sesión: ${response.status}`, responseText);
     throw new Error(`Error creando sesión: ${response.status} - ${responseText}`);
   }
 
-  if (response.status === 409) {
-    console.log(`[WAHA Sessions] ℹ️ Sesión ${sessionName} ya existe`);
+  if (sessionExists) {
+    console.log(`[WAHA Sessions] ℹ️ Sesión ${sessionName} ya existe (status: ${response.status})`);
     
     // Si la sesión ya existe, verificar su estado y reiniciarla si está en FAILED
     try {
@@ -234,10 +236,15 @@ export async function createOrganizationSession(organizationId: string): Promise
       if (status.status === 'FAILED' || status.status === 'STOPPED') {
         console.log(`[WAHA Sessions] 🔄 Sesión en estado ${status.status}, reiniciando...`);
         await startSession(sessionName, organizationId);
+      } else if (status.status === 'SCAN_QR_CODE' || status.status === 'SCAN_QR') {
+        console.log(`[WAHA Sessions] ℹ️ Sesión en estado ${status.status}, esperando QR...`);
+        // La sesión está esperando QR, no hacer nada más
+      } else {
+        console.log(`[WAHA Sessions] ℹ️ Sesión en estado ${status.status}`);
       }
     } catch (statusError: any) {
       console.warn(`[WAHA Sessions] ⚠️ Error verificando estado de sesión existente:`, statusError.message);
-      // Intentar iniciar de todas formas
+      // Intentar iniciar de todas formas si hay error
       try {
         await startSession(sessionName, organizationId);
       } catch (startError: any) {

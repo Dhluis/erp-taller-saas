@@ -257,22 +257,83 @@ export async function POST(request: NextRequest) {
     if (action === 'reconnect' || action === 'restart') {
       console.log(`[WhatsApp Session] 🔄 Reiniciando sesión: ${sessionName}`);
       
-      // Cerrar sesión actual
-      try {
-        await logoutSession(sessionName);
-      } catch (e) {
-        // Ignorar error si ya está cerrada
-        console.log(`[WhatsApp Session] ℹ️ Sesión ya cerrada o no existe`);
-      }
-
-      // Crear nueva sesión
-      const newSessionName = await createOrganizationSession(organizationId);
+      // Primero verificar el estado actual de la sesión
+      const currentStatus = await getSessionStatus(sessionName, organizationId);
       
-      return NextResponse.json({
-        success: true,
-        message: 'Sesión reiniciada. Escanea el código QR para vincular WhatsApp.',
-        session: newSessionName
-      });
+      // Si la sesión está en SCAN_QR_CODE, simplemente devolver el QR actual
+      if (currentStatus.status === 'SCAN_QR_CODE' || currentStatus.status === 'SCAN_QR') {
+        console.log(`[WhatsApp Session] ℹ️ Sesión ya está esperando QR, obteniendo QR actual...`);
+        try {
+          const qr = await getSessionQR(sessionName, organizationId);
+          const qrValue = qr.value || qr.data || null;
+          
+          return NextResponse.json({
+            success: true,
+            status: 'SCAN_QR',
+            connected: false,
+            session: sessionName,
+            qr: qrValue,
+            expiresIn: 60,
+            message: 'Escanea el código QR para vincular WhatsApp.'
+          });
+        } catch (qrError: any) {
+          console.warn(`[WhatsApp Session] ⚠️ Error obteniendo QR:`, qrError.message);
+          // Continuar con el proceso de reinicio
+        }
+      }
+      
+      // Si la sesión está conectada, cerrarla primero
+      if (currentStatus.status === 'WORKING') {
+        console.log(`[WhatsApp Session] 🔓 Sesión conectada, cerrando primero...`);
+        try {
+          await logoutSession(sessionName, organizationId);
+          // Esperar un momento para que se cierre
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (e) {
+          console.warn(`[WhatsApp Session] ⚠️ Error cerrando sesión:`, e);
+        }
+      }
+      
+      // Crear/reiniciar sesión
+      try {
+        const newSessionName = await createOrganizationSession(organizationId);
+        
+        // Obtener el QR de la nueva sesión
+        const qr = await getSessionQR(newSessionName, organizationId);
+        const qrValue = qr.value || qr.data || null;
+        
+        return NextResponse.json({
+          success: true,
+          status: 'SCAN_QR',
+          connected: false,
+          session: newSessionName,
+          qr: qrValue,
+          expiresIn: 60,
+          message: 'Sesión reiniciada. Escanea el código QR para vincular WhatsApp.'
+        });
+      } catch (createError: any) {
+        // Si falla porque la sesión ya existe (422), obtener el QR actual
+        if (createError.message?.includes('422') || createError.message?.includes('already exists')) {
+          console.log(`[WhatsApp Session] ℹ️ Sesión ya existe, obteniendo QR actual...`);
+          try {
+            const qr = await getSessionQR(sessionName, organizationId);
+            const qrValue = qr.value || qr.data || null;
+            
+            return NextResponse.json({
+              success: true,
+              status: 'SCAN_QR',
+              connected: false,
+              session: sessionName,
+              qr: qrValue,
+              expiresIn: 60,
+              message: 'Escanea el código QR para vincular WhatsApp.'
+            });
+          } catch (qrError: any) {
+            throw createError; // Lanzar el error original si no se puede obtener QR
+          }
+        }
+        throw createError;
+      }
     }
 
     return NextResponse.json({ 
