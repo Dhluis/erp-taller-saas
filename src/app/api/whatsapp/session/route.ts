@@ -119,16 +119,26 @@ export async function GET(request: NextRequest) {
       try {
         const qrResponse = await getSessionQR(sessionName, organizationId);
         
-        console.log(`[WhatsApp Session] 📱 Respuesta QR de WAHA:`, {
+        console.log(`[WhatsApp Session] 📱 Respuesta QR de WAHA (COMPLETA):`, {
           hasValue: !!qrResponse?.value,
           hasData: !!qrResponse?.data,
           type: typeof qrResponse,
           keys: qrResponse ? Object.keys(qrResponse) : [],
-          error: qrResponse?.error
+          error: qrResponse?.error,
+          fullResponse: JSON.stringify(qrResponse).substring(0, 500),  // Primeros 500 caracteres
+          valuePreview: qrResponse?.value ? qrResponse.value.substring(0, 50) : 'NO VALUE',
+          dataPreview: qrResponse?.data ? qrResponse.data.substring(0, 50) : 'NO DATA'
         });
         
         // Extraer el valor del QR - WAHA devuelve {value: "..."} 
         const qrValue = qrResponse?.value || qrResponse?.data || null;
+        
+        console.log(`[WhatsApp Session] 📱 QR extraído (antes de validar):`, {
+          qrValue: qrValue,
+          qrValueType: typeof qrValue,
+          qrValueLength: qrValue?.length || 0,
+          qrValuePreview: qrValue ? qrValue.substring(0, 50) : 'NULL'
+        });
         
         // Validar que el QR no esté vacío
         const isValidQR = qrValue && 

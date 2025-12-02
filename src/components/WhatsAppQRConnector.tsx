@@ -216,6 +216,16 @@ export function WhatsAppQRConnector({
         // 1. String que debe convertirse a QR (formato 'value' de WAHA) - contiene @ o &
         // 2. Data URI de imagen base64 (formato antiguo) - empieza con "data:image"
         // El QR puede estar en statusData.qr o data.qr
+        
+        console.log('[WhatsAppQRConnector] 🔍 Datos completos recibidos:', {
+          statusData: statusData,
+          data: data,
+          statusDataQr: statusData?.qr,
+          dataQr: data?.qr,
+          statusDataQrType: typeof statusData?.qr,
+          dataQrType: typeof data?.qr
+        })
+        
         let qrCode = statusData.qr || data.qr || null
         
         console.log('[WhatsAppQRConnector] 🔍 QR recibido (raw):', {
@@ -224,7 +234,8 @@ export function WhatsAppQRConnector({
           keys: typeof qrCode === 'object' && qrCode !== null ? Object.keys(qrCode) : [],
           stringified: JSON.stringify(qrCode),
           isNull: qrCode === null,
-          isEmptyString: qrCode === ''
+          isEmptyString: qrCode === '',
+          fullObject: qrCode  // Mostrar el objeto completo
         })
         
         // Si viene como objeto {value: "..."} o {data: "..."}, extraer
