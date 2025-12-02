@@ -184,7 +184,8 @@ async function handleMessageEvent(body: any) {
         const sendResult = await sendWhatsAppMessage(
           sessionName,
           customerPhone,
-          aiResult.response
+          aiResult.response,
+          organizationId
         );
 
         if (sendResult) {

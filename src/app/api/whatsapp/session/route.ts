@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
     const sessionName = await getOrganizationSession(organizationId);
     console.log(`[WhatsApp Session] 📝 Sesión: ${sessionName}`);
 
-    // 3. Obtener estado de la sesión
-    const status = await getSessionStatus(sessionName);
+    // 3. Obtener estado de la sesión (pasar organizationId para usar su configuración)
+    const status = await getSessionStatus(sessionName, organizationId);
     console.log(`[WhatsApp Session] 📊 Estado: ${status.status || 'UNKNOWN'}`);
 
     // 4. Si la sesión está conectada (WORKING), devolver estado
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     // 5. Si necesita QR, obtenerlo
     if (status.status === 'SCAN_QR_CODE' || status.status === 'SCAN_QR' || status.status === 'STARTING') {
       try {
-        const qr = await getSessionQR(sessionName);
+        const qr = await getSessionQR(sessionName, organizationId);
         
         // El QR puede venir en formato { value: "..." } o { data: "...", mimetype: "..." }
         const qrValue = qr.value || qr.data || null;
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
         
         // Si el error es que ya está conectado, verificar estado nuevamente
         if (qrError.message?.includes('already connected') || qrError.message?.includes('ya conectado')) {
-          const newStatus = await getSessionStatus(sessionName);
+          const newStatus = await getSessionStatus(sessionName, organizationId);
           if (newStatus.status === 'WORKING') {
             const phone = newStatus.me?.id?.split('@')[0] || newStatus.me?.phone || null;
             return NextResponse.json({
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
     // 3. Procesar acción
     if (action === 'logout' || action === 'change_number') {
       console.log(`[WhatsApp Session] 🔓 Cerrando sesión: ${sessionName}`);
-      await logoutSession(sessionName);
+      await logoutSession(sessionName, organizationId);
       
       return NextResponse.json({
         success: true,
@@ -239,9 +239,9 @@ export async function DELETE(request: NextRequest) {
     const organizationId = tenantContext.organizationId;
     console.log(`[WhatsApp Session] DELETE - Desconectando para organización: ${organizationId}`);
 
-    // 2. Obtener sesión y cerrarla
+    // 2. Obtener sesión y cerrarla (pasar organizationId para usar su configuración)
     const sessionName = await getOrganizationSession(organizationId);
-    await logoutSession(sessionName);
+    await logoutSession(sessionName, organizationId);
 
     console.log(`[WhatsApp Session] ✅ Número desconectado`);
 

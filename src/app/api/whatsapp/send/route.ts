@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
         }
         
         console.log(`[WhatsApp Send] 📤 Enviando mensaje de texto a ${body.to}`);
-        sendResult = await sendWhatsAppMessage(sessionName, body.to, body.message);
+        sendResult = await sendWhatsAppMessage(sessionName, body.to, body.message, organizationId);
         messageBody = body.message;
         messageId = sendResult?.id || sendResult?.messageId || `text_${Date.now()}`;
         break;
