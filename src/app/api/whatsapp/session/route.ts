@@ -210,7 +210,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 8. Otro estado (ERROR, etc.)
+    // 8. Otro estado (STOPPED, FAILED, UNKNOWN, etc.)
     const currentStatus = (status && status.status) ? status.status : 'UNKNOWN';
     
     // Si es un error de configuración, proporcionar más información
@@ -226,12 +226,26 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
     
+    // Normalizar estados que requieren configuración/QR a 'PENDING' para el frontend
+    // Estos estados deben mostrar el botón "Vincular WhatsApp" para generar un nuevo QR
+    const statesNeedingSetup = ['STOPPED', 'FAILED', 'UNKNOWN', 'NOT_FOUND', 'PENDING', 'NEEDS_SETUP'];
+    const normalizedStatus = statesNeedingSetup.includes(currentStatus) ? 'PENDING' : currentStatus;
+    
+    console.log(`[WhatsApp Session] 📊 Estado normalizado:`, {
+      original: currentStatus,
+      normalized: normalizedStatus,
+      needsSetup: statesNeedingSetup.includes(currentStatus)
+    });
+    
     return NextResponse.json({
       success: true,
-      status: currentStatus,
+      status: normalizedStatus,  // Normalizar a PENDING para el frontend
+      originalStatus: currentStatus,  // Guardar el original para debug
       connected: false,
       session: sessionName,
-      message: `Estado: ${currentStatus}`,
+      message: statesNeedingSetup.includes(currentStatus) 
+        ? `Sesión requiere configuración. Estado original: ${currentStatus}. Haz clic en "Vincular WhatsApp" para generar un nuevo QR.`
+        : `Estado: ${currentStatus}`,
       error: status?.error || undefined
     });
 
@@ -384,11 +398,25 @@ export async function POST(request: NextRequest) {
       
       // Actualizar BD - marcar como desconectado
       const supabase = getSupabaseServiceClient();
-      await supabase
-        .from('ai_agent_config')
-        .update({ whatsapp_connected: false, updated_at: new Date().toISOString() })
-        .eq('organization_id', organizationId);
-      console.log('6. BD actualizada: whatsapp_connected = false');
+      try {
+        // Actualizar usando cast para evitar problemas de tipos de TypeScript
+        // La columna whatsapp_connected existe en la BD aunque no esté en los tipos generados
+        const updateQuery = (supabase as any)
+          .from('ai_agent_config')
+          .update({ whatsapp_connected: false, updated_at: new Date().toISOString() })
+          .eq('organization_id', organizationId);
+        
+        const { error: updateError } = await updateQuery;
+        
+        if (updateError) {
+          console.warn('[WhatsApp Session] ⚠️ No se pudo actualizar whatsapp_connected:', updateError.message);
+        } else {
+          console.log('6. BD actualizada: whatsapp_connected = false');
+        }
+      } catch (updateError: any) {
+        // Si la columna no existe, ignorar el error
+        console.warn('[WhatsApp Session] ⚠️ Error actualizando whatsapp_connected:', updateError.message);
+      }
       
       // Esperar a que WAHA procese
       await new Promise(r => setTimeout(r, 3000));

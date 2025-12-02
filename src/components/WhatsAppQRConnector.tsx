@@ -177,17 +177,31 @@ export function WhatsAppQRConnector({
       }
 
       // Verificar que statusData.status existe antes de usarlo
-      // Manejar múltiples estados que requieren QR: pending, SCAN_QR, SCAN_QR_CODE, STARTING
+      // Manejar múltiples estados que requieren QR o permiten generar QR:
+      // - Estados con QR: SCAN_QR, SCAN_QR_CODE, STARTING
+      // - Estados sin QR pero que permiten generar: STOPPED, FAILED, UNKNOWN, NOT_FOUND, PENDING, NEEDS_SETUP
       // IMPORTANTE: No mostrar QR si ya está conectado
       const needsQR = !isConnected && statusData && (
         statusData.status === 'pending' ||
         statusData.status === 'SCAN_QR' ||
         statusData.status === 'SCAN_QR_CODE' ||
         statusData.status === 'STARTING' ||
+        statusData.status === 'STOPPED' ||
+        statusData.status === 'FAILED' ||
+        statusData.status === 'UNKNOWN' ||
+        statusData.status === 'NOT_FOUND' ||
+        statusData.status === 'PENDING' ||
+        statusData.status === 'NEEDS_SETUP' ||
         data.status === 'SCAN_QR' ||
         data.status === 'SCAN_QR_CODE' ||
         data.status === 'STARTING' ||
-        data.status === 'pending'
+        data.status === 'pending' ||
+        data.status === 'STOPPED' ||
+        data.status === 'FAILED' ||
+        data.status === 'UNKNOWN' ||
+        data.status === 'NOT_FOUND' ||
+        data.status === 'PENDING' ||
+        data.status === 'NEEDS_SETUP'
       )
       
       console.log('[WhatsAppQRConnector] 🔍 Verificando si necesita QR:', {
@@ -256,11 +270,62 @@ export function WhatsAppQRConnector({
         return
       }
 
-      // Estado desconocido
+      // Estados que requieren configuración pero no tienen QR (STOPPED, FAILED, UNKNOWN, etc.)
+      // Estos estados deben mostrar el botón "Vincular WhatsApp" para generar un nuevo QR
+      const needsSetup = !isConnected && statusData && (
+        statusData.status === 'STOPPED' ||
+        statusData.status === 'FAILED' ||
+        statusData.status === 'UNKNOWN' ||
+        statusData.status === 'NOT_FOUND' ||
+        statusData.status === 'PENDING' ||
+        statusData.status === 'NEEDS_SETUP' ||
+        data.status === 'STOPPED' ||
+        data.status === 'FAILED' ||
+        data.status === 'UNKNOWN' ||
+        data.status === 'NOT_FOUND' ||
+        data.status === 'PENDING' ||
+        data.status === 'NEEDS_SETUP'
+      )
+
+      if (needsSetup) {
+        // Estado que requiere configuración pero no tiene QR
+        // Mostrar estado "pending" sin QR para que el usuario pueda generar uno
+        console.log('[WhatsAppQRConnector] 🔧 Estado requiere configuración:', {
+          status: statusData?.status || data.status,
+          message: 'Mostrando botón para generar QR'
+        })
+        
+        currentStateRef.current = 'pending'
+        setState('pending')
+        setSessionData({
+          status: 'pending',
+          // Sin QR - el usuario debe hacer clic en "Vincular WhatsApp" para generar uno
+          sessionName: statusData.sessionName || data.sessionName || data.session
+        })
+        setErrorMessage(null)
+        if (isMountedRef.current) {
+          onStatusChangeRef.current?.('pending')
+        }
+        // Liberar flag de verificación
+        isCheckingStatusRef.current = false
+        return
+      }
+
+      // Solo mostrar error si hay un error real de conexión/configuración
+      // Si llegamos aquí, es un estado realmente desconocido o un error de API
       if (isMountedRef.current) {
+        const errorStatus = statusData?.status || data.status || 'UNKNOWN'
+        const errorMsg = statusData?.error || data.error || `Estado de sesión desconocido: ${errorStatus}`
+        
+        console.warn('[WhatsAppQRConnector] ⚠️ Estado realmente desconocido o error:', {
+          status: errorStatus,
+          error: errorMsg,
+          fullData: data
+        })
+        
         currentStateRef.current = 'error'
         setState('error')
-        setErrorMessage('Estado de sesión desconocido')
+        setErrorMessage(errorMsg)
         onStatusChangeRef.current?.('error')
       }
     } catch (error) {
@@ -516,15 +581,15 @@ export function WhatsAppQRConnector({
       if (data.qr) {
         const qrValue = typeof data.qr === 'string' ? data.qr : (data.qr.value || data.qr.data || null)
         setSessionData({
-          status: 'SCAN_QR',
+          status: 'pending',
           qr: qrValue,
-          session: data.session
+              sessionName: data.session
         })
       } else {
         // Si no hay QR, esperar y hacer verificación manual
         setSessionData({
-          status: 'SCAN_QR',
-          session: data.session
+          status: 'pending',
+              sessionName: data.session
         })
         
         // Esperar 2 segundos para que WAHA procese el logout
@@ -541,9 +606,9 @@ export function WhatsAppQRConnector({
           if (statusData.qr) {
             const qrValue = typeof statusData.qr === 'string' ? statusData.qr : (statusData.qr.value || statusData.qr.data || null)
             setSessionData(prev => ({
-              ...(prev || { status: 'SCAN_QR' }),
+              ...(prev || { status: 'pending' }),
               qr: qrValue,
-              session: statusData.session || prev?.session
+              sessionName: statusData.session || prev?.sessionName
             }))
           }
         } catch (statusError) {
@@ -595,15 +660,15 @@ export function WhatsAppQRConnector({
       if (data.qr) {
         const qrValue = typeof data.qr === 'string' ? data.qr : (data.qr.value || data.qr.data || null)
         setSessionData({
-          status: 'SCAN_QR',
+          status: 'pending',
           qr: qrValue,
-          session: data.session
+              sessionName: data.session
         })
       } else {
         // Si no hay QR, esperar y hacer verificación manual
         setSessionData({
-          status: 'SCAN_QR',
-          session: data.session
+          status: 'pending',
+              sessionName: data.session
         })
         
         // Esperar 2 segundos para que WAHA procese el logout
@@ -620,9 +685,9 @@ export function WhatsAppQRConnector({
           if (statusData.qr) {
             const qrValue = typeof statusData.qr === 'string' ? statusData.qr : (statusData.qr.value || statusData.qr.data || null)
             setSessionData(prev => ({
-              ...(prev || { status: 'SCAN_QR' }),
+              ...(prev || { status: 'pending' }),
               qr: qrValue,
-              session: statusData.session || prev?.session
+              sessionName: statusData.session || prev?.sessionName
             }))
           }
         } catch (statusError) {
