@@ -389,7 +389,7 @@ export async function POST(request: NextRequest) {
         
         if (statusAfter.ok) {
           statusAfterData = await statusAfter.json();
-          console.log('8. Estado DESPUÉS:', {
+          console.log('8. Estado DESPUÉS del logout:', {
             status: statusAfterData.status,
             connected: statusAfterData.status === 'WORKING',
             phone: statusAfterData.me?.id || statusAfterData.me?.phone || 'N/A'
@@ -400,6 +400,77 @@ export async function POST(request: NextRequest) {
         }
       } catch (statusError: any) {
         console.error('8. Excepción obteniendo estado después:', statusError.message);
+      }
+      
+      // Si la sesión sigue conectada (WORKING), usar método más agresivo
+      if (statusAfterData?.status === 'WORKING') {
+        console.log('9. ⚠️ Sesión aún conectada después de logout, forzando desconexión...');
+        
+        try {
+          // Método 1: Intentar stop + delete + create nueva sesión
+          console.log('9a. Intentando stop de sesión...');
+          const stopResponse = await fetch(`${url}/api/sessions/${sessionName}/stop`, {
+            method: 'POST',
+            headers: { 'X-Api-Key': key }
+          });
+          console.log('9a. Stop response:', stopResponse.status);
+          
+          await new Promise(r => setTimeout(r, 2000));
+          
+          // Método 2: Eliminar la sesión completamente
+          console.log('9b. Eliminando sesión completamente...');
+          const deleteResponse = await fetch(`${url}/api/sessions/${sessionName}`, {
+            method: 'DELETE',
+            headers: { 'X-Api-Key': key }
+          });
+          console.log('9b. Delete response:', deleteResponse.status);
+          
+          await new Promise(r => setTimeout(r, 2000));
+          
+          // Método 3: Crear nueva sesión
+          console.log('9c. Creando nueva sesión...');
+          const webhookUrl = process.env.NEXT_PUBLIC_APP_URL 
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
+            : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
+          
+          const createResponse = await fetch(`${url}/api/sessions`, {
+            method: 'POST',
+            headers: {
+              'X-Api-Key': key,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name: sessionName,
+              start: true,
+              config: {
+                webhooks: [{
+                  url: webhookUrl,
+                  events: ['message', 'message.any', 'session.status']
+                }]
+              }
+            })
+          });
+          
+          console.log('9c. Create response:', createResponse.status);
+          
+          // Esperar a que la nueva sesión se inicialice
+          await new Promise(r => setTimeout(r, 3000));
+          
+          // Verificar estado de la nueva sesión
+          const newStatusResponse = await fetch(`${url}/api/sessions/${sessionName}`, {
+            headers: { 'X-Api-Key': key }
+          });
+          
+          if (newStatusResponse.ok) {
+            statusAfterData = await newStatusResponse.json();
+            console.log('9d. Estado de nueva sesión:', {
+              status: statusAfterData.status,
+              connected: statusAfterData.status === 'WORKING'
+            });
+          }
+        } catch (forceError: any) {
+          console.error('9. Error en método forzado:', forceError.message);
+        }
       }
       
       // Intentar obtener QR
@@ -418,7 +489,7 @@ export async function POST(request: NextRequest) {
           if (qrResponse.ok) {
             qrData = await qrResponse.json();
             const qrValue = qrData.value || qrData.data || null;
-            console.log('9. QR obtenido:', {
+            console.log('10. QR obtenido:', {
               hasValue: !!qrData?.value,
               hasData: !!qrData?.data,
               qrLength: qrValue?.length || 0
@@ -435,18 +506,19 @@ export async function POST(request: NextRequest) {
               debug: {
                 statusBefore: statusBeforeData?.status || 'unknown',
                 statusAfter: statusAfterData?.status || 'unknown',
-                logoutStatus: logoutResponse.status
+                logoutStatus: logoutResponse.status,
+                method: statusBeforeData?.status === 'WORKING' && statusAfterData?.status !== 'WORKING' ? 'forced' : 'normal'
               }
             });
           } else {
             const qrErrorText = await qrResponse.text();
-            console.log('9. QR no disponible:', qrResponse.status, qrErrorText.substring(0, 200));
+            console.log('10. QR no disponible:', qrResponse.status, qrErrorText.substring(0, 200));
           }
         } catch (qrError: any) {
-          console.log('9. Error obteniendo QR:', qrError.message);
+          console.log('10. Error obteniendo QR:', qrError.message);
         }
       } else {
-        console.log('9. No se necesita QR, estado actual:', statusAfterData?.status);
+        console.log('10. No se necesita QR, estado actual:', statusAfterData?.status);
       }
       
       // Si no se pudo obtener QR inmediatamente, devolver estado actual
@@ -461,7 +533,8 @@ export async function POST(request: NextRequest) {
         debug: {
           statusBefore: statusBeforeData?.status || 'unknown',
           statusAfter: statusAfterData?.status || 'unknown',
-          logoutStatus: logoutResponse.status
+          logoutStatus: logoutResponse.status,
+          method: statusBeforeData?.status === 'WORKING' && statusAfterData?.status !== 'WORKING' ? 'forced' : 'normal'
         }
       });
     }
