@@ -241,11 +241,18 @@ export async function GET(request: NextRequest) {
       total: ordersList.length || 0,
       _debug: {
         organizationId: organizationIdToUse,
-        ordersFound: ordersList.length,
+        totalOrdersInDB: orders?.length || 0,
+        ordersAfterDateFilter: ordersList.length,
         firstOrderDate: ordersList[0]?.created_at,
         firstEntryDate: ordersList[0]?.entry_date,
         filterFrom: fromDate.toISOString(),
         filterTo: toDate.toISOString(),
+        timeFilter: timeFilter,
+        sampleOrders: orders?.slice(0, 3).map((o: any) => ({
+          status: o.status,
+          created_at: o.created_at,
+          entry_date: o.entry_date
+        })) || []
       },
     })
 

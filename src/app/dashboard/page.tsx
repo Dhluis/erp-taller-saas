@@ -121,8 +121,20 @@ export default function DashboardPage() {
         });
       }
       console.log('Datos por estado:', data);
+      
+      // Mostrar información de debug si está disponible
+      if (data._debug) {
+        console.log('🔍 DEBUG INFO:', {
+          totalOrdersInDB: data._debug.totalOrdersInDB,
+          ordersAfterDateFilter: data._debug.ordersAfterDateFilter,
+          filterFrom: data._debug.filterFrom,
+          filterTo: data._debug.filterTo,
+          sampleOrders: data._debug.sampleOrders
+        });
+      }
+      
       const totalFromAPI = Object.entries(data)
-        .filter(([key]) => key !== 'success' && key !== 'total')
+        .filter(([key]) => key !== 'success' && key !== 'total' && key !== '_debug')
         .reduce((sum, [_, val]) => sum + (typeof val === 'number' ? val : 0), 0);
       console.log('Total de órdenes (calculado):', totalFromAPI);
       console.log('Total de órdenes (del API):', data.total);
