@@ -9,19 +9,34 @@ export async function POST(request: NextRequest) {
   try {
     console.log('\n=== [Check Connection] Verificando conexión ===');
     
-    const { organizationId } = await getTenantContext(request);
+    let organizationId: string | undefined;
+    
+    try {
+      const context = await getTenantContext(request);
+      organizationId = context.organizationId;
+    } catch (tenantError: any) {
+      console.error('[Check Connection] ❌ Error obteniendo tenant context:', tenantError.message);
+      return NextResponse.json({
+        success: false,
+        error: `Error de autenticación: ${tenantError.message}`
+      }, { status: 401 });
+    }
     
     if (!organizationId) {
+      console.error('[Check Connection] ❌ No hay organizationId');
       return NextResponse.json({
         success: false,
         error: 'No se pudo obtener organization_id'
       }, { status: 401 });
     }
 
+    console.log('[Check Connection] ✅ Organization ID:', organizationId);
+
     const WAHA_URL = process.env.WAHA_API_URL;
     const WAHA_KEY = process.env.WAHA_API_KEY;
 
     if (!WAHA_URL || !WAHA_KEY) {
+      console.error('[Check Connection] ❌ Variables de entorno faltantes');
       return NextResponse.json({
         success: false,
         error: 'Variables de entorno no configuradas'
@@ -35,12 +50,21 @@ export async function POST(request: NextRequest) {
     console.log('[Check Connection] Session name:', sessionName);
 
     // Obtener estado de la sesión directamente de WAHA
-    const statusResponse = await fetch(`${WAHA_URL}/api/sessions/${sessionName}`, {
-      headers: { 'X-Api-Key': WAHA_KEY }
-    });
+    let statusResponse;
+    try {
+      statusResponse = await fetch(`${WAHA_URL}/api/sessions/${sessionName}`, {
+        headers: { 'X-Api-Key': WAHA_KEY }
+      });
+    } catch (fetchError: any) {
+      console.error('[Check Connection] ❌ Error fetch a WAHA:', fetchError.message);
+      return NextResponse.json({
+        success: false,
+        error: `Error conectando a WAHA: ${fetchError.message}`
+      }, { status: 500 });
+    }
 
     if (!statusResponse.ok) {
-      console.log('[Check Connection] Sesión no encontrada en WAHA');
+      console.log('[Check Connection] Sesión no encontrada en WAHA (status:', statusResponse.status, ')');
       return NextResponse.json({
         success: true,
         connected: false,
@@ -82,8 +106,8 @@ export async function POST(request: NextRequest) {
           .eq('organization_id', organizationId);
         
         console.log('[Check Connection] ✅ BD actualizada');
-      } catch (dbError) {
-        console.warn('[Check Connection] ⚠️ Error actualizando BD:', dbError);
+      } catch (dbError: any) {
+        console.warn('[Check Connection] ⚠️ Error actualizando BD:', dbError.message);
       }
 
       return NextResponse.json({
@@ -104,10 +128,11 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('[Check Connection] ❌ Error:', error);
+    console.error('[Check Connection] ❌ Error general:', error.message, error.stack);
     return NextResponse.json({
       success: false,
-      error: error.message
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
   }
 }
