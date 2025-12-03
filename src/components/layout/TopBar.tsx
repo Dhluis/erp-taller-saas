@@ -1,7 +1,7 @@
 'use client'
 
 import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
-import { Calendar, FileText, BarChart3, MessageSquare, Users } from 'lucide-react'
+import ModernIcons from '@/components/icons/ModernIcons'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
@@ -62,7 +62,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
                   : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
               )}
             >
-              <Calendar className="h-4 w-4" />
+              <ModernIcons.Citas size={16} />
               <span className="text-sm font-medium">Citas</span>
             </Button>
           </Link>
@@ -77,7 +77,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
                   : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
               )}
             >
-              <Users className="h-4 w-4" />
+              <ModernIcons.Clientes size={16} />
               <span className="text-sm font-medium">Clientes</span>
             </Button>
           </Link>
@@ -92,7 +92,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
                   : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
               )}
             >
-              <FileText className="h-4 w-4" />
+              <ModernIcons.Ordenes size={16} />
               <span className="text-sm font-medium">Órdenes</span>
             </Button>
           </Link>
@@ -107,7 +107,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
                   : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
               )}
             >
-              <BarChart3 className="h-4 w-4" />
+              <ModernIcons.Reportes size={16} />
               <span className="text-sm font-medium">Reportes</span>
             </Button>
           </Link>
@@ -122,7 +122,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
                   : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
               )}
             >
-              <MessageSquare className="h-4 w-4" />
+              <ModernIcons.WhatsApp size={16} />
               <span className="text-sm font-medium">WhatsApp</span>
             </Button>
           </Link>

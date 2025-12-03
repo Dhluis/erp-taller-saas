@@ -8,18 +8,8 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { 
-  DollarSign, 
-  Wrench, 
-  Users, 
-  AlertTriangle, 
-  Clock,
-  CheckCircle,
-  Car,
-  TrendingUp,
-  Package,
-  CalendarIcon
-} from 'lucide-react';
+import ModernIcons from '@/components/icons/ModernIcons';
+import { CalendarIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import {
@@ -245,7 +235,7 @@ export default function DashboardPage() {
       value: `$${stats.ingresos.toLocaleString()}`,
       description: 'Total facturado',
       trend: '↓ 15.1% vs mes anterior',
-      icon: DollarSign,
+      icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-green-400',
       bgColor: 'bg-green-500/10'
     },
@@ -254,7 +244,7 @@ export default function DashboardPage() {
       value: stats.ordenesActivas.toString(),
       description: `En proceso (${filterDescription})`,
       trend: `Total: ${totalOrdenes} órdenes`,
-      icon: Wrench,
+      icon: () => <ModernIcons.Ordenes size={32} />,
       color: 'text-blue-400',
       bgColor: 'bg-blue-500/10'
     },
@@ -263,7 +253,7 @@ export default function DashboardPage() {
       value: stats.clientesAtendidos.toString(),
       description: 'Este mes',
       trend: '↑ 0% vs mes anterior',
-      icon: Users,
+      icon: () => <ModernIcons.Clientes size={32} />,
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/10'
     },
@@ -272,7 +262,7 @@ export default function DashboardPage() {
       value: stats.alertasInventario.toString(),
       description: 'Stock bajo',
       trend: '↑ 0% vs mes anterior',
-      icon: AlertTriangle,
+      icon: () => <ModernIcons.Warning size={32} />,
       color: 'text-orange-400',
       bgColor: 'bg-orange-500/10'
     },
@@ -281,7 +271,7 @@ export default function DashboardPage() {
       value: stats.ordenesPendientes.toString(),
       description: `En recepción (${filterDescription})`,
       trend: '',
-      icon: Clock,
+      icon: () => <ModernIcons.Citas size={32} />,
       color: 'text-yellow-400',
       bgColor: 'bg-yellow-500/10'
     },
@@ -290,7 +280,7 @@ export default function DashboardPage() {
       value: stats.ordenesCompletadas.toString(),
       description: `Finalizadas (${filterDescription})`,
       trend: '',
-      icon: CheckCircle,
+      icon: () => <ModernIcons.Check size={32} />,
       color: 'text-green-400',
       bgColor: 'bg-green-500/10'
     }
@@ -391,7 +381,7 @@ export default function DashboardPage() {
             disabled={loading}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <TrendingUp className="w-4 h-4" />
+            <ModernIcons.Reportes size={16} />
             {loading ? 'Cargando...' : 'Actualizar'}
           </button>
         </div>
@@ -404,7 +394,7 @@ export default function DashboardPage() {
               <div key={index} className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <div className="flex items-center justify-between mb-4">
                   <div className={`p-3 rounded-lg ${kpi.bgColor}`}>
-                    <IconComponent className={`w-6 h-6 ${kpi.color}`} />
+                    <IconComponent />
                   </div>
                   {kpi.trend && (
                     <span className={`text-sm ${kpi.trend.includes('↓') ? 'text-red-400' : 'text-green-400'}`}>

@@ -7,16 +7,8 @@ import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  MessageSquare, 
-  Bot, 
-  Settings, 
-  Play, 
-  CheckCircle2, 
-  XCircle,
-  ArrowRight,
-  Sparkles
-} from 'lucide-react'
+import ModernIcons from '@/components/icons/ModernIcons'
+import { ArrowRight } from 'lucide-react'
 
 export default function WhatsAppPage() {
   const { organization } = useAuth()
@@ -24,28 +16,19 @@ export default function WhatsAppPage() {
   const [config, setConfig] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  // 🔍 DEBUG: Log del organization completo
-  useEffect(() => {
-    console.log('[WhatsApp DEBUG] 🔍 Organization Context:', {
-      hasOrganization: !!organization,
-      organization_id: organization?.organization_id,
-      name: organization?.name,
-      fullObject: organization
-    })
-  }, [organization])
-
   // ✅ DEFINIR loadConfig PRIMERO, antes de los useEffects
+  // 🔧 FIX: Usar organization.id en lugar de organization.organization_id
+  const organizationId = organization?.id || organization?.organization_id
+  
   const loadConfig = useCallback(async () => {
-    if (!organization?.organization_id) {
+    if (!organizationId) {
       console.log('[WhatsApp] ⏳ Esperando organization ID...')
-      console.log('[WhatsApp DEBUG] Organization actual:', organization)
       setLoading(false)
       return
     }
 
     try {
-      console.log('[WhatsApp] 🔄 Cargando configuración para org:', organization.organization_id)
-      console.log('[WhatsApp DEBUG] Organization completo:', JSON.stringify(organization, null, 2))
+      console.log('[WhatsApp] 🔄 Cargando configuración para org:', organizationId)
       setLoading(true)
       const response = await fetch('/api/whatsapp/config', {
         cache: 'no-store' // Evitar cache para obtener datos frescos
@@ -73,7 +56,7 @@ export default function WhatsAppPage() {
     } finally {
       setLoading(false)
     }
-  }, [organization?.organization_id])
+  }, [organizationId])
 
   // ✅ AHORA SÍ usar loadConfig en useEffect (después de definirlo)
   useEffect(() => {
@@ -84,14 +67,14 @@ export default function WhatsAppPage() {
   useEffect(() => {
     const handleFocus = () => {
       // Solo recargar si ya tenemos organization
-      if (organization?.organization_id) {
+      if (organizationId) {
         console.log('[WhatsApp] 🔄 Ventana enfocada, recargando configuración...')
         loadConfig()
       }
     }
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [loadConfig, organization?.organization_id])
+  }, [loadConfig, organizationId])
 
   const handleTrainAgent = () => {
     router.push('/dashboard/whatsapp/train-agent')
@@ -123,7 +106,7 @@ export default function WhatsAppPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <Bot className="w-5 h-5" />
+                    <ModernIcons.Bot size={20} />
                     Estado del Asistente
                   </CardTitle>
                   <CardDescription>
@@ -133,12 +116,12 @@ export default function WhatsAppPage() {
                 <Badge variant={config?.enabled ? "success" : "secondary"}>
                   {config?.enabled ? (
                     <>
-                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      <ModernIcons.Check size={14} />
                       Activo
                     </>
                   ) : (
                     <>
-                      <XCircle className="w-3 h-3 mr-1" />
+                      <ModernIcons.Error size={14} />
                       Inactivo
                     </>
                   )}
@@ -168,12 +151,12 @@ export default function WhatsAppPage() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <MessageSquare className="w-12 h-12 text-text-secondary mx-auto mb-4" />
+                  <ModernIcons.Bot size={48} className="mx-auto mb-4" />
                   <p className="text-text-secondary mb-4">
                     No hay configuración del asistente. Entrénalo para comenzar.
                   </p>
                   <Button onClick={handleTrainAgent}>
-                    <Sparkles className="w-4 h-4 mr-2" />
+                    <ModernIcons.Entrenamiento size={16} className="mr-2" />
                     Entrenar Asistente
                   </Button>
                 </div>
@@ -186,7 +169,7 @@ export default function WhatsAppPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5" />
+                  <ModernIcons.Entrenamiento size={20} />
                   Entrenar Asistente
                 </CardTitle>
                 <CardDescription>
@@ -207,7 +190,7 @@ export default function WhatsAppPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Play className="w-5 h-5" />
+                  <ModernIcons.Testing size={20} />
                   Probar Asistente
                 </CardTitle>
                 <CardDescription>
@@ -235,7 +218,7 @@ export default function WhatsAppPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
+                  <ModernIcons.Configuracion size={20} />
                   Configuración
                 </CardTitle>
                 <CardDescription>
@@ -260,7 +243,7 @@ export default function WhatsAppPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5" />
+                  <ModernIcons.Conversaciones size={20} />
                   Conversaciones
                 </CardTitle>
                 <CardDescription>

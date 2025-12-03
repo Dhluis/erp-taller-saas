@@ -7,33 +7,14 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { SidebarUserProfile } from "@/components/sidebar-user-profile"
+import ModernIcons from '@/components/icons/ModernIcons'
 import {
-  Home, 
-  Users, 
-  FileText, 
-  Package, 
-  Receipt,
-  BarChart3,
-  Settings,
-  Search,
   ChevronDown,
   ChevronRight,
   Plus,
-  Calendar,
-  MessageCircle,
-  MessageSquare,
-  Phone,
-  Building2,
-  ClipboardList,
-  TrendingUp,
-  Wallet,
-  Shield,
-  User,
-  LogOut,
-  Kanban,
-  LayoutGrid
+  Search,
+  LogOut
 } from "lucide-react"
-import { TruckIcon } from '@heroicons/react/24/outline'
 import { useSidebar } from '@/contexts/SidebarContext'
 
 interface SidebarProps {
@@ -70,27 +51,27 @@ export function Sidebar({ className }: SidebarProps) {
     { 
       href: "/dashboard", 
       label: "Dashboard", 
-      icon: Home,
+      icon: () => <ModernIcons.Dashboard size={20} />,
       badge: null
     },
     // Clientes movido al TopBar
     { 
       href: "/proveedores", 
       label: "Proveedores", 
-      icon: Building2,
+      icon: () => <ModernIcons.Clientes size={20} />,
       badge: null
     },
     { 
       href: "/vehiculos", 
       label: "Vehículos", 
-      icon: TruckIcon,
+      icon: () => <ModernIcons.Vehiculos size={20} />,
       badge: null
     },
     // Órdenes movido al TopBar
     {
       href: "/cotizaciones",
       label: "Cotizaciones",
-      icon: Receipt,
+      icon: () => <ModernIcons.Cotizaciones size={20} />,
       badge: null
     }
     // WhatsApp movido al TopBar
@@ -100,50 +81,50 @@ export function Sidebar({ className }: SidebarProps) {
     {
       key: 'inventarios',
       label: 'Inventarios',
-      icon: Package,
+      icon: () => <ModernIcons.Inventarios size={20} />,
       items: [
-        { href: "/inventarios", label: "Productos", icon: Package },
-        { href: "/inventarios/categorias", label: "Categorías", icon: Package },
-        { href: "/inventarios/movimientos", label: "Movimientos", icon: TrendingUp }
+        { href: "/inventarios", label: "Productos", icon: () => <ModernIcons.Inventarios size={18} /> },
+        { href: "/inventarios/categorias", label: "Categorías", icon: () => <ModernIcons.Inventarios size={18} /> },
+        { href: "/inventarios/movimientos", label: "Movimientos", icon: () => <ModernIcons.Reportes size={18} /> }
       ]
     },
     {
       key: 'ingresos',
       label: 'Ingresos',
-      icon: TrendingUp,
+      icon: () => <ModernIcons.Finanzas size={20} />,
       items: [
-        { href: "/ingresos", label: "Facturación", icon: FileText },
-        { href: "/cobros", label: "Cobros", icon: Wallet },
-        { href: "/ingresos/reportes", label: "Reportes", icon: BarChart3 }
+        { href: "/ingresos", label: "Facturación", icon: () => <ModernIcons.Ordenes size={18} /> },
+        { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Pagos size={18} /> },
+        { href: "/ingresos/reportes", label: "Reportes", icon: () => <ModernIcons.Reportes size={18} /> }
       ]
     },
     {
       key: 'compras',
       label: 'Compras',
-      icon: TrendingUp,
+      icon: () => <ModernIcons.Pagos size={20} />,
       items: [
-        { href: "/compras", label: "Órdenes de Compra", icon: ClipboardList },
-        { href: "/compras/proveedores", label: "Proveedores", icon: Building2 },
-        { href: "/compras/pagos", label: "Pagos", icon: Wallet }
+        { href: "/compras", label: "Órdenes de Compra", icon: () => <ModernIcons.Ordenes size={18} /> },
+        { href: "/compras/proveedores", label: "Proveedores", icon: () => <ModernIcons.Clientes size={18} /> },
+        { href: "/compras/pagos", label: "Pagos", icon: () => <ModernIcons.Pagos size={18} /> }
       ]
     },
     {
       key: 'reportes',
       label: 'Reportes',
-      icon: BarChart3,
+      icon: () => <ModernIcons.Reportes size={20} />,
       items: [
-        { href: "/reportes/ventas", label: "Ventas", icon: TrendingUp },
-        { href: "/reportes/inventario", label: "Inventario", icon: Package },
-        { href: "/reportes/financieros", label: "Financieros", icon: Wallet }
+        { href: "/reportes/ventas", label: "Ventas", icon: () => <ModernIcons.Finanzas size={18} /> },
+        { href: "/reportes/inventario", label: "Inventario", icon: () => <ModernIcons.Inventarios size={18} /> },
+        { href: "/reportes/financieros", label: "Financieros", icon: () => <ModernIcons.Pagos size={18} /> }
       ]
     },
     {
       key: 'configuraciones',
       label: 'Configuraciones',
-      icon: Settings,
+      icon: () => <ModernIcons.Configuracion size={20} />,
       items: [
-        { href: "/configuraciones/usuarios", label: "Usuarios", icon: Users },
-        { href: "/configuraciones/empresa", label: "Empresa", icon: Building2 }
+        { href: "/configuraciones/usuarios", label: "Usuarios", icon: () => <ModernIcons.Clientes size={18} /> },
+        { href: "/configuraciones/empresa", label: "Empresa", icon: () => <ModernIcons.Dashboard size={18} /> }
       ]
     }
   ]
@@ -152,13 +133,13 @@ export function Sidebar({ className }: SidebarProps) {
     { 
       href: "/perfil", 
       label: "Mi Perfil", 
-      icon: User,
+      icon: () => <ModernIcons.Perfil size={20} />,
       badge: null
     },
     { 
       href: "/ordenes/kanban", 
       label: "Kanban", 
-      icon: LayoutGrid,
+      icon: () => <ModernIcons.Dashboard size={20} />,
       badge: null
     }
   ]
@@ -168,7 +149,7 @@ export function Sidebar({ className }: SidebarProps) {
     {
       href: "/comercial",
       label: "Comercial",
-      icon: MessageCircle,
+      icon: () => <ModernIcons.Conversaciones size={20} />,
       variant: "secondary" as const,
       badge: "New"
     }
@@ -271,7 +252,7 @@ export function Sidebar({ className }: SidebarProps) {
               )}
               title={isCollapsed ? "Dashboard" : ""}
             >
-              <Home className={isCollapsed ? "w-6 h-6" : "h-4 w-4 flex-shrink-0"} />
+              <ModernIcons.Dashboard size={isCollapsed ? 24 : 16} />
               {!isCollapsed && <span className="text-sm font-medium">Dashboard</span>}
             </Button>
           </Link>          {/*  Clientes movido al TopBar */}
@@ -295,7 +276,7 @@ export function Sidebar({ className }: SidebarProps) {
                     )}
                     title={section.label}
                   >
-                    <section.icon className="w-6 h-6" />
+                    {typeof section.icon === 'function' ? section.icon() : <section.icon className="w-6 h-6" />}
                   </Button>
                 </Link>
               ) : (
@@ -307,7 +288,7 @@ export function Sidebar({ className }: SidebarProps) {
                     onClick={() => toggleSection(section.key)}
                   >
                     <div className="flex items-center gap-3">
-                      <section.icon className="h-4 w-4" />
+                      {typeof section.icon === 'function' ? section.icon() : <section.icon className="h-4 w-4" />}
                       {section.label}
                     </div>
                     {shouldExpandSection(section.key) ? (
@@ -328,7 +309,7 @@ export function Sidebar({ className }: SidebarProps) {
                               isActive(item.href) && "bg-primary text-white"
                             )}
                           >
-                            <item.icon className="h-3 w-3" />
+                            {typeof item.icon === 'function' ? item.icon() : <item.icon className="h-3 w-3" />}
                             {item.label}
                           </Button>
                         </Link>
@@ -356,7 +337,7 @@ export function Sidebar({ className }: SidebarProps) {
                 )}
                 title={isCollapsed ? item.label : ""}
               >
-                <item.icon className={isCollapsed ? "w-6 h-6" : "h-4 w-4 flex-shrink-0"} />
+                {typeof item.icon === 'function' ? item.icon() : <item.icon className={isCollapsed ? "w-6 h-6" : "h-4 w-4 flex-shrink-0"} />}
                 {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
                 {!isCollapsed && item.badge && (
                   <Badge variant="secondary" className="ml-auto">
@@ -382,7 +363,7 @@ export function Sidebar({ className }: SidebarProps) {
                 )}
                 title={isCollapsed ? button.label : ""}
               >
-                <button.icon className={isCollapsed ? "w-6 h-6" : "h-4 w-4 flex-shrink-0"} />
+                {typeof button.icon === 'function' ? button.icon() : <button.icon className={isCollapsed ? "w-6 h-6" : "h-4 w-4 flex-shrink-0"} />}
                 {!isCollapsed && <span className="text-sm font-medium">{button.label}</span>}
                 {!isCollapsed && button.badge && (
                   <Badge variant="secondary" className="ml-auto bg-green-500">
