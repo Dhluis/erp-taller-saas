@@ -88,7 +88,7 @@ export function WhatsAppQRConnectorSimple({
         return
       }
 
-      // TIENE QR
+      // TIENE QR - después de mostrar el QR, verificar en WAHA directamente
       const qr = data.qr
       if (qr && typeof qr === 'string' && qr.length > 20) {
         console.log(`[WhatsApp Simple] 📱 QR recibido: ${qr.length} caracteres`)
@@ -96,6 +96,41 @@ export function WhatsAppQRConnectorSimple({
         setSessionData(data)
         setErrorMessage(null)
         onStatusChange?.('pending')
+        
+        // Verificar directamente en WAHA si ya se conectó
+        // (útil cuando el webhook no llega pero la conexión sí funciona)
+        if (retryCountRef.current > 0 && retryCountRef.current % 3 === 0) {
+          console.log(`[WhatsApp Simple] 🔍 Verificando conexión directa en WAHA...`)
+          try {
+            const checkResponse = await fetch('/api/whatsapp/check-connection', {
+              method: 'POST',
+              credentials: 'include',
+              cache: 'no-store'
+            })
+            
+            if (checkResponse.ok) {
+              const checkData = await checkResponse.json()
+              console.log(`[WhatsApp Simple] 📊 Check en WAHA:`, checkData)
+              
+              if (checkData.connected) {
+                console.log(`[WhatsApp Simple] ✅ ¡Conectado en WAHA! (detectado manualmente)`)
+                setState('connected')
+                setSessionData({
+                  ...data,
+                  connected: true,
+                  phone: checkData.phone,
+                  status: 'WORKING'
+                })
+                stopPolling()
+                onStatusChange?.('connected')
+                return
+              }
+            }
+          } catch (checkError) {
+            console.warn(`[WhatsApp Simple] ⚠️ Error verificando en WAHA:`, checkError)
+          }
+        }
+        
         // Seguir polling para detectar cuando se conecte
         return
       }
