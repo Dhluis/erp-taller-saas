@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
@@ -26,24 +26,30 @@ export default function WhatsAppPage() {
 
   useEffect(() => {
     loadConfig()
-  }, [organization?.organization_id])
+  }, [loadConfig])
 
   // Recargar cuando se regresa de otra página
   useEffect(() => {
     const handleFocus = () => {
-      loadConfig()
+      // Solo recargar si ya tenemos organization
+      if (organization?.organization_id) {
+        console.log('[WhatsApp] 🔄 Ventana enfocada, recargando configuración...')
+        loadConfig()
+      }
     }
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [])
+  }, [loadConfig, organization?.organization_id])
 
-  const loadConfig = async () => {
+  const loadConfig = useCallback(async () => {
     if (!organization?.organization_id) {
+      console.log('[WhatsApp] ⏳ Esperando organization ID...')
       setLoading(false)
       return
     }
 
     try {
+      console.log('[WhatsApp] 🔄 Cargando configuración para org:', organization.organization_id)
       setLoading(true)
       const response = await fetch('/api/whatsapp/config', {
         cache: 'no-store' // Evitar cache para obtener datos frescos
@@ -71,7 +77,7 @@ export default function WhatsAppPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [organization?.organization_id])
 
   const handleTrainAgent = () => {
     router.push('/dashboard/whatsapp/train-agent')
