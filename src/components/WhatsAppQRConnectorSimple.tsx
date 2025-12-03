@@ -49,6 +49,7 @@ export function WhatsAppQRConnectorSimple({
   const retryCountRef = useRef(0)
   const componentIdRef = useRef(Math.random().toString(36).substring(7))
   const hasInitializedRef = useRef(false)
+  const lastPhaseRef = useRef<'waiting' | 'has_qr' | null>(null) // Rastrear fase actual
 
   // Detener polling
   const stopPolling = useCallback(() => {
@@ -58,16 +59,12 @@ export function WhatsAppQRConnectorSimple({
       console.log(`[WhatsApp Simple] ⏸️ Polling detenido`)
     }
     retryCountRef.current = 0
+    lastPhaseRef.current = null // Resetear fase también
   }, [])
 
   // Verificar estado
   const checkStatus = useCallback(async () => {
     try {
-      // Incrementar contador al inicio (antes de cualquier lógica)
-      retryCountRef.current += 1
-      
-      console.log(`[WhatsApp Simple] 🔍 Verificando estado... (intento ${retryCountRef.current}/${MAX_RETRIES})`)
-      
       const response = await fetch('/api/whatsapp/session', {
         credentials: 'include',
         cache: 'no-store'
@@ -94,7 +91,17 @@ export function WhatsAppQRConnectorSimple({
       // TIENE QR - después de mostrar el QR, verificar en WAHA directamente
       const qr = data.qr
       if (qr && typeof qr === 'string' && qr.length > 20) {
-        console.log(`[WhatsApp Simple] 📱 QR recibido: ${qr.length} caracteres`)
+        // Si cambiamos de fase "esperando" a "tiene QR", resetear contador
+        if (lastPhaseRef.current !== 'has_qr') {
+          console.log(`[WhatsApp Simple] 🔄 Cambio de fase: esperando → tiene QR (resetear contador)`)
+          retryCountRef.current = 0
+          lastPhaseRef.current = 'has_qr'
+        }
+        
+        // Incrementar contador después de verificar fase
+        retryCountRef.current += 1
+        
+        console.log(`[WhatsApp Simple] 📱 QR recibido: ${qr.length} caracteres (intento ${retryCountRef.current})`)
         setState('pending')
         setSessionData(data)
         setErrorMessage(null)
@@ -142,7 +149,17 @@ export function WhatsAppQRConnectorSimple({
       }
 
       // ESPERANDO QR
-      console.log(`[WhatsApp Simple] ⏳ Esperando QR... Estado: ${data.status}`)
+      // Si cambiamos de fase "tiene QR" a "esperando", resetear contador
+      if (lastPhaseRef.current !== 'waiting') {
+        console.log(`[WhatsApp Simple] 🔄 Cambio de fase: tiene QR → esperando (resetear contador)`)
+        retryCountRef.current = 0
+        lastPhaseRef.current = 'waiting'
+      }
+      
+      // Incrementar contador después de verificar fase
+      retryCountRef.current += 1
+      
+      console.log(`[WhatsApp Simple] ⏳ Esperando QR... Estado: ${data.status} (intento ${retryCountRef.current}/${MAX_RETRIES})`)
       setState('pending')
       setSessionData(data)
       setErrorMessage(data.message || 'Esperando código QR...')
