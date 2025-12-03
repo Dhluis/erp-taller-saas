@@ -94,8 +94,7 @@ export function Sidebar({ className }: SidebarProps) {
       icon: () => <ModernIcons.Finanzas size={20} />,
       items: [
         { href: "/ingresos", label: "Facturación", icon: () => <ModernIcons.Ordenes size={18} /> },
-        { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Pagos size={18} /> },
-        { href: "/ingresos/reportes", label: "Reportes", icon: () => <ModernIcons.Reportes size={18} /> }
+        { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Pagos size={18} /> }
       ]
     },
     {
