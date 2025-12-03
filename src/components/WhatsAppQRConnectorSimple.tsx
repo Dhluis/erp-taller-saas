@@ -45,6 +45,7 @@ export function WhatsAppQRConnectorSimple({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [showRefreshBanner, setShowRefreshBanner] = useState(false)
+  const [actionPerformed, setActionPerformed] = useState<'disconnect' | 'change_number' | 'connect' | null>(null)
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const retryCountRef = useRef(0)
@@ -86,6 +87,14 @@ export function WhatsAppQRConnectorSimple({
         setErrorMessage(null)
         stopPolling()
         onStatusChange?.('connected')
+        
+        // Si acabamos de hacer una acción y ahora estamos conectados, mostrar banner
+        if (actionPerformed === 'connect') {
+          console.log(`[WhatsApp Simple] 📱 Acabamos de vincular, mostrar banner`)
+          setShowRefreshBanner(true)
+          setActionPerformed(null)
+        }
+        
         return
       }
 
@@ -97,6 +106,11 @@ export function WhatsAppQRConnectorSimple({
           console.log(`[WhatsApp Simple] 🔄 Cambio de fase: esperando → tiene QR (resetear contador)`)
           retryCountRef.current = 0
           lastPhaseRef.current = 'has_qr'
+        }
+        
+        // Marcar que estamos esperando conexión (para mostrar banner cuando se conecte)
+        if (actionPerformed === null) {
+          setActionPerformed('connect')
         }
         
         // Incrementar contador después de verificar fase
@@ -269,6 +283,9 @@ export function WhatsAppQRConnectorSimple({
       const data = await response.json()
       console.log(`[WhatsApp Simple] ✅ Desconectado:`, data)
 
+      // Marcar que realizamos una acción de desconexión
+      setActionPerformed('disconnect')
+
       // Actualizar estado inmediatamente basado en la respuesta
       if (data.qr && typeof data.qr === 'string' && data.qr.length > 20) {
         console.log(`[WhatsApp Simple] 📱 QR disponible después de desconectar`)
@@ -291,15 +308,16 @@ export function WhatsAppQRConnectorSimple({
       // Iniciar polling para mantener actualizado
       startPolling()
       
-      // Mostrar banner después de 2 segundos si el estado no cambió
+      // Mostrar banner después de 3 segundos si el estado no cambió correctamente
       setTimeout(() => {
-        console.log(`[WhatsApp Simple] 🔄 Verificando si mostrar banner...`)
-        // Si seguimos en estado conectado después de desconectar, mostrar banner
-        if (state === 'connected') {
-          console.log(`[WhatsApp Simple] ⚠️ Estado no cambió, mostrando banner`)
+        console.log(`[WhatsApp Simple] 🔄 Verificando si mostrar banner... Acción: ${actionPerformed}, Estado: ${state}`)
+        // Si hicimos logout pero seguimos en connected, o si no cambió a pending
+        if (actionPerformed === 'disconnect' && state === 'connected') {
+          console.log(`[WhatsApp Simple] ⚠️ Desconexión no reflejada, mostrando banner`)
           setShowRefreshBanner(true)
+          setActionPerformed(null)
         }
-      }, 2000)
+      }, 3000)
       
       // Forzar verificación inmediata después de 1 segundo para actualizar UI
       setTimeout(() => {
@@ -337,6 +355,9 @@ export function WhatsAppQRConnectorSimple({
       const data = await response.json()
       console.log(`[WhatsApp Simple] ✅ Respuesta:`, data)
 
+      // Marcar que realizamos una acción de cambio de número
+      setActionPerformed('change_number')
+
       // Actualizar estado inmediatamente basado en la respuesta
       if (data.qr && typeof data.qr === 'string' && data.qr.length > 20) {
         console.log(`[WhatsApp Simple] 📱 QR disponible después de cambiar número`)
@@ -359,15 +380,16 @@ export function WhatsAppQRConnectorSimple({
       // Iniciar polling para mantener actualizado
       startPolling()
       
-      // Mostrar banner después de 2 segundos si el estado no cambió
+      // Mostrar banner después de 3 segundos si el estado no cambió correctamente
       setTimeout(() => {
-        console.log(`[WhatsApp Simple] 🔄 Verificando si mostrar banner...`)
-        // Si seguimos en estado conectado después de cambiar número, mostrar banner
-        if (state === 'connected') {
-          console.log(`[WhatsApp Simple] ⚠️ Estado no cambió, mostrando banner`)
+        console.log(`[WhatsApp Simple] 🔄 Verificando si mostrar banner... Acción: ${actionPerformed}, Estado: ${state}`)
+        // Si cambiamos número pero seguimos en connected con el número viejo
+        if (actionPerformed === 'change_number' && state === 'connected') {
+          console.log(`[WhatsApp Simple] ⚠️ Cambio de número no reflejado, mostrando banner`)
           setShowRefreshBanner(true)
+          setActionPerformed(null)
         }
-      }, 2000)
+      }, 3000)
       
       // Forzar verificación inmediata después de 1 segundo para actualizar UI
       setTimeout(() => {
@@ -456,19 +478,24 @@ export function WhatsAppQRConnectorSimple({
                   'font-semibold text-lg mb-1',
                   darkMode ? 'text-white' : 'text-gray-900'
                 )}>
-                  ¡Cambios aplicados correctamente! ✨
+                  {actionPerformed === 'connect' 
+                    ? '¡WhatsApp vinculado exitosamente! 🎉' 
+                    : '¡Cambios aplicados correctamente! ✨'}
                 </p>
                 <p className={cn(
                   'text-sm',
                   darkMode ? 'text-slate-300' : 'text-gray-600'
                 )}>
-                  Actualiza la página para ver el nuevo estado de tu conexión
+                  {actionPerformed === 'connect'
+                    ? 'Tu número está conectado. Actualiza para ver la información completa'
+                    : 'Actualiza la página para ver el nuevo estado de tu conexión'}
                 </p>
               </div>
               <Button
                 size="lg"
                 onClick={() => {
                   setShowRefreshBanner(false)
+                  setActionPerformed(null)
                   window.location.reload()
                 }}
                 className={cn(
