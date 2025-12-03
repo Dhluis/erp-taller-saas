@@ -102,17 +102,112 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 6. CASO: Sesión no existe, STOPPED, FAILED, etc.
-    console.log(`[WhatsApp Session] 🔄 Sesión requiere reinicio o creación: ${status.status}`);
+    // 6. CASO: Sesión FAILED, STOPPED, ERROR - Reiniciar de inmediato
+    if (['FAILED', 'STOPPED', 'ERROR'].includes(status.status) && status.exists) {
+      console.log(`[WhatsApp Session] ⚠️ Sesión en estado ${status.status}, reiniciando de inmediato...`);
+      
+      try {
+        await startSession(sessionName, organizationId);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        const newStatus = await getSessionStatus(sessionName, organizationId);
+        console.log(`[WhatsApp Session] 📊 Nuevo estado después de reinicio: ${newStatus.status}`);
+        
+        // Si está conectada después de reiniciar
+        if (newStatus.status === 'WORKING') {
+          const phone = newStatus.me?.id?.split('@')[0] || null;
+          return NextResponse.json({
+            success: true,
+            status: 'WORKING',
+            connected: true,
+            session: sessionName,
+            phone
+          });
+        }
+        
+        // Si necesita QR después de reiniciar
+        if (['SCAN_QR', 'SCAN_QR_CODE', 'STARTING'].includes(newStatus.status)) {
+          try {
+            const qrData = await getSessionQR(sessionName, organizationId);
+            const qrValue = qrData?.value || qrData?.data || null;
+            
+            if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
+              return NextResponse.json({
+                success: true,
+                status: 'SCAN_QR',
+                connected: false,
+                session: sessionName,
+                qr: qrValue,
+                expiresIn: 60,
+                message: 'Sesión reiniciada. Escanea el código QR.'
+              });
+            }
+          } catch (qrError: any) {
+            console.warn(`[WhatsApp Session] ⚠️ Error obteniendo QR:`, qrError.message);
+          }
+          
+          // QR no disponible aún, pero sesión iniciando
+          return NextResponse.json({
+            success: true,
+            status: 'STARTING',
+            connected: false,
+            session: sessionName,
+            qr: null,
+            message: 'Sesión reiniciada. Espera unos segundos para el QR.'
+          });
+        }
+        
+        // Si sigue en FAILED después de reiniciar, necesitamos eliminar y recrear
+        if (newStatus.status === 'FAILED') {
+          console.log(`[WhatsApp Session] ❌ Sesión sigue FAILED, eliminando y recreando...`);
+          const { url, key } = await (await import('@/lib/waha-sessions')).getWahaConfig(organizationId);
+          
+          // Eliminar sesión
+          await fetch(`${url}/api/sessions/${sessionName}`, {
+            method: 'DELETE',
+            headers: { 'X-Api-Key': key }
+          });
+          
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Crear nueva
+          await createOrganizationSession(organizationId);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          
+          return NextResponse.json({
+            success: true,
+            status: 'STARTING',
+            connected: false,
+            session: sessionName,
+            message: 'Sesión recreada. Recarga para obtener el QR.'
+          });
+        }
+        
+        // Otro estado
+        return NextResponse.json({
+          success: true,
+          status: newStatus.status || 'STARTING',
+          connected: false,
+          session: sessionName,
+          message: `Sesión en estado ${newStatus.status}. Recarga para actualizar.`
+        });
+        
+      } catch (restartError: any) {
+        console.error(`[WhatsApp Session] ❌ Error reiniciando:`, restartError.message);
+        return NextResponse.json({
+          success: false,
+          status: 'ERROR',
+          error: `Error al reiniciar: ${restartError.message}`
+        }, { status: 500 });
+      }
+    }
+
+    // 7. CASO: Sesión no existe - Crear nueva
+    console.log(`[WhatsApp Session] 🔄 Sesión requiere creación: exists=${status.exists}`);
     
     try {
-      if (!status.exists) {
-        console.log(`[WhatsApp Session] 📝 Creando nueva sesión...`);
-        await createOrganizationSession(organizationId);
-      } else {
-        console.log(`[WhatsApp Session] 🔄 Reiniciando sesión existente...`);
-        await startSession(sessionName, organizationId);
-      }
+      console.log(`[WhatsApp Session] 📝 Creando nueva sesión...`);
+      await createOrganizationSession(organizationId);
       
       // Esperar y verificar
       await new Promise(resolve => setTimeout(resolve, 3000));
