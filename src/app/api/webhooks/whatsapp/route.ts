@@ -82,10 +82,19 @@ export async function POST(request: NextRequest) {
 async function handleMessageEvent(body: any) {
   try {
     console.log('[WAHA Webhook] 📨 Procesando mensaje...');
+    console.log('[WAHA Webhook] 📦 Body completo:', JSON.stringify(body).substring(0, 500));
 
     // 1. Extraer datos del mensaje
-    const message = body.payload || body.message || body;
+    const message = body.payload || body.message || body.data || body;
     const sessionName = body.session || message.session;
+    
+    console.log('[WAHA Webhook] 📋 Mensaje extraído:', {
+      hasMessage: !!message,
+      sessionName,
+      fromMe: message?.fromMe,
+      from: message?.from,
+      body: message?.body?.substring(0, 50)
+    });
     
     // Validar que sea mensaje entrante válido
     if (!message || !sessionName) {
@@ -94,10 +103,21 @@ async function handleMessageEvent(body: any) {
     }
 
     // 2. Ignorar si fromMe es true (mensaje propio)
-    if (message.fromMe === true || message.fromMe === 'true') {
-      console.log('[WAHA Webhook] ⏭️ Ignorando mensaje propio');
+    // Verificar en múltiples ubicaciones posibles
+    const isFromMe = 
+      message.fromMe === true || 
+      message.fromMe === 'true' ||
+      message.fromMe === 1 ||
+      message.key?.fromMe === true ||
+      message.key?.fromMe === 'true' ||
+      message._data?.key?.fromMe === true;
+    
+    if (isFromMe) {
+      console.log('[WAHA Webhook] ⏭️ Ignorando mensaje propio (fromMe=true)');
       return;
     }
+    
+    console.log('[WAHA Webhook] ✅ Mensaje es entrante, procesando...');
 
     // 3. Ignorar si chatId contiene @g.us (grupo)
     const chatId = message.chatId || message.from || message.to;
@@ -105,12 +125,40 @@ async function handleMessageEvent(body: any) {
       console.log('[WAHA Webhook] ⏭️ Ignorando mensaje de grupo');
       return;
     }
-
-    // 4. Obtener organizationId desde la sesión (multi-tenant)
+    
+    // 3.5 IMPORTANTE: Extraer número del remitente y verificar que no sea la misma sesión
+    const fromNumber = extractPhoneNumber(chatId);
+    console.log('[WAHA Webhook] 📱 Número del remitente:', fromNumber);
+    
+    // Obtener organizationId para verificar el número de la sesión
     const organizationId = await getOrganizationFromSession(sessionName);
     if (!organizationId) {
       console.error('[WAHA Webhook] ❌ No se pudo obtener organizationId de sesión:', sessionName);
       return;
+    }
+
+    // Obtener el estado de la sesión para verificar el número propio
+    try {
+      const { getSessionStatus } = await import('@/lib/waha-sessions');
+      const sessionStatus = await getSessionStatus(sessionName, organizationId);
+      const ownPhone = sessionStatus?.me?.id?.split('@')[0] || 
+                       sessionStatus?.me?.phone ||
+                       sessionStatus?.phone;
+      
+      console.log('[WAHA Webhook] 📱 Número de la sesión:', ownPhone);
+      
+      // Si el remitente es el mismo número que la sesión, ignorar (es un loop)
+      if (ownPhone && fromNumber && (
+        fromNumber === ownPhone ||
+        fromNumber.includes(ownPhone) ||
+        ownPhone.includes(fromNumber)
+      )) {
+        console.log('[WAHA Webhook] ⏭️ Ignorando mensaje loop (mismo número que la sesión)');
+        return;
+      }
+    } catch (statusError) {
+      console.warn('[WAHA Webhook] ⚠️ No se pudo verificar número de sesión:', statusError);
+      // Continuar de todas formas
     }
 
     console.log('[WAHA Webhook] 📍 Organization ID:', organizationId);
@@ -120,7 +168,7 @@ async function handleMessageEvent(body: any) {
     const supabase = getSupabaseServiceClient();
 
     // 6. Extraer número de teléfono del cliente
-    const customerPhone = extractPhoneNumber(chatId);
+    const customerPhone = fromNumber;
     if (!customerPhone) {
       console.error('[WAHA Webhook] ❌ No se pudo extraer número de teléfono de:', chatId);
       return;

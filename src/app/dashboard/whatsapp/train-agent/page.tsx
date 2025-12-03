@@ -75,6 +75,8 @@ export default function TrainAgentPage() {
       const response = await fetch(`/api/whatsapp/config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store',
         body: JSON.stringify({
           businessInfo: formData.businessInfo,
           services: formData.services,
@@ -147,6 +149,8 @@ export default function TrainAgentPage() {
           const configResponse = await fetch('/api/whatsapp/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            cache: 'no-store',
             body: JSON.stringify({
               whatsapp_phone: phone,
               whatsapp_connected: true

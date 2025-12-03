@@ -309,39 +309,94 @@ export async function POST(request: NextRequest) {
       try {
         // 1. Obtener estado actual
         const currentStatus = await getSessionStatus(sessionName, organizationId);
-        console.log(`1. Estado actual: ${currentStatus.status}`);
+        console.log(`1. Estado actual:`, {
+          status: currentStatus.status,
+          exists: currentStatus.exists,
+          error: currentStatus.error
+        });
         
-        // 2. Hacer logout si está conectado
-        if (currentStatus.status === 'WORKING') {
-          console.log(`2. Haciendo logout...`);
-          await logoutSession(sessionName, organizationId);
+        // 2. Si NO está conectado, reiniciar directamente para obtener nuevo QR
+        if (currentStatus.status !== 'WORKING') {
+          console.log(`2. No está conectado (${currentStatus.status}), reiniciando para nuevo QR...`);
           
-          // Esperar
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Eliminar y recrear sesión
+          const { url, key } = await (await import('@/lib/waha-sessions')).getWahaConfig(organizationId);
           
-          // Verificar
-          const afterLogout = await getSessionStatus(sessionName, organizationId);
-          console.log(`3. Estado después de logout: ${afterLogout.status}`);
-          
-          // Si sigue WORKING, forzar stop y start
-          if (afterLogout.status === 'WORKING') {
-            console.log(`4. Forzando stop y start...`);
-            const { url, key } = await (await import('@/lib/waha-sessions')).getWahaConfig(organizationId);
-            
-            // Stop
-            await fetch(`${url}/api/sessions/${sessionName}/stop`, {
-              method: 'POST',
+          try {
+            await fetch(`${url}/api/sessions/${sessionName}`, {
+              method: 'DELETE',
               headers: { 'X-Api-Key': key }
             });
-            
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // Start
-            await startSession(sessionName, organizationId);
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            console.log(`3. Sesión eliminada`);
+          } catch (deleteError) {
+            console.warn(`3. Error eliminando (puede no existir):`, deleteError);
           }
+          
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Crear nueva
+          await createOrganizationSession(organizationId);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          console.log(`4. Sesión recreada`);
+          
+          // Obtener QR
+          try {
+            const qrData = await getSessionQR(sessionName, organizationId);
+            const qrValue = qrData?.value || qrData?.data || null;
+            
+            if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
+              console.log(`5. QR obtenido: ${qrValue.length} caracteres`);
+              return NextResponse.json({
+                success: true,
+                status: 'SCAN_QR',
+                connected: false,
+                session: sessionName,
+                qr: qrValue,
+                message: 'Sesión reiniciada. Escanea el nuevo QR.'
+              });
+            }
+          } catch (qrError: any) {
+            console.warn(`5. Error obteniendo QR:`, qrError.message);
+          }
+          
+          return NextResponse.json({
+            success: true,
+            status: 'STARTING',
+            connected: false,
+            session: sessionName,
+            message: 'Sesión reiniciada. Recarga en unos segundos para el QR.'
+          });
+        }
+        
+        // 3. Hacer logout si está conectado
+        console.log(`2. Haciendo logout...`);
+        await logoutSession(sessionName, organizationId);
+        
+        // Esperar
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Verificar
+        const afterLogout = await getSessionStatus(sessionName, organizationId);
+        console.log(`3. Estado después de logout: ${afterLogout.status}`);
+        
+        // Si sigue WORKING, forzar stop y start
+        if (afterLogout.status === 'WORKING') {
+          console.log(`4. Forzando stop y start...`);
+          const { url, key } = await (await import('@/lib/waha-sessions')).getWahaConfig(organizationId);
+          
+          // Stop
+          await fetch(`${url}/api/sessions/${sessionName}/stop`, {
+            method: 'POST',
+            headers: { 'X-Api-Key': key }
+          });
+          
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Start
+          await startSession(sessionName, organizationId);
+          await new Promise(resolve => setTimeout(resolve, 3000));
         } else {
-          console.log(`2. No está conectado, reiniciando sesión...`);
+          console.log(`4. Reiniciando sesión...`);
           await startSession(sessionName, organizationId);
           await new Promise(resolve => setTimeout(resolve, 3000));
         }

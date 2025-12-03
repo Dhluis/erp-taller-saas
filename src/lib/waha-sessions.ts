@@ -180,36 +180,48 @@ export async function createOrganizationSession(organizationId: string): Promise
 
   console.log(`[WAHA Sessions] 🚀 Creando sesión para organización: ${organizationId}`);
   console.log(`[WAHA Sessions] 📝 Nombre de sesión: ${sessionName}`);
+  console.log(`[WAHA Sessions] 🌐 WAHA URL: ${url}`);
+  console.log(`[WAHA Sessions] 🔑 WAHA Key length: ${key.length}`);
 
   // URL del webhook
   const webhookUrl = process.env.NEXT_PUBLIC_APP_URL 
     ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
     : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
 
+  console.log(`[WAHA Sessions] 🔗 Webhook URL: ${webhookUrl}`);
+
   // Crear sesión en WAHA
+  const requestBody = {
+    name: sessionName,
+    start: true,
+    config: {
+      webhooks: [{
+        url: webhookUrl,
+        events: ['message', 'message.any', 'session.status']
+      }]
+    }
+  };
+
+  console.log(`[WAHA Sessions] 📤 Request body:`, JSON.stringify(requestBody, null, 2));
+
   const response = await fetch(`${url}/api/sessions`, {
     method: 'POST',
     headers: {
       'X-Api-Key': key,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      name: sessionName,
-      start: true,
-      config: {
-        webhooks: [{
-          url: webhookUrl,
-          events: ['message', 'message.any', 'session.status']
-        }]
-      }
-    })
+    body: JSON.stringify(requestBody)
   });
+
+  console.log(`[WAHA Sessions] 📥 Response status: ${response.status}`);
 
   if (!response) {
     throw new Error('No se recibió respuesta de WAHA al crear sesión');
   }
 
   const responseText = await response.text().catch(() => 'Error desconocido');
+  console.log(`[WAHA Sessions] 📥 Response body:`, responseText.substring(0, 500));
+  
   let responseData: any = {};
   
   try {
@@ -233,6 +245,8 @@ export async function createOrganizationSession(organizationId: string): Promise
     // Si la sesión ya existe, verificar su estado y reiniciarla si está en FAILED
     try {
       const status = await getSessionStatus(sessionName, organizationId);
+      console.log(`[WAHA Sessions] 📊 Estado de sesión existente: ${status.status}`);
+      
       if (status.status === 'FAILED' || status.status === 'STOPPED') {
         console.log(`[WAHA Sessions] 🔄 Sesión en estado ${status.status}, reiniciando...`);
         await startSession(sessionName, organizationId);
