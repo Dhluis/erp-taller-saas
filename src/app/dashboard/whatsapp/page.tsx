@@ -24,16 +24,28 @@ export default function WhatsAppPage() {
   const [config, setConfig] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
+  // 🔍 DEBUG: Log del organization completo
+  useEffect(() => {
+    console.log('[WhatsApp DEBUG] 🔍 Organization Context:', {
+      hasOrganization: !!organization,
+      organization_id: organization?.organization_id,
+      name: organization?.name,
+      fullObject: organization
+    })
+  }, [organization])
+
   // ✅ DEFINIR loadConfig PRIMERO, antes de los useEffects
   const loadConfig = useCallback(async () => {
     if (!organization?.organization_id) {
       console.log('[WhatsApp] ⏳ Esperando organization ID...')
+      console.log('[WhatsApp DEBUG] Organization actual:', organization)
       setLoading(false)
       return
     }
 
     try {
       console.log('[WhatsApp] 🔄 Cargando configuración para org:', organization.organization_id)
+      console.log('[WhatsApp DEBUG] Organization completo:', JSON.stringify(organization, null, 2))
       setLoading(true)
       const response = await fetch('/api/whatsapp/config', {
         cache: 'no-store' // Evitar cache para obtener datos frescos
