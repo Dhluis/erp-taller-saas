@@ -47,7 +47,7 @@ import { useOrganization } from '@/contexts/OrganizationContext'
 import { createClient } from '@/lib/supabase/client'
 import { useCustomers } from '@/hooks/useCustomers'
 
-import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench } from 'lucide-react'
+import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown } from 'lucide-react'
 
 interface CreateWorkOrderModalProps {
 
@@ -957,43 +957,58 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 <Label htmlFor="customer_name">Nombre *</Label>
 
-                <Input
+                <div className="relative">
 
-                  id="customer_name"
+                  <Input
 
-                  name="customerName"
+                    id="customer_name"
 
-                  required
+                    name="customerName"
 
-                  value={formData.customerName}
+                    required
 
-                  onChange={(e) => {
-                    handleChange(e);
-                  }}
-                  
-                  onFocus={() => {
-                    // Mostrar dropdown si hay clientes disponibles
-                    if (customers.length > 0) {
-                      setShowCustomerDropdown(true)
-                    }
-                  }}
-                  
-                  onBlur={() => {
-                    // Cerrar dropdown después de un pequeño delay para permitir clics
-                    setTimeout(() => {
-                      setShowCustomerDropdown(false)
-                    }, 200)
-                  }}
+                    value={formData.customerName}
 
-                  placeholder="Juan Pérez"
+                    onChange={(e) => {
+                      handleChange(e);
+                      // Mostrar dropdown al escribir si hay clientes
+                      if (e.target.value.length > 0 && customers.length > 0) {
+                        setShowCustomerDropdown(true);
+                      }
+                    }}
+                    
+                    onBlur={() => {
+                      // Cerrar dropdown después de un pequeño delay para permitir clics
+                      setTimeout(() => {
+                        setShowCustomerDropdown(false)
+                      }, 200)
+                    }}
 
-                  disabled={loading}
+                    placeholder="Escribe o selecciona un cliente"
 
-                  className={errors.customerName ? 'border-red-500' : ''}
+                    disabled={loading}
 
-                  autoComplete="off"
+                    className={`pr-10 ${errors.customerName ? 'border-red-500' : ''}`}
 
-                />
+                    autoComplete="off"
+
+                  />
+
+                  {/* Botón de dropdown con flechita */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (customers.length > 0) {
+                        setShowCustomerDropdown(!showCustomerDropdown)
+                      }
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-700 rounded transition-colors"
+                    disabled={loading}
+                  >
+                    <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showCustomerDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+
+                </div>
 
                 {/* Dropdown de sugerencias estilo Sonner */}
                 {showCustomerDropdown && filteredCustomers.length > 0 && (
@@ -1010,6 +1025,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                             customerEmail: customer.email || '',
                             customerAddress: customer.address || ''
                           }));
+                          // Limpiar error de validación al seleccionar
+                          setErrors(prev => ({ ...prev, customerName: '' }));
                           setShowCustomerDropdown(false);
                         }}
                         className="w-full px-4 py-3 text-left hover:bg-gray-800 transition-colors flex items-center gap-3 border-b border-gray-800 last:border-0"
