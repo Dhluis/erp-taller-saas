@@ -94,7 +94,7 @@ export function Sidebar({ className }: SidebarProps) {
       icon: () => <ModernIcons.Finanzas size={20} />,
       items: [
         { href: "/ingresos", label: "Facturación", icon: () => <ModernIcons.Ordenes size={18} /> },
-        { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Pagos size={18} /> }
+        { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Cobros size={18} /> }
       ]
     },
     {
@@ -104,7 +104,7 @@ export function Sidebar({ className }: SidebarProps) {
       items: [
         { href: "/compras", label: "Órdenes de Compra", icon: () => <ModernIcons.Ordenes size={18} /> },
         { href: "/compras/proveedores", label: "Proveedores", icon: () => <ModernIcons.Clientes size={18} /> },
-        { href: "/compras/pagos", label: "Pagos", icon: () => <ModernIcons.Pagos size={18} /> }
+        { href: "/compras/pagos", label: "Pagos", icon: () => <ModernIcons.Transfer size={18} /> }
       ]
     },
     {
@@ -114,7 +114,7 @@ export function Sidebar({ className }: SidebarProps) {
       items: [
         { href: "/reportes/ventas", label: "Ventas", icon: () => <ModernIcons.Finanzas size={18} /> },
         { href: "/reportes/inventario", label: "Inventario", icon: () => <ModernIcons.Inventarios size={18} /> },
-        { href: "/reportes/financieros", label: "Financieros", icon: () => <ModernIcons.Pagos size={18} /> }
+        { href: "/reportes/financieros", label: "Financieros", icon: () => <ModernIcons.Financieros size={18} /> }
       ]
     },
     {

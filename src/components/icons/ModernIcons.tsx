@@ -251,6 +251,37 @@ export const PerfilIcon = ({ className = '', size = 24 }: IconProps) => (
   </svg>
 )
 
+// Cobros / Dinero Entrante (Billete verde)
+export const CobrosIcon = ({ className = '', size = 24 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+    <rect x="6" y="14" width="36" height="20" rx="2" fill="#10B981"/>
+    <rect x="8" y="16" width="32" height="16" rx="1" fill="#34D399"/>
+    <circle cx="24" cy="24" r="6" fill="#D1FAE5"/>
+    <text x="24" y="28" fontSize="10" fontWeight="bold" textAnchor="middle" fill="#059669">$</text>
+    <path d="M38 18L42 24L38 30" stroke="#6EE7B7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+)
+
+// Transfer / Transferencia (Flechas azules)
+export const TransferIcon = ({ className = '', size = 24 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+    <circle cx="24" cy="24" r="20" fill="#3B82F6"/>
+    <path d="M14 20H30M30 20L26 16M30 20L26 24" stroke="#DBEAFE" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M34 28H18M18 28L22 32M18 28L22 24" stroke="#93C5FD" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+)
+
+// Financieros / Gráfico (Chart morado)
+export const FinancierosIcon = ({ className = '', size = 24 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+    <rect x="4" y="4" width="40" height="40" rx="4" fill="#8B5CF6"/>
+    <rect x="10" y="28" width="6" height="12" rx="1" fill="#EDE9FE"/>
+    <rect x="19" y="20" width="6" height="20" rx="1" fill="#DDD6FE"/>
+    <rect x="28" y="14" width="6" height="26" rx="1" fill="#C4B5FD"/>
+    <path d="M10 18L19 12L28 16L37 8" stroke="#A78BFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+)
+
 // Search / Buscar
 export const SearchIcon = ({ className = '', size = 24 }: IconProps) => (
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
@@ -281,6 +312,9 @@ export default {
   Notificaciones: NotificacionesIcon,
   Cotizaciones: CotizacionesIcon,
   Pagos: PagosIcon,
+  Cobros: CobrosIcon,
+  Transfer: TransferIcon,
+  Financieros: FinancierosIcon,
   Check: CheckIcon,
   Error: ErrorIcon,
   Warning: WarningIcon,

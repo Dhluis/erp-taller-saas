@@ -218,6 +218,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>([])
+  
+  // Estado para el dropdown de clientes
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
+  const [filteredCustomers, setFilteredCustomers] = useState<typeof customers>([])
+
 
   const [loadingSystemUsers, setLoadingSystemUsers] = useState(false)
 
@@ -517,10 +522,26 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     if (!open) {
 
       setFormData(INITIAL_FORM_DATA)
+      
+      setShowCustomerDropdown(false)
 
     }
 
   }, [open])
+  
+  // Filtrar clientes cuando el usuario escribe
+  useEffect(() => {
+    if (formData.customerName.length > 0) {
+      const filtered = customers.filter(c => 
+        c.name.toLowerCase().includes(formData.customerName.toLowerCase())
+      )
+      setFilteredCustomers(filtered)
+      setShowCustomerDropdown(filtered.length > 0)
+    } else {
+      setFilteredCustomers([])
+      setShowCustomerDropdown(false)
+    }
+  }, [formData.customerName, customers])
 
   const handleBlur = (field: string) => {
 
@@ -933,7 +954,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             <div className="grid grid-cols-2 gap-4">
 
-              <div>
+              <div className="relative">
 
                 <Label htmlFor="customer_name">Nombre *</Label>
 
@@ -949,17 +970,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                   onChange={(e) => {
                     handleChange(e);
-                    
-                    // Autocompletar datos si selecciona un cliente existente
-                    const selectedCustomer = customers.find(c => c.name === e.target.value);
-                    if (selectedCustomer) {
-                      setFormData(prev => ({
-                        ...prev,
-                        customerName: selectedCustomer.name,
-                        customerPhone: selectedCustomer.phone || '',
-                        customerEmail: selectedCustomer.email || '',
-                        customerAddress: selectedCustomer.address || ''
-                      }));
+                  }}
+                  
+                  onFocus={() => {
+                    if (formData.customerName.length > 0 && filteredCustomers.length > 0) {
+                      setShowCustomerDropdown(true)
                     }
                   }}
 
@@ -969,15 +984,38 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                   className={errors.customerName ? 'border-red-500' : ''}
 
-                  list="customers-list"
+                  autoComplete="off"
 
                 />
 
-                <datalist id="customers-list">
-                  {customers.map(customer => (
-                    <option key={customer.id} value={customer.name} />
-                  ))}
-                </datalist>
+                {/* Dropdown de sugerencias estilo Sonner */}
+                {showCustomerDropdown && filteredCustomers.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto">
+                    {filteredCustomers.slice(0, 5).map((customer) => (
+                      <button
+                        key={customer.id}
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            customerName: customer.name,
+                            customerPhone: customer.phone || '',
+                            customerEmail: customer.email || '',
+                            customerAddress: customer.address || ''
+                          }));
+                          setShowCustomerDropdown(false);
+                        }}
+                        className="w-full px-4 py-3 text-left hover:bg-gray-800 transition-colors flex items-center gap-3 border-b border-gray-800 last:border-0"
+                      >
+                        <User className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{customer.name}</p>
+                          <p className="text-xs text-gray-400 truncate">{customer.phone}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {errors.customerName && (
 
