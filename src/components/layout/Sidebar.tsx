@@ -83,8 +83,8 @@ export function Sidebar({ className }: SidebarProps) {
       label: 'Inventarios',
       icon: () => <ModernIcons.Inventarios size={20} />,
       items: [
-        { href: "/inventarios", label: "Productos", icon: () => <ModernIcons.Inventarios size={18} /> },
-        { href: "/inventarios/categorias", label: "Categorías", icon: () => <ModernIcons.Inventarios size={18} /> },
+        { href: "/inventarios", label: "Productos", icon: () => <ModernIcons.Productos size={18} /> },
+        { href: "/inventarios/categorias", label: "Categorías", icon: () => <ModernIcons.Categorias size={18} /> },
         { href: "/inventarios/movimientos", label: "Movimientos", icon: () => <ModernIcons.Reportes size={18} /> }
       ]
     },
