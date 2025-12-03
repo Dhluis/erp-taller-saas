@@ -205,3 +205,7 @@ El servicio usa automáticamente el header `X-Api-Key` con el valor de `WAHA_API
 5. **Errores**: Todas las funciones incluyen manejo de errores y logging detallado
 
 
+
+
+
+
