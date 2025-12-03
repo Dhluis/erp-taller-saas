@@ -289,6 +289,12 @@ export function WhatsAppQRConnectorSimple({
       
       // Iniciar polling para mantener actualizado
       startPolling()
+      
+      // Forzar verificación inmediata después de 1 segundo para actualizar UI
+      setTimeout(() => {
+        console.log(`[WhatsApp Simple] 🔄 Verificación forzada después de desconectar`)
+        checkStatus()
+      }, 1000)
 
     } catch (error: any) {
       console.error(`[WhatsApp Simple] ❌ Error desconectando:`, error)
@@ -297,7 +303,7 @@ export function WhatsAppQRConnectorSimple({
     } finally {
       setIsLoading(false)
     }
-  }, [startPolling])
+  }, [startPolling, checkStatus])
 
   // Cambiar número
   const handleChangeNumber = useCallback(async () => {
@@ -341,6 +347,12 @@ export function WhatsAppQRConnectorSimple({
       
       // Iniciar polling para mantener actualizado
       startPolling()
+      
+      // Forzar verificación inmediata después de 1 segundo para actualizar UI
+      setTimeout(() => {
+        console.log(`[WhatsApp Simple] 🔄 Verificación forzada después de cambiar número`)
+        checkStatus()
+      }, 1000)
 
     } catch (error: any) {
       console.error(`[WhatsApp Simple] ❌ Error cambiando número:`, error)
@@ -349,7 +361,7 @@ export function WhatsAppQRConnectorSimple({
     } finally {
       setIsLoading(false)
     }
-  }, [startPolling])
+  }, [startPolling, checkStatus])
 
   // UI
   const isQRImage = sessionData?.qr?.startsWith('data:image')
