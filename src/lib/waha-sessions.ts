@@ -214,13 +214,14 @@ export async function createOrganizationSession(organizationId: string): Promise
   });
 
   console.log(`[WAHA Sessions] 📥 Response status: ${response.status}`);
+  console.log(`[WAHA Sessions] 📥 Response headers:`, Object.fromEntries(response.headers.entries()));
 
   if (!response) {
     throw new Error('No se recibió respuesta de WAHA al crear sesión');
   }
 
   const responseText = await response.text().catch(() => 'Error desconocido');
-  console.log(`[WAHA Sessions] 📥 Response body:`, responseText.substring(0, 500));
+  console.log(`[WAHA Sessions] 📥 Response body (full):`, responseText);
   
   let responseData: any = {};
   

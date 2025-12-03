@@ -1,78 +1,87 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
-import { getWahaConfig, generateSessionName, getSessionStatus } from '@/lib/waha-sessions';
 
 /**
- * GET /api/whatsapp/verify-session
- * Verifica si la sesión existe en WAHA y muestra su estado
+ * VERIFICAR SESIÓN ESPECÍFICA
+ * Busca la sesión de la organización actual en WAHA
  */
 export async function GET(request: NextRequest) {
+  console.log('\n🔍 ========== VERIFICAR SESIÓN ==========\n');
+
   try {
-    console.log('\n=== VERIFICACIÓN DE SESIÓN EN WAHA ===');
+    // Obtener contexto del tenant
+    const tenantContext = await getTenantContext(request);
     
-    // 1. Obtener contexto
-    const { organizationId } = await getTenantContext(request);
-    console.log('Organization ID:', organizationId);
-    
-    // 2. Generar nombre de sesión
-    const sessionName = generateSessionName(organizationId);
-    console.log('Session Name:', sessionName);
-    
-    // 3. Obtener configuración WAHA
-    const { url, key } = await getWahaConfig(organizationId);
-    console.log('WAHA URL:', url);
-    console.log('WAHA Key length:', key.length);
-    
-    // 4. Listar TODAS las sesiones en WAHA
-    console.log('\n--- Listando TODAS las sesiones en WAHA ---');
-    const listResponse = await fetch(`${url}/api/sessions`, {
-      headers: { 'X-Api-Key': key }
+    if (!tenantContext.success || !tenantContext.organizationId) {
+      return NextResponse.json({
+        success: false,
+        error: 'No se pudo obtener organization_id'
+      }, { status: 401 });
+    }
+
+    const sessionName = `org_${tenantContext.organizationId}`;
+    console.log('🔍 Buscando sesión:', sessionName);
+
+    // Variables de entorno
+    const WAHA_API_URL = process.env.WAHA_API_URL;
+    const WAHA_API_KEY = process.env.WAHA_API_KEY;
+
+    if (!WAHA_API_URL || !WAHA_API_KEY) {
+      return NextResponse.json({
+        success: false,
+        error: 'Variables de entorno no configuradas'
+      }, { status: 500 });
+    }
+
+    // Listar TODAS las sesiones en WAHA
+    const listResponse = await fetch(`${WAHA_API_URL}/api/sessions/all`, {
+      method: 'GET',
+      headers: {
+        'X-Api-Key': WAHA_API_KEY,
+        'Content-Type': 'application/json',
+      },
     });
-    
-    const allSessions = await listResponse.json().catch(() => []);
-    console.log('Total sesiones en WAHA:', Array.isArray(allSessions) ? allSessions.length : 'N/A');
-    console.log('Sesiones encontradas:', allSessions);
-    
-    // 5. Buscar nuestra sesión específica
-    const ourSession = Array.isArray(allSessions) 
+
+    if (!listResponse.ok) {
+      return NextResponse.json({
+        success: false,
+        error: `WAHA respondió con error: ${listResponse.status}`,
+        details: await listResponse.text()
+      }, { status: listResponse.status });
+    }
+
+    const allSessions = await listResponse.json();
+    console.log('📋 Total de sesiones en WAHA:', Array.isArray(allSessions) ? allSessions.length : 0);
+
+    // Buscar la sesión específica
+    const mySession = Array.isArray(allSessions) 
       ? allSessions.find((s: any) => s.name === sessionName)
       : null;
-    
-    console.log('Nuestra sesión encontrada:', ourSession);
-    
-    // 6. Obtener estado específico de nuestra sesión
-    console.log('\n--- Obteniendo estado de nuestra sesión ---');
-    const sessionStatus = await getSessionStatus(sessionName, organizationId);
-    console.log('Estado:', sessionStatus);
-    
-    // 7. Respuesta
+
+    console.log('🔍 Sesión encontrada:', mySession ? 'SÍ' : 'NO');
+
     return NextResponse.json({
       success: true,
-      diagnostico: {
-        organizationId,
-        sessionName,
-        wahaUrl: url,
-        totalSessionsInWaha: Array.isArray(allSessions) ? allSessions.length : 0,
-        allSessionNames: Array.isArray(allSessions) ? allSessions.map((s: any) => s.name) : [],
-        ourSessionExists: !!ourSession,
-        ourSessionData: ourSession || null,
-        sessionStatus: sessionStatus,
-        problema: !ourSession ? 
-          'La sesión NO existe en WAHA pero funciona = Está en memoria temporal o se eliminó' :
-          'La sesión SÍ existe en WAHA'
-      },
-      recomendacion: !ourSession ?
-        'Verifica la configuración de persistencia de WAHA. Puede que las sesiones no se estén guardando.' :
-        'Todo bien, la sesión existe en WAHA'
+      organizationId: tenantContext.organizationId,
+      sessionName,
+      sessionExists: !!mySession,
+      sessionDetails: mySession || null,
+      allSessionsCount: Array.isArray(allSessions) ? allSessions.length : 0,
+      allSessionNames: Array.isArray(allSessions) 
+        ? allSessions.map((s: any) => s.name)
+        : [],
+      waha: {
+        url: WAHA_API_URL,
+        connected: true
+      }
     });
-    
+
   } catch (error: any) {
-    console.error('Error en verificación:', error);
+    console.error('❌ Error verificando sesión:', error);
+    
     return NextResponse.json({
       success: false,
-      error: error.message,
-      stack: error.stack
+      error: error.message
     }, { status: 500 });
   }
 }
-
