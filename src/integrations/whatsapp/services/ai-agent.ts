@@ -175,10 +175,14 @@ export async function processMessage(
   params: ProcessMessageParams
 ): Promise<ProcessMessageResult> {
   try {
-    console.log('[AIAgent] Procesando mensaje para conversación:', params.conversationId);
+    console.log('[AIAgent] 🚀 Procesando mensaje para conversación:', params.conversationId);
+    console.log('[AIAgent] 📍 Organization ID:', params.organizationId);
+    console.log('[AIAgent] 📱 Customer Phone:', params.customerPhone);
+    console.log('[AIAgent] 💬 Mensaje:', params.customerMessage.substring(0, 100));
 
     // 1. Cargar configuración del AI
     // Usar service client si se solicita (para pruebas que acaban de guardar la config)
+    console.log('[AIAgent] 🔍 Cargando configuración AI...');
     const aiConfig = await getAIConfig(params.organizationId, params.useServiceClient || false);
     
     // ✅ VALIDAR QUE LA CONFIGURACIÓN EXISTA PRIMERO
@@ -189,6 +193,23 @@ export async function processMessage(
         error: 'AI Agent no está configurado para esta organización. Por favor, completa la configuración del agente antes de probarlo.'
       };
     }
+
+    // 🔍 LOG DETALLADO DE CONFIGURACIÓN
+    console.log('[AIAgent] 📋 ====== CONFIGURACIÓN AI CARGADA ======');
+    console.log('[AIAgent] ✅ Enabled:', aiConfig.enabled);
+    console.log('[AIAgent] 🤖 Provider:', aiConfig.provider);
+    console.log('[AIAgent] 🧠 Model:', aiConfig.model);
+    console.log('[AIAgent] 🎭 Personality:', aiConfig.personality);
+    console.log('[AIAgent] 🌍 Language:', aiConfig.language);
+    console.log('[AIAgent] 🌡️ Temperature:', aiConfig.temperature);
+    console.log('[AIAgent] 📏 Max Tokens:', aiConfig.max_tokens);
+    console.log('[AIAgent] 📅 Auto Schedule:', aiConfig.auto_schedule_appointments);
+    console.log('[AIAgent] 📝 Auto Create Orders:', aiConfig.auto_create_orders);
+    console.log('[AIAgent] 👤 Require Human Approval:', aiConfig.require_human_approval);
+    console.log('[AIAgent] ⏰ Business Hours Only:', aiConfig.business_hours_only);
+    console.log('[AIAgent] 📜 System Prompt Length:', aiConfig.system_prompt?.length || 0);
+    console.log('[AIAgent] 📜 System Prompt Preview:', aiConfig.system_prompt?.substring(0, 150));
+    console.log('[AIAgent] ========================================');
     
     if (!aiConfig.enabled) {
       console.log('[AIAgent] Bot deshabilitado para esta organización');
@@ -253,11 +274,20 @@ export async function processMessage(
 
     // 4. Cargar historial de conversación
     const history = await getConversationHistory(params.conversationId, 10);
+    console.log('[AIAgent] 📚 Historial cargado:', history.length, 'mensajes');
 
     // 5. Construir system prompt
+    console.log('[AIAgent] 🔨 Construyendo system prompt...');
     const systemPrompt = buildSystemPrompt(aiConfig, context);
+    
+    // 🔍 LOG DEL SYSTEM PROMPT COMPLETO (CRÍTICO PARA DEBUG)
+    console.log('[AIAgent] ====== SYSTEM PROMPT CONSTRUIDO ======');
+    console.log(systemPrompt);
+    console.log('[AIAgent] ============================================');
+    console.log('[AIAgent] 📏 System Prompt Length:', systemPrompt.length, 'caracteres');
 
     // 6. Procesar según el provider
+    console.log('[AIAgent] 🚀 Llamando a provider:', aiConfig.provider);
     if (aiConfig.provider === 'openai') {
       return await processWithOpenAI({
         aiConfig,

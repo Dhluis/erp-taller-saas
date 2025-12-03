@@ -24,6 +24,33 @@ import { getOrganizationFromSession, sendWhatsAppMessage } from '@/lib/waha-sess
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// ============================================
+// 🛡️ DEDUPLICACIÓN DE MENSAJES
+// ============================================
+// Cache simple para evitar procesar el mismo mensaje múltiples veces
+// WAHA puede enviar duplicados por reintentos o problemas de red
+const processedMessages = new Map<string, number>();
+const MESSAGE_CACHE_TTL = 60000; // 1 minuto
+
+/**
+ * Limpia mensajes viejos del cache periódicamente
+ */
+function cleanMessageCache() {
+  const now = Date.now();
+  let cleaned = 0;
+  
+  for (const [key, timestamp] of processedMessages.entries()) {
+    if (now - timestamp > MESSAGE_CACHE_TTL) {
+      processedMessages.delete(key);
+      cleaned++;
+    }
+  }
+  
+  if (cleaned > 0) {
+    console.log(`[Webhook] 🧹 Cache limpiado: ${cleaned} mensajes antiguos eliminados (${processedMessages.size} restantes)`);
+  }
+}
+
 /**
  * GET /api/webhooks/whatsapp
  * Verificación del webhook (para algunos providers)
@@ -84,12 +111,35 @@ async function handleMessageEvent(body: any) {
     console.log('[WAHA Webhook] 📨 Procesando mensaje...');
     console.log('[WAHA Webhook] 📦 Body completo:', JSON.stringify(body).substring(0, 500));
 
+    // 0. LIMPIEZA PERIÓDICA DEL CACHE
+    cleanMessageCache();
+
     // 1. Extraer datos del mensaje
     const message = body.payload || body.message || body.data || body;
     const sessionName = body.session || message.session;
     
+    // 2. DEDUPLICACIÓN - Verificar si ya procesamos este mensaje
+    const messageId = message?.id || message?.messageId || body.id;
+    
+    if (messageId) {
+      // Verificar si ya fue procesado
+      if (processedMessages.has(messageId)) {
+        const processedTime = processedMessages.get(messageId);
+        const secondsAgo = Math.floor((Date.now() - processedTime!) / 1000);
+        console.log(`[Webhook] ⏭️ Mensaje ${messageId} ya procesado hace ${secondsAgo}s, ignorando duplicado`);
+        return;
+      }
+      
+      // Marcar como procesado INMEDIATAMENTE para evitar race conditions
+      processedMessages.set(messageId, Date.now());
+      console.log(`[Webhook] ✅ Mensaje ${messageId} marcado como procesado (cache size: ${processedMessages.size})`);
+    } else {
+      console.warn('[Webhook] ⚠️ Mensaje sin ID, no se puede deduplicar. Procesando de todas formas...');
+    }
+    
     console.log('[WAHA Webhook] 📋 Mensaje extraído:', {
       hasMessage: !!message,
+      messageId: messageId,
       sessionName,
       fromMe: message?.fromMe,
       from: message?.from,
@@ -102,7 +152,7 @@ async function handleMessageEvent(body: any) {
       return;
     }
 
-    // 2. Ignorar si fromMe es true (mensaje propio)
+    // 3. Ignorar si fromMe es true (mensaje propio)
     // Verificar en múltiples ubicaciones posibles
     const isFromMe = 
       message.fromMe === true || 
@@ -119,14 +169,14 @@ async function handleMessageEvent(body: any) {
     
     console.log('[WAHA Webhook] ✅ Mensaje es entrante, procesando...');
 
-    // 3. Ignorar si chatId contiene @g.us (grupo)
+    // 4. Ignorar si chatId contiene @g.us (grupo)
     const chatId = message.chatId || message.from || message.to;
     if (chatId && chatId.includes('@g.us')) {
       console.log('[WAHA Webhook] ⏭️ Ignorando mensaje de grupo');
       return;
     }
 
-    // 3.5 IMPORTANTE: Extraer número del remitente y verificar que no sea la misma sesión
+    // 5. IMPORTANTE: Extraer número del remitente y verificar que no sea la misma sesión
     const fromNumber = extractPhoneNumber(chatId);
     console.log('[WAHA Webhook] 📱 Número del remitente:', fromNumber);
     
@@ -164,37 +214,37 @@ async function handleMessageEvent(body: any) {
     console.log('[WAHA Webhook] 📍 Organization ID:', organizationId);
     console.log('[WAHA Webhook] 📱 Chat ID:', chatId);
 
-    // 5. Obtener cliente Supabase con service role (bypass RLS)
+    // 6. Obtener cliente Supabase con service role (bypass RLS)
     const supabase = getSupabaseServiceClient();
 
-    // 6. Extraer número de teléfono del cliente
+    // 7. Extraer número de teléfono del cliente
     const customerPhone = fromNumber;
     if (!customerPhone) {
       console.error('[WAHA Webhook] ❌ No se pudo extraer número de teléfono de:', chatId);
       return;
     }
 
-    // 7. Buscar o crear conversación
+    // 8. Buscar o crear conversación
     const conversationId = await getOrCreateConversation(
       supabase,
       organizationId,
       customerPhone
     );
 
-    // 8. Extraer texto del mensaje
+    // 9. Extraer texto del mensaje
     const messageText = message.text || message.body || message.content || '';
-    const messageId = message.id || message.messageId || `waha_${Date.now()}`;
+    // Reutilizar messageId ya extraído arriba para deduplicación
     const timestamp = message.timestamp 
       ? new Date(message.timestamp * 1000 || message.timestamp)
       : new Date();
 
-    // 9. Guardar mensaje entrante
+    // 10. Guardar mensaje entrante
     await saveIncomingMessage(
       supabase,
       conversationId,
       organizationId,
       {
-        messageId,
+        messageId: messageId || `waha_${Date.now()}`,
         from: customerPhone,
         body: messageText,
         timestamp,
@@ -202,7 +252,7 @@ async function handleMessageEvent(body: any) {
       }
     );
 
-    // 10. Verificar si el bot está activo en la conversación
+    // 11. Verificar si el bot está activo en la conversación
     const { data: conversation } = await supabase
       .from('whatsapp_conversations')
       .select('is_bot_active')
@@ -214,7 +264,40 @@ async function handleMessageEvent(body: any) {
       return;
     }
 
-    // 11. Procesar mensaje con AI Agent
+    // 12. Cargar configuración AI para logging (debugging)
+    console.log('[WAHA Webhook] 🔍 Verificando configuración AI...');
+    const { data: aiConfig, error: aiConfigError } = await supabase
+      .from('ai_agent_config')
+      .select('id, enabled, provider, model, system_prompt, personality, language')
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (aiConfigError || !aiConfig) {
+      console.error('[WAHA Webhook] ❌ No se encontró configuración AI:', {
+        error: aiConfigError?.message,
+        code: aiConfigError?.code,
+        organizationId
+      });
+      return;
+    }
+
+    console.log('[WAHA Webhook] 📋 Configuración AI cargada:', {
+      id: aiConfig.id,
+      enabled: aiConfig.enabled,
+      provider: aiConfig.provider,
+      model: aiConfig.model,
+      personality: aiConfig.personality,
+      language: aiConfig.language,
+      systemPromptLength: aiConfig.system_prompt?.length || 0,
+      systemPromptPreview: aiConfig.system_prompt?.substring(0, 100) + '...'
+    });
+
+    if (!aiConfig.enabled) {
+      console.log('[WAHA Webhook] ⏸️ AI Agent deshabilitado en configuración');
+      return;
+    }
+
+    // 13. Procesar mensaje con AI Agent
     console.log('[WAHA Webhook] 🤖 Procesando con AI Agent...');
     const aiResult = await processMessage({
       organizationId,
@@ -224,7 +307,7 @@ async function handleMessageEvent(body: any) {
       useServiceClient: true // Usar service client para bypass RLS
     });
 
-    // 12. Si AI responde, enviar respuesta
+    // 14. Si AI responde, enviar respuesta
     if (aiResult.success && aiResult.response) {
       console.log('[WAHA Webhook] ✅ AI generó respuesta, enviando...');
       
@@ -234,10 +317,10 @@ async function handleMessageEvent(body: any) {
         customerPhone,
           aiResult.response,
           organizationId
-      );
+        );
 
         if (sendResult) {
-        // 13. Guardar mensaje saliente
+        // 15. Guardar mensaje saliente
         await saveOutgoingMessage(
           supabase,
           conversationId,

@@ -90,6 +90,18 @@ export async function loadAIContext(
         website: undefined
       }
     }
+    
+    // 🔍 LOG DEL CONTEXTO CONSTRUIDO
+    console.log('[ContextLoader] ====== CONTEXTO AI CONSTRUIDO ======')
+    console.log('[ContextLoader] 🏢 Organization Name:', context.organization_name)
+    console.log('[ContextLoader] 🔧 Services:', context.services.length, 'items')
+    console.log('[ContextLoader] 👥 Mechanics:', context.mechanics.length, 'items')
+    console.log('[ContextLoader] ⏰ Business Hours:', Object.keys(context.business_hours).length, 'días')
+    console.log('[ContextLoader] 📋 Policies:', Object.keys(context.policies).length, 'items')
+    console.log('[ContextLoader] ❓ FAQs:', context.faqs.length, 'items')
+    console.log('[ContextLoader] 📞 Contact Info:', JSON.stringify(context.contact_info))
+    console.log('[ContextLoader] ==========================================')
+    
     return context
   } catch (error) {
     console.error('[ContextLoader] Error cargando contexto:', error)
@@ -253,12 +265,29 @@ export async function getAIConfig(
       return null
     }
 
-    console.log('[ContextLoader] ✅ Configuración encontrada:', {
-      id: data.id,
-      enabled: data.enabled,
-      provider: data.provider,
-      model: data.model
-    })
+    // 🔍 LOG DETALLADO DE CONFIGURACIÓN CARGADA
+    console.log('[ContextLoader] ====== CONFIGURACIÓN AI ENCONTRADA ======')
+    console.log('[ContextLoader] ✅ ID:', data.id)
+    console.log('[ContextLoader] 📍 Organization ID:', data.organization_id)
+    console.log('[ContextLoader] ✅ Enabled:', data.enabled)
+    console.log('[ContextLoader] 🤖 Provider:', data.provider)
+    console.log('[ContextLoader] 🧠 Model:', data.model)
+    console.log('[ContextLoader] 🎭 Personality:', data.personality)
+    console.log('[ContextLoader] 🌍 Language:', data.language)
+    console.log('[ContextLoader] 🌡️ Temperature:', data.temperature)
+    console.log('[ContextLoader] 📏 Max Tokens:', data.max_tokens)
+    console.log('[ContextLoader] 📅 Auto Schedule:', data.auto_schedule_appointments)
+    console.log('[ContextLoader] 📝 Auto Create Orders:', data.auto_create_orders)
+    console.log('[ContextLoader] 👤 Require Human Approval:', data.require_human_approval)
+    console.log('[ContextLoader] ⏰ Business Hours Only:', data.business_hours_only)
+    console.log('[ContextLoader] 📜 System Prompt:', data.system_prompt ? `${data.system_prompt.length} caracteres` : 'NO CONFIGURADO')
+    console.log('[ContextLoader] 📜 System Prompt Preview:', data.system_prompt?.substring(0, 200) || 'N/A')
+    console.log('[ContextLoader] 🔧 Services:', JSON.stringify(data.services || []).substring(0, 100))
+    console.log('[ContextLoader] 👥 Mechanics:', JSON.stringify(data.mechanics || []).substring(0, 100))
+    console.log('[ContextLoader] 📋 Policies:', JSON.stringify(data.policies || {}).substring(0, 100))
+    console.log('[ContextLoader] ❓ FAQs:', Array.isArray(data.faqs) ? `${data.faqs.length} items` : 'N/A')
+    console.log('[ContextLoader] ⏰ Business Hours:', JSON.stringify(data.business_hours || {}).substring(0, 100))
+    console.log('[ContextLoader] =============================================')
 
     return {
       organization_id: data.organization_id,
