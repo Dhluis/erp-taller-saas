@@ -6,9 +6,25 @@
 import { createClient } from '@/lib/supabase/client';
 import { executeWithErrorHandling } from '@/lib/core/errors';
 import { logger, createLogContext, measureExecutionTime, logSupabaseError } from '@/lib/core/logging';
-import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization';
+// ⚠️ NOTA: getOrganizationId y validateOrganization fueron eliminados
+// Estas funciones eran client-side hooks que no deben usarse aquí
+// El organizationId debe obtenerse del contexto de autenticación o parámetros
+// import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization';
 
 const supabase = createClient();
+
+// ✅ Funciones helper temporales para compatibilidad
+// TODO: Refactorizar para usar getTenantContext del servidor
+function getOrganizationId(): string {
+  // Temporal: usar ID hardcodeado para desarrollo
+  return '00000000-0000-0000-0000-000000000001';
+}
+
+function validateOrganization(organizationId: string): void {
+  if (!organizationId || organizationId === '') {
+    throw new Error('Organization ID is required');
+  }
+}
 
 // =====================================================
 // TIPOS TYPESCRIPT

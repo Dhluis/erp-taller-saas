@@ -9,7 +9,10 @@ import {
   getInvoiceById,
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
-import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization';
+// ⚠️ Hook eliminado - no se puede usar en server-side
+// import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization';
+function getOrganizationId(): string { return '00000000-0000-0000-0000-000000000001'; }
+function validateOrganization(organizationId: string): void { if (!organizationId) throw new Error('Organization ID required'); }
 
 // =====================================================
 // GET - Obtener pagos por nota de venta
