@@ -46,12 +46,28 @@ export function WhatsAppQRConnectorSimple({
   const [isLoading, setIsLoading] = useState(false)
   const [showRefreshBanner, setShowRefreshBanner] = useState(false)
   const [actionPerformed, setActionPerformed] = useState<'disconnect' | 'change_number' | 'connect' | null>(null)
+  const [autoRefreshCountdown, setAutoRefreshCountdown] = useState<number | null>(null)
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const retryCountRef = useRef(0)
   const componentIdRef = useRef(Math.random().toString(36).substring(7))
   const hasInitializedRef = useRef(false)
   const lastPhaseRef = useRef<'waiting' | 'has_qr' | null>(null) // Rastrear fase actual
+  const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Limpiar timers de auto-refresh
+  const clearAutoRefreshTimers = useCallback(() => {
+    if (autoRefreshTimerRef.current) {
+      clearTimeout(autoRefreshTimerRef.current)
+      autoRefreshTimerRef.current = null
+    }
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current)
+      countdownIntervalRef.current = null
+    }
+    setAutoRefreshCountdown(null)
+  }, [])
 
   // Detener polling
   const stopPolling = useCallback(() => {
@@ -88,10 +104,32 @@ export function WhatsAppQRConnectorSimple({
         stopPolling()
         onStatusChange?.('connected')
         
-        // Si acabamos de hacer una acción y ahora estamos conectados, mostrar banner
+        // ✅ MEJORA: Si acabamos de hacer una acción y ahora estamos conectados, 
+        // auto-actualizar en 5 segundos con countdown visible
         if (actionPerformed === 'connect') {
-          console.log(`[WhatsApp Simple] 📱 Acabamos de vincular, mostrar banner`)
+          console.log(`[WhatsApp Simple] 📱 Acabamos de vincular, iniciando auto-refresh en 5s`)
           setShowRefreshBanner(true)
+          
+          // Iniciar countdown de 5 segundos
+          let countdown = 5
+          setAutoRefreshCountdown(countdown)
+          
+          countdownIntervalRef.current = setInterval(() => {
+            countdown -= 1
+            setAutoRefreshCountdown(countdown)
+            
+            if (countdown <= 0 && countdownIntervalRef.current) {
+              clearInterval(countdownIntervalRef.current)
+              countdownIntervalRef.current = null
+            }
+          }, 1000)
+          
+          // Auto-refresh después de 5 segundos
+          autoRefreshTimerRef.current = setTimeout(() => {
+            console.log(`[WhatsApp Simple] 🔄 Auto-refresh ejecutado`)
+            window.location.reload()
+          }, 5000)
+          
           setActionPerformed(null)
         }
         
@@ -226,8 +264,9 @@ export function WhatsAppQRConnectorSimple({
     return () => {
       console.log(`[WhatsApp Simple] 👋 Componente desmontado [ID: ${componentIdRef.current}]`)
       stopPolling()
+      clearAutoRefreshTimers()
     }
-  }, []) // Solo al montar
+  }, [stopPolling, clearAutoRefreshTimers]) // Solo al montar
 
   // Generar QR / Vincular
   const handleGenerateQR = useCallback(async () => {
@@ -455,59 +494,103 @@ export function WhatsAppQRConnectorSimple({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Banner amigable para actualizar */}
+        {/* ✅ MEJORA: Banner más prominente con auto-refresh y countdown */}
         {showRefreshBanner && (
           <div className={cn(
-            'p-4 rounded-lg border-2 border-dashed animate-in fade-in slide-in-from-top-2 duration-500',
+            'p-6 rounded-xl border-2 animate-in fade-in slide-in-from-top-4 duration-700 shadow-lg',
             darkMode 
-              ? 'bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-cyan-500/30' 
-              : 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-300'
+              ? 'bg-gradient-to-br from-green-500/20 via-cyan-500/15 to-blue-500/20 border-green-500/40' 
+              : 'bg-gradient-to-br from-green-50 via-cyan-50 to-blue-50 border-green-400'
           )}>
-            <div className="flex flex-col items-center text-center gap-3">
+            <div className="flex flex-col items-center text-center gap-4">
+              {/* Icono animado */}
               <div className={cn(
-                'p-2 rounded-full',
-                darkMode ? 'bg-cyan-500/20' : 'bg-cyan-100'
+                'p-3 rounded-full animate-pulse',
+                darkMode ? 'bg-green-500/30' : 'bg-green-200'
               )}>
-                <RefreshCw className={cn(
-                  'w-6 h-6',
-                  darkMode ? 'text-cyan-400' : 'text-cyan-600'
+                <CheckCircle2 className={cn(
+                  'w-8 h-8',
+                  darkMode ? 'text-green-400' : 'text-green-600'
                 )} />
               </div>
-              <div>
+              
+              <div className="space-y-2">
                 <p className={cn(
-                  'font-semibold text-lg mb-1',
-                  darkMode ? 'text-white' : 'text-gray-900'
+                  'font-bold text-xl mb-1',
+                  darkMode ? 'text-green-400' : 'text-green-700'
                 )}>
-                  {actionPerformed === 'connect' 
-                    ? '¡WhatsApp vinculado exitosamente! 🎉' 
-                    : '¡Cambios aplicados correctamente! ✨'}
+                  ¡WhatsApp vinculado exitosamente! 🎉
                 </p>
                 <p className={cn(
-                  'text-sm',
-                  darkMode ? 'text-slate-300' : 'text-gray-600'
+                  'text-sm font-medium',
+                  darkMode ? 'text-slate-200' : 'text-gray-700'
                 )}>
-                  {actionPerformed === 'connect'
-                    ? 'Tu número está conectado. Actualiza para ver la información completa'
-                    : 'Actualiza la página para ver el nuevo estado de tu conexión'}
+                  Tu número está conectado y listo para usar
                 </p>
+                
+                {/* Countdown visible y prominente */}
+                {autoRefreshCountdown !== null && autoRefreshCountdown > 0 ? (
+                  <div className={cn(
+                    'mt-3 p-3 rounded-lg border',
+                    darkMode ? 'bg-slate-800/50 border-slate-600' : 'bg-white border-gray-200'
+                  )}>
+                    <p className={cn(
+                      'text-xs font-medium mb-1',
+                      darkMode ? 'text-slate-400' : 'text-gray-600'
+                    )}>
+                      Actualizando automáticamente en:
+                    </p>
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className={cn(
+                        'w-4 h-4 animate-spin',
+                        darkMode ? 'text-cyan-400' : 'text-cyan-600'
+                      )} />
+                      <span className={cn(
+                        'text-2xl font-bold tabular-nums',
+                        darkMode ? 'text-cyan-400' : 'text-cyan-600'
+                      )}>
+                        {autoRefreshCountdown}s
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
               </div>
-              <Button
-                size="lg"
-                onClick={() => {
-                  setShowRefreshBanner(false)
-                  setActionPerformed(null)
-                  window.location.reload()
-                }}
-                className={cn(
-                  'min-w-[200px]',
-                  darkMode 
-                    ? 'bg-cyan-600 hover:bg-cyan-500 text-white' 
-                    : 'bg-cyan-600 hover:bg-cyan-700 text-white'
-                )}
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Actualizar ahora
-              </Button>
+              
+              <div className="flex gap-3 w-full">
+                <Button
+                  size="lg"
+                  onClick={() => {
+                    clearAutoRefreshTimers()
+                    setShowRefreshBanner(false)
+                    setActionPerformed(null)
+                    window.location.reload()
+                  }}
+                  className={cn(
+                    'flex-1 font-semibold',
+                    darkMode 
+                      ? 'bg-green-600 hover:bg-green-500 text-white' 
+                      : 'bg-green-600 hover:bg-green-700 text-white'
+                  )}
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Actualizar ahora
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => {
+                    clearAutoRefreshTimers()
+                    setShowRefreshBanner(false)
+                    setActionPerformed(null)
+                  }}
+                  className={cn(
+                    'font-semibold',
+                    darkMode && 'border-slate-600 text-slate-300 hover:bg-slate-800'
+                  )}
+                >
+                  Cancelar
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -584,22 +667,37 @@ export function WhatsAppQRConnectorSimple({
                     />
                   )}
                 </div>
-                <p className={cn('text-sm text-center', darkMode ? 'text-slate-400' : 'text-gray-600')}>
-                  Escanea este código QR con WhatsApp en tu teléfono
-                </p>
-                <p className={cn('text-xs text-center', darkMode ? 'text-slate-500' : 'text-gray-500')}>
-                  El código se actualizará automáticamente cuando se conecte
-                </p>
+                <div className={cn(
+                  'p-4 rounded-lg border',
+                  darkMode ? 'bg-cyan-500/10 border-cyan-500/20' : 'bg-cyan-50 border-cyan-200'
+                )}>
+                  <p className={cn('text-sm text-center font-medium mb-1', darkMode ? 'text-cyan-400' : 'text-cyan-700')}>
+                    📱 Escanea este código QR con WhatsApp
+                  </p>
+                  <p className={cn('text-xs text-center', darkMode ? 'text-slate-400' : 'text-gray-600')}>
+                    1. Abre WhatsApp en tu teléfono<br/>
+                    2. Ve a Configuración {'>'} Dispositivos vinculados<br/>
+                    3. Toca "Vincular un dispositivo" y escanea
+                  </p>
+                  <p className={cn('text-xs text-center mt-2 font-medium', darkMode ? 'text-green-400' : 'text-green-600')}>
+                    ✨ La conexión se detectará automáticamente
+                  </p>
+                </div>
               </>
             ) : (
               <div className={cn(
-                'p-6 rounded-lg border flex flex-col items-center gap-3',
+                'p-6 rounded-lg border flex flex-col items-center gap-4',
                 darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-gray-50 border-gray-200'
               )}>
-                <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
-                <p className={cn('text-sm', darkMode ? 'text-slate-400' : 'text-gray-600')}>
-                  {sessionData?.message || 'Generando código QR...'}
-                </p>
+                <Loader2 className="w-12 h-12 animate-spin text-cyan-500" />
+                <div className="text-center space-y-2">
+                  <p className={cn('text-sm font-medium', darkMode ? 'text-slate-300' : 'text-gray-700')}>
+                    {sessionData?.message || 'Generando código QR...'}
+                  </p>
+                  <p className={cn('text-xs', darkMode ? 'text-slate-500' : 'text-gray-500')}>
+                    Esto puede tomar unos segundos
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -642,4 +740,5 @@ export function WhatsAppQRConnectorSimple({
     </Card>
   )
 }
+
 
