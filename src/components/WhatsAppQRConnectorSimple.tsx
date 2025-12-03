@@ -63,7 +63,10 @@ export function WhatsAppQRConnectorSimple({
   // Verificar estado
   const checkStatus = useCallback(async () => {
     try {
-      console.log(`[WhatsApp Simple] 🔍 Verificando estado... (intento ${retryCountRef.current + 1}/${MAX_RETRIES})`)
+      // Incrementar contador al inicio (antes de cualquier lógica)
+      retryCountRef.current += 1
+      
+      console.log(`[WhatsApp Simple] 🔍 Verificando estado... (intento ${retryCountRef.current}/${MAX_RETRIES})`)
       
       const response = await fetch('/api/whatsapp/session', {
         credentials: 'include',
@@ -97,10 +100,10 @@ export function WhatsAppQRConnectorSimple({
         setErrorMessage(null)
         onStatusChange?.('pending')
         
-        // Verificar directamente en WAHA si ya se conectó
+        // Verificar directamente en WAHA si ya se conectó cada 3 intentos (~24 segundos)
         // (útil cuando el webhook no llega pero la conexión sí funciona)
-        if (retryCountRef.current > 0 && retryCountRef.current % 3 === 0) {
-          console.log(`[WhatsApp Simple] 🔍 Verificando conexión directa en WAHA...`)
+        if (retryCountRef.current % 3 === 0) {
+          console.log(`[WhatsApp Simple] 🔍 Verificando conexión directa en WAHA... (intento ${retryCountRef.current})`)
           try {
             const checkResponse = await fetch('/api/whatsapp/check-connection', {
               method: 'POST',
@@ -131,6 +134,13 @@ export function WhatsAppQRConnectorSimple({
           }
         }
         
+        // Verificar si alcanzamos el máximo de reintentos
+        if (retryCountRef.current >= MAX_RETRIES) {
+          console.warn(`[WhatsApp Simple] ⚠️ Máximo de reintentos alcanzado`)
+          stopPolling()
+          setErrorMessage('Tiempo de espera agotado. Recarga la página o haz clic en "Vincular WhatsApp".')
+        }
+        
         // Seguir polling para detectar cuando se conecte
         return
       }
@@ -140,9 +150,6 @@ export function WhatsAppQRConnectorSimple({
       setState('pending')
       setSessionData(data)
       setErrorMessage(data.message || 'Esperando código QR...')
-
-      // Incrementar contador de reintentos
-      retryCountRef.current += 1
 
       // Si excedemos reintentos, parar
       if (retryCountRef.current >= MAX_RETRIES) {
