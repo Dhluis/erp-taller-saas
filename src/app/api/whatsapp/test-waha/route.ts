@@ -1,272 +1,128 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { NextResponse } from 'next/server';
 
 /**
- * DIAGNÓSTICO COMPLETO DE WAHA
- * Este endpoint prueba TODAS las operaciones de WAHA paso a paso
+ * Endpoint de diagnóstico directo de WAHA
+ * Prueba la conexión y obtención de QR sin lógica intermedia
  */
-export async function GET(request: NextRequest) {
-  console.log('\n🔍 ========== DIAGNÓSTICO COMPLETO WAHA ==========\n');
-
-  const results: any = {
-    paso1_variables: {},
-    paso2_tenant: {},
-    paso3_listaSesiones: {},
-    paso4_crearSesion: {},
-    paso5_verificarCreacion: {},
-    paso6_eliminarSesion: {},
-    conclusiones: []
-  };
-
+export async function GET() {
   try {
-    // ============================================
-    // PASO 1: Verificar variables de entorno
-    // ============================================
-    console.log('📋 PASO 1: Verificando variables de entorno...');
-    
-    const WAHA_API_URL = process.env.WAHA_API_URL;
-    const WAHA_API_KEY = process.env.WAHA_API_KEY;
+    const WAHA_URL = process.env.WAHA_API_URL;
+    const WAHA_KEY = process.env.WAHA_API_KEY;
+    const SESSION_NAME = 'eagles_042ab6bd8979416688';  // Tu sesión actual
 
-    results.paso1_variables = {
-      WAHA_API_URL: WAHA_API_URL ? `✅ ${WAHA_API_URL}` : '❌ FALTA',
-      WAHA_API_KEY: WAHA_API_KEY ? `✅ ${WAHA_API_KEY.substring(0, 10)}...` : '❌ FALTA'
-    };
+    console.log('=== DIAGNÓSTICO WAHA DIRECTO ===');
+    console.log('URL:', WAHA_URL);
+    console.log('Key length:', WAHA_KEY?.length);
+    console.log('Session:', SESSION_NAME);
 
-    if (!WAHA_API_URL || !WAHA_API_KEY) {
-      results.conclusiones.push('❌ Variables de entorno no configuradas');
-      return NextResponse.json(results, { status: 500 });
-    }
-
-    console.log('✅ Variables OK:', results.paso1_variables);
-
-    // ============================================
-    // PASO 2: Obtener contexto del tenant
-    // ============================================
-    console.log('\n📋 PASO 2: Obteniendo contexto del tenant...');
-    
-    const tenantContext = await getTenantContext(request);
-    
-    if (!tenantContext.success || !tenantContext.organizationId) {
-      results.paso2_tenant = {
+    if (!WAHA_URL || !WAHA_KEY) {
+      return NextResponse.json({
         success: false,
-        error: tenantContext.error || 'No se pudo obtener organization_id'
-      };
-      results.conclusiones.push('❌ No se pudo obtener el contexto del tenant');
-      return NextResponse.json(results, { status: 401 });
+        error: 'Variables de entorno no configuradas',
+        details: {
+          hasUrl: !!WAHA_URL,
+          hasKey: !!WAHA_KEY
+        }
+      }, { status: 500 });
     }
 
-    results.paso2_tenant = {
-      success: true,
-      organizationId: tenantContext.organizationId,
-      workshopId: tenantContext.workshopId,
-      userId: tenantContext.userId
-    };
-
-    console.log('✅ Tenant OK:', results.paso2_tenant);
-
-    const sessionName = `org_${tenantContext.organizationId}`;
-    const testSessionName = `test_${Date.now()}`;
-
-    // ============================================
-    // PASO 3: Listar sesiones existentes
-    // ============================================
-    console.log('\n📋 PASO 3: Listando sesiones existentes en WAHA...');
+    // 1. Test de conectividad básica
+    console.log('\n1. Probando conectividad básica...');
+    const pingResponse = await fetch(`${WAHA_URL}/api/sessions`, {
+      headers: { 'X-Api-Key': WAHA_KEY }
+    });
     
-    try {
-      const listResponse = await fetch(`${WAHA_API_URL}/api/sessions/all`, {
-        method: 'GET',
-        headers: {
-          'X-Api-Key': WAHA_API_KEY,
-          'Content-Type': 'application/json',
-        },
-      });
+    const pingData = await pingResponse.json().catch(() => null);
+    console.log('Ping response:', pingResponse.status, pingData);
 
-      const listData = await listResponse.json();
-      
-      results.paso3_listaSesiones = {
-        success: listResponse.ok,
-        status: listResponse.status,
-        totalSesiones: Array.isArray(listData) ? listData.length : 0,
-        sesiones: Array.isArray(listData) ? listData.map((s: any) => ({
-          name: s.name,
-          status: s.status,
-          me: s.me
-        })) : listData,
-        tieneSessionOrganizacion: Array.isArray(listData) ? listData.some((s: any) => s.name === sessionName) : false
-      };
-
-      console.log('✅ Lista de sesiones:', results.paso3_listaSesiones);
-
-      if (!listResponse.ok) {
-        results.conclusiones.push(`❌ Error al listar sesiones: ${listResponse.status}`);
-      }
-
-    } catch (error: any) {
-      results.paso3_listaSesiones = {
-        success: false,
-        error: error.message
-      };
-      results.conclusiones.push(`❌ No se pudo conectar a WAHA: ${error.message}`);
-      console.error('❌ Error en PASO 3:', error);
-    }
-
-    // ============================================
-    // PASO 4: Crear sesión de prueba
-    // ============================================
-    console.log('\n📋 PASO 4: Creando sesión de prueba en WAHA...');
+    // 2. Obtener estado de la sesión
+    console.log('\n2. Obteniendo estado de sesión...');
+    const statusResponse = await fetch(`${WAHA_URL}/api/sessions/${SESSION_NAME}`, {
+      headers: { 'X-Api-Key': WAHA_KEY }
+    });
     
-    try {
-      const createResponse = await fetch(`${WAHA_API_URL}/api/sessions/`, {
+    const statusData = await statusResponse.json().catch(() => null);
+    console.log('Status response:', statusResponse.status, statusData);
+
+    // 3. Intentar obtener QR
+    console.log('\n3. Intentando obtener QR...');
+    const qrResponse = await fetch(`${WAHA_URL}/api/${SESSION_NAME}/auth/qr?format=raw`, {
+      headers: { 'X-Api-Key': WAHA_KEY }
+    });
+    
+    const qrData = await qrResponse.json().catch(() => null);
+    console.log('QR response status:', qrResponse.status);
+    console.log('QR response data:', {
+      type: typeof qrData,
+      keys: qrData ? Object.keys(qrData) : [],
+      hasValue: !!qrData?.value,
+      hasData: !!qrData?.data,
+      valueLength: qrData?.value?.length || 0,
+      dataLength: qrData?.data?.length || 0,
+      fullData: JSON.stringify(qrData).substring(0, 300)
+    });
+
+    // 4. Si no hay QR y el estado es STOPPED/FAILED, intentar iniciar
+    if (statusData?.status === 'STOPPED' || statusData?.status === 'FAILED') {
+      console.log('\n4. Sesión detenida, intentando iniciar...');
+      const startResponse = await fetch(`${WAHA_URL}/api/sessions/${SESSION_NAME}/start`, {
         method: 'POST',
-        headers: {
-          'X-Api-Key': WAHA_API_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: testSessionName,
-          config: {
-            noweb: {
-              store: {
-                enabled: true,
-                fullSync: false,
-              },
-            },
-          },
-        }),
+        headers: { 'X-Api-Key': WAHA_KEY }
       });
-
-      const createData = await createResponse.json();
+      console.log('Start response:', startResponse.status);
       
-      results.paso4_crearSesion = {
-        success: createResponse.ok,
-        status: createResponse.status,
-        sessionName: testSessionName,
-        response: createData
-      };
-
-      console.log('✅ Creación de sesión:', results.paso4_crearSesion);
-
-      if (!createResponse.ok) {
-        results.conclusiones.push(`⚠️ No se pudo crear sesión de prueba: ${createResponse.status}`);
-      }
-
-    } catch (error: any) {
-      results.paso4_crearSesion = {
-        success: false,
-        error: error.message
-      };
-      console.error('❌ Error en PASO 4:', error);
-    }
-
-    // ============================================
-    // PASO 5: Verificar que la sesión se creó
-    // ============================================
-    console.log('\n📋 PASO 5: Verificando que la sesión se creó...');
-    
-    try {
-      // Esperar 2 segundos para que WAHA procese
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      const verifyResponse = await fetch(`${WAHA_API_URL}/api/sessions/all`, {
-        method: 'GET',
-        headers: {
-          'X-Api-Key': WAHA_API_KEY,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const verifyData = await verifyResponse.json();
+      // Esperar y verificar de nuevo
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
-      const testSessionExists = Array.isArray(verifyData) 
-        ? verifyData.find((s: any) => s.name === testSessionName)
-        : null;
-
-      results.paso5_verificarCreacion = {
-        success: verifyResponse.ok && !!testSessionExists,
-        sessionEncontrada: !!testSessionExists,
-        detallesSesion: testSessionExists || null
-      };
-
-      console.log('✅ Verificación:', results.paso5_verificarCreacion);
-
-      if (!testSessionExists) {
-        results.conclusiones.push('❌ CRÍTICO: La sesión se "creó" pero NO aparece en WAHA');
-      } else {
-        results.conclusiones.push('✅ La sesión se creó correctamente');
-      }
-
-    } catch (error: any) {
-      results.paso5_verificarCreacion = {
-        success: false,
-        error: error.message
-      };
-      console.error('❌ Error en PASO 5:', error);
-    }
-
-    // ============================================
-    // PASO 6: Eliminar sesión de prueba
-    // ============================================
-    console.log('\n📋 PASO 6: Limpiando sesión de prueba...');
-    
-    try {
-      const deleteResponse = await fetch(`${WAHA_API_URL}/api/sessions/${testSessionName}`, {
-        method: 'DELETE',
-        headers: {
-          'X-Api-Key': WAHA_API_KEY,
-          'Content-Type': 'application/json',
-        },
+      const newStatusResponse = await fetch(`${WAHA_URL}/api/sessions/${SESSION_NAME}`, {
+        headers: { 'X-Api-Key': WAHA_KEY }
       });
-
-      results.paso6_eliminarSesion = {
-        success: deleteResponse.ok,
-        status: deleteResponse.status
-      };
-
-      console.log('✅ Limpieza:', results.paso6_eliminarSesion);
-
-    } catch (error: any) {
-      results.paso6_eliminarSesion = {
-        success: false,
-        error: error.message
-      };
-      console.error('❌ Error en PASO 6:', error);
+      const newStatusData = await newStatusResponse.json().catch(() => null);
+      console.log('Nuevo estado:', newStatusData?.status);
+      
+      // Intentar obtener QR de nuevo
+      const newQrResponse = await fetch(`${WAHA_URL}/api/${SESSION_NAME}/auth/qr?format=raw`, {
+        headers: { 'X-Api-Key': WAHA_KEY }
+      });
+      const newQrData = await newQrResponse.json().catch(() => null);
+      console.log('QR después de iniciar:', {
+        hasValue: !!newQrData?.value,
+        hasData: !!newQrData?.data,
+        valueLength: newQrData?.value?.length || 0
+      });
     }
-
-    // ============================================
-    // CONCLUSIONES FINALES
-    // ============================================
-    console.log('\n📊 ========== CONCLUSIONES ==========\n');
-
-    if (results.conclusiones.length === 0) {
-      results.conclusiones.push('✅ Todas las pruebas pasaron. El problema puede ser de sincronización.');
-    }
-
-    // Diagnóstico específico
-    if (results.paso3_listaSesiones.success && results.paso3_listaSesiones.totalSesiones === 0) {
-      results.conclusiones.push('⚠️ WAHA está vacío. Esto es normal si acabas de limpiar las sesiones.');
-    }
-
-    if (results.paso3_listaSesiones.tieneSessionOrganizacion) {
-      results.conclusiones.push(`✅ La sesión "${sessionName}" YA EXISTE en WAHA`);
-    } else {
-      results.conclusiones.push(`⚠️ La sesión "${sessionName}" NO existe en WAHA`);
-    }
-
-    console.log('Conclusiones:', results.conclusiones);
 
     return NextResponse.json({
       success: true,
-      timestamp: new Date().toISOString(),
-      ...results
+      diagnostico: {
+        conectividad: {
+          status: pingResponse.status,
+          ok: pingResponse.ok
+        },
+        sesion: {
+          existe: statusResponse.status !== 404,
+          status: statusData?.status,
+          conectada: statusData?.status === 'WORKING'
+        },
+        qr: {
+          disponible: qrResponse.status === 200,
+          status: qrResponse.status,
+          hasValue: !!qrData?.value,
+          hasData: !!qrData?.data,
+          valueLength: qrData?.value?.length || 0,
+          dataLength: qrData?.data?.length || 0,
+          value: qrData?.value || qrData?.data || null
+        }
+      },
+      logs: 'Revisa los logs del servidor para más detalles'
     });
 
   } catch (error: any) {
-    console.error('❌ Error general en diagnóstico:', error);
-    
+    console.error('ERROR EN DIAGNÓSTICO:', error);
     return NextResponse.json({
       success: false,
       error: error.message,
-      ...results
+      stack: error.stack
     }, { status: 500 });
   }
 }
