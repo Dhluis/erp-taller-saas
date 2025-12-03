@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { safeFetch, safePost, safePut, safeDelete } from '@/lib/api';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import type { Vehicle, CreateVehicleData, UpdateVehicleData } from '@/lib/database/queries/vehicles';
 
 // API Response Types
@@ -32,11 +33,22 @@ export function useVehicles(): UseVehiclesReturn {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { organizationId, ready } = useOrganization(); // ✅ FIX: Obtener organizationId y ready
 
   const fetchVehicles = useCallback(async () => {
+    // ✅ FIX: Solo cargar si organizationId está ready
+    if (!organizationId || !ready) {
+      console.log('⏳ [useVehicles] Esperando a que organizationId esté ready...', { organizationId: !!organizationId, ready });
+      setLoading(false);
+      setVehicles([]); // Limpiar vehículos mientras espera
+      return [];
+    }
+
     try {
       setLoading(true);
       setError(null);
+      
+      console.log('🔄 [useVehicles] Cargando vehículos para organizationId:', organizationId);
       
       const result = await safeFetch<VehiclesResponse>('/api/vehicles', {
         timeout: 30000
@@ -51,6 +63,7 @@ export function useVehicles(): UseVehiclesReturn {
       }
       
       if (result.data?.success) {
+        console.log('✅ [useVehicles] Vehículos cargados:', result.data.data.length);
         setVehicles(result.data.data);
         return result.data.data;
       } else {
@@ -67,7 +80,7 @@ export function useVehicles(): UseVehiclesReturn {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [organizationId, ready]);
 
   const createVehicle = useCallback(async (data: CreateVehicleData) => {
     try {
@@ -162,9 +175,19 @@ export function useVehicles(): UseVehiclesReturn {
     await fetchVehicles();
   }, [fetchVehicles]);
 
+  // ✅ FIX: Solo cargar cuando organizationId esté ready
   useEffect(() => {
-    fetchVehicles();
-  }, [fetchVehicles]);
+    if (ready && organizationId) {
+      console.log('🔄 [useVehicles] useEffect triggered - organizationId ready:', organizationId);
+      // Limpiar vehículos anteriores antes de cargar nuevos
+      setVehicles([]);
+      fetchVehicles();
+    } else {
+      console.log('⏳ [useVehicles] Esperando a que organizationId esté ready...', { ready, organizationId: !!organizationId });
+      // Limpiar vehículos si organizationId cambia
+      setVehicles([]);
+    }
+  }, [ready, organizationId, fetchVehicles]);
 
   return {
     vehicles,

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { safeFetch, safePost, safePut, safeDelete } from '@/lib/api';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 // Tipos para el inventario
 export interface InventoryItem {
@@ -91,18 +92,30 @@ export function useInventory(): UseInventoryReturn {
   const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { organizationId, ready } = useOrganization(); // ✅ FIX: Obtener organizationId y ready
 
   // Cargar items de inventario
   const fetchItems = useCallback(async (): Promise<void> => {
+    // ✅ FIX: Solo cargar si organizationId está ready
+    if (!organizationId || !ready) {
+      console.log('⏳ [useInventory] Esperando a que organizationId esté ready...', { organizationId: !!organizationId, ready });
+      setLoading(false);
+      setItems([]); // Limpiar items mientras espera
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
+      
+      console.log('🔄 [useInventory] Cargando items para organizationId:', organizationId);
       
       const result = await safeFetch<InventoryResponse>('/api/inventory', {
         timeout: 30000
       });
       
       if (result.success) {
+        console.log('✅ [useInventory] Items cargados:', result.data.data.length);
         setItems(result.data.data);
       } else {
         setError('Error al cargar inventario');
@@ -115,12 +128,19 @@ export function useInventory(): UseInventoryReturn {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [organizationId, ready]);
 
   // Cargar categorías de inventario
   const fetchCategories = useCallback(async (): Promise<void> => {
+    // ✅ FIX: Solo cargar si organizationId está ready
+    if (!organizationId || !ready) {
+      console.log('⏳ [useInventory] Esperando a que organizationId esté ready para categorías...', { organizationId: !!organizationId, ready });
+      setCategories([]); // Limpiar categorías mientras espera
+      return;
+    }
+
     try {
-      console.log('🔄 fetchCategories - Iniciando...')
+      console.log('🔄 [useInventory] fetchCategories - Iniciando para organizationId:', organizationId);
       
       const result = await safeFetch<{ success: boolean; data: InventoryCategory[] }>('/api/inventory/categories', {
         timeout: 30000, // 30 segundos para categorías
@@ -129,20 +149,20 @@ export function useInventory(): UseInventoryReturn {
       });
       
       if (result.success) {
-        console.log('✅ fetchCategories - Exitoso:', result.data.data.length, 'categorías')
+        console.log('✅ [useInventory] fetchCategories - Exitoso:', result.data.data.length, 'categorías');
         setCategories(result.data.data);
         setError(null); // Limpiar errores previos
       } else {
-        console.error('❌ fetchCategories - Error:', result.error);
+        console.error('❌ [useInventory] fetchCategories - Error:', result.error);
         setError('Error al cargar categorías: ' + result.error);
         // No mostrar toast para evitar spam
       }
     } catch (error) {
-      console.error('❌ fetchCategories - Excepción:', error);
+      console.error('❌ [useInventory] fetchCategories - Excepción:', error);
       setError('Error al cargar categorías');
       // No mostrar toast para evitar spam
     }
-  }, []); // Sin dependencias para evitar re-renders
+  }, [organizationId, ready]);
 
   // Crear nuevo item
   const createItem = async (itemData: CreateInventoryItemData): Promise<InventoryItem | null> => {
@@ -304,11 +324,22 @@ export function useInventory(): UseInventoryReturn {
     }
   };
 
-  // Cargar datos iniciales
+  // ✅ FIX: Solo cargar cuando organizationId esté ready
   useEffect(() => {
-    fetchItems();
-    fetchCategories();
-  }, []);
+    if (ready && organizationId) {
+      console.log('🔄 [useInventory] useEffect triggered - organizationId ready:', organizationId);
+      // Limpiar datos anteriores antes de cargar nuevos
+      setItems([]);
+      setCategories([]);
+      fetchItems();
+      fetchCategories();
+    } else {
+      console.log('⏳ [useInventory] Esperando a que organizationId esté ready...', { ready, organizationId: !!organizationId });
+      // Limpiar datos si organizationId cambia
+      setItems([]);
+      setCategories([]);
+    }
+  }, [ready, organizationId, fetchItems, fetchCategories]);
 
   return {
     items,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import { 
   getAllEmployees, 
   getEmployeeById, 
@@ -16,7 +17,7 @@ import {
 } from '@/lib/database/queries/employees'
 
 interface UseEmployeesOptions {
-  workshopId?: string
+  workshopId?: string // ⚠️ Opcional: si no se pasa, usa el del contexto
   autoLoad?: boolean
 }
 
@@ -46,7 +47,11 @@ interface UseEmployeesReturn {
 }
 
 export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesReturn {
-  const { workshopId, autoLoad = true } = options
+  const { workshopId: workshopIdParam, autoLoad = true } = options
+  
+  // ✅ FIX: Obtener workshopId del contexto si no se pasa como parámetro
+  const { workshopId: contextWorkshopId, ready } = useOrganization()
+  const workshopId = workshopIdParam || contextWorkshopId
   
   // Estado
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -57,9 +62,19 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
 
   // Cargar empleados
   const loadEmployees = useCallback(async () => {
+    // ✅ FIX: Solo cargar si workshopId está ready y disponible
+    if (!workshopId || !ready) {
+      console.log('⏳ [useEmployees] Esperando a que workshopId esté ready...', { workshopId: !!workshopId, ready })
+      setLoading(false)
+      setEmployees([]) // Limpiar empleados mientras espera
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
+      
+      console.log('🔄 [useEmployees] Cargando empleados para workshopId:', workshopId)
       
       const data = await getAllEmployees(workshopId)
       setEmployees(data)
@@ -75,13 +90,23 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     } finally {
       setLoading(false)
     }
-  }, [workshopId])
+  }, [workshopId, ready])
 
   // Cargar mecánicos
   const loadMechanics = useCallback(async () => {
+    // ✅ FIX: Solo cargar si workshopId está ready y disponible
+    if (!workshopId || !ready) {
+      console.log('⏳ [useEmployees] Esperando a que workshopId esté ready para mecánicos...', { workshopId: !!workshopId, ready })
+      setLoading(false)
+      setMechanics([]) // Limpiar mecánicos mientras espera
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
+      
+      console.log('🔄 [useEmployees] Cargando mecánicos para workshopId:', workshopId)
       
       const data = await getActiveMechanics(workshopId)
       setMechanics(data)
@@ -97,13 +122,24 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     } finally {
       setLoading(false)
     }
-  }, [workshopId])
+  }, [workshopId, ready])
 
   // Cargar empleados con estadísticas
   const loadEmployeesWithStats = useCallback(async () => {
+    // ✅ FIX: getAllEmployeesWithStats carga todos los empleados activos
+    // No requiere workshopId pero debe esperar a que el contexto esté ready
+    if (!ready) {
+      console.log('⏳ [useEmployees] Esperando a que contexto esté ready para empleados con stats...', { ready })
+      setLoading(false)
+      setEmployeesWithStats([])
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
+      
+      console.log('🔄 [useEmployees] Cargando empleados con estadísticas...')
       
       const data = await getAllEmployeesWithStats()
       setEmployeesWithStats(data)
@@ -119,7 +155,7 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [ready])
 
   // Refrescar todos los datos
   const refreshEmployees = useCallback(async () => {
@@ -241,12 +277,23 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     setError(null)
   }, [])
 
-  // Cargar datos automáticamente
+  // ✅ FIX: Solo cargar cuando workshopId/contexto esté ready
   useEffect(() => {
-    if (autoLoad) {
+    if (autoLoad && ready) {
+      console.log('🔄 [useEmployees] useEffect triggered - contexto ready, workshopId:', workshopId)
+      // Limpiar datos anteriores antes de cargar nuevos
+      setEmployees([])
+      setMechanics([])
+      setEmployeesWithStats([])
       refreshEmployees()
+    } else if (autoLoad && !ready) {
+      console.log('⏳ [useEmployees] Esperando a que contexto esté ready...', { ready, workshopId: !!workshopId })
+      // Limpiar datos si contexto cambia
+      setEmployees([])
+      setMechanics([])
+      setEmployeesWithStats([])
     }
-  }, [autoLoad, refreshEmployees])
+  }, [autoLoad, ready, workshopId, refreshEmployees])
 
   return {
     // Estado
@@ -274,10 +321,11 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
   }
 }
 
-// Hook simplificado solo para mecánicos
+// ✅ Hook simplificado solo para mecánicos
+// Ahora obtiene workshopId del contexto automáticamente si no se pasa
 export function useMechanics(workshopId?: string) {
   const { mechanics, loading, error, loadMechanics, refreshEmployees } = useEmployees({
-    workshopId,
+    workshopId, // Opcional: si no se pasa, usa el del contexto
     autoLoad: true
   })
 
@@ -290,7 +338,8 @@ export function useMechanics(workshopId?: string) {
   }
 }
 
-// Hook para estadísticas de empleados
+// ✅ Hook para estadísticas de empleados
+// Usa el contexto automáticamente
 export function useEmployeeStats() {
   const { employeesWithStats, loading, error, loadEmployeesWithStats, refreshEmployees } = useEmployees({
     autoLoad: true

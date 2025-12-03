@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { safeFetch, safePost, safePut, safeDelete } from '@/lib/api';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 // Supplier Type
 export interface Supplier {
@@ -72,11 +73,28 @@ export function useSuppliers(): UseSuppliersReturn {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { organizationId, ready } = useOrganization(); // ✅ FIX: Obtener organizationId y ready
 
   const fetchSuppliers = useCallback(async () => {
+    // ✅ FIX: Solo cargar si organizationId está ready
+    if (!organizationId || !ready) {
+      console.log('⏳ [useSuppliers] Esperando a que organizationId esté ready...', { organizationId: !!organizationId, ready });
+      setLoading(false);
+      setSuppliers([]); // Limpiar proveedores mientras espera
+      setStats({
+        totalSuppliers: 0,
+        activeSuppliers: 0,
+        totalOrders: 0,
+        totalAmount: 0,
+      });
+      return [];
+    }
+
     try {
       setLoading(true);
       setError(null);
+      
+      console.log('🔄 [useSuppliers] Cargando proveedores para organizationId:', organizationId);
       
       const [suppliersResult, statsResult] = await Promise.all([
         safeFetch<SuppliersResponse>('/api/suppliers', { timeout: 30000 }),
@@ -92,6 +110,7 @@ export function useSuppliers(): UseSuppliersReturn {
       }
       
       if (suppliersResult.data?.success) {
+        console.log('✅ [useSuppliers] Proveedores cargados:', suppliersResult.data.data.length);
         setSuppliers(suppliersResult.data.data);
       } else {
         throw new Error(suppliersResult.data?.error || 'Error al obtener proveedores');
@@ -113,7 +132,7 @@ export function useSuppliers(): UseSuppliersReturn {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [organizationId, ready]);
 
   const createSupplier = useCallback(async (data: Omit<Supplier, 'id' | 'organization_id' | 'created_at' | 'updated_at'>) => {
     try {
@@ -208,9 +227,31 @@ export function useSuppliers(): UseSuppliersReturn {
     await fetchSuppliers();
   }, [fetchSuppliers]);
 
+  // ✅ FIX: Solo cargar cuando organizationId esté ready
   useEffect(() => {
-    fetchSuppliers();
-  }, [fetchSuppliers]);
+    if (ready && organizationId) {
+      console.log('🔄 [useSuppliers] useEffect triggered - organizationId ready:', organizationId);
+      // Limpiar proveedores anteriores antes de cargar nuevos
+      setSuppliers([]);
+      setStats({
+        totalSuppliers: 0,
+        activeSuppliers: 0,
+        totalOrders: 0,
+        totalAmount: 0,
+      });
+      fetchSuppliers();
+    } else {
+      console.log('⏳ [useSuppliers] Esperando a que organizationId esté ready...', { ready, organizationId: !!organizationId });
+      // Limpiar proveedores si organizationId cambia
+      setSuppliers([]);
+      setStats({
+        totalSuppliers: 0,
+        activeSuppliers: 0,
+        totalOrders: 0,
+        totalAmount: 0,
+      });
+    }
+  }, [ready, organizationId, fetchSuppliers]);
 
   return {
     suppliers,
