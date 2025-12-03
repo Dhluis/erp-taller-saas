@@ -9,7 +9,8 @@
 // 🔌 WHATSAPP MESSAGE TYPES
 // ============================================
 
-export type WhatsAppProvider = 'twilio' | 'evolution' | 'meta' | 'meta-cloud';
+// Solo WAHA se usa actualmente
+export type WhatsAppProvider = 'waha';
 
 export interface WhatsAppMessage {
   id: string;
@@ -256,38 +257,11 @@ export interface DashboardNotification {
 }
 
 // ============================================
-// 📊 WEBHOOK TYPES
+// 📊 WEBHOOK TYPES (WAHA)
 // ============================================
 
-export interface TwilioWebhookPayload {
-  MessageSid: string;
-  AccountSid: string;
-  From: string;
-  To: string;
-  Body: string;
-  NumMedia?: string;
-  MediaUrl0?: string;
-  MediaContentType0?: string;
-}
-
-export interface EvolutionWebhookPayload {
-  event: string;
-  instance: string;
-  data: {
-    key: {
-      remoteJid: string;
-      fromMe: boolean;
-      id: string;
-    };
-    message: {
-      conversation?: string;
-      imageMessage?: any;
-      documentMessage?: any;
-    };
-    messageTimestamp: string;
-    pushName?: string;
-  };
-}
+// Los payloads de Twilio/Evolution ya no se usan
+// WAHA tiene su propio formato que se maneja en /api/webhooks/whatsapp/route.ts
 
 // ============================================
 // 💾 DATABASE TYPES (Para nuevas tablas)
