@@ -146,8 +146,8 @@ async function getAnthropicClient() {
   }
   
   if (!anthropicAvailable || !anthropicClient) {
-    throw new Error('Anthropic SDK no está instalado. Ejecuta: npm install @anthropic-ai/sdk');
-  }
+      throw new Error('Anthropic SDK no está instalado. Ejecuta: npm install @anthropic-ai/sdk');
+    }
   
   return anthropicClient;
 }
@@ -215,11 +215,11 @@ export async function processMessage(
       }
       
       if (!process.env.ANTHROPIC_API_KEY) {
-        console.error('[AIAgent] ❌ ANTHROPIC_API_KEY no está configurada');
-        return {
-          success: false,
-          error: 'ANTHROPIC_API_KEY no está configurada. Por favor, agrega tu API key en el archivo .env.local. Obtén tu key en: https://console.anthropic.com/settings/keys'
-        };
+      console.error('[AIAgent] ❌ ANTHROPIC_API_KEY no está configurada');
+      return {
+        success: false,
+        error: 'ANTHROPIC_API_KEY no está configurada. Por favor, agrega tu API key en el archivo .env.local. Obtén tu key en: https://console.anthropic.com/settings/keys'
+      };
       }
     }
 

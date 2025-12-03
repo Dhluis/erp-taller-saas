@@ -119,8 +119,8 @@ export async function GET(request: NextRequest) {
         toDateNormalized.setHours(23, 59, 59, 999)
         
         if (createdAt >= fromDateNormalized && createdAt <= toDateNormalized) {
-          return true
-        }
+        return true
+      }
       }
 
       // Verificar entry_date
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
         toDateNormalized.setHours(23, 59, 59, 999)
         
         if (entryDate >= fromDateNormalized && entryDate <= toDateNormalized) {
-          return true
+        return true
         }
       }
 
@@ -145,9 +145,9 @@ export async function GET(request: NextRequest) {
     
     if (orders && orders.length > 0) {
       console.log('✅ Órdenes por estado (después de filtro):', ordersList.reduce((acc: any, o: any) => {
-        acc[o.status] = (acc[o.status] || 0) + 1;
-        return acc;
-      }, {}));
+      acc[o.status] = (acc[o.status] || 0) + 1;
+      return acc;
+    }, {}));
       
       // Log de muestra de órdenes para diagnóstico
       console.log('📋 Muestra de órdenes (primeras 5):', orders.slice(0, 5).map((o: any) => ({

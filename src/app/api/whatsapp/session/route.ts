@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { 
   getOrganizationSession, 
   getSessionStatus, 
@@ -287,152 +288,143 @@ export async function POST(request: NextRequest) {
     const { organizationId, userId } = await getTenantContext(request);
     
     if (!organizationId) {
+      console.error('[WhatsApp Session POST] ❌ No hay organizationId');
       return NextResponse.json({
         success: false,
         error: 'No se pudo obtener la organización del usuario'
       }, { status: 400 });
     }
 
-    const body = await request.json();
+    const body = await request.json().catch((e) => {
+      console.error('[WhatsApp Session POST] ❌ Error parseando body:', e);
+      return {};
+    });
     const { action } = body;
     
-    console.log(`[WhatsApp Session] 🎬 Acción: ${action}`);
-    console.log(`[WhatsApp Session] 🏢 Organization: ${organizationId}`);
+    console.log(`[WhatsApp Session POST] 🎬 Acción: ${action}`);
+    console.log(`[WhatsApp Session POST] 🏢 Organization: ${organizationId}`);
 
-    const sessionName = await getOrganizationSession(organizationId);
-    console.log(`[WhatsApp Session] 📝 Session: ${sessionName}`);
+    if (!action) {
+      console.error('[WhatsApp Session POST] ❌ No se proporcionó acción');
+      return NextResponse.json({
+        success: false,
+        error: 'Acción no especificada'
+      }, { status: 400 });
+    }
+
+    const sessionName = await getOrganizationSession(organizationId).catch((e) => {
+      console.error('[WhatsApp Session POST] ❌ Error obteniendo session name:', e);
+      throw e;
+    });
+    console.log(`[WhatsApp Session POST] 📝 Session: ${sessionName}`);
 
     // LOGOUT o CHANGE_NUMBER
     if (action === 'logout' || action === 'change_number') {
-      console.log(`[WhatsApp Session] 🔓 Ejecutando ${action}...`);
+      console.log(`[WhatsApp Session POST] 🔓 Ejecutando ${action}...`);
       
       try {
-        // 1. Obtener estado actual
-        const currentStatus = await getSessionStatus(sessionName, organizationId);
-        console.log(`1. Estado actual:`, {
-          status: currentStatus.status,
-          exists: currentStatus.exists,
-          error: currentStatus.error
-        });
+        // 1. Obtener configuración de WAHA
+        console.log('[WhatsApp Session POST] 1. Obteniendo configuración WAHA...');
+        const { url, key } = await (await import('@/lib/waha-sessions')).getWahaConfig(organizationId);
+        console.log('[WhatsApp Session POST] ✅ Config obtenida');
         
-        // 2. Si NO está conectado, reiniciar directamente para obtener nuevo QR
-        if (currentStatus.status !== 'WORKING') {
-          console.log(`2. No está conectado (${currentStatus.status}), reiniciando para nuevo QR...`);
-          
-          // Eliminar y recrear sesión
-          const { url, key } = await (await import('@/lib/waha-sessions')).getWahaConfig(organizationId);
-          
-          try {
-            await fetch(`${url}/api/sessions/${sessionName}`, {
-              method: 'DELETE',
-              headers: { 'X-Api-Key': key }
-            });
-            console.log(`3. Sesión eliminada`);
-          } catch (deleteError) {
-            console.warn(`3. Error eliminando (puede no existir):`, deleteError);
-          }
-          
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Crear nueva
-          await createOrganizationSession(organizationId);
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          console.log(`4. Sesión recreada`);
-          
-          // Obtener QR
-          try {
-            const qrData = await getSessionQR(sessionName, organizationId);
-            const qrValue = qrData?.value || qrData?.data || null;
-            
-            if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
-              console.log(`5. QR obtenido: ${qrValue.length} caracteres`);
-              return NextResponse.json({
-                success: true,
-                status: 'SCAN_QR',
-                connected: false,
-                session: sessionName,
-                qr: qrValue,
-                message: 'Sesión reiniciada. Escanea el nuevo QR.'
-              });
-            }
-          } catch (qrError: any) {
-            console.warn(`5. Error obteniendo QR:`, qrError.message);
-          }
-          
-          return NextResponse.json({
-            success: true,
-            status: 'STARTING',
-            connected: false,
-            session: sessionName,
-            message: 'Sesión reiniciada. Recarga en unos segundos para el QR.'
-          });
+        // 2. Hacer logout de la sesión actual
+        console.log('[WhatsApp Session POST] 2. Haciendo logout...');
+        try {
+          await logoutSession(sessionName, organizationId);
+          console.log('[WhatsApp Session POST] ✅ Logout exitoso');
+        } catch (logoutError: any) {
+          console.warn('[WhatsApp Session POST] ⚠️ Error en logout (ignorando):', logoutError.message);
         }
         
-        // 3. Hacer logout si está conectado
-        console.log(`2. Haciendo logout...`);
-        await logoutSession(sessionName, organizationId);
-        
-        // Esperar
+        // 3. Esperar un momento
         await new Promise(resolve => setTimeout(resolve, 2000));
         
-        // Verificar
-        const afterLogout = await getSessionStatus(sessionName, organizationId);
-        console.log(`3. Estado después de logout: ${afterLogout.status}`);
-        
-        // Si sigue WORKING, forzar stop y start
-        if (afterLogout.status === 'WORKING') {
-          console.log(`4. Forzando stop y start...`);
-          const { url, key } = await (await import('@/lib/waha-sessions')).getWahaConfig(organizationId);
-          
-          // Stop
+        // 4. Stop de la sesión
+        console.log('[WhatsApp Session POST] 3. Deteniendo sesión...');
+        try {
           await fetch(`${url}/api/sessions/${sessionName}/stop`, {
             method: 'POST',
             headers: { 'X-Api-Key': key }
           });
-          
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Start
-          await startSession(sessionName, organizationId);
-          await new Promise(resolve => setTimeout(resolve, 3000));
-        } else {
-          console.log(`4. Reiniciando sesión...`);
-          await startSession(sessionName, organizationId);
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          console.log('[WhatsApp Session POST] ✅ Sesión detenida');
+        } catch (stopError: any) {
+          console.warn('[WhatsApp Session POST] ⚠️ Error deteniendo (ignorando):', stopError.message);
         }
         
-        // 3. Obtener QR
-        console.log(`5. Obteniendo QR...`);
-        const qrData = await getSessionQR(sessionName, organizationId);
-        const qrValue = qrData?.value || qrData?.data || null;
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
-          console.log(`6. QR obtenido: ${qrValue.length} caracteres`);
-          return NextResponse.json({
-            success: true,
-            status: 'SCAN_QR',
-            connected: false,
-            session: sessionName,
-            qr: qrValue,
-            message: action === 'logout' ? 'Sesión cerrada. Escanea el QR para reconectar.' : 'Escanea el QR con el nuevo número.'
+        // 5. Eliminar la sesión
+        console.log('[WhatsApp Session POST] 4. Eliminando sesión...');
+        try {
+          await fetch(`${url}/api/sessions/${sessionName}`, {
+            method: 'DELETE',
+            headers: { 'X-Api-Key': key }
           });
-        } else {
-          console.warn(`6. QR no disponible aún`);
+          console.log('[WhatsApp Session POST] ✅ Sesión eliminada');
+        } catch (deleteError: any) {
+          console.warn('[WhatsApp Session POST] ⚠️ Error eliminando (ignorando):', deleteError.message);
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // 6. Crear nueva sesión
+        console.log('[WhatsApp Session POST] 5. Creando nueva sesión...');
+        await createOrganizationSession(organizationId);
+        console.log('[WhatsApp Session POST] ✅ Sesión creada');
+        
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // 7. Obtener QR
+        console.log('[WhatsApp Session POST] 6. Obteniendo QR...');
+        try {
+          const qrData = await getSessionQR(sessionName, organizationId);
+          const qrValue = qrData?.value || qrData?.data || null;
+          
+          if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
+            console.log(`[WhatsApp Session POST] ✅ QR obtenido: ${qrValue.length} caracteres`);
+            
+            // TODO: Actualizar whatsapp_connected en BD (requiere migración de tipos)
+            
+            return NextResponse.json({
+              success: true,
+              status: 'SCAN_QR',
+              connected: false,
+              session: sessionName,
+              qr: qrValue,
+              message: action === 'logout' 
+                ? 'Sesión cerrada correctamente. Escanea el QR para reconectar.' 
+                : 'Escanea el QR con el nuevo número.'
+            });
+          } else {
+            console.warn(`[WhatsApp Session POST] ⚠️ QR no disponible aún`);
+            return NextResponse.json({
+              success: true,
+              status: 'STARTING',
+              connected: false,
+              session: sessionName,
+              qr: null,
+              message: 'Sesión reiniciada. Recarga la página en unos segundos para obtener el QR.'
+            });
+          }
+        } catch (qrError: any) {
+          console.error('[WhatsApp Session POST] ❌ Error obteniendo QR:', qrError.message);
           return NextResponse.json({
             success: true,
             status: 'STARTING',
             connected: false,
             session: sessionName,
             qr: null,
-            message: 'Sesión reiniciada. Recarga en unos segundos para obtener el QR.'
+            message: 'Sesión reiniciada pero QR no disponible aún. Recarga la página en unos segundos.'
           });
         }
         
-      } catch (logoutError: any) {
-        console.error(`[WhatsApp Session] ❌ Error en ${action}:`, logoutError.message);
+      } catch (error: any) {
+        console.error(`[WhatsApp Session POST] ❌ Error crítico en ${action}:`, error.message, error.stack);
         return NextResponse.json({
           success: false,
-          error: `Error en ${action}: ${logoutError.message}`
+          error: `Error en ${action}: ${error.message}`,
+          details: error.stack
         }, { status: 500 });
       }
     }

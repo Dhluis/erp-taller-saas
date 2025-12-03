@@ -125,7 +125,7 @@ async function handleMessageEvent(body: any) {
       console.log('[WAHA Webhook] ⏭️ Ignorando mensaje de grupo');
       return;
     }
-    
+
     // 3.5 IMPORTANTE: Extraer número del remitente y verificar que no sea la misma sesión
     const fromNumber = extractPhoneNumber(chatId);
     console.log('[WAHA Webhook] 📱 Número del remitente:', fromNumber);
@@ -231,25 +231,25 @@ async function handleMessageEvent(body: any) {
       try {
         const sendResult = await sendWhatsAppMessage(
           sessionName,
-          customerPhone,
+        customerPhone,
           aiResult.response,
           organizationId
-        );
+      );
 
         if (sendResult) {
-          // 13. Guardar mensaje saliente
-          await saveOutgoingMessage(
-            supabase,
-            conversationId,
-            organizationId,
-            {
+        // 13. Guardar mensaje saliente
+        await saveOutgoingMessage(
+          supabase,
+          conversationId,
+          organizationId,
+          {
               messageId: sendResult.id || sendResult.messageId || `out_${Date.now()}`,
-              to: customerPhone,
-              body: aiResult.response,
-              timestamp: new Date()
-            }
-          );
-          console.log('[WAHA Webhook] ✅ Respuesta enviada y guardada');
+            to: customerPhone,
+            body: aiResult.response,
+            timestamp: new Date()
+          }
+        );
+        console.log('[WAHA Webhook] ✅ Respuesta enviada y guardada');
         }
       } catch (sendError: any) {
         console.error('[WAHA Webhook] ❌ Error enviando respuesta:', sendError.message);
