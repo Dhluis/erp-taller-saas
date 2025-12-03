@@ -45,6 +45,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { createClient } from '@/lib/supabase/client'
+import { useCustomers } from '@/hooks/useCustomers'
 
 import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench } from 'lucide-react'
 
@@ -206,6 +207,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const { user, profile } = useAuth()
 
   const supabase = createClient()
+  
+  // ✅ Cargar clientes existentes
+  const { customers } = useCustomers()
 
   const [loading, setLoading] = useState(false)
 
@@ -943,7 +947,21 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                   value={formData.customerName}
 
-                  onChange={handleChange}
+                  onChange={(e) => {
+                    handleChange(e);
+                    
+                    // Autocompletar datos si selecciona un cliente existente
+                    const selectedCustomer = customers.find(c => c.name === e.target.value);
+                    if (selectedCustomer) {
+                      setFormData(prev => ({
+                        ...prev,
+                        customerName: selectedCustomer.name,
+                        customerPhone: selectedCustomer.phone || '',
+                        customerEmail: selectedCustomer.email || '',
+                        customerAddress: selectedCustomer.address || ''
+                      }));
+                    }
+                  }}
 
                   placeholder="Juan Pérez"
 
@@ -951,7 +969,15 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                   className={errors.customerName ? 'border-red-500' : ''}
 
+                  list="customers-list"
+
                 />
+
+                <datalist id="customers-list">
+                  {customers.map(customer => (
+                    <option key={customer.id} value={customer.name} />
+                  ))}
+                </datalist>
 
                 {errors.customerName && (
 

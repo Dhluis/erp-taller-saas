@@ -251,12 +251,34 @@ export default function CitasPage() {
   }
 
   const handleEdit = (appointment: Appointment) => {
+    console.log('📝 [handleEdit] Editando cita:', appointment)
     setEditingAppointment(appointment)
+    
+    // Obtener nombre del cliente (puede venir de customer.name o customer_name)
+    const customerName = appointment.customer?.name || appointment.customer_name || ''
+    const customerPhone = appointment.customer?.phone || appointment.customer_phone || ''
+    const customerEmail = appointment.customer?.email || appointment.customer_email || ''
+    
+    // Construir vehicle_info si viene de la relación vehicle
+    let vehicleInfo = appointment.vehicle_info || ''
+    if (appointment.vehicle && !vehicleInfo) {
+      vehicleInfo = `${appointment.vehicle.brand} ${appointment.vehicle.model}${
+        appointment.vehicle.license_plate ? ` - ${appointment.vehicle.license_plate}` : ''
+      }`
+    }
+    
+    console.log('📝 [handleEdit] Datos del formulario:', {
+      customerName,
+      customerPhone,
+      customerEmail,
+      vehicleInfo
+    })
+    
     setFormData({
-      customer_name: appointment.customer_name || '',
-      customer_phone: appointment.customer_phone || '',
-      customer_email: appointment.customer_email || '',
-      vehicle_info: appointment.vehicle_info || '',
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      customer_email: customerEmail,
+      vehicle_info: vehicleInfo,
       service_type: appointment.service_type,
       appointment_date: appointment.appointment_date,
       appointment_time: appointment.appointment_time || '',
