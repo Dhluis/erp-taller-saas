@@ -291,8 +291,15 @@ export function WhatsAppQRConnectorSimple({
       // Iniciar polling para mantener actualizado
       startPolling()
       
-      // Mostrar banner amigable para actualizar
-      setShowRefreshBanner(true)
+      // Mostrar banner después de 2 segundos si el estado no cambió
+      setTimeout(() => {
+        console.log(`[WhatsApp Simple] 🔄 Verificando si mostrar banner...`)
+        // Si seguimos en estado conectado después de desconectar, mostrar banner
+        if (state === 'connected') {
+          console.log(`[WhatsApp Simple] ⚠️ Estado no cambió, mostrando banner`)
+          setShowRefreshBanner(true)
+        }
+      }, 2000)
       
       // Forzar verificación inmediata después de 1 segundo para actualizar UI
       setTimeout(() => {
@@ -352,8 +359,15 @@ export function WhatsAppQRConnectorSimple({
       // Iniciar polling para mantener actualizado
       startPolling()
       
-      // Mostrar banner amigable para actualizar
-      setShowRefreshBanner(true)
+      // Mostrar banner después de 2 segundos si el estado no cambió
+      setTimeout(() => {
+        console.log(`[WhatsApp Simple] 🔄 Verificando si mostrar banner...`)
+        // Si seguimos en estado conectado después de cambiar número, mostrar banner
+        if (state === 'connected') {
+          console.log(`[WhatsApp Simple] ⚠️ Estado no cambió, mostrando banner`)
+          setShowRefreshBanner(true)
+        }
+      }, 2000)
       
       // Forzar verificación inmediata después de 1 segundo para actualizar UI
       setTimeout(() => {
@@ -427,19 +441,19 @@ export function WhatsAppQRConnectorSimple({
               ? 'bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-cyan-500/30' 
               : 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-300'
           )}>
-            <div className="flex items-start gap-3">
+            <div className="flex flex-col items-center text-center gap-3">
               <div className={cn(
                 'p-2 rounded-full',
                 darkMode ? 'bg-cyan-500/20' : 'bg-cyan-100'
               )}>
                 <RefreshCw className={cn(
-                  'w-5 h-5',
+                  'w-6 h-6',
                   darkMode ? 'text-cyan-400' : 'text-cyan-600'
                 )} />
               </div>
-              <div className="flex-1">
+              <div>
                 <p className={cn(
-                  'font-medium mb-1',
+                  'font-semibold text-lg mb-1',
                   darkMode ? 'text-white' : 'text-gray-900'
                 )}>
                   ¡Cambios aplicados correctamente! ✨
@@ -448,24 +462,24 @@ export function WhatsAppQRConnectorSimple({
                   'text-sm',
                   darkMode ? 'text-slate-300' : 'text-gray-600'
                 )}>
-                  Para ver el estado actualizado, haz clic en el botón de actualizar
+                  Actualiza la página para ver el nuevo estado de tu conexión
                 </p>
               </div>
               <Button
-                size="sm"
+                size="lg"
                 onClick={() => {
                   setShowRefreshBanner(false)
                   window.location.reload()
                 }}
                 className={cn(
-                  'shrink-0',
+                  'min-w-[200px]',
                   darkMode 
                     ? 'bg-cyan-600 hover:bg-cyan-500 text-white' 
                     : 'bg-cyan-600 hover:bg-cyan-700 text-white'
                 )}
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Actualizar
+                Actualizar ahora
               </Button>
             </div>
           </div>
