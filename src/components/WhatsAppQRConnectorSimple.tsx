@@ -134,12 +134,8 @@ export function WhatsAppQRConnectorSimple({
           }
         }
         
-        // Verificar si alcanzamos el máximo de reintentos
-        if (retryCountRef.current >= MAX_RETRIES) {
-          console.warn(`[WhatsApp Simple] ⚠️ Máximo de reintentos alcanzado`)
-          stopPolling()
-          setErrorMessage('Tiempo de espera agotado. Recarga la página o haz clic en "Vincular WhatsApp".')
-        }
+        // NO aplicar timeout cuando el QR está visible - seguir intentando hasta que se conecte
+        // El QR es válido hasta que expire en WhatsApp (no nosotros)
         
         // Seguir polling para detectar cuando se conecte
         return
@@ -151,11 +147,13 @@ export function WhatsAppQRConnectorSimple({
       setSessionData(data)
       setErrorMessage(data.message || 'Esperando código QR...')
 
-      // Si excedemos reintentos, parar
+      // Si excedemos reintentos mientras esperamos QR (no mientras se muestra), cambiar a error
       if (retryCountRef.current >= MAX_RETRIES) {
-        console.warn(`[WhatsApp Simple] ⚠️ Máximo de reintentos alcanzado`)
-        stopPolling()
+        console.warn(`[WhatsApp Simple] ⚠️ Máximo de reintentos alcanzado esperando QR`)
+        setState('error')
         setErrorMessage('Tiempo de espera agotado. Recarga la página o haz clic en "Vincular WhatsApp".')
+        onStatusChange?.('error')
+        stopPolling()
       }
 
     } catch (error: any) {
