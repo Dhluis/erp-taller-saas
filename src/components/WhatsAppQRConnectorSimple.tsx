@@ -44,6 +44,7 @@ export function WhatsAppQRConnectorSimple({
   const [sessionData, setSessionData] = useState<SessionData | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [showRefreshBanner, setShowRefreshBanner] = useState(false)
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const retryCountRef = useRef(0)
@@ -290,6 +291,9 @@ export function WhatsAppQRConnectorSimple({
       // Iniciar polling para mantener actualizado
       startPolling()
       
+      // Mostrar banner amigable para actualizar
+      setShowRefreshBanner(true)
+      
       // Forzar verificación inmediata después de 1 segundo para actualizar UI
       setTimeout(() => {
         console.log(`[WhatsApp Simple] 🔄 Verificación forzada después de desconectar`)
@@ -347,6 +351,9 @@ export function WhatsAppQRConnectorSimple({
       
       // Iniciar polling para mantener actualizado
       startPolling()
+      
+      // Mostrar banner amigable para actualizar
+      setShowRefreshBanner(true)
       
       // Forzar verificación inmediata después de 1 segundo para actualizar UI
       setTimeout(() => {
@@ -412,6 +419,58 @@ export function WhatsAppQRConnectorSimple({
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* Banner amigable para actualizar */}
+        {showRefreshBanner && (
+          <div className={cn(
+            'p-4 rounded-lg border-2 border-dashed animate-in fade-in slide-in-from-top-2 duration-500',
+            darkMode 
+              ? 'bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-cyan-500/30' 
+              : 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-300'
+          )}>
+            <div className="flex items-start gap-3">
+              <div className={cn(
+                'p-2 rounded-full',
+                darkMode ? 'bg-cyan-500/20' : 'bg-cyan-100'
+              )}>
+                <RefreshCw className={cn(
+                  'w-5 h-5',
+                  darkMode ? 'text-cyan-400' : 'text-cyan-600'
+                )} />
+              </div>
+              <div className="flex-1">
+                <p className={cn(
+                  'font-medium mb-1',
+                  darkMode ? 'text-white' : 'text-gray-900'
+                )}>
+                  ¡Cambios aplicados correctamente! ✨
+                </p>
+                <p className={cn(
+                  'text-sm',
+                  darkMode ? 'text-slate-300' : 'text-gray-600'
+                )}>
+                  Para ver el estado actualizado, haz clic en el botón de actualizar
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setShowRefreshBanner(false)
+                  window.location.reload()
+                }}
+                className={cn(
+                  'shrink-0',
+                  darkMode 
+                    ? 'bg-cyan-600 hover:bg-cyan-500 text-white' 
+                    : 'bg-cyan-600 hover:bg-cyan-700 text-white'
+                )}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Actualizar
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* CONECTADO */}
         {state === 'connected' && sessionData && (
           <div className="space-y-4">
