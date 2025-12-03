@@ -223,6 +223,13 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
   const [filteredCustomers, setFilteredCustomers] = useState<typeof customers>([])
 
+  // Log cuando los clientes cambian
+  useEffect(() => {
+    console.log('📦 [Dropdown] Clientes cargados del hook:', customers.length);
+    if (customers.length > 0) {
+      console.log('📋 [Dropdown] Primeros clientes:', customers.slice(0, 3).map(c => c.name));
+    }
+  }, [customers])
 
   const [loadingSystemUsers, setLoadingSystemUsers] = useState(false)
 
@@ -531,13 +538,21 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   
   // Filtrar clientes cuando el usuario escribe
   useEffect(() => {
+    console.log('🔍 [Dropdown] Filtrando clientes:', {
+      customerNameLength: formData.customerName.length,
+      totalCustomers: customers.length,
+      customerName: formData.customerName
+    });
+    
     if (formData.customerName.length > 0) {
       const filtered = customers.filter(c => 
         c.name.toLowerCase().includes(formData.customerName.toLowerCase())
       )
+      console.log('✅ [Dropdown] Clientes filtrados:', filtered.length);
       setFilteredCustomers(filtered)
     } else {
       // Si está vacío, mostrar todos los clientes
+      console.log('📋 [Dropdown] Mostrando todos los clientes:', customers.length);
       setFilteredCustomers(customers)
     }
   }, [formData.customerName, customers])
@@ -971,8 +986,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                     onChange={(e) => {
                       handleChange(e);
-                      // Mostrar dropdown al escribir si hay clientes
-                      if (e.target.value.length > 0 && customers.length > 0) {
+                      // Mostrar dropdown automáticamente al escribir
+                      if (customers.length > 0) {
                         setShowCustomerDropdown(true);
                       }
                     }}
@@ -998,8 +1013,14 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   <button
                     type="button"
                     onClick={() => {
+                      console.log('🔘 [Dropdown] Clic en flecha:', {
+                        customersLength: customers.length,
+                        currentState: showCustomerDropdown
+                      });
                       if (customers.length > 0) {
                         setShowCustomerDropdown(!showCustomerDropdown)
+                      } else {
+                        console.warn('⚠️ [Dropdown] No hay clientes cargados');
                       }
                     }}
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-700 rounded transition-colors"
@@ -1011,33 +1032,44 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 </div>
 
                 {/* Dropdown de sugerencias estilo Sonner */}
-                {showCustomerDropdown && filteredCustomers.length > 0 && (
+                {showCustomerDropdown && (
                   <div className="absolute z-50 w-full mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto">
-                    {filteredCustomers.slice(0, 5).map((customer) => (
-                      <button
-                        key={customer.id}
-                        type="button"
-                        onClick={() => {
-                          setFormData(prev => ({
-                            ...prev,
-                            customerName: customer.name,
-                            customerPhone: customer.phone || '',
-                            customerEmail: customer.email || '',
-                            customerAddress: customer.address || ''
-                          }));
-                          // Limpiar error de validación al seleccionar
-                          setErrors(prev => ({ ...prev, customerName: '' }));
-                          setShowCustomerDropdown(false);
-                        }}
-                        className="w-full px-4 py-3 text-left hover:bg-gray-800 transition-colors flex items-center gap-3 border-b border-gray-800 last:border-0"
-                      >
-                        <User className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white truncate">{customer.name}</p>
-                          <p className="text-xs text-gray-400 truncate">{customer.phone}</p>
-                        </div>
-                      </button>
-                    ))}
+                    {filteredCustomers.length > 0 ? (
+                      filteredCustomers.slice(0, 5).map((customer) => (
+                        <button
+                          key={customer.id}
+                          type="button"
+                          onClick={() => {
+                            console.log('✅ [Dropdown] Cliente seleccionado:', customer.name);
+                            setFormData(prev => ({
+                              ...prev,
+                              customerName: customer.name,
+                              customerPhone: customer.phone || '',
+                              customerEmail: customer.email || '',
+                              customerAddress: customer.address || ''
+                            }));
+                            // Limpiar error de validación al seleccionar
+                            setErrors(prev => ({ ...prev, customerName: '' }));
+                            setShowCustomerDropdown(false);
+                          }}
+                          className="w-full px-4 py-3 text-left hover:bg-gray-800 transition-colors flex items-center gap-3 border-b border-gray-800 last:border-0"
+                        >
+                          <User className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white truncate">{customer.name}</p>
+                            <p className="text-xs text-gray-400 truncate">{customer.phone}</p>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-3 text-center text-gray-400 text-sm">
+                        {customers.length === 0 ? (
+                          <p>No hay clientes registrados</p>
+                        ) : (
+                          <p>No se encontraron coincidencias</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
