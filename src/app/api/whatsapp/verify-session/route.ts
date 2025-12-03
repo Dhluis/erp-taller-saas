@@ -9,10 +9,10 @@ export async function GET(request: NextRequest) {
   console.log('\n🔍 ========== VERIFICAR SESIÓN ==========\n');
 
   try {
-    // Obtener contexto del tenant
+    // Obtener contexto del tenant (lanza excepción si falla)
     const tenantContext = await getTenantContext(request);
     
-    if (!tenantContext.success || !tenantContext.organizationId) {
+    if (!tenantContext.organizationId) {
       return NextResponse.json({
         success: false,
         error: 'No se pudo obtener organization_id'
