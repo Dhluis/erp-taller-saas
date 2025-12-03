@@ -536,10 +536,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         c.name.toLowerCase().includes(formData.customerName.toLowerCase())
       )
       setFilteredCustomers(filtered)
-      setShowCustomerDropdown(filtered.length > 0)
     } else {
-      setFilteredCustomers([])
-      setShowCustomerDropdown(false)
+      // Si está vacío, mostrar todos los clientes
+      setFilteredCustomers(customers)
     }
   }, [formData.customerName, customers])
 
@@ -973,9 +972,17 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   }}
                   
                   onFocus={() => {
-                    if (formData.customerName.length > 0 && filteredCustomers.length > 0) {
+                    // Mostrar dropdown si hay clientes disponibles
+                    if (customers.length > 0) {
                       setShowCustomerDropdown(true)
                     }
+                  }}
+                  
+                  onBlur={() => {
+                    // Cerrar dropdown después de un pequeño delay para permitir clics
+                    setTimeout(() => {
+                      setShowCustomerDropdown(false)
+                    }, 200)
                   }}
 
                   placeholder="Juan Pérez"
