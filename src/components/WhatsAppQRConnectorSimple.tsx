@@ -268,19 +268,22 @@ export function WhatsAppQRConnectorSimple({
       const data = await response.json()
       console.log(`[WhatsApp Simple] ✅ Desconectado:`, data)
 
+      // Actualizar estado inmediatamente a pending
+      setState('pending')
+      setSessionData(null)
+      
       // Si viene QR, mostrarlo
       if (data.qr) {
-        setState('pending')
         setSessionData(data)
-        startPolling()
-      } else {
-        // Si no, iniciar polling para obtenerlo
-        startPolling()
       }
+      
+      // Iniciar polling para mantener actualizado
+      startPolling()
 
     } catch (error: any) {
       console.error(`[WhatsApp Simple] ❌ Error desconectando:`, error)
       setErrorMessage(error.message)
+      setState('error')
     } finally {
       setIsLoading(false)
     }
@@ -307,19 +310,22 @@ export function WhatsAppQRConnectorSimple({
       const data = await response.json()
       console.log(`[WhatsApp Simple] ✅ Respuesta:`, data)
 
+      // Actualizar estado inmediatamente a pending
+      setState('pending')
+      setSessionData(null)
+      
       // Si viene QR, mostrarlo
       if (data.qr) {
-        setState('pending')
         setSessionData(data)
-        startPolling()
-      } else {
-        // Si no, iniciar polling para obtenerlo
-        startPolling()
       }
+      
+      // Iniciar polling para mantener actualizado
+      startPolling()
 
     } catch (error: any) {
       console.error(`[WhatsApp Simple] ❌ Error cambiando número:`, error)
       setErrorMessage(error.message)
+      setState('error')
     } finally {
       setIsLoading(false)
     }
