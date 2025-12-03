@@ -48,8 +48,7 @@ export function WhatsAppQRConnectorSimple({
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const retryCountRef = useRef(0)
   const componentIdRef = useRef(Math.random().toString(36).substring(7))
-
-  console.log(`[WhatsApp Simple] 🆔 Component ID: ${componentIdRef.current}`)
+  const hasInitializedRef = useRef(false)
 
   // Detener polling
   const stopPolling = useCallback(() => {
@@ -141,11 +140,19 @@ export function WhatsAppQRConnectorSimple({
 
   // Efecto inicial - verificar estado una sola vez al montar
   useEffect(() => {
-    console.log(`[WhatsApp Simple] 🚀 Componente montado`)
+    // Prevenir múltiples inicializaciones
+    if (hasInitializedRef.current) {
+      console.log(`[WhatsApp Simple] ⏸️ Ya inicializado, ignorando re-mount`)
+      return
+    }
+    
+    hasInitializedRef.current = true
+    console.log(`[WhatsApp Simple] 🚀 Componente montado [ID: ${componentIdRef.current}]`)
+    
     checkStatus()
     
     return () => {
-      console.log(`[WhatsApp Simple] 👋 Componente desmontado`)
+      console.log(`[WhatsApp Simple] 👋 Componente desmontado [ID: ${componentIdRef.current}]`)
       stopPolling()
     }
   }, []) // Solo al montar
