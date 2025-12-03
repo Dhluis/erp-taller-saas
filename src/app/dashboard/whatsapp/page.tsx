@@ -24,23 +24,7 @@ export default function WhatsAppPage() {
   const [config, setConfig] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadConfig()
-  }, [loadConfig])
-
-  // Recargar cuando se regresa de otra página
-  useEffect(() => {
-    const handleFocus = () => {
-      // Solo recargar si ya tenemos organization
-      if (organization?.organization_id) {
-        console.log('[WhatsApp] 🔄 Ventana enfocada, recargando configuración...')
-        loadConfig()
-      }
-    }
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [loadConfig, organization?.organization_id])
-
+  // ✅ DEFINIR loadConfig PRIMERO, antes de los useEffects
   const loadConfig = useCallback(async () => {
     if (!organization?.organization_id) {
       console.log('[WhatsApp] ⏳ Esperando organization ID...')
@@ -78,6 +62,24 @@ export default function WhatsAppPage() {
       setLoading(false)
     }
   }, [organization?.organization_id])
+
+  // ✅ AHORA SÍ usar loadConfig en useEffect (después de definirlo)
+  useEffect(() => {
+    loadConfig()
+  }, [loadConfig])
+
+  // Recargar cuando se regresa de otra página
+  useEffect(() => {
+    const handleFocus = () => {
+      // Solo recargar si ya tenemos organization
+      if (organization?.organization_id) {
+        console.log('[WhatsApp] 🔄 Ventana enfocada, recargando configuración...')
+        loadConfig()
+      }
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [loadConfig, organization?.organization_id])
 
   const handleTrainAgent = () => {
     router.push('/dashboard/whatsapp/train-agent')
