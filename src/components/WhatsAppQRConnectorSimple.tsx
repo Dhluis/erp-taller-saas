@@ -268,13 +268,23 @@ export function WhatsAppQRConnectorSimple({
       const data = await response.json()
       console.log(`[WhatsApp Simple] ✅ Desconectado:`, data)
 
-      // Actualizar estado inmediatamente a pending
-      setState('pending')
-      setSessionData(null)
-      
-      // Si viene QR, mostrarlo
-      if (data.qr) {
+      // Actualizar estado inmediatamente basado en la respuesta
+      if (data.qr && typeof data.qr === 'string' && data.qr.length > 20) {
+        console.log(`[WhatsApp Simple] 📱 QR disponible después de desconectar`)
+        setState('pending')
         setSessionData(data)
+        lastPhaseRef.current = 'has_qr'
+        retryCountRef.current = 0
+      } else if (data.status === 'STARTING' || data.status === 'SCAN_QR') {
+        console.log(`[WhatsApp Simple] ⏳ Esperando QR después de desconectar`)
+        setState('pending')
+        setSessionData(data)
+        lastPhaseRef.current = 'waiting'
+        retryCountRef.current = 0
+      } else {
+        console.log(`[WhatsApp Simple] 🔄 Estado desconocido, iniciando polling`)
+        setState('loading')
+        setSessionData(null)
       }
       
       // Iniciar polling para mantener actualizado
@@ -310,13 +320,23 @@ export function WhatsAppQRConnectorSimple({
       const data = await response.json()
       console.log(`[WhatsApp Simple] ✅ Respuesta:`, data)
 
-      // Actualizar estado inmediatamente a pending
-      setState('pending')
-      setSessionData(null)
-      
-      // Si viene QR, mostrarlo
-      if (data.qr) {
+      // Actualizar estado inmediatamente basado en la respuesta
+      if (data.qr && typeof data.qr === 'string' && data.qr.length > 20) {
+        console.log(`[WhatsApp Simple] 📱 QR disponible después de cambiar número`)
+        setState('pending')
         setSessionData(data)
+        lastPhaseRef.current = 'has_qr'
+        retryCountRef.current = 0
+      } else if (data.status === 'STARTING' || data.status === 'SCAN_QR') {
+        console.log(`[WhatsApp Simple] ⏳ Esperando QR después de cambiar número`)
+        setState('pending')
+        setSessionData(data)
+        lastPhaseRef.current = 'waiting'
+        retryCountRef.current = 0
+      } else {
+        console.log(`[WhatsApp Simple] 🔄 Estado desconocido, iniciando polling`)
+        setState('loading')
+        setSessionData(null)
       }
       
       // Iniciar polling para mantener actualizado
