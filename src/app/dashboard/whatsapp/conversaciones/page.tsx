@@ -114,6 +114,7 @@ interface ContactDetails {
   labels: string[]
   address?: string
   notes?: string
+  metadata?: any
 }
 
 export default function ConversacionesPage() {
@@ -227,18 +228,10 @@ export default function ConversacionesPage() {
       
       console.log('📊 [loadConversations] Construyendo query con organization_id:', organizationId)
       
-      // Construir query base con join a customers para obtener nombre real
+      // Construir query base - primero obtener conversaciones
       let query = supabase
         .from('whatsapp_conversations')
-        .select(`
-          *,
-          customers:customer_id (
-            id,
-            name,
-            email,
-            phone
-          )
-        `)
+        .select('*')
         .eq('organization_id', organizationId)
 
       // Aplicar filtro de status solo si no es 'all', 'unread' o 'favorite'
@@ -274,22 +267,46 @@ export default function ConversacionesPage() {
         rawData: data
       })
 
+      // Obtener todos los customer_ids únicos para hacer una query separada
+      const customerIds = (data || [])
+        .map((conv: any) => conv.customer_id)
+        .filter((id: string | null) => id !== null && id !== undefined) as string[]
+      
+      // Obtener información de clientes en una sola query
+      let customersMap: Record<string, { name: string; email?: string; phone?: string }> = {}
+      if (customerIds.length > 0) {
+        try {
+          const { data: customersData, error: customersError } = await supabase
+            .from('customers')
+            .select('id, name, email, phone')
+            .in('id', customerIds)
+            .eq('organization_id', organizationId)
+          
+          if (!customersError && customersData) {
+            customersData.forEach((customer: any) => {
+              customersMap[customer.id] = {
+                name: customer.name,
+                email: customer.email,
+                phone: customer.phone
+              }
+            })
+            console.log(`[loadConversations] ✅ Clientes cargados: ${customersData.length} de ${customerIds.length}`)
+          } else if (customersError) {
+            console.warn(`[loadConversations] ⚠️ Error cargando clientes:`, customersError)
+          }
+        } catch (customersError) {
+          console.warn(`[loadConversations] ⚠️ Error en query de clientes:`, customersError)
+        }
+      }
+
       const formattedConversations: Conversation[] = (data || []).map((conv: any) => {
         // Obtener nombre del contacto con prioridad:
         // 1. Nombre del cliente desde la tabla customers (si existe relación)
         // 2. customer_name de la conversación
-        // 3. Teléfono formateado (sin el +)
+        // 3. Teléfono formateado
         // 4. Fallback a "Cliente WhatsApp"
         
-        // Supabase puede devolver customers como objeto o array
-        let customer = null
-        if (conv.customers) {
-          if (Array.isArray(conv.customers)) {
-            customer = conv.customers[0] || null
-          } else {
-            customer = conv.customers
-          }
-        }
+        const customer = conv.customer_id ? customersMap[conv.customer_id] : null
         
         // Construir nombre del contacto
         let contactName = 'Cliente WhatsApp'
@@ -301,11 +318,16 @@ export default function ConversacionesPage() {
           // Formatear teléfono de forma más legible
           const phone = conv.customer_phone.replace(/\D/g, '') // Solo números
           if (phone.length >= 10) {
-            // Formato: +52 1 449 123 4567
-            const formatted = phone.length > 10 
-              ? `+${phone.substring(0, phone.length - 10)} ${phone.substring(phone.length - 10, phone.length - 7)} ${phone.substring(phone.length - 7, phone.length - 4)} ${phone.substring(phone.length - 4)}`
-              : phone
-            contactName = formatted
+            // Formato más simple: mostrar últimos 10 dígitos con código de país
+            if (phone.length === 12) {
+              // +52 1 449 123 4567
+              contactName = `+${phone.substring(0, 2)} ${phone.substring(2, 3)} ${phone.substring(3, 6)} ${phone.substring(6, 9)} ${phone.substring(9)}`
+            } else if (phone.length === 13) {
+              // +521 449 123 4567
+              contactName = `+${phone.substring(0, 3)} ${phone.substring(3, 6)} ${phone.substring(6, 9)} ${phone.substring(9)}`
+            } else {
+              contactName = `+${phone}`
+            }
           } else {
             contactName = `+${phone}`
           }
@@ -319,6 +341,7 @@ export default function ConversacionesPage() {
           hasCustomer: !!customer,
           customerName: customer?.name,
           customerNameFromConv: conv.customer_name,
+          customerPhone: conv.customer_phone,
           finalContactName: contactName
         })
         
@@ -421,6 +444,13 @@ export default function ConversacionesPage() {
           .eq('organization_id', organizationId)
           .maybeSingle()
 
+        // Obtener conversación completa para metadata y notas
+        const { data: convData } = await supabase
+          .from('whatsapp_conversations')
+          .select('notes, metadata, created_at')
+          .eq('id', conversationId)
+          .single()
+
         setContactDetails({
           name: conv.contactName || 'Cliente WhatsApp',
           phone: conv.contactPhone || 'Sin teléfono',
@@ -430,12 +460,13 @@ export default function ConversacionesPage() {
           country: 'México',
           language: 'Español',
           currency: 'Peso Mexicano',
-          started: conv.lastMessageTime || 'Nunca',
+          started: convData?.created_at ? formatRelativeTime(convData.created_at) : 'Nunca',
           status: conv.status || 'active',
           device: 'WhatsApp',
           labels: Array.isArray(conv.labels) ? conv.labels.filter((l): l is string => Boolean(l)) : [],
           address: customerData?.address || undefined,
-          notes: undefined
+          notes: convData?.notes || undefined,
+          metadata: convData?.metadata || undefined
         })
       }
     } catch (error) {
@@ -742,16 +773,59 @@ export default function ConversacionesPage() {
     }
   }
 
-  const scheduleMessage = () => {
-    if (!messageText.trim() || !scheduledDateTime) {
+  const scheduleMessage = async () => {
+    if (!messageText.trim() || !scheduledDateTime || !selectedConversation) {
       toast.error('Por favor completa el mensaje y la fecha/hora')
       return
     }
 
-    toast.success(`Mensaje programado para ${new Date(scheduledDateTime).toLocaleString('es-ES')}`)
-    setMessageText('')
-    setScheduledDateTime('')
-    setActiveTab('Responder')
+    const conv = conversations.find(c => c.id === selectedConversation)
+    if (!conv || !conv.contactPhone) {
+      toast.error('No hay número de teléfono asociado a esta conversación')
+      return
+    }
+
+    try {
+      // Guardar mensaje programado en metadata de la conversación
+      // En el futuro se puede crear una tabla scheduled_messages
+      const scheduledMessages = (contactDetails?.metadata as any)?.scheduled_messages || []
+      const newScheduledMessage = {
+        id: Date.now().toString(),
+        message: messageText,
+        scheduledAt: scheduledDateTime,
+        to: conv.contactPhone,
+        createdAt: new Date().toISOString()
+      }
+      
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ 
+          metadata: {
+            ...(contactDetails?.metadata || {}),
+            scheduled_messages: [...scheduledMessages, newScheduledMessage]
+          },
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedConversation)
+
+      if (error) throw error
+
+      toast.success(`Mensaje programado para ${new Date(scheduledDateTime).toLocaleString('es-ES')}`)
+      setMessageText('')
+      setScheduledDateTime('')
+      setActiveTab('Responder')
+      
+      // Actualizar contactDetails localmente
+      updateContactDetails({
+        metadata: {
+          ...(contactDetails?.metadata || {}),
+          scheduled_messages: [...scheduledMessages, newScheduledMessage]
+        }
+      })
+    } catch (error) {
+      console.error('Error programando mensaje:', error)
+      toast.error('Error al programar mensaje')
+    }
   }
 
   const generateAIResponse = async () => {
@@ -795,15 +869,36 @@ export default function ConversacionesPage() {
     }
   }
 
-  const handleReassign = () => {
-    if (!selectedAgent) {
+  const handleReassign = async () => {
+    if (!selectedAgent || !selectedConversation) {
       toast.error('Por favor selecciona un agente')
       return
     }
     
-    toast.success(`Chat reasignado a ${selectedAgent}`)
-    setReassignDialogOpen(false)
-    setSelectedAgent('')
+    try {
+      // Guardar agente asignado en metadata o en un campo específico
+      // Por ahora usaremos metadata JSONB si existe, o actualizaremos customer_name temporalmente
+      // En el futuro se puede agregar un campo assigned_agent_id
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ 
+          metadata: { assigned_agent: selectedAgent },
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedConversation)
+
+      if (error) throw error
+
+      toast.success(`Chat reasignado a ${selectedAgent}`)
+      setReassignDialogOpen(false)
+      setSelectedAgent('')
+      
+      // Recargar conversaciones para reflejar el cambio
+      await loadConversations()
+    } catch (error) {
+      console.error('Error reasignando chat:', error)
+      toast.error('Error al reasignar chat')
+    }
   }
 
   const handleMenuAction = (action: string) => {
@@ -925,9 +1020,26 @@ export default function ConversacionesPage() {
     }
   }
 
-  const saveNotes = () => {
-    toast.success('Notas guardadas')
-    setIsEditingNotes(false)
+  const saveNotes = async () => {
+    if (!selectedConversation) return
+    
+    try {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ 
+          notes: contactDetails?.notes || '',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedConversation)
+
+      if (error) throw error
+
+      toast.success('Notas guardadas')
+      setIsEditingNotes(false)
+    } catch (error) {
+      console.error('Error guardando notas:', error)
+      toast.error('Error al guardar notas')
+    }
   }
 
   const handleFileUpload = () => {
