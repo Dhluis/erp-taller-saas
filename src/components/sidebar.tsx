@@ -7,30 +7,18 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { SidebarUserProfile } from "@/components/sidebar-user-profile"
+import ModernIcons from '@/components/icons/ModernIcons'
+import Image from 'next/image'
 import { 
-  Home, 
-  Users, 
-  FileText, 
-  Package, 
-  Receipt,
-  BarChart3,
-  Settings,
   Search,
   ChevronDown,
   ChevronRight,
   Plus,
   Calendar,
   MessageCircle,
-  Phone,
-  Building2,
-  ClipboardList,
-  TrendingUp,
-  Wallet,
-  Shield,
   User,
   LogOut
 } from "lucide-react"
-import { TruckIcon } from '@heroicons/react/24/outline'
 
 interface SidebarProps {
   className?: string
@@ -40,12 +28,33 @@ export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname()
   const [expandedSections, setExpandedSections] = useState<string[]>([])
 
-  // Inicializar secciones expandidas después de la hidratación
+  // Inicializar secciones expandidas solo si la ruta actual está dentro de una sección
   useEffect(() => {
-    setExpandedSections(['inventarios', 'ingresos', 'compras', 'reportes', 'configuraciones'])
-  }, [])
+    const sections = ['inventarios', 'ingresos', 'compras', 'reportes', 'configuraciones']
+    const activeSections: string[] = []
+    
+    // Verificar si la ruta actual está dentro de alguna sección
+    sections.forEach(section => {
+      const sectionRoutes: Record<string, string[]> = {
+        'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos'],
+        'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/reportes'],
+        'compras': ['/compras', '/compras/proveedores', '/compras/pagos'],
+        'reportes': ['/reportes', '/reportes/ventas', '/reportes/inventario', '/reportes/financieros'],
+        'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/perfil']
+      }
+      
+      if (sectionRoutes[section]?.some(route => pathname.startsWith(route))) {
+        activeSections.push(section)
+      }
+    })
+    
+    // Solo expandir la sección activa si existe
+    if (activeSections.length > 0) {
+      setExpandedSections(activeSections)
+    }
+  }, [pathname])
 
-  // Mantener secciones expandidas por defecto
+  // Verificar si una sección debe estar expandida
   const shouldExpandSection = (sectionKey: string) => {
     return expandedSections.includes(sectionKey)
   }
@@ -62,37 +71,37 @@ export function Sidebar({ className }: SidebarProps) {
     { 
       href: "/", 
       label: "Dashboard", 
-      icon: Home,
+      icon: () => <ModernIcons.Dashboard size={20} />,
       badge: null
     },
     { 
       href: "/clientes", 
       label: "Clientes", 
-      icon: Users,
+      icon: () => <ModernIcons.Clientes size={20} />,
       badge: null
     },
     { 
       href: "/proveedores", 
       label: "Proveedores", 
-      icon: Building2,
+      icon: () => <ModernIcons.Clientes size={20} />,
       badge: null
     },
     { 
       href: "/vehiculos", 
       label: "Vehículos", 
-      icon: TruckIcon,
+      icon: () => <ModernIcons.Vehiculos size={20} />,
       badge: null
     },
     { 
       href: "/ordenes", 
       label: "Órdenes de Trabajo", 
-      icon: FileText,
+      icon: () => <ModernIcons.Ordenes size={20} />,
       badge: null
     },
     { 
       href: "/cotizaciones", 
       label: "Cotizaciones", 
-      icon: Receipt,
+      icon: () => <ModernIcons.Cotizaciones size={20} />,
       badge: null
     }
   ]
@@ -101,41 +110,41 @@ export function Sidebar({ className }: SidebarProps) {
     {
       key: 'inventarios',
       label: 'Inventarios',
-      icon: Package,
+      icon: () => <ModernIcons.Inventarios size={20} />,
       items: [
-        { href: "/inventarios", label: "Productos", icon: Package },
-        { href: "/inventarios/categorias", label: "Categorías", icon: Package },
-        { href: "/inventarios/movimientos", label: "Movimientos", icon: TrendingUp }
+        { href: "/inventarios", label: "Productos", icon: () => <ModernIcons.Productos size={18} /> },
+        { href: "/inventarios/categorias", label: "Categorías", icon: () => <ModernIcons.Categorias size={18} /> },
+        { href: "/inventarios/movimientos", label: "Movimientos", icon: () => <ModernIcons.Reportes size={18} /> }
       ]
     },
     {
       key: 'ingresos',
       label: 'Ingresos',
-      icon: TrendingUp,
+      icon: () => <ModernIcons.Finanzas size={20} />,
       items: [
-        { href: "/ingresos", label: "Facturación", icon: FileText },
-        { href: "/cobros", label: "Cobros", icon: Wallet },
-        { href: "/ingresos/reportes", label: "Reportes", icon: BarChart3 }
+        { href: "/ingresos/facturacion", label: "Facturación", icon: () => <ModernIcons.Ordenes size={18} /> },
+        { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Cobros size={18} /> },
+        { href: "/ingresos/reportes", label: "Reportes", icon: () => <ModernIcons.Reportes size={18} /> }
       ]
     },
     {
       key: 'compras',
       label: 'Compras',
-      icon: TrendingUp,
+      icon: () => <ModernIcons.Finanzas size={20} />,
       items: [
-        { href: "/compras", label: "Órdenes de Compra", icon: ClipboardList },
-        { href: "/compras/proveedores", label: "Proveedores", icon: Building2 },
-        { href: "/compras/pagos", label: "Pagos", icon: Wallet }
+        { href: "/compras", label: "Órdenes de Compra", icon: () => <ModernIcons.Ordenes size={18} /> },
+        { href: "/compras/proveedores", label: "Proveedores", icon: () => <ModernIcons.Clientes size={18} /> },
+        { href: "/compras/pagos", label: "Pagos", icon: () => <ModernIcons.Pagos size={18} /> }
       ]
     },
     {
       key: 'reportes',
       label: 'Reportes',
-      icon: BarChart3,
+      icon: () => <ModernIcons.Reportes size={20} />,
       items: [
-        { href: "/reportes/ventas", label: "Ventas", icon: TrendingUp },
-        { href: "/reportes/inventario", label: "Inventario", icon: Package },
-        { href: "/reportes/financieros", label: "Financieros", icon: Wallet }
+        { href: "/reportes/ventas", label: "Ventas", icon: () => <ModernIcons.Reportes size={18} /> },
+        { href: "/reportes/inventario", label: "Inventario", icon: () => <ModernIcons.Inventarios size={18} /> },
+        { href: "/reportes/financieros", label: "Financieros", icon: () => <ModernIcons.Finanzas size={18} /> }
       ]
     }
   ]
@@ -144,13 +153,13 @@ export function Sidebar({ className }: SidebarProps) {
     { 
       href: "/reportes", 
       label: "Reportes", 
-      icon: BarChart3,
+      icon: () => <ModernIcons.Reportes size={20} />,
       badge: null
     },
     { 
       href: "/perfil", 
       label: "Mi Perfil", 
-      icon: User,
+      icon: () => <ModernIcons.Perfil size={20} />,
       badge: null
     }
   ]
@@ -176,12 +185,12 @@ export function Sidebar({ className }: SidebarProps) {
     {
       key: 'configuraciones',
       label: 'Configuraciones',
-      icon: Settings,
+      icon: () => <ModernIcons.Configuracion size={20} />,
       items: [
-        { href: "/perfil", label: "Mi Perfil", icon: User },
-        { href: "/configuraciones/empresa", label: "Empresa", icon: Building2 },
-        { href: "/configuraciones/usuarios", label: "Usuarios", icon: Users },
-        { href: "/configuraciones/sistema", label: "Sistema", icon: Settings }
+        { href: "/perfil", label: "Mi Perfil", icon: () => <ModernIcons.Perfil size={18} /> },
+        { href: "/configuraciones/empresa", label: "Empresa", icon: () => <ModernIcons.Clientes size={18} /> },
+        { href: "/configuraciones/usuarios", label: "Usuarios", icon: () => <ModernIcons.Clientes size={18} /> },
+        { href: "/configuraciones/sistema", label: "Sistema", icon: () => <ModernIcons.Configuracion size={18} /> }
       ]
     }
   ]
@@ -203,71 +212,45 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Header */}
       <div className="p-6 border-b border-border">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            EAGLES
-          </h1>
+          <div className="flex items-center gap-3">
+            <Image
+              src="/eagles-logo-new.png"
+              alt="EAGLES ERP"
+              width={40}
+              height={40}
+              className="object-contain"
+            />
+            <div>
+              <h1 className="text-xl font-bold text-foreground">
+                EAGLES
+              </h1>
+              <p className="text-xs text-muted-foreground">ERP Taller SaaS</p>
+            </div>
+          </div>
           <Button variant="ghost" size="sm" className="text-foreground hover:text-primary">
             <Search className="h-4 w-4" />
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">ERP Taller SaaS</p>
       </div>
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {/* Main Navigation */}
         <div className="space-y-1">
-          <Link href="/">
-            <Button
-              variant={isActive("/") ? "primary" : "ghost"}
-              className={cn(
-                "w-full justify-start gap-3 h-10",
-                isActive("/") && "bg-primary text-white"
-              )}
-            >
-              <Home className="h-4 w-4" />
-              Dashboard
-            </Button>
-          </Link>
-          
-          <Link href="/clientes">
-            <Button
-              variant={isActive("/clientes") ? "primary" : "ghost"}
-              className={cn(
-                "w-full justify-start gap-3 h-10",
-                isActive("/clientes") && "bg-primary text-white"
-              )}
-            >
-              <Users className="h-4 w-4" />
-              Clientes
-            </Button>
-          </Link>
-          
-          <Link href="/ordenes">
-            <Button
-              variant={isActive("/ordenes") ? "primary" : "ghost"}
-              className={cn(
-                "w-full justify-start gap-3 h-10",
-                isActive("/ordenes") && "bg-primary text-white"
-              )}
-            >
-              <FileText className="h-4 w-4" />
-              Órdenes
-            </Button>
-          </Link>
-          
-          <Link href="/reportes">
-            <Button
-              variant={isActive("/reportes") ? "primary" : "ghost"}
-              className={cn(
-                "w-full justify-start gap-3 h-10",
-                isActive("/reportes") && "bg-primary text-white"
-              )}
-            >
-              <BarChart3 className="h-4 w-4" />
-              Reportes
-            </Button>
-          </Link>
+          {mainNavItems.map((item) => (
+            <Link key={item.href} href={item.href}>
+              <Button
+                variant={isActive(item.href) ? "primary" : "ghost"}
+                className={cn(
+                  "w-full justify-start gap-3 h-10",
+                  isActive(item.href) && "bg-primary text-white"
+                )}
+              >
+                <item.icon />
+                {item.label}
+              </Button>
+            </Link>
+          ))}
         </div>
 
         {/* Collapsible Sections */}
@@ -280,7 +263,7 @@ export function Sidebar({ className }: SidebarProps) {
                 onClick={() => toggleSection(section.key)}
               >
                 <div className="flex items-center gap-3">
-                  <section.icon className="h-4 w-4" />
+                  <section.icon />
                   {section.label}
                 </div>
                 {shouldExpandSection(section.key) ? (
@@ -301,7 +284,7 @@ export function Sidebar({ className }: SidebarProps) {
                           isActive(item.href) && "sidebar-subcategory-active"
                         )}
                       >
-                        <item.icon className="h-3 w-3" />
+                        <item.icon />
                         {item.label}
                       </Button>
                     </Link>
@@ -323,7 +306,7 @@ export function Sidebar({ className }: SidebarProps) {
                   isActive(item.href) && "bg-primary text-white"
                 )}
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon />
                 {item.label}
                 {item.badge && (
                   <Badge variant="secondary" className="ml-auto">
@@ -343,7 +326,7 @@ export function Sidebar({ className }: SidebarProps) {
                 variant={button.variant}
                 className="w-full justify-start gap-3 h-10"
               >
-                <button.icon className="h-4 w-4" />
+                <button.icon />
                 {button.label}
                 {button.badge && (
                   <Badge variant="secondary" className="ml-auto bg-green-500">
@@ -365,7 +348,7 @@ export function Sidebar({ className }: SidebarProps) {
                 onClick={() => toggleSection(section.key)}
               >
                 <div className="flex items-center gap-3">
-                  <section.icon className="h-4 w-4" />
+                  <section.icon />
                   {section.label}
                 </div>
                 {shouldExpandSection(section.key) ? (
@@ -386,7 +369,7 @@ export function Sidebar({ className }: SidebarProps) {
                           isActive(item.href) && "sidebar-subcategory-active"
                         )}
                       >
-                        <item.icon className="h-3 w-3" />
+                        <item.icon />
                         {item.label}
                       </Button>
                     </Link>

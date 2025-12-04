@@ -29,12 +29,33 @@ export function Sidebar({ className }: SidebarProps) {
   // Logo actualizado - EAGLES GEAR SYSTEM
   const logoUrl = "/eagles-logo-new.png"
 
-  // Inicializar secciones expandidas después de la hidratación
+  // Inicializar secciones expandidas solo si la ruta actual está dentro de una sección
   useEffect(() => {
-    setExpandedSections(['inventarios', 'ingresos', 'compras', 'reportes', 'configuraciones'])
-  }, [])
+    const sections = ['inventarios', 'ingresos', 'compras', 'reportes', 'configuraciones']
+    const activeSections: string[] = []
+    
+    // Verificar si la ruta actual está dentro de alguna sección
+    sections.forEach(section => {
+      const sectionRoutes: Record<string, string[]> = {
+        'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos'],
+        'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/reportes'],
+        'compras': ['/compras', '/compras/proveedores', '/compras/pagos'],
+        'reportes': ['/reportes', '/reportes/ventas', '/reportes/inventario', '/reportes/financieros'],
+        'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/perfil']
+      }
+      
+      if (sectionRoutes[section]?.some(route => pathname.startsWith(route))) {
+        activeSections.push(section)
+      }
+    })
+    
+    // Solo expandir la sección activa si existe
+    if (activeSections.length > 0) {
+      setExpandedSections(activeSections)
+    }
+  }, [pathname])
 
-  // Mantener secciones expandidas por defecto
+  // Verificar si una sección debe estar expandida
   const shouldExpandSection = (sectionKey: string) => {
     return expandedSections.includes(sectionKey)
   }
@@ -275,7 +296,7 @@ export function Sidebar({ className }: SidebarProps) {
                     )}
                     title={section.label}
                   >
-                    {typeof section.icon === 'function' ? section.icon() : <section.icon className="w-6 h-6" />}
+                    {section.icon()}
                   </Button>
                 </Link>
               ) : (
@@ -287,7 +308,7 @@ export function Sidebar({ className }: SidebarProps) {
                     onClick={() => toggleSection(section.key)}
                   >
                     <div className="flex items-center gap-3">
-                      {typeof section.icon === 'function' ? section.icon() : <section.icon className="h-4 w-4" />}
+                      {section.icon()}
                       {section.label}
                     </div>
                     {shouldExpandSection(section.key) ? (
@@ -308,7 +329,7 @@ export function Sidebar({ className }: SidebarProps) {
                               isActive(item.href) && "bg-primary text-white"
                             )}
                           >
-                            {typeof item.icon === 'function' ? item.icon() : <item.icon className="h-3 w-3" />}
+                            {item.icon()}
                             {item.label}
                           </Button>
                         </Link>
@@ -336,7 +357,7 @@ export function Sidebar({ className }: SidebarProps) {
                 )}
                 title={isCollapsed ? item.label : ""}
               >
-                {typeof item.icon === 'function' ? item.icon() : <item.icon className={isCollapsed ? "w-6 h-6" : "h-4 w-4 flex-shrink-0"} />}
+                {item.icon()}
                 {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
                 {!isCollapsed && item.badge && (
                   <Badge variant="secondary" className="ml-auto">
@@ -362,7 +383,7 @@ export function Sidebar({ className }: SidebarProps) {
                 )}
                 title={isCollapsed ? button.label : ""}
               >
-                {typeof button.icon === 'function' ? button.icon() : <button.icon className={isCollapsed ? "w-6 h-6" : "h-4 w-4 flex-shrink-0"} />}
+                {button.icon()}
                 {!isCollapsed && <span className="text-sm font-medium">{button.label}</span>}
                 {!isCollapsed && button.badge && (
                   <Badge variant="secondary" className="ml-auto bg-green-500">

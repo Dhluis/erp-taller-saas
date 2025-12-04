@@ -12,20 +12,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PageHeader } from '@/components/navigation/page-header'
+import ModernIcons from '@/components/icons/ModernIcons'
 import {
   Plus,
   Search,
-  FileText,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
-  DollarSign,
-  CalendarDays,
   Edit,
   Trash2,
   Loader2,
-  User,
-  Receipt
+  CalendarDays
 } from "lucide-react"
 import { 
   getAllInvoices, 
@@ -420,7 +414,7 @@ export default function FacturacionPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Facturas</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <ModernIcons.Ordenes size={16} />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalInvoices}</div>
@@ -430,7 +424,7 @@ export default function FacturacionPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Facturas Pendientes</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <ModernIcons.Warning size={16} />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.pendingInvoices}</div>
@@ -440,7 +434,7 @@ export default function FacturacionPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Facturas Pagadas</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <ModernIcons.Check size={16} />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.paidInvoices}</div>
@@ -450,7 +444,7 @@ export default function FacturacionPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monto Total</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <ModernIcons.Finanzas size={16} />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${(stats.totalAmount || 0).toLocaleString()}</div>
@@ -491,13 +485,13 @@ export default function FacturacionPage() {
                   <tr key={invoice.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
                       <div className="flex items-center gap-2">
-                        <Receipt className="h-4 w-4 text-muted-foreground" />
+                        <ModernIcons.Ordenes size={16} />
                         {invoice.invoice_number}
                       </div>
                     </td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
                       <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
+                        <ModernIcons.Clientes size={16} />
                         <div>
                           <div className="font-medium">Cliente ID: {invoice.customer_id}</div>
                           <div className="text-sm text-muted-foreground">Vehículo ID: {invoice.vehicle_id}</div>
@@ -548,7 +542,7 @@ export default function FacturacionPage() {
 
       {/* Modal de Creación/Edición de Factura */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto border border-border shadow-lg" style={{backgroundColor: '#000000'}}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto border border-border shadow-lg bg-card">
           <DialogHeader>
             <DialogTitle>
               {editingInvoice ? 'Editar Factura' : 'Crear Nueva Factura'}
@@ -721,7 +715,7 @@ export default function FacturacionPage() {
                   </>
                 ) : (
                   <>
-                    <FileText className="mr-2 h-4 w-4" />
+                    <ModernIcons.Ordenes size={16} className="mr-2" />
                     {editingInvoice ? 'Actualizar Factura' : 'Crear Factura'}
                   </>
                 )}
