@@ -258,6 +258,16 @@ export default function ConversacionesPage() {
           details: error.details,
           hint: error.hint
         })
+        
+        // Si es error de permisos (RLS), mostrar mensaje más claro
+        if (error.code === 'PGRST301' || error.message?.includes('permission') || error.message?.includes('RLS')) {
+          toast.error('No tienes permisos para ver estas conversaciones. Contacta al administrador.', {
+            duration: 5000
+          })
+        } else {
+          toast.error(`Error al cargar conversaciones: ${error.message}`)
+        }
+        
         throw error
       }
 
@@ -686,19 +696,76 @@ export default function ConversacionesPage() {
     setMessageText('') // Limpiar inmediatamente para mejor UX
 
     try {
-      // Si es nota interna, solo guardar localmente (no enviar por WhatsApp)
+      // Si es nota interna, guardar en BD como mensaje interno Y actualizar campo notes
       if (isInternalNote) {
-        const newMessage: Message = {
-          id: Date.now().toString(),
-          text: messageToSend,
-          sender: 'agent',
-          timestamp: new Date(),
-          read: true,
-          type: 'internal'
+        try {
+          // Guardar como mensaje interno en whatsapp_messages
+          const { data: savedMessage, error: messageError } = await supabase
+            .from('whatsapp_messages')
+            .insert({
+              conversation_id: selectedConversation,
+              organization_id: organizationId,
+              direction: 'outbound',
+              from_number: '', // Nota interna, no tiene remitente externo
+              to_number: conv.contactPhone || '',
+              body: messageToSend,
+              is_internal_note: true,
+              message_type: 'text',
+              status: 'sent',
+              created_at: new Date().toISOString()
+            })
+            .select()
+            .single()
+
+          if (messageError) {
+            console.error('Error guardando nota interna como mensaje:', messageError)
+            throw messageError
+          }
+
+          // Actualizar campo notes de la conversación (agregar la nueva nota)
+          const currentNotes = contactDetails?.notes || ''
+          const newNotes = currentNotes 
+            ? `${currentNotes}\n\n[${new Date().toLocaleString('es-ES')}] ${messageToSend}`
+            : `[${new Date().toLocaleString('es-ES')}] ${messageToSend}`
+          
+          const { error: notesError } = await supabase
+            .from('whatsapp_conversations')
+            .update({ 
+              notes: newNotes,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', selectedConversation)
+
+          if (notesError) {
+            console.error('Error actualizando notas de conversación:', notesError)
+            // No lanzar error, solo loguear - el mensaje ya se guardó
+          }
+
+          // Actualizar estado local
+          const newMessage: Message = {
+            id: savedMessage?.id || Date.now().toString(),
+            text: messageToSend,
+            sender: 'agent',
+            timestamp: new Date(),
+            read: true,
+            type: 'internal'
+          }
+          setMessages(prev => [...prev, newMessage])
+          
+          // Actualizar contactDetails con las nuevas notas
+          updateContactDetails({ notes: newNotes })
+          
+          // Recargar mensajes para asegurar sincronización
+          await loadMessages(selectedConversation)
+          
+          toast.success('Nota interna agregada')
+          setMessageText('') // Limpiar input
+        } catch (error) {
+          console.error('Error guardando nota interna:', error)
+          toast.error('Error al guardar nota interna')
+        } finally {
+          setIsSendingMessage(false)
         }
-        setMessages(prev => [...prev, newMessage])
-        toast.success('Nota interna agregada')
-        setIsSendingMessage(false)
         return
       }
 
@@ -1034,6 +1101,9 @@ export default function ConversacionesPage() {
 
       if (error) throw error
 
+      // Recargar mensajes para actualizar contactDetails
+      await loadMessages(selectedConversation)
+      
       toast.success('Notas guardadas')
       setIsEditingNotes(false)
     } catch (error) {
@@ -1056,8 +1126,74 @@ export default function ConversacionesPage() {
     input.click()
   }
 
-  // Agentes disponibles para reasignación
-  const availableAgents = ['Juan Pérez', 'María García', 'Carlos López', 'Ana Martínez']
+  // Agentes disponibles para reasignación - cargar desde BD
+  const [availableAgents, setAvailableAgents] = useState<Array<{ id: string; name: string }>>([])
+  const [loadingAgents, setLoadingAgents] = useState(false)
+
+  // Cargar agentes (empleados activos) desde la BD
+  useEffect(() => {
+    const loadAgents = async () => {
+      if (!organizationId) return
+      
+      try {
+        setLoadingAgents(true)
+        // Intentar obtener empleados activos
+        const { data: employees, error: employeesError } = await supabase
+          .from('employees')
+          .select('id, name')
+          .eq('organization_id', organizationId)
+          .eq('is_active', true)
+          .order('name', { ascending: true })
+          .limit(50)
+
+        if (employeesError) {
+          console.warn('Error cargando empleados, intentando con usuarios:', employeesError)
+          // Fallback: intentar con usuarios del sistema
+          const { data: users, error: usersError } = await supabase
+            .from('users')
+            .select('auth_user_id, full_name')
+            .eq('organization_id', organizationId)
+            .order('full_name', { ascending: true })
+            .limit(50)
+
+          if (usersError) {
+            console.error('Error cargando usuarios:', usersError)
+            // Usar lista por defecto si falla todo
+            setAvailableAgents([
+              { id: '1', name: 'Juan Pérez' },
+              { id: '2', name: 'María García' },
+              { id: '3', name: 'Carlos López' },
+              { id: '4', name: 'Ana Martínez' }
+            ])
+            return
+          }
+
+          setAvailableAgents((users || []).map((u: any) => ({
+            id: u.auth_user_id || u.id,
+            name: u.full_name || 'Usuario sin nombre'
+          })))
+        } else {
+          setAvailableAgents((employees || []).map((emp: any) => ({
+            id: emp.id,
+            name: emp.name || 'Empleado sin nombre'
+          })))
+        }
+      } catch (error) {
+        console.error('Error cargando agentes:', error)
+        // Usar lista por defecto en caso de error
+        setAvailableAgents([
+          { id: '1', name: 'Juan Pérez' },
+          { id: '2', name: 'María García' },
+          { id: '3', name: 'Carlos López' },
+          { id: '4', name: 'Ana Martínez' }
+        ])
+      } finally {
+        setLoadingAgents(false)
+      }
+    }
+
+    loadAgents()
+  }, [organizationId, supabase])
 
   return (
     <div className={cn(
@@ -1378,14 +1514,18 @@ export default function ConversacionesPage() {
                           <select
                             value={selectedAgent}
                             onChange={(e) => setSelectedAgent(e.target.value)}
+                            disabled={loadingAgents}
                             className={cn(
                               "w-full mt-2 p-2 rounded-md border",
-                              darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300"
+                              darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300",
+                              loadingAgents ? "opacity-50 cursor-not-allowed" : ""
                             )}
                           >
-                            <option value="">Selecciona un agente</option>
+                            <option value="">
+                              {loadingAgents ? 'Cargando agentes...' : 'Selecciona un agente'}
+                            </option>
                             {availableAgents.map(agent => (
-                              <option key={agent} value={agent}>{agent}</option>
+                              <option key={agent.id} value={agent.name}>{agent.name}</option>
                             ))}
                           </select>
                         </div>
@@ -1988,12 +2128,21 @@ export default function ConversacionesPage() {
                         </div>
                       </div>
                     ) : (
-                      <p className={cn(
-                        "text-sm p-3 rounded-lg min-h-[60px]",
+                      <div className={cn(
+                        "text-sm p-3 rounded-lg min-h-[60px] whitespace-pre-wrap",
                         darkMode ? "bg-gray-800 text-gray-300" : "bg-gray-100 text-gray-900"
                       )}>
-                        {contactDetails?.notes || 'No hay notas. Haz clic en el icono para agregar.'}
-                      </p>
+                        {contactDetails?.notes && contactDetails.notes.trim() ? (
+                          <p className="whitespace-pre-wrap">{contactDetails.notes}</p>
+                        ) : (
+                          <p className={cn(
+                            "italic",
+                            darkMode ? "text-gray-500" : "text-gray-400"
+                          )}>
+                            No hay notas. Haz clic en el icono para agregar.
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -2006,4 +2155,5 @@ export default function ConversacionesPage() {
     </div>
   )
 }
+
 
