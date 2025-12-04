@@ -254,14 +254,50 @@ async function handleMessageEvent(body: any) {
     
     console.log('[WAHA Webhook] ✅ Mensaje es entrante, procesando...');
 
-    // 4. Ignorar si chatId contiene @g.us (grupo)
-    const chatId = message.chatId || message.from || message.to;
+    // 4. Ignorar estados de WhatsApp (status@broadcast) - VERIFICAR PRIMERO
+    // WAHA puede enviar eventos de estados aunque no los hayas enviado directamente
+    const messageFrom = message.from || body.payload?.from || '';
+    const messageTo = message.to || body.payload?.to || '';
+    const chatId = message.chatId || messageFrom || messageTo;
+    const participant = body.payload?.participant || message.participant;
+    
+    // Detectar si es un estado de WhatsApp
+    const isStatusMessage = 
+      messageFrom === 'status@broadcast' || 
+      messageTo === 'status@broadcast' || 
+      chatId === 'status@broadcast' ||
+      messageFrom.includes('status@broadcast') || 
+      messageTo.includes('status@broadcast') ||
+      body.payload?._data?.broadcast === true ||
+      body.payload?.source === 'status';
+    
+    if (isStatusMessage) {
+      console.log('[WAHA Webhook] ⏭️ Ignorando estado de WhatsApp (status@broadcast)');
+      console.log('[WAHA Webhook] 📋 From:', messageFrom, 'To:', messageTo, 'Participant:', participant);
+      console.log('[WAHA Webhook] 📋 Broadcast:', body.payload?._data?.broadcast, 'Source:', body.payload?.source);
+      return;
+    }
+
+    // 5. Ignorar si chatId contiene @g.us (grupo)
     if (chatId && chatId.includes('@g.us')) {
       console.log('[WAHA Webhook] ⏭️ Ignorando mensaje de grupo');
       return;
     }
+    
+    // 5.1. Validar que sea un mensaje directo válido (debe tener @c.us o @s.whatsapp.net)
+    const isValidDirectMessage = 
+      chatId && 
+      (chatId.includes('@c.us') || 
+       chatId.includes('@s.whatsapp.net') ||
+       /^\d+@c\.us$/.test(chatId) ||
+       /^\d+@s\.whatsapp\.net$/.test(chatId));
+    
+    if (!isValidDirectMessage && chatId) {
+      console.log('[WAHA Webhook] ⏭️ Ignorando mensaje no válido (no es directo):', chatId);
+      return;
+    }
 
-    // 5. IMPORTANTE: Extraer número del remitente y verificar que no sea la misma sesión
+    // 6. IMPORTANTE: Extraer número del remitente y verificar que no sea la misma sesión
     const fromNumber = extractPhoneNumber(chatId);
     console.log('[WAHA Webhook] 📱 Número del remitente:', fromNumber);
     
@@ -319,6 +355,9 @@ async function handleMessageEvent(body: any) {
     // 9. Detectar tipo de mensaje y multimedia
     const messageType = message.type || message.messageType || 'text';
     
+    // Buscar media también en body.payload (WAHA puede enviarlo ahí)
+    const payloadMedia = body.payload?.media || body.payload?._data?.message?.videoMessage || body.payload?._data?.message?.imageMessage || body.payload?._data?.message?.audioMessage || body.payload?._data?.message?.documentMessage;
+    
     // Log detallado para diagnóstico de multimedia
     console.log('[WAHA Webhook] 🔍 DIAGNÓSTICO MULTIMEDIA:', {
       messageType,
@@ -330,6 +369,8 @@ async function handleMessageEvent(body: any) {
       hasDocument: !!message.document,
       hasMimetype: !!message.mimetype,
       mimetype: message.mimetype,
+      hasPayloadMedia: !!payloadMedia,
+      payloadMediaKeys: payloadMedia ? Object.keys(payloadMedia) : [],
       messageKeys: Object.keys(message),
       messageStructure: JSON.stringify(message, null, 2).substring(0, 1000)
     });
@@ -340,6 +381,7 @@ async function handleMessageEvent(body: any) {
                      message.audio || 
                      message.document ||
                      message.video ||
+                     !!payloadMedia || // ✅ Buscar también en payload
                      messageType !== 'text';
 
     // Extraer URL del media si existe
@@ -348,6 +390,7 @@ async function handleMessageEvent(body: any) {
 
     if (hasMedia) {
       // WAHA Plus puede enviar el media en diferentes formatos
+      // Buscar en múltiples ubicaciones del payload
       mediaUrl = message.mediaUrl || 
                  message.media?.url ||
                  message.image?.url ||
@@ -355,26 +398,45 @@ async function handleMessageEvent(body: any) {
                  message.document?.url ||
                  message.video?.url ||
                  message._data?.mediaUrl ||
-                 message.mediaUrl ||
-                 message.body?.mediaUrl;
+                 message.body?.mediaUrl ||
+                 body.payload?.media?.url || // ✅ Buscar también en body.payload.media
+                 body.payload?.mediaUrl ||   // ✅ Y en body.payload.mediaUrl
+                 body.payload?._data?.message?.videoMessage?.url || // ✅ Video en _data.message
+                 body.payload?._data?.message?.imageMessage?.url || // ✅ Imagen en _data.message
+                 body.payload?._data?.message?.audioMessage?.url || // ✅ Audio en _data.message
+                 body.payload?._data?.message?.documentMessage?.url; // ✅ Documento en _data.message
       
-      // Detectar tipo de media
-      if (message.type === 'image' || message.image || message.mimetype?.startsWith('image/')) {
+      // Detectar tipo de media (verificar también en payload.media.mimetype y _data.message)
+      const mimetype = message.mimetype || 
+                       message.media?.mimetype || 
+                       body.payload?.media?.mimetype ||
+                       body.payload?._data?.message?.videoMessage?.mimetype ||
+                       body.payload?._data?.message?.imageMessage?.mimetype ||
+                       body.payload?._data?.message?.audioMessage?.mimetype ||
+                       body.payload?._data?.message?.documentMessage?.mimetype;
+      
+      // Detectar tipo también por la presencia de objetos específicos
+      if (message.type === 'image' || message.image || body.payload?._data?.message?.imageMessage || mimetype?.startsWith('image/')) {
         mediaType = 'image';
-      } else if (message.type === 'audio' || message.type === 'ptt' || message.audio || message.mimetype?.startsWith('audio/')) {
+      } else if (message.type === 'audio' || message.type === 'ptt' || message.audio || body.payload?._data?.message?.audioMessage || mimetype?.startsWith('audio/')) {
         mediaType = 'audio';
-      } else if (message.type === 'video' || message.video || message.mimetype?.startsWith('video/')) {
+      } else if (message.type === 'video' || message.video || body.payload?._data?.message?.videoMessage || mimetype?.startsWith('video/')) {
         mediaType = 'video';
-      } else if (message.type === 'document' || message.document) {
+      } else if (message.type === 'document' || message.document || body.payload?._data?.message?.documentMessage || mimetype?.startsWith('application/')) {
         mediaType = 'document';
       }
       
       console.log('[WAHA Webhook] 📎 Media detectado:', {
         mediaType,
         mediaUrl: mediaUrl ? mediaUrl.substring(0, 100) + '...' : null,
-        mimetype: message.mimetype,
+        mimetype: mimetype,
         originalType: message.type,
-        hasMediaUrl: !!mediaUrl
+        hasMediaUrl: !!mediaUrl,
+        mediaLocation: message.media ? 'message.media' : 
+                      body.payload?.media ? 'payload.media' : 
+                      body.payload?._data?.message?.videoMessage ? '_data.message.videoMessage' :
+                      body.payload?._data?.message?.imageMessage ? '_data.message.imageMessage' :
+                      'unknown'
       });
     } else {
       console.log('[WAHA Webhook] ⚠️ NO se detectó multimedia en el mensaje');
@@ -483,7 +545,7 @@ async function handleMessageEvent(body: any) {
         customerPhone,
           aiResult.response,
           organizationId
-        );
+      );
 
         if (sendResult) {
         // 15. Guardar mensaje saliente

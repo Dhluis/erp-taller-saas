@@ -978,15 +978,15 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 <div className="relative">
 
-                  <Input
+                <Input
 
-                    id="customer_name"
+                  id="customer_name"
 
-                    name="customerName"
+                  name="customerName"
 
-                    required
+                  required
 
-                    value={formData.customerName}
+                  value={formData.customerName}
 
                     onChange={(e) => {
                       handleChange(e);
@@ -1005,7 +1005,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                     placeholder="Escribe o selecciona un cliente"
 
-                    disabled={loading}
+                  disabled={loading}
 
                     className={`pr-10 ${errors.customerName ? 'border-red-500' : ''}`}
 
