@@ -615,20 +615,38 @@ export default function ConversacionesPage() {
       }
 
       // Enviar mensaje real usando el API
+      const requestBody = {
+        conversationId: selectedConversation,
+        to: conv.contactPhone || '',
+        message: messageToSend,
+        type: 'text' as const
+      }
+      
+      console.log('📤 [sendMessage] Enviando mensaje:', {
+        conversationId: selectedConversation,
+        to: conv.contactPhone,
+        messageLength: messageToSend.length,
+        body: requestBody
+      })
+
       const response = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationId: selectedConversation,
-          to: conv.contactPhone || '',
-          message: messageToSend,
-          type: 'text'
-        })
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('📥 [sendMessage] Respuesta recibida:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
       })
 
       const result = await response.json()
+      
+      console.log('📊 [sendMessage] Resultado:', result)
 
       if (!result.success) {
+        console.error('❌ [sendMessage] Error en respuesta:', result.error)
         throw new Error(result.error || 'Error al enviar mensaje')
       }
 

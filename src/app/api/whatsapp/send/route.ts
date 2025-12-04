@@ -69,6 +69,8 @@ export async function POST(request: NextRequest) {
     // 6. Validar que la conversación existe y pertenece a la organización
     const supabase = getSupabaseServiceClient();
     if (body.conversationId) {
+      console.log(`[WhatsApp Send] 🔍 Validando conversación: ${body.conversationId} para organización: ${organizationId}`);
+      
       const { data: conversation, error: convError } = await supabase
         .from('whatsapp_conversations')
         .select('id, organization_id, customer_phone')
@@ -76,17 +78,35 @@ export async function POST(request: NextRequest) {
         .eq('organization_id', organizationId)
         .single();
 
+      console.log(`[WhatsApp Send] 🔍 Resultado de validación:`, {
+        conversation: conversation,
+        error: convError,
+        conversationId: body.conversationId,
+        organizationId: organizationId
+      });
+
       if (convError || !conversation) {
+        console.error(`[WhatsApp Send] ❌ Error validando conversación:`, {
+          convError,
+          conversationId: body.conversationId,
+          organizationId: organizationId,
+          hasConversation: !!conversation
+        });
         return NextResponse.json({
           success: false,
           error: 'Conversación no encontrada o no pertenece a esta organización'
         }, { status: 404 });
       }
 
+      console.log(`[WhatsApp Send] ✅ Conversación validada:`, conversation);
+
       // Si hay conversationId, usar el teléfono de la conversación si no se proporciona 'to'
       if (!body.to && conversation.customer_phone) {
         body.to = conversation.customer_phone;
+        console.log(`[WhatsApp Send] 📞 Usando teléfono de la conversación: ${body.to}`);
       }
+    } else {
+      console.log(`[WhatsApp Send] ⚠️ No se proporcionó conversationId, enviando sin validación`);
     }
 
     // 7. Obtener sesión de la organización
