@@ -742,9 +742,23 @@ export async function sendWhatsAppMessage(
       status: response.status
     });
 
-    // Si el error es 422 y la sesión está en FAILED, intentar reiniciar y reintentar
+    // Si el error es 422 y la sesión está en FAILED, dar mensaje claro
     if (response.status === 422 && errorData?.status === 'FAILED') {
-      console.log(`[WAHA Sessions] 🔄 Sesión en estado FAILED, intentando reiniciar y reintentar...`);
+      console.error(`[WAHA Sessions] ❌ Sesión en estado FAILED - necesita ser vinculada`);
+      throw new Error(`La sesión de WhatsApp no está vinculada. Por favor, ve a la configuración de WhatsApp y escanea el código QR para vincular tu cuenta. La sesión "${sessionName}" existe pero necesita ser conectada.`);
+    }
+    
+    // Si el error es 422 y la sesión está en otro estado no válido
+    if (response.status === 422 && errorData?.status && errorData?.status !== 'WORKING') {
+      console.error(`[WAHA Sessions] ❌ Sesión en estado inválido: ${errorData.status}`);
+      
+      // Si está en SCAN_QR_CODE, indicar que necesita escanear QR
+      if (errorData.status === 'SCAN_QR_CODE' || errorData.status === 'SCAN_QR') {
+        throw new Error(`La sesión de WhatsApp requiere escanear el código QR. Por favor, ve a la configuración de WhatsApp y escanea el código QR para vincular tu cuenta.`);
+      }
+      
+      // Para otros estados, intentar reiniciar
+      console.log(`[WAHA Sessions] 🔄 Sesión en estado ${errorData.status}, intentando reiniciar...`);
       try {
         await startSession(sessionName, orgId || undefined);
         console.log(`[WAHA Sessions] ✅ Sesión reiniciada, esperando 3 segundos...`);
@@ -776,7 +790,7 @@ export async function sendWhatsAppMessage(
         return retryResult;
       } catch (retryError: any) {
         console.error(`[WAHA Sessions] ❌ Error en reintento después de reiniciar:`, retryError);
-        throw new Error(`La sesión de WhatsApp está en estado FAILED. Se intentó reiniciar pero falló: ${retryError.message}. Por favor, verifica la conexión de WhatsApp o reinicia la sesión manualmente.`);
+        throw new Error(`La sesión de WhatsApp está en estado ${errorData.status}. Se intentó reiniciar pero falló: ${retryError.message}. Por favor, verifica la conexión de WhatsApp o reinicia la sesión manualmente.`);
       }
     }
 
