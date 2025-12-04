@@ -622,32 +622,51 @@ export default function ConversacionesPage() {
         type: 'text' as const
       }
       
-      console.log('📤 [sendMessage] Enviando mensaje:', {
+      console.log('📤 [sendMessage] ===== INICIANDO ENVÍO =====')
+      console.log('📤 [sendMessage] Datos del mensaje:', {
         conversationId: selectedConversation,
         to: conv.contactPhone,
         messageLength: messageToSend.length,
+        messagePreview: messageToSend.substring(0, 50) + '...',
         body: requestBody
       })
 
-      const response = await fetch('/api/whatsapp/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      })
+      try {
+        const response = await fetch('/api/whatsapp/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        })
 
-      console.log('📥 [sendMessage] Respuesta recibida:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      })
+        console.log('📥 [sendMessage] Respuesta HTTP:', {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok,
+          headers: Object.fromEntries(response.headers.entries())
+        })
 
-      const result = await response.json()
-      
-      console.log('📊 [sendMessage] Resultado:', result)
+        const result = await response.json()
+        
+        console.log('📊 [sendMessage] Resultado JSON:', result)
 
-      if (!result.success) {
-        console.error('❌ [sendMessage] Error en respuesta:', result.error)
-        throw new Error(result.error || 'Error al enviar mensaje')
+        if (!response.ok) {
+          console.error('❌ [sendMessage] Error HTTP:', {
+            status: response.status,
+            statusText: response.statusText,
+            result
+          })
+          throw new Error(result.error || `Error HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        if (!result.success) {
+          console.error('❌ [sendMessage] Error en respuesta:', result.error)
+          throw new Error(result.error || 'Error al enviar mensaje')
+        }
+
+        console.log('✅ [sendMessage] Mensaje enviado exitosamente')
+      } catch (fetchError) {
+        console.error('❌ [sendMessage] Error en fetch:', fetchError)
+        throw fetchError
       }
 
       // Recargar mensajes para obtener el mensaje guardado en BD

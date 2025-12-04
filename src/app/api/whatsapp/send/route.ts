@@ -86,38 +86,48 @@ export async function POST(request: NextRequest) {
     if (body.conversationId) {
       console.log(`[WhatsApp Send] 🔍 Validando conversación: ${body.conversationId} para organización: ${organizationId}`);
       
-      const { data: conversation, error: convError } = await supabase
+      // Primero verificar si la conversación existe (sin filtrar por organizationId)
+      const { data: convCheck, error: checkError } = await supabase
         .from('whatsapp_conversations')
         .select('id, organization_id, customer_phone')
         .eq('id', body.conversationId)
-        .eq('organization_id', organizationId)
         .single();
 
-      console.log(`[WhatsApp Send] 🔍 Resultado de validación:`, {
-        conversation: conversation,
-        error: convError,
-        conversationId: body.conversationId,
-        organizationId: organizationId
+      console.log(`[WhatsApp Send] 🔍 Verificación inicial de conversación:`, {
+        convCheck,
+        checkError,
+        conversationId: body.conversationId
       });
 
-      if (convError || !conversation) {
-        console.error(`[WhatsApp Send] ❌ Error validando conversación:`, {
-          convError,
-          conversationId: body.conversationId,
-          organizationId: organizationId,
-          hasConversation: !!conversation
+      if (checkError || !convCheck) {
+        console.error(`[WhatsApp Send] ❌ Conversación no existe:`, {
+          checkError,
+          conversationId: body.conversationId
         });
         return NextResponse.json({
           success: false,
-          error: 'Conversación no encontrada o no pertenece a esta organización'
+          error: `Conversación no encontrada: ${body.conversationId}`
         }, { status: 404 });
       }
 
-      console.log(`[WhatsApp Send] ✅ Conversación validada:`, conversation);
+      // Verificar que pertenece a la organización correcta
+      if (convCheck.organization_id !== organizationId) {
+        console.error(`[WhatsApp Send] ❌ OrganizationId no coincide:`, {
+          conversationOrgId: convCheck.organization_id,
+          userOrgId: organizationId,
+          conversationId: body.conversationId
+        });
+        return NextResponse.json({
+          success: false,
+          error: `La conversación pertenece a otra organización. Conversación: ${convCheck.organization_id}, Usuario: ${organizationId}`
+        }, { status: 403 });
+      }
+
+      console.log(`[WhatsApp Send] ✅ Conversación validada:`, convCheck);
 
       // Si hay conversationId, usar el teléfono de la conversación si no se proporciona 'to'
-      if (!body.to && conversation.customer_phone) {
-        body.to = conversation.customer_phone;
+      if (!body.to && convCheck.customer_phone) {
+        body.to = convCheck.customer_phone;
         console.log(`[WhatsApp Send] 📞 Usando teléfono de la conversación: ${body.to}`);
       }
     } else {

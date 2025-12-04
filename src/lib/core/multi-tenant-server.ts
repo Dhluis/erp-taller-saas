@@ -87,10 +87,10 @@ export async function getTenantContext(request?: any): Promise<TenantContext> {
     
     console.log('[getTenantContext] ✅ Usuario obtenido:', user.id)
 
-    // Obtener perfil del usuario con workshop_id
+    // Obtener perfil del usuario con organization_id y workshop_id
     const { data: userProfile, error: profileError } = await supabase
       .from('users')
-      .select('workshop_id')
+      .select('workshop_id, organization_id')
       .eq('auth_user_id', user.id)
       .single()
 
@@ -109,37 +109,58 @@ export async function getTenantContext(request?: any): Promise<TenantContext> {
       throw new Error('Perfil de usuario no encontrado')
     }
     
-    console.log('[getTenantContext] ✅ Perfil obtenido, workshop_id:', userProfile.workshop_id)
+    console.log('[getTenantContext] ✅ Perfil obtenido:', {
+      workshop_id: userProfile.workshop_id,
+      organization_id: userProfile.organization_id
+    })
 
-    // Obtener workshop y organization_id
-    const { data: workshop, error: workshopError } = await supabase
-      .from('workshops')
-      .select('id, organization_id')
-      .eq('id', userProfile.workshop_id)
-      .single()
+    // Usar organization_id directamente del perfil del usuario (más confiable)
+    // Si no está en el perfil, intentar obtenerlo del workshop como fallback
+    let organizationId = userProfile.organization_id;
+    let workshopId = userProfile.workshop_id;
 
-    if (workshopError) {
-      console.error('[getTenantContext] ❌ Error obteniendo workshop:', {
-        message: workshopError.message,
-        code: workshopError.code,
-        workshopId: userProfile.workshop_id
-      })
-      throw new Error('Workshop no encontrado')
+    // Si no hay organization_id en el perfil, intentar obtenerlo del workshop
+    if (!organizationId && workshopId) {
+      console.log('[getTenantContext] ⚠️ No hay organization_id en perfil, obteniendo desde workshop...');
+      const { data: workshop, error: workshopError } = await supabase
+        .from('workshops')
+        .select('id, organization_id')
+        .eq('id', workshopId)
+        .single()
+
+      if (workshopError || !workshop) {
+        console.error('[getTenantContext] ❌ Error obteniendo workshop:', {
+          message: workshopError?.message,
+          code: workshopError?.code,
+          workshopId: workshopId
+        })
+        throw new Error('Workshop no encontrado')
+      }
+      
+      organizationId = workshop.organization_id;
+      console.log('[getTenantContext] ✅ OrganizationId obtenido desde workshop:', organizationId);
+    }
+
+    if (!organizationId) {
+      console.error('[getTenantContext] ❌ No se pudo obtener organizationId');
+      throw new Error('No se pudo determinar la organización del usuario');
+    }
+
+    if (!workshopId) {
+      // Si no hay workshop_id, usar organization_id como workshop_id (compatibilidad)
+      console.warn('[getTenantContext] ⚠️ No hay workshop_id, usando organization_id como fallback');
+      workshopId = organizationId;
     }
     
-    if (!workshop) {
-      console.warn('[getTenantContext] ⚠️ Workshop no encontrado con id:', userProfile.workshop_id)
-      throw new Error('Workshop no encontrado')
-    }
-    
-    console.log('[getTenantContext] ✅ Workshop obtenido:', {
-      workshopId: workshop.id,
-      organizationId: workshop.organization_id
+    console.log('[getTenantContext] ✅ Contexto final:', {
+      organizationId,
+      workshopId,
+      userId: user.id
     })
 
     return {
-      organizationId: workshop.organization_id,
-      workshopId: workshop.id,
+      organizationId,
+      workshopId,
       userId: user.id
     }
   } catch (error: any) {
