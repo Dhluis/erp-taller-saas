@@ -24,7 +24,7 @@ import {
   Save
 } from "lucide-react"
 import { getSystemUsers, getUserStats, createSystemUser, updateSystemUser, deleteSystemUser, SystemUser, UserStats } from "@/lib/supabase/system-users"
-import { useOrganization } from "@/contexts/OrganizationContext"
+import { useOrganization } from "@/lib/context/SessionContext"
 import { toast } from "sonner"
 
 export default function UsuariosPage() {
