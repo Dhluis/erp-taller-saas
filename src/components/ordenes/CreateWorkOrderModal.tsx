@@ -221,7 +221,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   
   // Estado para el dropdown de clientes
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
-  const [filteredCustomers, setFilteredCustomers] = useState<typeof customers>([])
+  // ❌ ELIMINADO: const [filteredCustomers, setFilteredCustomers] = useState<typeof customers>([])
+  // ✅ AHORA se usa useMemo más abajo para calcular filteredCustomers
 
   // Log cuando los clientes cambian
   useEffect(() => {
@@ -536,25 +537,28 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
   }, [open])
   
-  // Filtrar clientes cuando el usuario escribe
-  useEffect(() => {
-    console.log('🔍 [Dropdown] Filtrando clientes:', {
+  // ✅ QUICK WIN #3: Filtrar clientes MEMOIZADO (evita re-calcular en cada render)
+  const filteredCustomers = useMemo(() => {
+    console.log('🔍 [Dropdown] Filtrando clientes (memoizado):', {
       customerNameLength: formData.customerName.length,
       totalCustomers: customers.length,
       customerName: formData.customerName
     });
     
-    if (formData.customerName.length > 0) {
-      const filtered = customers.filter(c => 
-        c.name.toLowerCase().includes(formData.customerName.toLowerCase())
-      )
-      console.log('✅ [Dropdown] Clientes filtrados:', filtered.length);
-      setFilteredCustomers(filtered)
-    } else {
-      // Si está vacío, mostrar todos los clientes
+    // Si no hay texto de búsqueda, retornar todos
+    if (formData.customerName.length === 0) {
       console.log('📋 [Dropdown] Mostrando todos los clientes:', customers.length);
-      setFilteredCustomers(customers)
+      return customers
     }
+    
+    // Filtrar por coincidencia (case-insensitive)
+    const lowerQuery = formData.customerName.toLowerCase()
+    const filtered = customers.filter(c => 
+      c.name.toLowerCase().includes(lowerQuery)
+    )
+    
+    console.log('✅ [Dropdown] Clientes filtrados:', filtered.length);
+    return filtered
   }, [formData.customerName, customers])
 
   const handleBlur = (field: string) => {
