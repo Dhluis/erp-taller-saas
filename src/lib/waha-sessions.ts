@@ -663,24 +663,21 @@ export async function sendWhatsAppMessage(
   // Formatear número si no tiene @
   const chatId = to.includes('@') ? to : `${to}@c.us`;
 
-  console.log(`[WAHA Sessions] 📤 Enviando mensaje:`, {
-    sessionName,
-    chatId,
-    url: `${url}/api/sendText`,
-    hasKey: !!key
-  });
-
-  // WAHA Plus usa el formato: /api/{sessionName}/sendText
-  // NO usa /api/sendText con session en el body
+  // WAHA Plus usa /api/sendText con session en el body (no en la URL)
+  const endpointUrl = `${url}/api/sendText`;
   const requestBody = {
+    session: sessionName,
     chatId,
     text
   };
 
-  const endpointUrl = `${url}/api/${sessionName}/sendText`;
-
-  console.log(`[WAHA Sessions] 📦 Request body:`, requestBody);
-  console.log(`[WAHA Sessions] 🌐 Endpoint URL: ${endpointUrl}`);
+  console.log(`[WAHA Sessions] 📤 Enviando mensaje:`, {
+    sessionName,
+    chatId,
+    endpointUrl,
+    hasKey: !!key,
+    requestBody
+  });
 
   const response = await fetch(endpointUrl, {
     method: 'POST',
