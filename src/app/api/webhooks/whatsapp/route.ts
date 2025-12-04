@@ -24,43 +24,6 @@ import { getOrganizationFromSession, sendWhatsAppMessage } from '@/lib/waha-sess
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// ============================================
-// 🛡️ DEDUPLICACIÓN DE MENSAJES
-// ============================================
-// Cache en memoria para evitar procesar el mismo mensaje múltiples veces
-// WAHA puede enviar duplicados por reintentos o problemas de red
-const processedMessages = new Map<string, number>();
-const MESSAGE_CACHE_TTL = 60000; // 60 segundos
-const CLEANUP_INTERVAL = 30000; // Limpiar cada 30 segundos
-
-/**
- * Limpia mensajes viejos del cache periódicamente
- */
-function cleanupOldMessages() {
-  const now = Date.now();
-  let cleaned = 0;
-  
-  for (const [key, timestamp] of processedMessages.entries()) {
-    if (now - timestamp > MESSAGE_CACHE_TTL) {
-      processedMessages.delete(key);
-      cleaned++;
-    }
-  }
-  
-  if (cleaned > 0) {
-    console.log(`[Webhook] 🧹 Cache limpiado: ${cleaned} mensajes antiguos eliminados (${processedMessages.size} restantes)`);
-  }
-}
-
-// Limpiar periódicamente (solo si hay mensajes)
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    if (processedMessages.size > 0) {
-      cleanupOldMessages();
-    }
-  }, CLEANUP_INTERVAL);
-}
-
 /**
  * GET /api/webhooks/whatsapp
  * Verificación del webhook (para algunos providers)
@@ -95,65 +58,10 @@ export async function POST(request: NextRequest) {
     console.log('[Webhook] 🔔 NUEVO EVENTO RECIBIDO');
     console.log('[Webhook] 📋 Event Type:', eventType);
     console.log('[Webhook] 🆔 Message ID:', messageId);
-    console.log('[Webhook] 📦 Session:', body.session);
     console.log('[Webhook] ⏰ Timestamp:', new Date().toISOString());
-    console.log('[Webhook] 📊 Cache size:', processedMessages.size);
-    console.log('[Webhook] 📝 Cache keys:', Array.from(processedMessages.keys()).slice(-5)); // Últimos 5
     console.log('='.repeat(60));
     
     console.log('[WAHA Webhook] Evento recibido:', body.event || body.type || 'unknown');
-
-    // === DEDUPLICACIÓN MEJORADA ===
-    
-    // Solo deduplicar eventos de mensaje (no session.status)
-    if (eventType === 'message' || eventType === 'message.any') {
-      // Crear clave de deduplicación más robusta
-      // Usar: messageId + session + timestamp + from (si está disponible)
-      const sessionName = body.session || '';
-      const payloadFrom = body.payload?.from || '';
-      const payloadTimestamp = body.payload?.timestamp || body.timestamp || '';
-      
-      // Si tenemos messageId, usarlo como clave principal
-      let cacheKey: string;
-      if (messageId) {
-        cacheKey = `${messageId}`;
-      } else {
-        // Si no hay messageId, crear clave compuesta
-        cacheKey = `${sessionName}_${payloadFrom}_${payloadTimestamp}`;
-        console.warn('[Webhook] ⚠️ Mensaje sin ID - usando clave compuesta para deduplicación:', cacheKey);
-      }
-      
-      // Verificar si ya procesamos este mensaje
-      if (processedMessages.has(cacheKey)) {
-        const processedTime = processedMessages.get(cacheKey);
-        const secondsAgo = Math.floor((Date.now() - processedTime!) / 1000);
-        const millisecondsAgo = Date.now() - processedTime!;
-        console.log('='.repeat(60));
-        console.log(`[Webhook] ⏭️ DUPLICADO DETECTADO Y BLOQUEADO`);
-        console.log(`[Webhook] 🆔 Message ID: ${messageId || 'N/A'}`);
-        console.log(`[Webhook] 🔑 Cache Key: ${cacheKey}`);
-        console.log(`[Webhook] 📋 Event Type: ${eventType}`);
-        console.log(`[Webhook] ⏰ Procesado hace: ${secondsAgo}s (${millisecondsAgo}ms)`);
-        console.log(`[Webhook] 📊 Cache size: ${processedMessages.size}`);
-        console.log(`[Webhook] 📦 Session: ${sessionName}`);
-        console.log(`[Webhook] 📱 From: ${payloadFrom}`);
-        console.log('='.repeat(60));
-        return NextResponse.json({ 
-          success: true, 
-          skipped: true, 
-          reason: 'duplicate_message',
-          messageId: messageId || cacheKey,
-          cacheKey: cacheKey
-        });
-      }
-      
-      // Marcar como procesado ANTES de procesar (evitar race conditions)
-      processedMessages.set(cacheKey, Date.now());
-      console.log(`[Webhook] 📝 Mensaje registrado en cache: ${cacheKey} (cache size: ${processedMessages.size})`);
-      console.log(`[Webhook] 📋 Event Type: ${eventType}`);
-      console.log(`[Webhook] 🆔 Message ID: ${messageId || 'N/A'}`);
-    }
-    // === FIN DEDUPLICACIÓN ===
 
     // Manejar diferentes tipos de eventos
     
@@ -208,6 +116,7 @@ export async function POST(request: NextRequest) {
  * Maneja eventos de mensaje
  */
 async function handleMessageEvent(body: any) {
+  const startTime = Date.now();
   try {
     const eventMessageId = body.payload?.id || body.id || body.payload?._data?.id?.id || body.payload?.messageId || body.messageId;
     console.log('='.repeat(60));
@@ -468,25 +377,98 @@ async function handleMessageEvent(body: any) {
       // El caption de la imagen ya estaría en message.caption
     }
 
-    // Reutilizar messageId ya extraído arriba para deduplicación
+    // Reutilizar messageId ya extraído arriba
     const timestamp = message.timestamp 
       ? new Date(message.timestamp * 1000 || message.timestamp)
       : new Date();
 
-    // 10. Guardar mensaje entrante
-    await saveIncomingMessage(
-      supabase,
-      conversationId,
-      organizationId,
-      {
-        messageId: messageId || `waha_${Date.now()}`,
-        from: customerPhone,
-        body: messageText,
-        timestamp,
-        mediaUrl: mediaUrl,
-        mediaType: mediaType
+    // 10. GUARDAR MENSAJE EN BD ANTES DE PROCESAR CON AI
+    // Si es duplicado, el constraint UNIQUE (provider_message_id) lanzará error 23505
+    const finalMessageId = messageId || `waha_${Date.now()}`;
+    
+    try {
+      const { data: savedMessage, error: saveError } = await supabase
+        .from('whatsapp_messages')
+        .insert({
+          conversation_id: conversationId,
+          organization_id: organizationId,
+          direction: 'inbound',
+          from_number: customerPhone,
+          to_number: '', // Se completará con el número del negocio
+          body: messageText,
+          media_url: mediaUrl || null,
+          media_type: mediaType || null,
+          status: 'delivered',
+          provider: 'waha',
+          provider_message_id: finalMessageId,
+          created_at: timestamp.toISOString()
+        } as any)
+        .select()
+        .single();
+
+      if (saveError) {
+        // Código 23505 = unique_violation en PostgreSQL
+        if (saveError.code === '23505') {
+          console.log('='.repeat(60));
+          console.log('[Webhook] ⏭️ DUPLICADO BLOQUEADO POR CONSTRAINT BD');
+          console.log('[Webhook] 🆔 Message ID:', finalMessageId);
+          console.log('[Webhook] ℹ️ Este mensaje ya existe en la BD');
+          console.log('='.repeat(60));
+          return NextResponse.json({ 
+            success: true, 
+            skipped: true, 
+            reason: 'duplicate_blocked_by_db_constraint',
+            messageId: finalMessageId
+          });
+        }
+        
+        // Si es otro error, loguearlo y lanzar
+        console.error('[Webhook] ❌ Error guardando mensaje:', saveError);
+        throw saveError;
       }
-    );
+
+      if (savedMessage) {
+        console.log('[Webhook] ✅ Mensaje guardado en BD:', (savedMessage as any).id);
+      }
+      
+      // Actualizar conversación - obtener count actual y sumar 1
+      try {
+        await (supabase as any).rpc('increment_conversation_message_count', {
+          conversation_id: conversationId
+        });
+      } catch (rpcError) {
+        // Si la función RPC no existe, hacer update manual
+        const { data: conv } = await supabase
+          .from('whatsapp_conversations')
+          .select('messages_count')
+          .eq('id', conversationId)
+          .single();
+
+        await (supabase as any)
+          .from('whatsapp_conversations')
+          .update({
+            last_message_at: timestamp.toISOString(),
+            messages_count: ((conv as any)?.messages_count || 0) + 1,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', conversationId);
+      }
+      
+    } catch (err: any) {
+      if (err?.code === '23505') {
+        console.log('='.repeat(60));
+        console.log('[Webhook] ⏭️ Duplicado detectado en catch:', finalMessageId);
+        console.log('[Webhook] ℹ️ Este mensaje ya existe en la BD');
+        console.log('='.repeat(60));
+        return NextResponse.json({ 
+          success: true, 
+          skipped: true, 
+          reason: 'duplicate_blocked_by_db_constraint',
+          messageId: finalMessageId
+        });
+      }
+      throw err;
+    }
 
     // 11. Verificar si el bot está activo en la conversación
     const { data: conversation } = await supabase
@@ -495,7 +477,7 @@ async function handleMessageEvent(body: any) {
       .eq('id', conversationId)
       .single();
 
-    if (!conversation?.is_bot_active) {
+    if (!conversation || !(conversation as any).is_bot_active) {
       console.log('[WAHA Webhook] ⏸️ Bot inactivo para esta conversación');
       return;
     }
@@ -517,25 +499,26 @@ async function handleMessageEvent(body: any) {
       return;
     }
 
+    const config = aiConfig as any;
     console.log('[WAHA Webhook] 📋 Configuración AI cargada:', {
-      id: aiConfig.id,
-      enabled: aiConfig.enabled,
-      provider: aiConfig.provider,
-      model: aiConfig.model,
-      personality: aiConfig.personality,
-      language: aiConfig.language,
-      systemPromptLength: aiConfig.system_prompt?.length || 0,
-      systemPromptPreview: aiConfig.system_prompt?.substring(0, 100) + '...'
+      id: config.id,
+      enabled: config.enabled,
+      provider: config.provider,
+      model: config.model,
+      personality: config.personality,
+      language: config.language,
+      systemPromptLength: config.system_prompt?.length || 0,
+      systemPromptPreview: config.system_prompt?.substring(0, 100) + '...'
     });
 
-    if (!aiConfig.enabled) {
+    if (!config.enabled) {
       console.log('[WAHA Webhook] ⏸️ AI Agent deshabilitado en configuración');
       return;
     }
 
     // 13. Procesar mensaje con AI Agent
     console.log('[WAHA Webhook] 🤖 Procesando con AI Agent...');
-    console.log('[Webhook] 🤖 ANTES de llamar a AI - messageId:', messageId);
+    console.log('[Webhook] 🤖 ANTES de llamar a AI - messageId:', finalMessageId);
     const aiResult = await processMessage({
       organizationId,
       conversationId,
@@ -543,20 +526,20 @@ async function handleMessageEvent(body: any) {
       customerPhone: customerPhone,
       useServiceClient: true // Usar service client para bypass RLS
     });
-    console.log('[Webhook] 🤖 DESPUÉS de AI - messageId:', messageId, '- Respuesta:', aiResult.success ? 'SÍ' : 'NO');
+    console.log('[Webhook] 🤖 DESPUÉS de AI - messageId:', finalMessageId, '- Respuesta:', aiResult.success ? 'SÍ' : 'NO');
 
     // 14. Si AI responde, enviar respuesta
     if (aiResult.success && aiResult.response) {
       console.log('[WAHA Webhook] ✅ AI generó respuesta, enviando...');
       
       try {
-        console.log('[Webhook] 📤 ENVIANDO respuesta - messageId:', messageId);
+        console.log('[Webhook] 📤 ENVIANDO respuesta - messageId:', finalMessageId);
         const sendResult = await sendWhatsAppMessage(
           sessionName,
-        customerPhone,
+          customerPhone,
           aiResult.response,
           organizationId
-      );
+        );
 
         if (sendResult) {
         // 15. Guardar mensaje saliente
@@ -573,27 +556,29 @@ async function handleMessageEvent(body: any) {
         );
         console.log('[WAHA Webhook] ✅ Respuesta enviada y guardada');
         console.log('='.repeat(60));
-        console.log(`[Webhook] ✅✅✅ MENSAJE COMPLETAMENTE PROCESADO`);
-        console.log(`[Webhook] 🆔 Message ID: ${messageId}`);
+        console.log(`[Webhook] ✅✅✅ MENSAJE PROCESADO COMPLETAMENTE`);
+        console.log(`[Webhook] 🆔 Message ID: ${finalMessageId}`);
         console.log(`[Webhook] 📤 Respuesta enviada: SÍ`);
-        console.log(`[Webhook] ⏱️ Tiempo total: ${Date.now() - (body._startTime || Date.now())}ms`);
+        console.log(`[Webhook] ⏱️ Tiempo total: ${Date.now() - startTime}ms`);
         console.log('='.repeat(60));
         }
       } catch (sendError: any) {
         console.error('[WAHA Webhook] ❌ Error enviando respuesta:', sendError.message);
         console.log('='.repeat(60));
         console.log(`[Webhook] ❌ ERROR AL ENVIAR RESPUESTA`);
-        console.log(`[Webhook] 🆔 Message ID: ${messageId}`);
+        console.log(`[Webhook] 🆔 Message ID: ${finalMessageId}`);
         console.log(`[Webhook] ⚠️ Error: ${sendError.message}`);
+        console.log(`[Webhook] ⏱️ Tiempo total: ${Date.now() - startTime}ms`);
         console.log('='.repeat(60));
       }
     } else {
       console.log('[WAHA Webhook] ⚠️ AI no generó respuesta:', aiResult.error);
       console.log('='.repeat(60));
-      console.log(`[Webhook] ✅ MENSAJE PROCESADO (SIN RESPUESTA)`);
-      console.log(`[Webhook] 🆔 Message ID: ${messageId}`);
+      console.log(`[Webhook] ✅✅✅ MENSAJE PROCESADO COMPLETAMENTE`);
+      console.log(`[Webhook] 🆔 Message ID: ${finalMessageId}`);
       console.log(`[Webhook] 📤 Respuesta enviada: NO`);
       console.log(`[Webhook] ⚠️ Razón: ${aiResult.error || 'AI no generó respuesta'}`);
+      console.log(`[Webhook] ⏱️ Tiempo total: ${Date.now() - startTime}ms`);
       console.log('='.repeat(60));
     }
 
@@ -632,7 +617,7 @@ async function handleSessionStatusEvent(body: any) {
     const supabase = getSupabaseServiceClient();
     const isConnected = status === 'WORKING' || status === 'connected';
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('ai_agent_config')
       .update({ 
         whatsapp_connected: isConnected,
