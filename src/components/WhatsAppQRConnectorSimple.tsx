@@ -98,34 +98,42 @@ export function WhatsAppQRConnectorSimple({
       // CONECTADO
       if (data.connected || data.status === 'WORKING') {
         console.log(`[WhatsApp Simple] ✅ Conectado: ${data.phone || 'N/A'}`)
-        setState('connected')
-        setSessionData(data)
-        setErrorMessage(null)
-        // NO detener polling - mantenerlo activo para detectar desconexiones
-        // Solo detener si acabamos de conectar después de una acción
-        if (actionPerformed === 'connect') {
-          // Ya conectado después de vincular, mantener polling pero con intervalo más largo
-          console.log(`[WhatsApp Simple] 📱 Manteniendo polling activo para detectar cambios`)
-        }
-        onStatusChange?.('connected')
         
-        // ✅ Disparar evento personalizado para notificar a otras páginas
+        // ✅ IMPORTANTE: Solo actualizar estado si realmente cambió de no-conectado a conectado
+        // O si el teléfono cambió (para evitar loops)
         const wasNotConnected = state !== 'connected'
-        if (wasNotConnected && data.phone) {
-          console.log(`[WhatsApp Simple] 🔔 Disparando evento de conexión`)
-          window.dispatchEvent(new CustomEvent('whatsapp:connected', {
-            detail: { phone: data.phone, name: data.name }
-          }))
+        const phoneChanged = sessionData?.phone !== data.phone
+        
+        if (wasNotConnected || phoneChanged) {
+          console.log(`[WhatsApp Simple] 🔄 Actualizando estado a conectado (wasNotConnected: ${wasNotConnected}, phoneChanged: ${phoneChanged})`)
+          setState('connected')
+          setSessionData(data)
+          setErrorMessage(null)
+          onStatusChange?.('connected')
+          
+          // Disparar evento personalizado solo si acabamos de conectar
+          if (wasNotConnected && data.phone) {
+            console.log(`[WhatsApp Simple] 🔔 Disparando evento de conexión`)
+            window.dispatchEvent(new CustomEvent('whatsapp:connected', {
+              detail: { phone: data.phone, name: data.name }
+            }))
+          }
+          
+          // Limpiar acción si acabamos de vincular
+          if (actionPerformed === 'connect') {
+            console.log(`[WhatsApp Simple] 📱 Acabamos de vincular, estado actualizado sin recargar`)
+            setActionPerformed(null)
+          }
+        } else {
+          // Ya estábamos conectados, solo actualizar datos si el teléfono cambió
+          if (phoneChanged) {
+            console.log(`[WhatsApp Simple] 📱 Teléfono actualizado: ${data.phone}`)
+            setSessionData(data)
+          }
         }
         
-        // ✅ MEJORA: Si acabamos de hacer una acción y ahora estamos conectados, 
-        // NO recargar la página - solo actualizar el estado local
-        // El estado ya se actualizó arriba, así que solo necesitamos limpiar la acción
-        if (actionPerformed === 'connect') {
-          console.log(`[WhatsApp Simple] 📱 Acabamos de vincular, estado actualizado sin recargar`)
-          setActionPerformed(null)
-          // No recargar la página - el estado ya está actualizado
-        }
+        // NO detener polling - mantenerlo activo para detectar desconexiones
+        // El polling continuará verificando el estado periódicamente
         
         return
       }
@@ -172,24 +180,36 @@ export function WhatsAppQRConnectorSimple({
               if (checkData.connected) {
                 console.log(`[WhatsApp Simple] ✅ ¡Conectado en WAHA! (detectado manualmente)`)
                 const wasNotConnected = state !== 'connected'
-                setState('connected')
-                setSessionData({
-                  ...data,
-                  connected: true,
-                  phone: checkData.phone,
-                  status: 'WORKING'
-                })
-                stopPolling()
-                onStatusChange?.('connected')
+                const phoneChanged = sessionData?.phone !== checkData.phone
                 
-                // ✅ Disparar evento personalizado para notificar a otras páginas
-                if (wasNotConnected && checkData.phone) {
-                  console.log(`[WhatsApp Simple] 🔔 Disparando evento de conexión (detectado manualmente)`)
-                  window.dispatchEvent(new CustomEvent('whatsapp:connected', {
-                    detail: { phone: checkData.phone, name: checkData.name }
-                  }))
+                // Solo actualizar estado si realmente cambió
+                if (wasNotConnected || phoneChanged) {
+                  console.log(`[WhatsApp Simple] 🔄 Actualizando estado a conectado (detectado manualmente)`)
+                  setState('connected')
+                  setSessionData({
+                    ...data,
+                    connected: true,
+                    phone: checkData.phone,
+                    status: 'WORKING'
+                  })
+                  onStatusChange?.('connected')
+                  
+                  // ✅ Disparar evento personalizado para notificar a otras páginas
+                  if (wasNotConnected && checkData.phone) {
+                    console.log(`[WhatsApp Simple] 🔔 Disparando evento de conexión (detectado manualmente)`)
+                    window.dispatchEvent(new CustomEvent('whatsapp:connected', {
+                      detail: { phone: checkData.phone, name: checkData.name }
+                    }))
+                  }
+                  
+                  // Limpiar acción si acabamos de vincular
+                  if (actionPerformed === 'connect') {
+                    console.log(`[WhatsApp Simple] 📱 Acabamos de vincular (detectado manualmente), estado actualizado`)
+                    setActionPerformed(null)
+                  }
                 }
                 
+                // NO detener polling - mantenerlo activo para detectar cambios
                 return
               }
             }
@@ -206,6 +226,13 @@ export function WhatsAppQRConnectorSimple({
       }
 
       // ESPERANDO QR
+      // ✅ IMPORTANTE: No cambiar a "esperando QR" si ya estamos conectados
+      // Esto previene que el estado cambie de vuelta después de conectarse
+      if (state === 'connected') {
+        console.log(`[WhatsApp Simple] ⚠️ Ya conectado, ignorando cambio a "esperando QR"`)
+        return
+      }
+      
       // Si cambiamos de fase "tiene QR" a "esperando", resetear contador
       if (lastPhaseRef.current !== 'waiting') {
         console.log(`[WhatsApp Simple] 🔄 Cambio de fase: tiene QR → esperando (resetear contador)`)
