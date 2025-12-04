@@ -295,8 +295,11 @@ export default function ConversacionesPage() {
 
       // Seleccionar primera conversación si no hay seleccionada
       if (formattedConversations.length > 0 && !selectedConversation) {
-        console.log('🎯 [loadConversations] Seleccionando primera conversación:', formattedConversations[0].id)
-        setSelectedConversation(formattedConversations[0].id)
+        const firstConv = formattedConversations[0]
+        if (firstConv && firstConv.id) {
+          console.log('🎯 [loadConversations] Seleccionando primera conversación:', firstConv.id)
+          setSelectedConversation(firstConv.id)
+        }
       } else if (formattedConversations.length === 0) {
         console.warn('⚠️ [loadConversations] No se encontraron conversaciones')
       }
@@ -330,14 +333,28 @@ export default function ConversacionesPage() {
 
       if (error) throw error
 
-      const formattedMessages: Message[] = (data || []).map((msg: any) => ({
-        id: msg.id,
-        text: msg.content || msg.body || '',
-        sender: msg.direction === 'inbound' ? 'customer' : 'agent',
-        timestamp: new Date(msg.timestamp || msg.created_at),
-        read: msg.status === 'read' || msg.status === 'delivered',
-        type: msg.is_internal_note ? 'internal' : (msg.type || 'text')
-      }))
+      const formattedMessages: Message[] = (data || []).map((msg: any) => {
+        const timestamp = msg.timestamp || msg.created_at
+        let date: Date
+        try {
+          date = timestamp ? new Date(timestamp) : new Date()
+          // Validar que la fecha sea válida
+          if (isNaN(date.getTime())) {
+            date = new Date()
+          }
+        } catch {
+          date = new Date()
+        }
+        
+        return {
+          id: msg.id || Date.now().toString(),
+          text: msg.content || msg.body || msg.text || '',
+          sender: msg.direction === 'inbound' ? 'customer' : 'agent',
+          timestamp: date,
+          read: msg.status === 'read' || msg.status === 'delivered' || false,
+          type: msg.is_internal_note ? 'internal' : (msg.type || 'text')
+        }
+      })
 
       setMessages(formattedMessages)
 
@@ -364,7 +381,7 @@ export default function ConversacionesPage() {
           started: conv.lastMessageTime || 'Nunca',
           status: conv.status || 'active',
           device: 'WhatsApp',
-          labels: Array.isArray(conv.labels) ? conv.labels : [],
+          labels: Array.isArray(conv.labels) ? conv.labels.filter((l): l is string => Boolean(l)) : [],
           address: customerData?.address || undefined,
           notes: undefined
         })
@@ -456,24 +473,25 @@ export default function ConversacionesPage() {
           console.log('📨 Nuevo mensaje recibido:', payload)
           
           // Si es un INSERT y pertenece a la conversación seleccionada
-          if (payload.eventType === 'INSERT' && payload.new.conversation_id === selectedConversation) {
+          if (payload.eventType === 'INSERT' && payload.new?.conversation_id === selectedConversation) {
             const newMsg = payload.new as any
             
             // Mostrar indicador de "escribiendo" si es del bot
-            if (newMsg.is_from_bot && newMsg.direction === 'outbound') {
+            if (newMsg?.is_from_bot && newMsg?.direction === 'outbound') {
               setIsBotTyping(true)
               // El indicador se ocultará cuando se cargue el mensaje completo
             }
 
-            // Recargar mensajes
-            loadMessages(selectedConversation)
-            
-            // Recargar conversaciones para actualizar last_message
-            loadConversations()
+            // Recargar mensajes solo si hay selectedConversation
+            if (selectedConversation) {
+              loadMessages(selectedConversation)
+              // Recargar conversaciones para actualizar last_message
+              loadConversations()
+            }
           }
 
           // Si es un UPDATE y es un mensaje del bot que se completó
-          if (payload.eventType === 'UPDATE' && payload.new.is_from_bot) {
+          if (payload.eventType === 'UPDATE' && payload.new?.is_from_bot) {
             setIsBotTyping(false)
           }
         }
@@ -489,7 +507,9 @@ export default function ConversacionesPage() {
         (payload) => {
           console.log('💬 Cambio en conversación:', payload)
           // Recargar conversaciones cuando hay cambios
-          loadConversations()
+          if (payload && (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE')) {
+            loadConversations()
+          }
         }
       )
       .subscribe()
@@ -538,7 +558,28 @@ export default function ConversacionesPage() {
   }
 
   const updateContactDetails = (updates: Partial<ContactDetails>) => {
-    setContactDetails(prev => ({ ...prev, ...updates }))
+    setContactDetails(prev => {
+      if (!prev) {
+        // Si no hay contactDetails previo, crear uno con valores por defecto
+        return {
+          name: updates.name || 'Cliente WhatsApp',
+          phone: updates.phone || 'Sin teléfono',
+          email: updates.email,
+          lastMessage: updates.lastMessage || 'Nunca',
+          accountType: updates.accountType || 'Cuenta personal',
+          country: updates.country || 'México',
+          language: updates.language || 'Español',
+          currency: updates.currency || 'Peso Mexicano',
+          started: updates.started || 'Nunca',
+          status: updates.status || 'active',
+          device: updates.device || 'WhatsApp',
+          labels: updates.labels || [],
+          address: updates.address,
+          notes: updates.notes
+        } as ContactDetails
+      }
+      return { ...prev, ...updates }
+    })
   }
 
   // Funciones de mensajes
@@ -989,7 +1030,7 @@ export default function ConversacionesPage() {
                   </p>
                 </div>
               ) : (
-                filteredConversations.map((conversation) => (
+                filteredConversations.filter(c => c && c.id).map((conversation) => (
                   <div
                     key={conversation.id}
                     onClick={() => setSelectedConversation(conversation.id)}
@@ -1045,7 +1086,7 @@ export default function ConversacionesPage() {
                                 darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-200 text-gray-700"
                               )}
                             >
-                              {conversation.labels[0] || ''}
+                              {(conversation.labels && conversation.labels[0]) || ''}
                             </Badge>
                           )}
                           <button
@@ -1241,7 +1282,7 @@ export default function ConversacionesPage() {
               {/* Messages */}
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4 max-w-3xl mx-auto">
-                  {messages.map((message) => (
+                  {messages.filter(m => m && m.id).map((message) => (
                     <div
                       key={message.id}
                       className={cn(
@@ -1275,7 +1316,7 @@ export default function ConversacionesPage() {
                             ? "text-gray-200"
                             : "text-gray-900"
                         )}>
-                          {message.text}
+                          {message.text || 'Sin contenido'}
                         </p>
                         <div className={cn(
                           "flex items-center gap-1 mt-1 text-xs",
@@ -1294,10 +1335,12 @@ export default function ConversacionesPage() {
                               )}
                             </>
                           )}
-                          {new Date(message.timestamp).toLocaleTimeString('es-ES', { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
+                          {message.timestamp && !isNaN(message.timestamp.getTime()) 
+                            ? message.timestamp.toLocaleTimeString('es-ES', { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })
+                            : '--:--'}
                         </div>
                       </div>
                     </div>
@@ -1649,22 +1692,24 @@ export default function ConversacionesPage() {
                     )}
                     {(contactDetails?.labels || selectedConv?.labels || []).length > 0 && (
                       <div className="flex flex-wrap gap-2">
-                        {(contactDetails?.labels || selectedConv?.labels || []).map((label, idx) => (
-                          <Badge
-                            key={idx}
-                            variant="secondary"
-                            className={cn(
-                              "flex items-center gap-1",
-                              darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-200 text-gray-700"
-                            )}
-                          >
-                            {label}
-                            <X 
-                              className="w-3 h-3 cursor-pointer hover:text-red-500" 
-                              onClick={() => removeLabel(label)}
-                            />
-                          </Badge>
-                        ))}
+                        {(contactDetails?.labels || selectedConv?.labels || [])
+                          .filter((label): label is string => Boolean(label))
+                          .map((label, idx) => (
+                            <Badge
+                              key={idx}
+                              variant="secondary"
+                              className={cn(
+                                "flex items-center gap-1",
+                                darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-200 text-gray-700"
+                              )}
+                            >
+                              {label || 'Sin etiqueta'}
+                              <X 
+                                className="w-3 h-3 cursor-pointer hover:text-red-500" 
+                                onClick={() => removeLabel(label)}
+                              />
+                            </Badge>
+                          ))}
                       </div>
                     )}
                   </div>
@@ -1686,10 +1731,10 @@ export default function ConversacionesPage() {
                         <span className={cn("block mb-1", darkMode ? "text-gray-400" : "text-gray-600")}>Correo:</span>
                         <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.email || 'Sin correo'}</span>
                       </div>
-                      {contactDetails.address && (
+                      {contactDetails?.address && (
                         <div>
                           <span className={cn("block mb-1", darkMode ? "text-gray-400" : "text-gray-600")}>Dirección:</span>
-                          <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.address}</span>
+                          <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.address || 'Sin dirección'}</span>
                         </div>
                       )}
                     </div>
