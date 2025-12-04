@@ -104,6 +104,15 @@ export function WhatsAppQRConnectorSimple({
         stopPolling()
         onStatusChange?.('connected')
         
+        // ✅ Disparar evento personalizado para notificar a otras páginas
+        const wasNotConnected = state !== 'connected'
+        if (wasNotConnected && data.phone) {
+          console.log(`[WhatsApp Simple] 🔔 Disparando evento de conexión`)
+          window.dispatchEvent(new CustomEvent('whatsapp:connected', {
+            detail: { phone: data.phone, name: data.name }
+          }))
+        }
+        
         // ✅ MEJORA: Si acabamos de hacer una acción y ahora estamos conectados, 
         // auto-actualizar en 5 segundos con countdown visible
         if (actionPerformed === 'connect') {
@@ -177,6 +186,7 @@ export function WhatsAppQRConnectorSimple({
               
               if (checkData.connected) {
                 console.log(`[WhatsApp Simple] ✅ ¡Conectado en WAHA! (detectado manualmente)`)
+                const wasNotConnected = state !== 'connected'
                 setState('connected')
                 setSessionData({
                   ...data,
@@ -186,6 +196,15 @@ export function WhatsAppQRConnectorSimple({
                 })
                 stopPolling()
                 onStatusChange?.('connected')
+                
+                // ✅ Disparar evento personalizado para notificar a otras páginas
+                if (wasNotConnected && checkData.phone) {
+                  console.log(`[WhatsApp Simple] 🔔 Disparando evento de conexión (detectado manualmente)`)
+                  window.dispatchEvent(new CustomEvent('whatsapp:connected', {
+                    detail: { phone: checkData.phone, name: checkData.name }
+                  }))
+                }
+                
                 return
               }
             }

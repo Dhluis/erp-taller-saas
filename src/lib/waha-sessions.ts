@@ -197,7 +197,9 @@ export async function createOrganizationSession(organizationId: string): Promise
     config: {
       webhooks: [{
         url: webhookUrl,
-        events: ['message', 'session.status']
+        events: ['message', 'session.status'],
+        downloadMedia: true, // ✅ Descargar media automáticamente
+        downloadMediaOnMessage: true // ✅ Descargar media cuando llega mensaje
       }]
     }
   };
@@ -288,6 +290,47 @@ export async function createOrganizationSession(organizationId: string): Promise
   }
 
   return sessionName;
+}
+
+/**
+ * Actualizar configuración del webhook de una sesión existente
+ * Útil para agregar soporte multimedia sin recrear la sesión
+ */
+export async function updateSessionWebhook(sessionName: string, organizationId?: string): Promise<void> {
+  const orgId = organizationId || await getOrganizationFromSession(sessionName);
+  const { url, key } = await getWahaConfig(orgId || undefined);
+  
+  const webhookUrl = process.env.NEXT_PUBLIC_APP_URL 
+    ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
+    : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
+
+  console.log(`[WAHA Sessions] 🔄 Actualizando webhook de sesión: ${sessionName}`);
+
+  const response = await fetch(`${url}/api/sessions/${sessionName}`, {
+    method: 'PUT',
+    headers: {
+      'X-Api-Key': key,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      config: {
+        webhooks: [{
+          url: webhookUrl,
+          events: ['message', 'session.status'],
+          downloadMedia: true, // ✅ Descargar media automáticamente
+          downloadMediaOnMessage: true // ✅ Descargar media cuando llega mensaje
+        }]
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Error desconocido');
+    console.error(`[WAHA Sessions] ❌ Error actualizando webhook: ${response.status}`, errorText);
+    throw new Error(`Error actualizando webhook: ${response.status} - ${errorText}`);
+  }
+
+  console.log(`[WAHA Sessions] ✅ Webhook actualizado exitosamente`);
 }
 
 /**

@@ -76,6 +76,38 @@ export default function WhatsAppPage() {
     return () => window.removeEventListener('focus', handleFocus)
   }, [loadConfig, organizationId])
 
+  // Polling periódico para detectar cuando WhatsApp se conecta
+  useEffect(() => {
+    if (!organizationId) return
+
+    // Verificar cada 5 segundos si WhatsApp se conectó
+    const pollingInterval = setInterval(() => {
+      // Solo hacer polling si no hay configuración de WhatsApp o si no está conectado
+      const needsUpdate = !config?.whatsapp_phone || !config?.whatsapp_connected
+      
+      if (needsUpdate) {
+        console.log('[WhatsApp] 🔄 Polling: Verificando estado de conexión...')
+        loadConfig()
+      }
+    }, 5000) // Cada 5 segundos
+
+    return () => clearInterval(pollingInterval)
+  }, [organizationId, config?.whatsapp_phone, config?.whatsapp_connected, loadConfig])
+
+  // Escuchar eventos personalizados de conexión de WhatsApp
+  useEffect(() => {
+    const handleWhatsAppConnected = () => {
+      console.log('[WhatsApp] 🔔 Evento de conexión recibido, recargando configuración...')
+      // Esperar un poco para que el backend actualice
+      setTimeout(() => {
+        loadConfig()
+      }, 2000)
+    }
+
+    window.addEventListener('whatsapp:connected', handleWhatsAppConnected)
+    return () => window.removeEventListener('whatsapp:connected', handleWhatsAppConnected)
+  }, [loadConfig])
+
   const handleTrainAgent = () => {
     router.push('/dashboard/whatsapp/train-agent')
   }

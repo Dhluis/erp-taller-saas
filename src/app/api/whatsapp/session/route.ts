@@ -7,7 +7,8 @@ import {
   getSessionQR,
   createOrganizationSession,
   startSession,
-  logoutSession
+  logoutSession,
+  updateSessionWebhook
 } from '@/lib/waha-sessions';
 
 /**
@@ -425,6 +426,24 @@ export async function POST(request: NextRequest) {
           success: false,
           error: `Error en ${action}: ${error.message}`,
           details: error.stack
+        }, { status: 500 });
+      }
+    }
+
+    // UPDATE_WEBHOOK - Actualizar webhook con soporte multimedia
+    if (action === 'update_webhook') {
+      console.log(`[WhatsApp Session] 🔄 Actualizando webhook con soporte multimedia...`);
+      try {
+        await updateSessionWebhook(sessionName, organizationId);
+        return NextResponse.json({
+          success: true,
+          message: 'Webhook actualizado con soporte multimedia'
+        });
+      } catch (error: any) {
+        console.error(`[WhatsApp Session] ❌ Error actualizando webhook:`, error);
+        return NextResponse.json({
+          success: false,
+          error: `Error actualizando webhook: ${error.message}`
         }, { status: 500 });
       }
     }
