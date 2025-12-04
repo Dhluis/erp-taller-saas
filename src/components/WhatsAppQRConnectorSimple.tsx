@@ -101,7 +101,12 @@ export function WhatsAppQRConnectorSimple({
         setState('connected')
         setSessionData(data)
         setErrorMessage(null)
-        stopPolling()
+        // NO detener polling - mantenerlo activo para detectar desconexiones
+        // Solo detener si acabamos de conectar después de una acción
+        if (actionPerformed === 'connect') {
+          // Ya conectado después de vincular, mantener polling pero con intervalo más largo
+          console.log(`[WhatsApp Simple] 📱 Manteniendo polling activo para detectar cambios`)
+        }
         onStatusChange?.('connected')
         
         // ✅ Disparar evento personalizado para notificar a otras páginas
@@ -114,32 +119,12 @@ export function WhatsAppQRConnectorSimple({
         }
         
         // ✅ MEJORA: Si acabamos de hacer una acción y ahora estamos conectados, 
-        // auto-actualizar en 5 segundos con countdown visible
+        // NO recargar la página - solo actualizar el estado local
+        // El estado ya se actualizó arriba, así que solo necesitamos limpiar la acción
         if (actionPerformed === 'connect') {
-          console.log(`[WhatsApp Simple] 📱 Acabamos de vincular, iniciando auto-refresh en 5s`)
-          setShowRefreshBanner(true)
-          
-          // Iniciar countdown de 5 segundos
-          let countdown = 5
-          setAutoRefreshCountdown(countdown)
-          
-          countdownIntervalRef.current = setInterval(() => {
-            countdown -= 1
-            setAutoRefreshCountdown(countdown)
-            
-            if (countdown <= 0 && countdownIntervalRef.current) {
-              clearInterval(countdownIntervalRef.current)
-              countdownIntervalRef.current = null
-            }
-          }, 1000)
-          
-          // Auto-refresh después de 5 segundos
-          autoRefreshTimerRef.current = setTimeout(() => {
-            console.log(`[WhatsApp Simple] 🔄 Auto-refresh ejecutado`)
-            window.location.reload()
-          }, 5000)
-          
+          console.log(`[WhatsApp Simple] 📱 Acabamos de vincular, estado actualizado sin recargar`)
           setActionPerformed(null)
+          // No recargar la página - el estado ya está actualizado
         }
         
         return
@@ -267,7 +252,7 @@ export function WhatsAppQRConnectorSimple({
     pollingIntervalRef.current = setInterval(checkStatus, POLLING_INTERVAL)
   }, [checkStatus, stopPolling])
 
-  // Efecto inicial - verificar estado una sola vez al montar
+  // Efecto inicial - verificar estado y iniciar polling al montar
   useEffect(() => {
     // Prevenir múltiples inicializaciones
     if (hasInitializedRef.current) {
@@ -278,14 +263,26 @@ export function WhatsAppQRConnectorSimple({
     hasInitializedRef.current = true
     console.log(`[WhatsApp Simple] 🚀 Componente montado [ID: ${componentIdRef.current}]`)
     
+    // Verificar estado inicial inmediatamente
     checkStatus()
+    
+    // Iniciar polling después de un pequeño delay para que checkStatus termine
+    // Esto asegura que si ya está conectado, se muestre el número
+    const initTimeout = setTimeout(() => {
+      // Iniciar polling siempre - si está conectado, mantendrá el estado actualizado
+      // Si no está conectado, detectará cuando se conecte
+      console.log(`[WhatsApp Simple] ▶️ Iniciando polling de mantenimiento`)
+      startPolling()
+    }, 1000)
     
     return () => {
       console.log(`[WhatsApp Simple] 👋 Componente desmontado [ID: ${componentIdRef.current}]`)
+      clearTimeout(initTimeout)
       stopPolling()
       clearAutoRefreshTimers()
     }
-  }, [stopPolling, clearAutoRefreshTimers]) // Solo al montar
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Solo al montar - las funciones son estables con useCallback
 
   // Generar QR / Vincular
   const handleGenerateQR = useCallback(async () => {
@@ -582,7 +579,8 @@ export function WhatsAppQRConnectorSimple({
                     clearAutoRefreshTimers()
                     setShowRefreshBanner(false)
                     setActionPerformed(null)
-                    window.location.reload()
+                    // Actualizar estado sin recargar la página
+                    checkStatus()
                   }}
                   className={cn(
                     'flex-1 font-semibold',
@@ -592,7 +590,7 @@ export function WhatsAppQRConnectorSimple({
                   )}
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
-                  Actualizar ahora
+                  Actualizar estado
                 </Button>
                 <Button
                   size="lg"
@@ -607,7 +605,7 @@ export function WhatsAppQRConnectorSimple({
                     darkMode && 'border-slate-600 text-slate-300 hover:bg-slate-800'
                   )}
                 >
-                  Cancelar
+                  Cerrar
                 </Button>
               </div>
             </div>
