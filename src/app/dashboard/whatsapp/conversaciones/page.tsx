@@ -227,10 +227,18 @@ export default function ConversacionesPage() {
       
       console.log('📊 [loadConversations] Construyendo query con organization_id:', organizationId)
       
-      // Construir query base
+      // Construir query base con join a customers para obtener nombre real
       let query = supabase
         .from('whatsapp_conversations')
-        .select('*')
+        .select(`
+          *,
+          customers:customer_id (
+            id,
+            name,
+            email,
+            phone
+          )
+        `)
         .eq('organization_id', organizationId)
 
       // Aplicar filtro de status solo si no es 'all', 'unread' o 'favorite'
@@ -266,20 +274,69 @@ export default function ConversacionesPage() {
         rawData: data
       })
 
-      const formattedConversations: Conversation[] = (data || []).map((conv: any) => ({
-        id: conv.id,
-        contactName: conv.customer_name || conv.customer_phone || 'Cliente WhatsApp',
-        contactPhone: conv.customer_phone || 'Sin teléfono',
-        contactEmail: undefined, // Se puede obtener del customer_id si es necesario
-        lastMessage: conv.last_message || 'Sin mensajes',
-        lastMessageTime: conv.last_message_at ? formatRelativeTime(conv.last_message_at) : 'Nunca',
-        unread: false, // Se puede calcular basado en mensajes no leídos
-        status: (conv.status || 'active') as 'active' | 'resolved' | 'archived',
-        labels: Array.isArray(conv.labels) ? conv.labels : [],
-        avatar: undefined,
-        isTyping: false,
-        isFavorite: false
-      }))
+      const formattedConversations: Conversation[] = (data || []).map((conv: any) => {
+        // Obtener nombre del contacto con prioridad:
+        // 1. Nombre del cliente desde la tabla customers (si existe relación)
+        // 2. customer_name de la conversación
+        // 3. Teléfono formateado (sin el +)
+        // 4. Fallback a "Cliente WhatsApp"
+        
+        // Supabase puede devolver customers como objeto o array
+        let customer = null
+        if (conv.customers) {
+          if (Array.isArray(conv.customers)) {
+            customer = conv.customers[0] || null
+          } else {
+            customer = conv.customers
+          }
+        }
+        
+        // Construir nombre del contacto
+        let contactName = 'Cliente WhatsApp'
+        if (customer?.name) {
+          contactName = customer.name
+        } else if (conv.customer_name && conv.customer_name !== 'Cliente WhatsApp') {
+          contactName = conv.customer_name
+        } else if (conv.customer_phone) {
+          // Formatear teléfono de forma más legible
+          const phone = conv.customer_phone.replace(/\D/g, '') // Solo números
+          if (phone.length >= 10) {
+            // Formato: +52 1 449 123 4567
+            const formatted = phone.length > 10 
+              ? `+${phone.substring(0, phone.length - 10)} ${phone.substring(phone.length - 10, phone.length - 7)} ${phone.substring(phone.length - 7, phone.length - 4)} ${phone.substring(phone.length - 4)}`
+              : phone
+            contactName = formatted
+          } else {
+            contactName = `+${phone}`
+          }
+        }
+        
+        // Obtener email del cliente si existe
+        const contactEmail = customer?.email || undefined
+        
+        console.log(`[loadConversations] 📝 Conversación ${conv.id}:`, {
+          customerId: conv.customer_id,
+          hasCustomer: !!customer,
+          customerName: customer?.name,
+          customerNameFromConv: conv.customer_name,
+          finalContactName: contactName
+        })
+        
+        return {
+          id: conv.id,
+          contactName,
+          contactPhone: conv.customer_phone || 'Sin teléfono',
+          contactEmail,
+          lastMessage: conv.last_message || 'Sin mensajes',
+          lastMessageTime: conv.last_message_at ? formatRelativeTime(conv.last_message_at) : 'Nunca',
+          unread: false, // Se puede calcular basado en mensajes no leídos
+          status: (conv.status || 'active') as 'active' | 'resolved' | 'archived',
+          labels: Array.isArray(conv.labels) ? conv.labels : [],
+          avatar: undefined,
+          isTyping: false,
+          isFavorite: false
+        }
+      })
 
       console.log('✅ [loadConversations] Conversaciones formateadas:', {
         count: formattedConversations.length,
