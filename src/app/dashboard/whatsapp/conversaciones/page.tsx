@@ -206,37 +206,32 @@ export default function ConversacionesPage() {
   const loadConversations = useCallback(async () => {
     // 🔍 DIAGNÓSTICO: Logs detallados
     console.log('🔍 [loadConversations] Iniciando carga de conversaciones...')
-    console.log('🔍 [loadConversations] organization:', organization)
-    console.log('🔍 [loadConversations] organization?.organization_id:', organization?.organization_id)
     console.log('🔍 [loadConversations] organizationId (de useSession):', organizationId)
     console.log('🔍 [loadConversations] sessionLoading:', sessionLoading)
     console.log('🔍 [loadConversations] sessionReady:', sessionReady)
     
-    // Usar organizationId del contexto directamente (más confiable)
-    const orgId = organizationId || organization?.organization_id
-    
-    if (!orgId) {
+    // Usar SOLO organizationId del contexto (más confiable)
+    if (!organizationId) {
       console.warn('⚠️ [loadConversations] No hay organizationId disponible')
       console.warn('⚠️ [loadConversations] organizationId:', organizationId)
-      console.warn('⚠️ [loadConversations] organization?.organization_id:', organization?.organization_id)
       console.warn('⚠️ [loadConversations] sessionLoading:', sessionLoading)
       console.warn('⚠️ [loadConversations] sessionReady:', sessionReady)
       setLoadingConversations(false)
       return
     }
 
-    console.log('✅ [loadConversations] organizationId encontrado:', orgId)
+    console.log('✅ [loadConversations] organizationId encontrado:', organizationId)
 
     try {
       setLoadingConversations(true)
       
-      console.log('📊 [loadConversations] Construyendo query con organization_id:', orgId)
+      console.log('📊 [loadConversations] Construyendo query con organization_id:', organizationId)
       
       // Construir query base
       let query = supabase
         .from('whatsapp_conversations')
         .select('*')
-        .eq('organization_id', orgId)
+        .eq('organization_id', organizationId)
 
       // Aplicar filtro de status solo si no es 'all', 'unread' o 'favorite'
       if (activeFilter === 'resolved') {
@@ -311,12 +306,11 @@ export default function ConversacionesPage() {
       setLoadingConversations(false)
       console.log('🏁 [loadConversations] Carga finalizada')
     }
-  }, [organizationId, organization?.organization_id, activeFilter, supabase, selectedConversation, sessionLoading, sessionReady])
+  }, [organizationId, activeFilter, supabase, selectedConversation, sessionLoading, sessionReady])
 
   // Cargar mensajes de una conversación
   const loadMessages = useCallback(async (conversationId: string) => {
-    const orgId = organizationId || organization?.organization_id
-    if (!conversationId || !orgId) {
+    if (!conversationId || !organizationId) {
       console.warn('⚠️ [loadMessages] No hay conversationId o organizationId')
       return
     }
@@ -327,7 +321,7 @@ export default function ConversacionesPage() {
         .from('whatsapp_messages')
         .select('*')
         .eq('conversation_id', conversationId)
-        .eq('organization_id', orgId)
+        .eq('organization_id', organizationId)
         .order('created_at', { ascending: true })
         .limit(100)
 
@@ -367,7 +361,7 @@ export default function ConversacionesPage() {
           .from('customers')
           .select('*')
           .eq('phone', conv.contactPhone)
-          .eq('organization_id', orgId)
+          .eq('organization_id', organizationId)
           .maybeSingle()
 
         setContactDetails({
@@ -393,7 +387,7 @@ export default function ConversacionesPage() {
     } finally {
       setLoadingMessages(false)
     }
-  }, [organizationId, organization?.organization_id, supabase, conversations])
+  }, [organizationId, supabase, conversations])
 
   // Cargar conversaciones al montar y cuando cambia el filtro
   useEffect(() => {
@@ -448,8 +442,7 @@ export default function ConversacionesPage() {
 
   // Suscripción realtime para nuevos mensajes
   useEffect(() => {
-    const orgId = organizationId || organization?.organization_id
-    if (!orgId) {
+    if (!organizationId) {
       console.warn('⚠️ [Realtime] No hay organizationId, omitiendo suscripción')
       return
     }
@@ -468,7 +461,7 @@ export default function ConversacionesPage() {
           event: '*',
           schema: 'public',
           table: 'whatsapp_messages',
-          filter: `organization_id=eq.${orgId}`
+          filter: `organization_id=eq.${organizationId}`
         },
         (payload) => {
           console.log('📨 Nuevo mensaje recibido:', payload)
@@ -503,7 +496,7 @@ export default function ConversacionesPage() {
           event: '*',
           schema: 'public',
           table: 'whatsapp_conversations',
-          filter: `organization_id=eq.${orgId}`
+          filter: `organization_id=eq.${organizationId}`
         },
         (payload) => {
           console.log('💬 Cambio en conversación:', payload)
@@ -524,7 +517,7 @@ export default function ConversacionesPage() {
         subscriptionRef.current = null
       }
     }
-  }, [organizationId, organization?.organization_id, selectedConversation, supabase, loadMessages, loadConversations])
+  }, [organizationId, selectedConversation, supabase, loadMessages, loadConversations])
 
   // Marcar mensajes como leídos cuando se selecciona una conversación
   useEffect(() => {
