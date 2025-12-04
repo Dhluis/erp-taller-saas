@@ -286,24 +286,29 @@ export default function ConversacionesPage() {
       let customersMap: Record<string, { name: string; email?: string; phone?: string }> = {}
       if (customerIds.length > 0) {
         try {
-          const { data: customersData, error: customersError } = await supabase
-            .from('customers')
-            .select('id, name, email, phone')
-            .in('id', customerIds)
-            .eq('organization_id', organizationId)
-          
-          if (!customersError && customersData) {
-            customersData.forEach((customer: any) => {
-              customersMap[customer.id] = {
-                name: customer.name,
-                email: customer.email,
-                phone: customer.phone
-              }
-            })
-            console.log(`[loadConversations] ✅ Clientes cargados: ${customersData.length} de ${customerIds.length}`)
-          } else if (customersError) {
-            console.warn(`[loadConversations] ⚠️ Error cargando clientes:`, customersError)
+          // Usar .in() con hasta 100 IDs (límite de Supabase)
+          const batchSize = 100
+          for (let i = 0; i < customerIds.length; i += batchSize) {
+            const batch = customerIds.slice(i, i + batchSize)
+            const { data: customersData, error: customersError } = await supabase
+              .from('customers')
+              .select('id, name, email, phone')
+              .in('id', batch)
+              .eq('organization_id', organizationId)
+            
+            if (!customersError && customersData) {
+              customersData.forEach((customer: any) => {
+                customersMap[customer.id] = {
+                  name: customer.name,
+                  email: customer.email,
+                  phone: customer.phone
+                }
+              })
+            } else if (customersError) {
+              console.warn(`[loadConversations] ⚠️ Error cargando lote de clientes:`, customersError)
+            }
           }
+          console.log(`[loadConversations] ✅ Clientes cargados: ${Object.keys(customersMap).length} de ${customerIds.length}`)
         } catch (customersError) {
           console.warn(`[loadConversations] ⚠️ Error en query de clientes:`, customersError)
         }
@@ -356,18 +361,18 @@ export default function ConversacionesPage() {
         })
         
         return {
-          id: conv.id,
+        id: conv.id,
           contactName,
           contactPhone: conv.customer_phone || 'Sin teléfono',
           contactEmail,
-          lastMessage: conv.last_message || 'Sin mensajes',
-          lastMessageTime: conv.last_message_at ? formatRelativeTime(conv.last_message_at) : 'Nunca',
-          unread: false, // Se puede calcular basado en mensajes no leídos
+        lastMessage: conv.last_message || 'Sin mensajes',
+        lastMessageTime: conv.last_message_at ? formatRelativeTime(conv.last_message_at) : 'Nunca',
+        unread: false, // Se puede calcular basado en mensajes no leídos
           status: (conv.status || 'active') as 'active' | 'resolved' | 'archived',
           labels: Array.isArray(conv.labels) ? conv.labels : [],
-          avatar: undefined,
-          isTyping: false,
-          isFavorite: false
+        avatar: undefined,
+        isTyping: false,
+        isFavorite: false
         }
       })
 
@@ -434,10 +439,10 @@ export default function ConversacionesPage() {
         return {
           id: msg.id || Date.now().toString(),
           text: msg.content || msg.body || msg.text || '',
-          sender: msg.direction === 'inbound' ? 'customer' : 'agent',
+        sender: msg.direction === 'inbound' ? 'customer' : 'agent',
           timestamp: date,
           read: msg.status === 'read' || msg.status === 'delivered' || false,
-          type: msg.is_internal_note ? 'internal' : (msg.type || 'text')
+        type: msg.is_internal_note ? 'internal' : (msg.type || 'text')
         }
       })
 
@@ -446,20 +451,66 @@ export default function ConversacionesPage() {
       // Cargar detalles del contacto
       const conv = conversations.find(c => c.id === conversationId)
       if (conv && conv.contactPhone) {
-        // Obtener información del cliente si hay customer_id
-        const { data: customerData } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('phone', conv.contactPhone)
+        // Obtener información del cliente
+        // Obtener customer_id de la conversación desde la BD
+        const { data: convFromDb } = await supabase
+          .from('whatsapp_conversations')
+          .select('customer_id')
+          .eq('id', conversationId)
           .eq('organization_id', organizationId)
-          .maybeSingle()
+          .single()
+        
+        let customerData: any = null
+        
+        // Si hay customer_id, buscar directamente
+        if (convFromDb && (convFromDb as any).customer_id) {
+          const { data: customerById } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('id', (convFromDb as any).customer_id)
+            .eq('organization_id', organizationId)
+            .maybeSingle()
+          
+          if (customerById) {
+            customerData = customerById
+          }
+        }
+        
+        // Si no se encontró por ID, intentar por teléfono (normalizar formato)
+        if (!customerData && conv.contactPhone) {
+          // Normalizar teléfono: remover +, espacios, guiones, solo números
+          const normalizedPhone = conv.contactPhone.replace(/[\s\+\-\(\)]/g, '')
+          
+          // Buscar todos los clientes de la organización y filtrar por teléfono normalizado
+          const { data: allCustomers } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('organization_id', organizationId)
+          
+          if (allCustomers && allCustomers.length > 0) {
+            customerData = allCustomers.find((c: any) => {
+              if (!c.phone) return false
+              const normalizedCustomerPhone = c.phone.replace(/[\s\+\-\(\)]/g, '')
+              return normalizedCustomerPhone === normalizedPhone || 
+                     normalizedCustomerPhone.endsWith(normalizedPhone) ||
+                     normalizedPhone.endsWith(normalizedCustomerPhone)
+            }) || null
+          }
+        }
 
         // Obtener conversación completa para metadata y notas
-        const { data: convData } = await supabase
+        // Nota: La columna 'notes' puede no existir, usar solo las que sabemos que existen
+        const { data: convData, error: convDataError } = await supabase
           .from('whatsapp_conversations')
-          .select('notes, metadata, created_at')
+          .select('metadata, created_at')
           .eq('id', conversationId)
+          .eq('organization_id', organizationId) // Agregar filtro de organización para RLS
           .single()
+        
+        if (convDataError) {
+          console.warn('⚠️ [loadMessages] Error cargando metadata de conversación:', convDataError)
+          // Continuar sin metadata si hay error
+        }
 
         setContactDetails({
           name: conv.contactName || 'Cliente WhatsApp',
@@ -470,13 +521,13 @@ export default function ConversacionesPage() {
           country: 'México',
           language: 'Español',
           currency: 'Peso Mexicano',
-          started: convData?.created_at ? formatRelativeTime(convData.created_at) : 'Nunca',
-          status: conv.status || 'active',
+          started: convData && (convData as any).created_at ? formatRelativeTime((convData as any).created_at) : 'Nunca',
+          status: (conv.status === 'pending' ? 'active' : conv.status) || 'active' as 'active' | 'resolved' | 'archived',
           device: 'WhatsApp',
           labels: Array.isArray(conv.labels) ? conv.labels.filter((l): l is string => Boolean(l)) : [],
           address: customerData?.address || undefined,
-          notes: convData?.notes || undefined,
-          metadata: convData?.metadata || undefined
+          notes: convData && (convData as any).metadata?.notes ? (convData as any).metadata.notes : undefined, // Notas están en metadata
+          metadata: convData && (convData as any).metadata ? (convData as any).metadata : undefined
         })
       }
     } catch (error) {
@@ -576,9 +627,9 @@ export default function ConversacionesPage() {
 
             // Recargar mensajes solo si hay selectedConversation
             if (selectedConversation) {
-              loadMessages(selectedConversation)
-              // Recargar conversaciones para actualizar last_message
-              loadConversations()
+            loadMessages(selectedConversation)
+            // Recargar conversaciones para actualizar last_message
+            loadConversations()
             }
           }
 
@@ -600,7 +651,7 @@ export default function ConversacionesPage() {
           console.log('💬 Cambio en conversación:', payload)
           // Recargar conversaciones cuando hay cambios
           if (payload && (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE')) {
-            loadConversations()
+          loadConversations()
           }
         }
       )
@@ -700,20 +751,20 @@ export default function ConversacionesPage() {
       if (isInternalNote) {
         try {
           // Guardar como mensaje interno en whatsapp_messages
+          // Usar la estructura de la tabla según migración 014
           const { data: savedMessage, error: messageError } = await supabase
             .from('whatsapp_messages')
             .insert({
               conversation_id: selectedConversation,
               organization_id: organizationId,
               direction: 'outbound',
-              from_number: '', // Nota interna, no tiene remitente externo
-              to_number: conv.contactPhone || '',
-              body: messageToSend,
+              from_phone: '', // Nota interna, no tiene remitente externo
+              to_phone: conv.contactPhone || '',
+              content: messageToSend,
               is_internal_note: true,
-              message_type: 'text',
-              status: 'sent',
-              created_at: new Date().toISOString()
-            })
+              type: 'text',
+              status: 'sent'
+            } as any)
             .select()
             .single()
 
@@ -722,8 +773,9 @@ export default function ConversacionesPage() {
             throw messageError
           }
 
-          // Actualizar campo notes de la conversación (agregar la nueva nota)
-          const currentNotes = contactDetails?.notes || ''
+          // Actualizar campo notes en metadata (ya que la columna notes puede no existir)
+          const currentMetadata = contactDetails?.metadata || {}
+          const currentNotes = (currentMetadata.notes as string) || contactDetails?.notes || ''
           const newNotes = currentNotes 
             ? `${currentNotes}\n\n[${new Date().toLocaleString('es-ES')}] ${messageToSend}`
             : `[${new Date().toLocaleString('es-ES')}] ${messageToSend}`
@@ -731,7 +783,10 @@ export default function ConversacionesPage() {
           const { error: notesError } = await supabase
             .from('whatsapp_conversations')
             .update({ 
-              notes: newNotes,
+              metadata: {
+                ...currentMetadata,
+                notes: newNotes
+              },
               updated_at: new Date().toISOString()
             })
             .eq('id', selectedConversation)
@@ -742,15 +797,15 @@ export default function ConversacionesPage() {
           }
 
           // Actualizar estado local
-          const newMessage: Message = {
+        const newMessage: Message = {
             id: savedMessage?.id || Date.now().toString(),
-            text: messageToSend,
-            sender: 'agent',
-            timestamp: new Date(),
-            read: true,
-            type: 'internal'
-          }
-          setMessages(prev => [...prev, newMessage])
+          text: messageToSend,
+          sender: 'agent',
+          timestamp: new Date(),
+          read: true,
+          type: 'internal'
+        }
+        setMessages(prev => [...prev, newMessage])
           
           // Actualizar contactDetails con las nuevas notas
           updateContactDetails({ notes: newNotes })
@@ -758,13 +813,13 @@ export default function ConversacionesPage() {
           // Recargar mensajes para asegurar sincronización
           await loadMessages(selectedConversation)
           
-          toast.success('Nota interna agregada')
+        toast.success('Nota interna agregada')
           setMessageText('') // Limpiar input
         } catch (error) {
           console.error('Error guardando nota interna:', error)
           toast.error('Error al guardar nota interna')
         } finally {
-          setIsSendingMessage(false)
+        setIsSendingMessage(false)
         }
         return
       }
@@ -787,9 +842,9 @@ export default function ConversacionesPage() {
       })
 
       try {
-        const response = await fetch('/api/whatsapp/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+      const response = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody)
         })
 
@@ -798,9 +853,9 @@ export default function ConversacionesPage() {
           statusText: response.statusText,
           ok: response.ok,
           headers: Object.fromEntries(response.headers.entries())
-        })
+      })
 
-        const result = await response.json()
+      const result = await response.json()
         
         console.log('📊 [sendMessage] Resultado JSON:', result)
 
@@ -813,9 +868,9 @@ export default function ConversacionesPage() {
           throw new Error(result.error || `Error HTTP ${response.status}: ${response.statusText}`)
         }
 
-        if (!result.success) {
+      if (!result.success) {
           console.error('❌ [sendMessage] Error en respuesta:', result.error)
-          throw new Error(result.error || 'Error al enviar mensaje')
+        throw new Error(result.error || 'Error al enviar mensaje')
         }
 
         console.log('✅ [sendMessage] Mensaje enviado exitosamente')
@@ -877,10 +932,10 @@ export default function ConversacionesPage() {
 
       if (error) throw error
 
-      toast.success(`Mensaje programado para ${new Date(scheduledDateTime).toLocaleString('es-ES')}`)
-      setMessageText('')
-      setScheduledDateTime('')
-      setActiveTab('Responder')
+    toast.success(`Mensaje programado para ${new Date(scheduledDateTime).toLocaleString('es-ES')}`)
+    setMessageText('')
+    setScheduledDateTime('')
+    setActiveTab('Responder')
       
       // Actualizar contactDetails localmente
       updateContactDetails({
@@ -914,25 +969,37 @@ export default function ConversacionesPage() {
 
   // Funciones de acciones del chat
   const handleResolveChat = async () => {
-    if (!selectedConversation) return
+    if (!selectedConversation || !organizationId) return
     
     const newStatus = isResolved ? 'active' : 'resolved'
     
     try {
+      console.log(`[handleResolveChat] Actualizando estado a: ${newStatus}`, {
+        conversationId: selectedConversation,
+        organizationId
+      })
+      
       const { error } = await supabase
         .from('whatsapp_conversations')
-        .update({ status: newStatus })
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', selectedConversation)
+        .eq('organization_id', organizationId) // Agregar filtro de organización para RLS
 
-      if (error) throw error
+      if (error) {
+        console.error('[handleResolveChat] Error en update:', error)
+        throw error
+      }
 
       updateConversation(selectedConversation, { status: newStatus })
       updateContactDetails({ status: newStatus })
       await loadConversations() // Recargar para actualizar filtros
       toast.success(newStatus === 'resolved' ? 'Chat resuelto' : 'Chat reactivado')
-    } catch (error) {
-      console.error('Error actualizando estado:', error)
-      toast.error('Error al actualizar estado del chat')
+    } catch (error: any) {
+      console.error('[handleResolveChat] Error actualizando estado:', error)
+      toast.error(`Error al actualizar estado: ${error.message || 'Error desconocido'}`)
     }
   }
 
@@ -955,10 +1022,10 @@ export default function ConversacionesPage() {
         .eq('id', selectedConversation)
 
       if (error) throw error
-
-      toast.success(`Chat reasignado a ${selectedAgent}`)
-      setReassignDialogOpen(false)
-      setSelectedAgent('')
+    
+    toast.success(`Chat reasignado a ${selectedAgent}`)
+    setReassignDialogOpen(false)
+    setSelectedAgent('')
       
       // Recargar conversaciones para reflejar el cambio
       await loadConversations()
@@ -1091,10 +1158,15 @@ export default function ConversacionesPage() {
     if (!selectedConversation) return
     
     try {
+      // Guardar notas en metadata ya que la columna notes puede no existir
+      const currentMetadata = contactDetails?.metadata || {}
       const { error } = await supabase
         .from('whatsapp_conversations')
         .update({ 
-          notes: contactDetails?.notes || '',
+          metadata: {
+            ...currentMetadata,
+            notes: contactDetails?.notes || ''
+          },
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedConversation)
@@ -1104,8 +1176,8 @@ export default function ConversacionesPage() {
       // Recargar mensajes para actualizar contactDetails
       await loadMessages(selectedConversation)
       
-      toast.success('Notas guardadas')
-      setIsEditingNotes(false)
+    toast.success('Notas guardadas')
+    setIsEditingNotes(false)
     } catch (error) {
       console.error('Error guardando notas:', error)
       toast.error('Error al guardar notas')
@@ -1677,8 +1749,8 @@ export default function ConversacionesPage() {
                           )}
                           {message.timestamp && !isNaN(message.timestamp.getTime()) 
                             ? message.timestamp.toLocaleTimeString('es-ES', { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
                               })
                             : '--:--'}
                         </div>
@@ -2035,21 +2107,21 @@ export default function ConversacionesPage() {
                         {(contactDetails?.labels || selectedConv?.labels || [])
                           .filter((label): label is string => Boolean(label))
                           .map((label, idx) => (
-                            <Badge
-                              key={idx}
-                              variant="secondary"
-                              className={cn(
-                                "flex items-center gap-1",
-                                darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-200 text-gray-700"
-                              )}
-                            >
+                          <Badge
+                            key={idx}
+                            variant="secondary"
+                            className={cn(
+                              "flex items-center gap-1",
+                              darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-200 text-gray-700"
+                            )}
+                          >
                               {label || 'Sin etiqueta'}
-                              <X 
-                                className="w-3 h-3 cursor-pointer hover:text-red-500" 
-                                onClick={() => removeLabel(label)}
-                              />
-                            </Badge>
-                          ))}
+                            <X 
+                              className="w-3 h-3 cursor-pointer hover:text-red-500" 
+                              onClick={() => removeLabel(label)}
+                            />
+                          </Badge>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -2103,7 +2175,7 @@ export default function ConversacionesPage() {
                     {isEditingNotes ? (
                       <div className="space-y-2">
                         <Textarea
-                          value={contactDetails?.notes || ''}
+                          value={contactDetails?.notes || contactDetails?.metadata?.notes || ''}
                           onChange={(e) => updateContactDetails({ notes: e.target.value })}
                           className={cn(
                             "text-sm min-h-[80px]",
@@ -2132,8 +2204,11 @@ export default function ConversacionesPage() {
                         "text-sm p-3 rounded-lg min-h-[60px] whitespace-pre-wrap",
                         darkMode ? "bg-gray-800 text-gray-300" : "bg-gray-100 text-gray-900"
                       )}>
-                        {contactDetails?.notes && contactDetails.notes.trim() ? (
-                          <p className="whitespace-pre-wrap">{contactDetails.notes}</p>
+                        {(contactDetails?.notes && contactDetails.notes.trim()) || 
+                         (contactDetails?.metadata?.notes && contactDetails.metadata.notes.trim()) ? (
+                          <p className="whitespace-pre-wrap">
+                            {contactDetails?.notes || contactDetails?.metadata?.notes}
+                          </p>
                         ) : (
                           <p className={cn(
                             "italic",
