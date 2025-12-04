@@ -660,6 +660,41 @@ export async function sendWhatsAppMessage(
     throw new Error('Configuración de WAHA no disponible');
   }
 
+  // Verificar estado de la sesión antes de enviar
+  console.log(`[WAHA Sessions] 🔍 Verificando estado de sesión antes de enviar...`);
+  try {
+    const status = await getSessionStatus(sessionName, orgId || undefined);
+    console.log(`[WAHA Sessions] 📊 Estado de sesión:`, status);
+    
+    if (status.status === 'FAILED' || status.status === 'STOPPED') {
+      console.warn(`[WAHA Sessions] ⚠️ Sesión en estado ${status.status}, intentando reiniciar...`);
+      try {
+        await startSession(sessionName, orgId || undefined);
+        console.log(`[WAHA Sessions] ✅ Sesión reiniciada, esperando 2 segundos...`);
+        // Esperar un poco para que la sesión se estabilice
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Verificar estado nuevamente
+        const newStatus = await getSessionStatus(sessionName, orgId || undefined);
+        console.log(`[WAHA Sessions] 📊 Nuevo estado después de reiniciar:`, newStatus);
+        
+        if (newStatus.status !== 'WORKING' && newStatus.status !== 'SCAN_QR_CODE' && newStatus.status !== 'SCAN_QR') {
+          throw new Error(`La sesión no pudo ser reiniciada. Estado actual: ${newStatus.status}. Por favor, verifica la conexión de WhatsApp.`);
+        }
+      } catch (restartError: any) {
+        console.error(`[WAHA Sessions] ❌ Error reiniciando sesión:`, restartError);
+        throw new Error(`La sesión de WhatsApp está en estado ${status.status} y no pudo ser reiniciada. Por favor, verifica la conexión de WhatsApp o reinicia la sesión manualmente.`);
+      }
+    } else if (status.status === 'SCAN_QR_CODE' || status.status === 'SCAN_QR') {
+      throw new Error('La sesión de WhatsApp requiere escanear el código QR. Por favor, escanea el código QR primero.');
+    } else if (status.status !== 'WORKING') {
+      console.warn(`[WAHA Sessions] ⚠️ Sesión en estado ${status.status}, intentando enviar de todas formas...`);
+    }
+  } catch (statusError: any) {
+    console.warn(`[WAHA Sessions] ⚠️ Error verificando estado de sesión:`, statusError.message);
+    // Continuar de todas formas, puede que el estado se pueda verificar después
+  }
+
   // Formatear número si no tiene @
   const chatId = to.includes('@') ? to : `${to}@c.us`;
 
@@ -693,9 +728,64 @@ export async function sendWhatsAppMessage(
   }
 
   if (!response.ok) {
-    const error = await response.text().catch(() => 'Error desconocido');
-    console.error(`[WAHA Sessions] ❌ Error enviando mensaje: ${response.status}`, error);
-    throw new Error(`Error enviando mensaje: ${response.status} - ${error}`);
+    const errorText = await response.text().catch(() => 'Error desconocido');
+    let errorData: any = {};
+    try {
+      errorData = JSON.parse(errorText);
+    } catch (e) {
+      // Si no es JSON, usar el texto
+    }
+    
+    console.error(`[WAHA Sessions] ❌ Error enviando mensaje: ${response.status}`, {
+      errorText,
+      errorData,
+      status: response.status
+    });
+
+    // Si el error es 422 y la sesión está en FAILED, intentar reiniciar y reintentar
+    if (response.status === 422 && errorData?.status === 'FAILED') {
+      console.log(`[WAHA Sessions] 🔄 Sesión en estado FAILED, intentando reiniciar y reintentar...`);
+      try {
+        await startSession(sessionName, orgId || undefined);
+        console.log(`[WAHA Sessions] ✅ Sesión reiniciada, esperando 3 segundos...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Reintentar envío
+        console.log(`[WAHA Sessions] 🔄 Reintentando envío de mensaje...`);
+        const retryResponse = await fetch(endpointUrl, {
+          method: 'POST',
+          headers: {
+            'X-Api-Key': key,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!retryResponse.ok) {
+          const retryErrorText = await retryResponse.text().catch(() => 'Error desconocido');
+          console.error(`[WAHA Sessions] ❌ Error en reintento: ${retryResponse.status}`, retryErrorText);
+          throw new Error(`Error enviando mensaje después de reiniciar sesión: ${retryResponse.status} - ${retryErrorText}`);
+        }
+
+        const retryResult = await retryResponse.json().catch((parseError) => {
+          console.error('[WAHA Sessions] ❌ Error parseando respuesta de reintento:', parseError);
+          return { sent: true, id: `msg_${Date.now()}` };
+        });
+
+        console.log(`[WAHA Sessions] ✅ Mensaje enviado después de reiniciar sesión:`, retryResult);
+        return retryResult;
+      } catch (retryError: any) {
+        console.error(`[WAHA Sessions] ❌ Error en reintento después de reiniciar:`, retryError);
+        throw new Error(`La sesión de WhatsApp está en estado FAILED. Se intentó reiniciar pero falló: ${retryError.message}. Por favor, verifica la conexión de WhatsApp o reinicia la sesión manualmente.`);
+      }
+    }
+
+    // Si el error es sobre estado de sesión, dar mensaje más claro
+    if (response.status === 422 && errorData?.error?.includes('status is not as expected')) {
+      throw new Error(`La sesión de WhatsApp está en estado ${errorData?.status || 'desconocido'} y necesita estar en WORKING. Por favor, verifica la conexión de WhatsApp o reinicia la sesión manualmente.`);
+    }
+
+    throw new Error(`Error enviando mensaje: ${response.status} - ${errorText}`);
   }
 
   const result = await response.json().catch((parseError) => {
