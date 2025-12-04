@@ -21,7 +21,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
 import { AlertCircle, CheckCircle2, User } from 'lucide-react'
 
