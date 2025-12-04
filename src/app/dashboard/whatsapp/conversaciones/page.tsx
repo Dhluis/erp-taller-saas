@@ -273,14 +273,14 @@ export default function ConversacionesPage() {
 
       const formattedConversations: Conversation[] = (data || []).map((conv: any) => ({
         id: conv.id,
-        contactName: conv.customer_name || 'Cliente sin nombre',
-        contactPhone: conv.customer_phone,
+        contactName: conv.customer_name || conv.customer_phone || 'Cliente WhatsApp',
+        contactPhone: conv.customer_phone || 'Sin teléfono',
         contactEmail: undefined, // Se puede obtener del customer_id si es necesario
         lastMessage: conv.last_message || 'Sin mensajes',
         lastMessageTime: conv.last_message_at ? formatRelativeTime(conv.last_message_at) : 'Nunca',
         unread: false, // Se puede calcular basado en mensajes no leídos
-        status: conv.status as 'active' | 'resolved' | 'archived',
-        labels: conv.labels || [],
+        status: (conv.status || 'active') as 'active' | 'resolved' | 'archived',
+        labels: Array.isArray(conv.labels) ? conv.labels : [],
         avatar: undefined,
         isTyping: false,
         isFavorite: false
@@ -343,7 +343,7 @@ export default function ConversacionesPage() {
 
       // Cargar detalles del contacto
       const conv = conversations.find(c => c.id === conversationId)
-      if (conv) {
+      if (conv && conv.contactPhone) {
         // Obtener información del cliente si hay customer_id
         const { data: customerData } = await supabase
           .from('customers')
@@ -353,19 +353,19 @@ export default function ConversacionesPage() {
           .maybeSingle()
 
         setContactDetails({
-          name: conv.contactName,
-          phone: conv.contactPhone,
-          email: customerData?.email,
-          lastMessage: conv.lastMessageTime,
+          name: conv.contactName || 'Cliente WhatsApp',
+          phone: conv.contactPhone || 'Sin teléfono',
+          email: customerData?.email || undefined,
+          lastMessage: conv.lastMessageTime || 'Nunca',
           accountType: 'Cuenta personal',
           country: 'México',
           language: 'Español',
           currency: 'Peso Mexicano',
-          started: conv.lastMessageTime,
-          status: conv.status,
+          started: conv.lastMessageTime || 'Nunca',
+          status: conv.status || 'active',
           device: 'WhatsApp',
-          labels: conv.labels,
-          address: customerData?.address,
+          labels: Array.isArray(conv.labels) ? conv.labels : [],
+          address: customerData?.address || undefined,
           notes: undefined
         })
       }
@@ -409,9 +409,15 @@ export default function ConversacionesPage() {
   }, [darkMode])
 
   const filteredConversations = conversations.filter(conv => {
+    if (!conv) return false
+    
+    const searchLower = searchQuery.toLowerCase()
+    const contactName = (conv.contactName || '').toLowerCase()
+    const lastMessage = (conv.lastMessage || '').toLowerCase()
+    
     const matchesSearch = 
-      conv.contactName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conv.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+      contactName.includes(searchLower) ||
+      lastMessage.includes(searchLower)
     
     const matchesFilter = 
       activeFilter === 'all' ||
@@ -548,6 +554,11 @@ export default function ConversacionesPage() {
       return
     }
 
+    if (!conv.contactPhone) {
+      toast.error('No hay número de teléfono asociado a esta conversación')
+      return
+    }
+
     setIsSendingMessage(true)
     setMessageText('') // Limpiar inmediatamente para mejor UX
 
@@ -574,7 +585,7 @@ export default function ConversacionesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conversationId: selectedConversation,
-          to: conv.contactPhone,
+          to: conv.contactPhone || '',
           message: messageToSend,
           type: 'text'
         })
@@ -683,7 +694,7 @@ export default function ConversacionesPage() {
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `chat-${selectedConv?.contactName}-${Date.now()}.json`
+        a.download = `chat-${selectedConv?.contactName || 'cliente'}-${Date.now()}.json`
         a.click()
         toast.success('Chat exportado')
         break
@@ -992,7 +1003,7 @@ export default function ConversacionesPage() {
                     <div className="flex items-start gap-3">
                       <Avatar className="w-10 h-10">
                         <AvatarFallback className={darkMode ? "bg-gray-700" : "bg-gray-300"}>
-                          {conversation.contactName.split(' ').map(n => n[0]).join('')}
+                          {(conversation.contactName || 'C').split(' ').map(n => n[0]).join('').slice(0, 2) || 'C'}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
@@ -1002,7 +1013,7 @@ export default function ConversacionesPage() {
                             conversation.unread && !darkMode ? "font-semibold" : "",
                             darkMode ? "text-white" : "text-gray-900"
                           )}>
-                            {conversation.contactName}
+                            {conversation.contactName || 'Cliente WhatsApp'}
                           </span>
                           <span className={cn(
                             "text-xs whitespace-nowrap ml-2",
@@ -1020,13 +1031,13 @@ export default function ConversacionesPage() {
                           )}>
                             {conversation.isTyping ? (
                               <span className={cn(darkMode ? "text-cyan-400" : "text-blue-600")}>
-                                {conversation.lastMessage}
+                                {conversation.lastMessage || 'Escribiendo...'}
                               </span>
                             ) : (
-                              conversation.lastMessage
+                              conversation.lastMessage || 'Sin mensajes'
                             )}
                           </p>
-                          {conversation.labels.length > 0 && (
+                          {conversation.labels && conversation.labels.length > 0 && (
                             <Badge 
                               variant="secondary" 
                               className={cn(
@@ -1034,7 +1045,7 @@ export default function ConversacionesPage() {
                                 darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-200 text-gray-700"
                               )}
                             >
-                              {conversation.labels[0]}
+                              {conversation.labels[0] || ''}
                             </Badge>
                           )}
                           <button
@@ -1217,11 +1228,11 @@ export default function ConversacionesPage() {
                   <div className="flex items-center gap-2 ml-2">
                     <Avatar className="w-8 h-8">
                       <AvatarFallback className={darkMode ? "bg-gray-700" : "bg-gray-300"}>
-                        {selectedConv.contactName.split(' ').map(n => n[0]).join('')}
+                        {((selectedConv?.contactName || 'C').split(' ').map(n => n[0]).join('').slice(0, 2) || 'C')}
                       </AvatarFallback>
                     </Avatar>
                     <span className={cn("font-medium", darkMode ? "text-white" : "text-gray-900")}>
-                      {selectedConv.contactName}
+                      {selectedConv?.contactName || 'Cliente WhatsApp'}
                     </span>
                   </div>
                 </div>
@@ -1519,15 +1530,15 @@ export default function ConversacionesPage() {
                   <div className="flex items-center gap-3">
                     <Avatar className="w-12 h-12">
                       <AvatarFallback className={darkMode ? "bg-gray-700" : "bg-gray-300"}>
-                        {selectedConv.contactName.split(' ').map(n => n[0]).join('')}
+                        {((contactDetails?.name || selectedConv?.contactName || 'C').split(' ').map(n => n[0]).join('').slice(0, 2) || 'C')}
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <h3 className={cn("font-semibold", darkMode ? "text-white" : "text-gray-900")}>
-                        {contactDetails?.name || selectedConv.contactName}
+                        {contactDetails?.name || selectedConv?.contactName || 'Cliente WhatsApp'}
                       </h3>
                       <p className={cn("text-sm", darkMode ? "text-gray-400" : "text-gray-600")}>
-                        {contactDetails?.phone || selectedConv.contactPhone}
+                        {contactDetails?.phone || selectedConv?.contactPhone || 'Sin teléfono'}
                       </p>
                     </div>
                   </div>
@@ -1636,9 +1647,9 @@ export default function ConversacionesPage() {
                         </Button>
                       </div>
                     )}
-                    {(contactDetails?.labels || selectedConv.labels || []).length > 0 && (
+                    {(contactDetails?.labels || selectedConv?.labels || []).length > 0 && (
                       <div className="flex flex-wrap gap-2">
-                        {(contactDetails?.labels || selectedConv.labels || []).map((label, idx) => (
+                        {(contactDetails?.labels || selectedConv?.labels || []).map((label, idx) => (
                           <Badge
                             key={idx}
                             variant="secondary"
@@ -1669,11 +1680,11 @@ export default function ConversacionesPage() {
                     <div className="space-y-2 text-sm">
                       <div>
                         <span className={cn("block mb-1", darkMode ? "text-gray-400" : "text-gray-600")}>Nombre:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.name}</span>
+                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.name || 'Sin nombre'}</span>
                       </div>
                       <div>
                         <span className={cn("block mb-1", darkMode ? "text-gray-400" : "text-gray-600")}>Correo:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.email}</span>
+                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.email || 'Sin correo'}</span>
                       </div>
                       {contactDetails.address && (
                         <div>
@@ -1707,7 +1718,7 @@ export default function ConversacionesPage() {
                     {isEditingNotes ? (
                       <div className="space-y-2">
                         <Textarea
-                          value={contactDetails.notes || ''}
+                          value={contactDetails?.notes || ''}
                           onChange={(e) => updateContactDetails({ notes: e.target.value })}
                           className={cn(
                             "text-sm min-h-[80px]",
@@ -1736,7 +1747,7 @@ export default function ConversacionesPage() {
                         "text-sm p-3 rounded-lg min-h-[60px]",
                         darkMode ? "bg-gray-800 text-gray-300" : "bg-gray-100 text-gray-900"
                       )}>
-                        {contactDetails.notes || 'No hay notas. Haz clic en el icono para agregar.'}
+                        {contactDetails?.notes || 'No hay notas. Haz clic en el icono para agregar.'}
                       </p>
                     )}
                   </div>
