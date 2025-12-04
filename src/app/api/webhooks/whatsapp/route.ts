@@ -103,11 +103,25 @@ export async function POST(request: NextRequest) {
     
     console.log('[WAHA Webhook] Evento recibido:', body.event || body.type || 'unknown');
 
-    // === DEDUPLICACIÓN ===
+    // === DEDUPLICACIÓN MEJORADA ===
     
     // Solo deduplicar eventos de mensaje (no session.status)
-    if (messageId && (eventType === 'message' || eventType === 'message.any')) {
-      const cacheKey = `${messageId}`;
+    if (eventType === 'message' || eventType === 'message.any') {
+      // Crear clave de deduplicación más robusta
+      // Usar: messageId + session + timestamp + from (si está disponible)
+      const sessionName = body.session || '';
+      const payloadFrom = body.payload?.from || '';
+      const payloadTimestamp = body.payload?.timestamp || body.timestamp || '';
+      
+      // Si tenemos messageId, usarlo como clave principal
+      let cacheKey: string;
+      if (messageId) {
+        cacheKey = `${messageId}`;
+      } else {
+        // Si no hay messageId, crear clave compuesta
+        cacheKey = `${sessionName}_${payloadFrom}_${payloadTimestamp}`;
+        console.warn('[Webhook] ⚠️ Mensaje sin ID - usando clave compuesta para deduplicación:', cacheKey);
+      }
       
       // Verificar si ya procesamos este mensaje
       if (processedMessages.has(cacheKey)) {
@@ -116,31 +130,28 @@ export async function POST(request: NextRequest) {
         const millisecondsAgo = Date.now() - processedTime!;
         console.log('='.repeat(60));
         console.log(`[Webhook] ⏭️ DUPLICADO DETECTADO Y BLOQUEADO`);
-        console.log(`[Webhook] 🆔 Message ID: ${messageId}`);
+        console.log(`[Webhook] 🆔 Message ID: ${messageId || 'N/A'}`);
+        console.log(`[Webhook] 🔑 Cache Key: ${cacheKey}`);
         console.log(`[Webhook] 📋 Event Type: ${eventType}`);
         console.log(`[Webhook] ⏰ Procesado hace: ${secondsAgo}s (${millisecondsAgo}ms)`);
         console.log(`[Webhook] 📊 Cache size: ${processedMessages.size}`);
+        console.log(`[Webhook] 📦 Session: ${sessionName}`);
+        console.log(`[Webhook] 📱 From: ${payloadFrom}`);
         console.log('='.repeat(60));
         return NextResponse.json({ 
           success: true, 
           skipped: true, 
           reason: 'duplicate_message',
-          messageId: messageId
+          messageId: messageId || cacheKey,
+          cacheKey: cacheKey
         });
       }
       
       // Marcar como procesado ANTES de procesar (evitar race conditions)
       processedMessages.set(cacheKey, Date.now());
-      console.log(`[Webhook] 📝 Mensaje registrado en cache: ${messageId} (cache size: ${processedMessages.size})`);
+      console.log(`[Webhook] 📝 Mensaje registrado en cache: ${cacheKey} (cache size: ${processedMessages.size})`);
       console.log(`[Webhook] 📋 Event Type: ${eventType}`);
-    } else if (eventType === 'message' || eventType === 'message.any') {
-      // Si es mensaje pero no tiene ID, log de advertencia
-      console.warn('[Webhook] ⚠️ Mensaje sin ID - no se puede deduplicar:', {
-        eventType,
-        hasPayload: !!body.payload,
-        hasMessage: !!body.message,
-        bodyKeys: Object.keys(body)
-      });
+      console.log(`[Webhook] 🆔 Message ID: ${messageId || 'N/A'}`);
     }
     // === FIN DEDUPLICACIÓN ===
 
