@@ -197,7 +197,7 @@ export async function createOrganizationSession(organizationId: string): Promise
     config: {
       webhooks: [{
         url: webhookUrl,
-        events: ['message', 'message.any', 'session.status']
+        events: ['message', 'session.status']
       }]
     }
   };

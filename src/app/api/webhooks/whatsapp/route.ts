@@ -255,8 +255,64 @@ async function handleMessageEvent(body: any) {
       customerPhone
     );
 
-    // 9. Extraer texto del mensaje
-    const messageText = message.text || message.body || message.content || '';
+    // 9. Detectar tipo de mensaje y multimedia
+    const messageType = message.type || message.messageType || 'text';
+    const hasMedia = message.hasMedia || 
+                     message.mediaUrl || 
+                     message.image || 
+                     message.audio || 
+                     message.document ||
+                     message.video ||
+                     messageType !== 'text';
+
+    // Extraer URL del media si existe
+    let mediaUrl = null;
+    let mediaType = null;
+
+    if (hasMedia) {
+      // WAHA Plus puede enviar el media en diferentes formatos
+      mediaUrl = message.mediaUrl || 
+                 message.media?.url ||
+                 message.image?.url ||
+                 message.audio?.url ||
+                 message.document?.url ||
+                 message.video?.url ||
+                 message._data?.mediaUrl;
+      
+      // Detectar tipo de media
+      if (message.type === 'image' || message.image || message.mimetype?.startsWith('image/')) {
+        mediaType = 'image';
+      } else if (message.type === 'audio' || message.type === 'ptt' || message.audio || message.mimetype?.startsWith('audio/')) {
+        mediaType = 'audio';
+      } else if (message.type === 'video' || message.video || message.mimetype?.startsWith('video/')) {
+        mediaType = 'video';
+      } else if (message.type === 'document' || message.document) {
+        mediaType = 'document';
+      }
+      
+      console.log('[WAHA Webhook] 📎 Media detectado:', {
+        mediaType,
+        mediaUrl: mediaUrl ? mediaUrl.substring(0, 50) + '...' : null,
+        mimetype: message.mimetype,
+        originalType: message.type
+      });
+    }
+
+    // Construir texto del mensaje incluyendo info de media
+    let messageText = message.text || message.body || message.content || message.caption || '';
+
+    // Si es audio sin texto, agregar indicador
+    if (mediaType === 'audio' && !messageText) {
+      messageText = '[Audio recibido - Transcripción no disponible]';
+      // TODO: Integrar con Whisper API para transcribir audios
+    }
+
+    // Si es imagen sin texto, agregar indicador
+    if (mediaType === 'image' && !messageText) {
+      messageText = '[Imagen recibida]';
+      // El caption de la imagen ya estaría en message.caption
+    }
+
     // Reutilizar messageId ya extraído arriba para deduplicación
     const timestamp = message.timestamp 
       ? new Date(message.timestamp * 1000 || message.timestamp)
@@ -272,7 +328,8 @@ async function handleMessageEvent(body: any) {
         from: customerPhone,
         body: messageText,
         timestamp,
-        mediaUrl: message.mediaUrl || message.image || message.document || null
+        mediaUrl: mediaUrl,
+        mediaType: mediaType
       }
     );
 
@@ -559,6 +616,7 @@ async function saveIncomingMessage(
     body: string;
     timestamp: Date;
     mediaUrl?: string | null;
+    mediaType?: string | null;
   }
 ): Promise<void> {
   await supabase
@@ -571,6 +629,7 @@ async function saveIncomingMessage(
       to_number: '', // Se completará con el número del negocio
       body: message.body,
       media_url: message.mediaUrl,
+      media_type: message.mediaType, // 'image', 'audio', 'video', 'document' o null
       status: 'delivered',
       provider: 'waha',
       provider_message_id: message.messageId,
