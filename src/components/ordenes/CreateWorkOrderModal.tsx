@@ -42,8 +42,8 @@ import {
 
 import { toast } from 'sonner'
 
-import { useAuth } from '@/contexts/AuthContext'
-import { useOrganization } from '@/contexts/OrganizationContext'
+import { useAuth } from '@/hooks/useAuth'
+import { useOrganization } from '@/lib/context/SessionContext'
 import { createClient } from '@/lib/supabase/client'
 import { useCustomers } from '@/hooks/useCustomers'
 

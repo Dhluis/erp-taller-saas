@@ -285,3 +285,4 @@ useEffect(() => {
 **Versión:** 2.0.1  
 **Estado:** ✅ Resuelto y Testeado
 
+

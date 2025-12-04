@@ -10,8 +10,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import ModernIcons from '@/components/icons/ModernIcons';
 import { CalendarIcon } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useOrganization } from '@/contexts/OrganizationContext';
+import { useAuth } from '@/hooks/useAuth';
+import { useOrganization } from '@/lib/context/SessionContext';
 import {
   LineChart,
   Line,

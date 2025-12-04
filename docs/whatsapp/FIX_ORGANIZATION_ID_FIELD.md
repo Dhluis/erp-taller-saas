@@ -268,3 +268,4 @@ El componente de WhatsApp ahora:
 **Versión:** 2.1.0  
 **Estado:** ✅ Resuelto Definitivamente
 
+

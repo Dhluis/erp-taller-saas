@@ -308,3 +308,4 @@ El AppLayout muestra:
 **Breaking Changes:** Ninguno (la página eliminada no tenía funcionalidad)  
 **Última actualización:** 3 de Diciembre 2025
 
+

@@ -447,3 +447,4 @@ onClick={() => {
 **Breaking Changes:** Ninguno  
 **Última actualización:** 3 de Diciembre 2025
 
+

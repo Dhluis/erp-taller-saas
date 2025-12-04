@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { KanbanBoard } from '@/components/ordenes/KanbanBoard';
-import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrganization } from '@/lib/context/SessionContext';
 import { Search, RefreshCw, Plus } from 'lucide-react';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';

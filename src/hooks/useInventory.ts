@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { safeFetch, safePost, safePut, safeDelete } from '@/lib/api';
-import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrganization } from '@/lib/context/SessionContext';
 
 // Tipos para el inventario
 export interface InventoryItem {

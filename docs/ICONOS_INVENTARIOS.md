@@ -246,3 +246,4 @@ items: [
 **Archivos modificados:** 2  
 **Nuevos iconos creados:** 2 (Productos, Categorías)
 
+

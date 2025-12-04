@@ -41,7 +41,7 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor
   in_progress: { label: 'En Proceso', color: 'text-blue-700', bgColor: 'bg-blue-100' },
 };
 
-import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrganization } from '@/lib/context/SessionContext';
 
 export default function OrdenesPage() {
   const router = useRouter();

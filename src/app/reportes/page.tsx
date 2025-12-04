@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { safeFetch } from '@/lib/api';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useVehicles } from '@/hooks/useVehicles';
-import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrganization } from '@/lib/context/SessionContext';
 import { getAllWorkOrders } from '@/lib/database/queries/work-orders';
 import { toast } from 'sonner';
 import { 

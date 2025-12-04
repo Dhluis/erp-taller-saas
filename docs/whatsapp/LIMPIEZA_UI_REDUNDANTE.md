@@ -245,3 +245,4 @@ Si en el futuro se necesita agregar funcionalidad de QR o vinculado manual:
 **Versión:** 2.0.0  
 **Estado:** ✅ Completado y Testeado
 
+

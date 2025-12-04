@@ -361,3 +361,4 @@ interface Appointment extends BaseAppointment {
 **Breaking Changes:** Ninguno (retrocompatible)  
 **Última actualización:** 3 de Diciembre 2025
 
+
