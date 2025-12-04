@@ -27,7 +27,7 @@ interface SessionContextType extends SessionState {
 const SessionContext = createContext<SessionContextType | null>(null)
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<SessionState>({
+  const initialState: SessionState = {
     user: null,
     organizationId: null,
     workshopId: null,
@@ -36,20 +36,36 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     isLoading: true,
     isReady: false,
     error: null
-  })
+  }
+  
+  const [state, setState] = useState<SessionState>(initialState)
   
   const isInitializing = useRef(false)
+  const lastLoadTimestamp = useRef<number>(0)
+  const lastUserId = useRef<string | null>(null)
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null)
+  const currentStateRef = useRef<SessionState>(initialState)
   const supabase = createClient()
 
   // UNA SOLA función que carga TODO en orden
-  const loadSession = useCallback(async () => {
+  const loadSession = useCallback(async (force = false) => {
     // Prevenir múltiples llamadas simultáneas
     if (isInitializing.current) {
       console.log('⏸️ [Session] Ya hay una carga en progreso, ignorando...')
       return
     }
+
+    // Prevenir recargas muy frecuentes (debounce de 500ms)
+    const now = Date.now()
+    const timeSinceLastLoad = now - lastLoadTimestamp.current
+    
+    if (!force && timeSinceLastLoad < 500) {
+      console.log(`⏸️ [Session] Recarga muy reciente (${timeSinceLastLoad}ms), ignorando...`)
+      return
+    }
     
     isInitializing.current = true
+    lastLoadTimestamp.current = now
 
     try {
       console.log('🔄 [Session] Iniciando carga de sesión...')
@@ -60,7 +76,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       
       if (authError || !user) {
         console.log('❌ [Session] Usuario no autenticado')
-        setState({
+        lastUserId.current = null
+        const noUserState = {
           user: null,
           organizationId: null,
           workshopId: null,
@@ -69,11 +86,23 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           isLoading: false,
           isReady: true, // Ready pero sin usuario
           error: null
-        })
+        }
+        currentStateRef.current = noUserState
+        setState(noUserState)
         return
       }
 
       console.log('✅ [Session] Usuario autenticado:', user.id)
+
+      // Verificar si el usuario es el mismo y ya tenemos los datos cargados
+      const currentState = currentStateRef.current
+      if (!force && lastUserId.current === user.id && currentState.user?.id === user.id && currentState.isReady) {
+        console.log('⏭️ [Session] Usuario ya cargado, evitando recarga innecesaria')
+        isInitializing.current = false
+        return
+      }
+
+      lastUserId.current = user.id
 
       // 2. Obtener perfil de la tabla users (con organization_id)
       const { data: profile, error: profileError } = await supabase
@@ -84,13 +113,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
       if (profileError || !profile) {
         console.error('❌ [Session] Error obteniendo perfil:', profileError)
-        setState(prev => ({
-          ...prev,
+        const errorState = {
+          ...currentStateRef.current,
           user,
           isLoading: false,
           isReady: true,
           error: 'Perfil no encontrado'
-        }))
+        }
+        currentStateRef.current = errorState
+        setState(errorState)
         return
       }
 
@@ -121,7 +152,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 4. Establecer estado final - UNA sola actualización
-      setState({
+      const newState = {
         user,
         organizationId,
         workshopId,
@@ -130,7 +161,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         isLoading: false,
         isReady: true,
         error: null
-      })
+      }
+      
+      currentStateRef.current = newState
+      setState(newState)
 
       console.log('✅✅✅ [Session] Sesión completamente cargada')
       console.log('📊 [Session] Estado final:', {
@@ -143,12 +177,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     } catch (error: any) {
       console.error('❌ [Session] Error cargando sesión:', error)
-      setState(prev => ({
-        ...prev,
+      const errorState = {
+        ...currentStateRef.current,
         isLoading: false,
         isReady: true,
         error: error.message
-      }))
+      }
+      currentStateRef.current = errorState
+      setState(errorState)
     } finally {
       isInitializing.current = false
     }
@@ -163,9 +199,28 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log(`🔔 [Session] Auth event: ${event}`)
       
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_OUT') {
         console.log(`🔄 [Session] Recargando sesión por: ${event}`)
-        loadSession()
+        lastUserId.current = null
+        loadSession(true) // Forzar recarga en logout
+      } else if (event === 'SIGNED_IN') {
+        // Debounce para eventos SIGNED_IN múltiples
+        if (debounceTimeout.current) {
+          clearTimeout(debounceTimeout.current)
+        }
+        
+        debounceTimeout.current = setTimeout(() => {
+          // Verificar si el usuario cambió antes de recargar
+          const currentUserId = session?.user?.id
+          const currentState = currentStateRef.current
+          if (currentUserId && lastUserId.current === currentUserId && currentState.isReady) {
+            console.log('⏭️ [Session] SIGNED_IN duplicado ignorado (mismo usuario ya cargado)')
+            return
+          }
+          
+          console.log(`🔄 [Session] Recargando sesión por: ${event}`)
+          loadSession()
+        }, 300) // Debounce de 300ms para eventos SIGNED_IN
       } else {
         console.log(`⏭️ [Session] Ignorando evento: ${event}`)
       }
@@ -173,6 +228,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       console.log('🧹 [Session] Limpiando suscripción')
+      if (debounceTimeout.current) {
+        clearTimeout(debounceTimeout.current)
+      }
       subscription.unsubscribe()
     }
   }, [loadSession, supabase.auth])
@@ -180,13 +238,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     console.log('🔄 [Session] Refresh manual solicitado')
     isInitializing.current = false // Permitir refresh manual
-    await loadSession()
+    await loadSession(true) // Forzar recarga en refresh manual
   }, [loadSession])
 
   const signOut = useCallback(async () => {
     console.log('👋 [Session] Cerrando sesión...')
     await supabase.auth.signOut()
-    setState({
+    lastUserId.current = null
+    const clearedState = {
       user: null,
       organizationId: null,
       workshopId: null,
@@ -195,7 +254,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       isLoading: false,
       isReady: true,
       error: null
-    })
+    }
+    currentStateRef.current = clearedState
+    setState(clearedState)
     console.log('✅ [Session] Sesión cerrada')
   }, [supabase.auth])
 

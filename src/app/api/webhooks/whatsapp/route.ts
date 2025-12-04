@@ -27,15 +27,16 @@ export const dynamic = 'force-dynamic';
 // ============================================
 // 🛡️ DEDUPLICACIÓN DE MENSAJES
 // ============================================
-// Cache simple para evitar procesar el mismo mensaje múltiples veces
+// Cache en memoria para evitar procesar el mismo mensaje múltiples veces
 // WAHA puede enviar duplicados por reintentos o problemas de red
 const processedMessages = new Map<string, number>();
-const MESSAGE_CACHE_TTL = 60000; // 1 minuto
+const MESSAGE_CACHE_TTL = 60000; // 60 segundos
+const CLEANUP_INTERVAL = 30000; // Limpiar cada 30 segundos
 
 /**
  * Limpia mensajes viejos del cache periódicamente
  */
-function cleanMessageCache() {
+function cleanupOldMessages() {
   const now = Date.now();
   let cleaned = 0;
   
@@ -49,6 +50,15 @@ function cleanMessageCache() {
   if (cleaned > 0) {
     console.log(`[Webhook] 🧹 Cache limpiado: ${cleaned} mensajes antiguos eliminados (${processedMessages.size} restantes)`);
   }
+}
+
+// Limpiar periódicamente (solo si hay mensajes)
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    if (processedMessages.size > 0) {
+      cleanupOldMessages();
+    }
+  }, CLEANUP_INTERVAL);
 }
 
 /**
@@ -69,8 +79,41 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('[WAHA Webhook] Evento recibido:', body.event || body.type || 'unknown');
 
-    // Manejar diferentes tipos de eventos
+    // === DEDUPLICACIÓN ===
+    // Extraer ID único del mensaje (múltiples formatos posibles)
+    const messageId = body.payload?.id || 
+                      body.id || 
+                      body.payload?._data?.id?.id ||
+                      body.payload?.messageId ||
+                      body.messageId ||
+                      body.payload?.key?.id ||
+                      body.payload?._data?.key?.id;
     const eventType = body.event || body.type || body.eventType;
+    
+    // Solo deduplicar eventos de mensaje (no session.status)
+    if (messageId && (eventType === 'message' || eventType === 'message.any')) {
+      const cacheKey = `${messageId}`;
+      
+      // Verificar si ya procesamos este mensaje
+      if (processedMessages.has(cacheKey)) {
+        const processedTime = processedMessages.get(cacheKey);
+        const secondsAgo = Math.floor((Date.now() - processedTime!) / 1000);
+        console.log(`[Webhook] ⏭️ Mensaje duplicado ignorado: ${messageId} (procesado hace ${secondsAgo}s)`);
+        return NextResponse.json({ 
+          success: true, 
+          skipped: true, 
+          reason: 'duplicate_message',
+          messageId: messageId
+        });
+      }
+      
+      // Marcar como procesado ANTES de procesar (evitar race conditions)
+      processedMessages.set(cacheKey, Date.now());
+      console.log(`[Webhook] 📝 Mensaje registrado: ${messageId} (cache size: ${processedMessages.size})`);
+    }
+    // === FIN DEDUPLICACIÓN ===
+
+    // Manejar diferentes tipos de eventos
     
     switch (eventType) {
       case 'message':
@@ -111,31 +154,12 @@ async function handleMessageEvent(body: any) {
     console.log('[WAHA Webhook] 📨 Procesando mensaje...');
     console.log('[WAHA Webhook] 📦 Body completo:', JSON.stringify(body).substring(0, 500));
 
-    // 0. LIMPIEZA PERIÓDICA DEL CACHE
-    cleanMessageCache();
-
     // 1. Extraer datos del mensaje
     const message = body.payload || body.message || body.data || body;
     const sessionName = body.session || message.session;
     
-    // 2. DEDUPLICACIÓN - Verificar si ya procesamos este mensaje
-    const messageId = message?.id || message?.messageId || body.id;
-    
-    if (messageId) {
-      // Verificar si ya fue procesado
-      if (processedMessages.has(messageId)) {
-        const processedTime = processedMessages.get(messageId);
-        const secondsAgo = Math.floor((Date.now() - processedTime!) / 1000);
-        console.log(`[Webhook] ⏭️ Mensaje ${messageId} ya procesado hace ${secondsAgo}s, ignorando duplicado`);
-        return;
-      }
-      
-      // Marcar como procesado INMEDIATAMENTE para evitar race conditions
-      processedMessages.set(messageId, Date.now());
-      console.log(`[Webhook] ✅ Mensaje ${messageId} marcado como procesado (cache size: ${processedMessages.size})`);
-    } else {
-      console.warn('[Webhook] ⚠️ Mensaje sin ID, no se puede deduplicar. Procesando de todas formas...');
-    }
+    // 2. Extraer messageId (ya se hizo deduplicación arriba, pero lo necesitamos para logs)
+    const messageId = message?.id || message?.messageId || body.id || body.payload?.id;
     
     console.log('[WAHA Webhook] 📋 Mensaje extraído:', {
       hasMessage: !!message,
@@ -333,12 +357,14 @@ async function handleMessageEvent(body: any) {
           }
         );
         console.log('[WAHA Webhook] ✅ Respuesta enviada y guardada');
+        console.log(`[Webhook] ✅ Mensaje ${messageId} procesado y respondido correctamente`);
         }
       } catch (sendError: any) {
         console.error('[WAHA Webhook] ❌ Error enviando respuesta:', sendError.message);
       }
     } else {
       console.log('[WAHA Webhook] ⚠️ AI no generó respuesta:', aiResult.error);
+      console.log(`[Webhook] ✅ Mensaje ${messageId} procesado (sin respuesta AI)`);
     }
 
   } catch (error) {
