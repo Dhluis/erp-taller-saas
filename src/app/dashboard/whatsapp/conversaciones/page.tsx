@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/hooks/useAuth'
+import { useSession } from '@/lib/context/SessionContext'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import {
   MessageSquare,
@@ -118,6 +119,7 @@ interface ContactDetails {
 export default function ConversacionesPage() {
   const router = useRouter()
   const { organization } = useAuth()
+  const { organizationId, isLoading: sessionLoading, isReady: sessionReady } = useSession()
   const supabase = getSupabaseClient()
   const subscriptionRef = useRef<any>(null)
   const [darkMode, setDarkMode] = useState(true)
@@ -202,19 +204,39 @@ export default function ConversacionesPage() {
 
   // Cargar conversaciones desde la BD
   const loadConversations = useCallback(async () => {
-    if (!organization?.organization_id) {
+    // 🔍 DIAGNÓSTICO: Logs detallados
+    console.log('🔍 [loadConversations] Iniciando carga de conversaciones...')
+    console.log('🔍 [loadConversations] organization:', organization)
+    console.log('🔍 [loadConversations] organization?.organization_id:', organization?.organization_id)
+    console.log('🔍 [loadConversations] organizationId (de useSession):', organizationId)
+    console.log('🔍 [loadConversations] sessionLoading:', sessionLoading)
+    console.log('🔍 [loadConversations] sessionReady:', sessionReady)
+    
+    // Usar organizationId del contexto directamente (más confiable)
+    const orgId = organizationId || organization?.organization_id
+    
+    if (!orgId) {
+      console.warn('⚠️ [loadConversations] No hay organizationId disponible')
+      console.warn('⚠️ [loadConversations] organizationId:', organizationId)
+      console.warn('⚠️ [loadConversations] organization?.organization_id:', organization?.organization_id)
+      console.warn('⚠️ [loadConversations] sessionLoading:', sessionLoading)
+      console.warn('⚠️ [loadConversations] sessionReady:', sessionReady)
       setLoadingConversations(false)
       return
     }
 
+    console.log('✅ [loadConversations] organizationId encontrado:', orgId)
+
     try {
       setLoadingConversations(true)
+      
+      console.log('📊 [loadConversations] Construyendo query con organization_id:', orgId)
       
       // Construir query base
       let query = supabase
         .from('whatsapp_conversations')
         .select('*')
-        .eq('organization_id', organization.organization_id)
+        .eq('organization_id', orgId)
 
       // Aplicar filtro de status solo si no es 'all', 'unread' o 'favorite'
       if (activeFilter === 'resolved') {
@@ -229,9 +251,25 @@ export default function ConversacionesPage() {
       query = query.order('last_message_at', { ascending: false, nullsFirst: false })
         .limit(100) // Aumentar límite para permitir filtrado en frontend
 
+      console.log('📤 [loadConversations] Ejecutando query...')
       const { data, error } = await query
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ [loadConversations] Error en query:', error)
+        console.error('❌ [loadConversations] Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        })
+        throw error
+      }
+
+      console.log('✅ [loadConversations] Query ejecutada exitosamente')
+      console.log('📊 [loadConversations] Datos recibidos:', {
+        count: data?.length || 0,
+        rawData: data
+      })
 
       const formattedConversations: Conversation[] = (data || []).map((conv: any) => ({
         id: conv.id,
@@ -248,23 +286,37 @@ export default function ConversacionesPage() {
         isFavorite: false
       }))
 
+      console.log('✅ [loadConversations] Conversaciones formateadas:', {
+        count: formattedConversations.length,
+        ids: formattedConversations.map(c => c.id)
+      })
+
       setConversations(formattedConversations)
 
       // Seleccionar primera conversación si no hay seleccionada
       if (formattedConversations.length > 0 && !selectedConversation) {
+        console.log('🎯 [loadConversations] Seleccionando primera conversación:', formattedConversations[0].id)
         setSelectedConversation(formattedConversations[0].id)
+      } else if (formattedConversations.length === 0) {
+        console.warn('⚠️ [loadConversations] No se encontraron conversaciones')
       }
     } catch (error) {
-      console.error('Error cargando conversaciones:', error)
+      console.error('❌ [loadConversations] Error cargando conversaciones:', error)
+      console.error('❌ [loadConversations] Error stack:', error instanceof Error ? error.stack : 'No stack available')
       toast.error('Error al cargar conversaciones')
     } finally {
       setLoadingConversations(false)
+      console.log('🏁 [loadConversations] Carga finalizada')
     }
-  }, [organization?.organization_id, activeFilter, supabase, selectedConversation])
+  }, [organizationId, organization?.organization_id, activeFilter, supabase, selectedConversation, sessionLoading, sessionReady])
 
   // Cargar mensajes de una conversación
   const loadMessages = useCallback(async (conversationId: string) => {
-    if (!conversationId || !organization?.organization_id) return
+    const orgId = organizationId || organization?.organization_id
+    if (!conversationId || !orgId) {
+      console.warn('⚠️ [loadMessages] No hay conversationId o organizationId')
+      return
+    }
 
     try {
       setLoadingMessages(true)
@@ -272,7 +324,7 @@ export default function ConversacionesPage() {
         .from('whatsapp_messages')
         .select('*')
         .eq('conversation_id', conversationId)
-        .eq('organization_id', organization.organization_id)
+        .eq('organization_id', orgId)
         .order('timestamp', { ascending: true })
         .limit(100)
 
@@ -297,7 +349,7 @@ export default function ConversacionesPage() {
           .from('customers')
           .select('*')
           .eq('phone', conv.contactPhone)
-          .eq('organization_id', organization.organization_id)
+          .eq('organization_id', orgId)
           .maybeSingle()
 
         setContactDetails({
@@ -323,12 +375,22 @@ export default function ConversacionesPage() {
     } finally {
       setLoadingMessages(false)
     }
-  }, [organization?.organization_id, supabase, conversations])
+  }, [organizationId, organization?.organization_id, supabase, conversations])
 
   // Cargar conversaciones al montar y cuando cambia el filtro
   useEffect(() => {
+    // Esperar a que la sesión esté lista antes de cargar
+    if (!sessionReady || sessionLoading) {
+      console.log('⏳ [useEffect] Esperando que la sesión esté lista...', {
+        sessionReady,
+        sessionLoading
+      })
+      return
+    }
+    
+    console.log('✅ [useEffect] Sesión lista, cargando conversaciones...')
     loadConversations()
-  }, [loadConversations])
+  }, [loadConversations, sessionReady, sessionLoading])
 
   // Cargar mensajes cuando se selecciona una conversación
   useEffect(() => {
@@ -362,7 +424,11 @@ export default function ConversacionesPage() {
 
   // Suscripción realtime para nuevos mensajes
   useEffect(() => {
-    if (!organization?.organization_id) return
+    const orgId = organizationId || organization?.organization_id
+    if (!orgId) {
+      console.warn('⚠️ [Realtime] No hay organizationId, omitiendo suscripción')
+      return
+    }
 
     // Limpiar suscripción anterior
     if (subscriptionRef.current) {
@@ -378,7 +444,7 @@ export default function ConversacionesPage() {
           event: '*',
           schema: 'public',
           table: 'whatsapp_messages',
-          filter: `organization_id=eq.${organization.organization_id}`
+          filter: `organization_id=eq.${orgId}`
         },
         (payload) => {
           console.log('📨 Nuevo mensaje recibido:', payload)
@@ -412,7 +478,7 @@ export default function ConversacionesPage() {
           event: '*',
           schema: 'public',
           table: 'whatsapp_conversations',
-          filter: `organization_id=eq.${organization.organization_id}`
+          filter: `organization_id=eq.${orgId}`
         },
         (payload) => {
           console.log('💬 Cambio en conversación:', payload)
@@ -431,7 +497,7 @@ export default function ConversacionesPage() {
         subscriptionRef.current = null
       }
     }
-  }, [organization?.organization_id, selectedConversation, supabase, loadMessages, loadConversations])
+  }, [organizationId, organization?.organization_id, selectedConversation, supabase, loadMessages, loadConversations])
 
   // Marcar mensajes como leídos cuando se selecciona una conversación
   useEffect(() => {
