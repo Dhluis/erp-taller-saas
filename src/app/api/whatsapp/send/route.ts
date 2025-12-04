@@ -31,9 +31,13 @@ interface SendMessageBody {
  */
 export async function POST(request: NextRequest) {
   try {
+    console.log('[WhatsApp Send] 🚀 Iniciando envío de mensaje...');
+    
     // 1. Validar autenticación
+    console.log('[WhatsApp Send] 🔍 Obteniendo contexto de tenant...');
     const tenantContext = await getTenantContext(request);
     if (!tenantContext) {
+      console.error('[WhatsApp Send] ❌ No se pudo obtener contexto de tenant');
       return NextResponse.json({
         success: false,
         error: 'No autorizado - contexto de tenant no encontrado'
@@ -41,10 +45,21 @@ export async function POST(request: NextRequest) {
     }
 
     const organizationId = tenantContext.organizationId;
-    console.log(`[WhatsApp Send] Enviando mensaje para organización: ${organizationId}`);
+    console.log(`[WhatsApp Send] ✅ Contexto obtenido:`, {
+      organizationId,
+      workshopId: tenantContext.workshopId,
+      userId: tenantContext.userId
+    });
 
     // 2. Parsear body
+    console.log('[WhatsApp Send] 📥 Parseando body del request...');
     const body: SendMessageBody = await request.json();
+    console.log('[WhatsApp Send] 📦 Body recibido:', {
+      conversationId: body.conversationId,
+      to: body.to,
+      messageLength: body.message?.length || 0,
+      type: body.type
+    });
 
     // 3. Validaciones básicas
     if (!body.to) {
