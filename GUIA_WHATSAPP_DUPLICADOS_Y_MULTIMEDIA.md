@@ -7,6 +7,44 @@
 
 ---
 
+## 🚨 ACCIÓN INMEDIATA: ACTUALIZAR WEBHOOK
+
+**Ejecuta esto AHORA en la consola del navegador (F12):**
+
+```javascript
+// Actualizar webhook con soporte multimedia
+fetch('/api/whatsapp/webhook-config', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' }
+})
+.then(r => r.json())
+.then(data => {
+  console.log('✅ Resultado:', data);
+  if (data.success) {
+    alert('✅ Webhook actualizado correctamente. Ahora prueba enviando un mensaje.');
+  } else {
+    alert('❌ Error: ' + data.error);
+  }
+})
+.catch(err => console.error('❌ Error:', err));
+```
+
+**O verifica la configuración actual:**
+
+```javascript
+// Ver configuración actual
+fetch('/api/whatsapp/webhook-config')
+.then(r => r.json())
+.then(data => {
+  console.log('📋 Configuración actual:', data);
+  if (data.needsUpdate) {
+    console.log('⚠️ Necesita actualización! Ejecuta el POST para actualizar.');
+  }
+});
+```
+
+---
+
 ## 🔍 PASO 1: VERIFICAR LOGS DEL WEBHOOK
 
 ### 1.1 Ver los logs en tiempo real
@@ -42,6 +80,22 @@ Cuando llegue un mensaje, deberías ver:
 **Si ves el mismo `Message ID` 2 veces** → WAHA está enviando duplicados
 
 **Si ves `⏭️ DUPLICADO DETECTADO Y BLOQUEADO`** → La deduplicación está funcionando
+
+**Para multimedia, busca:**
+```
+[WAHA Webhook] 🔍 DIAGNÓSTICO MULTIMEDIA: {
+  messageType: 'image',
+  hasMediaUrl: true,
+  ...
+}
+[WAHA Webhook] 📎 Media detectado: {
+  mediaType: 'image',
+  mediaUrl: 'https://...',
+  ...
+}
+```
+
+**Si NO ves `📎 Media detectado`** → WAHA no está enviando el media en el webhook
 
 ---
 

@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json();
+    body._startTime = startTime; // Guardar timestamp para logs finales
     
     // LOG DETALLADO PARA DEBUG
     const messageId = body.payload?.id || 
@@ -116,6 +117,7 @@ export async function POST(request: NextRequest) {
         console.log('='.repeat(60));
         console.log(`[Webhook] ⏭️ DUPLICADO DETECTADO Y BLOQUEADO`);
         console.log(`[Webhook] 🆔 Message ID: ${messageId}`);
+        console.log(`[Webhook] 📋 Event Type: ${eventType}`);
         console.log(`[Webhook] ⏰ Procesado hace: ${secondsAgo}s (${millisecondsAgo}ms)`);
         console.log(`[Webhook] 📊 Cache size: ${processedMessages.size}`);
         console.log('='.repeat(60));
@@ -130,6 +132,15 @@ export async function POST(request: NextRequest) {
       // Marcar como procesado ANTES de procesar (evitar race conditions)
       processedMessages.set(cacheKey, Date.now());
       console.log(`[Webhook] 📝 Mensaje registrado en cache: ${messageId} (cache size: ${processedMessages.size})`);
+      console.log(`[Webhook] 📋 Event Type: ${eventType}`);
+    } else if (eventType === 'message' || eventType === 'message.any') {
+      // Si es mensaje pero no tiene ID, log de advertencia
+      console.warn('[Webhook] ⚠️ Mensaje sin ID - no se puede deduplicar:', {
+        eventType,
+        hasPayload: !!body.payload,
+        hasMessage: !!body.message,
+        bodyKeys: Object.keys(body)
+      });
     }
     // === FIN DEDUPLICACIÓN ===
 
@@ -137,9 +148,20 @@ export async function POST(request: NextRequest) {
     
     switch (eventType) {
       case 'message':
-      case 'message.any':
         await handleMessageEvent(body);
         break;
+      
+      case 'message.any':
+        // ⚠️ Este evento NO debería llegar si el webhook está configurado correctamente
+        console.log('[Webhook] ⚠️ ADVERTENCIA: Evento message.any recibido (no debería estar en webhook)');
+        console.log('[Webhook] ⚠️ Ignorando message.any - solo procesamos "message"');
+        // NO procesar message.any para evitar duplicados
+        return NextResponse.json({ 
+          success: true, 
+          skipped: true, 
+          reason: 'message.any_ignored',
+          message: 'Evento message.any ignorado. Solo procesamos "message"'
+        });
       
       case 'session.status':
       case 'status':
@@ -183,7 +205,15 @@ async function handleMessageEvent(body: any) {
     console.log('[Webhook] ⏰ Timestamp:', new Date().toISOString());
     console.log('='.repeat(60));
     console.log('[WAHA Webhook] 📨 Procesando mensaje...');
-    console.log('[WAHA Webhook] 📦 Body completo:', JSON.stringify(body).substring(0, 500));
+    console.log('[WAHA Webhook] 📦 Body completo:', JSON.stringify(body, null, 2));
+    console.log('[WAHA Webhook] 🔍 Estructura del mensaje:', {
+      hasPayload: !!body.payload,
+      hasMessage: !!body.message,
+      hasData: !!body.data,
+      payloadKeys: body.payload ? Object.keys(body.payload) : [],
+      messageKeys: body.message ? Object.keys(body.message) : [],
+      dataKeys: body.data ? Object.keys(body.data) : []
+    });
 
     // 1. Extraer datos del mensaje
     const message = body.payload || body.message || body.data || body;
@@ -288,6 +318,22 @@ async function handleMessageEvent(body: any) {
 
     // 9. Detectar tipo de mensaje y multimedia
     const messageType = message.type || message.messageType || 'text';
+    
+    // Log detallado para diagnóstico de multimedia
+    console.log('[WAHA Webhook] 🔍 DIAGNÓSTICO MULTIMEDIA:', {
+      messageType,
+      hasMediaField: !!message.hasMedia,
+      hasMediaUrl: !!message.mediaUrl,
+      hasImage: !!message.image,
+      hasAudio: !!message.audio,
+      hasVideo: !!message.video,
+      hasDocument: !!message.document,
+      hasMimetype: !!message.mimetype,
+      mimetype: message.mimetype,
+      messageKeys: Object.keys(message),
+      messageStructure: JSON.stringify(message, null, 2).substring(0, 1000)
+    });
+    
     const hasMedia = message.hasMedia || 
                      message.mediaUrl || 
                      message.image || 
@@ -308,7 +354,9 @@ async function handleMessageEvent(body: any) {
                  message.audio?.url ||
                  message.document?.url ||
                  message.video?.url ||
-                 message._data?.mediaUrl;
+                 message._data?.mediaUrl ||
+                 message.mediaUrl ||
+                 message.body?.mediaUrl;
       
       // Detectar tipo de media
       if (message.type === 'image' || message.image || message.mimetype?.startsWith('image/')) {
@@ -323,10 +371,13 @@ async function handleMessageEvent(body: any) {
       
       console.log('[WAHA Webhook] 📎 Media detectado:', {
         mediaType,
-        mediaUrl: mediaUrl ? mediaUrl.substring(0, 50) + '...' : null,
+        mediaUrl: mediaUrl ? mediaUrl.substring(0, 100) + '...' : null,
         mimetype: message.mimetype,
-        originalType: message.type
+        originalType: message.type,
+        hasMediaUrl: !!mediaUrl
       });
+    } else {
+      console.log('[WAHA Webhook] ⚠️ NO se detectó multimedia en el mensaje');
     }
 
     // Construir texto del mensaje incluyendo info de media
@@ -448,14 +499,29 @@ async function handleMessageEvent(body: any) {
           }
         );
         console.log('[WAHA Webhook] ✅ Respuesta enviada y guardada');
-        console.log(`[Webhook] ✅ Mensaje ${messageId} procesado y respondido correctamente`);
+        console.log('='.repeat(60));
+        console.log(`[Webhook] ✅✅✅ MENSAJE COMPLETAMENTE PROCESADO`);
+        console.log(`[Webhook] 🆔 Message ID: ${messageId}`);
+        console.log(`[Webhook] 📤 Respuesta enviada: SÍ`);
+        console.log(`[Webhook] ⏱️ Tiempo total: ${Date.now() - (body._startTime || Date.now())}ms`);
+        console.log('='.repeat(60));
         }
       } catch (sendError: any) {
         console.error('[WAHA Webhook] ❌ Error enviando respuesta:', sendError.message);
+        console.log('='.repeat(60));
+        console.log(`[Webhook] ❌ ERROR AL ENVIAR RESPUESTA`);
+        console.log(`[Webhook] 🆔 Message ID: ${messageId}`);
+        console.log(`[Webhook] ⚠️ Error: ${sendError.message}`);
+        console.log('='.repeat(60));
       }
     } else {
       console.log('[WAHA Webhook] ⚠️ AI no generó respuesta:', aiResult.error);
-      console.log(`[Webhook] ✅ Mensaje ${messageId} procesado (sin respuesta AI)`);
+      console.log('='.repeat(60));
+      console.log(`[Webhook] ✅ MENSAJE PROCESADO (SIN RESPUESTA)`);
+      console.log(`[Webhook] 🆔 Message ID: ${messageId}`);
+      console.log(`[Webhook] 📤 Respuesta enviada: NO`);
+      console.log(`[Webhook] ⚠️ Razón: ${aiResult.error || 'AI no generó respuesta'}`);
+      console.log('='.repeat(60));
     }
 
   } catch (error) {
