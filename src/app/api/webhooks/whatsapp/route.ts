@@ -75,12 +75,12 @@ export async function GET(request: NextRequest) {
  * Recibe eventos de WAHA
  */
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     const body = await request.json();
-    console.log('[WAHA Webhook] Evento recibido:', body.event || body.type || 'unknown');
-
-    // === DEDUPLICACIÓN ===
-    // Extraer ID único del mensaje (múltiples formatos posibles)
+    
+    // LOG DETALLADO PARA DEBUG
     const messageId = body.payload?.id || 
                       body.id || 
                       body.payload?._data?.id?.id ||
@@ -90,6 +90,20 @@ export async function POST(request: NextRequest) {
                       body.payload?._data?.key?.id;
     const eventType = body.event || body.type || body.eventType;
     
+    console.log('='.repeat(60));
+    console.log('[Webhook] 🔔 NUEVO EVENTO RECIBIDO');
+    console.log('[Webhook] 📋 Event Type:', eventType);
+    console.log('[Webhook] 🆔 Message ID:', messageId);
+    console.log('[Webhook] 📦 Session:', body.session);
+    console.log('[Webhook] ⏰ Timestamp:', new Date().toISOString());
+    console.log('[Webhook] 📊 Cache size:', processedMessages.size);
+    console.log('[Webhook] 📝 Cache keys:', Array.from(processedMessages.keys()).slice(-5)); // Últimos 5
+    console.log('='.repeat(60));
+    
+    console.log('[WAHA Webhook] Evento recibido:', body.event || body.type || 'unknown');
+
+    // === DEDUPLICACIÓN ===
+    
     // Solo deduplicar eventos de mensaje (no session.status)
     if (messageId && (eventType === 'message' || eventType === 'message.any')) {
       const cacheKey = `${messageId}`;
@@ -98,7 +112,13 @@ export async function POST(request: NextRequest) {
       if (processedMessages.has(cacheKey)) {
         const processedTime = processedMessages.get(cacheKey);
         const secondsAgo = Math.floor((Date.now() - processedTime!) / 1000);
-        console.log(`[Webhook] ⏭️ Mensaje duplicado ignorado: ${messageId} (procesado hace ${secondsAgo}s)`);
+        const millisecondsAgo = Date.now() - processedTime!;
+        console.log('='.repeat(60));
+        console.log(`[Webhook] ⏭️ DUPLICADO DETECTADO Y BLOQUEADO`);
+        console.log(`[Webhook] 🆔 Message ID: ${messageId}`);
+        console.log(`[Webhook] ⏰ Procesado hace: ${secondsAgo}s (${millisecondsAgo}ms)`);
+        console.log(`[Webhook] 📊 Cache size: ${processedMessages.size}`);
+        console.log('='.repeat(60));
         return NextResponse.json({ 
           success: true, 
           skipped: true, 
@@ -109,7 +129,7 @@ export async function POST(request: NextRequest) {
       
       // Marcar como procesado ANTES de procesar (evitar race conditions)
       processedMessages.set(cacheKey, Date.now());
-      console.log(`[Webhook] 📝 Mensaje registrado: ${messageId} (cache size: ${processedMessages.size})`);
+      console.log(`[Webhook] 📝 Mensaje registrado en cache: ${messageId} (cache size: ${processedMessages.size})`);
     }
     // === FIN DEDUPLICACIÓN ===
 
@@ -135,9 +155,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Siempre retornar 200 para evitar reintentos de WAHA
+    const processingTime = Date.now() - startTime;
+    console.log('[Webhook] ⏱️ Tiempo total de procesamiento:', processingTime, 'ms');
+    console.log('[Webhook] ✅ Evento procesado exitosamente');
     return NextResponse.json({ success: true, received: true });
   } catch (error) {
+    const processingTime = Date.now() - startTime;
     console.error('[WAHA Webhook] ❌ Error procesando evento:', error);
+    console.log('[Webhook] ⏱️ Tiempo antes del error:', processingTime, 'ms');
     // Siempre retornar 200 incluso en caso de error
     return NextResponse.json({ 
       success: false, 
@@ -151,6 +176,12 @@ export async function POST(request: NextRequest) {
  */
 async function handleMessageEvent(body: any) {
   try {
+    const eventMessageId = body.payload?.id || body.id || body.payload?._data?.id?.id || body.payload?.messageId || body.messageId;
+    console.log('='.repeat(60));
+    console.log('[Webhook] 📨 INICIANDO handleMessageEvent');
+    console.log('[Webhook] 🆔 Message ID en handleMessageEvent:', eventMessageId);
+    console.log('[Webhook] ⏰ Timestamp:', new Date().toISOString());
+    console.log('='.repeat(60));
     console.log('[WAHA Webhook] 📨 Procesando mensaje...');
     console.log('[WAHA Webhook] 📦 Body completo:', JSON.stringify(body).substring(0, 500));
 
@@ -380,6 +411,7 @@ async function handleMessageEvent(body: any) {
 
     // 13. Procesar mensaje con AI Agent
     console.log('[WAHA Webhook] 🤖 Procesando con AI Agent...');
+    console.log('[Webhook] 🤖 ANTES de llamar a AI - messageId:', messageId);
     const aiResult = await processMessage({
       organizationId,
       conversationId,
@@ -387,12 +419,14 @@ async function handleMessageEvent(body: any) {
       customerPhone: customerPhone,
       useServiceClient: true // Usar service client para bypass RLS
     });
+    console.log('[Webhook] 🤖 DESPUÉS de AI - messageId:', messageId, '- Respuesta:', aiResult.success ? 'SÍ' : 'NO');
 
     // 14. Si AI responde, enviar respuesta
     if (aiResult.success && aiResult.response) {
       console.log('[WAHA Webhook] ✅ AI generó respuesta, enviando...');
       
       try {
+        console.log('[Webhook] 📤 ENVIANDO respuesta - messageId:', messageId);
         const sendResult = await sendWhatsAppMessage(
           sessionName,
         customerPhone,
