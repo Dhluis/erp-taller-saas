@@ -328,13 +328,14 @@ export default function ConversacionesPage() {
         .select('*')
         .eq('conversation_id', conversationId)
         .eq('organization_id', orgId)
-        .order('timestamp', { ascending: true })
+        .order('created_at', { ascending: true })
         .limit(100)
 
       if (error) throw error
 
       const formattedMessages: Message[] = (data || []).map((msg: any) => {
-        const timestamp = msg.timestamp || msg.created_at
+        // La columna correcta es created_at, no timestamp
+        const timestamp = msg.created_at || msg.sent_at || msg.timestamp
         let date: Date
         try {
           date = timestamp ? new Date(timestamp) : new Date()
