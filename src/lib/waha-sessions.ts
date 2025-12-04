@@ -12,9 +12,25 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server';
  * Formato: eagles_<orgId sin guiones, primeros 20 caracteres>
  */
 export function generateSessionName(organizationId: string): string {
+  if (!organizationId || organizationId.trim() === '') {
+    throw new Error('organizationId es requerido para generar nombre de sesión');
+  }
+  
   // Remover guiones y tomar primeros 20 caracteres
   const cleanId = organizationId.replace(/-/g, '').substring(0, 20);
-  return `eagles_${cleanId}`;
+  const sessionName = `eagles_${cleanId}`;
+  
+  console.log(`[WAHA Sessions] 🔧 Generando nombre de sesión:`, {
+    organizationId,
+    cleanId,
+    sessionName
+  });
+  
+  if (!sessionName || sessionName === 'eagles_' || sessionName.length < 10) {
+    throw new Error(`Nombre de sesión inválido generado: ${sessionName}`);
+  }
+  
+  return sessionName;
 }
 
 /**
@@ -175,11 +191,20 @@ export async function startSession(sessionName: string, organizationId?: string)
  * Crear sesión para una organización
  */
 export async function createOrganizationSession(organizationId: string): Promise<string> {
+  if (!organizationId || organizationId.trim() === '') {
+    throw new Error('organizationId es requerido para crear sesión');
+  }
+
+  console.log(`[WAHA Sessions] 🚀 Creando sesión para organización: ${organizationId}`);
+  
   const { url, key } = await getWahaConfig(organizationId);
   const sessionName = generateSessionName(organizationId);
 
-  console.log(`[WAHA Sessions] 🚀 Creando sesión para organización: ${organizationId}`);
-  console.log(`[WAHA Sessions] 📝 Nombre de sesión: ${sessionName}`);
+  if (!sessionName || sessionName === 'default' || sessionName.trim() === '' || sessionName === 'eagles_') {
+    throw new Error(`Nombre de sesión inválido generado: "${sessionName}"`);
+  }
+
+  console.log(`[WAHA Sessions] 📝 Nombre de sesión generado: ${sessionName}`);
   console.log(`[WAHA Sessions] 🌐 WAHA URL: ${url}`);
   console.log(`[WAHA Sessions] 🔑 WAHA Key length: ${key.length}`);
 
@@ -357,6 +382,7 @@ export async function getOrganizationFromSession(sessionName: string): Promise<s
  * Obtener sesión de una organización (crear si no existe)
  */
 export async function getOrganizationSession(organizationId: string): Promise<string> {
+  console.log(`[WAHA Sessions] 🔍 Buscando sesión para organización: ${organizationId}`);
   const supabase = getSupabaseServiceClient();
 
   // Buscar sesión existente en BD
@@ -366,17 +392,42 @@ export async function getOrganizationSession(organizationId: string): Promise<st
     .eq('organization_id', organizationId)
     .single();
 
+  console.log(`[WAHA Sessions] 🔍 Resultado de búsqueda en BD:`, {
+    data,
+    error: error ? {
+      code: error.code,
+      message: error.message,
+      details: error.details
+    } : null,
+    hasSessionName: !!data?.whatsapp_session_name,
+    sessionName: data?.whatsapp_session_name
+  });
+
   if (error && error.code !== 'PGRST116') {
     console.warn(`[WAHA Sessions] ⚠️ Error leyendo sesión de BD:`, error);
   }
 
   if (data?.whatsapp_session_name) {
-    console.log(`[WAHA Sessions] ✅ Sesión encontrada: ${data.whatsapp_session_name}`);
-    return data.whatsapp_session_name;
+    const sessionName = data.whatsapp_session_name;
+    console.log(`[WAHA Sessions] ✅ Sesión encontrada en BD: ${sessionName}`);
+    
+    // Verificar que la sesión existe en WAHA antes de retornarla
+    try {
+      const status = await getSessionStatus(sessionName, organizationId);
+      if (!status.exists || status.status === 'NOT_FOUND') {
+        console.warn(`[WAHA Sessions] ⚠️ Sesión ${sessionName} no existe en WAHA, creando nueva...`);
+        return await createOrganizationSession(organizationId);
+      }
+      console.log(`[WAHA Sessions] ✅ Sesión ${sessionName} existe en WAHA con estado: ${status.status}`);
+      return sessionName;
+    } catch (statusError: any) {
+      console.warn(`[WAHA Sessions] ⚠️ Error verificando estado de sesión, creando nueva:`, statusError.message);
+      return await createOrganizationSession(organizationId);
+    }
   }
 
   // Si no existe, crear nueva sesión
-  console.log(`[WAHA Sessions] 📝 Sesión no encontrada, creando nueva...`);
+  console.log(`[WAHA Sessions] 📝 Sesión no encontrada en BD, creando nueva...`);
   return await createOrganizationSession(organizationId);
 }
 
@@ -552,26 +603,57 @@ export async function sendWhatsAppMessage(
   text: string,
   organizationId?: string
 ): Promise<any> {
+  // Validar que sessionName no sea vacío o "default"
+  if (!sessionName || sessionName.trim() === '' || sessionName === 'default') {
+    console.error(`[WAHA Sessions] ❌ Nombre de sesión inválido: "${sessionName}"`);
+    throw new Error(`Nombre de sesión inválido: "${sessionName}". La sesión debe estar configurada correctamente.`);
+  }
+
+  console.log(`[WAHA Sessions] 📤 Preparando envío de mensaje:`, {
+    sessionName,
+    to,
+    textLength: text.length,
+    organizationId
+  });
+
   // Obtener organizationId si no se proporcionó
   const orgId = organizationId || await getOrganizationFromSession(sessionName);
   const { url, key } = await getWahaConfig(orgId || undefined);
 
+  if (!url || !key) {
+    console.error(`[WAHA Sessions] ❌ Configuración WAHA no disponible`);
+    throw new Error('Configuración de WAHA no disponible');
+  }
+
   // Formatear número si no tiene @
   const chatId = to.includes('@') ? to : `${to}@c.us`;
 
-  console.log(`[WAHA Sessions] 📤 Enviando mensaje desde ${sessionName} a ${chatId}`);
+  console.log(`[WAHA Sessions] 📤 Enviando mensaje:`, {
+    sessionName,
+    chatId,
+    url: `${url}/api/sendText`,
+    hasKey: !!key
+  });
 
-  const response = await fetch(`${url}/api/sendText`, {
+  // WAHA Plus usa el formato: /api/{sessionName}/sendText
+  // NO usa /api/sendText con session en el body
+  const requestBody = {
+    chatId,
+    text
+  };
+
+  const endpointUrl = `${url}/api/${sessionName}/sendText`;
+
+  console.log(`[WAHA Sessions] 📦 Request body:`, requestBody);
+  console.log(`[WAHA Sessions] 🌐 Endpoint URL: ${endpointUrl}`);
+
+  const response = await fetch(endpointUrl, {
     method: 'POST',
     headers: {
       'X-Api-Key': key,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      session: sessionName,
-      chatId,
-      text
-    })
+    body: JSON.stringify(requestBody)
   });
 
   if (!response) {

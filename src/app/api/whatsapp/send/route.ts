@@ -135,8 +135,30 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Obtener sesión de la organización
-    const sessionName = await getOrganizationSession(organizationId);
-    console.log(`[WhatsApp Send] 📝 Usando sesión: ${sessionName}`);
+    console.log(`[WhatsApp Send] 🔍 Obteniendo sesión para organización: ${organizationId}`);
+    let sessionName: string;
+    try {
+      sessionName = await getOrganizationSession(organizationId);
+      console.log(`[WhatsApp Send] ✅ Sesión obtenida: ${sessionName}`);
+    } catch (sessionError: any) {
+      console.error(`[WhatsApp Send] ❌ Error obteniendo sesión:`, {
+        error: sessionError.message,
+        stack: sessionError.stack,
+        organizationId
+      });
+      return NextResponse.json({
+        success: false,
+        error: `Error obteniendo sesión de WhatsApp: ${sessionError.message}`
+      }, { status: 500 });
+    }
+    
+    if (!sessionName || sessionName === 'default') {
+      console.error(`[WhatsApp Send] ❌ Sesión inválida o por defecto: ${sessionName}`);
+      return NextResponse.json({
+        success: false,
+        error: `Sesión de WhatsApp no configurada para esta organización. Por favor, configura la sesión primero.`
+      }, { status: 500 });
+    }
 
     // 8. Enviar mensaje según el tipo
     let sendResult: any;
