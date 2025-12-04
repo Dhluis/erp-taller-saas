@@ -135,11 +135,20 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Obtener sesión de la organización
-    console.log(`[WhatsApp Send] 🔍 Obteniendo sesión para organización: ${organizationId}`);
+    console.log(`[WhatsApp Send] 🔍 ===== OBTENIENDO SESIÓN =====`);
+    console.log(`[WhatsApp Send] 🔍 organizationId: ${organizationId}`);
     let sessionName: string;
     try {
       sessionName = await getOrganizationSession(organizationId);
-      console.log(`[WhatsApp Send] ✅ Sesión obtenida: ${sessionName}`);
+      console.log(`[WhatsApp Send] ✅ Sesión obtenida: "${sessionName}"`);
+      console.log(`[WhatsApp Send] 📊 Validando sesión:`, {
+        sessionName,
+        type: typeof sessionName,
+        length: sessionName?.length,
+        isDefault: sessionName === 'default',
+        isEmpty: !sessionName || sessionName.trim() === '',
+        isValid: sessionName && sessionName !== 'default' && sessionName.trim() !== ''
+      });
     } catch (sessionError: any) {
       console.error(`[WhatsApp Send] ❌ Error obteniendo sesión:`, {
         error: sessionError.message,
@@ -152,13 +161,22 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
     
-    if (!sessionName || sessionName === 'default') {
-      console.error(`[WhatsApp Send] ❌ Sesión inválida o por defecto: ${sessionName}`);
+    // Validación estricta del nombre de sesión
+    if (!sessionName || sessionName.trim() === '' || sessionName === 'default') {
+      console.error(`[WhatsApp Send] ❌ Sesión inválida o por defecto:`, {
+        sessionName,
+        type: typeof sessionName,
+        length: sessionName?.length,
+        isEmpty: !sessionName || sessionName.trim() === '',
+        isDefault: sessionName === 'default'
+      });
       return NextResponse.json({
         success: false,
-        error: `Sesión de WhatsApp no configurada para esta organización. Por favor, configura la sesión primero.`
+        error: `Sesión de WhatsApp no configurada para esta organización. Por favor, configura la sesión primero. Sesión recibida: "${sessionName}"`
       }, { status: 500 });
     }
+
+    console.log(`[WhatsApp Send] ✅ Sesión validada correctamente: "${sessionName}"`);
 
     // 8. Enviar mensaje según el tipo
     let sendResult: any;

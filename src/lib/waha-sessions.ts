@@ -195,16 +195,27 @@ export async function createOrganizationSession(organizationId: string): Promise
     throw new Error('organizationId es requerido para crear sesión');
   }
 
-  console.log(`[WAHA Sessions] 🚀 Creando sesión para organización: ${organizationId}`);
+  console.log(`[WAHA Sessions] 🚀 ===== INICIANDO createOrganizationSession =====`);
+  console.log(`[WAHA Sessions] 🚀 organizationId: ${organizationId}`);
   
+  console.log(`[WAHA Sessions] 🔧 Obteniendo configuración WAHA...`);
   const { url, key } = await getWahaConfig(organizationId);
+  console.log(`[WAHA Sessions] ✅ Configuración obtenida:`, {
+    url,
+    hasKey: !!key,
+    keyLength: key?.length || 0
+  });
+
+  console.log(`[WAHA Sessions] 🔧 Generando nombre de sesión...`);
   const sessionName = generateSessionName(organizationId);
+  console.log(`[WAHA Sessions] ✅ Nombre generado: "${sessionName}"`);
 
   if (!sessionName || sessionName === 'default' || sessionName.trim() === '' || sessionName === 'eagles_') {
+    console.error(`[WAHA Sessions] ❌ Nombre de sesión inválido: "${sessionName}"`);
     throw new Error(`Nombre de sesión inválido generado: "${sessionName}"`);
   }
 
-  console.log(`[WAHA Sessions] 📝 Nombre de sesión generado: ${sessionName}`);
+  console.log(`[WAHA Sessions] 📝 Nombre de sesión validado: ${sessionName}`);
   console.log(`[WAHA Sessions] 🌐 WAHA URL: ${url}`);
   console.log(`[WAHA Sessions] 🔑 WAHA Key length: ${key.length}`);
 
@@ -382,10 +393,17 @@ export async function getOrganizationFromSession(sessionName: string): Promise<s
  * Obtener sesión de una organización (crear si no existe)
  */
 export async function getOrganizationSession(organizationId: string): Promise<string> {
-  console.log(`[WAHA Sessions] 🔍 Buscando sesión para organización: ${organizationId}`);
+  console.log(`[WAHA Sessions] 🔍 ===== INICIANDO getOrganizationSession =====`);
+  console.log(`[WAHA Sessions] 🔍 organizationId recibido: ${organizationId}`);
+  
+  if (!organizationId || organizationId.trim() === '') {
+    throw new Error('organizationId es requerido y no puede estar vacío');
+  }
+
   const supabase = getSupabaseServiceClient();
 
   // Buscar sesión existente en BD
+  console.log(`[WAHA Sessions] 🔍 Buscando en BD: ai_agent_config donde organization_id = ${organizationId}`);
   const { data, error } = await supabase
     .from('ai_agent_config')
     .select('whatsapp_session_name')
@@ -397,10 +415,13 @@ export async function getOrganizationSession(organizationId: string): Promise<st
     error: error ? {
       code: error.code,
       message: error.message,
-      details: error.details
+      details: error.details,
+      hint: error.hint
     } : null,
     hasSessionName: !!data?.whatsapp_session_name,
-    sessionName: data?.whatsapp_session_name
+    sessionName: data?.whatsapp_session_name,
+    sessionNameType: typeof data?.whatsapp_session_name,
+    sessionNameLength: data?.whatsapp_session_name?.length
   });
 
   if (error && error.code !== 'PGRST116') {
@@ -409,26 +430,40 @@ export async function getOrganizationSession(organizationId: string): Promise<st
 
   if (data?.whatsapp_session_name) {
     const sessionName = data.whatsapp_session_name;
-    console.log(`[WAHA Sessions] ✅ Sesión encontrada en BD: ${sessionName}`);
+    console.log(`[WAHA Sessions] ✅ Sesión encontrada en BD: "${sessionName}"`);
+    
+    // Validar que el nombre de sesión no sea "default" o vacío
+    if (!sessionName || sessionName.trim() === '' || sessionName === 'default') {
+      console.error(`[WAHA Sessions] ❌ Nombre de sesión inválido en BD: "${sessionName}"`);
+      console.log(`[WAHA Sessions] 🔄 Creando nueva sesión para reemplazar valor inválido...`);
+      return await createOrganizationSession(organizationId);
+    }
     
     // Verificar que la sesión existe en WAHA antes de retornarla
     try {
+      console.log(`[WAHA Sessions] 🔍 Verificando estado de sesión en WAHA: ${sessionName}`);
       const status = await getSessionStatus(sessionName, organizationId);
+      console.log(`[WAHA Sessions] 📊 Estado de sesión:`, status);
+      
       if (!status.exists || status.status === 'NOT_FOUND') {
         console.warn(`[WAHA Sessions] ⚠️ Sesión ${sessionName} no existe en WAHA, creando nueva...`);
         return await createOrganizationSession(organizationId);
       }
       console.log(`[WAHA Sessions] ✅ Sesión ${sessionName} existe en WAHA con estado: ${status.status}`);
+      console.log(`[WAHA Sessions] ✅ ===== RETORNANDO SESIÓN: ${sessionName} =====`);
       return sessionName;
     } catch (statusError: any) {
-      console.warn(`[WAHA Sessions] ⚠️ Error verificando estado de sesión, creando nueva:`, statusError.message);
+      console.warn(`[WAHA Sessions] ⚠️ Error verificando estado de sesión:`, statusError.message);
+      console.log(`[WAHA Sessions] 🔄 Creando nueva sesión debido a error...`);
       return await createOrganizationSession(organizationId);
     }
   }
 
   // Si no existe, crear nueva sesión
   console.log(`[WAHA Sessions] 📝 Sesión no encontrada en BD, creando nueva...`);
-  return await createOrganizationSession(organizationId);
+  const newSessionName = await createOrganizationSession(organizationId);
+  console.log(`[WAHA Sessions] ✅ ===== SESIÓN CREADA: ${newSessionName} =====`);
+  return newSessionName;
 }
 
 /**
