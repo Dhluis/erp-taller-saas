@@ -436,6 +436,18 @@ async function handleMessageEvent(body: any) {
         await (supabase as any).rpc('increment_conversation_message_count', {
           conversation_id: conversationId
         });
+        
+        // Actualizar last_message en la conversación (después de RPC)
+        await (supabase as any)
+          .from('whatsapp_conversations')
+          .update({
+            last_message: messageText.substring(0, 150),
+            last_message_at: timestamp.toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', conversationId);
+        
+        console.log('[Webhook] ✅ Conversación actualizada con mensaje entrante');
       } catch (rpcError) {
         // Si la función RPC no existe, hacer update manual
         const { data: conv } = await supabase
@@ -447,11 +459,14 @@ async function handleMessageEvent(body: any) {
         await (supabase as any)
           .from('whatsapp_conversations')
           .update({
+            last_message: messageText.substring(0, 150),
             last_message_at: timestamp.toISOString(),
             messages_count: ((conv as any)?.messages_count || 0) + 1,
             updated_at: new Date().toISOString()
           })
           .eq('id', conversationId);
+        
+        console.log('[Webhook] ✅ Conversación actualizada con mensaje entrante');
       }
       
     } catch (err: any) {
@@ -804,13 +819,14 @@ async function saveIncomingMessage(
   await supabase
     .from('whatsapp_conversations')
     .update({
+      last_message: message.body.substring(0, 150),
       last_message_at: message.timestamp.toISOString(),
       messages_count: (conv?.messages_count || 0) + 1,
       updated_at: new Date().toISOString()
     })
     .eq('id', conversationId);
 
-  console.log('[WAHA Webhook] ✅ Mensaje entrante guardado');
+  console.log('[Webhook] ✅ Conversación actualizada con mensaje entrante');
 }
 
 /**
@@ -852,12 +868,13 @@ async function saveOutgoingMessage(
   await supabase
     .from('whatsapp_conversations')
     .update({
+      last_message: message.body.substring(0, 150),
       last_message_at: message.timestamp.toISOString(),
       messages_count: (conv?.messages_count || 0) + 1,
       updated_at: new Date().toISOString()
     })
     .eq('id', conversationId);
 
-  console.log('[WAHA Webhook] ✅ Mensaje saliente guardado');
+  console.log('[Webhook] ✅ Conversación actualizada con mensaje saliente');
 }
 
