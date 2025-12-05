@@ -301,9 +301,19 @@ export function OrderDetailModal({ isOpen, onClose, order, onUpdate }: OrderDeta
                 <FileText className="w-4 h-4" />
                 NOTAS
               </h3>
-              <p className="text-slate-300 text-sm leading-relaxed">
-                {order.notes}
-              </p>
+              {Array.isArray(order.notes) ? (
+                <div className="space-y-2">
+                  {order.notes.map((note: any, index: number) => (
+                    <p key={note?.id || index} className="text-slate-300 text-sm leading-relaxed">
+                      {typeof note === 'object' && note?.text ? note.text : String(note)}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  {String(order.notes)}
+                </p>
+              )}
             </div>
           )}
 

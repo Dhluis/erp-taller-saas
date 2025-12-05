@@ -378,7 +378,17 @@ export default function OrderDetailPage() {
               <Separator className="my-4" />
               <div>
                 <h4 className="font-medium mb-2">Notas Adicionales</h4>
-                <p className="text-sm text-muted-foreground">{order.notes}</p>
+                {Array.isArray(order.notes) ? (
+                  <div className="space-y-2">
+                    {order.notes.map((note: any, index: number) => (
+                      <p key={note?.id || index} className="text-sm text-muted-foreground">
+                        {typeof note === 'object' && note?.text ? note.text : String(note)}
+                      </p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{String(order.notes)}</p>
+                )}
               </div>
             </>
           )}
