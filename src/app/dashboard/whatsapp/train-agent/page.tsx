@@ -11,6 +11,7 @@ import { PersonalityStep } from './components/PersonalityStep'
 import { FAQStep } from './components/FAQStep'
 import { CustomInstructionsStep } from './components/CustomInstructionsStep'
 import { PreviewTestStep } from './components/PreviewTestStep'
+import { AppointmentSchedulingStep } from './components/AppointmentSchedulingStep'
 import { WhatsAppQRConnectorSimple as WhatsAppQRConnector } from '@/components/WhatsAppQRConnectorSimple'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
@@ -60,6 +61,20 @@ export default function TrainAgentPage() {
     escalationRules: {
       keywords_to_escalate: [],
       max_messages_before_escalate: 10
+    },
+    appointmentScheduling: {
+      auto_schedule_appointments: false,
+      require_human_approval: false,
+      services: [],
+      business_hours: {
+        monday: { start: '09:00', end: '18:00' },
+        tuesday: { start: '09:00', end: '18:00' },
+        wednesday: { start: '09:00', end: '18:00' },
+        thursday: { start: '09:00', end: '18:00' },
+        friday: { start: '09:00', end: '18:00' },
+        saturday: { start: '09:00', end: '14:00' },
+        sunday: null
+      }
     }
   })
 
@@ -84,7 +99,8 @@ export default function TrainAgentPage() {
           personality: formData.personality,
           faq: formData.faq,
           customInstructions: formData.customInstructions,
-          escalationRules: formData.escalationRules
+          escalationRules: formData.escalationRules,
+          appointmentScheduling: formData.appointmentScheduling
         })
       })
 
@@ -217,7 +233,7 @@ export default function TrainAgentPage() {
         </div>
         
         {/* Progress Bar */}
-        <ProgressBar currentStep={step} totalSteps={7} />
+        <ProgressBar currentStep={step} totalSteps={8} />
         
         {/* Wizard Steps */}
         <div className="mt-8">
@@ -264,6 +280,12 @@ export default function TrainAgentPage() {
             />
           )}
           {step === 7 && (
+            <AppointmentSchedulingStep 
+              data={formData.appointmentScheduling} 
+              onChange={(data) => updateFormData('appointmentScheduling', data)} 
+            />
+          )}
+          {step === 8 && (
             <PreviewTestStep 
               data={formData} 
               onSave={handleSave}
@@ -282,9 +304,9 @@ export default function TrainAgentPage() {
             ← Anterior
           </Button>
           
-          {step < 7 && (
+          {step < 8 && (
             <Button 
-              onClick={() => setStep(Math.min(7, step + 1))}
+              onClick={() => setStep(Math.min(8, step + 1))}
             >
               Siguiente →
             </Button>
