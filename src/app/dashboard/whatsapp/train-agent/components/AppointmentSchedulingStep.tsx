@@ -235,6 +235,7 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
                     variant="ghost"
                     size="sm"
                     onClick={() => removeService(index)}
+                    className="text-text-primary hover:text-destructive hover:bg-destructive/10"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -284,7 +285,7 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
             <Button
               variant="outline"
               onClick={addService}
-              className="w-full"
+              className="w-full border-2 border-primary/50 text-text-primary hover:bg-primary/10 hover:border-primary"
             >
               <Plus className="h-4 w-4 mr-2" />
               Agregar servicio
@@ -324,6 +325,7 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
                           variant="outline"
                           size="sm"
                           onClick={() => updateBusinessHours(day, 'start', '09:00')}
+                          className="border-2 border-primary/50 text-text-primary hover:bg-primary/10 hover:border-primary"
                         >
                           Abrir
                         </Button>
@@ -348,7 +350,7 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
                           variant="ghost"
                           size="sm"
                           onClick={() => updateBusinessHours(day, null, null)}
-                          className="text-destructive"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
                         >
                           Cerrar
                         </Button>

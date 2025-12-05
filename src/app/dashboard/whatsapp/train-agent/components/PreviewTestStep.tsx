@@ -252,6 +252,7 @@ export function PreviewTestStep({ data, onSave, loading }: PreviewTestStepProps)
                 variant="outline"
                 size="sm"
                 onClick={clearChat}
+                className="border-2 border-primary/50 text-text-primary hover:bg-primary/10 hover:border-primary"
               >
                 Limpiar chat
               </Button>
@@ -372,7 +373,7 @@ export function PreviewTestStep({ data, onSave, loading }: PreviewTestStepProps)
                   onClick={() => handleSuggestedMessage(msg)}
                   disabled={isTesting}
                   type="button"
-                  className="text-xs"
+                  className="text-xs border-2 border-primary/50 text-text-primary hover:bg-primary/10 hover:border-primary"
                 >
                   {msg}
                 </Button>

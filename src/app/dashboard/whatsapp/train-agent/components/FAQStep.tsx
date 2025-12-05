@@ -135,6 +135,7 @@ export function FAQStep({ data, onChange }: FAQStepProps) {
                 size="sm"
                 type="button"
                 onClick={() => removeFAQ(index)}
+                className="text-text-primary hover:text-destructive hover:bg-destructive/10"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -166,7 +167,7 @@ export function FAQStep({ data, onChange }: FAQStepProps) {
         <Button 
           variant="outline" 
           onClick={addFAQ}
-          className="w-full"
+          className="w-full border-2 border-primary/50 text-text-primary hover:bg-primary/10 hover:border-primary"
           type="button"
         >
           <Plus className="h-4 w-4 mr-2" />
