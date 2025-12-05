@@ -6,6 +6,14 @@ import { AppLayout } from "@/components/layout/AppLayout"
 import { useSession } from '@/lib/context/SessionContext'
 import { Loader2 } from 'lucide-react'
 
+/**
+ * Layout del Dashboard con redirección automática
+ * 
+ * Funcionalidad:
+ * - Verifica si el usuario tiene organization_id
+ * - Redirige automáticamente a /onboarding si no tiene organización
+ * - Previene loops de redirección
+ */
 export default function DashboardLayout({
   children,
 }: {
@@ -85,6 +93,7 @@ export default function DashboardLayout({
     </AppLayout>
   )
 }
+
 
 
 

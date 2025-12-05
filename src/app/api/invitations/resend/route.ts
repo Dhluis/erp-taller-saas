@@ -5,6 +5,9 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server'
 /**
  * POST /api/invitations/resend
  * Reenvía email de invitación
+ * 
+ * Body: { invitationId: string }
+ * Requiere: Rol admin o manager
  */
 export async function POST(request: NextRequest) {
   try {

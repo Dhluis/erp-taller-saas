@@ -3,8 +3,14 @@ import { createClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 /**
- * GET /api/invitations
- * Lista todas las invitaciones de la organización del usuario
+ * API Route para gestión de invitaciones
+ * 
+ * Endpoints:
+ * - GET /api/invitations - Lista todas las invitaciones de la organización del usuario
+ * - POST /api/invitations - Crea nueva invitación y envía email
+ * - DELETE /api/invitations?id={id} - Cancela una invitación
+ * 
+ * Requiere: Rol admin o manager
  */
 export async function GET(request: NextRequest) {
   try {

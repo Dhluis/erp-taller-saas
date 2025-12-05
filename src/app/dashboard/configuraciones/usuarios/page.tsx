@@ -1,5 +1,9 @@
 'use client'
 
+/**
+ * Página de Gestión de Usuarios e Invitaciones
+ * Permite a administradores gestionar usuarios y enviar invitaciones
+ */
 import { useState, useEffect } from 'react'
 import { useSession } from '@/lib/context/SessionContext'
 import { createBrowserClient } from '@supabase/ssr'
