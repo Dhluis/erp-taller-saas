@@ -354,3 +354,4 @@ Usar colores de Tailwind para consistencia:
 **Estado:** ✅ Completado y Funcionando
 
 
+

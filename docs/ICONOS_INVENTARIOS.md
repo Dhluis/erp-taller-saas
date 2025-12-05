@@ -247,3 +247,4 @@ items: [
 **Nuevos iconos creados:** 2 (Productos, Categorías)
 
 
+

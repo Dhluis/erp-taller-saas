@@ -374,3 +374,4 @@ Si algo no funciona:
 **Errores de linter:** 0  
 **Tests:** Pendiente de ejecución en navegador
 
+

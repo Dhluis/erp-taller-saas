@@ -186,32 +186,46 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Toggle: Permitir agendar citas */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label className="text-base">Permitir agendar citas desde WhatsApp</Label>
-              <p className="text-sm text-muted-foreground">
+          <div className="flex items-center justify-between gap-4 py-2 border-b border-border/50 pb-4">
+            <div className="space-y-0.5 flex-1">
+              <Label htmlFor="auto-schedule-switch" className="text-base font-medium text-text-primary cursor-pointer">
+                Permitir agendar citas desde WhatsApp
+              </Label>
+              <p className="text-sm text-muted-foreground mt-1">
                 Si está activo, los clientes podrán solicitar citas directamente desde el chat
               </p>
             </div>
-            <Switch
-              checked={autoSchedule}
-              onCheckedChange={handleAutoScheduleChange}
-            />
+            <div className="flex-shrink-0 min-w-[44px]">
+              <Switch
+                id="auto-schedule-switch"
+                checked={autoSchedule}
+                onCheckedChange={handleAutoScheduleChange}
+                className="relative z-10 opacity-100"
+                style={{ minWidth: '44px', minHeight: '24px' }}
+              />
+            </div>
           </div>
 
           {/* Toggle: Requiere aprobación humana */}
           {autoSchedule && (
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label className="text-base">Requiere aprobación humana</Label>
-                <p className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between gap-4 py-2">
+              <div className="space-y-0.5 flex-1">
+                <Label htmlFor="require-approval-switch" className="text-base font-medium text-text-primary cursor-pointer">
+                  Requiere aprobación humana
+                </Label>
+                <p className="text-sm text-muted-foreground mt-1">
                   Si está activo, las citas quedan como solicitud pendiente hasta que las apruebes
                 </p>
               </div>
-              <Switch
-                checked={requireApproval}
-                onCheckedChange={handleRequireApprovalChange}
-              />
+              <div className="flex-shrink-0 min-w-[44px]">
+                <Switch
+                  id="require-approval-switch"
+                  checked={requireApproval}
+                  onCheckedChange={handleRequireApprovalChange}
+                  className="relative z-10 opacity-100"
+                  style={{ minWidth: '44px', minHeight: '24px' }}
+                />
+              </div>
             </div>
           )}
         </CardContent>

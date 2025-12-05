@@ -313,3 +313,4 @@ Usuario selecciona → Autocompleta todo
 **Última actualización:** 3 de Diciembre 2025
 
 
+

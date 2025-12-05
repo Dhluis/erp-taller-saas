@@ -31,3 +31,4 @@ ORDER BY column_name;
 -- ✅ Si ves las 2 columnas arriba, ¡está listo!
 
 
+

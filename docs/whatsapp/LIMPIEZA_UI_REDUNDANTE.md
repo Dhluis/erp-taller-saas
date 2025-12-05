@@ -246,3 +246,4 @@ Si en el futuro se necesita agregar funcionalidad de QR o vinculado manual:
 **Estado:** ✅ Completado y Testeado
 
 
+

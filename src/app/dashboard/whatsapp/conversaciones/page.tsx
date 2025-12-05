@@ -468,11 +468,11 @@ export default function ConversacionesPage() {
         // Si hay customer_id, buscar directamente
         if (convFromDb && (convFromDb as any).customer_id) {
           const { data: customerById } = await supabase
-            .from('customers')
-            .select('*')
+          .from('customers')
+          .select('*')
             .eq('id', (convFromDb as any).customer_id)
             .eq('organization_id', organizationId)
-            .maybeSingle()
+          .maybeSingle()
           
           if (customerById) {
             customerData = customerById
@@ -2277,7 +2277,7 @@ export default function ConversacionesPage() {
                             darkMode ? "text-gray-500" : "text-gray-400"
                           )}>
                             No hay notas. Haz clic en el icono para agregar.
-                          </p>
+                      </p>
                         )}
                       </div>
                     )}

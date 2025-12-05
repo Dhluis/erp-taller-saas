@@ -53,3 +53,4 @@ WHERE whatsapp_phone IS NOT NULL;
 RAISE NOTICE '✅ Migración de columnas WhatsApp completada exitosamente';
 
 
+
