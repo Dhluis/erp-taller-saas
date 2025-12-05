@@ -55,6 +55,8 @@ export function WhatsAppQRConnectorSimple({
   const lastPhaseRef = useRef<'waiting' | 'has_qr' | null>(null) // Rastrear fase actual
   const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null)
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const lastConnectionEventRef = useRef<string | null>(null) // Rastrear último teléfono que disparó evento
+  const previousStateRef = useRef<'loading' | 'connected' | 'pending' | 'error'>('loading') // Rastrear estado anterior
 
   // Limpiar timers de auto-refresh
   const clearAutoRefreshTimers = useCallback(() => {
@@ -101,19 +103,26 @@ export function WhatsAppQRConnectorSimple({
         
         // ✅ IMPORTANTE: Solo actualizar estado si realmente cambió de no-conectado a conectado
         // O si el teléfono cambió (para evitar loops)
-        const wasNotConnected = state !== 'connected'
+        const wasNotConnected = previousStateRef.current !== 'connected'
         const phoneChanged = sessionData?.phone !== data.phone
+        const isNewConnection = wasNotConnected && data.phone && lastConnectionEventRef.current !== data.phone
         
         if (wasNotConnected || phoneChanged) {
           console.log(`[WhatsApp Simple] 🔄 Actualizando estado a conectado (wasNotConnected: ${wasNotConnected}, phoneChanged: ${phoneChanged})`)
           setState('connected')
           setSessionData(data)
           setErrorMessage(null)
-          onStatusChange?.('connected')
+          previousStateRef.current = 'connected'
           
-          // Disparar evento personalizado solo si acabamos de conectar
-          if (wasNotConnected && data.phone) {
-            console.log(`[WhatsApp Simple] 🔔 Disparando evento de conexión`)
+          // Solo llamar onStatusChange si realmente cambió el estado
+          if (wasNotConnected) {
+            onStatusChange?.('connected')
+          }
+          
+          // Disparar evento personalizado solo si es una nueva conexión (no en cada montaje)
+          if (isNewConnection) {
+            console.log(`[WhatsApp Simple] 🔔 Disparando evento de conexión (nueva conexión)`)
+            lastConnectionEventRef.current = data.phone
             window.dispatchEvent(new CustomEvent('whatsapp:connected', {
               detail: { phone: data.phone, name: data.name }
             }))
@@ -129,6 +138,7 @@ export function WhatsAppQRConnectorSimple({
           if (phoneChanged) {
             console.log(`[WhatsApp Simple] 📱 Teléfono actualizado: ${data.phone}`)
             setSessionData(data)
+            lastConnectionEventRef.current = data.phone
           }
         }
         
@@ -157,10 +167,14 @@ export function WhatsAppQRConnectorSimple({
         retryCountRef.current += 1
         
         console.log(`[WhatsApp Simple] 📱 QR recibido: ${qr.length} caracteres (intento ${retryCountRef.current})`)
+        const wasNotPending = previousStateRef.current !== 'pending'
         setState('pending')
+        previousStateRef.current = 'pending'
         setSessionData(data)
         setErrorMessage(null)
-        onStatusChange?.('pending')
+        if (wasNotPending) {
+          onStatusChange?.('pending')
+        }
         
         // Verificar directamente en WAHA si ya se conectó cada 3 intentos (~24 segundos)
         // (útil cuando el webhook no llega pero la conexión sí funciona)
@@ -179,8 +193,9 @@ export function WhatsAppQRConnectorSimple({
               
               if (checkData.connected) {
                 console.log(`[WhatsApp Simple] ✅ ¡Conectado en WAHA! (detectado manualmente)`)
-                const wasNotConnected = state !== 'connected'
+                const wasNotConnected = previousStateRef.current !== 'connected'
                 const phoneChanged = sessionData?.phone !== checkData.phone
+                const isNewConnection = wasNotConnected && checkData.phone && lastConnectionEventRef.current !== checkData.phone
                 
                 // Solo actualizar estado si realmente cambió
                 if (wasNotConnected || phoneChanged) {
@@ -192,11 +207,17 @@ export function WhatsAppQRConnectorSimple({
                     phone: checkData.phone,
                     status: 'WORKING'
                   })
-                  onStatusChange?.('connected')
+                  previousStateRef.current = 'connected'
                   
-                  // ✅ Disparar evento personalizado para notificar a otras páginas
-                  if (wasNotConnected && checkData.phone) {
-                    console.log(`[WhatsApp Simple] 🔔 Disparando evento de conexión (detectado manualmente)`)
+                  // Solo llamar onStatusChange si realmente cambió el estado
+                  if (wasNotConnected) {
+                    onStatusChange?.('connected')
+                  }
+                  
+                  // ✅ Disparar evento personalizado solo si es una nueva conexión
+                  if (isNewConnection) {
+                    console.log(`[WhatsApp Simple] 🔔 Disparando evento de conexión (detectado manualmente, nueva conexión)`)
+                    lastConnectionEventRef.current = checkData.phone
                     window.dispatchEvent(new CustomEvent('whatsapp:connected', {
                       detail: { phone: checkData.phone, name: checkData.name }
                     }))
@@ -245,6 +266,7 @@ export function WhatsAppQRConnectorSimple({
       
       console.log(`[WhatsApp Simple] ⏳ Esperando QR... Estado: ${data.status} (intento ${retryCountRef.current}/${MAX_RETRIES})`)
       setState('pending')
+      previousStateRef.current = 'pending'
       setSessionData(data)
       setErrorMessage(data.message || 'Esperando código QR...')
 
@@ -307,6 +329,8 @@ export function WhatsAppQRConnectorSimple({
       clearTimeout(initTimeout)
       stopPolling()
       clearAutoRefreshTimers()
+      // NO resetear lastConnectionEventRef ni previousStateRef al desmontar
+      // para que si se vuelve a montar, no dispare eventos innecesarios
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Solo al montar - las funciones son estables con useCallback
