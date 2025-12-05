@@ -58,6 +58,23 @@ const CATEGORY_LABELS: Record<NoteCategory, { label: string; color: string }> = 
   internal: { label: 'Interno', color: 'bg-purple-500' }
 }
 
+// ✅ Función helper para validar y normalizar una nota individual
+function isValidNote(note: any): note is WorkOrderNote {
+  if (!note || typeof note !== 'object') return false
+  if (!note.id || typeof note.id !== 'string') return false
+  if (!note.text || typeof note.text !== 'string') return false
+  if (!note.createdAt || typeof note.createdAt !== 'string') return false
+  // Asegurar que userName sea string (puede ser opcional)
+  if (note.userName !== undefined && typeof note.userName !== 'string') return false
+  // Asegurar que createdBy sea string si existe (puede ser opcional)
+  if (note.createdBy !== undefined && typeof note.createdBy !== 'string') return false
+  // Asegurar que category sea válido si existe
+  if (note.category !== undefined && !['general', 'important', 'customer', 'internal'].includes(note.category)) return false
+  // Asegurar que isPinned sea boolean si existe
+  if (note.isPinned !== undefined && typeof note.isPinned !== 'boolean') return false
+  return true
+}
+
 export function WorkOrderNotes({
   orderId,
   notes,
@@ -72,6 +89,20 @@ export function WorkOrderNotes({
   const [editText, setEditText] = useState('')
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  
+  // ✅ VALIDAR NOTAS AL RECIBIRLAS: Asegurar que todas sean válidas antes de usar
+  const validNotes = Array.isArray(notes) ? notes.filter((note, index) => {
+    const isValid = isValidNote(note)
+    if (!isValid) {
+      console.error('❌ [WorkOrderNotes] Nota inválida encontrada en índice', index, ':', note)
+    }
+    return isValid
+  }) : []
+  
+  // Log si hay notas inválidas
+  if (Array.isArray(notes) && validNotes.length !== notes.length) {
+    console.warn(`⚠️ [WorkOrderNotes] ${notes.length - validNotes.length} notas inválidas filtradas de ${notes.length} totales`)
+  }
 
   const handleAddNote = async () => {
     console.log('🎯 [handleAddNote] Iniciando...')
@@ -243,16 +274,6 @@ export function WorkOrderNotes({
     }
   }
 
-  // ✅ VALIDAR Y FILTRAR NOTAS: Asegurar que todas tengan el formato correcto
-  const validNotes = notes.filter((note) => {
-    // Verificar que sea un objeto y tenga las propiedades mínimas requeridas
-    if (!note || typeof note !== 'object') return false
-    if (!note.id || !note.text) return false
-    // Asegurar que createdAt sea una string válida
-    if (!note.createdAt || typeof note.createdAt !== 'string') return false
-    return true
-  })
-
   // Ordenar: fijadas primero, luego por fecha
   const sortedNotes = [...validNotes].sort((a, b) => {
     if (a.isPinned && !b.isPinned) return -1
@@ -335,8 +356,8 @@ Tip: Ctrl+Enter para enviar rápidamente"
                 {/* Header */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge className={CATEGORY_LABELS[note.category || 'general'].color}>
-                      {CATEGORY_LABELS[note.category || 'general'].label}
+                    <Badge className={CATEGORY_LABELS[note.category || 'general']?.color || CATEGORY_LABELS.general.color}>
+                      {CATEGORY_LABELS[note.category || 'general']?.label || CATEGORY_LABELS.general.label}
                     </Badge>
                     {note.isPinned && (
                       <Badge variant="outline" className="border-yellow-500">

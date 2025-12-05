@@ -24,13 +24,31 @@ interface WorkOrderDetailsTabsProps {
   onUpdate?: () => void
 }
 
+// ✅ Función helper para validar y filtrar notas
+function validateNotes(notes: any[]): WorkOrderNote[] {
+  if (!Array.isArray(notes)) return []
+  
+  return notes.filter((note: any) => {
+    // Verificar que sea un objeto y tenga las propiedades mínimas requeridas
+    if (!note || typeof note !== 'object') return false
+    if (!note.id || typeof note.id !== 'string') return false
+    if (!note.text || typeof note.text !== 'string') return false
+    // Asegurar que createdAt sea una string válida
+    if (!note.createdAt || typeof note.createdAt !== 'string') return false
+    return true
+  }) as WorkOrderNote[]
+}
+
 export function WorkOrderDetailsTabs({
   order,
   userId,
   onUpdate
 }: WorkOrderDetailsTabsProps) {
   const [images, setImages] = useState<WorkOrderImage[]>(order?.images || [])
-  const [notes, setNotes] = useState<WorkOrderNote[]>(order?.notes || [])
+  // ✅ VALIDAR NOTAS EN EL ESTADO INICIAL
+  const [notes, setNotes] = useState<WorkOrderNote[]>(() => {
+    return validateNotes(order?.notes || [])
+  })
   const [documents, setDocuments] = useState<any[]>(order?.documents || [])
   const [lastNotesUpdate, setLastNotesUpdate] = useState<number>(0)
 
@@ -51,17 +69,10 @@ export function WorkOrderDetailsTabs({
     if (order?.notes && notesTimestamp - lastNotesUpdate > 1000) {
       console.log('🔄 [WorkOrderDetailsTabs] Sincronizando notas:', order.notes)
       
-      // ✅ VALIDAR Y FILTRAR NOTAS: Asegurar que todas tengan el formato correcto
-      const validNotes = Array.isArray(order.notes) 
-        ? order.notes.filter((note: any) => {
-            // Verificar que sea un objeto y tenga las propiedades mínimas requeridas
-            if (!note || typeof note !== 'object') return false
-            if (!note.id || !note.text) return false
-            // Asegurar que createdAt sea una string válida
-            if (!note.createdAt || typeof note.createdAt !== 'string') return false
-            return true
-          })
-        : []
+      // ✅ VALIDAR Y FILTRAR NOTAS usando la función helper
+      const validNotes = validateNotes(order.notes)
+      
+      console.log('✅ [WorkOrderDetailsTabs] Notas validadas:', validNotes.length, 'de', order.notes.length)
       
       setNotes(validNotes)
       setLastNotesUpdate(notesTimestamp)
