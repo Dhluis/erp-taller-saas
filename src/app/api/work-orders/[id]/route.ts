@@ -4,6 +4,7 @@ import {
   updateWorkOrder,
   deleteWorkOrder,
 } from '@/lib/database/queries/work-orders';
+import { getOrganizationId } from '@/lib/auth/organization-server';
 
 // GET: Obtener una orden por ID
 export async function GET(
@@ -11,6 +12,10 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // ✅ Verificar que el organizationId esté disponible antes de obtener la orden
+    const organizationId = await getOrganizationId(request);
+    console.log('🔍 [API GET /work-orders/[id]] Organization ID:', organizationId);
+    
     const order = await getWorkOrderById(params.id);
 
     if (!order) {

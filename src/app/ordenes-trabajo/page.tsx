@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
 import { WorkOrderFilters } from '@/components/work-orders/WorkOrderFilters';
 import { WorkOrderStatsCards } from '@/components/work-orders/WorkOrderStatsCards';
@@ -130,14 +131,28 @@ export default function WorkOrdersPage() {
 
   // Ver detalles de orden
   const handleViewDetails = async (workOrder: WorkOrder) => {
-    await fetchWorkOrderById(workOrder.id);
-    setIsDetailsOpen(true);
+    try {
+      console.log('👁️ [handleViewDetails] Ver detalles de orden:', workOrder.id);
+      await fetchWorkOrderById(workOrder.id);
+      console.log('✅ [handleViewDetails] Orden cargada, abriendo modal');
+      setIsDetailsOpen(true);
+    } catch (error) {
+      console.error('❌ [handleViewDetails] Error:', error);
+      toast.error('Error al cargar los detalles de la orden');
+    }
   };
 
   // Editar orden
   const handleEditWorkOrder = (workOrder: WorkOrder) => {
-    setEditingWorkOrder(workOrder);
-    setIsFormOpen(true);
+    try {
+      console.log('✏️ [handleEditWorkOrder] Editar orden:', workOrder.id);
+      setEditingWorkOrder(workOrder);
+      setIsFormOpen(true);
+      console.log('✅ [handleEditWorkOrder] Modal de edición abierto');
+    } catch (error) {
+      console.error('❌ [handleEditWorkOrder] Error:', error);
+      toast.error('Error al abrir el formulario de edición');
+    }
   };
 
   // Eliminar orden

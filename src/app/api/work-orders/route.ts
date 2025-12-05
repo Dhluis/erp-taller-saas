@@ -5,6 +5,7 @@ import {
   searchWorkOrders,
   getWorkOrderStats,
 } from '@/lib/database/queries/work-orders';
+import { getOrganizationId } from '@/lib/auth/organization-server';
 
 /**
  * @swagger
@@ -90,14 +91,17 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // ✅ Obtener organizationId del request para asegurar multi-tenant
+    const organizationId = await getOrganizationId(request);
+    
     let orders;
 
     if (search) {
       orders = await searchWorkOrders(search);
     } else if (status) {
-      orders = await getAllWorkOrders(status as any);
+      orders = await getAllWorkOrders(organizationId, { status: status as any });
     } else {
-      orders = await getAllWorkOrders();
+      orders = await getAllWorkOrders(organizationId);
     }
 
     return NextResponse.json({
