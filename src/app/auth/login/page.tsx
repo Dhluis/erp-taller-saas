@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense } from 'react'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { signInWithProfile } from '@/lib/auth/client-auth'
@@ -19,6 +19,20 @@ function LoginContent() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Verificar si hay errores del callback
+  React.useEffect(() => {
+    const errorParam = searchParams?.get('error')
+    const messageParam = searchParams?.get('message')
+    
+    if (errorParam && messageParam) {
+      setError(messageParam)
+    } else if (errorParam === 'invalid_token') {
+      setError('El enlace de confirmación es inválido o ha expirado. Por favor, solicita un nuevo enlace.')
+    } else if (errorParam === 'auth_failed') {
+      setError('No se pudo completar la autenticación. Por favor, intenta de nuevo.')
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()

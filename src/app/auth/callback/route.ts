@@ -37,18 +37,39 @@ export async function GET(request: NextRequest) {
 
   // Manejar token_hash (email confirmation, magic link, etc.)
   if (token_hash && type) {
-    const { error } = await supabase.auth.verifyOtp({
-      token_hash,
-      type: type as any
-    })
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        token_hash,
+        type: type as any
+      })
 
-    if (!error) {
-      return NextResponse.redirect(new URL(next, request.url))
+      if (!error && data) {
+        // ✅ Email confirmado exitosamente, redirigir al dashboard
+        return NextResponse.redirect(new URL(next, request.url))
+      } else if (error) {
+        console.error('❌ Error verificando token:', error)
+        // Redirigir al login con mensaje de error
+        const loginUrl = new URL('/auth/login', request.url)
+        loginUrl.searchParams.set('error', 'invalid_token')
+        loginUrl.searchParams.set('message', 'El enlace de confirmación es inválido o ha expirado.')
+        return NextResponse.redirect(loginUrl)
+      }
+    } catch (err: any) {
+      console.error('❌ Excepción verificando token:', err)
+      const loginUrl = new URL('/auth/login', request.url)
+      loginUrl.searchParams.set('error', 'token_error')
+      loginUrl.searchParams.set('message', 'Error al procesar el enlace de confirmación.')
+      return NextResponse.redirect(loginUrl)
     }
   }
 
   // Si hay error o no hay código/token, redirigir al login
-  return NextResponse.redirect(new URL('/auth/login', request.url))
+  const loginUrl = new URL('/auth/login', request.url)
+  if (code || token_hash) {
+    loginUrl.searchParams.set('error', 'auth_failed')
+    loginUrl.searchParams.set('message', 'No se pudo completar la autenticación.')
+  }
+  return NextResponse.redirect(loginUrl)
 }
 
 

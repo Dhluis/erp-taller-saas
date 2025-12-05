@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { signUpWithProfile } from '@/lib/auth/client-auth'
 import { createBrowserClient } from '@supabase/ssr'
-import { Mail, Lock, User, Building2, Phone, MapPin, AlertCircle, Loader2, CheckCircle } from 'lucide-react'
+import { Mail, Lock, User, Building2, Phone, MapPin, AlertCircle, Loader2, CheckCircle, MailCheck, RefreshCw } from 'lucide-react'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -15,6 +15,8 @@ export default function RegisterPage() {
   const [step, setStep] = useState(1) // 1: Datos del taller, 2: Datos del usuario
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showConfirmation, setShowConfirmation] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState('')
   
   // Datos del taller
   const [workshopName, setWorkshopName] = useState('')
@@ -99,9 +101,11 @@ export default function RegisterPage() {
         throw signUpError
       }
 
-      // Redirigir al dashboard
-      router.push('/dashboard')
-      router.refresh()
+      // ✅ NO redirigir al dashboard
+      // Mostrar mensaje de confirmación de email
+      setRegisteredEmail(email)
+      setShowConfirmation(true)
+      setStep(3) // Mostrar paso de confirmación
       
     } catch (err: any) {
       console.error('Error en registro:', err)
@@ -135,21 +139,23 @@ export default function RegisterPage() {
         </div>
 
         {/* Progress Steps */}
-        <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center gap-2">
-            <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-              step >= 1 ? 'bg-cyan-500' : 'bg-slate-700'
-            }`}>
-              {step > 1 ? <CheckCircle className="w-6 h-6 text-white" /> : <span className="text-white font-bold">1</span>}
-            </div>
-            <div className={`w-20 h-1 ${step >= 2 ? 'bg-cyan-500' : 'bg-slate-700'}`} />
-            <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-              step >= 2 ? 'bg-cyan-500' : 'bg-slate-700'
-            }`}>
-              <span className="text-white font-bold">2</span>
+        {step < 3 && (
+          <div className="flex items-center justify-center mb-8">
+            <div className="flex items-center gap-2">
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                step >= 1 ? 'bg-cyan-500' : 'bg-slate-700'
+              }`}>
+                {step > 1 ? <CheckCircle className="w-6 h-6 text-white" /> : <span className="text-white font-bold">1</span>}
+              </div>
+              <div className={`w-20 h-1 ${step >= 2 ? 'bg-cyan-500' : 'bg-slate-700'}`} />
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                step >= 2 ? 'bg-cyan-500' : 'bg-slate-700'
+              }`}>
+                <span className="text-white font-bold">2</span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Card de Registro */}
         <div className="bg-slate-800 rounded-2xl shadow-xl p-8 border border-slate-700">
@@ -387,6 +393,117 @@ export default function RegisterPage() {
                 </button>
               </div>
             </form>
+          )}
+
+          {/* STEP 3: Confirmación de Email */}
+          {step === 3 && showConfirmation && (
+            <div className="space-y-6 text-center">
+              <div className="flex justify-center mb-4">
+                <div className="w-20 h-20 rounded-full bg-cyan-500/10 flex items-center justify-center">
+                  <MailCheck className="w-10 h-10 text-cyan-400" />
+                </div>
+              </div>
+              
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-3">
+                  ¡Revisa tu correo!
+                </h2>
+                <p className="text-slate-300 mb-2">
+                  Te enviamos un correo de confirmación a:
+                </p>
+                <p className="text-cyan-400 font-medium mb-6">
+                  {registeredEmail}
+                </p>
+                <p className="text-slate-400 text-sm mb-6">
+                  Haz clic en el enlace del correo para confirmar tu cuenta y comenzar a usar el ERP.
+                </p>
+              </div>
+
+              <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 mb-6">
+                <p className="text-slate-300 text-sm">
+                  <strong className="text-white">¿No recibiste el correo?</strong>
+                  <br />
+                  Revisa tu carpeta de spam o intenta reenviarlo.
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setLoading(true)
+                    setError('')
+                    try {
+                      // Reenviar correo de confirmación
+                      const baseUrl = typeof window !== 'undefined' 
+                        ? window.location.origin 
+                        : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+                      
+                      const { error: resendError } = await supabase.auth.resend({
+                        type: 'signup',
+                        email: registeredEmail,
+                        options: {
+                          emailRedirectTo: `${baseUrl}/auth/callback`
+                        }
+                      })
+
+                      if (resendError) {
+                        throw resendError
+                      }
+
+                      setError('')
+                      // Mostrar mensaje de éxito temporal
+                      const successMsg = '✅ Correo reenviado. Revisa tu bandeja de entrada.'
+                      setError(successMsg)
+                      setTimeout(() => setError(''), 5000)
+                    } catch (err: any) {
+                      setError(err.message || 'Error al reenviar el correo')
+                    } finally {
+                      setLoading(false)
+                    }
+                  }}
+                  disabled={loading}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Reenviando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-5 h-5" />
+                      Reenviar correo
+                    </>
+                  )}
+                </button>
+                <Link
+                  href="/auth/login"
+                  className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-3 rounded-lg transition flex items-center justify-center"
+                >
+                  Ir a Iniciar Sesión
+                </Link>
+              </div>
+
+              {error && (
+                <div className={`flex items-center gap-2 p-4 rounded-lg ${
+                  error.startsWith('✅') 
+                    ? 'bg-green-500/10 border border-green-500/50' 
+                    : 'bg-red-500/10 border border-red-500/50'
+                }`}>
+                  {error.startsWith('✅') ? (
+                    <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                  )}
+                  <p className={`text-sm ${
+                    error.startsWith('✅') ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {error}
+                  </p>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Login Link */}
