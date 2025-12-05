@@ -19,36 +19,43 @@ export async function GET(request: NextRequest) {
     let fromDate: Date
     let toDate: Date = today
 
-    switch (timeFilter) {
-      case '7d':
-        fromDate = new Date(today)
-        fromDate.setDate(today.getDate() - 7)
-        fromDate.setHours(0, 0, 0, 0)
-        break
-      case '30d':
-        fromDate = new Date(today)
-        fromDate.setDate(today.getDate() - 30)
-        fromDate.setHours(0, 0, 0, 0)
-        break
-      case 'current_month':
-        fromDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0)
-        break
-      case 'custom':
-        if (customFrom && customTo) {
-          fromDate = new Date(customFrom)
-          toDate = new Date(customTo)
-          console.log('📅 Usando fechas personalizadas')
-        } else {
-          // Fallback a 7 días si no hay fechas custom
+    // Manejar caso "all" - sin filtro de fecha
+    let shouldFilterByDate = true
+    if (timeFilter === 'all') {
+      shouldFilterByDate = false
+      console.log('📅 Filtro: TODAS las órdenes (sin filtro de fecha)')
+    } else {
+      switch (timeFilter) {
+        case '7d':
           fromDate = new Date(today)
           fromDate.setDate(today.getDate() - 7)
           fromDate.setHours(0, 0, 0, 0)
-        }
-        break
-      default:
-        fromDate = new Date(today)
-        fromDate.setDate(today.getDate() - 7)
-        fromDate.setHours(0, 0, 0, 0)
+          break
+        case '30d':
+          fromDate = new Date(today)
+          fromDate.setDate(today.getDate() - 30)
+          fromDate.setHours(0, 0, 0, 0)
+          break
+        case 'current_month':
+          fromDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0)
+          break
+        case 'custom':
+          if (customFrom && customTo) {
+            fromDate = new Date(customFrom)
+            toDate = new Date(customTo)
+            console.log('📅 Usando fechas personalizadas')
+          } else {
+            // Fallback a 7 días si no hay fechas custom
+            fromDate = new Date(today)
+            fromDate.setDate(today.getDate() - 7)
+            fromDate.setHours(0, 0, 0, 0)
+          }
+          break
+        default:
+          fromDate = new Date(today)
+          fromDate.setDate(today.getDate() - 7)
+          fromDate.setHours(0, 0, 0, 0)
+      }
     }
 
     console.log('📅 Rango de fechas:', {
@@ -96,49 +103,68 @@ export async function GET(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // Filtrar órdenes por rango de fechas en JavaScript
+    // Filtrar órdenes por rango de fechas en JavaScript (solo si no es "all")
     // Una orden se incluye si su created_at O entry_date está en el rango
-    const ordersList = ((orders ?? []) as Array<{
+    let ordersList: Array<{
       status: string | null;
       created_at: string | null;
       entry_date: string | null;
-    }>).filter((order) => {
-      // Si no tiene ninguna fecha, excluir
-      if (!order.created_at && !order.entry_date) {
-        return false
-      }
-
-      // Verificar created_at
-      if (order.created_at) {
-        const createdAt = new Date(order.created_at)
-        // Ajustar horas para comparación (solo fecha)
-        createdAt.setHours(0, 0, 0, 0)
-        const fromDateNormalized = new Date(fromDate)
-        fromDateNormalized.setHours(0, 0, 0, 0)
-        const toDateNormalized = new Date(toDate)
-        toDateNormalized.setHours(23, 59, 59, 999)
-        
-        if (createdAt >= fromDateNormalized && createdAt <= toDateNormalized) {
-        return true
-      }
-      }
-
-      // Verificar entry_date
-      if (order.entry_date) {
-        const entryDate = new Date(order.entry_date)
-        entryDate.setHours(0, 0, 0, 0)
-        const fromDateNormalized = new Date(fromDate)
-        fromDateNormalized.setHours(0, 0, 0, 0)
-        const toDateNormalized = new Date(toDate)
-        toDateNormalized.setHours(23, 59, 59, 999)
-        
-        if (entryDate >= fromDateNormalized && entryDate <= toDateNormalized) {
-        return true
+    }>
+    
+    if (!shouldFilterByDate) {
+      // Sin filtro de fecha - retornar todas las órdenes
+      ordersList = (orders ?? []) as Array<{
+        status: string | null;
+        created_at: string | null;
+        entry_date: string | null;
+      }>
+    } else {
+      // Filtrar por rango de fechas
+      // Normalizar fechas de rango una sola vez
+      const fromDateNormalized = new Date(fromDate)
+      fromDateNormalized.setHours(0, 0, 0, 0)
+      const toDateNormalized = new Date(toDate)
+      toDateNormalized.setHours(23, 59, 59, 999)
+      
+      ordersList = ((orders ?? []) as Array<{
+        status: string | null;
+        created_at: string | null;
+        entry_date: string | null;
+      }>).filter((order) => {
+        // Si no tiene ninguna fecha, excluir
+        if (!order.created_at && !order.entry_date) {
+          return false
         }
-      }
 
-      return false
-    });
+        // Verificar created_at - comparar solo la fecha (sin horas)
+        if (order.created_at) {
+          const createdAt = new Date(order.created_at)
+          // Normalizar a inicio del día para comparación
+          const orderDate = new Date(createdAt.getFullYear(), createdAt.getMonth(), createdAt.getDate())
+          const fromDateOnly = new Date(fromDateNormalized.getFullYear(), fromDateNormalized.getMonth(), fromDateNormalized.getDate())
+          const toDateOnly = new Date(toDateNormalized.getFullYear(), toDateNormalized.getMonth(), toDateNormalized.getDate())
+          
+          if (orderDate >= fromDateOnly && orderDate <= toDateOnly) {
+            return true
+          }
+        }
+
+        // Verificar entry_date - comparar solo la fecha (sin horas)
+        if (order.entry_date) {
+          const entryDate = new Date(order.entry_date)
+          // Normalizar a inicio del día para comparación
+          const orderDate = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate())
+          const fromDateOnly = new Date(fromDateNormalized.getFullYear(), fromDateNormalized.getMonth(), fromDateNormalized.getDate())
+          const toDateOnly = new Date(toDateNormalized.getFullYear(), toDateNormalized.getMonth(), toDateNormalized.getDate())
+          
+          if (orderDate >= fromDateOnly && orderDate <= toDateOnly) {
+            return true
+          }
+        }
+
+        return false
+      })
+    }
 
     console.log('✅ Total órdenes en BD (sin filtro de fecha):', orders?.length || 0);
     console.log('✅ Órdenes después de filtrar por fecha:', ordersList.length || 0);

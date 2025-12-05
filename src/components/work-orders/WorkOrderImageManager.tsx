@@ -41,6 +41,7 @@ import {
 } from '@/lib/supabase/work-order-storage'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
+import { useSession } from '@/lib/context/SessionContext'
 import Image from 'next/image'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -134,9 +135,10 @@ export function WorkOrderImageManager({
   userId,
   maxImages = 20
 }: WorkOrderImageManagerProps) {
-  const { session } = useAuth()
+  const { user } = useAuth()
+  const supabase = createClient()
   
-  // 🔧 FIX: Use AuthContext token to avoid getSession() calls - DEPLOY READY
+  // 🔧 FIX: Obtener token de sesión directamente desde Supabase client
   const [uploading, setUploading] = useState(false)
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null)
   const [selectedImage, setSelectedImage] = useState<WorkOrderImage | null>(null)
@@ -236,19 +238,22 @@ export function WorkOrderImageManager({
 
       console.log('📊 Tamaño a subir:', (fileToUpload.size / 1024 / 1024).toFixed(2), 'MB')
 
-      // ✅ Usar sesión del contexto (ya está disponible, sin await)
-      console.log('🔐 [CONTEXT] Usando sesión del AuthContext')
-      console.log('🔐 ¿Tiene sesión del contexto?:', !!session)
+      // ✅ Obtener token de sesión desde Supabase client
+      console.log('🔐 [CONTEXT] Obteniendo sesión de Supabase...')
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      console.log('🔐 ¿Tiene sesión?:', !!session)
       console.log('🔐 ¿Tiene token?:', !!session?.access_token)
+      console.log('🔐 Error de sesión:', sessionError)
 
       if (!session?.access_token) {
         console.error('❌ [CONTEXT] No hay token en el contexto')
-        toast.error('Sesión inválida. Recarga la página.')
+        toast.error('Sesión inválida. Por favor inicia sesión nuevamente.')
         setUploading(false)
         return
       }
 
-      console.log('✅ [CONTEXT] Token disponible desde contexto')
+      console.log('✅ [CONTEXT] Token disponible desde sesión')
       
       // Subir imagen
       const uploadResult = await uploadWorkOrderImage(
@@ -258,7 +263,7 @@ export function WorkOrderImageManager({
         selectedCategory,
         uploadDescription || undefined,
         currentStatus,
-        session?.access_token
+        session.access_token
       )
 
       console.log('✅ [UPLOAD RESULT] Upload completado:', uploadResult)
