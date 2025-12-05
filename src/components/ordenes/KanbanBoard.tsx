@@ -254,9 +254,13 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
       }));
       
       setColumns(newColumns);
+      
+      // Retornar órdenes para que el componente padre pueda actualizar selectedOrder
+      return filteredOrders;
     } catch (err) {
       console.error('Error cargando órdenes:', err);
       setError('Error al cargar las órdenes');
+      return [];
     } finally {
       setLoading(false);
     }
@@ -650,9 +654,19 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
           order={selectedOrder}
           open={detailsModalOpen}
           onOpenChange={setDetailsModalOpen}
-          onUpdate={() => {
+          onUpdate={async () => {
             // Recargar órdenes después de actualizar
-            loadOrders()
+            const reloadedOrders = await loadOrders()
+            
+            // ✅ Actualizar selectedOrder con la orden recargada
+            if (selectedOrder?.id && reloadedOrders) {
+              const updatedOrder = reloadedOrders.find(order => order.id === selectedOrder.id)
+              
+              if (updatedOrder) {
+                console.log('✅ [KanbanBoard] Actualizando selectedOrder con orden recargada')
+                setSelectedOrder(updatedOrder)
+              }
+            }
           }}
         />
       </DndContext>
