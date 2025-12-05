@@ -812,3 +812,50 @@ export async function sendWhatsAppMessage(
   return result;
 }
 
+/**
+ * Obtener foto de perfil de un contacto de WhatsApp
+ */
+export async function getProfilePicture(
+  phone: string, 
+  sessionName: string, 
+  organizationId: string
+): Promise<string | null> {
+  try {
+    const { url, key } = await getWahaConfig(organizationId);
+    if (!url || !key) {
+      console.log('[WAHA] No hay configuración WAHA disponible');
+      return null;
+    }
+
+    const contactId = phone.includes('@') ? phone : `${phone}@c.us`;
+    
+    console.log(`[WAHA] 📸 Obteniendo foto de perfil para: ${contactId}`);
+    
+    const response = await fetch(
+      `${url}/api/contacts/profile-picture?contactId=${contactId}&session=${sessionName}`,
+      {
+        headers: { 'X-Api-Key': key }
+      }
+    );
+
+    if (!response.ok) {
+      console.log(`[WAHA] No se pudo obtener foto de perfil: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const profilePicUrl = data.profilePictureUrl || data.url || data.profile_picture_url || null;
+    
+    if (profilePicUrl) {
+      console.log(`[WAHA] ✅ Foto de perfil obtenida: ${profilePicUrl.substring(0, 50)}...`);
+    } else {
+      console.log(`[WAHA] ⚠️ Respuesta no contiene URL de foto`);
+    }
+    
+    return profilePicUrl;
+  } catch (error: any) {
+    console.error('[WAHA] Error obteniendo foto de perfil:', error.message);
+    return null;
+  }
+}
+

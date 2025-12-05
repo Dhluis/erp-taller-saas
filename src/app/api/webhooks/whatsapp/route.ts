@@ -19,7 +19,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { processMessage } from '@/integrations/whatsapp/services/ai-agent';
-import { getOrganizationFromSession, sendWhatsAppMessage } from '@/lib/waha-sessions';
+import { getOrganizationFromSession, sendWhatsAppMessage, getProfilePicture } from '@/lib/waha-sessions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -266,11 +266,29 @@ async function handleMessageEvent(body: any) {
     }
 
     // 8. Buscar o crear conversación
-    const conversationId = await getOrCreateConversation(
+    const { conversationId, isNewConversation } = await getOrCreateConversation(
       supabase,
       organizationId,
       customerPhone
     );
+    
+    // 8.1. Si es nueva conversación, obtener foto de perfil en background (no bloquear el flujo)
+    if (isNewConversation) {
+      console.log('[Webhook] 📸 Nueva conversación detectada, obteniendo foto de perfil...');
+      getProfilePicture(customerPhone, sessionName, organizationId)
+        .then(async (profilePicUrl) => {
+          if (profilePicUrl) {
+            await (supabase as any)
+              .from('whatsapp_conversations')
+              .update({ profile_picture_url: profilePicUrl })
+              .eq('id', conversationId);
+            console.log('[Webhook] ✅ Foto de perfil guardada');
+          } else {
+            console.log('[Webhook] ⚠️ No se pudo obtener foto de perfil');
+          }
+        })
+        .catch(err => console.log('[Webhook] ⚠️ Error obteniendo foto de perfil:', err.message));
+    }
 
     // 9. Detectar tipo de mensaje y multimedia
     const messageType = message.type || message.messageType || 'text';
@@ -697,7 +715,7 @@ async function getOrCreateConversation(
   supabase: any,
   organizationId: string,
   customerPhone: string
-): Promise<string> {
+): Promise<{ conversationId: string; isNewConversation: boolean }> {
   // Buscar conversación existente
   const { data: existing } = await supabase
     .from('whatsapp_conversations')
@@ -711,7 +729,7 @@ async function getOrCreateConversation(
 
   if (existing) {
     console.log('[WAHA Webhook] ✅ Conversación existente encontrada:', existing.id);
-    return existing.id;
+    return { conversationId: existing.id, isNewConversation: false };
   }
 
   // Buscar cliente existente por teléfono
@@ -773,7 +791,7 @@ async function getOrCreateConversation(
   }
 
   console.log('[WAHA Webhook] ✅ Nueva conversación creada:', newConv.id);
-  return newConv.id;
+  return { conversationId: newConv.id, isNewConversation: true };
 }
 
 /**

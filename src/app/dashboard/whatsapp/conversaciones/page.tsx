@@ -94,6 +94,7 @@ interface Conversation {
   status: 'pending' | 'active' | 'resolved' | 'archived'
   labels: string[]
   avatar?: string
+  profilePictureUrl?: string
   isTyping?: boolean
   isFavorite?: boolean
 }
@@ -103,6 +104,7 @@ interface ContactDetails {
   phone: string
   email?: string
   avatar?: string
+  profilePictureUrl?: string
   lastMessage: string
   accountType: string
   country: string
@@ -371,9 +373,10 @@ export default function ConversacionesPage() {
           status: (conv.status || 'active') as 'active' | 'resolved' | 'archived',
           labels: Array.isArray(conv.labels) ? conv.labels : [],
         avatar: undefined,
+        profilePictureUrl: conv.profile_picture_url || undefined,
         isTyping: false,
         isFavorite: false
-        }
+      }
       })
 
       console.log('✅ [loadConversations] Conversaciones formateadas:', {
@@ -516,6 +519,7 @@ export default function ConversacionesPage() {
           name: conv.contactName || 'Cliente WhatsApp',
           phone: conv.contactPhone || 'Sin teléfono',
           email: customerData?.email || undefined,
+          profilePictureUrl: conv.profilePictureUrl || undefined,
           lastMessage: conv.lastMessageTime || 'Nunca',
           accountType: 'Cuenta personal',
           country: 'México',
@@ -1451,7 +1455,27 @@ export default function ConversacionesPage() {
                   >
                     <div className="flex items-start gap-3">
                       <Avatar className="w-10 h-10">
-                        <AvatarFallback className={darkMode ? "bg-gray-700" : "bg-gray-300"}>
+                        {conversation.profilePictureUrl ? (
+                          <AvatarImage 
+                            src={conversation.profilePictureUrl} 
+                            alt={conversation.contactName}
+                            onError={(e) => {
+                              // Fallback si la imagen falla
+                              const target = e.currentTarget;
+                              target.style.display = 'none';
+                              const fallback = target.nextElementSibling as HTMLElement;
+                              if (fallback) {
+                                fallback.style.display = 'flex';
+                              }
+                            }}
+                          />
+                        ) : null}
+                        <AvatarFallback 
+                          className={cn(
+                            darkMode ? "bg-gray-700" : "bg-gray-300",
+                            conversation.profilePictureUrl ? "hidden" : "flex"
+                          )}
+                        >
                           {(conversation.contactName || 'C').split(' ').map(n => n[0]).join('').slice(0, 2) || 'C'}
                         </AvatarFallback>
                       </Avatar>
@@ -1680,7 +1704,26 @@ export default function ConversacionesPage() {
                   </DropdownMenu>
                   <div className="flex items-center gap-2 ml-2">
                     <Avatar className="w-8 h-8">
-                      <AvatarFallback className={darkMode ? "bg-gray-700" : "bg-gray-300"}>
+                      {selectedConv?.profilePictureUrl ? (
+                        <AvatarImage 
+                          src={selectedConv.profilePictureUrl} 
+                          alt={selectedConv.contactName}
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            target.style.display = 'none';
+                            const fallback = target.nextElementSibling as HTMLElement;
+                            if (fallback) {
+                              fallback.style.display = 'flex';
+                            }
+                          }}
+                        />
+                      ) : null}
+                      <AvatarFallback 
+                        className={cn(
+                          darkMode ? "bg-gray-700" : "bg-gray-300",
+                          selectedConv?.profilePictureUrl ? "hidden" : "flex"
+                        )}
+                      >
                         {((selectedConv?.contactName || 'C').split(' ').map(n => n[0]).join('').slice(0, 2) || 'C')}
                       </AvatarFallback>
                     </Avatar>
@@ -1984,7 +2027,26 @@ export default function ConversacionesPage() {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
                     <Avatar className="w-12 h-12">
-                      <AvatarFallback className={darkMode ? "bg-gray-700" : "bg-gray-300"}>
+                      {(contactDetails?.profilePictureUrl || selectedConv?.profilePictureUrl) ? (
+                        <AvatarImage 
+                          src={contactDetails?.profilePictureUrl || selectedConv?.profilePictureUrl || ''} 
+                          alt={contactDetails?.name || selectedConv?.contactName || 'Cliente'}
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            target.style.display = 'none';
+                            const fallback = target.nextElementSibling as HTMLElement;
+                            if (fallback) {
+                              fallback.style.display = 'flex';
+                            }
+                          }}
+                        />
+                      ) : null}
+                      <AvatarFallback 
+                        className={cn(
+                          darkMode ? "bg-gray-700" : "bg-gray-300",
+                          (contactDetails?.profilePictureUrl || selectedConv?.profilePictureUrl) ? "hidden" : "flex"
+                        )}
+                      >
                         {((contactDetails?.name || selectedConv?.contactName || 'C').split(' ').map(n => n[0]).join('').slice(0, 2) || 'C')}
                       </AvatarFallback>
                     </Avatar>
