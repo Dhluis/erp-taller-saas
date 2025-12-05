@@ -176,7 +176,7 @@ async function createAppointmentRequest(
 
     // 4. Verificar conflictos con citas existentes
     const preferredDateTime = new Date(`${args.preferred_date}T${args.preferred_time}:00`);
-    
+
     // Consultar appointments existentes (no canceladas)
     const { data: existingAppointments } = await supabase
       .from('appointments')

@@ -67,6 +67,20 @@ export async function PUT(
     const body = await request.json()
     console.log('📝 Datos recibidos:', body)
 
+    // ✅ VALIDACIÓN CRÍTICA: Prevenir cambio de organization_id
+    if (body.organization_id && body.organization_id !== tenantContext.organizationId) {
+      console.error('❌ [PUT /api/customers/[id]] Intento de cambiar organization_id:', {
+        user_org: tenantContext.organizationId,
+        body_org: body.organization_id
+      });
+      return NextResponse.json({ 
+        error: 'No se puede cambiar la organización del cliente. El organization_id no puede modificarse.' 
+      }, { status: 403 });
+    }
+
+    // ✅ REMOVER organization_id del body (no debe modificarse)
+    delete body.organization_id;
+
     const supabase = await createClient()
     
     // Actualizar cliente

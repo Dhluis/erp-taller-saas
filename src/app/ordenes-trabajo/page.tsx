@@ -133,9 +133,9 @@ export default function WorkOrdersPage() {
   const handleViewDetails = async (workOrder: WorkOrder) => {
     try {
       console.log('👁️ [handleViewDetails] Ver detalles de orden:', workOrder.id);
-      await fetchWorkOrderById(workOrder.id);
+    await fetchWorkOrderById(workOrder.id);
       console.log('✅ [handleViewDetails] Orden cargada, abriendo modal');
-      setIsDetailsOpen(true);
+    setIsDetailsOpen(true);
     } catch (error) {
       console.error('❌ [handleViewDetails] Error:', error);
       toast.error('Error al cargar los detalles de la orden');
@@ -146,8 +146,8 @@ export default function WorkOrdersPage() {
   const handleEditWorkOrder = (workOrder: WorkOrder) => {
     try {
       console.log('✏️ [handleEditWorkOrder] Editar orden:', workOrder.id);
-      setEditingWorkOrder(workOrder);
-      setIsFormOpen(true);
+    setEditingWorkOrder(workOrder);
+    setIsFormOpen(true);
       console.log('✅ [handleEditWorkOrder] Modal de edición abierto');
     } catch (error) {
       console.error('❌ [handleEditWorkOrder] Error:', error);

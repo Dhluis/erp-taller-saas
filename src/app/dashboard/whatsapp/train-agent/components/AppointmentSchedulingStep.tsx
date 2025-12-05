@@ -143,13 +143,13 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
               </p>
             </div>
             <div className="flex-shrink-0 min-w-[44px]">
-              <Switch
+            <Switch
                 id="auto-schedule-switch"
-                checked={autoSchedule}
-                onCheckedChange={handleAutoScheduleChange}
+              checked={autoSchedule}
+              onCheckedChange={handleAutoScheduleChange}
                 className="relative z-10 opacity-100"
                 style={{ minWidth: '44px', minHeight: '24px' }}
-              />
+            />
             </div>
           </div>
 
@@ -165,13 +165,13 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
                 </p>
               </div>
               <div className="flex-shrink-0 min-w-[44px]">
-                <Switch
+              <Switch
                   id="require-approval-switch"
-                  checked={requireApproval}
-                  onCheckedChange={handleRequireApprovalChange}
+                checked={requireApproval}
+                onCheckedChange={handleRequireApprovalChange}
                   className="relative z-10 opacity-100"
                   style={{ minWidth: '44px', minHeight: '24px' }}
-                />
+              />
               </div>
             </div>
           )}
@@ -198,10 +198,10 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
               </AlertDescription>
             </Alert>
 
-            <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="min_advance_hours">Tiempo mínimo de anticipación (horas)</Label>
-                <Input
+                    <Input
                   id="min_advance_hours"
                   type="number"
                   min="0"
@@ -212,37 +212,37 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
                 <p className="text-xs text-muted-foreground mt-1">
                   Mínimo de horas antes de la cita (ej: 24 = 1 día)
                 </p>
-              </div>
+                  </div>
 
-              <div>
+                  <div>
                 <Label htmlFor="max_advance_days">Tiempo máximo de anticipación (días)</Label>
-                <Input
+                    <Input
                   id="max_advance_days"
                   type="number"
                   min="1"
                   value={appointmentRules.max_advance_days}
                   onChange={(e) => handleRuleChange('max_advance_days', parseInt(e.target.value) || 0)}
                   placeholder="30"
-                />
+                    />
                 <p className="text-xs text-muted-foreground mt-1">
                   Máximo de días que se pueden agendar con anticipación
                 </p>
-              </div>
+                  </div>
 
-              <div>
+                  <div>
                 <Label htmlFor="buffer_minutes">Tiempo entre citas (minutos)</Label>
-                <Input
+                    <Input
                   id="buffer_minutes"
                   type="number"
                   min="0"
                   value={appointmentRules.buffer_minutes}
                   onChange={(e) => handleRuleChange('buffer_minutes', parseInt(e.target.value) || 0)}
                   placeholder="30"
-                />
+                    />
                 <p className="text-xs text-muted-foreground mt-1">
                   Tiempo de buffer entre citas para limpieza/preparación
                 </p>
-              </div>
+                  </div>
 
               <div>
                 <Label htmlFor="max_appointments_per_day">Límite de citas por día</Label>
@@ -261,18 +261,18 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
 
               <div>
                 <Label htmlFor="max_appointments_per_week">Límite de citas por semana</Label>
-                <Input
+                        <Input
                   id="max_appointments_per_week"
                   type="number"
                   min="1"
                   value={appointmentRules.max_appointments_per_week}
                   onChange={(e) => handleRuleChange('max_appointments_per_week', parseInt(e.target.value) || 0)}
                   placeholder="50"
-                />
+                        />
                 <p className="text-xs text-muted-foreground mt-1">
                   Número máximo de citas que se pueden agendar en una semana
                 </p>
-              </div>
+                  </div>
             </div>
           </CardContent>
         </Card>

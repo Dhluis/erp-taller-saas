@@ -116,7 +116,7 @@ export function WhatsAppQRConnectorSimple({
           
           // Solo llamar onStatusChange si realmente cambió el estado
           if (wasNotConnected) {
-            onStatusChange?.('connected')
+          onStatusChange?.('connected')
           }
           
           // Disparar evento personalizado solo si es una nueva conexión (no en cada montaje)
@@ -173,7 +173,7 @@ export function WhatsAppQRConnectorSimple({
         setSessionData(data)
         setErrorMessage(null)
         if (wasNotPending) {
-          onStatusChange?.('pending')
+        onStatusChange?.('pending')
         }
         
         // Verificar directamente en WAHA si ya se conectó cada 3 intentos (~24 segundos)
@@ -211,7 +211,7 @@ export function WhatsAppQRConnectorSimple({
                   
                   // Solo llamar onStatusChange si realmente cambió el estado
                   if (wasNotConnected) {
-                    onStatusChange?.('connected')
+                  onStatusChange?.('connected')
                   }
                   
                   // ✅ Disparar evento personalizado solo si es una nueva conexión

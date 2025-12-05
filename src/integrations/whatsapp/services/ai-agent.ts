@@ -353,58 +353,58 @@ async function processWithOpenAI(params: {
   
   if (params.aiConfig.auto_schedule_appointments) {
     functions.push(
-      {
-        name: 'create_appointment_request',
-        description: 'Crea una solicitud de cita cuando el cliente quiere agendar. Usa esta función cuando tengas suficiente información: servicio, vehículo, fecha y hora. NO uses esta función si falta información importante - mejor pregunta al cliente de forma natural.',
-        parameters: {
-          type: 'object',
-          properties: {
-            service_type: {
-              type: 'string',
-              description: 'Tipo de servicio que el cliente necesita (ej: "Cambio de aceite", "Alineación", "Frenos")'
-            },
-            vehicle_description: {
-              type: 'string',
-              description: 'Descripción del vehículo (marca, modelo, año, o lo que el cliente haya mencionado)'
-            },
-            preferred_date: {
-              type: 'string',
-              description: 'Fecha preferida en formato YYYY-MM-DD'
-            },
-            preferred_time: {
-              type: 'string',
-              description: 'Hora preferida en formato HH:MM (24h, ej: "14:30")'
-            },
-            customer_name: {
-              type: 'string',
-              description: 'Nombre del cliente (opcional, si el cliente lo mencionó)'
-            },
-            estimated_price: {
-              type: 'number',
-              description: 'Precio estimado del servicio si está disponible en la configuración (opcional)'
-            },
-            notes: {
-              type: 'string',
-              description: 'Notas adicionales que el cliente haya mencionado (opcional)'
-            }
+    {
+      name: 'create_appointment_request',
+      description: 'Crea una solicitud de cita cuando el cliente quiere agendar. Usa esta función cuando tengas suficiente información: servicio, vehículo, fecha y hora. NO uses esta función si falta información importante - mejor pregunta al cliente de forma natural.',
+      parameters: {
+        type: 'object',
+        properties: {
+          service_type: {
+            type: 'string',
+            description: 'Tipo de servicio que el cliente necesita (ej: "Cambio de aceite", "Alineación", "Frenos")'
           },
-          required: ['service_type', 'vehicle_description', 'preferred_date', 'preferred_time']
-        }
-      },
-      {
-        name: 'check_availability',
-        description: 'Consulta la disponibilidad de horarios para una fecha específica. Usa esta función cuando el cliente pregunta sobre horarios disponibles o si necesitas verificar antes de crear una solicitud de cita.',
-        parameters: {
-          type: 'object',
-          properties: {
-            date: {
-              type: 'string',
-              description: 'Fecha a verificar en formato YYYY-MM-DD'
-            }
+          vehicle_description: {
+            type: 'string',
+            description: 'Descripción del vehículo (marca, modelo, año, o lo que el cliente haya mencionado)'
           },
-          required: ['date']
-        }
-      },
+          preferred_date: {
+            type: 'string',
+            description: 'Fecha preferida en formato YYYY-MM-DD'
+          },
+          preferred_time: {
+            type: 'string',
+            description: 'Hora preferida en formato HH:MM (24h, ej: "14:30")'
+          },
+          customer_name: {
+            type: 'string',
+            description: 'Nombre del cliente (opcional, si el cliente lo mencionó)'
+          },
+          estimated_price: {
+            type: 'number',
+            description: 'Precio estimado del servicio si está disponible en la configuración (opcional)'
+          },
+          notes: {
+            type: 'string',
+            description: 'Notas adicionales que el cliente haya mencionado (opcional)'
+          }
+        },
+        required: ['service_type', 'vehicle_description', 'preferred_date', 'preferred_time']
+      }
+    },
+    {
+      name: 'check_availability',
+      description: 'Consulta la disponibilidad de horarios para una fecha específica. Usa esta función cuando el cliente pregunta sobre horarios disponibles o si necesitas verificar antes de crear una solicitud de cita.',
+      parameters: {
+        type: 'object',
+        properties: {
+          date: {
+            type: 'string',
+            description: 'Fecha a verificar en formato YYYY-MM-DD'
+          }
+        },
+        required: ['date']
+      }
+    },
       {
         name: 'get_services_info',
         description: 'Obtiene información sobre los servicios disponibles (precios, duraciones, descripciones). Usa esta función cuando el cliente pregunte por servicios o precios.',

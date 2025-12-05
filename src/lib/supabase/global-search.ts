@@ -17,8 +17,46 @@ export interface SearchResult {
 
 /**
  * Búsqueda global en toda la aplicación
+ * ✅ ACTUALIZADO: Ahora usa API route que filtra por organization_id
  */
 export async function searchGlobal(query: string): Promise<SearchResult[]> {
+  try {
+    if (!query || query.length < 2) {
+      return []
+    }
+
+    // ✅ Usar API route que filtra por organization_id
+    const response = await fetch(`/api/search/global?q=${encodeURIComponent(query)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    })
+
+    if (!response.ok) {
+      console.error('Error en búsqueda global:', response.statusText)
+      return []
+    }
+
+    const result = await response.json()
+    
+    if (result.success && result.data) {
+      return result.data
+    }
+
+    return []
+  } catch (error) {
+    console.error('Error en searchGlobal:', error)
+    return []
+  }
+}
+
+/**
+ * @deprecated Esta función ya no se usa directamente, se usa la API route
+ * Mantenida por compatibilidad
+ */
+export async function searchGlobalLegacy(query: string): Promise<SearchResult[]> {
   return executeWithErrorHandling(
     async () => {
       if (!query || query.length < 2) {
@@ -28,6 +66,7 @@ export async function searchGlobal(query: string): Promise<SearchResult[]> {
       const client = getSupabaseClient()
       const results: SearchResult[] = []
       
+      // ⚠️ DEPRECATED: Esta función NO filtra por organization_id
       // Buscar en clientes
       const { data: customers } = await client
         .from('customers')
@@ -129,13 +168,48 @@ export async function searchGlobal(query: string): Promise<SearchResult[]> {
 
 /**
  * Obtener sugerencias rápidas
+ * ✅ ACTUALIZADO: Ahora filtra por organization_id usando API route
  */
 export async function getQuickSuggestions(): Promise<SearchResult[]> {
+  try {
+    // ✅ Usar API route para obtener sugerencias filtradas por organización
+    const response = await fetch('/api/search/suggestions', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    })
+
+    if (!response.ok) {
+      console.error('Error obteniendo sugerencias:', response.statusText)
+      return []
+    }
+
+    const result = await response.json()
+    
+    if (result.success && result.data) {
+      return result.data
+    }
+
+    return []
+  } catch (error) {
+    console.error('Error en getQuickSuggestions:', error)
+    return []
+  }
+}
+
+/**
+ * @deprecated Esta función ya no se usa directamente, se usa la API route
+ * Mantenida por compatibilidad
+ */
+export async function getQuickSuggestionsLegacy(): Promise<SearchResult[]> {
   return executeWithErrorHandling(
     async () => {
       const client = getSupabaseClient()
       const suggestions: SearchResult[] = []
       
+      // ⚠️ DEPRECATED: Esta función NO filtra por organization_id
       // Obtener clientes recientes
       const { data: recentCustomers } = await client
         .from('customers')
@@ -181,8 +255,50 @@ export async function getQuickSuggestions(): Promise<SearchResult[]> {
 
 /**
  * Búsqueda por tipo específico
+ * ✅ ACTUALIZADO: Ahora usa API route que filtra por organization_id
  */
 export async function searchByType(type: SearchResult['type'], query: string): Promise<SearchResult[]> {
+  try {
+    if (!query || query.length < 2) {
+      return []
+    }
+
+    // ✅ Usar API route que filtra por organization_id
+    const response = await fetch(`/api/search/global?q=${encodeURIComponent(query)}&type=${type}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    })
+
+    if (!response.ok) {
+      console.error('Error en búsqueda por tipo:', response.statusText)
+      return []
+    }
+
+    const result = await response.json()
+    
+    if (result.success && result.data) {
+      // Filtrar por tipo si se especificó
+      if (type) {
+        return result.data.filter((item: SearchResult) => item.type === type)
+      }
+      return result.data
+    }
+
+    return []
+  } catch (error) {
+    console.error('Error en searchByType:', error)
+    return []
+  }
+}
+
+/**
+ * @deprecated Esta función ya no se usa directamente, se usa la API route
+ * Mantenida por compatibilidad
+ */
+export async function searchByTypeLegacy(type: SearchResult['type'], query: string): Promise<SearchResult[]> {
   return executeWithErrorHandling(
     async () => {
       if (!query || query.length < 2) {
@@ -192,6 +308,7 @@ export async function searchByType(type: SearchResult['type'], query: string): P
       const client = getSupabaseClient()
       const results: SearchResult[] = []
       
+      // ⚠️ DEPRECATED: Esta función NO filtra por organization_id
       switch (type) {
         case 'customer':
           const { data: customers } = await client

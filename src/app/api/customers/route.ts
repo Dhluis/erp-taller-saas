@@ -170,12 +170,43 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔄 POST /api/customers - Iniciando...')
     
-    // ✅ USAR HELPER CENTRALIZADO - igual que órdenes y citas
-    const organizationId = await getOrganizationId(request)
-    console.log('✅ [POST /api/customers] Organization ID:', organizationId)
+    // ✅ VALIDACIÓN: Obtener organization_id del usuario autenticado
+    let organizationId: string;
+    try {
+      organizationId = await getOrganizationId(request);
+      console.log('✅ [POST /api/customers] Organization ID:', organizationId);
+    } catch (error: any) {
+      console.error('❌ [POST /api/customers] Error obteniendo organizationId:', error);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No se pudo obtener la organización del usuario. Por favor, contacta al administrador.' 
+      }, { status: 403 });
+    }
 
-    const body = await request.json()
-    console.log('📝 Datos recibidos:', body)
+    if (!organizationId) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Usuario sin organización asignada. Por favor, contacta al administrador.' 
+      }, { status: 403 });
+    }
+
+    const body = await request.json();
+    console.log('📝 Datos recibidos:', body);
+
+    // ✅ VALIDACIÓN CRÍTICA: Si viene organization_id en el body, debe coincidir con el del usuario
+    if (body.organization_id && body.organization_id !== organizationId) {
+      console.error('❌ [POST /api/customers] Intento de crear cliente en otra organización:', {
+        user_org: organizationId,
+        body_org: body.organization_id
+      });
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No se puede crear cliente en otra organización. El organization_id será asignado automáticamente.' 
+      }, { status: 403 });
+    }
+
+    // ✅ FORZAR organization_id del usuario (ignorar el del body por seguridad)
+    body.organization_id = organizationId;
 
     const supabase = await getSupabaseServerClient()
     

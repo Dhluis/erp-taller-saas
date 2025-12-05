@@ -310,9 +310,9 @@ export function OrderDetailModal({ isOpen, onClose, order, onUpdate }: OrderDeta
                   ))}
                 </div>
               ) : (
-                <p className="text-slate-300 text-sm leading-relaxed">
+              <p className="text-slate-300 text-sm leading-relaxed">
                   {String(order.notes)}
-                </p>
+              </p>
               )}
             </div>
           )}
