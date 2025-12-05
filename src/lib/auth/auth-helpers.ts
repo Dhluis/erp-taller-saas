@@ -198,11 +198,18 @@ export async function signUpWithProfile(userData: {
   try {
     const supabase = getAuthClient()
     
+    // Obtener URL base de la aplicación
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                   process.env.NEXT_PUBLIC_VERCEL_URL ? 
+                     `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 
+                     'http://localhost:3000'
+    
     // Registrar usuario en auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: userData.email,
       password: userData.password,
       options: {
+        emailRedirectTo: `${baseUrl}/auth/callback`,
         data: {
           full_name: userData.fullName,
           organization_id: userData.organizationId,
