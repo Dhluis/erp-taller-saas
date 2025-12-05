@@ -116,6 +116,7 @@ export interface FAQ {
 // ============================================
 
 export type AIFunctionName = 
+  | 'create_appointment_request'
   | 'schedule_appointment'
   | 'check_availability'
   | 'get_service_price'

@@ -34,15 +34,15 @@ export async function loadAIContext(
       try {
         const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
         const serviceSupabase = getSupabaseServiceClient()
-        const retry = await serviceSupabase
+        const retryResult: any = await serviceSupabase
           .from('ai_agent_config')
           .select('*')
           .eq('organization_id', organizationId)
           .single()
         
-        if (!retry.error && retry.data) {
+        if (!retryResult.error && retryResult.data) {
           console.log('[ContextLoader] ✅ Configuración encontrada con service client (fallback)')
-          aiConfig = retry.data
+          aiConfig = retryResult.data
           aiError = null
         }
       } catch (fallbackError) {
@@ -198,10 +198,32 @@ ${escalationRules.keywords_to_escalate.join(', ')}
 
 Si después de ${escalationRules?.max_messages_before_escalate || 10} mensajes no puedes resolver el problema, sugiere contacto con un humano.
 
+## AGENDAMIENTO DE CITAS
+Cuando un cliente quiera agendar una cita:
+1. **Sé conversacional, NO un cuestionario robótico**: Pregunta de forma natural, como en una conversación real
+2. **Menciona precios**: Cuando el cliente pregunte por un servicio, menciona el precio si está en la configuración (usa los servicios configurados con sus precios)
+3. **Verifica horarios**: Antes de crear una solicitud, verifica que la fecha/hora esté dentro de business_hours usando la función check_availability
+4. **Confirma datos**: Antes de crear la solicitud, confirma los detalles de forma amigable: "Perfecto, entonces quieres agendar [servicio] para tu [vehículo] el [fecha] a las [hora]. ¿Es correcto?"
+5. **Solo crea solicitud cuando tengas**: servicio, vehículo, fecha y hora. Si falta algo, pregunta naturalmente
+6. **Usa la función create_appointment_request** cuando tengas toda la información necesaria
+7. **Respeta business_hours**: Si el cliente pide un horario fuera del horario del taller, sugiere horarios disponibles dentro del rango
+
+Ejemplo de conversación natural:
+- Cliente: "Quiero agendar un cambio de aceite"
+- Tú: "¡Por supuesto! El cambio de aceite tiene un precio de $XXX. ¿Para qué vehículo sería?"
+- Cliente: "Para mi Honda Civic 2020"
+- Tú: "Perfecto. ¿Qué día te conviene?"
+- Cliente: "El viernes"
+- Tú: "Déjame verificar disponibilidad para el viernes..." [llama check_availability]
+- Tú: "Tenemos horarios disponibles el viernes a las 10:00, 14:00 y 16:00. ¿Cuál prefieres?"
+- Cliente: "Las 2 de la tarde"
+- Tú: "Excelente. Entonces cambio de aceite para tu Honda Civic 2020 el viernes a las 14:00. ¿Algo más que deba saber?" [llama create_appointment_request]
+- Tú: "¡Listo! Tu solicitud de cita ha sido creada. Te confirmaremos pronto. 😊"
+
 ## TU OBJETIVO
 Ayudar a los clientes a:
 1. Obtener información sobre servicios y precios
-2. Agendar citas
+2. Agendar citas de forma natural y conversacional
 3. Conocer el estado de su vehículo
 4. Resolver dudas generales
 

@@ -295,6 +295,7 @@ export async function processMessage(
         history,
         customerMessage: params.customerMessage,
         organizationId: params.organizationId,
+        conversationId: params.conversationId,
         customerPhone: params.customerPhone
       });
     } else if (aiConfig.provider === 'anthropic') {
@@ -304,6 +305,7 @@ export async function processMessage(
         history,
         customerMessage: params.customerMessage,
         organizationId: params.organizationId,
+        conversationId: params.conversationId,
         customerPhone: params.customerPhone
       });
     } else {
@@ -332,6 +334,7 @@ async function processWithOpenAI(params: {
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
   customerMessage: string;
   organizationId: string;
+  conversationId: string;
   customerPhone: string;
 }): Promise<ProcessMessageResult> {
   
@@ -347,50 +350,46 @@ async function processWithOpenAI(params: {
   // Definir funciones para OpenAI
   const functions: OpenAI.Chat.ChatCompletionCreateParams.Function[] = [
     {
-      name: 'schedule_appointment',
-      description: 'Agenda una cita para el cliente en el taller',
+      name: 'create_appointment_request',
+      description: 'Crea una solicitud de cita cuando el cliente quiere agendar. Usa esta función cuando tengas suficiente información: servicio, vehículo, fecha y hora. NO uses esta función si falta información importante - mejor pregunta al cliente de forma natural.',
       parameters: {
         type: 'object',
         properties: {
+          service_type: {
+            type: 'string',
+            description: 'Tipo de servicio que el cliente necesita (ej: "Cambio de aceite", "Alineación", "Frenos")'
+          },
+          vehicle_description: {
+            type: 'string',
+            description: 'Descripción del vehículo (marca, modelo, año, o lo que el cliente haya mencionado)'
+          },
+          preferred_date: {
+            type: 'string',
+            description: 'Fecha preferida en formato YYYY-MM-DD'
+          },
+          preferred_time: {
+            type: 'string',
+            description: 'Hora preferida en formato HH:MM (24h, ej: "14:30")'
+          },
           customer_name: {
             type: 'string',
-            description: 'Nombre completo del cliente'
+            description: 'Nombre del cliente (opcional, si el cliente lo mencionó)'
           },
-          date: {
-            type: 'string',
-            description: 'Fecha en formato YYYY-MM-DD'
-          },
-          time: {
-            type: 'string',
-            description: 'Hora en formato HH:MM (24h)'
-          },
-          service_name: {
-            type: 'string',
-            description: 'Nombre del servicio a realizar'
-          },
-          vehicle_brand: {
-            type: 'string',
-            description: 'Marca del vehículo'
-          },
-          vehicle_model: {
-            type: 'string',
-            description: 'Modelo del vehículo'
-          },
-          vehicle_year: {
-            type: 'string',
-            description: 'Año del vehículo'
+          estimated_price: {
+            type: 'number',
+            description: 'Precio estimado del servicio si está disponible en la configuración (opcional)'
           },
           notes: {
             type: 'string',
-            description: 'Notas adicionales del cliente'
+            description: 'Notas adicionales que el cliente haya mencionado (opcional)'
           }
         },
-        required: ['customer_name', 'date', 'time', 'service_name', 'vehicle_brand', 'vehicle_model']
+        required: ['service_type', 'vehicle_description', 'preferred_date', 'preferred_time']
       }
     },
     {
       name: 'check_availability',
-      description: 'Verifica los horarios disponibles para una fecha específica',
+      description: 'Consulta la disponibilidad de horarios para una fecha específica. Usa esta función cuando el cliente pregunta sobre horarios disponibles o si necesitas verificar antes de crear una solicitud de cita.',
       parameters: {
         type: 'object',
         properties: {
@@ -487,7 +486,8 @@ async function processWithOpenAI(params: {
       const functionName = choice.message.function_call.name;
       const functionArgs = JSON.parse(choice.message.function_call.arguments);
 
-      console.log('[AIAgent/OpenAI] Ejecutando función:', functionName);
+      console.log('[AIAgent] 🔧 Function call detectado:', functionName);
+      console.log('[AIAgent] 📋 Argumentos:', JSON.stringify(functionArgs, null, 2));
       functionsCalled.push(functionName);
 
       // Agregar customer_phone si no está
@@ -503,6 +503,7 @@ async function processWithOpenAI(params: {
       const result = await executeFunction(
         functionCall,
         params.organizationId,
+        params.conversationId,
         params.customerPhone
       );
 
@@ -537,36 +538,36 @@ async function processWithAnthropic(params: {
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
   customerMessage: string;
   organizationId: string;
+  conversationId: string;
   customerPhone: string;
 }): Promise<ProcessMessageResult> {
   
   // Definir tools para Claude
   const tools: any[] = [
     {
-      name: 'schedule_appointment',
-      description: 'Agenda una cita para el cliente en el taller',
+      name: 'create_appointment_request',
+      description: 'Crea una solicitud de cita cuando el cliente quiere agendar. Usa esta función cuando tengas suficiente información: servicio, vehículo, fecha y hora.',
       input_schema: {
         type: 'object',
         properties: {
-          customer_name: { type: 'string', description: 'Nombre completo del cliente' },
-          date: { type: 'string', description: 'Fecha en formato YYYY-MM-DD' },
-          time: { type: 'string', description: 'Hora en formato HH:MM (24h)' },
-          service_name: { type: 'string', description: 'Nombre del servicio a realizar' },
-          vehicle_brand: { type: 'string', description: 'Marca del vehículo' },
-          vehicle_model: { type: 'string', description: 'Modelo del vehículo' },
-          vehicle_year: { type: 'string', description: 'Año del vehículo' },
-          notes: { type: 'string', description: 'Notas adicionales' }
+          service_type: { type: 'string', description: 'Tipo de servicio que el cliente necesita' },
+          vehicle_description: { type: 'string', description: 'Descripción del vehículo (marca, modelo, año)' },
+          preferred_date: { type: 'string', description: 'Fecha preferida en formato YYYY-MM-DD' },
+          preferred_time: { type: 'string', description: 'Hora preferida en formato HH:MM (24h)' },
+          customer_name: { type: 'string', description: 'Nombre del cliente (opcional)' },
+          estimated_price: { type: 'number', description: 'Precio estimado del servicio si está disponible (opcional)' },
+          notes: { type: 'string', description: 'Notas adicionales (opcional)' }
         },
-        required: ['customer_name', 'date', 'time', 'service_name', 'vehicle_brand', 'vehicle_model']
+        required: ['service_type', 'vehicle_description', 'preferred_date', 'preferred_time']
       }
     },
     {
       name: 'check_availability',
-      description: 'Verifica horarios disponibles',
+      description: 'Consulta la disponibilidad de horarios para una fecha específica. Usa esta función cuando el cliente pregunta sobre horarios disponibles.',
       input_schema: {
         type: 'object',
         properties: {
-          date: { type: 'string', description: 'Fecha en formato YYYY-MM-DD' }
+          date: { type: 'string', description: 'Fecha a verificar en formato YYYY-MM-DD' }
         },
         required: ['date']
       }
@@ -643,6 +644,7 @@ async function processWithAnthropic(params: {
       const result = await executeFunction(
         functionCall,
         params.organizationId,
+        params.conversationId,
         params.customerPhone
       );
 
