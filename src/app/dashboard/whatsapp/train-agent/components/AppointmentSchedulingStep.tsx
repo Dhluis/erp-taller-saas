@@ -7,14 +7,13 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
-import { Calendar, Clock, Settings, AlertCircle } from 'lucide-react'
+import { Calendar, Settings, AlertCircle } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
 interface AppointmentSchedulingStepProps {
   data: {
     auto_schedule_appointments?: boolean
     require_human_approval?: boolean
-    business_hours?: Record<string, { start: string; end: string } | null>
     appointment_rules?: {
       min_advance_hours?: number
       max_advance_days?: number
@@ -32,15 +31,6 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
   const [isClient, setIsClient] = useState(false)
   const [autoSchedule, setAutoSchedule] = useState(false)
   const [requireApproval, setRequireApproval] = useState(false)
-  const [businessHours, setBusinessHours] = useState<Record<string, { start: string; end: string } | null>>({
-    monday: { start: '09:00', end: '18:00' },
-    tuesday: { start: '09:00', end: '18:00' },
-    wednesday: { start: '09:00', end: '18:00' },
-    thursday: { start: '09:00', end: '18:00' },
-    friday: { start: '09:00', end: '18:00' },
-    saturday: { start: '09:00', end: '14:00' },
-    sunday: null
-  })
   const [appointmentRules, setAppointmentRules] = useState({
     min_advance_hours: 24,
     max_advance_days: 30,
@@ -55,15 +45,6 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
     setIsClient(true)
     setAutoSchedule(data.auto_schedule_appointments ?? false)
     setRequireApproval(data.require_human_approval ?? false)
-    setBusinessHours(data.business_hours || {
-      monday: { start: '09:00', end: '18:00' },
-      tuesday: { start: '09:00', end: '18:00' },
-      wednesday: { start: '09:00', end: '18:00' },
-      thursday: { start: '09:00', end: '18:00' },
-      friday: { start: '09:00', end: '18:00' },
-      saturday: { start: '09:00', end: '14:00' },
-      sunday: null
-    })
     setAppointmentRules({
       min_advance_hours: data.appointment_rules?.min_advance_hours ?? 24,
       max_advance_days: data.appointment_rules?.max_advance_days ?? 30,
@@ -76,9 +57,6 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
 
   // Sincronizar con props cuando cambian
   useEffect(() => {
-    if (data.business_hours) {
-      setBusinessHours(data.business_hours)
-    }
     if (data.auto_schedule_appointments !== undefined) {
       setAutoSchedule(data.auto_schedule_appointments)
     }
@@ -101,13 +79,11 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
   const updateAndNotify = (updates: Partial<{
     auto_schedule_appointments: boolean
     require_human_approval: boolean
-    business_hours: Record<string, { start: string; end: string } | null>
     appointment_rules: typeof appointmentRules
   }>) => {
     const newData = {
       auto_schedule_appointments: updates.auto_schedule_appointments ?? autoSchedule,
       require_human_approval: updates.require_human_approval ?? requireApproval,
-      business_hours: updates.business_hours ?? businessHours,
       appointment_rules: updates.appointment_rules ?? appointmentRules
     }
     onChange(newData)
@@ -127,38 +103,6 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
     const newRules = { ...appointmentRules, [field]: value }
     setAppointmentRules(newRules)
     updateAndNotify({ appointment_rules: newRules })
-  }
-
-  const updateBusinessHours = (day: string, field: string | null, value: string | null) => {
-    let newBusinessHours: Record<string, { start: string; end: string } | null>
-    if (field === null) {
-      // Cerrar el día
-      newBusinessHours = {
-        ...businessHours,
-        [day]: null
-      }
-    } else {
-      // Actualizar hora
-      newBusinessHours = {
-        ...businessHours,
-        [day]: {
-          ...(businessHours[day] || { start: '09:00', end: '18:00' }),
-          [field]: value || ''
-        }
-      }
-    }
-    setBusinessHours(newBusinessHours)
-    updateAndNotify({ business_hours: newBusinessHours })
-  }
-
-  const dayNames: Record<string, string> = {
-    monday: 'Lunes',
-    tuesday: 'Martes',
-    wednesday: 'Miércoles',
-    thursday: 'Jueves',
-    friday: 'Viernes',
-    saturday: 'Sábado',
-    sunday: 'Domingo'
   }
 
   // No renderizar hasta que esté en el cliente
@@ -250,7 +194,7 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Los servicios disponibles se configuran en el Paso 2. Estas reglas controlan cómo se agendan las citas.
+                Los servicios disponibles se configuran en el Paso 2 y los horarios de atención en el Paso 1. Estas reglas controlan cómo se agendan las citas.
               </AlertDescription>
             </Alert>
 
@@ -329,76 +273,6 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
                   Número máximo de citas que se pueden agendar en una semana
                 </p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Horarios de Atención */}
-      {autoSchedule && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Horarios de Atención
-            </CardTitle>
-            <CardDescription>
-              Define los horarios en los que los clientes pueden agendar citas
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {Object.keys(dayNames).map((day) => {
-                const hours = businessHours[day]
-                const isClosed = !hours
-
-                return (
-                  <div key={day} className="flex items-center gap-4">
-                    <div className="w-24">
-                      <Label>{dayNames[day]}</Label>
-                    </div>
-                    {isClosed ? (
-                      <div className="flex-1 flex items-center justify-between">
-                        <span className="text-text-secondary">Cerrado</span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateBusinessHours(day, 'start', '09:00')}
-                          className="border-2 border-primary/50 text-text-primary hover:bg-primary/10 hover:border-primary"
-                        >
-                          Abrir
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                        <Input
-                          type="time"
-                          value={hours?.start || '09:00'}
-                          onChange={(e) => updateBusinessHours(day, 'start', e.target.value)}
-                          className="w-32"
-                        />
-                        <span className="text-text-secondary">-</span>
-                        <Input
-                          type="time"
-                          value={hours?.end || '18:00'}
-                          onChange={(e) => updateBusinessHours(day, 'end', e.target.value)}
-                          className="w-32"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => updateBusinessHours(day, null, null)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          Cerrar
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                )
-              })}
             </div>
           </CardContent>
         </Card>
