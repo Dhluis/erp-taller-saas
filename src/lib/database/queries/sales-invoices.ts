@@ -41,8 +41,7 @@ export interface SalesInvoice {
   updated_at: string;
   customer?: {
     id: string;
-    first_name: string;
-    last_name: string;
+    name: string;
     email: string;
     phone: string;
   };
@@ -129,7 +128,7 @@ export async function getAllSalesInvoices(
     .from('sales_invoices')
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status),
       quotation:quotations(id, quotation_number, status)
@@ -158,7 +157,7 @@ export async function getSalesInvoiceById(id: string): Promise<SalesInvoice | nu
     .from('sales_invoices')
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status),
       quotation:quotations(id, quotation_number, status),
@@ -200,7 +199,7 @@ export async function createSalesInvoice(data: CreateSalesInvoiceData): Promise<
     .insert(invoiceData as any)
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status),
       quotation:quotations(id, quotation_number, status)
@@ -230,7 +229,7 @@ export async function updateSalesInvoice(
     .eq('id', id)
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status),
       quotation:quotations(id, quotation_number, status)
@@ -280,7 +279,7 @@ export async function updateSalesInvoiceStatus(
     .eq('id', id)
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status),
       quotation:quotations(id, quotation_number, status)
@@ -305,13 +304,13 @@ export async function searchSalesInvoices(
     .from('sales_invoices')
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status),
       quotation:quotations(id, quotation_number, status)
     `)
     .eq('organization_id', organizationId)
-    .or(`invoice_number.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,customer.first_name.ilike.%${searchTerm}%,customer.last_name.ilike.%${searchTerm}%,vehicle.brand.ilike.%${searchTerm}%,vehicle.model.ilike.%${searchTerm}%`)
+    .or(`invoice_number.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,customer.name.ilike.%${searchTerm}%,vehicle.brand.ilike.%${searchTerm}%,vehicle.model.ilike.%${searchTerm}%`)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -332,7 +331,7 @@ export async function getSalesInvoicesByCustomer(
     .from('sales_invoices')
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status),
       quotation:quotations(id, quotation_number, status)
@@ -359,7 +358,7 @@ export async function getSalesInvoicesByWorkOrder(
     .from('sales_invoices')
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status),
       quotation:quotations(id, quotation_number, status)
@@ -587,7 +586,7 @@ export async function updateSalesInvoiceDiscount(
     .eq('id', invoiceId)
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status),
       quotation:quotations(id, quotation_number, status)
@@ -639,7 +638,7 @@ export async function updateSalesInvoicePaidAmount(
     .eq('id', invoiceId)
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status),
       quotation:quotations(id, quotation_number, status)

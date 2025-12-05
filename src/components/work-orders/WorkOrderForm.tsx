@@ -194,7 +194,7 @@ export function WorkOrderForm({
                   <SelectContent>
                     {customers.map((customer) => (
                       <SelectItem key={customer.id} value={customer.id}>
-                        {customer.first_name} {customer.last_name}
+                        {customer.name}
                         {customer.email && ` - ${customer.email}`}
                       </SelectItem>
                     ))}

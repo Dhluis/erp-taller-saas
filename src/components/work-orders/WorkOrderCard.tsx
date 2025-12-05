@@ -44,7 +44,7 @@ export function WorkOrderCard({
             <User className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium">
               {workOrder.customer
-                ? `${workOrder.customer.first_name} ${workOrder.customer.last_name}`
+                ? workOrder.customer.name
                 : 'Cliente no encontrado'}
             </span>
           </div>

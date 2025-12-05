@@ -25,8 +25,7 @@ export interface Payment {
     total_amount: number;
     customer?: {
       id: string;
-      first_name: string;
-      last_name: string;
+      name: string;
       email: string;
       phone: string;
     };
@@ -82,7 +81,7 @@ export async function getAllPayments(
         invoice_number,
         customer_id,
         total_amount,
-        customer:customers(id, first_name, last_name, email, phone)
+        customer:customers(id, name, email, phone)
       )
     `)
     .eq('organization_id', organizationId)
@@ -114,7 +113,7 @@ export async function getPaymentById(id: string): Promise<Payment | null> {
         invoice_number,
         customer_id,
         total_amount,
-        customer:customers(id, first_name, last_name, email, phone)
+        customer:customers(id, name, email, phone)
       )
     `)
     .eq('id', id)
@@ -152,7 +151,7 @@ export async function createPayment(data: CreatePaymentData): Promise<Payment> {
         invoice_number,
         customer_id,
         total_amount,
-        customer:customers(id, first_name, last_name, email, phone)
+        customer:customers(id, name, email, phone)
       )
     `)
     .single();
@@ -182,7 +181,7 @@ export async function updatePayment(
         invoice_number,
         customer_id,
         total_amount,
-        customer:customers(id, first_name, last_name, email, phone)
+        customer:customers(id, name, email, phone)
       )
     `)
     .single();
@@ -224,11 +223,11 @@ export async function searchPayments(
         invoice_number,
         customer_id,
         total_amount,
-        customer:customers(id, first_name, last_name, email, phone)
+        customer:customers(id, name, email, phone)
       )
     `)
     .eq('organization_id', organizationId)
-    .or(`payment_number.ilike.%${searchTerm}%,reference.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%,invoice.invoice_number.ilike.%${searchTerm}%,invoice.customer.first_name.ilike.%${searchTerm}%,invoice.customer.last_name.ilike.%${searchTerm}%`)
+    .or(`payment_number.ilike.%${searchTerm}%,reference.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%,invoice.invoice_number.ilike.%${searchTerm}%,invoice.customer.name.ilike.%${searchTerm}%`)
     .order('payment_date', { ascending: false });
 
   if (error) {
@@ -254,7 +253,7 @@ export async function getPaymentsByInvoice(
         invoice_number,
         customer_id,
         total_amount,
-        customer:customers(id, first_name, last_name, email, phone)
+        customer:customers(id, name, email, phone)
       )
     `)
     .eq('organization_id', organizationId)
@@ -284,7 +283,7 @@ export async function getPaymentsByCustomer(
         invoice_number,
         customer_id,
         total_amount,
-        customer:customers(id, first_name, last_name, email, phone)
+        customer:customers(id, name, email, phone)
       )
     `)
     .eq('organization_id', organizationId)

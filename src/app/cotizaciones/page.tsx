@@ -361,8 +361,7 @@ export default function QuotationsPage() {
                         <User className="h-4 w-4 text-muted-foreground" />
                         <div>
                           <p className="text-sm font-medium">
-                            {currentQuotation.customer.first_name}{' '}
-                            {currentQuotation.customer.last_name}
+                            {currentQuotation.customer.name}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {currentQuotation.customer.email}

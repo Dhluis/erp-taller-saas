@@ -394,7 +394,7 @@ export default function WorkOrdersPage() {
                     </p>
                     <p className="font-medium">
                       {currentWorkOrder.customer
-                        ? `${currentWorkOrder.customer.first_name} ${currentWorkOrder.customer.last_name}`
+                        ? currentWorkOrder.customer.name
                         : 'N/A'}
                     </p>
                     <p className="text-sm text-muted-foreground">

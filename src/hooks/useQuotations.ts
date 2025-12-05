@@ -35,8 +35,7 @@ export interface Quotation {
   updated_at: string;
   customer?: {
     id: string;
-    first_name: string;
-    last_name: string;
+    name: string;
     email: string;
     phone: string;
   };

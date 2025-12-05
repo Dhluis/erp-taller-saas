@@ -670,7 +670,7 @@ export async function getAllPayments(invoiceId?: string) {
           invoice_number,
           customer_id,
           total_amount,
-          customer:customers(id, first_name, last_name, email, phone)
+          customer:customers(id, name, email, phone)
         )
       `)
       .eq('organization_id', '00000000-0000-0000-0000-000000000001')
@@ -699,7 +699,7 @@ export async function getPaymentById(id: string) {
           invoice_number,
           customer_id,
           total_amount,
-          customer:customers(id, first_name, last_name, email, phone)
+          customer:customers(id, name, email, phone)
         )
       `)
       .eq('id', id)
@@ -734,7 +734,7 @@ export async function createPayment(paymentData: {
           invoice_number,
           customer_id,
           total_amount,
-          customer:customers(id, first_name, last_name, email, phone)
+          customer:customers(id, name, email, phone)
         )
       `)
       .single();
@@ -761,7 +761,7 @@ export async function updatePayment(
           invoice_number,
           customer_id,
           total_amount,
-          customer:customers(id, first_name, last_name, email, phone)
+          customer:customers(id, name, email, phone)
         )
       `)
       .single();
@@ -792,7 +792,7 @@ export async function searchPayments(searchTerm: string) {
           invoice_number,
           customer_id,
           total_amount,
-          customer:customers(id, first_name, last_name, email, phone)
+          customer:customers(id, name, email, phone)
         )
       `)
       .eq('organization_id', '00000000-0000-0000-0000-000000000001')
@@ -818,7 +818,7 @@ export async function getPaymentsByInvoice(invoiceId: string) {
           invoice_number,
           customer_id,
           total_amount,
-          customer:customers(id, first_name, last_name, email, phone)
+          customer:customers(id, name, email, phone)
         )
       `)
       .eq('invoice_id', invoiceId)
@@ -841,7 +841,7 @@ export async function getPaymentsByCustomer(customerId: string) {
           invoice_number,
           customer_id,
           total_amount,
-          customer:customers(id, first_name, last_name, email, phone)
+          customer:customers(id, name, email, phone)
         )
       `)
       .eq('organization_id', '00000000-0000-0000-0000-000000000001')

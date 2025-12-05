@@ -39,8 +39,7 @@ export interface Quotation {
   updated_at: string;
   customer?: {
     id: string;
-    first_name: string;
-    last_name: string;
+    name: string;
     email: string;
     phone: string;
   };
@@ -119,7 +118,7 @@ export async function getAllQuotations(
     .from('quotations')
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status)
     `)
@@ -147,7 +146,7 @@ export async function getQuotationById(id: string): Promise<Quotation | null> {
     .from('quotations')
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status),
       items:quotation_items(*)
@@ -186,7 +185,7 @@ export async function createQuotation(data: CreateQuotationData): Promise<Quotat
     .insert(quotationData as any)
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status)
     `)
@@ -215,7 +214,7 @@ export async function updateQuotation(
     .eq('id', id)
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status)
     `)
@@ -264,7 +263,7 @@ export async function updateQuotationStatus(
     .eq('id', id)
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status)
     `)
@@ -288,12 +287,12 @@ export async function searchQuotations(
     .from('quotations')
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status)
     `)
     .eq('organization_id', organizationId)
-    .or(`quotation_number.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,customer.first_name.ilike.%${searchTerm}%,customer.last_name.ilike.%${searchTerm}%,vehicle.brand.ilike.%${searchTerm}%,vehicle.model.ilike.%${searchTerm}%`)
+    .or(`quotation_number.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,customer.name.ilike.%${searchTerm}%,vehicle.brand.ilike.%${searchTerm}%,vehicle.model.ilike.%${searchTerm}%`)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -314,7 +313,7 @@ export async function getQuotationsByCustomer(
     .from('quotations')
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status)
     `)
@@ -340,7 +339,7 @@ export async function getQuotationsByWorkOrder(
     .from('quotations')
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status)
     `)
@@ -558,7 +557,7 @@ export async function updateQuotationDiscount(
     .eq('id', quotationId)
     .select(`
       *,
-      customer:customers(id, first_name, last_name, email, phone),
+      customer:customers(id, name, email, phone),
       vehicle:vehicles(id, brand, model, year, license_plate),
       work_order:work_orders(id, description, status)
     `)

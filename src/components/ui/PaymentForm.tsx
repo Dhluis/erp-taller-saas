@@ -152,7 +152,7 @@ export function PaymentForm({
                 <span className="text-muted-foreground">Cliente:</span>
                 <span className="font-medium">
                   {invoice.customer
-                    ? `${invoice.customer.first_name} ${invoice.customer.last_name}`
+                    ? invoice.customer.name
                     : 'N/A'}
                 </span>
               </div>

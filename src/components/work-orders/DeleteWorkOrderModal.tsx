@@ -44,7 +44,7 @@ export function DeleteWorkOrderModal({
             <p className="text-sm">
               <strong>Cliente:</strong>{' '}
               {workOrder.customer
-                ? `${workOrder.customer.first_name} ${workOrder.customer.last_name}`
+                ? workOrder.customer.name
                 : 'N/A'}
             </p>
             <p className="text-sm">
