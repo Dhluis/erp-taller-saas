@@ -348,59 +348,82 @@ async function processWithOpenAI(params: {
   }
   
   // Definir funciones para OpenAI
-  const functions: OpenAI.Chat.ChatCompletionCreateParams.Function[] = [
-    {
-      name: 'create_appointment_request',
-      description: 'Crea una solicitud de cita cuando el cliente quiere agendar. Usa esta función cuando tengas suficiente información: servicio, vehículo, fecha y hora. NO uses esta función si falta información importante - mejor pregunta al cliente de forma natural.',
-      parameters: {
-        type: 'object',
-        properties: {
-          service_type: {
-            type: 'string',
-            description: 'Tipo de servicio que el cliente necesita (ej: "Cambio de aceite", "Alineación", "Frenos")'
+  // Solo agregar funciones de agendamiento si auto_schedule_appointments está habilitado
+  const functions: OpenAI.Chat.ChatCompletionCreateParams.Function[] = [];
+  
+  if (params.aiConfig.auto_schedule_appointments) {
+    functions.push(
+      {
+        name: 'create_appointment_request',
+        description: 'Crea una solicitud de cita cuando el cliente quiere agendar. Usa esta función cuando tengas suficiente información: servicio, vehículo, fecha y hora. NO uses esta función si falta información importante - mejor pregunta al cliente de forma natural.',
+        parameters: {
+          type: 'object',
+          properties: {
+            service_type: {
+              type: 'string',
+              description: 'Tipo de servicio que el cliente necesita (ej: "Cambio de aceite", "Alineación", "Frenos")'
+            },
+            vehicle_description: {
+              type: 'string',
+              description: 'Descripción del vehículo (marca, modelo, año, o lo que el cliente haya mencionado)'
+            },
+            preferred_date: {
+              type: 'string',
+              description: 'Fecha preferida en formato YYYY-MM-DD'
+            },
+            preferred_time: {
+              type: 'string',
+              description: 'Hora preferida en formato HH:MM (24h, ej: "14:30")'
+            },
+            customer_name: {
+              type: 'string',
+              description: 'Nombre del cliente (opcional, si el cliente lo mencionó)'
+            },
+            estimated_price: {
+              type: 'number',
+              description: 'Precio estimado del servicio si está disponible en la configuración (opcional)'
+            },
+            notes: {
+              type: 'string',
+              description: 'Notas adicionales que el cliente haya mencionado (opcional)'
+            }
           },
-          vehicle_description: {
-            type: 'string',
-            description: 'Descripción del vehículo (marca, modelo, año, o lo que el cliente haya mencionado)'
+          required: ['service_type', 'vehicle_description', 'preferred_date', 'preferred_time']
+        }
+      },
+      {
+        name: 'check_availability',
+        description: 'Consulta la disponibilidad de horarios para una fecha específica. Usa esta función cuando el cliente pregunta sobre horarios disponibles o si necesitas verificar antes de crear una solicitud de cita.',
+        parameters: {
+          type: 'object',
+          properties: {
+            date: {
+              type: 'string',
+              description: 'Fecha a verificar en formato YYYY-MM-DD'
+            }
           },
-          preferred_date: {
-            type: 'string',
-            description: 'Fecha preferida en formato YYYY-MM-DD'
+          required: ['date']
+        }
+      },
+      {
+        name: 'get_services_info',
+        description: 'Obtiene información sobre los servicios disponibles (precios, duraciones, descripciones). Usa esta función cuando el cliente pregunte por servicios o precios.',
+        parameters: {
+          type: 'object',
+          properties: {
+            service_name: {
+              type: 'string',
+              description: 'Nombre del servicio específico a consultar (opcional). Si no se proporciona, retorna todos los servicios.'
+            }
           },
-          preferred_time: {
-            type: 'string',
-            description: 'Hora preferida en formato HH:MM (24h, ej: "14:30")'
-          },
-          customer_name: {
-            type: 'string',
-            description: 'Nombre del cliente (opcional, si el cliente lo mencionó)'
-          },
-          estimated_price: {
-            type: 'number',
-            description: 'Precio estimado del servicio si está disponible en la configuración (opcional)'
-          },
-          notes: {
-            type: 'string',
-            description: 'Notas adicionales que el cliente haya mencionado (opcional)'
-          }
-        },
-        required: ['service_type', 'vehicle_description', 'preferred_date', 'preferred_time']
+          required: []
+        }
       }
-    },
-    {
-      name: 'check_availability',
-      description: 'Consulta la disponibilidad de horarios para una fecha específica. Usa esta función cuando el cliente pregunta sobre horarios disponibles o si necesitas verificar antes de crear una solicitud de cita.',
-      parameters: {
-        type: 'object',
-        properties: {
-          date: {
-            type: 'string',
-            description: 'Fecha a verificar en formato YYYY-MM-DD'
-          }
-        },
-        required: ['date']
-      }
-    },
+    );
+  }
+  
+  // Funciones que siempre están disponibles
+  functions.push(
     {
       name: 'get_service_price',
       description: 'Consulta el precio de un servicio específico',
@@ -442,7 +465,7 @@ async function processWithOpenAI(params: {
         required: ['customer_name', 'services']
       }
     }
-  ];
+  );
 
   // Construir mensajes
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -473,8 +496,7 @@ async function processWithOpenAI(params: {
     const response = await openai.chat.completions.create({
       model: params.aiConfig.model,
       messages: messages,
-      functions: functions,
-      function_call: 'auto',
+      ...(functions.length > 0 ? { functions: functions, function_call: 'auto' } : {}),
       temperature: params.aiConfig.temperature,
       max_tokens: params.aiConfig.max_tokens
     } as any);
@@ -486,8 +508,8 @@ async function processWithOpenAI(params: {
       const functionName = choice.message.function_call.name;
       const functionArgs = JSON.parse(choice.message.function_call.arguments);
 
-      console.log('[AIAgent] 🔧 Function call detectado:', functionName);
-      console.log('[AIAgent] 📋 Argumentos:', JSON.stringify(functionArgs, null, 2));
+      console.log('[AIAgent] 🔧 Function call:', functionName);
+      console.log('[AIAgent] 📋 Args:', JSON.stringify(functionArgs, null, 2));
       functionsCalled.push(functionName);
 
       // Agregar customer_phone si no está

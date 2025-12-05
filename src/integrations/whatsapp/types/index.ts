@@ -120,6 +120,7 @@ export type AIFunctionName =
   | 'schedule_appointment'
   | 'check_availability'
   | 'get_service_price'
+  | 'get_services_info'
   | 'create_quote'
   | 'get_order_status'
   | 'escalate_to_human';

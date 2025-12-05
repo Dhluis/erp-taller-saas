@@ -64,6 +64,12 @@ export async function executeFunction(
           organizationId
         );
 
+      case 'get_services_info':
+        return await getServicesInfo(
+          functionCall.arguments as { service_name?: string },
+          organizationId
+        );
+
       case 'create_quote':
         return await createQuote(
           functionCall.arguments as CreateQuoteArgs,
@@ -78,10 +84,11 @@ export async function executeFunction(
         };
     }
   } catch (error) {
-    console.error('[FunctionExecutor] Error ejecutando función:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    console.error('[FunctionExecutor] ❌ Error:', errorMessage);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error desconocido'
+      error: errorMessage
     };
   }
 }
@@ -103,22 +110,106 @@ async function createAppointmentRequest(
   conversationId: string,
   customerPhone: string
 ): Promise<any> {
-  console.log('[FunctionExecutor] 📅 Creando solicitud de cita...');
-  console.log('[FunctionExecutor] 📋 Datos:', {
-    service_type: args.service_type,
-    vehicle_description: args.vehicle_description,
-    preferred_date: args.preferred_date,
-    preferred_time: args.preferred_time
-  });
+  console.log('[FunctionExecutor] 📅 Creando solicitud...');
+  console.log('[FunctionExecutor] 📋 Args:', JSON.stringify(args, null, 2));
 
   try {
     const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
     const supabase = getSupabaseServiceClient();
+    const { loadAIContext } = await import('./context-loader');
 
-    // Construir preferred_datetime combinando fecha y hora
+    // 1. Verificar disponibilidad primero
+    const availabilityResult = await checkAvailability(
+      { date: args.preferred_date },
+      organizationId
+    );
+
+    if (!availabilityResult.success || !availabilityResult.data?.available) {
+      console.log('[FunctionExecutor] ❌ No disponible en esa fecha');
+      return {
+        success: false,
+        error: availabilityResult.data?.message || 'No hay disponibilidad en esa fecha'
+      };
+    }
+
+    // 2. Cargar contexto para obtener business_hours y require_human_approval
+    const context = await loadAIContext(organizationId, conversationId);
+    if (!context) {
+      return {
+        success: false,
+        error: 'No se pudo cargar la configuración del taller'
+      };
+    }
+
+    // Obtener configuración para require_human_approval
+    const { getAIConfig } = await import('./context-loader');
+    const aiConfig = await getAIConfig(organizationId);
+    const requireApproval = aiConfig?.require_human_approval || false;
+
+    // 3. Validar que la hora esté dentro de business_hours
+    const date = new Date(args.preferred_date);
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = days[date.getDay()];
+    const businessHours = context.business_hours[dayName];
+
+    if (!businessHours) {
+      return {
+        success: false,
+        error: `Lo siento, estamos cerrados los ${dayName}s`
+      };
+    }
+
+    const [preferredHour, preferredMinute] = args.preferred_time.split(':').map(Number);
+    const [startHour, startMinute] = businessHours.start.split(':').map(Number);
+    const [endHour, endMinute] = businessHours.end.split(':').map(Number);
+
+    const preferredTimeMinutes = preferredHour * 60 + preferredMinute;
+    const startTimeMinutes = startHour * 60 + startMinute;
+    const endTimeMinutes = endHour * 60 + endMinute;
+
+    if (preferredTimeMinutes < startTimeMinutes || preferredTimeMinutes >= endTimeMinutes) {
+      return {
+        success: false,
+        error: `El horario ${args.preferred_time} está fuera de nuestro horario de atención (${businessHours.start} - ${businessHours.end})`
+      };
+    }
+
+    // 4. Verificar conflictos con citas existentes
     const preferredDateTime = new Date(`${args.preferred_date}T${args.preferred_time}:00`);
+    
+    // Consultar appointments existentes (no canceladas)
+    const { data: existingAppointments } = await supabase
+      .from('appointments')
+      .select('appointment_date, status')
+      .eq('organization_id', organizationId)
+      .neq('status', 'cancelled')
+      .gte('appointment_date', new Date(preferredDateTime.getTime() - 60 * 60 * 1000).toISOString()) // 1 hora antes
+      .lte('appointment_date', new Date(preferredDateTime.getTime() + 60 * 60 * 1000).toISOString()); // 1 hora después
 
-    // Insertar solicitud de cita
+    // Consultar appointment_requests pendientes/confirmadas para esa fecha/hora
+    const { data: existingRequests } = await supabase
+      .from('appointment_requests')
+      .select('preferred_datetime, status')
+      .eq('organization_id', organizationId)
+      .eq('preferred_date', args.preferred_date)
+      .eq('preferred_time', args.preferred_time)
+      .in('status', ['pending', 'approved']);
+
+    if (existingAppointments && existingAppointments.length > 0) {
+      return {
+        success: false,
+        error: 'Ya hay una cita agendada en ese horario. Por favor elige otro horario.'
+      };
+    }
+
+    if (existingRequests && existingRequests.length > 0) {
+      return {
+        success: false,
+        error: 'Ese horario ya está reservado. Por favor elige otro horario.'
+      };
+    }
+
+    // 5. Insertar solicitud de cita
     const { data: appointmentRequest, error } = await supabase
       .from('appointment_requests')
       .insert({
@@ -139,24 +230,35 @@ async function createAppointmentRequest(
       .single();
 
     if (error) {
-      console.error('[FunctionExecutor] ❌ Error creando solicitud de cita:', error);
+      console.error('[FunctionExecutor] ❌ Error:', error.message);
       return {
         success: false,
         error: `Error al crear solicitud: ${error.message}`
       };
     }
 
-    console.log('[FunctionExecutor] ✅ Solicitud de cita creada:', appointmentRequest?.id);
+    console.log('[FunctionExecutor] ✅ Solicitud creada:', appointmentRequest?.id);
+
+    const confirmationMessage = requireApproval
+      ? 'Te confirmaremos en breve'
+      : '¡Cita confirmada!';
 
     return {
       success: true,
       data: {
         appointment_request_id: appointmentRequest?.id,
-        message: 'Solicitud de cita creada exitosamente. El taller revisará tu solicitud y te confirmará pronto.'
+        message: confirmationMessage,
+        details: {
+          service: args.service_type,
+          vehicle: args.vehicle_description,
+          date: args.preferred_date,
+          time: args.preferred_time,
+          requires_approval: requireApproval
+        }
       }
     };
   } catch (error: any) {
-    console.error('[FunctionExecutor] ❌ Error en createAppointmentRequest:', error);
+    console.error('[FunctionExecutor] ❌ Error:', error.message);
     return {
       success: false,
       error: error.message || 'Error desconocido al crear solicitud de cita'
@@ -252,10 +354,10 @@ async function checkAvailability(
   args: CheckAvailabilityArgs,
   organizationId: string
 ): Promise<any> {
-  console.log('[FunctionExecutor] 📅 Consultando disponibilidad para:', args.date);
+  console.log('[FunctionExecutor] 📅 Verificando disponibilidad:', args.date);
 
   try {
-    // Obtener contexto para horarios y citas existentes
+    // Obtener contexto para horarios
     const context = await loadAIContext(organizationId, '');
 
     if (!context) {
@@ -277,21 +379,51 @@ async function checkAvailability(
         data: {
           available: false,
           message: `Lo siento, estamos cerrados los ${dayName}s`,
-          business_hours: null
+          business_hours: null,
+          occupied_slots: []
         }
       };
     }
 
-    // Consultar citas existentes para esa fecha
+    // Consultar appointments existentes para esa fecha (no canceladas)
     const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
     const supabase = getSupabaseServiceClient();
 
     const { data: existingAppointments } = await supabase
+      .from('appointments')
+      .select('appointment_date, status')
+      .eq('organization_id', organizationId)
+      .neq('status', 'cancelled')
+      .gte('appointment_date', new Date(`${args.date}T00:00:00`).toISOString())
+      .lt('appointment_date', new Date(`${args.date}T23:59:59`).toISOString());
+
+    // Consultar appointment_requests pendientes/confirmadas para esa fecha
+    const { data: existingRequests } = await supabase
       .from('appointment_requests')
-      .select('preferred_time, preferred_datetime')
+      .select('preferred_time, status')
       .eq('organization_id', organizationId)
       .eq('preferred_date', args.date)
-      .in('status', ['pending', 'confirmed']);
+      .in('status', ['pending', 'approved']);
+
+    // Obtener horarios ocupados
+    const occupiedSlots = new Set<string>();
+    
+    if (existingAppointments) {
+      existingAppointments.forEach((apt: any) => {
+        const aptDate = new Date(apt.appointment_date);
+        const hour = aptDate.getHours().toString().padStart(2, '0');
+        const minute = aptDate.getMinutes().toString().padStart(2, '0');
+        occupiedSlots.add(`${hour}:${minute}`);
+      });
+    }
+
+    if (existingRequests) {
+      existingRequests.forEach((req: any) => {
+        if (req.preferred_time) {
+          occupiedSlots.add(req.preferred_time);
+        }
+      });
+    }
 
     // Calcular slots disponibles (cada 60 minutos)
     const startHour = parseInt(businessHours.start.split(':')[0]);
@@ -300,35 +432,40 @@ async function checkAvailability(
 
     for (let hour = startHour; hour < endHour; hour++) {
       const slotTime = `${hour.toString().padStart(2, '0')}:00`;
-      // Verificar si hay conflicto con citas existentes
-      const hasConflict = existingAppointments?.some((apt: any) => {
-        const aptTime = apt.preferred_time || '';
-        return aptTime.startsWith(`${hour.toString().padStart(2, '0')}:`);
-      });
-      
-      if (!hasConflict) {
+      if (!occupiedSlots.has(slotTime)) {
         availableSlots.push(slotTime);
       }
     }
+
+    const dayNames: Record<string, string> = {
+      monday: 'Lunes',
+      tuesday: 'Martes',
+      wednesday: 'Miércoles',
+      thursday: 'Jueves',
+      friday: 'Viernes',
+      saturday: 'Sábado',
+      sunday: 'Domingo'
+    };
 
     return {
       success: true,
       data: {
         available: availableSlots.length > 0,
         date: args.date,
-        day_name: dayName,
+        day_name: dayNames[dayName] || dayName,
         business_hours: {
           start: businessHours.start,
           end: businessHours.end
         },
         available_slots: availableSlots,
+        occupied_slots: Array.from(occupiedSlots),
         message: availableSlots.length > 0
-          ? `Tenemos disponibilidad el ${args.date}. Horarios disponibles: ${availableSlots.join(', ')}`
-          : `Lo siento, no hay disponibilidad el ${args.date}. Horario del taller: ${businessHours.start} - ${businessHours.end}`
+          ? `Tenemos disponibilidad el ${dayNames[dayName] || dayName} ${args.date}. Horarios disponibles: ${availableSlots.join(', ')}`
+          : `Lo siento, no hay disponibilidad el ${dayNames[dayName] || dayName} ${args.date}. Horario del taller: ${businessHours.start} - ${businessHours.end}`
       }
     };
   } catch (error: any) {
-    console.error('[FunctionExecutor] ❌ Error en checkAvailability:', error);
+    console.error('[FunctionExecutor] ❌ Error:', error.message);
     return {
       success: false,
       error: error.message || 'Error desconocido al verificar disponibilidad'
@@ -373,6 +510,68 @@ async function getServicePrice(
       description: service.description
     }
   };
+}
+
+/**
+ * Obtiene información de servicios disponibles
+ */
+async function getServicesInfo(
+  args: { service_name?: string },
+  organizationId: string
+): Promise<any> {
+  console.log('[FunctionExecutor] 📋 Obteniendo información de servicios...');
+  
+  try {
+    const context = await loadAIContext(organizationId, '');
+
+    if (!context) {
+      return {
+        success: false,
+        error: 'No se pudo cargar el contexto del taller'
+      };
+    }
+
+    let services = context.services || [];
+
+    // Si se proporciona service_name, filtrar por nombre
+    if (args.service_name) {
+      services = services.filter(s => 
+        s.name?.toLowerCase().includes(args.service_name!.toLowerCase())
+      );
+
+      if (services.length === 0) {
+        return {
+          success: false,
+          error: `No encontré el servicio "${args.service_name}"`
+        };
+      }
+    }
+
+    // Formatear servicios para retornar
+    const formattedServices = services.map((s: any) => ({
+      name: s.name || 'Servicio sin nombre',
+      price_range: s.price_range || s.price || 'Consultar precio',
+      duration: s.duration || s.duration_minutes || 'Consultar duración',
+      description: s.description || ''
+    }));
+
+    return {
+      success: true,
+      data: {
+        services: formattedServices,
+        count: formattedServices.length,
+        message: args.service_name
+          ? `Encontré ${formattedServices.length} servicio(s) que coincide(n) con "${args.service_name}"`
+          : `Tenemos ${formattedServices.length} servicio(s) disponible(s)`
+      }
+    };
+  } catch (error: any) {
+    console.error('[FunctionExecutor] ❌ Error:', error.message);
+    return {
+      success: false,
+      error: error.message || 'Error desconocido al obtener información de servicios'
+    };
+  }
 }
 
 /**
