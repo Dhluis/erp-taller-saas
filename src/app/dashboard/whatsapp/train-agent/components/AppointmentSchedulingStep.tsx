@@ -41,15 +41,24 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
       sunday: null
     }
   )
+  const [isMounted, setIsMounted] = useState(false)
 
+  // Solo marcar como montado después del primer render
   useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  // Solo llamar onChange después del montaje para evitar problemas de hidratación
+  useEffect(() => {
+    if (!isMounted) return
+    
     onChange({
       auto_schedule_appointments: autoSchedule,
       require_human_approval: requireApproval,
       services,
       business_hours: businessHours
     })
-  }, [autoSchedule, requireApproval, services, businessHours, onChange])
+  }, [autoSchedule, requireApproval, services, businessHours, onChange, isMounted])
 
   const addService = () => {
     const newService: Service = {
