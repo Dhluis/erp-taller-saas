@@ -27,11 +27,28 @@ interface AppointmentSchedulingStepProps {
 }
 
 export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedulingStepProps) {
-  const [autoSchedule, setAutoSchedule] = useState(data.auto_schedule_appointments ?? false)
-  const [requireApproval, setRequireApproval] = useState(data.require_human_approval ?? false)
-  const [services, setServices] = useState<Service[]>(data.services || [])
-  const [businessHours, setBusinessHours] = useState<Record<string, { start: string; end: string } | null>>(
-    data.business_hours || {
+  // Asegurar que solo se inicialice en el cliente
+  const [isClient, setIsClient] = useState(false)
+  const [autoSchedule, setAutoSchedule] = useState(false)
+  const [requireApproval, setRequireApproval] = useState(false)
+  const [services, setServices] = useState<Service[]>([])
+  const [businessHours, setBusinessHours] = useState<Record<string, { start: string; end: string } | null>>({
+    monday: { start: '09:00', end: '18:00' },
+    tuesday: { start: '09:00', end: '18:00' },
+    wednesday: { start: '09:00', end: '18:00' },
+    thursday: { start: '09:00', end: '18:00' },
+    friday: { start: '09:00', end: '18:00' },
+    saturday: { start: '09:00', end: '14:00' },
+    sunday: null
+  })
+
+  // Inicializar en el cliente
+  useEffect(() => {
+    setIsClient(true)
+    setAutoSchedule(data.auto_schedule_appointments ?? false)
+    setRequireApproval(data.require_human_approval ?? false)
+    setServices(data.services || [])
+    setBusinessHours(data.business_hours || {
       monday: { start: '09:00', end: '18:00' },
       tuesday: { start: '09:00', end: '18:00' },
       wednesday: { start: '09:00', end: '18:00' },
@@ -39,26 +56,50 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
       friday: { start: '09:00', end: '18:00' },
       saturday: { start: '09:00', end: '14:00' },
       sunday: null
-    }
-  )
-  const [isMounted, setIsMounted] = useState(false)
-
-  // Solo marcar como montado después del primer render
-  useEffect(() => {
-    setIsMounted(true)
+    })
   }, [])
 
-  // Solo llamar onChange después del montaje para evitar problemas de hidratación
+  // Sincronizar con props cuando cambian
   useEffect(() => {
-    if (!isMounted) return
-    
-    onChange({
-      auto_schedule_appointments: autoSchedule,
-      require_human_approval: requireApproval,
-      services,
-      business_hours: businessHours
-    })
-  }, [autoSchedule, requireApproval, services, businessHours, onChange, isMounted])
+    if (data.services) {
+      setServices(data.services)
+    }
+    if (data.business_hours) {
+      setBusinessHours(data.business_hours)
+    }
+    if (data.auto_schedule_appointments !== undefined) {
+      setAutoSchedule(data.auto_schedule_appointments)
+    }
+    if (data.require_human_approval !== undefined) {
+      setRequireApproval(data.require_human_approval)
+    }
+  }, [data])
+
+  // Función helper para actualizar y notificar cambios
+  const updateAndNotify = (updates: Partial<{
+    auto_schedule_appointments: boolean
+    require_human_approval: boolean
+    services: Service[]
+    business_hours: Record<string, { start: string; end: string } | null>
+  }>) => {
+    const newData = {
+      auto_schedule_appointments: updates.auto_schedule_appointments ?? autoSchedule,
+      require_human_approval: updates.require_human_approval ?? requireApproval,
+      services: updates.services ?? services,
+      business_hours: updates.business_hours ?? businessHours
+    }
+    onChange(newData)
+  }
+
+  const handleAutoScheduleChange = (checked: boolean) => {
+    setAutoSchedule(checked)
+    updateAndNotify({ auto_schedule_appointments: checked })
+  }
+
+  const handleRequireApprovalChange = (checked: boolean) => {
+    setRequireApproval(checked)
+    updateAndNotify({ require_human_approval: checked })
+  }
 
   const addService = () => {
     const newService: Service = {
@@ -67,36 +108,44 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
       duration: '',
       price_range: ''
     }
-    setServices([...services, newService])
+    const newServices = [...services, newService]
+    setServices(newServices)
+    updateAndNotify({ services: newServices })
   }
 
   const removeService = (index: number) => {
-    setServices(services.filter((_, i) => i !== index))
+    const newServices = services.filter((_, i) => i !== index)
+    setServices(newServices)
+    updateAndNotify({ services: newServices })
   }
 
   const updateService = (index: number, field: keyof Service, value: string) => {
     const newServices = [...services]
     newServices[index][field] = value
     setServices(newServices)
+    updateAndNotify({ services: newServices })
   }
 
   const updateBusinessHours = (day: string, field: string | null, value: string | null) => {
+    let newBusinessHours: Record<string, { start: string; end: string } | null>
     if (field === null) {
       // Cerrar el día
-      setBusinessHours({
+      newBusinessHours = {
         ...businessHours,
         [day]: null
-      })
+      }
     } else {
       // Actualizar hora
-      setBusinessHours({
+      newBusinessHours = {
         ...businessHours,
         [day]: {
           ...(businessHours[day] || { start: '09:00', end: '18:00' }),
           [field]: value || ''
         }
-      })
+      }
     }
+    setBusinessHours(newBusinessHours)
+    updateAndNotify({ business_hours: newBusinessHours })
   }
 
   const dayNames: Record<string, string> = {
@@ -107,6 +156,19 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
     friday: 'Viernes',
     saturday: 'Sábado',
     sunday: 'Domingo'
+  }
+
+  // No renderizar hasta que esté en el cliente
+  if (!isClient) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="animate-pulse">Cargando...</div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -133,7 +195,7 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
             </div>
             <Switch
               checked={autoSchedule}
-              onCheckedChange={setAutoSchedule}
+              onCheckedChange={handleAutoScheduleChange}
             />
           </div>
 
@@ -148,7 +210,7 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
               </div>
               <Switch
                 checked={requireApproval}
-                onCheckedChange={setRequireApproval}
+                onCheckedChange={handleRequireApprovalChange}
               />
             </div>
           )}
@@ -166,7 +228,7 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
           </CardHeader>
           <CardContent className="space-y-4">
             {services.map((service, index) => (
-              <div key={index} className="border border-border rounded-lg p-4 space-y-4 bg-bg-secondary">
+              <div key={`service-${index}-${service.name || 'new'}`} className="border border-border rounded-lg p-4 space-y-4 bg-bg-secondary">
                 <div className="flex justify-between items-center">
                   <h3 className="font-semibold text-text-primary">Servicio #{index + 1}</h3>
                   <Button
