@@ -243,8 +243,18 @@ export function WorkOrderNotes({
     }
   }
 
+  // ✅ VALIDAR Y FILTRAR NOTAS: Asegurar que todas tengan el formato correcto
+  const validNotes = notes.filter((note) => {
+    // Verificar que sea un objeto y tenga las propiedades mínimas requeridas
+    if (!note || typeof note !== 'object') return false
+    if (!note.id || !note.text) return false
+    // Asegurar que createdAt sea una string válida
+    if (!note.createdAt || typeof note.createdAt !== 'string') return false
+    return true
+  })
+
   // Ordenar: fijadas primero, luego por fecha
-  const sortedNotes = [...notes].sort((a, b) => {
+  const sortedNotes = [...validNotes].sort((a, b) => {
     if (a.isPinned && !b.isPinned) return -1
     if (!a.isPinned && b.isPinned) return 1
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

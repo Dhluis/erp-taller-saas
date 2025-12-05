@@ -50,7 +50,20 @@ export function WorkOrderDetailsTabs({
     
     if (order?.notes && notesTimestamp - lastNotesUpdate > 1000) {
       console.log('🔄 [WorkOrderDetailsTabs] Sincronizando notas:', order.notes)
-      setNotes(order.notes)
+      
+      // ✅ VALIDAR Y FILTRAR NOTAS: Asegurar que todas tengan el formato correcto
+      const validNotes = Array.isArray(order.notes) 
+        ? order.notes.filter((note: any) => {
+            // Verificar que sea un objeto y tenga las propiedades mínimas requeridas
+            if (!note || typeof note !== 'object') return false
+            if (!note.id || !note.text) return false
+            // Asegurar que createdAt sea una string válida
+            if (!note.createdAt || typeof note.createdAt !== 'string') return false
+            return true
+          })
+        : []
+      
+      setNotes(validNotes)
       setLastNotesUpdate(notesTimestamp)
     } else if (!order?.notes) {
       setNotes([])
