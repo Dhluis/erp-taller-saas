@@ -65,7 +65,6 @@ export default function TrainAgentPage() {
     appointmentScheduling: {
       auto_schedule_appointments: false,
       require_human_approval: false,
-      services: [],
       business_hours: {
         monday: { start: '09:00', end: '18:00' },
         tuesday: { start: '09:00', end: '18:00' },
@@ -74,6 +73,14 @@ export default function TrainAgentPage() {
         friday: { start: '09:00', end: '18:00' },
         saturday: { start: '09:00', end: '14:00' },
         sunday: null
+      },
+      appointment_rules: {
+        min_advance_hours: 24,
+        max_advance_days: 30,
+        buffer_minutes: 30,
+        max_appointments_per_day: 10,
+        max_appointments_per_week: 50,
+        blocked_dates: []
       }
     }
   })

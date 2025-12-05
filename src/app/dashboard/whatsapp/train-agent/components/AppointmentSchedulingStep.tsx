@@ -7,21 +7,22 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
-import { Trash2, Plus, Calendar, Clock } from 'lucide-react'
-
-interface Service {
-  name: string
-  description: string
-  duration: string
-  price_range: string
-}
+import { Calendar, Clock, Settings, AlertCircle } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 interface AppointmentSchedulingStepProps {
   data: {
     auto_schedule_appointments?: boolean
     require_human_approval?: boolean
-    services?: Service[]
     business_hours?: Record<string, { start: string; end: string } | null>
+    appointment_rules?: {
+      min_advance_hours?: number
+      max_advance_days?: number
+      buffer_minutes?: number
+      max_appointments_per_day?: number
+      max_appointments_per_week?: number
+      blocked_dates?: string[]
+    }
   }
   onChange: (data: any) => void
 }
@@ -31,7 +32,6 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
   const [isClient, setIsClient] = useState(false)
   const [autoSchedule, setAutoSchedule] = useState(false)
   const [requireApproval, setRequireApproval] = useState(false)
-  const [services, setServices] = useState<Service[]>([])
   const [businessHours, setBusinessHours] = useState<Record<string, { start: string; end: string } | null>>({
     monday: { start: '09:00', end: '18:00' },
     tuesday: { start: '09:00', end: '18:00' },
@@ -41,13 +41,20 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
     saturday: { start: '09:00', end: '14:00' },
     sunday: null
   })
+  const [appointmentRules, setAppointmentRules] = useState({
+    min_advance_hours: 24,
+    max_advance_days: 30,
+    buffer_minutes: 30,
+    max_appointments_per_day: 10,
+    max_appointments_per_week: 50,
+    blocked_dates: [] as string[]
+  })
 
   // Inicializar en el cliente
   useEffect(() => {
     setIsClient(true)
     setAutoSchedule(data.auto_schedule_appointments ?? false)
     setRequireApproval(data.require_human_approval ?? false)
-    setServices(data.services || [])
     setBusinessHours(data.business_hours || {
       monday: { start: '09:00', end: '18:00' },
       tuesday: { start: '09:00', end: '18:00' },
@@ -57,13 +64,18 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
       saturday: { start: '09:00', end: '14:00' },
       sunday: null
     })
+    setAppointmentRules({
+      min_advance_hours: data.appointment_rules?.min_advance_hours ?? 24,
+      max_advance_days: data.appointment_rules?.max_advance_days ?? 30,
+      buffer_minutes: data.appointment_rules?.buffer_minutes ?? 30,
+      max_appointments_per_day: data.appointment_rules?.max_appointments_per_day ?? 10,
+      max_appointments_per_week: data.appointment_rules?.max_appointments_per_week ?? 50,
+      blocked_dates: data.appointment_rules?.blocked_dates ?? []
+    })
   }, [])
 
   // Sincronizar con props cuando cambian
   useEffect(() => {
-    if (data.services) {
-      setServices(data.services)
-    }
     if (data.business_hours) {
       setBusinessHours(data.business_hours)
     }
@@ -73,20 +85,30 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
     if (data.require_human_approval !== undefined) {
       setRequireApproval(data.require_human_approval)
     }
+    if (data.appointment_rules) {
+      setAppointmentRules(prev => ({
+        min_advance_hours: data.appointment_rules?.min_advance_hours ?? prev.min_advance_hours,
+        max_advance_days: data.appointment_rules?.max_advance_days ?? prev.max_advance_days,
+        buffer_minutes: data.appointment_rules?.buffer_minutes ?? prev.buffer_minutes,
+        max_appointments_per_day: data.appointment_rules?.max_appointments_per_day ?? prev.max_appointments_per_day,
+        max_appointments_per_week: data.appointment_rules?.max_appointments_per_week ?? prev.max_appointments_per_week,
+        blocked_dates: data.appointment_rules?.blocked_dates ?? prev.blocked_dates
+      }))
+    }
   }, [data])
 
   // Función helper para actualizar y notificar cambios
   const updateAndNotify = (updates: Partial<{
     auto_schedule_appointments: boolean
     require_human_approval: boolean
-    services: Service[]
     business_hours: Record<string, { start: string; end: string } | null>
+    appointment_rules: typeof appointmentRules
   }>) => {
     const newData = {
       auto_schedule_appointments: updates.auto_schedule_appointments ?? autoSchedule,
       require_human_approval: updates.require_human_approval ?? requireApproval,
-      services: updates.services ?? services,
-      business_hours: updates.business_hours ?? businessHours
+      business_hours: updates.business_hours ?? businessHours,
+      appointment_rules: updates.appointment_rules ?? appointmentRules
     }
     onChange(newData)
   }
@@ -101,29 +123,10 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
     updateAndNotify({ require_human_approval: checked })
   }
 
-  const addService = () => {
-    const newService: Service = {
-      name: '',
-      description: '',
-      duration: '',
-      price_range: ''
-    }
-    const newServices = [...services, newService]
-    setServices(newServices)
-    updateAndNotify({ services: newServices })
-  }
-
-  const removeService = (index: number) => {
-    const newServices = services.filter((_, i) => i !== index)
-    setServices(newServices)
-    updateAndNotify({ services: newServices })
-  }
-
-  const updateService = (index: number, field: keyof Service, value: string) => {
-    const newServices = [...services]
-    newServices[index][field] = value
-    setServices(newServices)
-    updateAndNotify({ services: newServices })
+  const handleRuleChange = (field: keyof typeof appointmentRules, value: number | string[]) => {
+    const newRules = { ...appointmentRules, [field]: value }
+    setAppointmentRules(newRules)
+    updateAndNotify({ appointment_rules: newRules })
   }
 
   const updateBusinessHours = (day: string, field: string | null, value: string | null) => {
@@ -231,79 +234,102 @@ export function AppointmentSchedulingStep({ data, onChange }: AppointmentSchedul
         </CardContent>
       </Card>
 
-      {/* Servicios Disponibles */}
+      {/* Reglas de Agendamiento */}
       {autoSchedule && (
         <Card>
           <CardHeader>
-            <CardTitle>Servicios Disponibles</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Reglas de Agendamiento
+            </CardTitle>
             <CardDescription>
-              Lista los servicios que los clientes pueden agendar con sus precios y duraciones
+              Configura las reglas y restricciones para el agendamiento automático de citas
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {services.map((service, index) => (
-              <div key={`service-${index}-${service.name || 'new'}`} className="border border-border rounded-lg p-4 space-y-4 bg-bg-secondary">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-semibold text-text-primary">Servicio #{index + 1}</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeService(index)}
-                    className="text-text-primary hover:text-destructive hover:bg-destructive/10"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+          <CardContent className="space-y-6">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Los servicios disponibles se configuran en el Paso 2. Estas reglas controlan cómo se agendan las citas.
+              </AlertDescription>
+            </Alert>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <Label>Nombre del servicio *</Label>
-                    <Input
-                      value={service.name}
-                      onChange={(e) => updateService(index, 'name', e.target.value)}
-                      placeholder="Cambio de aceite"
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Rango de precio *</Label>
-                    <Input
-                      value={service.price_range}
-                      onChange={(e) => updateService(index, 'price_range', e.target.value)}
-                      placeholder="$300 - $600"
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Duración *</Label>
-                    <Input
-                      value={service.duration}
-                      onChange={(e) => updateService(index, 'duration', e.target.value)}
-                      placeholder="30 minutos"
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <Label>Descripción (opcional)</Label>
-                    <Textarea
-                      value={service.description}
-                      onChange={(e) => updateService(index, 'description', e.target.value)}
-                      placeholder="Incluye aceite sintético y filtro"
-                      rows={2}
-                    />
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="min_advance_hours">Tiempo mínimo de anticipación (horas)</Label>
+                <Input
+                  id="min_advance_hours"
+                  type="number"
+                  min="0"
+                  value={appointmentRules.min_advance_hours}
+                  onChange={(e) => handleRuleChange('min_advance_hours', parseInt(e.target.value) || 0)}
+                  placeholder="24"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Mínimo de horas antes de la cita (ej: 24 = 1 día)
+                </p>
               </div>
-            ))}
 
-            <Button
-              variant="outline"
-              onClick={addService}
-              className="w-full border-2 border-primary/50 text-text-primary hover:bg-primary/10 hover:border-primary"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Agregar servicio
-            </Button>
+              <div>
+                <Label htmlFor="max_advance_days">Tiempo máximo de anticipación (días)</Label>
+                <Input
+                  id="max_advance_days"
+                  type="number"
+                  min="1"
+                  value={appointmentRules.max_advance_days}
+                  onChange={(e) => handleRuleChange('max_advance_days', parseInt(e.target.value) || 0)}
+                  placeholder="30"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Máximo de días que se pueden agendar con anticipación
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="buffer_minutes">Tiempo entre citas (minutos)</Label>
+                <Input
+                  id="buffer_minutes"
+                  type="number"
+                  min="0"
+                  value={appointmentRules.buffer_minutes}
+                  onChange={(e) => handleRuleChange('buffer_minutes', parseInt(e.target.value) || 0)}
+                  placeholder="30"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tiempo de buffer entre citas para limpieza/preparación
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="max_appointments_per_day">Límite de citas por día</Label>
+                <Input
+                  id="max_appointments_per_day"
+                  type="number"
+                  min="1"
+                  value={appointmentRules.max_appointments_per_day}
+                  onChange={(e) => handleRuleChange('max_appointments_per_day', parseInt(e.target.value) || 0)}
+                  placeholder="10"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Número máximo de citas que se pueden agendar en un día
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="max_appointments_per_week">Límite de citas por semana</Label>
+                <Input
+                  id="max_appointments_per_week"
+                  type="number"
+                  min="1"
+                  value={appointmentRules.max_appointments_per_week}
+                  onChange={(e) => handleRuleChange('max_appointments_per_week', parseInt(e.target.value) || 0)}
+                  placeholder="50"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Número máximo de citas que se pueden agendar en una semana
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
