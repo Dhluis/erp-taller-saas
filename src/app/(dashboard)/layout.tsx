@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { AppLayout } from "@/components/layout/AppLayout"
 import { useSession } from '@/lib/context/SessionContext'
@@ -13,7 +13,26 @@ export default function DashboardLayout({
 }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { user, organizationId, isLoading } = useSession()
+  const hasRedirected = useRef(false)
+
+  // Obtener sesión de forma segura
+  let session
+  try {
+    session = useSession()
+  } catch (error) {
+    console.error('❌ [DashboardLayout] Error obteniendo sesión:', error)
+    // Si no hay provider, renderizar normalmente (el middleware manejará la autenticación)
+    return (
+      <AppLayout>
+        {children}
+      </AppLayout>
+    )
+  }
+
+  // Extraer valores de forma segura
+  const user = session?.user ?? null
+  const organizationId = session?.organizationId ?? null
+  const isLoading = session?.isLoading ?? true
 
   useEffect(() => {
     // No hacer nada mientras está cargando
@@ -21,16 +40,17 @@ export default function DashboardLayout({
       return
     }
 
-    // No redirigir si ya está en /onboarding o /auth/*
+    // Resetear flag si cambia el pathname a una ruta permitida
     if (pathname?.startsWith('/onboarding') || pathname?.startsWith('/auth/')) {
+      hasRedirected.current = false
       return
     }
 
     // Si el usuario está autenticado pero no tiene organization_id, redirigir a onboarding
-    if (user && !organizationId) {
+    if (user && !organizationId && !hasRedirected.current) {
       console.log('🔄 [DashboardLayout] Usuario sin organización, redirigiendo a /onboarding')
+      hasRedirected.current = true
       router.push('/onboarding')
-      return
     }
   }, [isLoading, user, organizationId, pathname, router])
 
@@ -46,8 +66,7 @@ export default function DashboardLayout({
     )
   }
 
-  // Si el usuario está autenticado pero no tiene organización, no renderizar nada
-  // (se redirigirá en el useEffect)
+  // Si el usuario está autenticado pero no tiene organización, mostrar loading mientras redirige
   if (user && !organizationId) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-900">
