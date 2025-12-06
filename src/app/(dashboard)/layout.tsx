@@ -30,11 +30,34 @@ export default function DashboardLayout({
   const user = session?.user ?? null
   const organizationId = session?.organizationId ?? null
   const isLoading = session?.isLoading ?? true
+  const isReady = session?.isReady ?? false
   const sessionError = session?.error ?? null
+
+  // Debug: Log del estado completo de la sesión
+  useEffect(() => {
+    console.log('[DashboardLayout] 📊 Estado completo de sesión:', {
+      hasSession: !!session,
+      user: user ? { id: user.id, email: user.email } : null,
+      organizationId,
+      isLoading,
+      isReady,
+      error: sessionError,
+      profile: session?.profile ? { id: session.profile.id, email: session.profile.email } : null
+    })
+  }, [session, user, organizationId, isLoading, isReady, sessionError])
+
+  // Redirigir al login si no hay usuario y la sesión está lista
+  useEffect(() => {
+    if (isReady && !isLoading && !user && !pathname?.startsWith('/auth')) {
+      console.log('[DashboardLayout] 🔄 Usuario no autenticado, redirigiendo al login...')
+      router.push('/auth/login')
+    }
+  }, [isReady, isLoading, user, pathname, router])
 
   useEffect(() => {
     console.log('[DashboardLayout] 🔍 useEffect ejecutado:', {
       isLoading,
+      isReady,
       hasUser: !!user,
       hasOrganizationId: !!organizationId,
       pathname,
@@ -47,7 +70,7 @@ export default function DashboardLayout({
       return
     }
 
-    // Si no hay usuario, no hacer nada (el middleware manejará)
+    // Si no hay usuario, no hacer nada (el useEffect anterior manejará la redirección)
     if (!user) {
       console.log('[DashboardLayout] ❌ No hay usuario')
       return
@@ -110,12 +133,27 @@ export default function DashboardLayout({
   }, [isLoading, user, organizationId, pathname, router])
 
   // Mostrar loading mientras se verifica la sesión
-  if (isLoading) {
+  // IMPORTANTE: Si isReady es true pero isLoading también, hay un problema
+  if (isLoading && !isReady) {
+    console.log('[DashboardLayout] ⏳ Mostrando loading (isLoading=true, isReady=false)')
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-900">
         <div className="text-center space-y-4">
           <Loader2 className="w-8 h-8 animate-spin text-cyan-500 mx-auto" />
           <p className="text-slate-400">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Si está listo pero no hay usuario, mostrar loading mientras redirige
+  if (isReady && !isLoading && !user) {
+    console.log('[DashboardLayout] 🔄 Usuario no autenticado, mostrando loading mientras redirige...')
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin text-cyan-500 mx-auto" />
+          <p className="text-slate-400">Redirigiendo al login...</p>
         </div>
       </div>
     )
