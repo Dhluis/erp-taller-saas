@@ -395,6 +395,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     console.log('✅ [Session] Sesión cerrada')
   }, [supabase.auth])
 
+  // useEffect separado para manejar redirección a onboarding
+  // Evita error React #300 al separar la redirección del flujo de carga
+  useEffect(() => {
+    // Solo ejecutar si ya terminó de cargar y hay usuario pero no organización
+    if (!state.isLoading && state.user && state.profile && !state.organizationId) {
+      const currentPath = window.location.pathname
+      
+      // Evitar loop - no redirigir si ya estamos en onboarding o auth
+      if (!currentPath.startsWith('/onboarding') && !currentPath.startsWith('/auth')) {
+        console.log('[Session] 🚀 Ejecutando redirección a onboarding...')
+        // Usar setTimeout para evitar conflicto con el renderizado
+        setTimeout(() => {
+          window.location.href = '/onboarding'
+        }, 100)
+      }
+    }
+  }, [state.isLoading, state.user, state.profile, state.organizationId])
+
   return (
     <SessionContext.Provider value={{ ...state, refresh, signOut }}>
       {children}
