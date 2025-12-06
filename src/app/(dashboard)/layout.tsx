@@ -70,8 +70,8 @@ export default function DashboardLayout({
       return
     }
 
-    // Si el usuario está autenticado pero no tiene organization_id, redirigir a onboarding
-    if (!organizationId) {
+    // Si el usuario está autenticado pero no tiene organization_id (null, undefined, string vacío), redirigir a onboarding
+    if (!organizationId || organizationId === '' || organizationId === 'null' || organizationId === 'undefined') {
       if (hasRedirected.current) {
         console.log('[DashboardLayout] ⏸️ Ya se intentó redirigir, pero aún estamos aquí')
         console.log('[DashboardLayout] 🔄 Forzando redirección con window.location...')
@@ -80,6 +80,7 @@ export default function DashboardLayout({
       }
 
       console.log('[DashboardLayout] 🔄 Usuario sin organization_id detectado')
+      console.log('[DashboardLayout] 🔄 Valor de organizationId:', organizationId)
       console.log('[DashboardLayout] 📍 Pathname actual:', pathname)
       console.log('[DashboardLayout] 🔄 Redirigiendo a /onboarding...')
       
@@ -124,7 +125,7 @@ export default function DashboardLayout({
   }
 
   // Si el usuario está autenticado pero no tiene organización, mostrar loading mientras redirige
-  if (user && !organizationId && !pathname?.startsWith('/onboarding')) {
+  if (user && (!organizationId || organizationId === '' || organizationId === 'null') && !pathname?.startsWith('/onboarding')) {
     console.log('[DashboardLayout] 🎨 Mostrando loading mientras redirige...')
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-900">
