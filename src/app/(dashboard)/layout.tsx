@@ -43,23 +43,72 @@ export default function DashboardLayout({
   const isLoading = session?.isLoading ?? true
 
   useEffect(() => {
+    console.log('[DashboardLayout] 🔍 useEffect ejecutado:', {
+      isLoading,
+      hasUser: !!user,
+      hasOrganizationId: !!organizationId,
+      pathname,
+      hasRedirected: hasRedirected.current
+    })
+
     // No hacer nada mientras está cargando
     if (isLoading) {
+      console.log('[DashboardLayout] ⏳ Cargando sesión...')
       return
     }
 
-    // Resetear flag si cambia el pathname a una ruta permitida
+    // Si no hay usuario, no hacer nada (el middleware manejará)
+    if (!user) {
+      console.log('[DashboardLayout] ❌ No hay usuario')
+      return
+    }
+
+    // Si ya estamos en onboarding o auth, no hacer nada
     if (pathname?.startsWith('/onboarding') || pathname?.startsWith('/auth/')) {
+      console.log('[DashboardLayout] ✅ En ruta permitida:', pathname)
       hasRedirected.current = false
       return
     }
 
     // Si el usuario está autenticado pero no tiene organization_id, redirigir a onboarding
-    if (user && !organizationId && !hasRedirected.current) {
-      console.log('🔄 [DashboardLayout] Usuario sin organización, redirigiendo a /onboarding')
+    if (!organizationId) {
+      if (hasRedirected.current) {
+        console.log('[DashboardLayout] ⏸️ Ya se intentó redirigir, pero aún estamos aquí')
+        console.log('[DashboardLayout] 🔄 Forzando redirección con window.location...')
+        window.location.href = '/onboarding'
+        return
+      }
+
+      console.log('[DashboardLayout] 🔄 Usuario sin organization_id detectado')
+      console.log('[DashboardLayout] 📍 Pathname actual:', pathname)
+      console.log('[DashboardLayout] 🔄 Redirigiendo a /onboarding...')
+      
       hasRedirected.current = true
+      
+      // Intentar primero con router.push
       router.push('/onboarding')
+      console.log('[DashboardLayout] ✅ router.push ejecutado')
+      
+      // Si después de un tiempo el pathname no cambió, usar window.location como fallback
+      const timeoutId = setTimeout(() => {
+        const currentPath = window.location.pathname
+        console.log('[DashboardLayout] 🔍 Verificando redirección, pathname actual:', currentPath)
+        if (!currentPath.startsWith('/onboarding')) {
+          console.log('[DashboardLayout] ⚠️ router.push no funcionó después de 1s, usando window.location')
+          window.location.href = '/onboarding'
+        } else {
+          console.log('[DashboardLayout] ✅ Redirección exitosa')
+        }
+      }, 1000)
+      
+      // Cleanup del timeout si el componente se desmonta o cambia algo
+      return () => {
+        clearTimeout(timeoutId)
+      }
     }
+
+    console.log('[DashboardLayout] ✅ Usuario con organización:', organizationId)
+    hasRedirected.current = false
   }, [isLoading, user, organizationId, pathname, router])
 
   // Mostrar loading mientras se verifica la sesión
@@ -75,7 +124,8 @@ export default function DashboardLayout({
   }
 
   // Si el usuario está autenticado pero no tiene organización, mostrar loading mientras redirige
-  if (user && !organizationId) {
+  if (user && !organizationId && !pathname?.startsWith('/onboarding')) {
+    console.log('[DashboardLayout] 🎨 Mostrando loading mientras redirige...')
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-900">
         <div className="text-center space-y-4">
