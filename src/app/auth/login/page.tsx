@@ -52,8 +52,15 @@ function LoginContent() {
         return
       }
 
+      // Esperar un momento para que la sesión se establezca
+      console.log('✅ [Login] Login exitoso, esperando establecimiento de sesión...')
+      
+      // Pequeño delay para asegurar que la sesión se establezca
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       // Redirect to the page they were trying to access, or dashboard
       const redirectTo = searchParams?.get('redirectTo') || '/dashboard'
+      console.log('🔄 [Login] Redirigiendo a:', redirectTo)
       router.push(redirectTo)
       router.refresh()
     } catch (error: any) {

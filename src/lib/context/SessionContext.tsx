@@ -72,10 +72,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setState(prev => ({ ...prev, isLoading: true, error: null }))
 
       // 1. Obtener usuario autenticado
+      console.log('🔍 [Session] Paso 1: Obteniendo usuario autenticado...')
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       
-      if (authError || !user) {
-        console.log('❌ [Session] Usuario no autenticado')
+      if (authError) {
+        console.error('❌ [Session] Error obteniendo usuario:', {
+          message: authError.message,
+          status: authError.status,
+          name: authError.name
+        })
         lastUserId.current = null
         const noUserState = {
           user: null,
@@ -84,7 +89,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           profile: null,
           workshop: null,
           isLoading: false,
-          isReady: true, // Ready pero sin usuario
+          isReady: true,
+          error: authError.message
+        }
+        currentStateRef.current = noUserState
+        setState(noUserState)
+        return
+      }
+
+      if (!user) {
+        console.log('❌ [Session] Usuario no autenticado (no user object)')
+        lastUserId.current = null
+        const noUserState = {
+          user: null,
+          organizationId: null,
+          workshopId: null,
+          profile: null,
+          workshop: null,
+          isLoading: false,
+          isReady: true,
           error: null
         }
         currentStateRef.current = noUserState
@@ -92,7 +115,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      console.log('✅ [Session] Usuario autenticado:', user.id)
+      console.log('✅ [Session] Usuario autenticado encontrado:', {
+        id: user.id,
+        email: user.email,
+        email_confirmed: user.email_confirmed_at ? 'Sí' : 'No'
+      })
 
       // Verificar si el usuario es el mismo y ya tenemos los datos cargados
       const currentState = currentStateRef.current
@@ -105,34 +132,100 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       lastUserId.current = user.id
 
       // 2. Obtener perfil de la tabla users (con organization_id)
-      const { data: profile, error: profileError } = await supabase
+      console.log('🔍 [Session] Paso 2: Buscando perfil en tabla users...')
+      console.log('🔍 [Session] Buscando perfil para auth_user_id:', user.id)
+      
+      // Intentar primero con auth_user_id
+      let { data: profile, error: profileError } = await supabase
         .from('users')
         .select('*')
         .eq('auth_user_id', user.id)
         .single()
 
-      if (profileError || !profile) {
-        console.error('❌ [Session] Error obteniendo perfil:', profileError)
+      // Si falla, intentar con email como fallback
+      if (profileError && (profileError.code === 'PGRST116' || profileError.code === '42703')) {
+        console.warn('⚠️ [Session] Perfil no encontrado con auth_user_id, intentando con email...')
+        console.log('🔍 [Session] Buscando perfil para email:', user.email)
+        
+        const { data: profileByEmail, error: emailError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', user.email)
+          .single()
+        
+        if (!emailError && profileByEmail) {
+          console.log('✅ [Session] Perfil encontrado por email')
+          profile = profileByEmail
+          profileError = null
+        } else {
+          console.error('❌ [Session] Error obteniendo perfil por email:', emailError)
+          profileError = emailError || profileError
+        }
+      }
+
+      if (profileError) {
+        console.error('❌ [Session] Error obteniendo perfil:', {
+          code: profileError.code,
+          message: profileError.message,
+          details: profileError.details,
+          hint: profileError.hint
+        })
+        
+        // Si el error es que no existe el perfil, es un problema diferente
+        if (profileError.code === 'PGRST116') {
+          console.error('❌ [Session] PERFIL NO ENCONTRADO - El usuario no tiene registro en public.users')
+          console.error('🔍 [Session] Verificar que existe un registro en public.users con:')
+          console.error('   - auth_user_id =', user.id)
+          console.error('   - email =', user.email)
+        }
+        
         const errorState = {
           ...currentStateRef.current,
           user,
           isLoading: false,
           isReady: true,
-          error: 'Perfil no encontrado'
+          error: `Perfil no encontrado: ${profileError.message}`
         }
         currentStateRef.current = errorState
         setState(errorState)
         return
       }
 
-      console.log('✅ [Session] Perfil cargado:', {
-        id: profile.id,
-        organization_id: profile.organization_id,
-        workshop_id: profile.workshop_id
-      })
+      if (!profile) {
+        console.error('❌ [Session] Perfil es null o undefined')
+        const errorState = {
+          ...currentStateRef.current,
+          user,
+          isLoading: false,
+          isReady: true,
+          error: 'Perfil no encontrado (null)'
+        }
+        currentStateRef.current = errorState
+        setState(errorState)
+        return
+      }
 
-      const organizationId = profile.organization_id
-      const workshopId = profile.workshop_id || organizationId
+      console.log('✅ [Session] Perfil encontrado:', {
+        id: profile.id,
+        auth_user_id: profile.auth_user_id,
+        email: profile.email,
+        organization_id: profile.organization_id,
+        workshop_id: profile.workshop_id,
+        role: profile.role,
+        full_name: profile.full_name || profile.name
+      })
+      
+      console.log('📋 [Session] Organization ID del perfil:', profile.organization_id)
+
+      const organizationId = profile.organization_id || null
+      const workshopId = profile.workshop_id || null
+      
+      console.log('📊 [Session] IDs extraídos del perfil:', {
+        organizationId,
+        workshopId,
+        hasOrganization: !!organizationId,
+        hasWorkshop: !!workshopId
+      })
 
       // 3. Obtener workshop si es necesario (UNA sola query)
       let workshop = null
@@ -169,11 +262,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       console.log('✅✅✅ [Session] Sesión completamente cargada')
       console.log('📊 [Session] Estado final:', {
         userId: user.id,
+        userEmail: user.email,
         organizationId,
         workshopId,
         profileId: profile.id,
-        workshopName: workshop?.name
+        profileEmail: profile.email,
+        profileRole: profile.role,
+        workshopName: workshop?.name,
+        hasOrganization: !!organizationId,
+        hasWorkshop: !!workshopId
       })
+      
+      // Verificar que tenemos los datos mínimos necesarios
+      if (!organizationId) {
+        console.warn('⚠️ [Session] Usuario sin organization_id - será redirigido a onboarding')
+      }
 
     } catch (error: any) {
       console.error('❌ [Session] Error cargando sesión:', error)
