@@ -28,9 +28,12 @@ import {
 } from 'recharts';
 
 export default function DashboardPage() {
-  const { organization } = useAuth();
-  const { organizationId, loading: orgLoading } = useOrganization();
+  // Obtener datos de sesión - el layout maneja la redirección al onboarding
+  const { organizationId, isLoading: sessionLoading } = useOrganization();
   const { user } = useSession();
+  
+  // Compatibilidad: obtener organization para componentes que lo necesitan
+  const organization = organizationId ? { id: organizationId, organization_id: organizationId } : null;
   const [dateRange, setDateRange] = useState('7d');
   const [customDateRange, setCustomDateRange] = useState<{
     from: Date | undefined
@@ -54,53 +57,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // 🔒 PROTECCIÓN: Redirigir al onboarding si no hay organizationId
-  useEffect(() => {
-    console.log('[DashboardPage] 🔍 Verificando organización:', {
-      hasUser: !!user,
-      organizationId,
-      orgLoading,
-      pathname: window.location.pathname
-    });
-
-    // Esperar a que termine de cargar
-    if (orgLoading) {
-      console.log('[DashboardPage] ⏳ Esperando carga de organización...');
-      return;
-    }
-
-    // Si no hay usuario, el middleware manejará la redirección al login
-    if (!user) {
-      console.log('[DashboardPage] ❌ No hay usuario autenticado');
-      return;
-    }
-
-    // Si no hay organizationId (null, undefined, string vacío), redirigir al onboarding
-    if (!organizationId || organizationId === '' || organizationId === 'null' || organizationId === 'undefined') {
-      console.log('[DashboardPage] 🔄 Usuario sin organización detectado');
-      console.log('[DashboardPage] 🔄 Valor de organizationId:', organizationId);
-      console.log('[DashboardPage] 🔄 Redirigiendo a /onboarding...');
-      
-      // Verificar que no estemos ya en onboarding para evitar loops
-      if (window.location.pathname !== '/onboarding') {
-        // Forzar redirección inmediata
-        window.location.href = '/onboarding';
-      }
-      return;
-    }
-
-    console.log('[DashboardPage] ✅ Usuario con organización:', organizationId);
-  }, [user, organizationId, orgLoading]);
-
-  // Mostrar loading mientras verifica o redirige
-  if (orgLoading || (user && !organizationId)) {
+  // Mostrar loading mientras carga la sesión (el layout maneja redirecciones)
+  if (sessionLoading || !organizationId) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-900">
         <div className="text-center space-y-4">
           <Loader2 className="w-8 h-8 animate-spin text-cyan-500 mx-auto" />
-          <p className="text-slate-400">
-            {orgLoading ? 'Cargando...' : 'Redirigiendo a configuración inicial...'}
-          </p>
+          <p className="text-slate-400">Cargando...</p>
         </div>
       </div>
     );
@@ -109,7 +72,7 @@ export default function DashboardPage() {
   // Función para cargar datos de órdenes por estado
   const loadOrdersByStatus = async () => {
     // ✅ No cargar si no hay organizationId o está cargando
-    if (!organizationId || orgLoading) {
+    if (!organizationId || sessionLoading) {
       console.log('⚠️ Esperando organizationId...');
       return;
     }

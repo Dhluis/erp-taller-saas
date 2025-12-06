@@ -73,17 +73,33 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
       // 1. Obtener usuario autenticado
       console.log('🔍 [Session] Paso 1: Obteniendo usuario autenticado...')
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      
+      let user: User | null = null
+      let authError: any = null
+      
+      try {
+        const result = await supabase.auth.getUser()
+        user = result.data?.user ?? null
+        authError = result.error ?? null
+      } catch (error: any) {
+        console.error('❌ [Session] Excepción al obtener usuario:', error)
+        authError = error
+      }
       
       if (authError) {
-        console.error('❌ [Session] Error obteniendo usuario:', {
-          message: authError.message,
-          status: authError.status,
-          name: authError.name,
-          code: authError.code,
-          details: authError,
-          fullError: JSON.stringify(authError, Object.getOwnPropertyNames(authError))
-        })
+        // Log detallado del error
+        const errorMessage = authError?.message || authError?.toString() || 'Error desconocido al obtener usuario'
+        const errorCode = authError?.code || 'NO_CODE'
+        const errorStatus = authError?.status || 'NO_STATUS'
+        
+        console.error('❌ [Session] ===== ERROR OBTENIENDO USUARIO =====')
+        console.error('❌ [Session] Mensaje:', errorMessage)
+        console.error('❌ [Session] Código:', errorCode)
+        console.error('❌ [Session] Status:', errorStatus)
+        console.error('❌ [Session] Tipo de error:', typeof authError)
+        console.error('❌ [Session] Error completo:', authError)
+        console.error('❌ [Session] =====================================')
+        
         lastUserId.current = null
         const noUserState = {
           user: null,
@@ -93,7 +109,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           workshop: null,
           isLoading: false,
           isReady: true,
-          error: authError.message
+          error: errorMessage
         }
         currentStateRef.current = noUserState
         setState(noUserState)
