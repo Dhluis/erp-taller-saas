@@ -186,7 +186,14 @@ export default function OnboardingPage() {
       }
 
       // PASO 3: Actualizar usuario con organization_id y workshop_id
-      const { error: updateError } = await supabase
+      console.log('🔄 [Onboarding] Actualizando usuario con organization_id y workshop_id...')
+      console.log('📋 [Onboarding] Datos:', {
+        auth_user_id: user.id,
+        organization_id: organization.id,
+        workshop_id: workshop.id
+      })
+
+      const { data: updatedUser, error: updateError } = await supabase
         .from('users')
         .update({
           organization_id: organization.id,
@@ -194,16 +201,62 @@ export default function OnboardingPage() {
           updated_at: new Date().toISOString()
         })
         .eq('auth_user_id', user.id)
+        .select()
+        .single()
 
       if (updateError) {
+        console.error('❌ [Onboarding] Error actualizando usuario:', {
+          code: updateError.code,
+          message: updateError.message,
+          details: updateError.details,
+          hint: updateError.hint
+        })
         // Rollback: eliminar organización y taller
         await supabase.from('workshops').delete().eq('id', workshop.id)
         await supabase.from('organizations').delete().eq('id', organization.id)
-        throw new Error(`Error al actualizar el usuario: ${updateError.message}`)
+        throw new Error(`Error al actualizar el usuario: ${updateError.message} (Código: ${updateError.code})`)
       }
 
-      // PASO 4: Refrescar sesión para que SessionContext detecte los cambios
+      // Validar que la actualización fue exitosa
+      if (!updatedUser) {
+        console.error('❌ [Onboarding] Usuario no actualizado (updatedUser es null)')
+        // Rollback: eliminar organización y taller
+        await supabase.from('workshops').delete().eq('id', workshop.id)
+        await supabase.from('organizations').delete().eq('id', organization.id)
+        throw new Error('No se pudo verificar la actualización del usuario')
+      }
+
+      // Verificar que organization_id se asignó correctamente
+      if (!updatedUser.organization_id || updatedUser.organization_id !== organization.id) {
+        console.error('❌ [Onboarding] organization_id no se asignó correctamente:', {
+          expected: organization.id,
+          actual: updatedUser.organization_id
+        })
+        // Rollback: eliminar organización y taller
+        await supabase.from('workshops').delete().eq('id', workshop.id)
+        await supabase.from('organizations').delete().eq('id', organization.id)
+        throw new Error('Error: organization_id no se asignó correctamente al usuario')
+      }
+
+      console.log('✅ [Onboarding] Usuario actualizado exitosamente:', {
+        user_id: updatedUser.id,
+        organization_id: updatedUser.organization_id,
+        workshop_id: updatedUser.workshop_id
+      })
+
+      // PASO 4: Esperar un momento para que la base de datos se sincronice
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // PASO 5: Refrescar sesión para que SessionContext detecte los cambios
+      console.log('🔄 [Onboarding] Refrescando sesión...')
       await refresh()
+
+      // Esperar un momento adicional para que el SessionContext termine de cargar
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      // Verificar que la sesión se actualizó correctamente
+      console.log('✅ [Onboarding] Onboarding completado exitosamente')
+      console.log('🔄 [Onboarding] Redirigiendo al dashboard...')
 
       // Redirigir al dashboard
       router.push('/dashboard')

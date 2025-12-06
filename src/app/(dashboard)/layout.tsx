@@ -62,6 +62,13 @@ export default function DashboardLayout({
 
     // Si el usuario está autenticado pero no tiene organization_id (null, undefined, string vacío), redirigir a onboarding
     if (!organizationId || organizationId === '' || organizationId === 'null' || organizationId === 'undefined') {
+      // Si estamos en onboarding, no redirigir (evitar loops)
+      if (pathname?.startsWith('/onboarding')) {
+        console.log('[DashboardLayout] ✅ Ya estamos en onboarding, no redirigir')
+        hasRedirected.current = false
+        return
+      }
+
       if (hasRedirected.current) {
         console.log('[DashboardLayout] ⏸️ Ya se intentó redirigir, pero aún estamos aquí')
         console.log('[DashboardLayout] 🔄 Forzando redirección con window.location...')

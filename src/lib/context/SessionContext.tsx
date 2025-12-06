@@ -295,6 +295,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       // Verificar que tenemos los datos mínimos necesarios
       if (!organizationId) {
         console.warn('⚠️ [Session] Usuario sin organization_id - será redirigido a onboarding')
+        console.warn('📋 [Session] Detalles del perfil:', {
+          profileId: profile.id,
+          profileEmail: profile.email,
+          profileOrganizationId: profile.organization_id,
+          profileWorkshopId: profile.workshop_id,
+          hasAuthUserId: !!profile.auth_user_id,
+          authUserId: profile.auth_user_id
+        })
+      } else {
+        console.log('✅ [Session] Usuario con organización válida:', organizationId)
       }
 
     } catch (error: any) {
@@ -359,6 +369,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     console.log('🔄 [Session] Refresh manual solicitado')
+    // Resetear el estado para forzar recarga completa
+    lastUserId.current = null
+    lastLoadTimestamp.current = 0
     isInitializing.current = false // Permitir refresh manual
     await loadSession(true) // Forzar recarga en refresh manual
   }, [loadSession])
