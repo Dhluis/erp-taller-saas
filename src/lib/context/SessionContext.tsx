@@ -79,7 +79,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         console.error('❌ [Session] Error obteniendo usuario:', {
           message: authError.message,
           status: authError.status,
-          name: authError.name
+          name: authError.name,
+          code: authError.code,
+          details: authError,
+          fullError: JSON.stringify(authError, Object.getOwnPropertyNames(authError))
         })
         lastUserId.current = null
         const noUserState = {

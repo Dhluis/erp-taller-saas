@@ -23,24 +23,14 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const hasRedirected = useRef(false)
 
-  // Obtener sesión de forma segura
-  let session
-  try {
-    session = useSession()
-  } catch (error) {
-    console.error('❌ [DashboardLayout] Error obteniendo sesión:', error)
-    // Si no hay provider, renderizar normalmente (el middleware manejará la autenticación)
-    return (
-      <AppLayout>
-        {children}
-      </AppLayout>
-    )
-  }
+  // Obtener sesión - DEBE estar fuera de cualquier bloque condicional
+  const session = useSession()
 
   // Extraer valores de forma segura
   const user = session?.user ?? null
   const organizationId = session?.organizationId ?? null
   const isLoading = session?.isLoading ?? true
+  const sessionError = session?.error ?? null
 
   useEffect(() => {
     console.log('[DashboardLayout] 🔍 useEffect ejecutado:', {
