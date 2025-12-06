@@ -44,6 +44,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const lastLoadTimestamp = useRef<number>(0)
   const lastUserId = useRef<string | null>(null)
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null)
+  const redirectTimeout = useRef<NodeJS.Timeout | null>(null)
+  const isMounted = useRef(true)
   const currentStateRef = useRef<SessionState>(initialState)
   const supabase = createClient()
 
@@ -433,6 +435,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   // useEffect separado para manejar redirección a onboarding
   // Evita error React #300 al separar la redirección del flujo de carga
   useEffect(() => {
+    // Limpiar timeout anterior si existe
+    if (redirectTimeout.current) {
+      clearTimeout(redirectTimeout.current)
+      redirectTimeout.current = null
+    }
+
     // Solo ejecutar si ya terminó de cargar y hay usuario pero no organización
     if (!state.isLoading && state.user && state.profile && !state.organizationId) {
       const currentPath = window.location.pathname
@@ -440,13 +448,75 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       // Evitar loop - no redirigir si ya estamos en onboarding o auth
       if (!currentPath.startsWith('/onboarding') && !currentPath.startsWith('/auth')) {
         console.log('[Session] 🚀 Ejecutando redirección a onboarding...')
+        
+        // Capturar el estado actual y el pathname para verificar en el callback
+        const userId = state.user.id
+        const profileId = state.profile?.id
+        const initialPath = currentPath
+        
         // Usar setTimeout para evitar conflicto con el renderizado
-        setTimeout(() => {
-          window.location.href = '/onboarding'
+        redirectTimeout.current = setTimeout(() => {
+          // Verificar múltiples condiciones antes de redirigir:
+          // 1. Componente aún montado
+          // 2. Usuario aún autenticado (mismo ID)
+          // 3. Perfil aún existe (mismo ID)
+          // 4. Aún no tiene organizationId
+          // 5. Pathname no haya cambiado a onboarding o auth
+          const currentState = currentStateRef.current
+          const currentPathNow = window.location.pathname
+          
+          const shouldRedirect = 
+            isMounted.current &&
+            currentState.user?.id === userId &&
+            currentState.profile?.id === profileId &&
+            !currentState.organizationId &&
+            !currentState.isLoading &&
+            !currentPathNow.startsWith('/onboarding') &&
+            !currentPathNow.startsWith('/auth')
+          
+          if (shouldRedirect) {
+            console.log('[Session] ✅ Condiciones verificadas, redirigiendo a onboarding...')
+            window.location.href = '/onboarding'
+          } else {
+            console.log('[Session] ⏸️ Condiciones cambiaron, cancelando redirección:', {
+              isMounted: isMounted.current,
+              sameUser: currentState.user?.id === userId,
+              sameProfile: currentState.profile?.id === profileId,
+              hasOrganization: !!currentState.organizationId,
+              isLoading: currentState.isLoading,
+              currentPath: currentPathNow
+            })
+          }
         }, 100)
       }
     }
+
+    // Cleanup: limpiar timeout si el componente se desmonta o cambian las dependencias
+    return () => {
+      if (redirectTimeout.current) {
+        clearTimeout(redirectTimeout.current)
+        redirectTimeout.current = null
+      }
+    }
   }, [state.isLoading, state.user, state.profile, state.organizationId])
+
+  // Cleanup al desmontar el componente
+  useEffect(() => {
+    isMounted.current = true
+    
+    return () => {
+      isMounted.current = false
+      // Limpiar todos los timeouts al desmontar
+      if (redirectTimeout.current) {
+        clearTimeout(redirectTimeout.current)
+        redirectTimeout.current = null
+      }
+      if (debounceTimeout.current) {
+        clearTimeout(debounceTimeout.current)
+        debounceTimeout.current = null
+      }
+    }
+  }, [])
 
   return (
     <SessionContext.Provider value={{ ...state, refresh, signOut }}>
