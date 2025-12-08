@@ -43,6 +43,16 @@ export default function OnboardingPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
+  // Estado para controlar redirección
+  const [shouldRedirect, setShouldRedirect] = useState<'dashboard' | 'login' | null>(null)
+
+  // Heredar email de organización al taller (DEBE estar antes de cualquier return)
+  useEffect(() => {
+    if (step === 3 && orgEmail && !workshopEmail) {
+      setWorkshopEmail(orgEmail)
+    }
+  }, [step, orgEmail, workshopEmail])
+
   // Manejar redirecciones con useEffect separado para evitar error #310
   useEffect(() => {
     if (isLoading || hasRedirected.current) return
@@ -51,7 +61,7 @@ export default function OnboardingPage() {
     if (organizationId) {
       hasRedirected.current = true
       console.log('✅ [Onboarding] Usuario ya tiene organización, redirigiendo...')
-      window.location.replace('/dashboard')
+      setShouldRedirect('dashboard')
       return
     }
 
@@ -59,13 +69,22 @@ export default function OnboardingPage() {
     if (!user) {
       hasRedirected.current = true
       console.log('[Onboarding] Usuario no autenticado, redirigiendo...')
-      window.location.replace('/auth/login')
+      setShouldRedirect('login')
       return
     }
   }, [user, organizationId, isLoading])
 
+  // Efecto separado para la redirección real (evita error #310)
+  useEffect(() => {
+    if (shouldRedirect === 'dashboard') {
+      window.location.href = '/dashboard'
+    } else if (shouldRedirect === 'login') {
+      window.location.href = '/auth/login'
+    }
+  }, [shouldRedirect])
+
   // Mostrar loading mientras carga sesión o mientras redirige
-  if (isLoading || hasRedirected.current || (!user && !isLoading) || (organizationId && !isLoading)) {
+  if (isLoading || shouldRedirect || (!user && !isLoading) || (organizationId && !isLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e]">
         <div className="text-center">
@@ -75,13 +94,6 @@ export default function OnboardingPage() {
       </div>
     )
   }
-
-  // Heredar email de organización al taller
-  useEffect(() => {
-    if (step === 3 && orgEmail && !workshopEmail) {
-      setWorkshopEmail(orgEmail)
-    }
-  }, [step, orgEmail, workshopEmail])
 
   const handleNext = (e?: React.FormEvent) => {
     if (e) e.preventDefault()
