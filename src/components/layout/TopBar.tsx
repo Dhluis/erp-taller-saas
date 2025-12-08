@@ -1,5 +1,4 @@
 'use client'
-// v2024-12-08: Datos reales del usuario
 
 import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import ModernIcons from '@/components/icons/ModernIcons'
@@ -11,7 +10,6 @@ import { NotificationBell } from '@/components/layout/NotificationBell'
 import { GlobalSearch } from '@/components/search/GlobalSearch'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { useUserProfile } from '@/hooks/use-user-profile'
 
 interface TopBarProps {
   onMenuClick?: () => void
@@ -21,18 +19,11 @@ interface TopBarProps {
 export function TopBar({ onMenuClick, title }: TopBarProps) {
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
   const pathname = usePathname()
-  const { profile, getInitials } = useUserProfile()
-  
   const isCitasActive = pathname?.startsWith('/citas')
   const isClientesActive = pathname?.startsWith('/clientes')
   const isOrdenesActive = pathname?.startsWith('/ordenes')
   const isReportesActive = pathname?.startsWith('/reportes')
   const isWhatsAppActive = pathname?.startsWith('/dashboard/whatsapp')
-  
-  // Datos del usuario (usa datos reales o fallback)
-  const userName = profile?.full_name || 'Usuario'
-  const userEmail = profile?.email || ''
-  const userInitials = profile ? getInitials(profile.full_name) : 'U'
 
   // Atajos de teclado para abrir búsqueda global (Ctrl+K / Cmd+K)
   useEffect(() => {
@@ -165,12 +156,12 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
           
           {/* User Profile */}
           <div className="flex items-center space-x-3 pl-4 border-l border-border">
-            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-bg-primary font-bold text-sm">
-              {userInitials}
+            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-bg-primary font-bold">
+              AP
             </div>
             <div className="hidden sm:block">
-              <p className="text-sm font-medium text-text-primary truncate max-w-[150px]">{userName}</p>
-              <p className="text-xs text-text-secondary truncate max-w-[150px]">{userEmail}</p>
+              <p className="text-sm font-medium text-text-primary">Admin</p>
+              <p className="text-xs text-text-secondary">admin@eagles.com</p>
             </div>
           </div>
         </div>

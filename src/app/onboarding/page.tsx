@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import Image from 'next/image'
 import { 
@@ -18,13 +19,16 @@ import {
 import { useSession } from '@/lib/context/SessionContext'
 
 export default function OnboardingPage() {
+  const router = useRouter()
   const { user, profile, organizationId, isLoading, refresh } = useSession()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [checkingAuth, setCheckingAuth] = useState(true)
   
-  // Ref para evitar múltiples redirecciones
+  // Ref para evitar múltiples redirecciones y error React #310
   const hasRedirected = useRef(false)
+  const isMounted = useRef(true)
 
   // Datos de la organización
   const [orgName, setOrgName] = useState('')
@@ -43,57 +47,54 @@ export default function OnboardingPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  // Estado para controlar redirección
-  const [shouldRedirect, setShouldRedirect] = useState<'dashboard' | 'login' | null>(null)
-
-  // Heredar email de organización al taller (DEBE estar antes de cualquier return)
+  // Cleanup al desmontar
   useEffect(() => {
-    if (step === 3 && orgEmail && !workshopEmail) {
-      setWorkshopEmail(orgEmail)
+    isMounted.current = true
+    return () => {
+      isMounted.current = false
     }
-  }, [step, orgEmail, workshopEmail])
+  }, [])
 
-  // Manejar redirecciones con useEffect separado para evitar error #310
+  // Verificar autenticación y si ya tiene organización
   useEffect(() => {
-    if (isLoading || hasRedirected.current) return
+    // Esperar a que SessionContext termine de cargar
+    if (isLoading) {
+      return
+    }
 
-    // Si ya tiene organización, redirigir al dashboard
-    if (organizationId) {
-      hasRedirected.current = true
-      console.log('✅ [Onboarding] Usuario ya tiene organización, redirigiendo...')
-      setShouldRedirect('dashboard')
+    // Evitar múltiples redirecciones
+    if (hasRedirected.current) {
       return
     }
 
     // Si no hay usuario, redirigir al login
     if (!user) {
       hasRedirected.current = true
-      console.log('[Onboarding] Usuario no autenticado, redirigiendo...')
-      setShouldRedirect('login')
+      console.log('[Onboarding] Usuario no autenticado, redirigiendo al login...')
+      router.push('/auth/login?redirectTo=/onboarding')
       return
     }
-  }, [user, organizationId, isLoading])
 
-  // Efecto separado para la redirección real (evita error #310)
-  useEffect(() => {
-    if (shouldRedirect === 'dashboard') {
-      window.location.href = '/dashboard'
-    } else if (shouldRedirect === 'login') {
-      window.location.href = '/auth/login'
+    // Si ya tiene organization_id, redirigir al dashboard
+    if (organizationId) {
+      hasRedirected.current = true
+      console.log('✅ [Onboarding] Usuario ya tiene organización, redirigiendo al dashboard')
+      router.push('/dashboard')
+      return
     }
-  }, [shouldRedirect])
 
-  // Mostrar loading mientras carga sesión o mientras redirige
-  if (isLoading || shouldRedirect || (!user && !isLoading) || (organizationId && !isLoading)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e]">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-cyan-500 mx-auto mb-4" />
-          <p className="text-slate-400">Cargando...</p>
-        </div>
-      </div>
-    )
-  }
+    // Solo actualizar estado si el componente sigue montado y no hay redirección
+    if (isMounted.current && !hasRedirected.current) {
+      setCheckingAuth(false)
+    }
+  }, [user, organizationId, isLoading, router])
+
+  // Heredar email de organización al taller
+  useEffect(() => {
+    if (step === 3 && orgEmail && !workshopEmail) {
+      setWorkshopEmail(orgEmail)
+    }
+  }, [step, orgEmail, workshopEmail])
 
   const handleNext = (e?: React.FormEvent) => {
     if (e) e.preventDefault()
@@ -339,7 +340,8 @@ export default function OnboardingPage() {
       console.log('🔄 [Onboarding] Redirigiendo al dashboard...')
 
       // Redirigir al dashboard
-      window.location.href = '/dashboard'
+      router.push('/dashboard')
+      router.refresh()
 
     } catch (err: any) {
       console.error('Error en onboarding:', err)
@@ -349,6 +351,17 @@ export default function OnboardingPage() {
     }
   }
 
+  // Mostrar loading mientras se verifica autenticación
+  if (checkingAuth || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-cyan-500 mx-auto mb-4" />
+          <p className="text-slate-400">Verificando...</p>
+        </div>
+      </div>
+    )
+  }
 
   const steps = [
     { number: 1, title: 'Bienvenida' },

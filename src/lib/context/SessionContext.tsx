@@ -1,5 +1,4 @@
 'use client'
-// v2024-12-08: Fix signOut error #300
 
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -42,7 +41,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<SessionState>(initialState)
   
   const isInitializing = useRef(false)
-  const isSigningOut = useRef(false) // Bandera para evitar loadSession durante signOut
   const lastLoadTimestamp = useRef<number>(0)
   const lastUserId = useRef<string | null>(null)
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null)
@@ -422,12 +420,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       console.log(`🔔 [Session] Auth event: ${event}`)
       
       if (event === 'SIGNED_OUT') {
-        // Si estamos cerrando sesión manualmente, no hacer nada
-        // (ya estamos redirigiendo al login)
-        if (isSigningOut.current) {
-          console.log('⏭️ [Session] Ignorando SIGNED_OUT (signOut en progreso)')
-          return
-        }
         console.log(`🔄 [Session] Recargando sesión por: ${event}`)
         lastUserId.current = null
         loadSession(true) // Forzar recarga en logout
@@ -474,58 +466,90 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     console.log('👋 [Session] Cerrando sesión...')
-    
-    // Marcar que estamos cerrando sesión para evitar que loadSession se ejecute
-    isSigningOut.current = true
-    
-    try {
-      // Primero cerrar sesión en Supabase (antes de limpiar estado)
-      await supabase.auth.signOut()
-      console.log('✅ [Session] Sesión cerrada en Supabase')
-      
-      // Redirigir inmediatamente sin esperar re-renders
-      window.location.href = '/auth/login'
-    } catch (error: any) {
-      console.error('❌ [Session] Error cerrando sesión:', error)
-      // Redirigir de todas formas
-      window.location.href = '/auth/login'
+    await supabase.auth.signOut()
+    lastUserId.current = null
+    const clearedState = {
+      user: null,
+      organizationId: null,
+      workshopId: null,
+      profile: null,
+      workshop: null,
+      isLoading: false,
+      isReady: true,
+      error: null
     }
+    currentStateRef.current = clearedState
+    setState(clearedState)
+    console.log('✅ [Session] Sesión cerrada')
   }, [supabase.auth])
 
-  // Redirección a onboarding si el usuario no tiene organización
-  // IMPORTANTE: Esta lógica es necesaria aquí porque el DashboardLayout
-  // está en un route group (dashboard) que no contiene páginas
+  // useEffect separado para manejar redirección a onboarding
+  // Evita error React #300 al separar la redirección del flujo de carga
   useEffect(() => {
-    // Solo ejecutar si ya terminó de cargar
-    if (state.isLoading || !state.isReady) {
-      return
+    // Limpiar timeout anterior si existe
+    if (redirectTimeout.current) {
+      clearTimeout(redirectTimeout.current)
+      redirectTimeout.current = null
     }
 
-    // Si no hay usuario, no hacer nada (cada página maneja su propia redirección al login)
-    if (!state.user) {
-      return
+    // Solo ejecutar si ya terminó de cargar y hay usuario pero no organización
+    if (!state.isLoading && state.user && state.profile && !state.organizationId) {
+      const currentPath = window.location.pathname
+      
+      // Evitar loop - no redirigir si ya estamos en onboarding o auth
+      if (!currentPath.startsWith('/onboarding') && !currentPath.startsWith('/auth')) {
+        console.log('[Session] 🚀 Ejecutando redirección a onboarding...')
+        
+        // Capturar el estado actual y el pathname para verificar en el callback
+        const userId = state.user.id
+        const profileId = state.profile?.id
+        const initialPath = currentPath
+        
+        // Usar setTimeout para evitar conflicto con el renderizado
+        redirectTimeout.current = setTimeout(() => {
+          // Verificar múltiples condiciones antes de redirigir:
+          // 1. Componente aún montado
+          // 2. Usuario aún autenticado (mismo ID)
+          // 3. Perfil aún existe (mismo ID)
+          // 4. Aún no tiene organizationId
+          // 5. Pathname no haya cambiado a onboarding o auth
+          const currentState = currentStateRef.current
+          const currentPathNow = window.location.pathname
+          
+          const shouldRedirect = 
+            isMounted.current &&
+            currentState.user?.id === userId &&
+            currentState.profile?.id === profileId &&
+            !currentState.organizationId &&
+            !currentState.isLoading &&
+            !currentPathNow.startsWith('/onboarding') &&
+            !currentPathNow.startsWith('/auth')
+          
+          if (shouldRedirect) {
+            console.log('[Session] ✅ Condiciones verificadas, redirigiendo a onboarding...')
+            window.location.href = '/onboarding'
+          } else {
+            console.log('[Session] ⏸️ Condiciones cambiaron, cancelando redirección:', {
+              isMounted: isMounted.current,
+              sameUser: currentState.user?.id === userId,
+              sameProfile: currentState.profile?.id === profileId,
+              hasOrganization: !!currentState.organizationId,
+              isLoading: currentState.isLoading,
+              currentPath: currentPathNow
+            })
+          }
+        }, 100)
+      }
     }
 
-    // Si el usuario tiene organización, no hacer nada
-    if (state.organizationId) {
-      return
+    // Cleanup: limpiar timeout si el componente se desmonta o cambian las dependencias
+    return () => {
+      if (redirectTimeout.current) {
+        clearTimeout(redirectTimeout.current)
+        redirectTimeout.current = null
+      }
     }
-
-    // Usuario autenticado pero sin organización - necesita completar onboarding
-    const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
-    
-    // Evitar loop - no redirigir si ya estamos en onboarding o auth
-    if (currentPath.startsWith('/onboarding') || currentPath.startsWith('/auth')) {
-      return
-    }
-
-    console.log('[Session] ⚠️ Usuario sin organización, redirigiendo a onboarding...')
-    
-    // Usar setTimeout para evitar error React #310
-    setTimeout(() => {
-      window.location.href = '/onboarding'
-    }, 100)
-  }, [state.isLoading, state.isReady, state.user, state.organizationId])
+  }, [state.isLoading, state.user, state.profile, state.organizationId])
 
   // Cleanup al desmontar el componente
   useEffect(() => {

@@ -1,42 +1,27 @@
+import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-/**
- * Callback de Autenticación Simplificado
- * 
- * SOLO hace dos cosas:
- * 1. Verificar el token/código de autenticación
- * 2. Establecer la sesión en las cookies
- * 
- * La lógica de redirección (onboarding vs dashboard) la maneja el FRONTEND
- * en SessionContext y DashboardLayout, que ya tienen esa lógica.
- */
 export async function GET(request: NextRequest) {
-  const url = new URL(request.url)
-  const { searchParams, origin } = url
+  const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const token_hash = searchParams.get('token_hash')
   const type = searchParams.get('type')
-  
-  // VERSION: 2024-12-08-v4 - Log completo para debug
-  console.log('═══════════════════════════════════════════════════')
-  console.log('🔄 [Callback v4] INICIO - Procesando autenticación')
-  console.log('═══════════════════════════════════════════════════')
-  console.log('📋 URL completa:', url.toString())
-  console.log('📋 Parámetros:', { 
-    code: code ? code.substring(0, 10) + '...' : null,
-    token_hash: token_hash ? token_hash.substring(0, 10) + '...' : null,
+  const next = searchParams.get('next') ?? '/dashboard'
+
+  console.log('🔄 [Callback] Iniciando procesamiento...', { 
+    hasCode: !!code, 
+    hasTokenHash: !!token_hash, 
     type,
-    origin
+    next 
   })
-  console.log('📋 Todos los searchParams:', Object.fromEntries(searchParams.entries()))
-  
-  // SIEMPRE redirigir a /dashboard - el frontend decidirá si va a onboarding
-  const redirectUrl = new URL('/dashboard', origin)
+
+  // Crear la respuesta primero para poder modificar sus cookies
+  const redirectUrl = new URL(next, origin)
   const response = NextResponse.redirect(redirectUrl)
 
-  // Cliente Supabase con cookies
-  const supabase = createServerClient(
+  // Cliente SSR para manejar la autenticación (con cookies)
+  const supabaseAuth = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -45,11 +30,12 @@ export async function GET(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: any) {
-          // Guardar en request Y response
+          // ✅ Establecer cookie tanto en request como en response
           request.cookies.set({ name, value, ...options })
           response.cookies.set({ name, value, ...options })
         },
         remove(name: string, options: any) {
+          // ✅ Eliminar cookie tanto de request como de response
           request.cookies.set({ name, value: '', ...options })
           response.cookies.set({ name, value: '', ...options })
         },
@@ -57,65 +43,187 @@ export async function GET(request: NextRequest) {
     }
   )
 
-  try {
-    // Manejar código OAuth (Google, GitHub, etc.)
-    if (code) {
-      console.log('🔄 [Callback] Procesando código OAuth...')
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-      
-      if (error) {
-        console.error('❌ [Callback v4] Error OAuth:', error.message)
-        console.log('═══════════════════════════════════════════════════')
-        return redirectToLogin(origin, 'Error de autenticación OAuth')
-      }
-      
-      if (data?.session) {
-        console.log('✅ [Callback v4] OAuth exitoso:', data.session.user.email)
-        console.log('✅ [Callback v4] Cookies establecidas, redirigiendo a /dashboard')
-        console.log('═══════════════════════════════════════════════════')
-        return response
-      }
-    }
+  // Cliente Admin para queries que bypasean RLS (solo para verificar perfil)
+  // Si no hay service role key, usaremos el anon key (puede fallar con RLS estricto)
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseAdmin = serviceRoleKey 
+    ? createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        serviceRoleKey,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        }
+      )
+    : null
+  
+  if (!serviceRoleKey) {
+    console.warn('⚠️ [Callback] SUPABASE_SERVICE_ROLE_KEY no disponible, usando anon key')
+  }
 
-    // Manejar token de confirmación de email
-    if (token_hash && type) {
-      console.log('🔄 [Callback] Verificando token de email...')
-      const { data, error } = await supabase.auth.verifyOtp({
+  // Función helper para verificar si el usuario tiene organización
+  async function checkUserOrganization(userId: string, userEmail?: string): Promise<string | null> {
+    console.log('🔍 [Callback] Verificando organización para usuario:', userId)
+    
+    // Usar el cliente admin si está disponible (bypassea RLS), sino usar el cliente auth
+    const client = supabaseAdmin || supabaseAuth
+    const clientType = supabaseAdmin ? 'admin' : 'auth'
+    
+    console.log(`📋 [Callback] Usando cliente ${clientType} para verificar perfil`)
+    
+    try {
+      // Intentar buscar por auth_user_id primero
+      let { data: profile, error } = await client
+        .from('users')
+        .select('organization_id')
+        .eq('auth_user_id', userId)
+        .single()
+
+      if (error && error.code === 'PGRST116') {
+        // No encontrado por auth_user_id, intentar por email
+        if (userEmail) {
+          console.log('🔍 [Callback] Buscando por email:', userEmail)
+          const { data: profileByEmail, error: emailError } = await client
+            .from('users')
+            .select('organization_id')
+            .eq('email', userEmail)
+            .single()
+          
+          if (!emailError && profileByEmail) {
+            profile = profileByEmail
+            error = null
+          }
+        }
+      }
+
+      if (error) {
+        console.warn('⚠️ [Callback] Error buscando perfil:', error.message, error.code)
+        return null
+      }
+
+      console.log('✅ [Callback] Perfil encontrado:', { 
+        organization_id: profile?.organization_id 
+      })
+      
+      return profile?.organization_id || null
+    } catch (err: any) {
+      console.error('❌ [Callback] Excepción verificando perfil:', err.message)
+      return null
+    }
+  }
+
+  // Función helper para crear respuesta de redirección con cookies
+  function createRedirectResponse(url: string): NextResponse {
+    const redirectResponse = NextResponse.redirect(new URL(url, origin))
+    
+    // Copiar las cookies de sesión a la nueva respuesta
+    response.cookies.getAll().forEach(cookie => {
+      redirectResponse.cookies.set(cookie.name, cookie.value)
+    })
+    
+    return redirectResponse
+  }
+
+  // Manejar código de autorización (OAuth)
+  if (code) {
+    console.log('🔄 [Callback] Procesando código OAuth...')
+    const { data, error } = await supabaseAuth.auth.exchangeCodeForSession(code)
+
+    if (!error && data?.session) {
+      console.log('✅ [Callback] OAuth exitoso, sesión establecida:', {
+        userId: data.session.user.id,
+        email: data.session.user.email
+      })
+      
+      // Verificar si el usuario tiene organización
+      const organizationId = await checkUserOrganization(
+        data.session.user.id, 
+        data.session.user.email
+      )
+      
+      // Si no tiene organización, redirigir a onboarding
+      if (!organizationId) {
+        console.log('🔄 [Callback] Usuario sin organización, redirigiendo a onboarding...')
+        return createRedirectResponse('/onboarding')
+      }
+      
+      console.log('✅ [Callback] Usuario con organización, redirigiendo a:', next)
+      return response
+    } else if (error) {
+      console.error('❌ [Callback] Error en OAuth:', error)
+    }
+  }
+
+  // Manejar token_hash (email confirmation, magic link, etc.)
+  if (token_hash && type) {
+    console.log('🔄 [Callback] Procesando token de confirmación...', { 
+      type, 
+      token_hash: token_hash.substring(0, 10) + '...' 
+    })
+    
+    try {
+      const { data, error } = await supabaseAuth.auth.verifyOtp({
         token_hash,
         type: type as any
       })
 
-      if (error) {
-        console.error('❌ [Callback v4] Error verificando token:', error.message)
-        console.log('═══════════════════════════════════════════════════')
-        return redirectToLogin(origin, 'El enlace de confirmación es inválido o ha expirado')
-      }
-
-      if (data?.session) {
-        console.log('✅ [Callback v4] Email confirmado:', data.session.user.email)
-        console.log('✅ [Callback v4] Cookies establecidas, redirigiendo a /dashboard')
-        console.log('═══════════════════════════════════════════════════')
+      if (!error && data?.session) {
+        console.log('✅ [Callback] Email confirmado exitosamente:', {
+          userId: data.session.user.id,
+          email: data.session.user.email,
+          sessionExists: !!data.session
+        })
+        
+        // Verificar si el usuario tiene organización
+        const organizationId = await checkUserOrganization(
+          data.session.user.id,
+          data.session.user.email
+        )
+        
+        // Si no tiene organización, redirigir a onboarding
+        if (!organizationId) {
+          console.log('🔄 [Callback] Usuario sin organización, redirigiendo a onboarding...')
+          return createRedirectResponse('/onboarding')
+        }
+        
+        // ✅ Email confirmado exitosamente, redirigir al destino
+        console.log('✅ [Callback] Usuario con organización, redirigiendo a:', next)
         return response
+        
+      } else if (error) {
+        console.error('❌ [Callback] Error verificando token:', {
+          message: error.message,
+          status: error.status,
+          name: error.name
+        })
+        // Redirigir al login con mensaje de error
+        const loginUrl = new URL('/auth/login', origin)
+        loginUrl.searchParams.set('error', 'invalid_token')
+        loginUrl.searchParams.set('message', 'El enlace de confirmación es inválido o ha expirado.')
+        return NextResponse.redirect(loginUrl)
       } else {
-        console.warn('⚠️ [Callback v4] Token verificado pero NO hay sesión')
+        console.error('❌ [Callback] Verificación exitosa pero sin sesión')
       }
+    } catch (err: any) {
+      console.error('❌ [Callback] Excepción verificando token:', {
+        message: err.message,
+        stack: err.stack
+      })
+      const loginUrl = new URL('/auth/login', origin)
+      loginUrl.searchParams.set('error', 'token_error')
+      loginUrl.searchParams.set('message', 'Error al procesar el enlace de confirmación.')
+      return NextResponse.redirect(loginUrl)
     }
-
-    // Si no hay código ni token, redirigir al login
-    console.warn('⚠️ [Callback v4] No hay código ni token válido')
-    console.log('═══════════════════════════════════════════════════')
-    return redirectToLogin(origin, 'Enlace de autenticación inválido')
-
-  } catch (err: any) {
-    console.error('❌ [Callback v4] Error inesperado:', err.message)
-    console.log('═══════════════════════════════════════════════════')
-    return redirectToLogin(origin, 'Error procesando autenticación')
   }
-}
 
-function redirectToLogin(origin: string, message: string): NextResponse {
+  // Si hay error o no hay código/token, redirigir al login
+  console.log('⚠️ [Callback] No hay código ni token, redirigiendo al login')
   const loginUrl = new URL('/auth/login', origin)
-  loginUrl.searchParams.set('error', 'auth_failed')
-  loginUrl.searchParams.set('message', message)
+  if (code || token_hash) {
+    loginUrl.searchParams.set('error', 'auth_failed')
+    loginUrl.searchParams.set('message', 'No se pudo completar la autenticación.')
+  }
   return NextResponse.redirect(loginUrl)
 }

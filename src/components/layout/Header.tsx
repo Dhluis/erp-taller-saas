@@ -1,9 +1,6 @@
 'use client'
-// v2024-12-08: Datos reales del usuario
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { 
   Search, 
   Bell, 
@@ -15,8 +12,6 @@ import {
 } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 import { GlobalSearch } from '@/components/search/GlobalSearch'
-import { useUserProfile } from '@/hooks/use-user-profile'
-import { useSession } from '@/lib/context/SessionContext'
 
 interface HeaderProps {
   title?: string
@@ -28,19 +23,6 @@ export function Header({ title, onMenuClick }: HeaderProps) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
   const { colors } = useTheme()
-  const { profile, getInitials } = useUserProfile()
-  const { signOut } = useSession()
-  const router = useRouter()
-
-  // Datos del usuario (usa datos reales o fallback)
-  const userName = profile?.full_name || 'Usuario'
-  const userEmail = profile?.email || ''
-  const userInitials = profile ? getInitials(profile.full_name) : 'U'
-
-  const handleSignOut = async () => {
-    setIsUserMenuOpen(false)
-    await signOut()
-  }
 
   const notifications = [
     {
@@ -188,43 +170,33 @@ export function Header({ title, onMenuClick }: HeaderProps) {
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="flex items-center space-x-2 p-2 text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded-md transition-colors"
               >
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium text-sm">
-                  {userInitials}
+                <div className="w-8 h-8 rounded-full bg-bg-tertiary flex items-center justify-center">
+                  <User className="h-4 w-4" />
                 </div>
-                <span className="hidden sm:block text-sm font-medium truncate max-w-[120px]">{userName}</span>
+                <span className="hidden sm:block text-sm font-medium">Admin</span>
                 <ChevronDown className="h-4 w-4" />
               </button>
 
               {/* User Dropdown */}
               {isUserMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-bg-secondary border border-border rounded-lg shadow-lg z-50">
+                <div className="absolute right-0 top-full mt-2 w-48 bg-bg-secondary border border-border rounded-lg shadow-lg z-50">
                   <div className="p-4 border-b border-border">
-                    <p className="text-sm font-medium text-text-primary">{userName}</p>
-                    <p className="text-xs text-text-secondary truncate">{userEmail}</p>
+                    <p className="text-sm font-medium text-text-primary">Usuario Admin</p>
+                    <p className="text-xs text-text-secondary">admin@eagles.com</p>
                   </div>
                   <div className="py-2">
-                    <Link 
-                      href="/perfil"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="w-full px-4 py-2 text-left text-sm text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors flex items-center space-x-2"
-                    >
-                      <User className="h-4 w-4" />
-                      <span>Mi Perfil</span>
-                    </Link>
-                    <Link 
-                      href="/configuraciones/empresa"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="w-full px-4 py-2 text-left text-sm text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors flex items-center space-x-2"
-                    >
-                      <Settings className="h-4 w-4" />
-                      <span>Configuración</span>
-                    </Link>
+                    <button className="w-full px-4 py-2 text-left text-sm text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
+                      Perfil
+                    </button>
+                    <button className="w-full px-4 py-2 text-left text-sm text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
+                      Configuración
+                    </button>
+                    <button className="w-full px-4 py-2 text-left text-sm text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
+                      Ayuda
+                    </button>
                   </div>
                   <div className="border-t border-border py-2">
-                    <button 
-                      onClick={handleSignOut}
-                      className="w-full px-4 py-2 text-left text-sm text-error hover:bg-bg-tertiary transition-colors flex items-center space-x-2"
-                    >
+                    <button className="w-full px-4 py-2 text-left text-sm text-error hover:bg-bg-tertiary transition-colors flex items-center space-x-2">
                       <LogOut className="h-4 w-4" />
                       <span>Cerrar sesión</span>
                     </button>
