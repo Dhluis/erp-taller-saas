@@ -71,7 +71,12 @@ export default function OnboardingPage() {
     if (!user) {
       hasRedirected.current = true
       console.log('[Onboarding] Usuario no autenticado, redirigiendo al login...')
-      router.push('/auth/login?redirectTo=/onboarding')
+      // Usar setTimeout para evitar error React #310
+      setTimeout(() => {
+        if (isMounted.current) {
+          window.location.href = '/auth/login?redirectTo=/onboarding'
+        }
+      }, 0)
       return
     }
 
@@ -79,7 +84,12 @@ export default function OnboardingPage() {
     if (organizationId) {
       hasRedirected.current = true
       console.log('✅ [Onboarding] Usuario ya tiene organización, redirigiendo al dashboard')
-      router.push('/dashboard')
+      // Usar setTimeout y window.location para evitar error React #310
+      setTimeout(() => {
+        if (isMounted.current) {
+          window.location.href = '/dashboard'
+        }
+      }, 0)
       return
     }
 
@@ -87,7 +97,7 @@ export default function OnboardingPage() {
     if (isMounted.current && !hasRedirected.current) {
       setCheckingAuth(false)
     }
-  }, [user, organizationId, isLoading, router])
+  }, [user, organizationId, isLoading])
 
   // Heredar email de organización al taller
   useEffect(() => {
