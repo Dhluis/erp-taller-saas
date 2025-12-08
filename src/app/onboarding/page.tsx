@@ -185,45 +185,109 @@ export default function OnboardingPage() {
         throw new Error('No se pudo crear el taller')
       }
 
-      // PASO 3: Actualizar usuario con organization_id y workshop_id
-      console.log('🔄 [Onboarding] Actualizando usuario con organization_id y workshop_id...')
+      // PASO 3: Verificar/crear y actualizar usuario con organization_id y workshop_id
+      console.log('🔄 [Onboarding] Verificando/creando usuario con organization_id y workshop_id...')
       console.log('📋 [Onboarding] Datos:', {
         auth_user_id: user.id,
         organization_id: organization.id,
         workshop_id: workshop.id
       })
 
-      const { data: updatedUser, error: updateError } = await supabase
+      // Primero, verificar si el usuario existe en la tabla users
+      const { data: existingUser, error: checkError } = await supabase
         .from('users')
-        .update({
-          organization_id: organization.id,
-          workshop_id: workshop.id,
-          updated_at: new Date().toISOString()
-        })
+        .select('*')
         .eq('auth_user_id', user.id)
-        .select()
         .single()
 
-      if (updateError) {
-        console.error('❌ [Onboarding] Error actualizando usuario:', {
-          code: updateError.code,
-          message: updateError.message,
-          details: updateError.details,
-          hint: updateError.hint
+      let updatedUser
+
+      if (checkError && checkError.code === 'PGRST116') {
+        // Usuario no existe, crearlo
+        console.log('⚠️ [Onboarding] Usuario no existe en users, creando registro...')
+        
+        const { data: newUser, error: createError } = await supabase
+          .from('users')
+          .insert({
+            id: user.id, // El id debe coincidir con auth.users.id según el schema
+            auth_user_id: user.id,
+            email: user.email || profile?.email || '',
+            full_name: profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario',
+            organization_id: organization.id,
+            workshop_id: workshop.id,
+            role: profile?.role || 'ADMIN', // Primer usuario es admin
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single()
+
+        if (createError) {
+          console.error('❌ [Onboarding] Error creando usuario:', {
+            code: createError.code,
+            message: createError.message,
+            details: createError.details,
+            hint: createError.hint
+          })
+          // Rollback: eliminar organización y taller
+          await supabase.from('workshops').delete().eq('id', workshop.id)
+          await supabase.from('organizations').delete().eq('id', organization.id)
+          throw new Error(`Error al crear el usuario: ${createError.message} (Código: ${createError.code})`)
+        }
+
+        updatedUser = newUser
+        console.log('✅ [Onboarding] Usuario creado exitosamente')
+      } else if (checkError) {
+        // Otro error al verificar
+        console.error('❌ [Onboarding] Error verificando usuario:', {
+          code: checkError.code,
+          message: checkError.message,
+          details: checkError.details,
+          hint: checkError.hint
         })
         // Rollback: eliminar organización y taller
         await supabase.from('workshops').delete().eq('id', workshop.id)
         await supabase.from('organizations').delete().eq('id', organization.id)
-        throw new Error(`Error al actualizar el usuario: ${updateError.message} (Código: ${updateError.code})`)
+        throw new Error(`Error al verificar el usuario: ${checkError.message} (Código: ${checkError.code})`)
+      } else {
+        // Usuario existe, actualizarlo
+        console.log('✅ [Onboarding] Usuario existe, actualizando...')
+        
+        const { data: userUpdate, error: updateError } = await supabase
+          .from('users')
+          .update({
+            organization_id: organization.id,
+            workshop_id: workshop.id,
+            updated_at: new Date().toISOString()
+          })
+          .eq('auth_user_id', user.id)
+          .select()
+          .single()
+
+        if (updateError) {
+          console.error('❌ [Onboarding] Error actualizando usuario:', {
+            code: updateError.code,
+            message: updateError.message,
+            details: updateError.details,
+            hint: updateError.hint
+          })
+          // Rollback: eliminar organización y taller
+          await supabase.from('workshops').delete().eq('id', workshop.id)
+          await supabase.from('organizations').delete().eq('id', organization.id)
+          throw new Error(`Error al actualizar el usuario: ${updateError.message} (Código: ${updateError.code})`)
+        }
+
+        updatedUser = userUpdate
       }
 
-      // Validar que la actualización fue exitosa
+      // Validar que tenemos el usuario actualizado
       if (!updatedUser) {
-        console.error('❌ [Onboarding] Usuario no actualizado (updatedUser es null)')
+        console.error('❌ [Onboarding] Usuario no encontrado después de crear/actualizar')
         // Rollback: eliminar organización y taller
         await supabase.from('workshops').delete().eq('id', workshop.id)
         await supabase.from('organizations').delete().eq('id', organization.id)
-        throw new Error('No se pudo verificar la actualización del usuario')
+        throw new Error('No se pudo verificar la creación/actualización del usuario')
       }
 
       // Verificar que organization_id se asignó correctamente

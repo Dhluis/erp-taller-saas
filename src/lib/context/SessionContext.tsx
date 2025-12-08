@@ -231,24 +231,71 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           hint: profileError.hint
         })
         
-        // Si el error es que no existe el perfil, es un problema diferente
+        // Si el error es que no existe el perfil, intentar crearlo automáticamente
         if (profileError.code === 'PGRST116') {
-          console.error('❌ [Session] PERFIL NO ENCONTRADO - El usuario no tiene registro en public.users')
-          console.error('🔍 [Session] Verificar que existe un registro en public.users con:')
-          console.error('   - auth_user_id =', user.id)
-          console.error('   - email =', user.email)
+          console.warn('⚠️ [Session] PERFIL NO ENCONTRADO - Intentando crear perfil automáticamente...')
+          console.log('🔍 [Session] Creando registro en public.users con:')
+          console.log('   - id =', user.id)
+          console.log('   - auth_user_id =', user.id)
+          console.log('   - email =', user.email)
+          
+          // Intentar crear el perfil básico
+          const { data: newProfile, error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: user.id, // El id debe coincidir con auth.users.id según el schema
+              auth_user_id: user.id,
+              email: user.email || '',
+              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario',
+              organization_id: user.user_metadata?.organization_id || null,
+              workshop_id: null, // Se asignará en onboarding
+              role: 'ASESOR', // Rol por defecto
+              is_active: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .select()
+            .single()
+          
+          if (!createError && newProfile) {
+            console.log('✅ [Session] Perfil creado automáticamente')
+            profile = newProfile
+            profileError = null
+          } else {
+            console.error('❌ [Session] Error al crear perfil automáticamente:', createError)
+            console.error('🔍 [Session] Verificar que existe un registro en public.users con:')
+            console.error('   - auth_user_id =', user.id)
+            console.error('   - email =', user.email)
+            
+            // Si no se pudo crear, continuar sin perfil pero permitir onboarding
+            const errorState = {
+              ...currentStateRef.current,
+              user,
+              organizationId: null,
+              workshopId: null,
+              profile: null,
+              isLoading: false,
+              isReady: true,
+              error: null // No es un error fatal, el usuario puede completar onboarding
+            }
+            currentStateRef.current = errorState
+            setState(errorState)
+            console.warn('⚠️ [Session] Usuario sin perfil - será redirigido a onboarding')
+            return
+          }
+        } else {
+          // Otro tipo de error (permisos, conexión, etc.)
+          const errorState = {
+            ...currentStateRef.current,
+            user,
+            isLoading: false,
+            isReady: true,
+            error: `Error obteniendo perfil: ${profileError.message}`
+          }
+          currentStateRef.current = errorState
+          setState(errorState)
+          return
         }
-        
-        const errorState = {
-          ...currentStateRef.current,
-          user,
-          isLoading: false,
-          isReady: true,
-          error: `Perfil no encontrado: ${profileError.message}`
-        }
-        currentStateRef.current = errorState
-        setState(errorState)
-        return
       }
 
       if (!profile) {

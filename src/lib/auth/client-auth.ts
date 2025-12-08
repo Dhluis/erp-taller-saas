@@ -83,28 +83,53 @@ export async function signUpWithProfile(userData: {
       throw error
     }
 
-    // Si el usuario se creó exitosamente, crear el perfil en system_users
+    // Si el usuario se creó exitosamente, crear el perfil en users
+    // IMPORTANTE: SessionContext busca en la tabla 'users' usando auth_user_id
     if (data.user) {
       try {
+        // Primero, intentar crear el registro en la tabla users
         const { error: profileError } = await supabase
-          .from('system_users')
+          .from('users')
           .insert({
+            id: data.user.id, // El id debe coincidir con auth.users.id
+            auth_user_id: data.user.id, // Vincular con auth.users
             email: data.user.email!,
-            name: userData.fullName,
-            organization_id: userData.organizationId,
-            role: 'admin', // Primer usuario siempre es admin
-            status: 'active',
+            full_name: userData.fullName || data.user.email?.split('@')[0] || '',
+            organization_id: userData.organizationId || null,
+            workshop_id: null, // Se asignará en onboarding si es necesario
+            role: 'ADMIN', // Primer usuario siempre es admin
+            is_active: true,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
 
         if (profileError) {
-          console.warn('Error creando perfil de usuario:', profileError)
-          // No lanzamos error aquí porque el usuario ya se creó en auth
+          // Si falla porque ya existe (puede pasar con triggers), verificar
+          console.warn('Error creando perfil de usuario en users:', profileError)
+          
+          // Si el error es de duplicado, intentar actualizar
+          if (profileError.code === '23505') { // Unique violation
+            console.log('Usuario ya existe, actualizando...')
+            const { error: updateError } = await supabase
+              .from('users')
+              .update({
+                auth_user_id: data.user.id,
+                organization_id: userData.organizationId || null,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', data.user.id)
+            
+            if (updateError) {
+              console.warn('Error actualizando perfil existente:', updateError)
+            }
+          }
+        } else {
+          console.log('✅ Perfil de usuario creado exitosamente en users')
         }
-      } catch (profileErr) {
+      } catch (profileErr: any) {
         console.warn('Error en proceso de creación de perfil:', profileErr)
         // No lanzamos error aquí porque el usuario ya se creó en auth
+        // El onboarding puede completar la creación del perfil si es necesario
       }
     }
 
