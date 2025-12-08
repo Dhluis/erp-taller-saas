@@ -95,19 +95,23 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         const errorStatus = authError?.status || 'NO_STATUS'
         const errorName = authError?.name || ''
         
-        // Verificar si es un error de "sesión faltante" (estado normal, no autenticado)
+        // Verificar si es un error de "sesión faltante" o "token inválido" (estado normal, no autenticado)
         // Solo verificar indicadores específicos de sesión faltante, NO usar valores por defecto
         const isSessionMissingError = 
           // Verificar nombre del error (AuthSessionMissingError es el nombre real del error de Supabase)
           errorName?.includes('SessionMissing') ||
           errorName?.includes('AuthSessionMissing') ||
-          // Verificar mensaje de error específico
+          // Verificar mensaje de error específico de sesión faltante
           (errorMessage?.toLowerCase().includes('session missing') && 
            errorMessage?.toLowerCase().includes('auth')) ||
           // Verificar status 400 con mensaje de sesión (combinación específica)
           (errorStatus === 400 && 
            errorMessage?.toLowerCase().includes('session') &&
-           errorMessage?.toLowerCase().includes('missing'))
+           errorMessage?.toLowerCase().includes('missing')) ||
+          // Verificar error de token de refresh inválido (también es estado normal - token expirado/corrupto)
+          (errorMessage?.toLowerCase().includes('refresh token') && 
+           (errorMessage?.toLowerCase().includes('not found') || 
+            errorMessage?.toLowerCase().includes('invalid')))
         
         if (isSessionMissingError) {
           // No es un error real, solo significa que no hay sesión activa
