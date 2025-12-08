@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import Image from 'next/image'
@@ -25,6 +25,10 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [checkingAuth, setCheckingAuth] = useState(true)
+  
+  // Ref para evitar múltiples redirecciones y error React #310
+  const hasRedirected = useRef(false)
+  const isMounted = useRef(true)
 
   // Datos de la organización
   const [orgName, setOrgName] = useState('')
@@ -43,33 +47,46 @@ export default function OnboardingPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
+  // Cleanup al desmontar
+  useEffect(() => {
+    isMounted.current = true
+    return () => {
+      isMounted.current = false
+    }
+  }, [])
+
   // Verificar autenticación y si ya tiene organización
   useEffect(() => {
-    const checkAuth = async () => {
-      setCheckingAuth(true)
-      
-      // Esperar a que SessionContext termine de cargar
-      if (isLoading) {
-        return
-      }
-
-      // Si no hay usuario, redirigir al login
-      if (!user) {
-        router.push('/auth/login?redirectTo=/onboarding')
-        return
-      }
-
-      // Si ya tiene organization_id, redirigir al dashboard
-      if (organizationId) {
-        console.log('✅ Usuario ya tiene organización, redirigiendo al dashboard')
-        router.push('/dashboard')
-        return
-      }
-
-      setCheckingAuth(false)
+    // Esperar a que SessionContext termine de cargar
+    if (isLoading) {
+      return
     }
 
-    checkAuth()
+    // Evitar múltiples redirecciones
+    if (hasRedirected.current) {
+      return
+    }
+
+    // Si no hay usuario, redirigir al login
+    if (!user) {
+      hasRedirected.current = true
+      console.log('[Onboarding] Usuario no autenticado, redirigiendo al login...')
+      router.push('/auth/login?redirectTo=/onboarding')
+      return
+    }
+
+    // Si ya tiene organization_id, redirigir al dashboard
+    if (organizationId) {
+      hasRedirected.current = true
+      console.log('✅ [Onboarding] Usuario ya tiene organización, redirigiendo al dashboard')
+      router.push('/dashboard')
+      return
+    }
+
+    // Solo actualizar estado si el componente sigue montado y no hay redirección
+    if (isMounted.current && !hasRedirected.current) {
+      setCheckingAuth(false)
+    }
   }, [user, organizationId, isLoading, router])
 
   // Heredar email de organización al taller
