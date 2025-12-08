@@ -1,4 +1,5 @@
 'use client'
+// v2024-12-08: Datos reales del usuario
 
 import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import ModernIcons from '@/components/icons/ModernIcons'

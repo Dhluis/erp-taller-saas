@@ -1,4 +1,5 @@
 'use client'
+// v2024-12-08: Datos reales del usuario
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'

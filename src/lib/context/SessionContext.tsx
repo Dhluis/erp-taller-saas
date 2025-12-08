@@ -1,4 +1,5 @@
 'use client'
+// v2024-12-08: Fix signOut error #300
 
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'

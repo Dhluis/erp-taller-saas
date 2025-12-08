@@ -1,4 +1,5 @@
 'use client'
+// v2024-12-08: Redirect to login after registration
 
 import Image from 'next/image'
 import { useState } from 'react'
