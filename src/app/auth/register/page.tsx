@@ -101,15 +101,14 @@ export default function RegisterPage() {
         throw signUpError
       }
 
-      // ✅ Registro exitoso - redirigir al dashboard
-      // (La confirmación de email está desactivada en Supabase)
+      // ✅ Registro exitoso - redirigir al login
       setRegisteredEmail(email)
       setShowConfirmation(true)
       setStep(3) // Mostrar mensaje de éxito brevemente
       
-      // Redirigir al dashboard después de 2 segundos
+      // Redirigir al login después de 2 segundos
       setTimeout(() => {
-        window.location.href = '/dashboard'
+        window.location.href = '/auth/login'
       }, 2000)
       
     } catch (err: any) {
@@ -420,7 +419,7 @@ export default function RegisterPage() {
                   {registeredEmail}
                 </p>
                 <p className="text-slate-400 text-sm mb-6">
-                  Serás redirigido al panel de control en unos segundos...
+                  Serás redirigido a iniciar sesión en unos segundos...
                 </p>
               </div>
 
@@ -428,7 +427,7 @@ export default function RegisterPage() {
                 <div className="flex items-center justify-center gap-2">
                   <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
                   <p className="text-slate-300 text-sm">
-                    Preparando tu espacio de trabajo...
+                    Preparando todo para ti...
                   </p>
                 </div>
               </div>
@@ -437,11 +436,11 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    window.location.href = '/dashboard'
+                    window.location.href = '/auth/login'
                   }}
                   className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-3 rounded-lg transition flex items-center justify-center gap-2"
                 >
-                  Ir al Dashboard
+                  Ir a Iniciar Sesión
                 </button>
               </div>
 
