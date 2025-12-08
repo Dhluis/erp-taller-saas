@@ -41,6 +41,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<SessionState>(initialState)
   
   const isInitializing = useRef(false)
+  const isSigningOut = useRef(false) // Bandera para evitar loadSession durante signOut
   const lastLoadTimestamp = useRef<number>(0)
   const lastUserId = useRef<string | null>(null)
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null)
@@ -420,6 +421,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       console.log(`🔔 [Session] Auth event: ${event}`)
       
       if (event === 'SIGNED_OUT') {
+        // Si estamos cerrando sesión manualmente, no hacer nada
+        // (ya estamos redirigiendo al login)
+        if (isSigningOut.current) {
+          console.log('⏭️ [Session] Ignorando SIGNED_OUT (signOut en progreso)')
+          return
+        }
         console.log(`🔄 [Session] Recargando sesión por: ${event}`)
         lastUserId.current = null
         loadSession(true) // Forzar recarga en logout
@@ -466,35 +473,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     console.log('👋 [Session] Cerrando sesión...')
+    
+    // Marcar que estamos cerrando sesión para evitar que loadSession se ejecute
+    isSigningOut.current = true
+    
     try {
-      // Primero limpiar el estado local
-      lastUserId.current = null
-      const clearedState = {
-        user: null,
-        organizationId: null,
-        workshopId: null,
-        profile: null,
-        workshop: null,
-        isLoading: false,
-        isReady: true,
-        error: null
-      }
-      currentStateRef.current = clearedState
-      setState(clearedState)
-      
-      // Luego cerrar sesión en Supabase
+      // Primero cerrar sesión en Supabase (antes de limpiar estado)
       await supabase.auth.signOut()
-      console.log('✅ [Session] Sesión cerrada')
+      console.log('✅ [Session] Sesión cerrada en Supabase')
       
-      // Usar setTimeout para evitar error React #300
-      setTimeout(() => {
-        window.location.href = '/auth/login'
-      }, 100)
+      // Redirigir inmediatamente sin esperar re-renders
+      window.location.href = '/auth/login'
     } catch (error: any) {
       console.error('❌ [Session] Error cerrando sesión:', error)
-      setTimeout(() => {
-        window.location.href = '/auth/login'
-      }, 100)
+      // Redirigir de todas formas
+      window.location.href = '/auth/login'
     }
   }, [supabase.auth])
 
