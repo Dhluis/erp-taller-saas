@@ -466,21 +466,29 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     console.log('👋 [Session] Cerrando sesión...')
-    await supabase.auth.signOut()
-    lastUserId.current = null
-    const clearedState = {
-      user: null,
-      organizationId: null,
-      workshopId: null,
-      profile: null,
-      workshop: null,
-      isLoading: false,
-      isReady: true,
-      error: null
+    try {
+      await supabase.auth.signOut()
+      lastUserId.current = null
+      const clearedState = {
+        user: null,
+        organizationId: null,
+        workshopId: null,
+        profile: null,
+        workshop: null,
+        isLoading: false,
+        isReady: true,
+        error: null
+      }
+      currentStateRef.current = clearedState
+      setState(clearedState)
+      console.log('✅ [Session] Sesión cerrada, redirigiendo al login...')
+      // Redirigir al login después de cerrar sesión
+      window.location.href = '/auth/login'
+    } catch (error: any) {
+      console.error('❌ [Session] Error cerrando sesión:', error)
+      // Redirigir de todas formas
+      window.location.href = '/auth/login'
     }
-    currentStateRef.current = clearedState
-    setState(clearedState)
-    console.log('✅ [Session] Sesión cerrada')
   }, [supabase.auth])
 
   // NOTA: La redirección a onboarding la maneja DashboardLayout, no SessionContext

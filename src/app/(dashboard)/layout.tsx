@@ -34,8 +34,10 @@ export default function DashboardLayout({
   const sessionError = session?.error ?? null
 
   // Debug: Log del estado completo de la sesión
+  // VERSION: 2024-12-08-v3
   useEffect(() => {
-    console.log('[DashboardLayout] 📊 Estado completo de sesión:', {
+    console.log('[DashboardLayout v3] 📊 Estado completo de sesión:', {
+      version: '2024-12-08-v3',
       hasSession: !!session,
       user: user ? { id: user.id, email: user.email } : null,
       organizationId,

@@ -21,10 +21,12 @@ export async function GET(request: NextRequest) {
   const redirectUrl = new URL('/dashboard', origin)
   const response = NextResponse.redirect(redirectUrl)
 
-  console.log('🔄 [Callback] Procesando autenticación...', { 
+  // VERSION: 2024-12-08-v3 - Si no ves esto en logs, el deployment no se actualizó
+  console.log('🔄 [Callback v3] Procesando autenticación...', { 
     hasCode: !!code, 
     hasTokenHash: !!token_hash, 
-    type 
+    type,
+    version: '2024-12-08-v3'
   })
 
   // Cliente Supabase con cookies
