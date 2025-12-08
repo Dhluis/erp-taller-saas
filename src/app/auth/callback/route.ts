@@ -12,22 +12,28 @@ import { NextResponse, type NextRequest } from 'next/server'
  * en SessionContext y DashboardLayout, que ya tienen esa lógica.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url)
+  const url = new URL(request.url)
+  const { searchParams, origin } = url
   const code = searchParams.get('code')
   const token_hash = searchParams.get('token_hash')
   const type = searchParams.get('type')
   
+  // VERSION: 2024-12-08-v4 - Log completo para debug
+  console.log('═══════════════════════════════════════════════════')
+  console.log('🔄 [Callback v4] INICIO - Procesando autenticación')
+  console.log('═══════════════════════════════════════════════════')
+  console.log('📋 URL completa:', url.toString())
+  console.log('📋 Parámetros:', { 
+    code: code ? code.substring(0, 10) + '...' : null,
+    token_hash: token_hash ? token_hash.substring(0, 10) + '...' : null,
+    type,
+    origin
+  })
+  console.log('📋 Todos los searchParams:', Object.fromEntries(searchParams.entries()))
+  
   // SIEMPRE redirigir a /dashboard - el frontend decidirá si va a onboarding
   const redirectUrl = new URL('/dashboard', origin)
   const response = NextResponse.redirect(redirectUrl)
-
-  // VERSION: 2024-12-08-v3 - Si no ves esto en logs, el deployment no se actualizó
-  console.log('🔄 [Callback v3] Procesando autenticación...', { 
-    hasCode: !!code, 
-    hasTokenHash: !!token_hash, 
-    type,
-    version: '2024-12-08-v3'
-  })
 
   // Cliente Supabase con cookies
   const supabase = createServerClient(
@@ -58,12 +64,15 @@ export async function GET(request: NextRequest) {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code)
       
       if (error) {
-        console.error('❌ [Callback] Error OAuth:', error.message)
+        console.error('❌ [Callback v4] Error OAuth:', error.message)
+        console.log('═══════════════════════════════════════════════════')
         return redirectToLogin(origin, 'Error de autenticación OAuth')
       }
       
       if (data?.session) {
-        console.log('✅ [Callback] OAuth exitoso:', data.session.user.email)
+        console.log('✅ [Callback v4] OAuth exitoso:', data.session.user.email)
+        console.log('✅ [Callback v4] Cookies establecidas, redirigiendo a /dashboard')
+        console.log('═══════════════════════════════════════════════════')
         return response
       }
     }
@@ -77,22 +86,29 @@ export async function GET(request: NextRequest) {
       })
 
       if (error) {
-        console.error('❌ [Callback] Error verificando token:', error.message)
+        console.error('❌ [Callback v4] Error verificando token:', error.message)
+        console.log('═══════════════════════════════════════════════════')
         return redirectToLogin(origin, 'El enlace de confirmación es inválido o ha expirado')
       }
 
       if (data?.session) {
-        console.log('✅ [Callback] Email confirmado:', data.session.user.email)
+        console.log('✅ [Callback v4] Email confirmado:', data.session.user.email)
+        console.log('✅ [Callback v4] Cookies establecidas, redirigiendo a /dashboard')
+        console.log('═══════════════════════════════════════════════════')
         return response
+      } else {
+        console.warn('⚠️ [Callback v4] Token verificado pero NO hay sesión')
       }
     }
 
     // Si no hay código ni token, redirigir al login
-    console.warn('⚠️ [Callback] No hay código ni token válido')
+    console.warn('⚠️ [Callback v4] No hay código ni token válido')
+    console.log('═══════════════════════════════════════════════════')
     return redirectToLogin(origin, 'Enlace de autenticación inválido')
 
   } catch (err: any) {
-    console.error('❌ [Callback] Error inesperado:', err.message)
+    console.error('❌ [Callback v4] Error inesperado:', err.message)
+    console.log('═══════════════════════════════════════════════════')
     return redirectToLogin(origin, 'Error procesando autenticación')
   }
 }
