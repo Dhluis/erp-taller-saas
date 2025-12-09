@@ -27,9 +27,9 @@ interface SessionContextType extends SessionState {
 const SessionContext = createContext<SessionContextType | null>(null)
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  // 🔥 DEPLOYMENT TRACKER: v3.0.0 - 2025-12-09-01:15 - FORCE COMMIT
-  console.log('🚀 [Session] VERSION 3.0.0 - CÓDIGO ACTUALIZADO')
-  console.log('📦 [Session] Deployment timestamp: 2025-12-09T01:15:00Z')
+  // 🔥 DEPLOYMENT TRACKER: v4.0.0 - 2025-12-09-04:00 - FORCE REBUILD
+  console.log('🚀 [Session] VERSION 4.0.0 - TODOS LOS BUGS CORREGIDOS')
+  console.log('📦 [Session] Deployment timestamp: 2025-12-09T04:00:00Z')
   
   const initialState: SessionState = {
     user: null,
