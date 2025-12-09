@@ -466,21 +466,20 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     console.log('👋 [Session] Cerrando sesión...')
-    await supabase.auth.signOut()
-    lastUserId.current = null
-    const clearedState = {
-      user: null,
-      organizationId: null,
-      workshopId: null,
-      profile: null,
-      workshop: null,
-      isLoading: false,
-      isReady: true,
-      error: null
+    
+    try {
+      // Cerrar sesión en Supabase
+      await supabase.auth.signOut()
+      console.log('✅ [Session] Sesión cerrada en Supabase')
+      
+      // Redirigir INMEDIATAMENTE usando window.location
+      // Esto previene que loadSession se ejecute y cause el error #300
+      window.location.href = '/auth/login'
+    } catch (error: any) {
+      console.error('❌ [Session] Error cerrando sesión:', error)
+      // Redirigir de todas formas
+      window.location.href = '/auth/login'
     }
-    currentStateRef.current = clearedState
-    setState(clearedState)
-    console.log('✅ [Session] Sesión cerrada')
   }, [supabase.auth])
 
   // useEffect separado para manejar redirección a onboarding
