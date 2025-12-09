@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -65,7 +65,9 @@ export function UserProfile() {
   const { signOut } = useSession()
   const [isOpen, setIsOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-  const [user, setUser] = useState<UserProfile>({
+  
+  // Construir user directamente desde profile (sin estado)
+  const user = useMemo<UserProfile>(() => ({
     id: profile?.id || '1',
     name: profile?.full_name || 'Usuario',
     email: profile?.email || 'Cargando...',
@@ -81,24 +83,7 @@ export function UserProfile() {
       darkMode: true,
       language: 'es'
     }
-  })
-
-  // Actualizar user cuando profile cambie
-  useEffect(() => {
-    if (profile) {
-      setUser(prev => ({
-        ...prev,
-        id: profile.id,
-        name: profile.full_name,
-        email: profile.email,
-        role: profile.role || 'user',
-        phone: profile.phone || '',
-        address: profile.address || '',
-        avatar: profile.avatar_url || '',
-        createdAt: profile.created_at
-      }))
-    }
-  }, [profile])
+  }), [profile])
 
   const [formData, setFormData] = useState({
     name: user.name,
@@ -132,10 +117,7 @@ export function UserProfile() {
   }
 
   const handleSave = () => {
-    setUser(prev => ({
-      ...prev,
-      ...formData
-    }))
+    // TODO: Implementar actualización de perfil vía API
     setIsEditing(false)
     alert('Perfil actualizado exitosamente')
   }

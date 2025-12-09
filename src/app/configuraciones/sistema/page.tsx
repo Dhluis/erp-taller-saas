@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -25,6 +25,10 @@ import { useUserProfile } from "@/hooks/use-user-profile"
 
 export default function ConfiguracionesSistemaPage() {
   const { profile } = useUserProfile()
+  
+  // Obtener email dinámicamente, sin useState ni useEffect
+  const getNotificationEmail = () => profile?.email || "admin@sistema.com"
+  
   const [settings, setSettings] = useState({
     // Configuración general
     systemName: "EAGLES ERP",
@@ -47,7 +51,7 @@ export default function ConfiguracionesSistemaPage() {
     emailNotifications: true,
     smsNotifications: false,
     pushNotifications: true,
-    notificationEmail: profile?.email || "Cargando...",
+    notificationEmail: getNotificationEmail(),
     
     // Configuración de integración
     apiEnabled: true,
@@ -59,16 +63,6 @@ export default function ConfiguracionesSistemaPage() {
     debugMode: false,
     logLevel: "info"
   })
-
-  // Actualizar notificationEmail cuando profile esté disponible
-  useEffect(() => {
-    if (profile?.email) {
-      setSettings(prev => ({
-        ...prev,
-        notificationEmail: profile.email
-      }))
-    }
-  }, [profile])
 
   const [isSaving, setIsSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
@@ -98,7 +92,7 @@ export default function ConfiguracionesSistemaPage() {
       emailNotifications: true,
       smsNotifications: false,
       pushNotifications: true,
-      notificationEmail: profile?.email || "Cargando...",
+      notificationEmail: getNotificationEmail(),
       apiEnabled: true,
       webhookUrl: "",
       externalIntegrations: false,
