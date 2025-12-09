@@ -27,6 +27,7 @@ interface SessionContextType extends SessionState {
 const SessionContext = createContext<SessionContextType | null>(null)
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
+  // ✨ VERSION 2.0.1 - FIX ERROR #300 DEFINITIVO
   const initialState: SessionState = {
     user: null,
     organizationId: null,
