@@ -47,6 +47,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const redirectTimeout = useRef<NodeJS.Timeout | null>(null)
   const isMounted = useRef(true)
   const currentStateRef = useRef<SessionState>(initialState)
+  const isSigningOut = useRef(false) // 🛡️ Prevenir re-renders durante signOut
   const supabase = createClient()
 
   // UNA SOLA función que carga TODO en orden
@@ -420,6 +421,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       console.log(`🔔 [Session] Auth event: ${event}`)
       
       if (event === 'SIGNED_OUT') {
+        // 🛡️ Si estamos haciendo signOut manual, NO recargar sesión (previene error #300)
+        if (isSigningOut.current) {
+          console.log('⏭️ [Session] SIGNED_OUT causado por signOut manual, ignorando...')
+          return
+        }
+        
         console.log(`🔄 [Session] Recargando sesión por: ${event}`)
         lastUserId.current = null
         loadSession(true) // Forzar recarga en logout
@@ -467,19 +474,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     console.log('👋 [Session] Cerrando sesión...')
     
+    // 🛡️ Marcar que estamos haciendo signOut para prevenir que el listener ejecute loadSession
+    isSigningOut.current = true
+    
     try {
       // Cerrar sesión en Supabase
       await supabase.auth.signOut()
       console.log('✅ [Session] Sesión cerrada en Supabase')
-      
-      // Redirigir INMEDIATAMENTE usando window.location
-      // Esto previene que loadSession se ejecute y cause el error #300
-      window.location.href = '/auth/login'
     } catch (error: any) {
       console.error('❌ [Session] Error cerrando sesión:', error)
-      // Redirigir de todas formas
-      window.location.href = '/auth/login'
     }
+    
+    // Redirigir INMEDIATAMENTE usando window.location
+    // Esto previene cualquier re-render y asegura navegación limpia
+    console.log('🔄 [Session] Redirigiendo a login...')
+    window.location.href = '/auth/login'
   }, [supabase.auth])
 
   // useEffect separado para manejar redirección a onboarding
