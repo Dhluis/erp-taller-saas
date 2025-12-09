@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { useSidebar } from '@/contexts/SidebarContext';
+import { useSession } from '@/lib/context/SessionContext';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
@@ -48,6 +49,7 @@ interface SidebarUserProfileProps {
 
 export function SidebarUserProfile({ className = '' }: SidebarUserProfileProps) {
   const { profile, getInitials } = useUserProfile();
+  const { signOut: sessionSignOut } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -66,10 +68,8 @@ export function SidebarUserProfile({ className = '' }: SidebarUserProfileProps) 
 
   const handleSignOut = async () => {
     try {
-      const supabase = createClient();
-      await supabase.auth.signOut();
-      toast.success('Sesión cerrada correctamente');
-      router.push('/auth/login');
+      toast.success('Cerrando sesión...');
+      await sessionSignOut();
     } catch (error) {
       console.error('Error signing out:', error);
       toast.error('Error al cerrar sesión');

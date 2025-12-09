@@ -13,6 +13,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { UserProfile } from "@/components/user-profile"
+import { useUserProfile } from "@/hooks/use-user-profile"
+import { useSession } from "@/lib/context/SessionContext"
 import {
   User,
   Settings,
@@ -23,12 +25,15 @@ import {
 
 export function UserAvatar() {
   const [showProfile, setShowProfile] = useState(false)
+  const { profile, getInitials } = useUserProfile()
+  const { signOut } = useSession()
 
+  // Datos reales del usuario
   const user = {
-    name: "Admin Principal",
-    email: "admin@eagles.com",
-    role: "admin",
-    avatar: ""
+    name: profile?.full_name || "Usuario",
+    email: profile?.email || "Cargando...",
+    role: profile?.role || "user",
+    avatar: profile?.avatar_url || ""
   }
 
   const getRoleBadge = (role: string) => {
@@ -44,9 +49,9 @@ export function UserAvatar() {
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-      alert('Sesión cerrada')
+      await signOut()
     }
   }
 
@@ -58,7 +63,7 @@ export function UserAvatar() {
             <Avatar className="h-8 w-8">
               <AvatarImage src={user.avatar} alt={user.name} />
               <AvatarFallback className="bg-primary text-primary-foreground">
-                {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                {profile ? getInitials(profile.full_name) : 'U'}
               </AvatarFallback>
             </Avatar>
           </Button>
