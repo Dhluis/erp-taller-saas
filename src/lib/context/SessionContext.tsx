@@ -27,10 +27,10 @@ interface SessionContextType extends SessionState {
 const SessionContext = createContext<SessionContextType | null>(null)
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  // 🔥 DEPLOYMENT TRACKER: v4.2.0 - 2025-12-09-04:55 - FIX vehicles multitenant
-  console.log('🚀 [Session] VERSION 4.2.0 - multitenant vehículos y hooks estables')
-  console.log('📦 [Session] Deployment timestamp: 2025-12-09T04:55:00Z')
-  console.log('🔧 [Session] Fix: vehicles API filtrado por organización + hooks previos')
+  // 🔥 DEPLOYMENT TRACKER: v4.2.2 - 2025-12-09-05:15 - WAHA resilience
+  console.log('🚀 [Session] VERSION 4.2.2 - WAHA resilience + workshop_id')
+  console.log('📦 [Session] Deployment timestamp: 2025-12-09T05:15:00Z')
+  console.log('🔧 [Session] Fix: vehicles con workshop_id + manejo 503 WAHA')
   
   const initialState: SessionState = {
     user: null,

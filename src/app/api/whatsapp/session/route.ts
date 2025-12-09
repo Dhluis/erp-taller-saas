@@ -37,7 +37,17 @@ export async function GET(request: NextRequest) {
     console.log(`[WhatsApp Session] 📝 Session Name: ${sessionName}`);
 
     // 3. Obtener estado de la sesión
-    const status = await getSessionStatus(sessionName, organizationId);
+    let status;
+    try {
+      status = await getSessionStatus(sessionName, organizationId);
+    } catch (statusError: any) {
+      console.error('[WhatsApp Session] ❌ Error consultando estado en WAHA:', statusError?.message || statusError);
+      return NextResponse.json({
+        success: false,
+        error: 'No se pudo consultar el estado de WhatsApp. Verifica conexión con WAHA o API key.',
+        details: process.env.NODE_ENV === 'development' ? statusError?.stack : undefined
+      }, { status: 503 });
+    }
     console.log(`[WhatsApp Session] 📊 Estado de sesión:`, {
       exists: status.exists,
       status: status.status,

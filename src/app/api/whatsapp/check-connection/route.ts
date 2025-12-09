@@ -59,8 +59,9 @@ export async function POST(request: NextRequest) {
       console.error('[Check Connection] ❌ Error fetch a WAHA:', fetchError.message);
       return NextResponse.json({
         success: false,
-        error: `Error conectando a WAHA: ${fetchError.message}`
-      }, { status: 500 });
+        error: `WAHA no responde: ${fetchError.message}`,
+        hint: 'Verifica WAHA_API_URL/WAHA_API_KEY y conectividad'
+      }, { status: 503 });
     }
 
     if (!statusResponse.ok) {
