@@ -27,7 +27,9 @@ interface SessionContextType extends SessionState {
 const SessionContext = createContext<SessionContextType | null>(null)
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  // ✨ VERSION 2.0.1 - FIX ERROR #300 DEFINITIVO
+  // 🔥 DEPLOYMENT TRACKER: v3.0.0 - 2025-12-09-01:00
+  console.log('🚀 [Session] VERSION 3.0.0 - CÓDIGO ACTUALIZADO')
+  
   const initialState: SessionState = {
     user: null,
     organizationId: null,
@@ -473,23 +475,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [loadSession])
 
   const signOut = useCallback(async () => {
-    console.log('👋 [Session] Cerrando sesión... [v2.0 - FIX DEFINITIVO]')
+    console.log('👋 [Session] Cerrando sesión...')
     
-    // 🛡️ Marcar que estamos haciendo signOut para prevenir que el listener ejecute loadSession
+    // 🛡️ SOLUCIÓN DEFINITIVA: Redirigir ANTES de llamar a signOut
+    // Esto evita que React renderice durante el proceso
     isSigningOut.current = true
     
-    try {
-      // Cerrar sesión en Supabase
-      await supabase.auth.signOut()
-      console.log('✅ [Session] Sesión cerrada en Supabase')
-    } catch (error: any) {
-      console.error('❌ [Session] Error cerrando sesión:', error)
+    // Usar replace() en lugar de href para evitar historial
+    const redirectToLogin = () => {
+      window.location.replace('/auth/login')
     }
     
-    // Redirigir INMEDIATAMENTE usando window.location
-    // Esto previene cualquier re-render y asegura navegación limpia
-    console.log('🔄 [Session] Redirigiendo a login...')
-    window.location.href = '/auth/login'
+    // Ejecutar signOut en paralelo con redirección inmediata
+    supabase.auth.signOut().catch(err => console.error('Error signOut:', err))
+    
+    // Redirigir INMEDIATAMENTE (no esperar a que signOut termine)
+    redirectToLogin()
   }, [supabase.auth])
 
   // useEffect separado para manejar redirección a onboarding
