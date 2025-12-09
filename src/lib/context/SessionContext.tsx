@@ -426,6 +426,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       
       if (event === 'SIGNED_OUT') {
         // 🛡️ Si estamos haciendo signOut manual, NO recargar sesión (previene error #300)
+        console.log(`🔍 [Session] SIGNED_OUT detectado - isSigningOut: ${isSigningOut.current}`)
         if (isSigningOut.current) {
           console.log('⏭️ [Session] SIGNED_OUT causado por signOut manual, ignorando...')
           return
@@ -477,6 +478,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     console.log('👋 [Session] Cerrando sesión...')
+    console.log('🔒 [Session] Marcando isSigningOut = true')
     
     // 🛡️ SOLUCIÓN DEFINITIVA: Redirigir ANTES de llamar a signOut
     // Esto evita que React renderice durante el proceso
@@ -484,10 +486,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     
     // Usar replace() en lugar de href para evitar historial
     const redirectToLogin = () => {
+      console.log('🚀 [Session] Ejecutando redirección a /auth/login')
       window.location.replace('/auth/login')
     }
     
     // Ejecutar signOut en paralelo con redirección inmediata
+    console.log('📤 [Session] Llamando a supabase.auth.signOut()')
     supabase.auth.signOut().catch(err => console.error('Error signOut:', err))
     
     // Redirigir INMEDIATAMENTE (no esperar a que signOut termine)
