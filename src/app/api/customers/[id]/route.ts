@@ -133,6 +133,7 @@ export async function DELETE(
       .from('work_orders')
       .select('id')
       .eq('customer_id', params.id)
+      .eq('organization_id', tenantContext.organizationId) // ✅ CRÍTICO: Filtro multitenant
       .limit(1)
 
     if (ordersError) {

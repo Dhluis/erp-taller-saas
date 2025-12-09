@@ -137,15 +137,9 @@ export async function uploadUserAvatar(file: File): Promise<string> {
         throw new Error('El archivo no puede ser mayor a 5MB')
       }
       
-      // TEMPORAL: Simular subida de avatar
-      const mockAvatarUrl = `https://example.com/avatars/user-001-${Date.now()}.jpg`
-      
-      console.log('✅ Avatar subido exitosamente:', mockAvatarUrl)
-      
-      // Simular delay de subida
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      return mockAvatarUrl
+      // TODO: Implementar subida real a Supabase Storage
+      console.warn('⚠️ uploadUserAvatar - Función no implementada aún')
+      throw new Error('La subida de avatar aún no está implementada')
     },
     {
       operation: 'uploadUserAvatar',
@@ -160,13 +154,9 @@ export async function uploadUserAvatar(file: File): Promise<string> {
 export async function deleteUserAvatar(): Promise<void> {
   return executeWithErrorHandling(
     async () => {
-      console.log('🗑️ deleteUserAvatar - Eliminando avatar...')
-      
-      // TEMPORAL: Simular eliminación de avatar
-      console.log('✅ Avatar eliminado exitosamente')
-      
-      // Simular delay
-      await new Promise(resolve => setTimeout(resolve, 300))
+      // TODO: Implementar eliminación real de Supabase Storage
+      console.warn('⚠️ deleteUserAvatar - Función no implementada aún')
+      throw new Error('La eliminación de avatar aún no está implementada')
     },
     {
       operation: 'deleteUserAvatar',
@@ -189,25 +179,12 @@ export async function getUserSecuritySettings(): Promise<{
 }> {
   return executeWithErrorHandling(
     async () => {
+      // TODO: Implementar obtención real de configuración de seguridad
       console.log('🔒 getUserSecuritySettings - Obteniendo configuración de seguridad...')
       
-      // TEMPORAL: Datos mock de configuración de seguridad
       const securitySettings = {
         twoFactorEnabled: false,
-        activeSessions: [
-          {
-            id: 'session-1',
-            device: 'Chrome en Windows',
-            location: 'Ciudad de México, México',
-            lastActive: new Date(Date.now() - 30 * 60 * 1000).toISOString() // 30 minutos atrás
-          },
-          {
-            id: 'session-2',
-            device: 'Safari en iPhone',
-            location: 'Ciudad de México, México',
-            lastActive: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() // 2 horas atrás
-          }
-        ]
+        activeSessions: [] // ✅ Sin datos mock - se implementará cuando se agregue la funcionalidad
       }
       
       console.log('✅ Configuración de seguridad obtenida:', securitySettings)

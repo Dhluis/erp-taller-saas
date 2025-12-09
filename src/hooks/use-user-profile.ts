@@ -3,8 +3,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { useSession } from '@/lib/context/SessionContext'
 import { 
-  getUserProfile, 
   updateUserProfile, 
   changeUserPassword,
   uploadUserAvatar,
@@ -16,33 +16,66 @@ import {
 } from '@/lib/supabase/user-profile'
 
 export function useUserProfile() {
+  const { profile: sessionProfile, isLoading: sessionLoading } = useSession()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const loadProfile = useCallback(async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-      const userProfile = await getUserProfile()
-      setProfile(userProfile)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al cargar el perfil'
-      setError(errorMessage)
-      console.error('Error loading user profile:', err)
-    } finally {
+  // Sincronizar con el perfil de SessionContext
+  useEffect(() => {
+    // ✅ FIX Bug 1: Manejar tanto el caso truthy como falsy
+    if (sessionProfile) {
+      setProfile({
+        id: sessionProfile.id,
+        email: sessionProfile.email,
+        full_name: sessionProfile.full_name,
+        phone: sessionProfile.phone,
+        address: sessionProfile.address,
+        avatar_url: sessionProfile.avatar_url,
+        organization_id: sessionProfile.organization_id,
+        organization_name: sessionProfile.organization_name,
+        role: sessionProfile.role,
+        created_at: sessionProfile.created_at,
+        updated_at: sessionProfile.updated_at
+      })
+    } else {
+      setProfile(null)
+    }
+    
+    // Sincronizar isLoading con SessionContext
+    // Solo establecer isLoading = false cuando SessionContext termine de cargar
+    if (!sessionLoading) {
       setIsLoading(false)
     }
+  }, [sessionProfile, sessionLoading])
+
+  const loadProfile = useCallback(async () => {
+    // No hacer nada - el perfil viene de SessionContext
+    console.log('✅ useUserProfile - Perfil sincronizado desde SessionContext')
   }, [])
 
   const updateProfile = useCallback(async (profileData: UpdateProfileData) => {
     try {
       setIsSaving(true)
       setError(null)
-      const updatedProfile = await updateUserProfile(profileData)
-      setProfile(updatedProfile)
-      return updatedProfile
+      
+      // ✅ FIX: updateUserProfile está deprecada - actualizar vía Supabase directamente
+      // TODO: Implementar actualización real cuando sea necesario
+      console.warn('⚠️ updateProfile - Funcionalidad no implementada aún')
+      
+      // Por ahora, solo actualizar estado local (no persistir en DB)
+      if (profile) {
+        const updatedProfile = {
+          ...profile,
+          ...profileData,
+          updated_at: new Date().toISOString()
+        }
+        setProfile(updatedProfile)
+        console.log('✅ Perfil actualizado localmente (no persistido en DB)')
+        return updatedProfile
+      }
+      throw new Error('No hay perfil cargado para actualizar')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al actualizar el perfil'
       setError(errorMessage)
@@ -50,7 +83,7 @@ export function useUserProfile() {
     } finally {
       setIsSaving(false)
     }
-  }, [])
+  }, [profile])
 
   const changePassword = useCallback(async (passwordData: ChangePasswordData) => {
     try {
@@ -70,12 +103,11 @@ export function useUserProfile() {
     try {
       setIsSaving(true)
       setError(null)
-      const avatarUrl = await uploadUserAvatar(file)
-      if (profile) {
-        const updatedProfile = await updateUserProfile({ avatar_url: avatarUrl })
-        setProfile(updatedProfile)
-      }
-      return avatarUrl
+      
+      // ✅ FIX Bug 2: uploadUserAvatar está deprecada y lanza error
+      // TODO: Implementar subida real a Supabase Storage cuando sea necesario
+      console.warn('⚠️ uploadAvatar - Funcionalidad no implementada aún')
+      throw new Error('La subida de avatar aún no está implementada. Por favor, contacta al administrador.')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al subir el avatar'
       setError(errorMessage)
@@ -83,17 +115,17 @@ export function useUserProfile() {
     } finally {
       setIsSaving(false)
     }
-  }, [profile, updateProfile])
+  }, [])
 
   const removeAvatar = useCallback(async () => {
     try {
       setIsSaving(true)
       setError(null)
-      await deleteUserAvatar()
-      if (profile) {
-        const updatedProfile = await updateUserProfile({ avatar_url: '' })
-        setProfile(updatedProfile)
-      }
+      
+      // ✅ FIX Bug 2: deleteUserAvatar y updateUserProfile están deprecadas
+      // TODO: Implementar eliminación real cuando sea necesario
+      console.warn('⚠️ removeAvatar - Funcionalidad no implementada aún')
+      throw new Error('La eliminación de avatar aún no está implementada. Por favor, contacta al administrador.')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al eliminar el avatar'
       setError(errorMessage)
@@ -101,7 +133,7 @@ export function useUserProfile() {
     } finally {
       setIsSaving(false)
     }
-  }, [profile, updateProfile])
+  }, [])
 
   const getInitials = useCallback((name: string) => {
     return name
@@ -112,9 +144,8 @@ export function useUserProfile() {
       .slice(0, 2)
   }, [])
 
-  useEffect(() => {
-    loadProfile()
-  }, [loadProfile])
+  // NO llamar loadProfile automáticamente - el perfil viene de SessionContext
+  // useEffect vacío removido
 
   return {
     profile,
