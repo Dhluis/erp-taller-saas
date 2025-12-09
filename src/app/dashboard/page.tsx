@@ -195,11 +195,11 @@ export default function DashboardPage() {
   }, [loadOrdersByStatus]);
 
   // Handler para cuando se crea una nueva orden
-  const handleOrderCreated = () => {
+  const handleOrderCreated = useCallback(() => {
     console.log('✅ Nueva orden creada desde el modal');
     loadOrdersByStatus(); // Recargar estadísticas
     router.refresh(); // Refrescar la página
-  };
+  }, [loadOrdersByStatus, router]);
   
   // Calcular estadísticas dinámicamente de ordersByStatus
   const totalOrdenes = ordersByStatus.reduce((sum, item) => sum + item.value, 0);
