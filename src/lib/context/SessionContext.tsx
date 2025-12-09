@@ -425,10 +425,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       console.log(`🔔 [Session] Auth event: ${event}`)
       
       if (event === 'SIGNED_OUT') {
-        // 🛡️ Si estamos haciendo signOut manual, NO recargar sesión (previene error #300)
-        console.log(`🔍 [Session] SIGNED_OUT detectado - isSigningOut: ${isSigningOut.current}`)
-        if (isSigningOut.current) {
+        // 🛡️ Verificar TANTO el ref COMO sessionStorage (persiste entre page reloads)
+        const isManualSignOut = sessionStorage.getItem('isSigningOut') === 'true'
+        console.log(`🔍 [Session] SIGNED_OUT detectado - isSigningOut (ref): ${isSigningOut.current}, (sessionStorage): ${isManualSignOut}`)
+        
+        if (isManualSignOut || isSigningOut.current) {
           console.log('⏭️ [Session] SIGNED_OUT causado por signOut manual, ignorando...')
+          // Limpiar el flag
+          sessionStorage.removeItem('isSigningOut')
+          isSigningOut.current = false
           return
         }
         
@@ -478,24 +483,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     console.log('👋 [Session] Cerrando sesión...')
-    console.log('🔒 [Session] Marcando isSigningOut = true')
+    console.log('🔒 [Session] Marcando flag de signOut en sessionStorage')
     
-    // 🛡️ SOLUCIÓN DEFINITIVA: Redirigir ANTES de llamar a signOut
-    // Esto evita que React renderice durante el proceso
+    // 🛡️ SOLUCIÓN DEFINITIVA: Usar sessionStorage para persistir el flag entre page reloads
+    sessionStorage.setItem('isSigningOut', 'true')
     isSigningOut.current = true
-    
-    // Usar replace() en lugar de href para evitar historial
-    const redirectToLogin = () => {
-      console.log('🚀 [Session] Ejecutando redirección a /auth/login')
-      window.location.replace('/auth/login')
-    }
     
     // Ejecutar signOut en paralelo con redirección inmediata
     console.log('📤 [Session] Llamando a supabase.auth.signOut()')
     supabase.auth.signOut().catch(err => console.error('Error signOut:', err))
     
     // Redirigir INMEDIATAMENTE (no esperar a que signOut termine)
-    redirectToLogin()
+    console.log('🚀 [Session] Ejecutando redirección a /auth/login')
+    window.location.replace('/auth/login')
   }, [supabase.auth])
 
   // useEffect separado para manejar redirección a onboarding
