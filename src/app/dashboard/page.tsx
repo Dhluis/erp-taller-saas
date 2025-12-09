@@ -2,7 +2,7 @@
 
 import { AppLayout } from '@/components/layout/AppLayout';
 import { QuickActions } from '@/components/dashboard/QuickActions';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -70,7 +70,7 @@ export default function DashboardPage() {
   }
 
   // Función para cargar datos de órdenes por estado
-  const loadOrdersByStatus = async () => {
+  const loadOrdersByStatus = useCallback(async () => {
     // ✅ No cargar si no hay organizationId o está cargando
     if (!organizationId || sessionLoading) {
       console.log('⚠️ Esperando organizationId...');
@@ -187,12 +187,12 @@ export default function DashboardPage() {
       setLoading(false);
       console.log('✅ Carga finalizada');
     }
-  };
+  }, [dateRange, customDateRange, organizationId, sessionLoading]);
 
   // Cargar datos al montar el componente y cuando cambia el filtro de fecha o las fechas personalizadas
   useEffect(() => {
     loadOrdersByStatus();
-  }, [dateRange, customDateRange, organizationId]);
+  }, [loadOrdersByStatus]);
 
   // Handler para cuando se crea una nueva orden
   const handleOrderCreated = () => {
