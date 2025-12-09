@@ -27,10 +27,10 @@ interface SessionContextType extends SessionState {
 const SessionContext = createContext<SessionContextType | null>(null)
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  // 🔥 DEPLOYMENT TRACKER: v4.1.2 - 2025-12-09-04:30 - FIX #310 HOOK ORDER
-  console.log('🚀 [Session] VERSION 4.1.2 - ERROR #310 RESUELTO (HOOK ORDER)')
-  console.log('📦 [Session] Deployment timestamp: 2025-12-09T04:30:00Z')
-  console.log('🔧 [Session] Fix: handleOrderCreated useCallback + hooks antes del return')
+  // 🔥 DEPLOYMENT TRACKER: v4.1.3 - 2025-12-09-04:40 - FIX useCustomers deps
+  console.log('🚀 [Session] VERSION 4.1.3 - ERROR #310 RESUELTO (HOOK ORDER + useCustomers deps)')
+  console.log('📦 [Session] Deployment timestamp: 2025-12-09T04:40:00Z')
+  console.log('🔧 [Session] Fix: handleOrderCreated useCallback + hooks antes del return + useCustomers deps')
   
   const initialState: SessionState = {
     user: null,

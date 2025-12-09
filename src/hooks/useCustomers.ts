@@ -103,7 +103,7 @@ export function useCustomers(): UseCustomersReturn {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [organizationId, ready]);
 
   const createCustomer = useCallback(async (data: Omit<Customer, 'id' | 'created_at' | 'updated_at'>) => {
     try {
