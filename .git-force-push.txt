@@ -1,0 +1,7 @@
+FORCE COMMIT - 2025-12-09T04:20:00Z
+
+Cambios aplicados:
+- src/app/dashboard/page.tsx: handleOrderCreated con useCallback
+- src/lib/context/SessionContext.tsx: VERSION 4.1.0
+
+FIX: Error #310 definitivo
