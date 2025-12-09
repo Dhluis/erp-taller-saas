@@ -174,10 +174,10 @@ export default function TrainAgentPage() {
           const configResult = await configResponse.json()
 
           if (configResult.success) {
-            toast.success('WhatsApp conectado y guardado en la configuración')
+            toast.success('WhatsApp vinculado exitosamente')
           } else {
             console.error('Error guardando configuración de WhatsApp:', configResult.error)
-            toast.warning('WhatsApp conectado, pero hubo un error al guardar en la configuración')
+            toast.error('Error al vincular WhatsApp: ' + (configResult.error || 'Error desconocido'))
           }
         } else {
           console.warn('Sesión no está completamente conectada o no tiene teléfono:', {

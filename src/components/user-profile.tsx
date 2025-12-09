@@ -39,6 +39,8 @@ import {
   Globe,
   LogOut
 } from "lucide-react"
+import { useUserProfile } from "@/hooks/use-user-profile"
+import { useSession } from "@/lib/context/SessionContext"
 
 interface UserProfile {
   id: string
@@ -59,25 +61,44 @@ interface UserProfile {
 }
 
 export function UserProfile() {
+  const { profile } = useUserProfile()
+  const { signOut } = useSession()
   const [isOpen, setIsOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [user, setUser] = useState<UserProfile>({
-    id: '1',
-    name: 'Admin Principal',
-    email: 'admin@eagles.com',
-    role: 'admin',
+    id: profile?.id || '1',
+    name: profile?.full_name || 'Usuario',
+    email: profile?.email || 'Cargando...',
+    role: profile?.role || 'user',
     status: 'active',
-    phone: '+52 55 1234 5678',
-    address: 'Av. Reforma 123, CDMX',
-    avatar: '',
-    lastLogin: '2025-01-15T10:30:00Z',
-    createdAt: '2025-01-01T00:00:00Z',
+    phone: profile?.phone || '',
+    address: profile?.address || '',
+    avatar: profile?.avatar_url || '',
+    lastLogin: new Date().toISOString(),
+    createdAt: profile?.created_at || new Date().toISOString(),
     preferences: {
       notifications: true,
       darkMode: true,
       language: 'es'
     }
   })
+
+  // Actualizar user cuando profile cambie
+  useEffect(() => {
+    if (profile) {
+      setUser(prev => ({
+        ...prev,
+        id: profile.id,
+        name: profile.full_name,
+        email: profile.email,
+        role: profile.role || 'user',
+        phone: profile.phone || '',
+        address: profile.address || '',
+        avatar: profile.avatar_url || '',
+        createdAt: profile.created_at
+      }))
+    }
+  }, [profile])
 
   const [formData, setFormData] = useState({
     name: user.name,
@@ -129,9 +150,9 @@ export function UserProfile() {
     setIsEditing(false)
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-      alert('Sesión cerrada')
+      await signOut()
       setIsOpen(false)
     }
   }

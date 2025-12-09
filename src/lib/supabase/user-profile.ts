@@ -34,29 +34,17 @@ export interface ChangePasswordData {
 
 /**
  * Obtener perfil del usuario actual
+ * NOTA: Esta función está deprecada. Usar el hook useUserProfile() en su lugar.
  */
 export async function getUserProfile(): Promise<UserProfile> {
+  console.warn('⚠️ getUserProfile() está deprecada. Usar useUserProfile() hook en su lugar.')
   return executeWithErrorHandling(
     async () => {
       console.log('👤 getUserProfile - Obteniendo perfil del usuario...')
       
-      // TEMPORAL: Usar datos mock hasta que se implemente la integración con Supabase Auth
-      const mockProfile: UserProfile = {
-        id: 'user-001',
-        email: 'admin@eagles.com',
-        full_name: 'Admin Usuario',
-        phone: '+1 234 567 8900',
-        address: 'Calle Principal 123, Ciudad, País',
-        avatar_url: '',
-        organization_id: '042ab6bd-8979-4166-882a-c244b5e51e51',
-        organization_name: 'EAGLES ERP Taller SaaS',
-        role: 'Administrador',
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: new Date().toISOString()
-      }
-      
-      console.log('✅ Perfil de usuario obtenido:', mockProfile)
-      return mockProfile
+      // Esta función solo se mantiene por compatibilidad
+      // Los componentes deben usar useUserProfile() hook
+      throw new Error('Usar useUserProfile() hook en lugar de getUserProfile()')
     },
     {
       operation: 'getUserProfile',
@@ -67,8 +55,10 @@ export async function getUserProfile(): Promise<UserProfile> {
 
 /**
  * Actualizar perfil del usuario
+ * NOTA: Esta función está deprecada. La actualización debe hacerse via SessionContext.
  */
 export async function updateUserProfile(profileData: UpdateProfileData): Promise<UserProfile> {
+  console.warn('⚠️ updateUserProfile() está deprecada.')
   return executeWithErrorHandling(
     async () => {
       console.log('👤 updateUserProfile - Actualizando perfil con datos:', profileData)
@@ -82,27 +72,7 @@ export async function updateUserProfile(profileData: UpdateProfileData): Promise
         throw new Error('El número de teléfono debe tener al menos 10 dígitos')
       }
       
-      // TEMPORAL: Simular actualización del perfil
-      const updatedProfile: UserProfile = {
-        id: 'user-001',
-        email: 'admin@eagles.com',
-        full_name: profileData.full_name || 'Admin Usuario',
-        phone: profileData.phone || '+1 234 567 8900',
-        address: profileData.address || 'Calle Principal 123, Ciudad, País',
-        avatar_url: profileData.avatar_url || '',
-        organization_id: '042ab6bd-8979-4166-882a-c244b5e51e51',
-        organization_name: 'EAGLES ERP Taller SaaS',
-        role: 'Administrador',
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: new Date().toISOString()
-      }
-      
-      console.log('✅ Perfil actualizado exitosamente:', updatedProfile)
-      
-      // Simular delay de red
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      return updatedProfile
+      throw new Error('Función deprecada - implementar actualización vía Supabase')
     },
     {
       operation: 'updateUserProfile',

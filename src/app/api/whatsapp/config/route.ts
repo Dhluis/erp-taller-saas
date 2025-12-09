@@ -292,6 +292,7 @@ export async function POST(request: NextRequest) {
           const newConfigData: any = {
             organization_id: tenantContext.organizationId,
             enabled: data.whatsapp_phone ? true : false, // Habilitar si se vincula WhatsApp
+            system_prompt: 'Asistente virtual de taller automotriz. Responde de manera amable y profesional.', // Prompt por defecto
             policies: {
               waha_api_url: data.waha_api_url,
               waha_api_key: data.waha_api_key,
