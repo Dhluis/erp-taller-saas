@@ -472,7 +472,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [loadSession])
 
   const signOut = useCallback(async () => {
-    console.log('👋 [Session] Cerrando sesión...')
+    console.log('👋 [Session] Cerrando sesión... [v2.0 - FIX DEFINITIVO]')
     
     // 🛡️ Marcar que estamos haciendo signOut para prevenir que el listener ejecute loadSession
     isSigningOut.current = true
