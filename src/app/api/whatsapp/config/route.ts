@@ -286,53 +286,48 @@ export async function POST(request: NextRequest) {
       }
 
       if (!existingConfig) {
-        // Si solo se está guardando configuración de WAHA (sin whatsapp_phone), permitir crear/actualizar
-        if (data.waha_api_url || data.waha_api_key || data.whatsapp_phone) {
-          // Crear configuración básica (con o sin entrenamiento previo)
-          const newConfigData: any = {
-            organization_id: tenantContext.organizationId,
-            enabled: data.whatsapp_phone ? true : false, // Habilitar si se vincula WhatsApp
-            system_prompt: 'Asistente virtual de taller automotriz. Responde de manera amable y profesional.', // Prompt por defecto
-            policies: {
-              waha_api_url: data.waha_api_url,
-              waha_api_key: data.waha_api_key,
-              WAHA_API_URL: data.waha_api_url,
-              WAHA_API_KEY: data.waha_api_key
-            },
-            updated_at: new Date().toISOString()
-          }
-
-          // Agregar whatsapp_phone si está presente
-          if (data.whatsapp_phone) {
-            newConfigData.whatsapp_phone = data.whatsapp_phone
-          }
-
-          const { data: newConfig, error: createError } = await serviceClient
-            .from('ai_agent_config')
-            .insert(newConfigData)
-            .select()
-            .single()
-
-          if (createError) {
-            return NextResponse.json({
-              success: false,
-              error: 'Error al crear configuración: ' + createError.message
-            }, { status: 500 })
-          }
-
-          return NextResponse.json({
-            success: true,
-            message: data.whatsapp_phone 
-              ? 'WhatsApp vinculado exitosamente. Puedes entrenar el asistente después.'
-              : 'Configuración de WAHA guardada exitosamente',
-            data: newConfig
-          })
+        // Crear configuración básica aunque no vengan waha_api_url/whatsapp_phone,
+        // para evitar “organización no encontrada” al entrenar.
+        const newConfigData: any = {
+          organization_id: tenantContext.organizationId,
+          enabled: data.whatsapp_phone ? true : true, // habilitado por defecto
+          system_prompt: 'Asistente virtual de taller automotriz. Responde de manera amable y profesional.',
+          policies: {
+            ...(data.policies || {}),
+            waha_api_url: data.waha_api_url,
+            waha_api_key: data.waha_api_key,
+            WAHA_API_URL: data.waha_api_url,
+            WAHA_API_KEY: data.waha_api_key
+          },
+          business_info: data.businessInfo || {},
+          personality: data.personality || {},
+          custom_instructions: data.customInstructions || '',
+          escalation_rules: data.escalationRules || {},
+          updated_at: new Date().toISOString()
         }
-        
+
+        if (data.whatsapp_phone) {
+          newConfigData.whatsapp_phone = data.whatsapp_phone
+        }
+
+        const { data: newConfig, error: createError } = await serviceClient
+          .from('ai_agent_config')
+          .insert(newConfigData)
+          .select()
+          .single()
+
+        if (createError) {
+          return NextResponse.json({
+            success: false,
+            error: 'Error al crear configuración: ' + createError.message
+          }, { status: 500 })
+        }
+
         return NextResponse.json({
-          success: false,
-          error: 'Se requiere configuración de WAHA o número de WhatsApp'
-        }, { status: 400 })
+          success: true,
+          message: 'Configuración creada para la organización. Ya puedes entrenar el asistente.',
+          data: newConfig
+        })
       }
 
       // Si solo se está actualizando WAHA (sin whatsapp_phone), actualizar policies directamente

@@ -30,3 +30,4 @@ echo =========================================
 echo COMPLETADO - Verifica Vercel en 2-3 min
 echo =========================================
 pause
+

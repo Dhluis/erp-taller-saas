@@ -5,3 +5,4 @@ Cambios aplicados:
 - src/lib/context/SessionContext.tsx: VERSION 4.1.0
 
 FIX: Error #310 definitivo
+
