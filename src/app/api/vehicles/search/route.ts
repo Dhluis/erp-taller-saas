@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { searchVehicles } from '@/lib/database/queries/vehicles'
+import { getOrganizationId } from '@/lib/auth/organization-server'
 
 // GET /api/vehicles/search - Buscar vehículos por placa, VIN, marca o modelo
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('q') || searchParams.get('query')
-    const organizationId = searchParams.get('organization_id') || '00000000-0000-0000-0000-000000000000'
+    const organizationId = await getOrganizationId(request)
     
     if (!query) {
       return NextResponse.json(
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
       )
     }
     
-    const vehicles = await searchVehicles(organizationId, query)
+    const vehicles = await searchVehicles(query, organizationId)
     
     return NextResponse.json({
       data: {

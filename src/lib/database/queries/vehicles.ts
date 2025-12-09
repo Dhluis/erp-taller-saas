@@ -38,9 +38,9 @@ export interface CreateVehicleData {
 export interface UpdateVehicleData extends Partial<CreateVehicleData> {}
 
 /**
- * Obtener todos los vehículos
+ * Obtener todos los vehículos de una organización
  */
-export async function getAllVehicles() {
+export async function getAllVehicles(organizationId: string) {
   const supabase = await createClient()
 
   const { data: vehicles, error } = await supabase
@@ -54,6 +54,7 @@ export async function getAllVehicles() {
         phone
       )
     `)
+    .eq('organization_id', organizationId)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -65,9 +66,9 @@ export async function getAllVehicles() {
 }
 
 /**
- * Obtener un vehículo por ID
+ * Obtener un vehículo por ID y organización
  */
-export async function getVehicleById(id: string) {
+export async function getVehicleById(id: string, organizationId: string) {
   const supabase = await createClient()
 
   const { data: vehicle, error } = await supabase
@@ -82,6 +83,7 @@ export async function getVehicleById(id: string) {
       )
     `)
     .eq('id', id)
+    .eq('organization_id', organizationId)
     .single()
 
   if (error) {
@@ -93,15 +95,16 @@ export async function getVehicleById(id: string) {
 }
 
 /**
- * Obtener vehículos por ID de cliente
+ * Obtener vehículos por ID de cliente dentro de una organización
  */
-export async function getVehiclesByCustomerId(customerId: string) {
+export async function getVehiclesByCustomerId(customerId: string, organizationId: string) {
   const supabase = await createClient()
 
   const { data: vehicles, error } = await supabase
     .from('vehicles')
     .select('*')
     .eq('customer_id', customerId)
+    .eq('organization_id', organizationId)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -113,9 +116,9 @@ export async function getVehiclesByCustomerId(customerId: string) {
 }
 
 /**
- * Crear un nuevo vehículo
+ * Crear un nuevo vehículo para la organización
  */
-export async function createVehicle(data: CreateVehicleData) {
+export async function createVehicle(data: CreateVehicleData, organizationId: string) {
   console.log('🔧 createVehicle - Iniciando creación en base de datos');
   console.log('📊 Datos a insertar:', JSON.stringify(data, null, 2));
   
@@ -123,7 +126,7 @@ export async function createVehicle(data: CreateVehicleData) {
 
   const { data: vehicle, error } = await supabase
     .from('vehicles')
-    .insert(data as any)
+    .insert({ ...data, organization_id: organizationId } as any)
     .select(`
       *,
       customer:customers(
@@ -146,9 +149,9 @@ export async function createVehicle(data: CreateVehicleData) {
 }
 
 /**
- * Actualizar un vehículo
+ * Actualizar un vehículo (validando organización)
  */
-export async function updateVehicle(id: string, data: UpdateVehicleData) {
+export async function updateVehicle(id: string, data: UpdateVehicleData, organizationId: string) {
   const supabase = await createClient()
 
   const updateData = {
@@ -160,6 +163,7 @@ export async function updateVehicle(id: string, data: UpdateVehicleData) {
     .from('vehicles')
     .update(updateData as any)
     .eq('id', id)
+    .eq('organization_id', organizationId)
     .select(`
       *,
       customer:customers(
@@ -180,15 +184,16 @@ export async function updateVehicle(id: string, data: UpdateVehicleData) {
 }
 
 /**
- * Eliminar un vehículo
+ * Eliminar un vehículo (validando organización)
  */
-export async function deleteVehicle(id: string) {
+export async function deleteVehicle(id: string, organizationId: string) {
   const supabase = await createClient()
 
   const { error } = await supabase
     .from('vehicles')
     .delete()
     .eq('id', id)
+    .eq('organization_id', organizationId)
 
   if (error) {
     console.error('Error deleting vehicle:', error)
@@ -199,9 +204,9 @@ export async function deleteVehicle(id: string) {
 }
 
 /**
- * Buscar vehículos
+ * Buscar vehículos dentro de una organización
  */
-export async function searchVehicles(searchTerm: string) {
+export async function searchVehicles(searchTerm: string, organizationId: string) {
   const supabase = await createClient()
 
   const { data: vehicles, error } = await supabase
@@ -215,6 +220,7 @@ export async function searchVehicles(searchTerm: string) {
         phone
       )
     `)
+    .eq('organization_id', organizationId)
     .or(`brand.ilike.%${searchTerm}%,model.ilike.%${searchTerm}%,license_plate.ilike.%${searchTerm}%,vin.ilike.%${searchTerm}%`)
     .order('created_at', { ascending: false })
 
