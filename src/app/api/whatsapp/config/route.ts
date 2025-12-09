@@ -287,21 +287,28 @@ export async function POST(request: NextRequest) {
 
       if (!existingConfig) {
         // Si solo se está guardando configuración de WAHA (sin whatsapp_phone), permitir crear/actualizar
-        if (data.waha_api_url || data.waha_api_key) {
-          // Intentar crear configuración básica si no existe
+        if (data.waha_api_url || data.waha_api_key || data.whatsapp_phone) {
+          // Crear configuración básica (con o sin entrenamiento previo)
+          const newConfigData: any = {
+            organization_id: tenantContext.organizationId,
+            enabled: data.whatsapp_phone ? true : false, // Habilitar si se vincula WhatsApp
+            policies: {
+              waha_api_url: data.waha_api_url,
+              waha_api_key: data.waha_api_key,
+              WAHA_API_URL: data.waha_api_url,
+              WAHA_API_KEY: data.waha_api_key
+            },
+            updated_at: new Date().toISOString()
+          }
+
+          // Agregar whatsapp_phone si está presente
+          if (data.whatsapp_phone) {
+            newConfigData.whatsapp_phone = data.whatsapp_phone
+          }
+
           const { data: newConfig, error: createError } = await serviceClient
             .from('ai_agent_config')
-            .insert({
-              organization_id: tenantContext.organizationId,
-              enabled: false,
-              policies: {
-                waha_api_url: data.waha_api_url,
-                waha_api_key: data.waha_api_key,
-                WAHA_API_URL: data.waha_api_url,
-                WAHA_API_KEY: data.waha_api_key
-              },
-              updated_at: new Date().toISOString()
-            })
+            .insert(newConfigData)
             .select()
             .single()
 
@@ -314,14 +321,16 @@ export async function POST(request: NextRequest) {
 
           return NextResponse.json({
             success: true,
-            message: 'Configuración de WAHA guardada exitosamente',
+            message: data.whatsapp_phone 
+              ? 'WhatsApp vinculado exitosamente. Puedes entrenar el asistente después.'
+              : 'Configuración de WAHA guardada exitosamente',
             data: newConfig
           })
         }
         
         return NextResponse.json({
           success: false,
-          error: 'Primero debes entrenar el asistente antes de vincular WhatsApp'
+          error: 'Se requiere configuración de WAHA o número de WhatsApp'
         }, { status: 400 })
       }
 
