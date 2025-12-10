@@ -2,6 +2,29 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { getOrganizationId } from '@/lib/auth/organization-server'
 
+// ✅ Función helper para retry logic
+async function retryQuery<T>(
+  queryFn: () => Promise<T>,
+  maxRetries = 2,
+  delayMs = 500
+): Promise<T> {
+  let lastError: any;
+  
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      return await queryFn();
+    } catch (error) {
+      lastError = error;
+      if (i < maxRetries) {
+        console.warn(`⚠️ [Retry] Intento ${i + 1} falló, reintentando en ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  
+  throw lastError;
+}
+
 export async function GET(request: NextRequest) {
   try {
     console.log('🔄 GET /api/customers - Iniciando...')
@@ -36,23 +59,64 @@ export async function GET(request: NextRequest) {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('Organization ID:', organizationId)
     
+    // ✅ Logs detallados del cliente Supabase
+    console.log('🔍 Cliente Supabase configurado:', {
+      hasAuth: !!supabase.auth,
+      hasFrom: !!supabase.from,
+      organizationId: organizationId
+    })
+    
+    // ✅ Helper para crear timeout promise
+    const createTimeoutPromise = () => new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Query timeout después de 10 segundos')), 10000);
+    });
+    
     // Obtener todos los clientes de la organización
-    // Intentar primero con vehicles (join opcional)
-    let { data: customers, error } = await supabase
-      .from('customers')
-      .select(`
-        *,
-        vehicles (
-          id,
-          brand,
-          model,
-          year,
-          license_plate,
-          color
-        )
-      `)
-      .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false })
+    // Intentar primero con vehicles (join opcional) con retry logic
+    let customers, error;
+    try {
+      const queryPromise = retryQuery(async () => {
+        return await supabase
+          .from('customers')
+          .select(`
+            *,
+            vehicles (
+              id,
+              brand,
+              model,
+              year,
+              license_plate,
+              color
+            )
+          `)
+          .eq('organization_id', organizationId)
+          .order('created_at', { ascending: false })
+      }, 2, 500);
+      
+      // Race entre query y timeout
+      const result = await Promise.race([queryPromise, createTimeoutPromise()]) as any;
+      
+      if (result && typeof result === 'object' && 'data' in result) {
+        customers = result.data;
+        error = result.error;
+      } else {
+        throw new Error('Resultado inesperado de la query');
+      }
+    } catch (retryError: any) {
+      console.error('❌ [GET /api/customers] Falló después de reintentos:', retryError);
+      console.error('❌ [GET /api/customers] Error message:', retryError?.message);
+      console.error('❌ [GET /api/customers] Error stack:', retryError?.stack);
+      
+      // Si es timeout, retornar error específico
+      if (retryError?.message?.includes('timeout')) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'La consulta tardó demasiado. Por favor, intenta de nuevo.' 
+        }, { status: 504 });
+      }
+      
+      error = retryError;
+    }
 
     // ✅ LOGS DETALLADOS DEL ERROR SI EXISTE
     if (error) {
@@ -71,19 +135,46 @@ export async function GET(request: NextRequest) {
       error.code === '42P01' || 
       error.code === 'PGRST301' ||
       error.code === '42703' ||
-      error.message.includes('relation') || 
-      error.message.includes('does not exist') ||
-      error.message.includes('permission denied') ||
-      error.message.includes('RLS')
+      error.message?.includes('relation') || 
+      error.message?.includes('does not exist') ||
+      error.message?.includes('permission denied') ||
+      error.message?.includes('RLS')
     )) {
       console.warn('⚠️ [GET /api/customers] Error con vehicles, intentando sin join:', error.message)
-      console.log('🔄 [GET /api/customers] Intentando query simple sin join...')
+      console.log('🔄 [GET /api/customers] Intentando query simple sin join con retry...')
       
-      const { data: customersSimple, error: errorSimple } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false })
+      let customersSimple, errorSimple;
+      try {
+        const queryPromise = retryQuery(async () => {
+          return await supabase
+            .from('customers')
+            .select('*')
+            .eq('organization_id', organizationId)
+            .order('created_at', { ascending: false })
+        }, 2, 500);
+        
+        // Race entre query y timeout
+        const result = await Promise.race([queryPromise, createTimeoutPromise()]) as any;
+        
+        if (result && typeof result === 'object' && 'data' in result) {
+          customersSimple = result.data;
+          errorSimple = result.error;
+        } else {
+          throw new Error('Resultado inesperado de la query simple');
+        }
+      } catch (retryError: any) {
+        console.error('❌ [GET /api/customers] Query simple falló después de reintentos:', retryError);
+        
+        // Si es timeout, retornar error específico
+        if (retryError?.message?.includes('timeout')) {
+          return NextResponse.json({ 
+            success: false, 
+            error: 'La consulta tardó demasiado. Por favor, intenta de nuevo.' 
+          }, { status: 504 });
+        }
+        
+        errorSimple = retryError;
+      }
       
       if (errorSimple) {
         console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
