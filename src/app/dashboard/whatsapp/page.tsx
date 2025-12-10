@@ -63,17 +63,36 @@ export default function WhatsAppPage() {
     loadConfig()
   }, [loadConfig])
 
-  // Recargar cuando se regresa de otra página
+  // ✅ Recargar cuando se regresa de otra página (focus + visibilitychange)
   useEffect(() => {
     const handleFocus = () => {
       // Solo recargar si ya tenemos organization
       if (organizationId) {
         console.log('[WhatsApp] 🔄 Ventana enfocada, recargando configuración...')
-        loadConfig()
+        // Pequeño delay para asegurar que la BD se actualizó
+        setTimeout(() => {
+          loadConfig()
+        }, 500)
       }
     }
+    
+    const handleVisibilityChange = () => {
+      // Cuando la página se vuelve visible (usuario regresa de otra pestaña/página)
+      if (document.visibilityState === 'visible' && organizationId) {
+        console.log('[WhatsApp] 🔄 Página visible, recargando configuración...')
+        setTimeout(() => {
+          loadConfig()
+        }, 500)
+      }
+    }
+    
     window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [loadConfig, organizationId])
 
   // Polling periódico para detectar cuando WhatsApp se conecta
@@ -106,6 +125,20 @@ export default function WhatsAppPage() {
 
     window.addEventListener('whatsapp:connected', handleWhatsAppConnected)
     return () => window.removeEventListener('whatsapp:connected', handleWhatsAppConnected)
+  }, [loadConfig])
+
+  // ✅ Escuchar evento cuando se guarda la configuración del AI Agent
+  useEffect(() => {
+    const handleConfigSaved = () => {
+      console.log('[WhatsApp] 🔔 Evento de configuración guardada recibido, recargando...')
+      // Esperar un poco para que el backend actualice
+      setTimeout(() => {
+        loadConfig()
+      }, 1000)
+    }
+
+    window.addEventListener('ai-agent:config-saved', handleConfigSaved)
+    return () => window.removeEventListener('ai-agent:config-saved', handleConfigSaved)
   }, [loadConfig])
 
   const handleTrainAgent = () => {

@@ -121,6 +121,10 @@ export default function TrainAgentPage() {
       }
 
       toast.success('Configuración del agente guardada exitosamente')
+      
+      // ✅ Disparar evento personalizado para que la página de WhatsApp recargue
+      window.dispatchEvent(new CustomEvent('ai-agent:config-saved'))
+      
       // Pequeño delay para asegurar que la BD se actualice
       setTimeout(() => {
         router.push('/dashboard/whatsapp')

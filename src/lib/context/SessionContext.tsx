@@ -28,8 +28,9 @@ const SessionContext = createContext<SessionContextType | null>(null)
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   // 🔥 DEPLOYMENT TRACKER: v4.0.0 - 2025-12-09-04:00 - FORCE REBUILD
-  console.log('🚀 [Session] VERSION 4.0.0 - TODOS LOS BUGS CORREGIDOS')
-  console.log('📦 [Session] Deployment timestamp: 2025-12-09T04:00:00Z')
+  // ✅ Usar console.debug para logs de versión (reducir ruido en consola)
+  console.debug('🚀 [Session] VERSION 4.0.0 - TODOS LOS BUGS CORREGIDOS')
+  console.debug('📦 [Session] Deployment timestamp: 2025-12-09T04:00:00Z')
   
   const initialState: SessionState = {
     user: null,
