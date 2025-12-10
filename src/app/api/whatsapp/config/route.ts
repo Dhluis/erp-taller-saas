@@ -16,6 +16,12 @@ function generateWhatsAppSessionName(organizationId: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  // ⚠️ LOG ÚNICO PARA VERIFICAR VERSIÓN DEL CÓDIGO
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('🔥 [CONFIG API] VERSIÓN: 2025-12-10-FIX-BD-V2')
+  console.log('🔥 [CONFIG API] Timestamp deploy:', new Date().toISOString())
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  
   try {
     // Obtener contexto del tenant
     const tenantContext = await getTenantContext(request)
@@ -334,68 +340,69 @@ export async function POST(request: NextRequest) {
           // Generar session_name único para esta organización
           const whatsappSessionName = generateWhatsAppSessionName(tenantContext.organizationId)
           
-          // ✅ Obtener credenciales de WAHA según el tipo (OPCIÓN A)
-          const wahaConfigType = data.waha_config_type || 'shared'
-          let wahaApiUrl: string | undefined
-          let wahaApiKey: string | undefined
-          
-          if (wahaConfigType === 'custom') {
-            if (!data.waha_api_url || !data.waha_api_key) {
-              return NextResponse.json({
-                success: false,
-                error: 'Faltan credenciales de WAHA personalizadas. Por favor, completa todos los campos.'
-              }, { status: 400 })
-            }
-            wahaApiUrl = data.waha_api_url
-            wahaApiKey = data.waha_api_key
-          } else {
-            // ✅ SOLUCIÓN MULTI-TENANT: Obtener credenciales desde BD (configuración global)
-            console.log('[Config Save] 🔍 [Nueva Config] Config tipo "shared" - obteniendo credenciales del servidor compartido desde BD...')
+          // ✅ Obtener credenciales de WAHA según el tipo
+          // Si es shared, obtener de BD
+          if (!data.waha_config_type || data.waha_config_type === 'shared') {
+            console.log('[Config Save] 📍 [Nueva Config] Tipo SHARED detectado, buscando en BD global...')
             
-            // PASO 1: Buscar configuración global en BD (organization_id: '00000000-0000-0000-0000-000000000000')
-            const globalOrgId = '00000000-0000-0000-0000-000000000000'
-            const { data: globalConfig, error: globalError } = await serviceClient
-              .from('ai_agent_config')
-              .select('policies')
-              .eq('organization_id', globalOrgId)
-              .maybeSingle()
-            
-            if (globalError) {
-              console.error('[Config Save] ❌ [Nueva Config] Error buscando configuración global:', globalError.message)
-            }
-            
-            if (globalConfig && globalConfig.policies) {
-              const globalPolicies = globalConfig.policies as any
-              const globalWahaUrl = globalPolicies.waha_api_url || globalPolicies.WAHA_API_URL
-              const globalWahaKey = globalPolicies.waha_api_key || globalPolicies.WAHA_API_KEY
+            try {
+              const globalOrgId = '00000000-0000-0000-0000-000000000000'
+              const { data: globalCfg, error: globalError } = await serviceClient
+                .from('ai_agent_config')
+                .select('policies')
+                .eq('organization_id', globalOrgId)
+                .maybeSingle()
               
-              if (globalWahaUrl && globalWahaKey) {
-                console.log('[Config Save] ✅ [Nueva Config] Credenciales encontradas en configuración global (BD)')
-                wahaApiUrl = globalWahaUrl
-                wahaApiKey = globalWahaKey
-                console.log('[Config Save] 📍 [Nueva Config] URL desde BD:', wahaApiUrl?.substring(0, 50))
-                console.log('[Config Save] 📍 [Nueva Config] Key preview desde BD:', wahaApiKey ? '***' + wahaApiKey.slice(-4) : 'undefined')
-              } else {
-                console.error('[Config Save] ❌ [Nueva Config] Configuración global existe pero no tiene credenciales WAHA')
+              if (globalError) {
+                console.error('[Config Save] ❌ [Nueva Config] Error BD:', globalError.message)
+                throw globalError
               }
-            } else {
-              console.error('[Config Save] ❌ [Nueva Config] No se encontró configuración global en BD')
-              console.error('[Config Save] ℹ️ [Nueva Config] Crea un registro en ai_agent_config con:')
-              console.error('[Config Save] ℹ️ [Nueva Config]   - organization_id: 00000000-0000-0000-0000-000000000000')
-              console.error('[Config Save] ℹ️ [Nueva Config]   - policies: { "waha_api_url": "https://...", "waha_api_key": "..." }')
-            }
-            
-            // Validar que se obtuvieron las credenciales
-            if (!wahaApiUrl || !wahaApiKey) {
-              console.error('[Config Save] ❌ [Nueva Config] No se pudieron obtener credenciales del servidor compartido')
-              return NextResponse.json({
-                success: false,
-                error: 'Servidor compartido no configurado. El administrador debe crear la configuración global en la base de datos.'
+              
+              console.log('[Config Save] 🔍 [Nueva Config] Resultado BD:', {
+                found: !!globalCfg,
+                has_policies: !!globalCfg?.policies
+              })
+              
+              if (globalCfg?.policies) {
+                const policies = globalCfg.policies as any
+                const globalWahaUrl = policies.waha_api_url || policies.WAHA_API_URL
+                const globalWahaKey = policies.waha_api_key || policies.WAHA_API_KEY
+                
+                console.log('[Config Save] 🔍 [Nueva Config] Credenciales en policies:', {
+                  has_url: !!globalWahaUrl,
+                  has_key: !!globalWahaKey
+                })
+                
+                if (globalWahaUrl && globalWahaKey) {
+                  data.waha_api_url = globalWahaUrl
+                  data.waha_api_key = globalWahaKey
+                  console.log('[Config Save] ✅ [Nueva Config] Credenciales cargadas desde BD')
+                } else {
+                  throw new Error('Config global no tiene credenciales en policies')
+                }
+              } else {
+                throw new Error('Config global no encontrada')
+              }
+            } catch (err: any) {
+              console.error('[Config Save] ❌ [Nueva Config] Error:', err.message || err)
+              return NextResponse.json({ 
+                success: false, 
+                error: 'Config global no existe en BD' 
               }, { status: 500 })
             }
-            
-            console.log('[Config Save] ✅ [Nueva Config] Usando credenciales del servidor compartido (desde BD)')
           }
+          
+          // Validar que tengamos las credenciales
+          if (!data.waha_api_url || !data.waha_api_key) {
+            return NextResponse.json({
+              success: false,
+              error: 'Faltan credenciales WAHA'
+            }, { status: 400 })
+          }
+          
+          const wahaApiUrl = data.waha_api_url
+          const wahaApiKey = data.waha_api_key
+          const wahaConfigType = data.waha_config_type || 'shared'
           
           const newConfigData: any = {
               organization_id: tenantContext.organizationId,
@@ -631,85 +638,80 @@ export async function POST(request: NextRequest) {
     // ✅ Generar session_name único para esta organización (multi-tenant)
     const whatsappSessionName = generateWhatsAppSessionName(tenantContext.organizationId)
     
-    // 🔍 Log de datos recibidos del frontend
-    console.log('[Config Save] 📥 Datos recibidos del frontend:', {
-      has_waha_config_type: !!data.waha_config_type,
-      waha_config_type: data.waha_config_type,
-      has_waha_api_url: !!data.waha_api_url,
-      has_waha_api_key: !!data.waha_api_key,
-      waha_url_preview: data.waha_api_url ? data.waha_api_url.substring(0, 30) + '...' : 'undefined',
-      waha_key_preview: data.waha_api_key ? '***' + data.waha_api_key.slice(-4) : 'undefined'
-    })
-    
-    // ✅ Obtener credenciales de WAHA según el tipo elegido (OPCIÓN A - Multi-tenant flexible)
-    const wahaConfigType = data.waha_config_type || 'shared'
-    let wahaApiUrl: string | undefined
-    let wahaApiKey: string | undefined
-    
     // Obtener service client para consultar BD
     const serviceClient = getSupabaseServiceClient()
     
-    if (wahaConfigType === 'custom') {
-      // Usar credenciales personalizadas del formulario
-      if (!data.waha_api_url || !data.waha_api_key) {
-        return NextResponse.json({
-          success: false,
-          error: 'Faltan credenciales de WAHA personalizadas. Por favor, completa todos los campos.'
-        }, { status: 400 })
-      }
-      wahaApiUrl = data.waha_api_url
-      wahaApiKey = data.waha_api_key
-      console.log('[Config Save] ✅ Usando credenciales personalizadas del usuario')
-    } else {
-      // ✅ SOLUCIÓN MULTI-TENANT: Obtener credenciales desde BD (configuración global)
-      console.log('[Config Save] 🔍 Config tipo "shared" - obteniendo credenciales del servidor compartido desde BD...')
+    console.log('[Config Save] 📥 Body recibido:', {
+      waha_config_type: data.waha_config_type,
+      has_custom_url: !!data.waha_api_url,
+      has_custom_key: !!data.waha_api_key
+    })
+    
+    // Si es shared, obtener de BD
+    if (!data.waha_config_type || data.waha_config_type === 'shared') {
+      console.log('[Config Save] 📍 Tipo SHARED detectado, buscando en BD global...')
       
-      // PASO 1: Buscar configuración global en BD (organization_id: '00000000-0000-0000-0000-000000000000')
-      const globalOrgId = '00000000-0000-0000-0000-000000000000'
-      const { data: globalConfig, error: globalError } = await serviceClient
-        .from('ai_agent_config')
-        .select('policies')
-        .eq('organization_id', globalOrgId)
-        .maybeSingle()
-      
-      if (globalError) {
-        console.error('[Config Save] ❌ Error buscando configuración global:', globalError.message)
-      }
-      
-      if (globalConfig && globalConfig.policies) {
-        const globalPolicies = globalConfig.policies as any
-        const globalWahaUrl = globalPolicies.waha_api_url || globalPolicies.WAHA_API_URL
-        const globalWahaKey = globalPolicies.waha_api_key || globalPolicies.WAHA_API_KEY
+      try {
+        const globalOrgId = '00000000-0000-0000-0000-000000000000'
+        const { data: globalCfg, error: globalError } = await serviceClient
+          .from('ai_agent_config')
+          .select('policies')
+          .eq('organization_id', globalOrgId)
+          .maybeSingle()
         
-        if (globalWahaUrl && globalWahaKey) {
-          console.log('[Config Save] ✅ Credenciales encontradas en configuración global (BD)')
-          wahaApiUrl = globalWahaUrl
-          wahaApiKey = globalWahaKey
-          console.log('[Config Save] 📍 URL desde BD:', wahaApiUrl?.substring(0, 50))
-          console.log('[Config Save] 📍 Key preview desde BD:', wahaApiKey ? '***' + wahaApiKey.slice(-4) : 'undefined')
-        } else {
-          console.error('[Config Save] ❌ Configuración global existe pero no tiene credenciales WAHA')
+        if (globalError) {
+          console.error('[Config Save] ❌ Error BD:', globalError.message)
+          throw globalError
         }
-      } else {
-        console.error('[Config Save] ❌ No se encontró configuración global en BD')
-        console.error('[Config Save] ℹ️ Crea un registro en ai_agent_config con:')
-        console.error('[Config Save] ℹ️   - organization_id: 00000000-0000-0000-0000-000000000000')
-        console.error('[Config Save] ℹ️   - policies: { "waha_api_url": "https://...", "waha_api_key": "..." }')
-      }
-      
-      // Validar que se obtuvieron las credenciales
-      if (!wahaApiUrl || !wahaApiKey) {
-        console.error('[Config Save] ❌ No se pudieron obtener credenciales del servidor compartido')
-        return NextResponse.json({
-          success: false,
-          error: 'Servidor compartido no configurado. El administrador debe crear la configuración global en la base de datos.'
+        
+        console.log('[Config Save] 🔍 Resultado BD:', {
+          found: !!globalCfg,
+          has_policies: !!globalCfg?.policies
+        })
+        
+        if (globalCfg?.policies) {
+          const policies = globalCfg.policies as any
+          const globalWahaUrl = policies.waha_api_url || policies.WAHA_API_URL
+          const globalWahaKey = policies.waha_api_key || policies.WAHA_API_KEY
+          
+          console.log('[Config Save] 🔍 Credenciales en policies:', {
+            has_url: !!globalWahaUrl,
+            has_key: !!globalWahaKey
+          })
+          
+          if (globalWahaUrl && globalWahaKey) {
+            data.waha_api_url = globalWahaUrl
+            data.waha_api_key = globalWahaKey
+            console.log('[Config Save] ✅ Credenciales cargadas desde BD')
+          } else {
+            throw new Error('Config global no tiene credenciales en policies')
+          }
+        } else {
+          throw new Error('Config global no encontrada')
+        }
+      } catch (err: any) {
+        console.error('[Config Save] ❌ Error:', err.message || err)
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Config global no existe en BD' 
         }, { status: 500 })
       }
-      
-      console.log('[Config Save] ✅ Usando credenciales del servidor compartido (desde BD)')
     }
     
-    console.log('[Config Save] ✅ Credenciales validadas, procediendo a guardar...')
+    // Validar que ahora sí tengamos las credenciales
+    if (!data.waha_api_url || !data.waha_api_key) {
+      return NextResponse.json({
+        success: false,
+        error: 'Faltan credenciales WAHA'
+      }, { status: 400 })
+    }
+    
+    console.log('[Config Save] ✅ Credenciales validadas, guardando...')
+    
+    // Asignar a variables para uso posterior
+    const wahaApiUrl = data.waha_api_url
+    const wahaApiKey = data.waha_api_key
+    const wahaConfigType = data.waha_config_type || 'shared'
     
     // ✅ Incluir credenciales de WAHA en policies
     policiesWithExtras.waha_config_type = wahaConfigType
@@ -725,7 +727,7 @@ export async function POST(request: NextRequest) {
       has_waha_api_key: !!wahaApiKey,
       waha_url_preview: wahaApiUrl ? wahaApiUrl.substring(0, 30) + '...' : 'undefined',
       waha_key_preview: wahaApiKey ? '***' + wahaApiKey.slice(-4) : 'undefined',
-      source: wahaConfigType === 'custom' ? 'formulario' : 'process.env'
+      source: wahaConfigType === 'custom' ? 'formulario' : 'BD (config global)'
     })
     
     const configData = {
