@@ -22,13 +22,14 @@ export default function WhatsAppPage() {
   
   const loadConfig = useCallback(async () => {
     if (!organizationId) {
-      console.log('[WhatsApp] ⏳ Esperando organization ID...')
+      console.log('[WhatsApp Page] ⏳ Esperando organization ID...')
       setLoading(false)
       return
     }
 
     try {
-      console.log('[WhatsApp] 🔄 Cargando configuración para org:', organizationId)
+      console.log('[WhatsApp Page] 📡 Iniciando carga de configuración...')
+      console.log('[WhatsApp Page] 📍 Organization ID:', organizationId)
       setLoading(true)
       
       const response = await fetch('/api/whatsapp/config', {
@@ -36,18 +37,25 @@ export default function WhatsAppPage() {
         credentials: 'include'
       })
       
+      console.log('[WhatsApp Page] 📦 Respuesta HTTP:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+      
       if (!response.ok) {
-        console.error('[WhatsApp] ❌ Error HTTP:', response.status, response.statusText)
+        console.error('[WhatsApp Page] ❌ Error HTTP:', response.status, response.statusText)
         setConfig(null)
         setLoading(false)
         return
       }
       
       const result = await response.json()
-      console.log('[WhatsApp] 📥 Respuesta del API:', {
+      console.log('[WhatsApp Page] 📥 Respuesta del API:', {
         success: result.success,
         has_data: !!result.data,
-        data_keys: result.data ? Object.keys(result.data) : []
+        data_keys: result.data ? Object.keys(result.data) : [],
+        error: result.error
       })
       
       if (result.success && result.data) {
@@ -63,14 +71,18 @@ export default function WhatsAppPage() {
         const policies = configData.policies || {}
         const hasWahaConfig = !!(policies.waha_api_url || policies.WAHA_API_URL)
         
-        console.log('[WhatsApp] ✅ Configuración cargada:', {
+        console.log('[WhatsApp Page] ✅ Data completa:', {
           id: configData.id,
           enabled: configData.enabled,
           has_policies: !!configData.policies,
           has_waha_config: hasWahaConfig,
+          has_waha_url: !!(policies.waha_api_url || policies.WAHA_API_URL),
+          has_waha_key: !!(policies.waha_api_key || policies.WAHA_API_KEY),
           has_services: !!(configData.services && configData.services.length > 0),
+          has_session_name: !!configData.whatsapp_session_name,
           provider: configData.provider,
-          model: configData.model
+          model: configData.model,
+          waha_config_type: policies.waha_config_type
         })
         
         // Si tiene configuración (policies, servicios, etc.), considerarlo como configurado
@@ -80,46 +92,77 @@ export default function WhatsAppPage() {
                             configData.provider ||
                             configData.model
         
+        console.log('[WhatsApp Page] 🔍 Análisis de configuración:', {
+          enabled_original: configData.enabled,
+          isConfigured,
+          will_set_enabled: isConfigured && !configData.enabled
+        })
+        
         if (isConfigured && !configData.enabled) {
           // Si tiene configuración pero enabled es false, establecerlo como true
           configData.enabled = true
-          console.log('[WhatsApp] 🔧 Configuración detectada, estableciendo enabled=true')
+          console.log('[WhatsApp Page] 🔧 Configuración detectada, estableciendo enabled=true')
         }
         
         setConfig(configData)
+        console.log('[WhatsApp Page] ✅ Configuración establecida en estado, enabled:', configData.enabled)
       } else {
         setConfig(null)
-        console.log('[WhatsApp] ⚠️ No hay configuración disponible (result.data es null o undefined)')
+        console.log('[WhatsApp Page] ⚠️ No hay configuración disponible (result.data es null o undefined)')
+        console.log('[WhatsApp Page] ⚠️ Detalles:', {
+          success: result.success,
+          has_data: !!result.data,
+          error: result.error
+        })
       }
     } catch (error) {
-      console.error('[WhatsApp] ❌ Error cargando configuración:', error)
+      console.error('[WhatsApp Page] ❌ Error cargando configuración:', error)
       setConfig(null)
     } finally {
       setLoading(false)
+      console.log('[WhatsApp Page] ✅ Carga completada, loading=false')
     }
   }, [organizationId])
 
   // ✅ AHORA SÍ usar loadConfig en useEffect (después de definirlo)
   useEffect(() => {
-    loadConfig()
-  }, [loadConfig])
+    console.log('[WhatsApp Page] 🔄 useEffect de carga triggered')
+    console.log('[WhatsApp Page] 🔍 organizationId:', organizationId)
+    
+    if (organizationId) {
+      console.log('[WhatsApp Page] ✅ Llamando a loadConfig()')
+      loadConfig()
+    } else {
+      console.log('[WhatsApp Page] ⏳ Esperando organizationId...')
+    }
+  }, [loadConfig, organizationId])
 
   // 🔍 Log de debugging del estado actual
   useEffect(() => {
-    console.log('[WhatsApp Page] 🔍 Estado actual:', {
-      hasConfig: !!config,
-      isActive: config?.enabled,
-      organizationId,
-      configData: config ? {
-        id: config.id,
-        enabled: config.enabled,
-        has_policies: !!config.policies,
-        has_services: !!(config.services && config.services.length > 0),
-        provider: config.provider,
-        model: config.model
-      } : 'null',
-      loading
-    })
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('[WhatsApp Page] 🔍 ESTADO ACTUAL DE LA PÁGINA')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('hasConfig:', !!config)
+    console.log('isActive (config?.enabled):', config?.enabled)
+    console.log('organizationId:', organizationId)
+    console.log('loading:', loading)
+    console.log('config existe:', !!config)
+    if (config) {
+      console.log('config.id:', config.id)
+      console.log('config.enabled:', config.enabled)
+      console.log('config.has_policies:', !!config.policies)
+      if (config.policies) {
+        const policies = config.policies as any
+        console.log('config.policies.waha_api_url existe:', !!(policies.waha_api_url || policies.WAHA_API_URL))
+        console.log('config.policies.waha_api_key existe:', !!(policies.waha_api_key || policies.WAHA_API_KEY))
+        console.log('config.policies.waha_config_type:', policies.waha_config_type)
+      }
+      console.log('config.has_services:', !!(config.services && config.services.length > 0))
+      console.log('config.provider:', config.provider)
+      console.log('config.model:', config.model)
+      console.log('config.whatsapp_session_name:', config.whatsapp_session_name)
+    }
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   }, [config, organizationId, loading])
 
   // ✅ Recargar cuando se regresa de otra página (focus + visibilitychange)
@@ -237,19 +280,25 @@ export default function WhatsAppPage() {
                     Configuración actual de tu bot de WhatsApp
                   </CardDescription>
                 </div>
-                <Badge variant={config?.enabled ? "success" : "secondary"}>
-                  {config?.enabled ? (
-                    <>
-                      <ModernIcons.Check size={14} />
-                      Activo
-                    </>
-                  ) : (
-                    <>
-                      <ModernIcons.Error size={14} />
-                      Inactivo
-                    </>
-                  )}
-                </Badge>
+                {(() => {
+                  const isEnabled = config?.enabled
+                  console.log('[WhatsApp Page] 🎨 Renderizando badge, config?.enabled:', isEnabled, 'config existe:', !!config)
+                  return (
+                    <Badge variant={isEnabled ? "success" : "secondary"}>
+                      {isEnabled ? (
+                        <>
+                          <ModernIcons.Check size={14} />
+                          Activo
+                        </>
+                      ) : (
+                        <>
+                          <ModernIcons.Error size={14} />
+                          Inactivo
+                        </>
+                      )}
+                    </Badge>
+                  )
+                })()}
               </div>
             </CardHeader>
             <CardContent>
