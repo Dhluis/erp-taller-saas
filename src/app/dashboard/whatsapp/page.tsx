@@ -30,10 +30,25 @@ export default function WhatsAppPage() {
     try {
       console.log('[WhatsApp] 🔄 Cargando configuración para org:', organizationId)
       setLoading(true)
+      
       const response = await fetch('/api/whatsapp/config', {
-        cache: 'no-store' // Evitar cache para obtener datos frescos
+        cache: 'no-store', // Evitar cache para obtener datos frescos
+        credentials: 'include'
       })
+      
+      if (!response.ok) {
+        console.error('[WhatsApp] ❌ Error HTTP:', response.status, response.statusText)
+        setConfig(null)
+        setLoading(false)
+        return
+      }
+      
       const result = await response.json()
+      console.log('[WhatsApp] 📥 Respuesta del API:', {
+        success: result.success,
+        has_data: !!result.data,
+        data_keys: result.data ? Object.keys(result.data) : []
+      })
       
       if (result.success && result.data) {
         const configData = result.data
@@ -44,11 +59,37 @@ export default function WhatsAppPage() {
           configData.whatsapp_connected = configData.policies.whatsapp.connected
         }
         
+        // Verificar si tiene credenciales WAHA en policies
+        const policies = configData.policies || {}
+        const hasWahaConfig = !!(policies.waha_api_url || policies.WAHA_API_URL)
+        
+        console.log('[WhatsApp] ✅ Configuración cargada:', {
+          id: configData.id,
+          enabled: configData.enabled,
+          has_policies: !!configData.policies,
+          has_waha_config: hasWahaConfig,
+          has_services: !!(configData.services && configData.services.length > 0),
+          provider: configData.provider,
+          model: configData.model
+        })
+        
+        // Si tiene configuración (policies, servicios, etc.), considerarlo como configurado
+        const isConfigured = configData.enabled || 
+                            hasWahaConfig || 
+                            (configData.services && configData.services.length > 0) ||
+                            configData.provider ||
+                            configData.model
+        
+        if (isConfigured && !configData.enabled) {
+          // Si tiene configuración pero enabled es false, establecerlo como true
+          configData.enabled = true
+          console.log('[WhatsApp] 🔧 Configuración detectada, estableciendo enabled=true')
+        }
+        
         setConfig(configData)
-        console.log('[WhatsApp] ✅ Configuración cargada:', configData)
       } else {
         setConfig(null)
-        console.log('[WhatsApp] ⚠️ No hay configuración disponible')
+        console.log('[WhatsApp] ⚠️ No hay configuración disponible (result.data es null o undefined)')
       }
     } catch (error) {
       console.error('[WhatsApp] ❌ Error cargando configuración:', error)
@@ -62,6 +103,24 @@ export default function WhatsAppPage() {
   useEffect(() => {
     loadConfig()
   }, [loadConfig])
+
+  // 🔍 Log de debugging del estado actual
+  useEffect(() => {
+    console.log('[WhatsApp Page] 🔍 Estado actual:', {
+      hasConfig: !!config,
+      isActive: config?.enabled,
+      organizationId,
+      configData: config ? {
+        id: config.id,
+        enabled: config.enabled,
+        has_policies: !!config.policies,
+        has_services: !!(config.services && config.services.length > 0),
+        provider: config.provider,
+        model: config.model
+      } : 'null',
+      loading
+    })
+  }, [config, organizationId, loading])
 
   // ✅ Recargar cuando se regresa de otra página (focus + visibilitychange)
   useEffect(() => {

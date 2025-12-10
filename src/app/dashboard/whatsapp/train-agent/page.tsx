@@ -168,13 +168,24 @@ export default function TrainAgentPage() {
 
       toast.success('Configuración del agente guardada exitosamente')
       
-      // ✅ Disparar evento personalizado para que la página de WhatsApp recargue
-      window.dispatchEvent(new CustomEvent('ai-agent:config-saved'))
+      console.log('[Wizard] ✅ Configuración guardada exitosamente, resultado:', {
+        success: result.success,
+        has_data: !!result.data,
+        data_id: result.data?.id
+      })
       
-      // ✅ Recargar la página después de 1 segundo para mostrar la configuración actualizada
+      // ✅ Disparar evento personalizado para que la página de WhatsApp recargue
+      console.log('[Wizard] 🔔 Disparando evento ai-agent:config-saved')
+      window.dispatchEvent(new CustomEvent('ai-agent:config-saved', { 
+        detail: { configId: result.data?.id } 
+      }))
+      
+      // ✅ Recargar la página después de 2 segundos para dar tiempo a que la BD se actualice
+      console.log('[Wizard] ⏳ Esperando 2 segundos antes de recargar...')
       setTimeout(() => {
-        window.location.reload()
-      }, 1000)
+        console.log('[Wizard] 🔄 Recargando página...')
+        window.location.href = '/dashboard/whatsapp'
+      }, 2000)
     } catch (error) {
       console.error('Error saving config:', error)
       const errorMessage = error instanceof Error ? error.message : 'Error al guardar la configuración'
