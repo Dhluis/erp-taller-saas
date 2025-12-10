@@ -4,6 +4,17 @@ import { getSupabaseServerClient } from '@/integrations/whatsapp/utils/supabase-
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
+/**
+ * ✅ Genera un nombre de sesión único para WAHA por organización
+ * Formato: eagles_{organizationId_sin_guiones_primeros_20_chars}
+ * Ejemplo: eagles_bbca12292c4f4838b5f9
+ */
+function generateWhatsAppSessionName(organizationId: string): string {
+  // Remover guiones y tomar primeros 20 caracteres
+  const cleanId = organizationId.replace(/-/g, '').substring(0, 20)
+  return `eagles_${cleanId}`
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Obtener contexto del tenant
@@ -319,19 +330,61 @@ export async function POST(request: NextRequest) {
       if (!existingConfig) {
         // Si solo se está guardando configuración de WAHA (sin whatsapp_phone), permitir crear/actualizar
         if (data.waha_api_url || data.waha_api_key || data.whatsapp_phone) {
-          // Crear configuración básica (con o sin entrenamiento previo)
+          // ✅ Crear configuración básica (con o sin entrenamiento previo)
+          // Generar session_name único para esta organización
+          const whatsappSessionName = generateWhatsAppSessionName(tenantContext.organizationId)
+          
+          // ✅ Obtener credenciales de WAHA según el tipo (OPCIÓN A)
+          const wahaConfigType = data.waha_config_type || 'shared'
+          let wahaApiUrl: string | undefined
+          let wahaApiKey: string | undefined
+          
+          if (wahaConfigType === 'custom') {
+            if (!data.waha_api_url || !data.waha_api_key) {
+              return NextResponse.json({
+                success: false,
+                error: 'Faltan credenciales de WAHA personalizadas. Por favor, completa todos los campos.'
+              }, { status: 400 })
+            }
+            wahaApiUrl = data.waha_api_url
+            wahaApiKey = data.waha_api_key
+          } else {
+            wahaApiUrl = process.env.WAHA_API_URL || process.env.NEXT_PUBLIC_WAHA_API_URL
+            wahaApiKey = process.env.WAHA_API_KEY || process.env.NEXT_PUBLIC_WAHA_API_KEY
+            
+            if (!wahaApiUrl || !wahaApiKey) {
+              return NextResponse.json({
+                success: false,
+                error: 'Configuración de servidor compartido no disponible. Por favor, contacta al administrador o usa un servidor personalizado.'
+              }, { status: 500 })
+            }
+          }
+          
           const newConfigData: any = {
               organization_id: tenantContext.organizationId,
             enabled: data.whatsapp_phone ? true : false, // Habilitar si se vincula WhatsApp
             system_prompt: 'Asistente virtual de taller automotriz. Responde de manera amable y profesional.', // Prompt por defecto
               policies: {
-                waha_api_url: data.waha_api_url,
-                waha_api_key: data.waha_api_key,
-                WAHA_API_URL: data.waha_api_url,
-                WAHA_API_KEY: data.waha_api_key
+                waha_config_type: wahaConfigType,
+                waha_api_url: wahaApiUrl,
+                waha_api_key: wahaApiKey,
+                WAHA_API_URL: wahaApiUrl,
+                WAHA_API_KEY: wahaApiKey
               },
+              // ✅ MULTI-TENANT: Session name único por organización
+              whatsapp_session_name: whatsappSessionName,
+              // Nota: waha_config_type se guarda en policies (JSONB) para flexibilidad
               updated_at: new Date().toISOString()
           }
+          
+          console.log('[Config Save] 🔐 Creando nueva config multi-tenant:', {
+            organization_id: tenantContext.organizationId,
+            whatsapp_session_name: whatsappSessionName,
+            waha_config_type: wahaConfigType,
+            has_waha_api_url: !!wahaApiUrl,
+            has_waha_api_key: !!wahaApiKey,
+            using_custom_server: wahaConfigType === 'custom'
+          })
 
           // Agregar whatsapp_phone si está presente
           if (data.whatsapp_phone) {
@@ -538,6 +591,45 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // ✅ Generar session_name único para esta organización (multi-tenant)
+    const whatsappSessionName = generateWhatsAppSessionName(tenantContext.organizationId)
+    
+    // ✅ Obtener credenciales de WAHA según el tipo elegido (OPCIÓN A - Multi-tenant flexible)
+    const wahaConfigType = data.waha_config_type || 'shared'
+    let wahaApiUrl: string | undefined
+    let wahaApiKey: string | undefined
+    
+    if (wahaConfigType === 'custom') {
+      // Usar credenciales personalizadas del formulario
+      if (!data.waha_api_url || !data.waha_api_key) {
+        return NextResponse.json({
+          success: false,
+          error: 'Faltan credenciales de WAHA personalizadas. Por favor, completa todos los campos.'
+        }, { status: 400 })
+      }
+      wahaApiUrl = data.waha_api_url
+      wahaApiKey = data.waha_api_key
+    } else {
+      // Usar servidor compartido (variables de entorno)
+      wahaApiUrl = process.env.WAHA_API_URL || process.env.NEXT_PUBLIC_WAHA_API_URL
+      wahaApiKey = process.env.WAHA_API_KEY || process.env.NEXT_PUBLIC_WAHA_API_KEY
+      
+      // Validar que existan las variables de entorno para servidor compartido
+      if (!wahaApiUrl || !wahaApiKey) {
+        return NextResponse.json({
+          success: false,
+          error: 'Configuración de servidor compartido no disponible. Por favor, contacta al administrador o usa un servidor personalizado.'
+        }, { status: 500 })
+      }
+    }
+    
+    // ✅ Incluir credenciales de WAHA en policies
+    policiesWithExtras.waha_config_type = wahaConfigType
+    policiesWithExtras.waha_api_url = wahaApiUrl
+    policiesWithExtras.waha_api_key = wahaApiKey
+    policiesWithExtras.WAHA_API_URL = wahaApiUrl // Compatibilidad mayúsculas
+    policiesWithExtras.WAHA_API_KEY = wahaApiKey // Compatibilidad mayúsculas
+    
     const configData = {
       organization_id: tenantContext.organizationId,
       enabled: true,
@@ -559,11 +651,45 @@ export async function POST(request: NextRequest) {
       policies: policiesWithExtras,
       whatsapp_phone: data.whatsapp_phone || null,
       whatsapp_connected: data.whatsapp_connected || false,
+      // ✅ MULTI-TENANT: Session name único por organización
+      whatsapp_session_name: whatsappSessionName,
+      // Nota: waha_config_type se guarda en policies (JSONB) para flexibilidad
       updated_at: new Date().toISOString()
     }
+    
+    console.log('[Config Save] 🔐 Multi-tenant config:', {
+      organization_id: tenantContext.organizationId,
+      whatsapp_session_name: whatsappSessionName,
+      waha_config_type: wahaConfigType,
+      has_waha_api_url: !!wahaApiUrl,
+      has_waha_api_key: !!wahaApiKey,
+      using_custom_server: wahaConfigType === 'custom'
+    })
 
     let result
     if (existingConfig) {
+      // ✅ Preservar session_name existente o generar uno nuevo si no existe
+      const { data: existingFullConfig } = await serviceClient
+        .from('ai_agent_config')
+        .select('whatsapp_session_name, policies')
+        .eq('id', existingConfig.id)
+        .single()
+      
+      // Si ya tiene session_name, preservarlo; si no, usar el generado
+      if (existingFullConfig?.whatsapp_session_name) {
+        configData.whatsapp_session_name = existingFullConfig.whatsapp_session_name
+        console.log('[Config Save] ✅ Preservando session_name existente:', configData.whatsapp_session_name)
+      } else {
+        console.log('[Config Save] ✅ Generando nuevo session_name:', configData.whatsapp_session_name)
+      }
+      
+      // ✅ Preservar waha_config_type existente si no se está cambiando
+      const existingPolicies = existingFullConfig?.policies as any
+      if (existingPolicies?.waha_config_type && !data.waha_config_type) {
+        policiesWithExtras.waha_config_type = existingPolicies.waha_config_type
+        console.log('[Config Save] ✅ Preservando waha_config_type existente:', existingPolicies.waha_config_type)
+      }
+      
       const { error } = await serviceClient
         .from('ai_agent_config')
         .update(configData)
@@ -697,7 +823,9 @@ export async function GET(request: NextRequest) {
     console.log('[Config GET] ✅ Configuración encontrada:', {
       id: config?.id,
       enabled: config?.enabled,
-      organization_id: config?.organization_id
+      organization_id: config?.organization_id,
+      whatsapp_session_name: config?.whatsapp_session_name || 'No configurado',
+      has_waha_credentials: !!(config?.policies as any)?.waha_api_url
     })
 
     return NextResponse.json({

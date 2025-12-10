@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { ProgressBar } from './components/ProgressBar'
+import { WhatsAppSetupStep } from './components/WhatsAppSetupStep'
 import { BusinessInfoStep } from './components/BusinessInfoStep'
 import { ServicesStep } from './components/ServicesStep'
 import { PoliciesStep } from './components/PoliciesStep'
@@ -25,6 +26,11 @@ export default function TrainAgentPage() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
+    wahaConfig: {
+      waha_config_type: 'shared' as 'shared' | 'custom',
+      waha_api_url: undefined as string | undefined,
+      waha_api_key: undefined as string | undefined
+    },
     businessInfo: {
       name: organization?.name || '',
       address: organization?.address || '',
@@ -91,6 +97,25 @@ export default function TrainAgentPage() {
 
     setLoading(true)
     try {
+      // ✅ Determinar credenciales de WAHA según el tipo elegido
+      let wahaApiUrl: string | undefined
+      let wahaApiKey: string | undefined
+
+      if (formData.wahaConfig.waha_config_type === 'custom') {
+        // Usar credenciales personalizadas del formulario
+        if (!formData.wahaConfig.waha_api_url || !formData.wahaConfig.waha_api_key) {
+          toast.error('Faltan credenciales de WAHA personalizadas. Por favor, completa todos los campos.')
+          return
+        }
+        wahaApiUrl = formData.wahaConfig.waha_api_url
+        wahaApiKey = formData.wahaConfig.waha_api_key
+      } else {
+        // Usar servidor compartido (variables de entorno)
+        // Nota: Las variables de entorno se manejan en el backend
+        wahaApiUrl = undefined // El backend usará process.env
+        wahaApiKey = undefined // El backend usará process.env
+      }
+
       // Guardar configuración en ai_agent_config
       const response = await fetch(`/api/whatsapp/config`, {
         method: 'POST',
@@ -98,6 +123,9 @@ export default function TrainAgentPage() {
         credentials: 'include',
         cache: 'no-store',
         body: JSON.stringify({
+          waha_config_type: formData.wahaConfig.waha_config_type,
+          waha_api_url: wahaApiUrl,
+          waha_api_key: wahaApiKey,
           businessInfo: formData.businessInfo,
           services: formData.services,
           policies: formData.policies,
@@ -125,10 +153,10 @@ export default function TrainAgentPage() {
       // ✅ Disparar evento personalizado para que la página de WhatsApp recargue
       window.dispatchEvent(new CustomEvent('ai-agent:config-saved'))
       
-      // Pequeño delay para asegurar que la BD se actualice
+      // ✅ Recargar la página después de 1 segundo para mostrar la configuración actualizada
       setTimeout(() => {
-        router.push('/dashboard/whatsapp')
-      }, 500)
+        window.location.reload()
+      }, 1000)
     } catch (error) {
       console.error('Error saving config:', error)
       const errorMessage = error instanceof Error ? error.message : 'Error al guardar la configuración'
@@ -147,6 +175,45 @@ export default function TrainAgentPage() {
       [section]: data
     }))
   }
+
+  // ✅ Cargar configuración existente al montar el componente
+  useEffect(() => {
+    if (!organizationId || sessionLoading) return
+
+    const loadExistingConfig = async () => {
+      try {
+        const response = await fetch('/api/whatsapp/config', {
+          credentials: 'include',
+          cache: 'no-store'
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          if (result.success && result.data) {
+            const config = result.data
+            const policies = config.policies || {}
+            
+            // Cargar configuración de WAHA desde policies
+            if (policies.waha_config_type) {
+              setFormData(prev => ({
+                ...prev,
+                wahaConfig: {
+                  waha_config_type: policies.waha_config_type || 'shared',
+                  waha_api_url: policies.waha_api_url || undefined,
+                  waha_api_key: policies.waha_api_key || undefined
+                }
+              }))
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando configuración existente:', error)
+        // No mostrar error al usuario, simplemente usar valores por defecto
+      }
+    }
+
+    loadExistingConfig()
+  }, [organizationId, sessionLoading])
 
   // Manejar cambio de estado de WhatsApp
   const handleWhatsAppStatusChange = useCallback(async (status: 'loading' | 'connected' | 'pending' | 'error') => {
@@ -242,41 +309,47 @@ export default function TrainAgentPage() {
         </div>
         
         {/* Progress Bar */}
-        <ProgressBar currentStep={step} totalSteps={8} />
+        <ProgressBar currentStep={step} totalSteps={9} />
         
         {/* Wizard Steps */}
         <div className="mt-8">
           {step === 1 && (
+            <WhatsAppSetupStep 
+              data={formData.wahaConfig} 
+              onChange={(data) => updateFormData('wahaConfig', data)} 
+            />
+          )}
+          {step === 2 && (
             <BusinessInfoStep 
               data={formData.businessInfo} 
               onChange={(data) => updateFormData('businessInfo', data)} 
             />
           )}
-          {step === 2 && (
+          {step === 3 && (
             <ServicesStep 
               data={formData.services} 
               onChange={(data) => updateFormData('services', data)} 
             />
           )}
-          {step === 3 && (
+          {step === 4 && (
             <PoliciesStep 
               data={formData.policies} 
               onChange={(data) => updateFormData('policies', data)} 
             />
           )}
-          {step === 4 && (
+          {step === 5 && (
             <PersonalityStep 
               data={formData.personality} 
               onChange={(data) => updateFormData('personality', data)} 
             />
           )}
-          {step === 5 && (
+          {step === 6 && (
             <FAQStep 
               data={formData.faq} 
               onChange={(data) => updateFormData('faq', data)} 
             />
           )}
-          {step === 6 && (
+          {step === 7 && (
             <CustomInstructionsStep 
               data={{
                 customInstructions: formData.customInstructions,
@@ -288,13 +361,13 @@ export default function TrainAgentPage() {
               }} 
             />
           )}
-          {step === 7 && (
+          {step === 8 && (
             <AppointmentSchedulingStep 
               data={formData.appointmentScheduling} 
               onChange={(data) => updateFormData('appointmentScheduling', data)} 
             />
           )}
-          {step === 8 && (
+          {step === 9 && (
             <PreviewTestStep 
               data={formData} 
               onSave={handleSave}
@@ -313,9 +386,25 @@ export default function TrainAgentPage() {
             ← Anterior
           </Button>
           
-          {step < 8 && (
+          {step < 9 && (
             <Button 
-              onClick={() => setStep(Math.min(8, step + 1))}
+              onClick={() => {
+                // Validar antes de avanzar
+                if (step === 1) {
+                  // Validar paso de WAHA
+                  const canContinue = formData.wahaConfig.waha_config_type === 'shared' || 
+                    (formData.wahaConfig.waha_config_type === 'custom' && 
+                     formData.wahaConfig.waha_api_url && 
+                     formData.wahaConfig.waha_api_key &&
+                     formData.wahaConfig.waha_api_url.startsWith('https://'))
+                  
+                  if (!canContinue) {
+                    toast.error('Por favor, completa la configuración de WAHA antes de continuar')
+                    return
+                  }
+                }
+                setStep(Math.min(9, step + 1))
+              }}
             >
               Siguiente →
             </Button>
