@@ -2,23 +2,25 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/hooks/useAuth'
+import { useSession } from '@/lib/context/SessionContext'
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import ModernIcons from '@/components/icons/ModernIcons'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Loader2, AlertCircle } from 'lucide-react'
 
 export default function WhatsAppPage() {
-  const { organization } = useAuth()
+  const { organizationId, isLoading: sessionLoading } = useSession()
   const router = useRouter()
   const [config, setConfig] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  // ✅ DEFINIR loadConfig PRIMERO, antes de los useEffects
-  // 🔧 FIX: Usar organization.id en lugar de organization.organization_id
-  const organizationId = organization?.id || organization?.organization_id
+  console.log('[WhatsApp Page] 🔍 useSession hook:', {
+    organizationId,
+    isLoading: sessionLoading,
+    hasOrgId: !!organizationId
+  })
   
   const loadConfig = useCallback(async () => {
     if (!organizationId) {
@@ -126,26 +128,33 @@ export default function WhatsAppPage() {
 
   // ✅ AHORA SÍ usar loadConfig en useEffect (después de definirlo)
   useEffect(() => {
-    console.log('[WhatsApp Page] 🔄 useEffect de carga triggered')
-    console.log('[WhatsApp Page] 🔍 organizationId:', organizationId)
+    console.log('[WhatsApp Page] 🔄 useEffect triggered:', {
+      organizationId,
+      isLoading: sessionLoading,
+      shouldLoad: !sessionLoading && !!organizationId
+    })
     
-    if (organizationId) {
+    // Solo cargar si NO está cargando Y hay organizationId
+    if (!sessionLoading && organizationId) {
       console.log('[WhatsApp Page] ✅ Llamando a loadConfig()')
       loadConfig()
+    } else if (sessionLoading) {
+      console.log('[WhatsApp Page] ⏳ Sesión cargando...')
     } else {
-      console.log('[WhatsApp Page] ⏳ Esperando organizationId...')
+      console.log('[WhatsApp Page] ⚠️ Sin organizationId después de cargar')
     }
-  }, [loadConfig, organizationId])
+  }, [loadConfig, organizationId, sessionLoading])
 
   // 🔍 Log de debugging del estado actual
   useEffect(() => {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('[WhatsApp Page] 🔍 ESTADO ACTUAL DE LA PÁGINA')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('sessionLoading:', sessionLoading)
     console.log('hasConfig:', !!config)
     console.log('isActive (config?.enabled):', config?.enabled)
     console.log('organizationId:', organizationId)
-    console.log('loading:', loading)
+    console.log('loading (config):', loading)
     console.log('config existe:', !!config)
     if (config) {
       console.log('config.id:', config.id)
@@ -163,7 +172,7 @@ export default function WhatsAppPage() {
       console.log('config.whatsapp_session_name:', config.whatsapp_session_name)
     }
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  }, [config, organizationId, loading])
+  }, [config, organizationId, loading, sessionLoading])
 
   // ✅ Recargar cuando se regresa de otra página (focus + visibilitychange)
   useEffect(() => {
@@ -199,7 +208,8 @@ export default function WhatsAppPage() {
 
   // Polling periódico para detectar cuando WhatsApp se conecta
   useEffect(() => {
-    if (!organizationId) return
+    // No hacer polling si la sesión está cargando o no hay organizationId
+    if (sessionLoading || !organizationId) return
 
     // Verificar cada 5 segundos si WhatsApp se conectó
     const pollingInterval = setInterval(() => {
@@ -213,7 +223,7 @@ export default function WhatsAppPage() {
     }, 5000) // Cada 5 segundos
 
     return () => clearInterval(pollingInterval)
-  }, [organizationId, config?.whatsapp_phone, config?.whatsapp_connected, loadConfig])
+  }, [organizationId, sessionLoading, config?.whatsapp_phone, config?.whatsapp_connected, loadConfig])
 
   // Escuchar eventos personalizados de conexión de WhatsApp
   useEffect(() => {
@@ -249,6 +259,31 @@ export default function WhatsAppPage() {
 
   const handleTestAgent = () => {
     router.push('/dashboard/whatsapp/test')
+  }
+
+  // Mostrar loader mientras se carga la sesión
+  if (sessionLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-text-secondary">Cargando sesión...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Mostrar error si no hay organizationId después de cargar
+  if (!organizationId) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-4" />
+          <p className="text-text-primary font-semibold mb-2">Error: No se pudo obtener la organización</p>
+          <p className="text-text-secondary text-sm">Por favor, recarga la página o contacta al administrador.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
