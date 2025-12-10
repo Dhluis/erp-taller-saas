@@ -46,6 +46,11 @@ export async function getWahaConfig(organizationId?: string): Promise<{ url: str
     organizationId: organizationId || 'no proporcionado'
   });
 
+  console.log('[WAHA] Variables de entorno:', {
+    WAHA_API_URL: process.env.WAHA_API_URL ? 'SET' : 'NOT SET',
+    WAHA_API_KEY: process.env.WAHA_API_KEY ? 'SET' : 'NOT SET',
+  });
+
   // 1. PRIMERO: Intentar desde variables de entorno
   if (process.env.WAHA_API_URL && process.env.WAHA_API_KEY) {
     console.log('[WAHA Sessions] ✅ Usando configuración de variables de entorno');
