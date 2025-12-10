@@ -32,35 +32,84 @@ export async function POST(request: NextRequest) {
 
     console.log('[Check Connection] ✅ Organization ID:', organizationId);
 
-    const WAHA_URL = process.env.WAHA_API_URL;
-    const WAHA_KEY = process.env.WAHA_API_KEY;
-
-    if (!WAHA_URL || !WAHA_KEY) {
-      console.error('[Check Connection] ❌ Variables de entorno faltantes');
+    // ✅ OPCIÓN A: Obtener credenciales de WAHA desde BD (multi-tenant)
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
+    const supabase = getSupabaseServiceClient();
+    
+    // Buscar configuración en ai_agent_config para esta organización
+    const { data: config, error: configError } = await supabase
+      .from('ai_agent_config')
+      .select('policies, whatsapp_session_name')
+      .eq('organization_id', organizationId)
+      .maybeSingle(); // Usar maybeSingle() en lugar de single() para no fallar si no existe
+    
+    let wahaUrl: string | undefined;
+    let wahaKey: string | undefined;
+    let sessionName: string | undefined;
+    
+    if (config && config.policies) {
+      const policies = config.policies as any;
+      // Intentar obtener credenciales desde policies
+      wahaUrl = policies.waha_api_url || policies.WAHA_API_URL;
+      wahaKey = policies.waha_api_key || policies.WAHA_API_KEY;
+      sessionName = config.whatsapp_session_name;
+      
+      console.log('[Check Connection] 🔍 Config encontrada en BD:', {
+        has_waha_url: !!wahaUrl,
+        has_waha_key: !!wahaKey,
+        has_session_name: !!sessionName,
+        waha_config_type: policies.waha_config_type
+      });
+    } else if (configError) {
+      console.warn('[Check Connection] ⚠️ Error obteniendo config de BD:', configError.message);
+    } else {
+      console.log('[Check Connection] ℹ️ No hay configuración en BD para esta organización');
+    }
+    
+    // Fallback a variables de entorno si no hay configuración en BD (servidor compartido)
+    if (!wahaUrl || !wahaKey) {
+      wahaUrl = process.env.WAHA_API_URL || process.env.NEXT_PUBLIC_WAHA_API_URL;
+      wahaKey = process.env.WAHA_API_KEY || process.env.NEXT_PUBLIC_WAHA_API_KEY;
+      console.log('[Check Connection] 🔄 Usando variables de entorno (fallback):', {
+        has_waha_url: !!wahaUrl,
+        has_waha_key: !!wahaKey
+      });
+    }
+    
+    // Si no hay credenciales disponibles, devolver estado PENDING (no error 500)
+    if (!wahaUrl || !wahaKey) {
+      console.log('[Check Connection] ❌ No hay credenciales de WAHA disponibles');
       return NextResponse.json({
         success: false,
-        error: 'Variables de entorno no configuradas'
-      }, { status: 500 });
+        status: 'PENDING',
+        connected: false,
+        message: 'No hay configuración de WAHA. Por favor, completa el wizard de configuración.'
+      }, { status: 200 }); // ⚠️ Devolver 200, no 500
     }
-
-    // Generar nombre de sesión
-    const cleanId = organizationId.replace(/-/g, '').substring(0, 20);
-    const sessionName = `eagles_${cleanId}`;
     
-    console.log('[Check Connection] Session name:', sessionName);
+    // Generar nombre de sesión si no existe en BD
+    if (!sessionName) {
+      const cleanId = organizationId.replace(/-/g, '').substring(0, 20);
+      sessionName = `eagles_${cleanId}`;
+      console.log('[Check Connection] 🔄 Generando session name:', sessionName);
+    } else {
+      console.log('[Check Connection] ✅ Usando session name de BD:', sessionName);
+    }
 
     // Obtener estado de la sesión directamente de WAHA
     let statusResponse;
     try {
-      statusResponse = await fetch(`${WAHA_URL}/api/sessions/${sessionName}`, {
-        headers: { 'X-Api-Key': WAHA_KEY }
+      statusResponse = await fetch(`${wahaUrl}/api/sessions/${sessionName}`, {
+        headers: { 'X-Api-Key': wahaKey }
       });
     } catch (fetchError: any) {
       console.error('[Check Connection] ❌ Error fetch a WAHA:', fetchError.message);
       return NextResponse.json({
         success: false,
-        error: `Error conectando a WAHA: ${fetchError.message}`
-      }, { status: 500 });
+        status: 'ERROR',
+        connected: false,
+        message: `Error conectando a WAHA: ${fetchError.message}`
+      }, { status: 200 }); // ⚠️ Devolver 200, no 500
     }
 
     if (!statusResponse.ok) {
@@ -88,11 +137,9 @@ export async function POST(request: NextRequest) {
 
       // Actualizar BD
       try {
-        const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
-        const supabase = getSupabaseServiceClient();
-        
         const updateData: any = {
           whatsapp_session_name: sessionName,
+          whatsapp_connected: true,
           updated_at: new Date().toISOString()
         };
         
@@ -129,8 +176,24 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('[Check Connection] ❌ Error general:', error.message, error.stack);
+    
+    // Si es un error de configuración, devolver 200 con estado PENDING
+    if (error.message?.includes('configuración') || 
+        error.message?.includes('Variables de entorno') ||
+        error.message?.includes('WAHA')) {
+      return NextResponse.json({
+        success: false,
+        status: 'PENDING',
+        connected: false,
+        message: 'No hay configuración de WAHA. Por favor, completa el wizard de configuración.'
+      }, { status: 200 });
+    }
+    
+    // Para otros errores críticos, mantener 500
     return NextResponse.json({
       success: false,
+      status: 'ERROR',
+      connected: false,
       error: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
