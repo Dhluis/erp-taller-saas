@@ -54,11 +54,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (!WAHA_URL || !WAHA_KEY) {
-      console.error('[Check Connection] ❌ Variables de entorno faltantes y sin fallback en BD');
+      console.error('[Check Connection] ❌ WAHA no configurado: faltan WAHA_API_URL / WAHA_API_KEY (ni env ni policies)');
+      // No romper el flujo: responder 200 con estado pendiente para no cortar el frontend
       return NextResponse.json({
-        success: false,
-        error: 'WAHA no configurado: faltan WAHA_API_URL / WAHA_API_KEY (ni env ni policies)'
-      }, { status: 500 });
+        success: true,
+        connected: false,
+        status: 'PENDING',
+        message: 'WAHA no configurado (sin URL/API key en env ni en configuración). Completa la config en WhatsApp.'
+      });
     }
 
     // Generar nombre de sesión
