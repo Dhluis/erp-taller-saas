@@ -1309,8 +1309,15 @@ export default function ConversacionesPage() {
                 variant="default"
                 size="sm"
                 onClick={() => {
-                  const dashboardUrl = window.location.origin + '/dashboard'
-                  window.location.href = dashboardUrl
+                  if (sessionLoading || !sessionReady) {
+                    toast.info('Cargando sesión, intenta de nuevo en un momento')
+                    return
+                  }
+                  if (!organizationId) {
+                    toast.error('No se encontró la organización')
+                    return
+                  }
+                  router.push('/dashboard')
                 }}
                 className={cn(
                   "flex items-center gap-2 font-semibold",
