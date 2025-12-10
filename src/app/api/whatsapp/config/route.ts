@@ -288,16 +288,18 @@ export async function POST(request: NextRequest) {
       if (!existingConfig) {
         // Crear configuración básica aunque no vengan waha_api_url/whatsapp_phone,
         // para evitar “organización no encontrada” al entrenar.
+        const resolvedWahaUrl = data.waha_api_url || process.env.WAHA_API_URL
+        const resolvedWahaKey = data.waha_api_key || process.env.WAHA_API_KEY
         const newConfigData: any = {
           organization_id: tenantContext.organizationId,
-          enabled: data.whatsapp_phone ? true : true, // habilitado por defecto
+          enabled: !!(data.whatsapp_phone || resolvedWahaUrl || resolvedWahaKey), // habilitar si hay phone o credenciales WAHA
           system_prompt: 'Asistente virtual de taller automotriz. Responde de manera amable y profesional.',
           policies: {
             ...(data.policies || {}),
-            waha_api_url: data.waha_api_url,
-            waha_api_key: data.waha_api_key,
-            WAHA_API_URL: data.waha_api_url,
-            WAHA_API_KEY: data.waha_api_key
+            waha_api_url: resolvedWahaUrl,
+            waha_api_key: resolvedWahaKey,
+            WAHA_API_URL: resolvedWahaUrl,
+            WAHA_API_KEY: resolvedWahaKey
           },
           business_info: data.businessInfo || {},
           personality: data.personality || {},
@@ -331,26 +333,25 @@ export async function POST(request: NextRequest) {
       }
 
       // Si solo se está actualizando WAHA (sin whatsapp_phone), actualizar policies directamente
-      if ((data.waha_api_url || data.waha_api_key) && data.whatsapp_phone === undefined) {
+      if ((data.waha_api_url || data.waha_api_key || process.env.WAHA_API_URL || process.env.WAHA_API_KEY) && data.whatsapp_phone === undefined) {
         const currentPolicies = existingConfig.policies || {}
-        const updatedPolicies: any = {
-          ...currentPolicies
-        }
+        const resolvedWahaUrl = data.waha_api_url || process.env.WAHA_API_URL || currentPolicies.waha_api_url
+        const resolvedWahaKey = data.waha_api_key || process.env.WAHA_API_KEY || currentPolicies.waha_api_key
         
-        if (data.waha_api_url) {
-          updatedPolicies.waha_api_url = data.waha_api_url
-          updatedPolicies.WAHA_API_URL = data.waha_api_url
-        }
-        if (data.waha_api_key) {
-          updatedPolicies.waha_api_key = data.waha_api_key
-          updatedPolicies.WAHA_API_KEY = data.waha_api_key
+        const updatedPolicies: any = {
+          ...currentPolicies,
+          waha_api_url: resolvedWahaUrl,
+          waha_api_key: resolvedWahaKey,
+          WAHA_API_URL: resolvedWahaUrl,
+          WAHA_API_KEY: resolvedWahaKey
         }
         
         const { error: updateError } = await serviceClient
           .from('ai_agent_config')
           .update({
             policies: updatedPolicies,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            enabled: existingConfig.enabled ?? !!(resolvedWahaUrl || resolvedWahaKey || existingConfig.whatsapp_phone)
           })
           .eq('id', existingConfig.id)
         
@@ -389,8 +390,8 @@ export async function POST(request: NextRequest) {
           data: { 
             id: existingConfig.id, 
             updated: true,
-            waha_api_url: data.waha_api_url,
-            waha_api_key_configured: !!data.waha_api_key,
+            waha_api_url: resolvedWahaUrl,
+            waha_api_key_configured: !!resolvedWahaKey,
             organization_id: tenantContext.organizationId
           }
         })

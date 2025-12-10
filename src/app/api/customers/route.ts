@@ -71,10 +71,12 @@ export async function GET(request: NextRequest) {
       error.code === '42P01' || 
       error.code === 'PGRST301' ||
       error.code === '42703' ||
+      error.code === 'P0001' || // ⚠️ RLS: "Usuario no autenticado"
       error.message.includes('relation') || 
       error.message.includes('does not exist') ||
       error.message.includes('permission denied') ||
-      error.message.includes('RLS')
+      error.message.toLowerCase().includes('rls') ||
+      error.message.toLowerCase().includes('no autenticado')
     )) {
       console.warn('⚠️ [GET /api/customers] Error con vehicles, intentando sin join:', error.message)
       console.log('🔄 [GET /api/customers] Intentando query simple sin join...')
