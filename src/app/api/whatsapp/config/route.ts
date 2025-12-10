@@ -638,9 +638,6 @@ export async function POST(request: NextRequest) {
     // ✅ Generar session_name único para esta organización (multi-tenant)
     const whatsappSessionName = generateWhatsAppSessionName(tenantContext.organizationId)
     
-    // Obtener service client para consultar BD
-    const serviceClient = getSupabaseServiceClient()
-    
     console.log('[Config Save] 📥 Body recibido:', {
       waha_config_type: data.waha_config_type,
       has_custom_url: !!data.waha_api_url,
