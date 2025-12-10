@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Trash2, Plus, Lightbulb, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useSession } from '@/lib/context/SessionContext'
 import { getSupabaseClient } from '@/integrations/whatsapp/utils/supabase-helpers'
 import { toast } from 'sonner'
 
@@ -26,6 +27,8 @@ interface ServicesStepProps {
 
 export function ServicesStep({ data, onChange }: ServicesStepProps) {
   const { organization } = useAuth()
+  const { organizationId, isLoading: sessionLoading } = useSession()
+  const orgId = organizationId || organization?.organization_id || null
   const [services, setServices] = useState<Service[]>(data || [])
 
   useEffect(() => {
@@ -60,7 +63,11 @@ export function ServicesStep({ data, onChange }: ServicesStepProps) {
   }
 
   const importServicesFromSystem = async () => {
-    if (!organization?.organization_id) {
+    if (sessionLoading) {
+      toast.info('Cargando organización, intenta nuevamente en un momento')
+      return
+    }
+    if (!orgId) {
       toast.error('No se encontró la organización')
       return
     }
@@ -75,7 +82,7 @@ export function ServicesStep({ data, onChange }: ServicesStepProps) {
       const { data: servicesData, error: servicesError } = await supabase
         .from('services')
         .select('name, price, duration_minutes, description')
-        .eq('organization_id', organization.organization_id)
+        .eq('organization_id', orgId)
         .limit(20)
 
       if (!servicesError && servicesData) {
@@ -87,7 +94,7 @@ export function ServicesStep({ data, onChange }: ServicesStepProps) {
         const { data: orderItems, error: itemsError } = await supabase
           .from('work_order_items')
           .select('description, price')
-          .eq('organization_id', organization.organization_id)
+          .eq('organization_id', orgId)
           .not('description', 'is', null)
           .limit(20)
 
@@ -119,7 +126,7 @@ export function ServicesStep({ data, onChange }: ServicesStepProps) {
         const { data: inventoryItems, error: invError } = await supabase
           .from('inventory_items')
           .select('name, price, category_id')
-          .eq('organization_id', organization.organization_id)
+          .eq('organization_id', orgId)
           .not('price', 'is', null)
           .limit(20)
 
