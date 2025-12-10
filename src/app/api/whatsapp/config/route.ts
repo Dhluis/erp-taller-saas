@@ -351,18 +351,34 @@ export async function POST(request: NextRequest) {
           } else {
             // Usar servidor compartido (variables de entorno del servidor)
             // Si no vienen credenciales del frontend (porque es 'shared'), obtenerlas del servidor
+            console.log('[Config Save] 🔍 [Nueva Config] Intentando usar variables de entorno del servidor...')
+            console.log('[Config Save] 🔍 [Nueva Config] WAHA_API_URL existe:', !!process.env.WAHA_API_URL)
+            console.log('[Config Save] 🔍 [Nueva Config] WAHA_API_KEY existe:', !!process.env.WAHA_API_KEY)
+            console.log('[Config Save] 🔍 [Nueva Config] Credenciales del frontend:', {
+              has_waha_api_url: !!data.waha_api_url,
+              has_waha_api_key: !!data.waha_api_key
+            })
+            
             wahaApiUrl = data.waha_api_url || process.env.WAHA_API_URL
             wahaApiKey = data.waha_api_key || process.env.WAHA_API_KEY
             
             if (!wahaApiUrl || !wahaApiKey) {
-              console.error('[Config Save] ❌ Variables de entorno WAHA no configuradas en el servidor')
+              console.error('[Config Save] ❌ [Nueva Config] Variables de entorno WAHA no configuradas en el servidor')
+              console.error('[Config Save] ❌ [Nueva Config] Detalles:', {
+                waha_api_url_from_frontend: !!data.waha_api_url,
+                waha_api_key_from_frontend: !!data.waha_api_key,
+                WAHA_API_URL_from_env: !!process.env.WAHA_API_URL,
+                WAHA_API_KEY_from_env: !!process.env.WAHA_API_KEY
+              })
               return NextResponse.json({
                 success: false,
-                error: 'Servidor compartido no configurado. Contacta al administrador o configura credenciales personalizadas.'
+                error: 'Servidor compartido no configurado. Las variables de entorno WAHA_API_URL y WAHA_API_KEY no están disponibles.'
               }, { status: 500 })
             }
             
-            console.log('[Config Save] ✅ Usando credenciales del servidor compartido (process.env)')
+            console.log('[Config Save] ✅ [Nueva Config] Usando credenciales del servidor (shared)')
+            console.log('[Config Save] 📍 [Nueva Config] URL:', wahaApiUrl?.substring(0, 30) + '...')
+            console.log('[Config Save] 📍 [Nueva Config] Key preview:', wahaApiKey ? '***' + wahaApiKey.slice(-4) : 'undefined')
           }
           
           const newConfigData: any = {
@@ -627,19 +643,35 @@ export async function POST(request: NextRequest) {
     } else {
       // Usar servidor compartido (variables de entorno del servidor)
       // Si no vienen credenciales del frontend (porque es 'shared'), obtenerlas del servidor
+      console.log('[Config Save] 🔍 Intentando usar variables de entorno del servidor...')
+      console.log('[Config Save] 🔍 WAHA_API_URL existe:', !!process.env.WAHA_API_URL)
+      console.log('[Config Save] 🔍 WAHA_API_KEY existe:', !!process.env.WAHA_API_KEY)
+      console.log('[Config Save] 🔍 Credenciales del frontend:', {
+        has_waha_api_url: !!data.waha_api_url,
+        has_waha_api_key: !!data.waha_api_key
+      })
+      
       wahaApiUrl = data.waha_api_url || process.env.WAHA_API_URL
       wahaApiKey = data.waha_api_key || process.env.WAHA_API_KEY
       
       // Validar que existan las variables de entorno para servidor compartido
       if (!wahaApiUrl || !wahaApiKey) {
         console.error('[Config Save] ❌ Variables de entorno WAHA no configuradas en el servidor')
+        console.error('[Config Save] ❌ Detalles:', {
+          waha_api_url_from_frontend: !!data.waha_api_url,
+          waha_api_key_from_frontend: !!data.waha_api_key,
+          WAHA_API_URL_from_env: !!process.env.WAHA_API_URL,
+          WAHA_API_KEY_from_env: !!process.env.WAHA_API_KEY
+        })
         return NextResponse.json({
           success: false,
-          error: 'Servidor compartido no configurado. Contacta al administrador o configura credenciales personalizadas.'
+          error: 'Servidor compartido no configurado. Las variables de entorno WAHA_API_URL y WAHA_API_KEY no están disponibles.'
         }, { status: 500 })
       }
       
-      console.log('[Config Save] ✅ Usando credenciales del servidor compartido (process.env)')
+      console.log('[Config Save] ✅ Usando credenciales del servidor (shared)')
+      console.log('[Config Save] 📍 URL:', wahaApiUrl?.substring(0, 30) + '...')
+      console.log('[Config Save] 📍 Key preview:', wahaApiKey ? '***' + wahaApiKey.slice(-4) : 'undefined')
     }
     
     // ✅ Incluir credenciales de WAHA en policies
