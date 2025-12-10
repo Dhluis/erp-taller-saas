@@ -594,6 +594,16 @@ export async function POST(request: NextRequest) {
     // ✅ Generar session_name único para esta organización (multi-tenant)
     const whatsappSessionName = generateWhatsAppSessionName(tenantContext.organizationId)
     
+    // 🔍 Log de datos recibidos del frontend
+    console.log('[Config Save] 📥 Datos recibidos del frontend:', {
+      has_waha_config_type: !!data.waha_config_type,
+      waha_config_type: data.waha_config_type,
+      has_waha_api_url: !!data.waha_api_url,
+      has_waha_api_key: !!data.waha_api_key,
+      waha_url_preview: data.waha_api_url ? data.waha_api_url.substring(0, 30) + '...' : 'undefined',
+      waha_key_preview: data.waha_api_key ? '***' + data.waha_api_key.slice(-4) : 'undefined'
+    })
+    
     // ✅ Obtener credenciales de WAHA según el tipo elegido (OPCIÓN A - Multi-tenant flexible)
     const wahaConfigType = data.waha_config_type || 'shared'
     let wahaApiUrl: string | undefined
@@ -629,6 +639,16 @@ export async function POST(request: NextRequest) {
     policiesWithExtras.waha_api_key = wahaApiKey
     policiesWithExtras.WAHA_API_URL = wahaApiUrl // Compatibilidad mayúsculas
     policiesWithExtras.WAHA_API_KEY = wahaApiKey // Compatibilidad mayúsculas
+    
+    // 🔍 Log detallado de las credenciales que se guardarán
+    console.log('[Config Save] 🔐 Credenciales WAHA que se guardarán en policies:', {
+      waha_config_type: wahaConfigType,
+      has_waha_api_url: !!wahaApiUrl,
+      has_waha_api_key: !!wahaApiKey,
+      waha_url_preview: wahaApiUrl ? wahaApiUrl.substring(0, 30) + '...' : 'undefined',
+      waha_key_preview: wahaApiKey ? '***' + wahaApiKey.slice(-4) : 'undefined',
+      source: wahaConfigType === 'custom' ? 'formulario' : 'process.env'
+    })
     
     const configData = {
       organization_id: tenantContext.organizationId,
@@ -683,11 +703,24 @@ export async function POST(request: NextRequest) {
         console.log('[Config Save] ✅ Generando nuevo session_name:', configData.whatsapp_session_name)
       }
       
-      // ✅ Preservar waha_config_type existente si no se está cambiando
+      // ✅ Preservar waha_config_type y credenciales existentes si no se están cambiando
       const existingPolicies = existingFullConfig?.policies as any
       if (existingPolicies?.waha_config_type && !data.waha_config_type) {
         policiesWithExtras.waha_config_type = existingPolicies.waha_config_type
-        console.log('[Config Save] ✅ Preservando waha_config_type existente:', existingPolicies.waha_config_type)
+        // Si no se están enviando nuevas credenciales, preservar las existentes
+        if (!data.waha_api_url && existingPolicies.waha_api_url) {
+          policiesWithExtras.waha_api_url = existingPolicies.waha_api_url
+          wahaApiUrl = existingPolicies.waha_api_url
+        }
+        if (!data.waha_api_key && existingPolicies.waha_api_key) {
+          policiesWithExtras.waha_api_key = existingPolicies.waha_api_key
+          wahaApiKey = existingPolicies.waha_api_key
+        }
+        console.log('[Config Save] ✅ Preservando configuración WAHA existente:', {
+          waha_config_type: existingPolicies.waha_config_type,
+          has_waha_api_url: !!policiesWithExtras.waha_api_url,
+          has_waha_api_key: !!policiesWithExtras.waha_api_key
+        })
       }
       
       const { error } = await serviceClient
@@ -711,6 +744,24 @@ export async function POST(request: NextRequest) {
       }
 
       console.log('[Config Save] ✅ Configuración actualizada exitosamente')
+      
+      // 🔍 Verificar que las credenciales se guardaron correctamente
+      const { data: savedConfig } = await serviceClient
+        .from('ai_agent_config')
+        .select('policies')
+        .eq('id', existingConfig.id)
+        .single()
+      
+      if (savedConfig?.policies) {
+        const savedPolicies = savedConfig.policies as any
+        console.log('[Config Save] ✅ Verificación post-guardado:', {
+          waha_config_type: savedPolicies.waha_config_type,
+          has_waha_api_url: !!savedPolicies.waha_api_url,
+          has_waha_api_key: !!savedPolicies.waha_api_key,
+          waha_url_preview: savedPolicies.waha_api_url ? savedPolicies.waha_api_url.substring(0, 30) + '...' : 'undefined'
+        })
+      }
+      
       result = { id: existingConfig.id, updated: true }
     } else {
       const { data: newConfig, error } = await serviceClient
@@ -735,6 +786,26 @@ export async function POST(request: NextRequest) {
       }
 
       console.log('[Config Save] ✅ Configuración creada exitosamente')
+      
+      // 🔍 Verificar que las credenciales se guardaron correctamente
+      if (newConfig?.id) {
+        const { data: savedConfig } = await serviceClient
+          .from('ai_agent_config')
+          .select('policies')
+          .eq('id', newConfig.id)
+          .single()
+        
+        if (savedConfig?.policies) {
+          const savedPolicies = savedConfig.policies as any
+          console.log('[Config Save] ✅ Verificación post-creación:', {
+            waha_config_type: savedPolicies.waha_config_type,
+            has_waha_api_url: !!savedPolicies.waha_api_url,
+            has_waha_api_key: !!savedPolicies.waha_api_key,
+            waha_url_preview: savedPolicies.waha_api_url ? savedPolicies.waha_api_url.substring(0, 30) + '...' : 'undefined'
+          })
+        }
+      }
+      
       result = { id: newConfig.id, created: true }
     }
 

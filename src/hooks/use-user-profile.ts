@@ -71,9 +71,9 @@ export function useUserProfile() {
           ...profileData,
           updated_at: new Date().toISOString()
         }
-        setProfile(updatedProfile)
+      setProfile(updatedProfile)
         console.log('✅ Perfil actualizado localmente (no persistido en DB)')
-        return updatedProfile
+      return updatedProfile
       }
       throw new Error('No hay perfil cargado para actualizar')
     } catch (err) {
