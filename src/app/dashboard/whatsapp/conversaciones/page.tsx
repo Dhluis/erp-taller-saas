@@ -180,18 +180,6 @@ export default function ConversacionesPage() {
     setEmojiPickerOpen(false)
   }
 
-  // ⏳ Mostrar loader mientras se carga la sesión/organizationId (evita errores al refrescar)
-  if (sessionLoading || !sessionReady || !organizationId) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center space-y-3">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
-          <p className="text-muted-foreground">Cargando conversaciones...</p>
-        </div>
-      </div>
-    )
-  }
-
   // Estado de conversaciones y mensajes reales
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [messages, setMessages] = useState<Message[]>([])
@@ -200,6 +188,7 @@ export default function ConversacionesPage() {
 
   const selectedConv = conversations.find(c => c.id === selectedConversation)
   const isResolved = selectedConv?.status === 'resolved'
+  const isSessionLoadingUI = sessionLoading || !sessionReady || !organizationId
 
   // Función para formatear tiempo relativo
   const formatRelativeTime = (date: Date | string): string => {
@@ -1303,7 +1292,14 @@ export default function ConversacionesPage() {
     loadAgents()
   }, [organizationId, supabase])
 
-  return (
+  return isSessionLoadingUI ? (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="text-center space-y-3">
+        <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
+        <p className="text-muted-foreground">Cargando conversaciones...</p>
+      </div>
+    </div>
+  ) : (
     <div className={cn(
       "min-h-screen transition-colors duration-300",
       darkMode ? "bg-[#0A0E1A] text-white" : "bg-gray-50 text-gray-900"
