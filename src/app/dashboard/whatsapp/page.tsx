@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from '@/lib/context/SessionContext'
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
@@ -15,6 +15,8 @@ export default function WhatsAppPage() {
   const router = useRouter()
   const [config, setConfig] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const hasLoadedRef = useRef(false) // Ref para evitar recargas múltiples
+  const configLoadedRef = useRef<string | null>(null) // Ref para trackear qué config se cargó
 
   console.log('[WhatsApp Page] 🔍 useSession hook:', {
     organizationId,
@@ -48,6 +50,7 @@ export default function WhatsAppPage() {
       if (!response.ok) {
         console.error('[WhatsApp Page] ❌ Error HTTP:', response.status, response.statusText)
         setConfig(null)
+        configLoadedRef.current = null // Reset ref en caso de error HTTP
         setLoading(false)
         return
       }
@@ -106,10 +109,18 @@ export default function WhatsAppPage() {
           console.log('[WhatsApp Page] 🔧 Configuración detectada, estableciendo enabled=true')
         }
         
-        setConfig(configData)
-        console.log('[WhatsApp Page] ✅ Configuración establecida en estado, enabled:', configData.enabled)
+        // Solo actualizar si los datos realmente cambiaron
+        const configId = configData.id
+        if (configId !== configLoadedRef.current) {
+          setConfig(configData)
+          configLoadedRef.current = configId
+          console.log('[WhatsApp Page] ✅ Configuración establecida en estado, enabled:', configData.enabled)
+        } else {
+          console.log('[WhatsApp Page] ⏭️ Configuración sin cambios, omitiendo actualización')
+        }
       } else {
         setConfig(null)
+        configLoadedRef.current = null // Reset ref cuando no hay config
         console.log('[WhatsApp Page] ⚠️ No hay configuración disponible (result.data es null o undefined)')
         console.log('[WhatsApp Page] ⚠️ Detalles:', {
           success: result.success,
@@ -120,30 +131,37 @@ export default function WhatsAppPage() {
     } catch (error) {
       console.error('[WhatsApp Page] ❌ Error cargando configuración:', error)
       setConfig(null)
+      configLoadedRef.current = null // Reset ref en caso de error
     } finally {
       setLoading(false)
       console.log('[WhatsApp Page] ✅ Carga completada, loading=false')
     }
   }, [organizationId])
 
-  // ✅ AHORA SÍ usar loadConfig en useEffect (después de definirlo)
+  // ✅ Cargar configuración SOLO cuando organizationId cambia (NO incluir loadConfig en dependencias)
   useEffect(() => {
     console.log('[WhatsApp Page] 🔄 useEffect triggered:', {
       organizationId,
       isLoading: sessionLoading,
-      shouldLoad: !sessionLoading && !!organizationId
+      hasLoaded: hasLoadedRef.current,
+      shouldLoad: !sessionLoading && !!organizationId && !hasLoadedRef.current
     })
     
-    // Solo cargar si NO está cargando Y hay organizationId
-    if (!sessionLoading && organizationId) {
-      console.log('[WhatsApp Page] ✅ Llamando a loadConfig()')
+    // Solo cargar si NO está cargando Y hay organizationId Y no se ha cargado antes
+    if (!sessionLoading && organizationId && !hasLoadedRef.current) {
+      console.log('[WhatsApp Page] ✅ Llamando a loadConfig() - primera carga')
+      hasLoadedRef.current = true
       loadConfig()
     } else if (sessionLoading) {
       console.log('[WhatsApp Page] ⏳ Sesión cargando...')
-    } else {
+      hasLoadedRef.current = false // Reset mientras carga
+    } else if (!organizationId) {
       console.log('[WhatsApp Page] ⚠️ Sin organizationId después de cargar')
+      hasLoadedRef.current = false // Reset si se pierde organizationId
+      configLoadedRef.current = null
     }
-  }, [loadConfig, organizationId, sessionLoading])
+    // NO incluir loadConfig en dependencias para evitar loops
+  }, [organizationId, sessionLoading]) // ✅ Solo organizationId y sessionLoading
 
   // 🔍 Log de debugging del estado actual
   useEffect(() => {
@@ -175,24 +193,27 @@ export default function WhatsAppPage() {
   }, [config, organizationId, loading, sessionLoading])
 
   // ✅ Recargar cuando se regresa de otra página (focus + visibilitychange)
+  // Usar useRef para evitar re-registrar listeners constantemente
+  const loadConfigRef = useRef(loadConfig)
   useEffect(() => {
+    loadConfigRef.current = loadConfig
+  }, [loadConfig])
+
+  useEffect(() => {
+    if (!organizationId) return
+
     const handleFocus = () => {
-      // Solo recargar si ya tenemos organization
-      if (organizationId) {
-        console.log('[WhatsApp] 🔄 Ventana enfocada, recargando configuración...')
-        // Pequeño delay para asegurar que la BD se actualizó
-        setTimeout(() => {
-          loadConfig()
-        }, 500)
-      }
+      console.log('[WhatsApp] 🔄 Ventana enfocada, recargando configuración...')
+      setTimeout(() => {
+        loadConfigRef.current()
+      }, 500)
     }
     
     const handleVisibilityChange = () => {
-      // Cuando la página se vuelve visible (usuario regresa de otra pestaña/página)
-      if (document.visibilityState === 'visible' && organizationId) {
+      if (document.visibilityState === 'visible') {
         console.log('[WhatsApp] 🔄 Página visible, recargando configuración...')
         setTimeout(() => {
-          loadConfig()
+          loadConfigRef.current()
         }, 500)
       }
     }
@@ -204,26 +225,20 @@ export default function WhatsAppPage() {
       window.removeEventListener('focus', handleFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [loadConfig, organizationId])
+  }, [organizationId]) // ✅ Solo organizationId, NO loadConfig
 
-  // Polling periódico para detectar cuando WhatsApp se conecta
-  useEffect(() => {
-    // No hacer polling si la sesión está cargando o no hay organizationId
-    if (sessionLoading || !organizationId) return
-
-    // Verificar cada 5 segundos si WhatsApp se conectó
-    const pollingInterval = setInterval(() => {
-      // Solo hacer polling si no hay configuración de WhatsApp o si no está conectado
-      const needsUpdate = !config?.whatsapp_phone || !config?.whatsapp_connected
-      
-      if (needsUpdate) {
-        console.log('[WhatsApp] 🔄 Polling: Verificando estado de conexión...')
-        loadConfig()
-      }
-    }, 5000) // Cada 5 segundos
-
-    return () => clearInterval(pollingInterval)
-  }, [organizationId, sessionLoading, config?.whatsapp_phone, config?.whatsapp_connected, loadConfig])
+  // ❌ POLLING DESHABILITADO - Causaba loop infinito de recargas
+  // El polling se puede reactivar manualmente cuando el usuario necesite verificar conexión
+  // useEffect(() => {
+  //   if (sessionLoading || !organizationId) return
+  //   const pollingInterval = setInterval(() => {
+  //     const needsUpdate = !config?.whatsapp_phone || !config?.whatsapp_connected
+  //     if (needsUpdate) {
+  //       loadConfig()
+  //     }
+  //   }, 5000)
+  //   return () => clearInterval(pollingInterval)
+  // }, [organizationId, sessionLoading, config?.whatsapp_phone, config?.whatsapp_connected, loadConfig])
 
   // Escuchar eventos personalizados de conexión de WhatsApp
   useEffect(() => {
@@ -231,27 +246,31 @@ export default function WhatsAppPage() {
       console.log('[WhatsApp] 🔔 Evento de conexión recibido, recargando configuración...')
       // Esperar un poco para que el backend actualice
       setTimeout(() => {
-        loadConfig()
+        loadConfigRef.current()
       }, 2000)
     }
 
     window.addEventListener('whatsapp:connected', handleWhatsAppConnected)
     return () => window.removeEventListener('whatsapp:connected', handleWhatsAppConnected)
-  }, [loadConfig])
+  }, []) // ✅ Sin dependencias - se registra una sola vez
 
   // ✅ Escuchar evento cuando se guarda la configuración del AI Agent
   useEffect(() => {
     const handleConfigSaved = () => {
       console.log('[WhatsApp] 🔔 Evento de configuración guardada recibido, recargando...')
+      // Resetear los refs para permitir recarga
+      hasLoadedRef.current = false
+      configLoadedRef.current = null
       // Esperar un poco para que el backend actualice
       setTimeout(() => {
-        loadConfig()
+        loadConfigRef.current()
+        hasLoadedRef.current = true
       }, 1000)
     }
 
     window.addEventListener('ai-agent:config-saved', handleConfigSaved)
     return () => window.removeEventListener('ai-agent:config-saved', handleConfigSaved)
-  }, [loadConfig])
+  }, []) // ✅ Sin dependencias - se registra una sola vez
 
   const handleTrainAgent = () => {
     router.push('/dashboard/whatsapp/train-agent')
