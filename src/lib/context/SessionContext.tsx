@@ -27,10 +27,10 @@ interface SessionContextType extends SessionState {
 const SessionContext = createContext<SessionContextType | null>(null)
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  // 🔥 DEPLOYMENT TRACKER: v4.2.7 - 2025-12-09-06:05 - WAHA defaults per org (touch)
-  console.log('🚀 [Session] VERSION 4.2.7 - WAHA resilience + workshop_id + ai_agent_config auto-create + customers fallback + WAHA defaults/env')
-  console.log('📦 [Session] Deployment timestamp: 2025-12-09T06:05:00Z')
-  console.log('🔧 [Session] Fix: /api/customers fallback + WAHA usa env por defecto si faltan credenciales (touch)')
+  // 🔥 DEPLOYMENT TRACKER: v4.2.8 - 2025-12-09-06:15 - WAHA config fallback from DB
+  console.log('🚀 [Session] VERSION 4.2.8 - WAHA resilience + workshop_id + ai_agent_config auto-create + customers fallback + WAHA defaults/env + check-connection lee policies')
+  console.log('📦 [Session] Deployment timestamp: 2025-12-09T06:15:00Z')
+  console.log('🔧 [Session] Fix: check-connection usa env y policies si faltan vars')
   
   const initialState: SessionState = {
     user: null,

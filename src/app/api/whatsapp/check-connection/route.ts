@@ -32,14 +32,32 @@ export async function POST(request: NextRequest) {
 
     console.log('[Check Connection] ✅ Organization ID:', organizationId);
 
-    const WAHA_URL = process.env.WAHA_API_URL;
-    const WAHA_KEY = process.env.WAHA_API_KEY;
+    let WAHA_URL = process.env.WAHA_API_URL;
+    let WAHA_KEY = process.env.WAHA_API_KEY;
+
+    // Si no hay env vars, intentar cargar de la configuración guardada en BD
+    if (!WAHA_URL || !WAHA_KEY) {
+      try {
+        const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
+        const supabase = getSupabaseServiceClient();
+        const { data: cfg } = await supabase
+          .from('ai_agent_config')
+          .select('policies')
+          .eq('organization_id', organizationId)
+          .single();
+        const policies = (cfg?.policies as any) || {};
+        WAHA_URL = WAHA_URL || policies.waha_api_url || policies.WAHA_API_URL;
+        WAHA_KEY = WAHA_KEY || policies.waha_api_key || policies.WAHA_API_KEY;
+      } catch (cfgErr: any) {
+        console.warn('[Check Connection] ⚠️ No se pudo leer configuración WAHA de BD:', cfgErr?.message);
+      }
+    }
 
     if (!WAHA_URL || !WAHA_KEY) {
-      console.error('[Check Connection] ❌ Variables de entorno faltantes');
+      console.error('[Check Connection] ❌ Variables de entorno faltantes y sin fallback en BD');
       return NextResponse.json({
         success: false,
-        error: 'Variables de entorno no configuradas'
+        error: 'WAHA no configurado: faltan WAHA_API_URL / WAHA_API_KEY (ni env ni policies)'
       }, { status: 500 });
     }
 
