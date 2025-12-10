@@ -215,11 +215,13 @@ export default function ConversacionesPage() {
     
     // Usar SOLO organizationId del contexto (más confiable)
     if (!organizationId) {
+      if (sessionLoading || !sessionReady) {
+        console.log('⏳ [loadConversations] Esperando organizationId (sesión en carga)...')
+        return
+      }
       console.warn('⚠️ [loadConversations] No hay organizationId disponible')
-      console.warn('⚠️ [loadConversations] organizationId:', organizationId)
-      console.warn('⚠️ [loadConversations] sessionLoading:', sessionLoading)
-      console.warn('⚠️ [loadConversations] sessionReady:', sessionReady)
       setLoadingConversations(false)
+      toast.error('No se encontró la organización')
       return
     }
 
@@ -408,8 +410,17 @@ export default function ConversacionesPage() {
 
   // Cargar mensajes de una conversación
   const loadMessages = useCallback(async (conversationId: string) => {
-    if (!conversationId || !organizationId) {
-      console.warn('⚠️ [loadMessages] No hay conversationId o organizationId')
+    if (!conversationId) {
+      console.warn('⚠️ [loadMessages] No hay conversationId')
+      return
+    }
+    if (!organizationId) {
+      if (sessionLoading || !sessionReady) {
+        console.log('⏳ [loadMessages] Esperando organizationId (sesión en carga)...')
+        return
+      }
+      console.warn('⚠️ [loadMessages] No hay organizationId disponible')
+      toast.error('No se encontró la organización')
       return
     }
 
@@ -732,6 +743,15 @@ export default function ConversacionesPage() {
   // Funciones de mensajes
   const sendMessage = async () => {
     if (!messageText.trim() || !selectedConversation) return
+
+    if (!organizationId) {
+      if (sessionLoading || !sessionReady) {
+        toast.info('Cargando organización, intenta en unos segundos')
+        return
+      }
+      toast.error('No se encontró la organización')
+      return
+    }
 
     const messageToSend = messageText
     const isInternalNote = activeTab === 'Nota'
