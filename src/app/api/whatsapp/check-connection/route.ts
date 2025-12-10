@@ -57,20 +57,25 @@ export async function POST(request: NextRequest) {
       });
     } catch (fetchError: any) {
       console.error('[Check Connection] ❌ Error fetch a WAHA:', fetchError.message);
-      return NextResponse.json({
-        success: false,
-        error: `WAHA no responde: ${fetchError.message}`,
-        hint: 'Verifica WAHA_API_URL/WAHA_API_KEY y conectividad'
-      }, { status: 503 });
-    }
-
-    if (!statusResponse.ok) {
-      console.log('[Check Connection] Sesión no encontrada en WAHA (status:', statusResponse.status, ')');
+      // No romper el front: responder 200 con estado pendiente
       return NextResponse.json({
         success: true,
         connected: false,
-        status: 'NOT_FOUND',
-        message: 'Sesión no encontrada en WAHA'
+        status: 'PENDING',
+        message: 'WAHA no respondió, reintenta en unos segundos'
+      });
+    }
+
+    if (!statusResponse.ok) {
+      console.log('[Check Connection] Sesión no encontrada o error en WAHA (status:', statusResponse.status, ')');
+      const isServerError = statusResponse.status >= 500;
+      return NextResponse.json({
+        success: true,
+        connected: false,
+        status: isServerError ? 'PENDING' : 'NOT_FOUND',
+        message: isServerError
+          ? 'WAHA respondió con error temporal. Reintenta en unos segundos.'
+          : 'Sesión no encontrada en WAHA'
       });
     }
 

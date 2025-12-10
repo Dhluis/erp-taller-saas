@@ -27,10 +27,10 @@ interface SessionContextType extends SessionState {
 const SessionContext = createContext<SessionContextType | null>(null)
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  // 🔥 DEPLOYMENT TRACKER: v4.2.3 - 2025-12-09-05:25 - Auto-create ai_agent_config
-  console.log('🚀 [Session] VERSION 4.2.3 - WAHA resilience + workshop_id + ai_agent_config auto-create')
-  console.log('📦 [Session] Deployment timestamp: 2025-12-09T05:25:00Z')
-  console.log('🔧 [Session] Fix: vehicles con workshop_id + manejo 503 WAHA + crear config bot si falta')
+  // 🔥 DEPLOYMENT TRACKER: v4.2.4 - 2025-12-09-05:35 - WAHA 200 on errors
+  console.log('🚀 [Session] VERSION 4.2.4 - WAHA resilience (200 en check-connection) + workshop_id + ai_agent_config auto-create')
+  console.log('📦 [Session] Deployment timestamp: 2025-12-09T05:35:00Z')
+  console.log('🔧 [Session] Fix: check-connection responde 200 en fallos WAHA')
   
   const initialState: SessionState = {
     user: null,
