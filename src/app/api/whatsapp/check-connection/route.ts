@@ -32,36 +32,15 @@ export async function POST(request: NextRequest) {
 
     console.log('[Check Connection] ✅ Organization ID:', organizationId);
 
-    let WAHA_URL = process.env.WAHA_API_URL;
-    let WAHA_KEY = process.env.WAHA_API_KEY;
-
-    // Si no hay env vars, intentar cargar de la configuración guardada en BD
-    if (!WAHA_URL || !WAHA_KEY) {
-      try {
-        const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
-        const supabase = getSupabaseServiceClient();
-        const { data: cfg } = await supabase
-          .from('ai_agent_config')
-          .select('policies')
-          .eq('organization_id', organizationId)
-          .single();
-        const policies = (cfg?.policies as any) || {};
-        WAHA_URL = WAHA_URL || policies.waha_api_url || policies.WAHA_API_URL;
-        WAHA_KEY = WAHA_KEY || policies.waha_api_key || policies.WAHA_API_KEY;
-      } catch (cfgErr: any) {
-        console.warn('[Check Connection] ⚠️ No se pudo leer configuración WAHA de BD:', cfgErr?.message);
-      }
-    }
+    const WAHA_URL = process.env.WAHA_API_URL;
+    const WAHA_KEY = process.env.WAHA_API_KEY;
 
     if (!WAHA_URL || !WAHA_KEY) {
-      console.error('[Check Connection] ❌ WAHA no configurado: faltan WAHA_API_URL / WAHA_API_KEY (ni env ni policies)');
-      // No romper el flujo: responder 200 con estado pendiente para no cortar el frontend
+      console.error('[Check Connection] ❌ Variables de entorno faltantes');
       return NextResponse.json({
-        success: true,
-        connected: false,
-        status: 'PENDING',
-        message: 'WAHA no configurado (sin URL/API key en env ni en configuración). Completa la config en WhatsApp.'
-      });
+        success: false,
+        error: 'Variables de entorno no configuradas'
+      }, { status: 500 });
     }
 
     // Generar nombre de sesión
@@ -78,25 +57,19 @@ export async function POST(request: NextRequest) {
       });
     } catch (fetchError: any) {
       console.error('[Check Connection] ❌ Error fetch a WAHA:', fetchError.message);
-      // No romper el front: responder 200 con estado pendiente
       return NextResponse.json({
-        success: true,
-        connected: false,
-        status: 'PENDING',
-        message: 'WAHA no respondió, reintenta en unos segundos'
-      });
+        success: false,
+        error: `Error conectando a WAHA: ${fetchError.message}`
+      }, { status: 500 });
     }
 
     if (!statusResponse.ok) {
-      console.log('[Check Connection] Sesión no encontrada o error en WAHA (status:', statusResponse.status, ')');
-      const isServerError = statusResponse.status >= 500;
+      console.log('[Check Connection] Sesión no encontrada en WAHA (status:', statusResponse.status, ')');
       return NextResponse.json({
         success: true,
         connected: false,
-        status: isServerError ? 'PENDING' : 'NOT_FOUND',
-        message: isServerError
-          ? 'WAHA respondió con error temporal. Reintenta en unos segundos.'
-          : 'Sesión no encontrada en WAHA'
+        status: 'NOT_FOUND',
+        message: 'Sesión no encontrada en WAHA'
       });
     }
 

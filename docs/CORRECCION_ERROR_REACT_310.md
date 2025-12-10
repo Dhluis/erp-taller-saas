@@ -98,3 +98,5 @@ WHERE au.email = 'TU_EMAIL_AQUI';
 ---
 
 **El error React #310 debería estar corregido.** El problema restante es diagnosticar por qué falla `supabase.auth.getUser()`.
+
+

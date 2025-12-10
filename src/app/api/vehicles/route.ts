@@ -4,7 +4,6 @@ import {
   createVehicle,
   searchVehicles,
 } from '@/lib/database/queries/vehicles';
-import { getOrganizationId } from '@/lib/auth/organization-server';
 
 /**
  * @swagger
@@ -68,15 +67,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
 
-    // ✅ Obtener organizationId del usuario autenticado
-    const organizationId = await getOrganizationId(request);
-
     let vehicles;
     
     if (search) {
-      vehicles = await searchVehicles(search, organizationId);
+      vehicles = await searchVehicles(search);
     } else {
-      vehicles = await getAllVehicles(organizationId);
+      vehicles = await getAllVehicles();
     }
 
     return NextResponse.json({
@@ -101,9 +97,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-
-    // ✅ Obtener organizationId del usuario autenticado
-    const organizationId = await getOrganizationId(request);
 
     // Validaciones básicas
     if (!body.customer_id || !body.brand || !body.model) {
@@ -130,7 +123,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const vehicle = await createVehicle(body, organizationId);
+    const vehicle = await createVehicle(body);
 
     return NextResponse.json(
       {

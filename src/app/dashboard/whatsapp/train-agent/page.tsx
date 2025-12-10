@@ -14,13 +14,11 @@ import { PreviewTestStep } from './components/PreviewTestStep'
 import { AppointmentSchedulingStep } from './components/AppointmentSchedulingStep'
 import { WhatsAppQRConnectorSimple as WhatsAppQRConnector } from '@/components/WhatsAppQRConnectorSimple'
 import { useAuth } from '@/hooks/useAuth'
-import { useSession } from '@/lib/context/SessionContext'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
 export default function TrainAgentPage() {
   const { organization } = useAuth()
-  const { organizationId, isLoading: sessionLoading } = useSession()
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -79,11 +77,7 @@ export default function TrainAgentPage() {
   })
 
   const handleSave = async () => {
-    if (sessionLoading) {
-      toast.info('Cargando organización, intenta de nuevo en un momento')
-      return
-    }
-    if (!organizationId) {
+    if (!organization?.organization_id) {
       toast.error('No se encontró la organización')
       return
     }

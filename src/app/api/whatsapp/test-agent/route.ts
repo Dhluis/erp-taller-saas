@@ -8,6 +8,7 @@
  * GET: Health check del servicio
  */
 
+import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/integrations/whatsapp/utils/supabase-server-helpers';
 import { processMessage } from '@/integrations/whatsapp/services/ai-agent';
@@ -181,8 +182,8 @@ export async function POST(request: NextRequest) {
 
       if (convError || !tempConversation) {
         console.error('⚠️ No se pudo crear conversación temporal, usando conversación virtual');
-        // Usar un ID temporal para la prueba
-        finalConversationId = `test-${Date.now()}`;
+        // Usar un UUID temporal válido para la prueba
+        finalConversationId = randomUUID();
       } else {
         finalConversationId = tempConversation.id;
         console.log('📝 Conversación temporal creada:', finalConversationId);

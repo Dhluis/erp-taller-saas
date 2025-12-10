@@ -213,3 +213,5 @@ FROM pg_policies
 WHERE schemaname = 'public' 
   AND tablename = 'organizations'
 ORDER BY policyname;
+
+

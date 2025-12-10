@@ -57,6 +57,18 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // Mostrar loading mientras carga la sesión (el layout maneja redirecciones)
+  if (sessionLoading || !organizationId) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin text-cyan-500 mx-auto" />
+          <p className="text-slate-400">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Función para cargar datos de órdenes por estado
   const loadOrdersByStatus = useCallback(async () => {
     // ✅ No cargar si no hay organizationId o está cargando
@@ -177,29 +189,17 @@ export default function DashboardPage() {
     }
   }, [dateRange, customDateRange, organizationId, sessionLoading]);
 
-  // Handler para cuando se crea una nueva orden
-  const handleOrderCreated = useCallback(() => {
-    console.log('✅ Nueva orden creada desde el modal');
-    loadOrdersByStatus(); // Recargar estadísticas
-    router.refresh(); // Refrescar la página
-  }, [loadOrdersByStatus, router]);
-
   // Cargar datos al montar el componente y cuando cambia el filtro de fecha o las fechas personalizadas
   useEffect(() => {
     loadOrdersByStatus();
   }, [loadOrdersByStatus]);
 
-  // Mostrar loading mientras carga la sesión (el layout maneja redirecciones)
-  if (sessionLoading || !organizationId) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-900">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-8 h-8 animate-spin text-cyan-500 mx-auto" />
-          <p className="text-slate-400">Cargando...</p>
-        </div>
-      </div>
-    );
-  }
+  // Handler para cuando se crea una nueva orden
+  const handleOrderCreated = () => {
+    console.log('✅ Nueva orden creada desde el modal');
+    loadOrdersByStatus(); // Recargar estadísticas
+    router.refresh(); // Refrescar la página
+  };
   
   // Calcular estadísticas dinámicamente de ordersByStatus
   const totalOrdenes = ordersByStatus.reduce((sum, item) => sum + item.value, 0);

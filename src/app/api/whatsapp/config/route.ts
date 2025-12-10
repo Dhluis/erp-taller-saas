@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/integrations/whatsapp/utils/supabase-server-helpers'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
@@ -175,12 +176,42 @@ export async function POST(request: NextRequest) {
         // ✅ AHORA: Procesar el mensaje de prueba
         // Usar un pequeño delay adicional para asegurar que la configuración esté disponible
         await new Promise(resolve => setTimeout(resolve, 300))
+
+        // Crear conversación real para usar un UUID válido en el historial
+        const testPhone = data.customerPhone || '+521234567890'
+        let conversationIdForTest: string | null = null
+        try {
+          const nowIso = new Date().toISOString()
+          const { data: tempConversation, error: convError } = await serviceClient
+            .from('whatsapp_conversations')
+            .insert({
+              organization_id: organizationId,
+              customer_phone: testPhone,
+              customer_name: data.customerName || 'Cliente de Prueba',
+              status: 'active',
+              is_bot_active: true,
+              messages_count: 0,
+              created_at: nowIso,
+              last_message_at: nowIso
+            })
+            .select('id')
+            .single()
+
+          if (convError || !tempConversation) {
+            console.warn('[Config Test] ⚠️ No se pudo crear conversación de prueba, se usará UUID virtual', convError?.message)
+          } else {
+            conversationIdForTest = tempConversation.id
+            console.log('[Config Test] 📝 Conversación de prueba creada:', conversationIdForTest)
+          }
+        } catch (convException) {
+          console.warn('[Config Test] ⚠️ Excepción creando conversación de prueba, se usará UUID virtual:', convException)
+        }
         
         const result = await processMessage({
-          conversationId: `test-${Date.now()}`,
+          conversationId: conversationIdForTest || randomUUID(),
           organizationId,
           customerMessage: data.message,
-          customerPhone: '+521234567890',
+          customerPhone: testPhone,
           skipBusinessHoursCheck: true,
           useServiceClient: true // ✅ Indicar que use service client para leer la config
         })
@@ -286,72 +317,76 @@ export async function POST(request: NextRequest) {
       }
 
       if (!existingConfig) {
-        // Crear configuración básica aunque no vengan waha_api_url/whatsapp_phone,
-        // para evitar “organización no encontrada” al entrenar.
-        const resolvedWahaUrl = data.waha_api_url || process.env.WAHA_API_URL
-        const resolvedWahaKey = data.waha_api_key || process.env.WAHA_API_KEY
-        const newConfigData: any = {
-          organization_id: tenantContext.organizationId,
-          enabled: !!(data.whatsapp_phone || resolvedWahaUrl || resolvedWahaKey), // habilitar si hay phone o credenciales WAHA
-          system_prompt: 'Asistente virtual de taller automotriz. Responde de manera amable y profesional.',
-          policies: {
-            ...(data.policies || {}),
-            waha_api_url: resolvedWahaUrl,
-            waha_api_key: resolvedWahaKey,
-            WAHA_API_URL: resolvedWahaUrl,
-            WAHA_API_KEY: resolvedWahaKey
-          },
-          business_info: data.businessInfo || {},
-          personality: data.personality || {},
-          custom_instructions: data.customInstructions || '',
-          escalation_rules: data.escalationRules || {},
-          updated_at: new Date().toISOString()
-        }
+        // Si solo se está guardando configuración de WAHA (sin whatsapp_phone), permitir crear/actualizar
+        if (data.waha_api_url || data.waha_api_key || data.whatsapp_phone) {
+          // Crear configuración básica (con o sin entrenamiento previo)
+          const newConfigData: any = {
+              organization_id: tenantContext.organizationId,
+            enabled: data.whatsapp_phone ? true : false, // Habilitar si se vincula WhatsApp
+            system_prompt: 'Asistente virtual de taller automotriz. Responde de manera amable y profesional.', // Prompt por defecto
+              policies: {
+                waha_api_url: data.waha_api_url,
+                waha_api_key: data.waha_api_key,
+                WAHA_API_URL: data.waha_api_url,
+                WAHA_API_KEY: data.waha_api_key
+              },
+              updated_at: new Date().toISOString()
+          }
 
-        if (data.whatsapp_phone) {
-          newConfigData.whatsapp_phone = data.whatsapp_phone
-        }
+          // Agregar whatsapp_phone si está presente
+          if (data.whatsapp_phone) {
+            newConfigData.whatsapp_phone = data.whatsapp_phone
+          }
 
-        const { data: newConfig, error: createError } = await serviceClient
-          .from('ai_agent_config')
-          .insert(newConfigData)
-          .select()
-          .single()
+          const { data: newConfig, error: createError } = await serviceClient
+            .from('ai_agent_config')
+            .insert(newConfigData)
+            .select()
+            .single()
 
-        if (createError) {
+          if (createError) {
+            return NextResponse.json({
+              success: false,
+              error: 'Error al crear configuración: ' + createError.message
+            }, { status: 500 })
+          }
+
           return NextResponse.json({
-            success: false,
-            error: 'Error al crear configuración: ' + createError.message
-          }, { status: 500 })
+            success: true,
+            message: data.whatsapp_phone 
+              ? 'WhatsApp vinculado exitosamente. Puedes entrenar el asistente después.'
+              : 'Configuración de WAHA guardada exitosamente',
+            data: newConfig
+          })
         }
-
+        
         return NextResponse.json({
-          success: true,
-          message: 'Configuración creada para la organización. Ya puedes entrenar el asistente.',
-          data: newConfig
-        })
+          success: false,
+          error: 'Se requiere configuración de WAHA o número de WhatsApp'
+        }, { status: 400 })
       }
 
       // Si solo se está actualizando WAHA (sin whatsapp_phone), actualizar policies directamente
-      if ((data.waha_api_url || data.waha_api_key || process.env.WAHA_API_URL || process.env.WAHA_API_KEY) && data.whatsapp_phone === undefined) {
+      if ((data.waha_api_url || data.waha_api_key) && data.whatsapp_phone === undefined) {
         const currentPolicies = existingConfig.policies || {}
-        const resolvedWahaUrl = data.waha_api_url || process.env.WAHA_API_URL || currentPolicies.waha_api_url
-        const resolvedWahaKey = data.waha_api_key || process.env.WAHA_API_KEY || currentPolicies.waha_api_key
-        
         const updatedPolicies: any = {
-          ...currentPolicies,
-          waha_api_url: resolvedWahaUrl,
-          waha_api_key: resolvedWahaKey,
-          WAHA_API_URL: resolvedWahaUrl,
-          WAHA_API_KEY: resolvedWahaKey
+          ...currentPolicies
+        }
+        
+        if (data.waha_api_url) {
+          updatedPolicies.waha_api_url = data.waha_api_url
+          updatedPolicies.WAHA_API_URL = data.waha_api_url
+        }
+        if (data.waha_api_key) {
+          updatedPolicies.waha_api_key = data.waha_api_key
+          updatedPolicies.WAHA_API_KEY = data.waha_api_key
         }
         
         const { error: updateError } = await serviceClient
           .from('ai_agent_config')
           .update({
             policies: updatedPolicies,
-            updated_at: new Date().toISOString(),
-            enabled: existingConfig.enabled ?? !!(resolvedWahaUrl || resolvedWahaKey || existingConfig.whatsapp_phone)
+            updated_at: new Date().toISOString()
           })
           .eq('id', existingConfig.id)
         
@@ -390,8 +425,8 @@ export async function POST(request: NextRequest) {
           data: { 
             id: existingConfig.id, 
             updated: true,
-            waha_api_url: resolvedWahaUrl,
-            waha_api_key_configured: !!resolvedWahaKey,
+            waha_api_url: data.waha_api_url,
+            waha_api_key_configured: !!data.waha_api_key,
             organization_id: tenantContext.organizationId
           }
         })
