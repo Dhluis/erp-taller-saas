@@ -29,7 +29,7 @@ import {
 
 export default function DashboardPage() {
   // Obtener datos de sesión - el layout maneja la redirección al onboarding
-  const { organizationId, isLoading: sessionLoading } = useOrganization();
+  const { organizationId, isLoading: sessionLoading, isReady: sessionReady } = useOrganization();
   const { user } = useSession();
   
   // Compatibilidad: obtener organization para componentes que lo necesitan
@@ -58,7 +58,7 @@ export default function DashboardPage() {
   const router = useRouter();
 
   // Mostrar loading mientras carga la sesión (el layout maneja redirecciones)
-  if (sessionLoading || !organizationId) {
+  if (sessionLoading || !sessionReady || !organizationId) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-900">
         <div className="text-center space-y-4">
@@ -72,7 +72,7 @@ export default function DashboardPage() {
   // Función para cargar datos de órdenes por estado
   const loadOrdersByStatus = useCallback(async () => {
     // ✅ No cargar si no hay organizationId o está cargando
-    if (!organizationId || sessionLoading) {
+    if (!organizationId || sessionLoading || !sessionReady) {
       console.log('⚠️ Esperando organizationId...');
       return;
     }

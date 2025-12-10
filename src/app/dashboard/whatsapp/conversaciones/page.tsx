@@ -180,6 +180,18 @@ export default function ConversacionesPage() {
     setEmojiPickerOpen(false)
   }
 
+  // ⏳ Mostrar loader mientras se carga la sesión/organizationId (evita errores al refrescar)
+  if (sessionLoading || !sessionReady || !organizationId) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center space-y-3">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
+          <p className="text-muted-foreground">Cargando conversaciones...</p>
+        </div>
+      </div>
+    )
+  }
+
   // Estado de conversaciones y mensajes reales
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [messages, setMessages] = useState<Message[]>([])
