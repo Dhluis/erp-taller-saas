@@ -177,6 +177,13 @@ export default function DashboardPage() {
     }
   }, [dateRange, customDateRange, organizationId, sessionLoading]);
 
+  // Handler para cuando se crea una nueva orden
+  const handleOrderCreated = useCallback(() => {
+    console.log('✅ Nueva orden creada desde el modal');
+    loadOrdersByStatus(); // Recargar estadísticas
+    router.refresh(); // Refrescar la página
+  }, [loadOrdersByStatus, router]);
+
   // Cargar datos al montar el componente y cuando cambia el filtro de fecha o las fechas personalizadas
   useEffect(() => {
     loadOrdersByStatus();
@@ -193,13 +200,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  // Handler para cuando se crea una nueva orden
-  const handleOrderCreated = useCallback(() => {
-    console.log('✅ Nueva orden creada desde el modal');
-    loadOrdersByStatus(); // Recargar estadísticas
-    router.refresh(); // Refrescar la página
-  }, [loadOrdersByStatus, router]);
   
   // Calcular estadísticas dinámicamente de ordersByStatus
   const totalOrdenes = ordersByStatus.reduce((sum, item) => sum + item.value, 0);
