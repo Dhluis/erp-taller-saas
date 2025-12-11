@@ -160,7 +160,8 @@ export async function middleware(request: NextRequest) {
     }
 
     // Si hay sesión y es una ruta de auth, redirigir al dashboard
-    if (session && isAuthRoute(pathname)) {
+    // EXCEPTO reset-password (permite cambiar contraseña con sesión activa)
+    if (session && isAuthRoute(pathname) && pathname !== '/auth/reset-password') {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 

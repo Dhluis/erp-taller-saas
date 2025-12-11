@@ -13,12 +13,15 @@ export async function GET(request: NextRequest) {
     hasCode: !!code, 
     hasTokenHash: !!token_hash, 
     type,
-    next 
+    next,
+    fullUrl: request.url
   })
 
-  // Crear la respuesta primero para poder modificar sus cookies
-  const redirectUrl = new URL(next, origin)
-  const response = NextResponse.redirect(redirectUrl)
+  // ✅ Verificar PRIMERO si es recovery
+  const isRecovery = type === 'recovery'
+  
+  // Crear respuesta temporal (se modificará según el caso después de verificar)
+  let response = NextResponse.next()
 
   // Cliente SSR para manejar la autenticación (con cookies)
   const supabaseAuth = createServerClient(
@@ -115,13 +118,15 @@ export async function GET(request: NextRequest) {
   }
 
   // Función helper para crear respuesta de redirección con cookies
-  function createRedirectResponse(url: string): NextResponse {
+  function createRedirectResponse(url: string, sourceResponse?: NextResponse): NextResponse {
     const redirectResponse = NextResponse.redirect(new URL(url, origin))
     
     // Copiar las cookies de sesión a la nueva respuesta
-    response.cookies.getAll().forEach(cookie => {
-      redirectResponse.cookies.set(cookie.name, cookie.value)
-    })
+    if (sourceResponse) {
+      sourceResponse.cookies.getAll().forEach(cookie => {
+        redirectResponse.cookies.set(cookie.name, cookie.value)
+      })
+    }
     
     return redirectResponse
   }
@@ -178,19 +183,27 @@ export async function GET(request: NextRequest) {
         })
         
         // ✅ Si es tipo 'recovery', redirigir a reset-password (NO al dashboard)
-        if (type === 'recovery') {
-          console.log('🔄 [Callback] Tipo recovery detectado, redirigiendo a reset-password')
+        if (type === 'recovery' || isRecovery) {
+          console.log('🔄 [Callback] Tipo recovery detectado después de verificar token, redirigiendo a reset-password')
           const resetPasswordUrl = new URL('/auth/reset-password', origin)
-          // Pasar el token_hash en la URL para que reset-password pueda usarlo
-          resetPasswordUrl.searchParams.set('token_hash', token_hash)
-          resetPasswordUrl.searchParams.set('type', type)
+          
+          // Crear respuesta de redirección
           const resetResponse = NextResponse.redirect(resetPasswordUrl)
           
-          // Copiar cookies de sesión
+          // Copiar todas las cookies de sesión establecidas por verifyOtp
+          // Las cookies ya están en response.cookies, copiarlas a resetResponse
           response.cookies.getAll().forEach(cookie => {
-            resetResponse.cookies.set(cookie.name, cookie.value)
+            resetResponse.cookies.set(cookie.name, cookie.value, {
+              path: cookie.path,
+              domain: cookie.domain,
+              maxAge: cookie.maxAge,
+              httpOnly: cookie.httpOnly,
+              secure: cookie.secure,
+              sameSite: cookie.sameSite as any
+            })
           })
           
+          console.log('✅ [Callback] Redirigiendo a reset-password con cookies de sesión')
           return resetResponse
         }
         

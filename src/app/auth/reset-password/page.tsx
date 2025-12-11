@@ -33,6 +33,7 @@ export default function ResetPasswordPage() {
       const type = searchParams.get('type')
       
       // También verificar hash en la URL (formato estándar de Supabase)
+      // Supabase puede enviar directamente a reset-password con hash
       let hashParams: URLSearchParams | null = null
       if (typeof window !== 'undefined' && window.location.hash) {
         hashParams = new URLSearchParams(window.location.hash.substring(1))
@@ -40,6 +41,14 @@ export default function ResetPasswordPage() {
       
       const hashType = hashParams?.get('type')
       const hashToken = hashParams?.get('access_token') || hashParams?.get('token_hash')
+      
+      console.log('🔍 [ResetPassword] Verificando token:', {
+        hasTokenHash: !!tokenHash,
+        hasType: !!type,
+        hashType,
+        hasHashToken: !!hashToken,
+        fullHash: typeof window !== 'undefined' ? window.location.hash : 'N/A'
+      })
       
       // Si hay token de recuperación, verificar que sea válido
       if ((type === 'recovery' && tokenHash) || hashType === 'recovery') {
