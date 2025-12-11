@@ -369,7 +369,7 @@ export function CreateQuotationModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-bg-primary text-text-primary">
         <DialogHeader>
           <DialogTitle>
             {quotation ? 'Editar Cotización' : 'Nueva Cotización'}
@@ -396,12 +396,16 @@ export function CreateQuotationModal({
                 }}
                 disabled={!!quotation && quotation.status !== 'draft'}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full bg-bg-tertiary text-text-primary border-border hover:bg-bg-secondary dark:bg-bg-tertiary dark:text-text-primary">
                   <SelectValue placeholder="Selecciona un cliente" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-bg-secondary text-text-primary border-border dark:bg-bg-secondary dark:text-text-primary">
                   {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
+                    <SelectItem 
+                      key={customer.id} 
+                      value={customer.id}
+                      className="text-text-primary hover:bg-bg-tertiary focus:bg-bg-tertiary dark:text-text-primary dark:hover:bg-bg-tertiary dark:focus:bg-bg-tertiary"
+                    >
                       {customer.name}
                     </SelectItem>
                   ))}
@@ -420,12 +424,16 @@ export function CreateQuotationModal({
                 }
                 disabled={!formData.customer_id || (!!quotation && quotation.status !== 'draft')}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full bg-bg-tertiary text-text-primary border-border hover:bg-bg-secondary dark:bg-bg-tertiary dark:text-text-primary">
                   <SelectValue placeholder="Selecciona un vehículo" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-bg-secondary text-text-primary border-border dark:bg-bg-secondary dark:text-text-primary">
                   {vehicles.map((vehicle) => (
-                    <SelectItem key={vehicle.id} value={vehicle.id}>
+                    <SelectItem 
+                      key={vehicle.id} 
+                      value={vehicle.id}
+                      className="text-text-primary hover:bg-bg-tertiary focus:bg-bg-tertiary dark:text-text-primary dark:hover:bg-bg-tertiary dark:focus:bg-bg-tertiary"
+                    >
                       {vehicle.brand} {vehicle.model} - {vehicle.license_plate}
                     </SelectItem>
                   ))}
@@ -512,12 +520,22 @@ export function CreateQuotationModal({
                             }
                             disabled={!!quotation && quotation.status !== 'draft'}
                           >
-                            <SelectTrigger className="w-32">
+                            <SelectTrigger className="w-32 bg-bg-tertiary text-text-primary border-border hover:bg-bg-secondary dark:bg-bg-tertiary dark:text-text-primary">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="service">Servicio</SelectItem>
-                              <SelectItem value="product">Producto</SelectItem>
+                            <SelectContent className="bg-bg-secondary text-text-primary border-border dark:bg-bg-secondary dark:text-text-primary">
+                              <SelectItem 
+                                value="service"
+                                className="text-text-primary hover:bg-bg-tertiary focus:bg-bg-tertiary dark:text-text-primary dark:hover:bg-bg-tertiary dark:focus:bg-bg-tertiary"
+                              >
+                                Servicio
+                              </SelectItem>
+                              <SelectItem 
+                                value="product"
+                                className="text-text-primary hover:bg-bg-tertiary focus:bg-bg-tertiary dark:text-text-primary dark:hover:bg-bg-tertiary dark:focus:bg-bg-tertiary"
+                              >
+                                Producto
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
