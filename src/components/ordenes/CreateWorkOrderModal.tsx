@@ -817,8 +817,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         orderData.workshop_id = workshopId;
       }
       
-      // ✅ Incluir assigned_to solo si hay un empleado seleccionado
-      if (formData.assigned_to && formData.assigned_to.trim() !== '') {
+      // ✅ Incluir assigned_to solo si hay un empleado seleccionado (no "none" y no vacío)
+      if (formData.assigned_to && formData.assigned_to.trim() !== '' && formData.assigned_to !== 'none') {
         orderData.assigned_to = formData.assigned_to;
         console.log('📊 [CreateWorkOrderModal] Empleado asignado:', {
           id: formData.assigned_to,
@@ -1872,15 +1872,15 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 name="assigned_to"
 
-                value={formData.assigned_to || undefined}
+                value={formData.assigned_to && formData.assigned_to !== '' ? formData.assigned_to : 'none'}
 
                 onValueChange={(value) => {
 
                   console.log('✏️ [Select] Cambio detectado: assigned_to →', value)
 
-                  // Si se selecciona "Sin asignar" (valor vacío), limpiar el campo
+                  // Si se selecciona "Sin asignar" (valor "none"), limpiar el campo
 
-                  setFormData(prev => ({ ...prev, assigned_to: value || '' }))
+                  setFormData(prev => ({ ...prev, assigned_to: value === 'none' ? '' : value }))
 
                 }}
 
@@ -1912,7 +1912,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 <SelectContent className="z-[9999] bg-slate-900 text-white border border-slate-600 shadow-2xl" sideOffset={4} position="popper">
 
-                  <SelectItem value="" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
+                  <SelectItem value="none" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
 
                     Sin asignar
 

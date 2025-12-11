@@ -558,8 +558,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         orderData.workshop_id = workshopId
       }
       
-      // ✅ Incluir assigned_to solo si hay un empleado seleccionado
-      if (formData.assigned_to && formData.assigned_to.trim() !== '') {
+      // ✅ Incluir assigned_to solo si hay un empleado seleccionado (no "none" y no vacío)
+      if (formData.assigned_to && formData.assigned_to.trim() !== '' && formData.assigned_to !== 'none') {
         orderData.assigned_to = formData.assigned_to
         console.log('📊 [CreateOrder] Empleado asignado:', {
           id: formData.assigned_to,
@@ -895,11 +895,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
               <Label htmlFor="assigned_to">Asignar Mecánico (opcional)</Label>
               <Select
                 name="assigned_to"
-                value={formData.assigned_to || undefined}
+                value={formData.assigned_to && formData.assigned_to !== '' ? formData.assigned_to : 'none'}
                 onValueChange={(value) => {
                   console.log('✏️ [Select] Cambio detectado: assigned_to →', value)
-                  // Si se selecciona "Sin asignar" (valor vacío), limpiar el campo
-                  setFormData(prev => ({ ...prev, assigned_to: value || '' }))
+                  // Si se selecciona "Sin asignar" (valor "none"), limpiar el campo
+                  setFormData(prev => ({ ...prev, assigned_to: value === 'none' ? '' : value }))
                 }}
                 disabled={loading || loadingMechanics || mechanics.length === 0}
               >
@@ -911,11 +911,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                         : mechanics.length === 0 
                           ? "No hay mecánicos disponibles" 
                           : "Sin asignar"
-                    } 
+                    }
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin asignar</SelectItem>
+                  <SelectItem value="none">Sin asignar</SelectItem>
                   {mechanics.length > 0 ? (
                     mechanics
                       .filter(m => m.id && m.id.trim() !== '') // Seguridad extra
