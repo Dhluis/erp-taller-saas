@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLowStockItems } from '@/lib/database/queries/inventory';
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
 /**
  * @swagger
@@ -30,7 +31,18 @@ import { getLowStockItems } from '@/lib/database/queries/inventory';
 // GET: Obtener artículos con stock bajo
 export async function GET(request: NextRequest) {
   try {
-    const items = await getLowStockItems();
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const items = await getLowStockItems(tenantContext.organizationId);
 
     return NextResponse.json({
       success: true,

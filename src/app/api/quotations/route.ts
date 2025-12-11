@@ -13,25 +13,31 @@ import {
   markExpiredQuotations,
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
-// ⚠️ Hook eliminado - no se puede usar en server-side
-// import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization';
-function getOrganizationId(): string { return '00000000-0000-0000-0000-000000000001'; }
-function validateOrganization(organizationId: string): void { if (!organizationId) throw new Error('Organization ID required'); }
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
 // =====================================================
 // GET - Obtener todas las cotizaciones
 // =====================================================
 export async function GET(request: NextRequest) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'quotations-api',
-    'GET'
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'quotations-api',
+      'GET'
+    );
     
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
@@ -45,19 +51,19 @@ export async function GET(request: NextRequest) {
 
     if (stats) {
       // Obtener estadísticas
-      result = await getQuotationStats();
+      result = await getQuotationStats(organizationId);
       logger.info('Estadísticas de cotizaciones obtenidas', context);
     } else if (expired) {
       // Obtener cotizaciones vencidas
-      result = await getExpiredQuotations();
+      result = await getExpiredQuotations(organizationId);
       logger.info(`Cotizaciones vencidas obtenidas: ${result.length}`, context);
     } else if (search) {
       // Buscar cotizaciones
-      result = await searchQuotations(search);
+      result = await searchQuotations(organizationId, search);
       logger.info(`Resultados de búsqueda: ${result.length} cotizaciones`, context);
     } else {
       // Obtener todas las cotizaciones
-      result = await getAllQuotations(status || undefined);
+      result = await getAllQuotations(organizationId, status || undefined);
       logger.info(`Cotizaciones obtenidas: ${result.length}`, context);
     }
 
@@ -82,16 +88,25 @@ export async function GET(request: NextRequest) {
 // POST - Crear nueva cotización
 // =====================================================
 export async function POST(request: NextRequest) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'quotations-api',
-    'POST'
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'quotations-api',
+      'POST'
+    );
     
     const body = await request.json();
     logger.info('Creando nueva cotización', context, { quotationData: body });
@@ -121,7 +136,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const quotation = await createQuotation(body);
+    const quotation = await createQuotation(organizationId, body);
 
     logger.businessEvent('quotation_created', 'quotation', quotation.id, context);
     logger.info(`Cotización creada exitosamente: ${quotation.id}`, context);
@@ -147,16 +162,25 @@ export async function POST(request: NextRequest) {
 // PATCH - Operaciones en lote
 // =====================================================
 export async function PATCH(request: NextRequest) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'quotations-api',
-    'PATCH'
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'quotations-api',
+      'PATCH'
+    );
     
     const body = await request.json();
     const { action, ...data } = body;
@@ -168,7 +192,7 @@ export async function PATCH(request: NextRequest) {
     switch (action) {
       case 'mark_expired':
         // Marcar cotizaciones vencidas
-        result = await markExpiredQuotations();
+        result = await markExpiredQuotations(organizationId);
         logger.businessEvent('quotations_expired', 'quotation', 'batch', context);
         logger.info(`Cotizaciones marcadas como vencidas: ${result.length}`, context);
         break;

@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUrgentNotifications } from '@/lib/database/queries/notifications'
-import { requireAuth, validateAccess } from '@/lib/auth/validation'
+import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 // GET /api/notifications/urgent - Obtener notificaciones urgentes
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
-    
-    if (!await validateAccess(user.id, 'notifications', 'read')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // ✅ Obtener organizationId SOLO del usuario autenticado
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        { error: 'No autorizado: organización no encontrada' },
+        { status: 403 }
+      )
     }
-
-    const { searchParams } = new URL(request.url)
-    const organizationId = searchParams.get('organization_id') || user.organization_id
+    const organizationId = tenantContext.organizationId
 
     const notifications = await getUrgentNotifications(organizationId)
 

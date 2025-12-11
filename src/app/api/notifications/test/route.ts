@@ -7,11 +7,22 @@ import {
   notifySystemAlert,
   notifyUserActivity
 } from '@/lib/notifications/service'
+import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 // POST /api/notifications/test - Probar sistema de notificaciones
 export async function POST(request: NextRequest) {
   try {
-    const { type, organizationId = '00000000-0000-0000-0000-000000000000' } = await request.json()
+    // ✅ Obtener organizationId SOLO del usuario autenticado
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        { error: 'No autorizado: organización no encontrada' },
+        { status: 403 }
+      )
+    }
+    const organizationId = tenantContext.organizationId
+
+    const { type } = await request.json()
 
     let result
 

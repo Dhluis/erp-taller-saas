@@ -36,7 +36,7 @@ export interface UpdateLeadData {
 /**
  * Obtener leads
  */
-export async function getLeads(filters?: {
+export async function getLeads(organizationId: string, filters?: {
   status?: string
   source?: string
   campaign_id?: string
@@ -48,6 +48,7 @@ export async function getLeads(filters?: {
       const client = getSupabaseClient()
       
       let query = client.from('leads').select('*')
+        .eq('organization_id', organizationId) // ✅ Filtrar por org
       
       if (filters) {
         if (filters.status) {

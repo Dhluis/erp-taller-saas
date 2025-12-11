@@ -57,8 +57,9 @@ export async function getAuthenticatedUser() {
       return null
     }
 
-    // Obtener perfil del usuario
-    const profile = await getUserProfileById(user.id)
+    // Obtener perfil del usuario (usar getCurrentUserProfile para evitar necesidad de organizationId)
+    const { getCurrentUserProfile } = await import('../supabase/user-profiles')
+    const profile = await getCurrentUserProfile()
     
     return {
       user,

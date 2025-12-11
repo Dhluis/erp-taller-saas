@@ -12,10 +12,7 @@ import {
   recalculateQuotationTotals,
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
-// ⚠️ Hook eliminado - no se puede usar en server-side
-// import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization';
-function getOrganizationId(): string { return '00000000-0000-0000-0000-000000000001'; }
-function validateOrganization(organizationId: string): void { if (!organizationId) throw new Error('Organization ID required'); }
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
 // =====================================================
 // GET - Obtener item específico
@@ -24,17 +21,26 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string; itemId: string } }
 ) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'quotations-items-api',
-    'GET',
-    { quotationId: params.id, itemId: params.itemId }
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'quotations-items-api',
+      'GET',
+      { quotationId: params.id, itemId: params.itemId }
+    );
     logger.info('Obteniendo item específico de cotización', context);
 
     // Verificar que la cotización existe
@@ -91,17 +97,26 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string; itemId: string } }
 ) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'quotations-items-api',
-    'PUT',
-    { quotationId: params.id, itemId: params.itemId }
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'quotations-items-api',
+      'PUT',
+      { quotationId: params.id, itemId: params.itemId }
+    );
     
     const body = await request.json();
     logger.info('Actualizando item específico de cotización', context, { updateData: body });
@@ -177,7 +192,7 @@ export async function PUT(
     const updatedItem = await updateQuotationItem(params.itemId, body);
 
     // Recalcular totales de la cotización
-    await recalculateQuotationTotals(params.id);
+    await recalculateQuotationTotals(organizationId, params.id);
 
     logger.businessEvent('quotation_item_updated', 'quotation_item', params.itemId, context);
     logger.info(`Item actualizado exitosamente: ${params.itemId}`, context);
@@ -206,17 +221,26 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string; itemId: string } }
 ) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'quotations-items-api',
-    'DELETE',
-    { quotationId: params.id, itemId: params.itemId }
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'quotations-items-api',
+      'DELETE',
+      { quotationId: params.id, itemId: params.itemId }
+    );
     logger.info('Eliminando item específico de cotización', context);
 
     // Verificar que la cotización existe
@@ -263,7 +287,7 @@ export async function DELETE(
     await deleteQuotationItem(params.itemId);
 
     // Recalcular totales de la cotización
-    await recalculateQuotationTotals(params.id);
+    await recalculateQuotationTotals(organizationId, params.id);
 
     logger.businessEvent('quotation_item_deleted', 'quotation_item', params.itemId, context);
     logger.info(`Item eliminado exitosamente: ${params.itemId}`, context);

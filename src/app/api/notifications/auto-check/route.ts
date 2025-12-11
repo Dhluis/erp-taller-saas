@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkAndCreateAutomaticNotifications } from '@/lib/notifications/service'
-import { requireAuth, validateAccess } from '@/lib/auth/validation'
+import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 // POST /api/notifications/auto-check - Verificar y crear notificaciones automáticas
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
-    
-    if (!await validateAccess(user.id, 'notifications', 'create')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // ✅ Obtener organizationId SOLO del usuario autenticado
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        { error: 'No autorizado: organización no encontrada' },
+        { status: 403 }
+      )
     }
-
-    const { searchParams } = new URL(request.url)
-    const organizationId = searchParams.get('organization_id') || user.organization_id
+    const organizationId = tenantContext.organizationId
 
     const result = await checkAndCreateAutomaticNotifications(organizationId)
 

@@ -167,7 +167,16 @@ export async function middleware(request: NextRequest) {
     // Si hay sesión, verificar el perfil del usuario
     if (session?.user) {
       try {
-        const profile = await getUserProfileById(session.user.email!)
+        // Obtener perfil directamente (en middleware no tenemos organizationId aún)
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+        
+        if (profileError && profileError.code !== 'PGRST116') {
+          throw profileError
+        }
         
         // Si no tiene perfil y no está en una ruta de setup, redirigir al setup
         if (!profile && !pathname.startsWith('/auth/setup')) {

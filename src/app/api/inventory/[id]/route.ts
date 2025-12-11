@@ -4,6 +4,7 @@ import {
   updateInventoryItem,
   deleteInventoryItem,
 } from '@/lib/database/queries/inventory';
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
 /**
  * @swagger
@@ -95,8 +96,19 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
-    const item = await getInventoryItemById(id);
+    const item = await getInventoryItemById(tenantContext.organizationId, id);
 
     return NextResponse.json({
       success: true,
@@ -121,6 +133,17 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const body = await request.json();
 
@@ -165,7 +188,7 @@ export async function PUT(
       );
     }
 
-    const item = await updateInventoryItem(id, body);
+    const item = await updateInventoryItem(tenantContext.organizationId, id, body);
 
     return NextResponse.json({
       success: true,
@@ -191,8 +214,19 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
-    await deleteInventoryItem(id);
+    await deleteInventoryItem(tenantContext.organizationId, id);
 
     return NextResponse.json({
       success: true,

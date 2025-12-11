@@ -9,10 +9,7 @@ import {
   getQuotationById,
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
-// ⚠️ Hook eliminado - no se puede usar en server-side
-// import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization';
-function getOrganizationId(): string { return '00000000-0000-0000-0000-000000000001'; }
-function validateOrganization(organizationId: string): void { if (!organizationId) throw new Error('Organization ID required'); }
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
 // =====================================================
 // PUT - Actualizar estado de cotización
@@ -21,17 +18,26 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'quotations-status-api',
-    'PUT',
-    { quotationId: params.id }
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'quotations-status-api',
+      'PUT',
+      { quotationId: params.id }
+    );
     
     const body = await request.json();
     logger.info('Actualizando estado de cotización', context, { newStatus: body.status });
@@ -167,17 +173,26 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'quotations-status-api',
-    'GET',
-    { quotationId: params.id }
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'quotations-status-api',
+      'GET',
+      { quotationId: params.id }
+    );
     logger.info('Obteniendo estados válidos para cotización', context);
 
     // Obtener cotización actual

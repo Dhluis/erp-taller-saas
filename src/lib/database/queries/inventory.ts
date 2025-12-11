@@ -72,8 +72,6 @@ export interface CreateInventoryCategoryData {
 
 export interface UpdateInventoryCategoryData extends Partial<CreateInventoryCategoryData> {}
 
-const ORGANIZATION_ID = '00000000-0000-0000-0000-000000000001'
-
 /**
  * ARTÍCULOS DE INVENTARIO - CRUD
  */
@@ -156,7 +154,7 @@ export async function getAllInventoryItems(organizationId: string) {
 /**
  * Obtener un artículo de inventario por ID
  */
-export async function getInventoryItemById(id: string) {
+export async function getInventoryItemById(organizationId: string, id: string) {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -170,7 +168,7 @@ export async function getInventoryItemById(id: string) {
       )
     `)
     .eq('id', id)
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
     .single()
 
   if (error) {
@@ -184,14 +182,14 @@ export async function getInventoryItemById(id: string) {
 /**
  * Crear un nuevo artículo de inventario
  */
-export async function createInventoryItem(itemData: CreateInventoryItemData) {
+export async function createInventoryItem(organizationId: string, itemData: CreateInventoryItemData) {
   const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('inventory')
     .insert([
       {
-        organization_id: ORGANIZATION_ID,
+        organization_id: organizationId,
         category_id: itemData.category_id,
         name: itemData.name,
         description: itemData.description,
@@ -224,7 +222,7 @@ export async function createInventoryItem(itemData: CreateInventoryItemData) {
 /**
  * Actualizar un artículo de inventario
  */
-export async function updateInventoryItem(id: string, itemData: UpdateInventoryItemData) {
+export async function updateInventoryItem(organizationId: string, id: string, itemData: UpdateInventoryItemData) {
   const supabase = await createClient()
 
   // Mapear los campos correctamente
@@ -244,7 +242,7 @@ export async function updateInventoryItem(id: string, itemData: UpdateInventoryI
     .from('inventory')
     .update(updateData)
     .eq('id', id)
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
     .select(`
       *,
       category:inventory_categories(
@@ -266,14 +264,14 @@ export async function updateInventoryItem(id: string, itemData: UpdateInventoryI
 /**
  * Eliminar un artículo de inventario
  */
-export async function deleteInventoryItem(id: string) {
+export async function deleteInventoryItem(organizationId: string, id: string) {
   const supabase = await createClient()
 
   const { error } = await supabase
     .from('inventory')
     .delete()
     .eq('id', id)
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
 
   if (error) {
     console.error('Error deleting inventory item:', error)
@@ -286,7 +284,7 @@ export async function deleteInventoryItem(id: string) {
 /**
  * Buscar artículos de inventario
  */
-export async function searchInventoryItems(searchTerm: string) {
+export async function searchInventoryItems(searchTerm: string, organizationId: string) {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -299,7 +297,7 @@ export async function searchInventoryItems(searchTerm: string) {
         description
       )
     `)
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
     .or(`name.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
     .order('name', { ascending: true })
 
@@ -314,7 +312,7 @@ export async function searchInventoryItems(searchTerm: string) {
 /**
  * Obtener artículos con stock bajo
  */
-export async function getLowStockItems() {
+export async function getLowStockItems(organizationId: string) {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -327,7 +325,7 @@ export async function getLowStockItems() {
         description
       )
     `)
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
     .filter('quantity', 'lte', 'min_quantity')
     .order('quantity', { ascending: true })
 
@@ -346,13 +344,13 @@ export async function getLowStockItems() {
 /**
  * Obtener todas las categorías de inventario
  */
-export async function getAllInventoryCategories() {
+export async function getAllInventoryCategories(organizationId: string) {
   const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('inventory_categories')
     .select('*')
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
     .order('name', { ascending: true })
 
   if (error) {
@@ -366,14 +364,14 @@ export async function getAllInventoryCategories() {
 /**
  * Obtener una categoría por ID
  */
-export async function getInventoryCategoryById(id: string) {
+export async function getInventoryCategoryById(organizationId: string, id: string) {
   const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('inventory_categories')
     .select('*')
     .eq('id', id)
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
     .single()
 
   if (error) {
@@ -387,7 +385,7 @@ export async function getInventoryCategoryById(id: string) {
 /**
  * Crear una nueva categoría de inventario
  */
-export async function createInventoryCategory(categoryData: CreateInventoryCategoryData) {
+export async function createInventoryCategory(organizationId: string, categoryData: CreateInventoryCategoryData) {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -395,7 +393,7 @@ export async function createInventoryCategory(categoryData: CreateInventoryCateg
     .insert([
       {
         ...categoryData,
-        organization_id: ORGANIZATION_ID,
+        organization_id: organizationId,
       },
     ])
     .select()
@@ -412,14 +410,14 @@ export async function createInventoryCategory(categoryData: CreateInventoryCateg
 /**
  * Actualizar una categoría de inventario
  */
-export async function updateInventoryCategory(id: string, categoryData: UpdateInventoryCategoryData) {
+export async function updateInventoryCategory(organizationId: string, id: string, categoryData: UpdateInventoryCategoryData) {
   const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('inventory_categories')
     .update(categoryData)
     .eq('id', id)
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
     .select()
     .single()
 
@@ -434,14 +432,14 @@ export async function updateInventoryCategory(id: string, categoryData: UpdateIn
 /**
  * Eliminar una categoría de inventario
  */
-export async function deleteInventoryCategory(id: string) {
+export async function deleteInventoryCategory(organizationId: string, id: string) {
   const supabase = await createClient()
 
   const { error } = await supabase
     .from('inventory_categories')
     .delete()
     .eq('id', id)
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
 
   if (error) {
     console.error('Error deleting inventory category:', error)
@@ -557,27 +555,27 @@ export async function getInventoryMovementsByItemId(inventoryId: string) {
 /**
  * Obtener estadísticas de inventario
  */
-export async function getInventoryStats() {
+export async function getInventoryStats(organizationId: string) {
   const supabase = await createClient()
 
   // Total de artículos
   const { count: totalItems } = await supabase
     .from('inventory')
     .select('*', { count: 'exact', head: true })
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
 
   // Artículos con stock bajo
   const { count: lowStockItems } = await supabase
     .from('inventory')
     .select('*', { count: 'exact', head: true })
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
     .filter('quantity', 'lte', 'min_quantity')
 
   // Valor total del inventario
   const { data: items } = await supabase
     .from('inventory')
     .select('quantity, unit_price')
-    .eq('organization_id', ORGANIZATION_ID)
+    .eq('organization_id', organizationId)
 
   const totalValue = items?.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0) || 0
 

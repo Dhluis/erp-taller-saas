@@ -13,25 +13,31 @@ import {
   getPaymentMethods,
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
-// ⚠️ Hook eliminado - no se puede usar en server-side
-// import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization';
-function getOrganizationId(): string { return '00000000-0000-0000-0000-000000000001'; }
-function validateOrganization(organizationId: string): void { if (!organizationId) throw new Error('Organization ID required'); }
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
 // =====================================================
 // GET - Obtener todos los pagos
 // =====================================================
 export async function GET(request: NextRequest) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'payments-api',
-    'GET'
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'payments-api',
+      'GET'
+    );
     
     const { searchParams } = new URL(request.url);
     const invoiceId = searchParams.get('invoice_id');
@@ -49,15 +55,15 @@ export async function GET(request: NextRequest) {
       logger.info('Métodos de pago obtenidos', context);
     } else if (stats) {
       // Obtener estadísticas
-      result = await getPaymentStats();
+      result = await getPaymentStats(organizationId);
       logger.info('Estadísticas de pagos obtenidas', context);
     } else if (search) {
       // Buscar pagos
-      result = await searchPayments(search);
+      result = await searchPayments(organizationId, search);
       logger.info(`Resultados de búsqueda: ${result.length} pagos`, context);
     } else {
       // Obtener todos los pagos
-      result = await getAllPayments(invoiceId || undefined);
+      result = await getAllPayments(organizationId, invoiceId || undefined);
       logger.info(`Pagos obtenidos: ${result.length}`, context);
     }
 
@@ -82,16 +88,25 @@ export async function GET(request: NextRequest) {
 // POST - Crear nuevo pago
 // =====================================================
 export async function POST(request: NextRequest) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'payments-api',
-    'POST'
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'payments-api',
+      'POST'
+    );
     
     const body = await request.json();
     logger.info('Creando nuevo pago', context, { paymentData: body });
@@ -156,7 +171,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const payment = await createPayment(body);
+    const payment = await createPayment(organizationId, body);
 
     logger.businessEvent('payment_created', 'payment', payment.id, context);
     logger.info(`Pago creado exitosamente: ${payment.id}`, context);

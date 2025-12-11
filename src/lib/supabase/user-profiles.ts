@@ -89,17 +89,15 @@ export interface UserProfileFilters {
 /**
  * Obtener todos los perfiles de usuario con filtros
  */
-export async function getUserProfiles(filters?: UserProfileFilters): Promise<UserProfile[]> {
+export async function getUserProfiles(organizationId: string, filters?: Omit<UserProfileFilters, 'organization_id'>): Promise<UserProfile[]> {
   return executeWithErrorHandling(
     async () => {
       const client = getSupabaseClient()
 
       let query = client.from('user_profiles').select('*')
+        .eq('organization_id', organizationId) // ✅ Filtrar por org
 
       if (filters) {
-        if (filters.organization_id) {
-          query = query.eq('organization_id', filters.organization_id)
-        }
         if (filters.role) {
           query = query.eq('role', filters.role)
         }
@@ -139,15 +137,16 @@ export async function getUserProfiles(filters?: UserProfileFilters): Promise<Use
 /**
  * Obtener un perfil de usuario por ID
  */
-export async function getUserProfileById(id: string): Promise<UserProfile | null> {
+export async function getUserProfileById(id: string, organizationId: string): Promise<UserProfile | null> {
   return executeWithErrorHandling(
     async () => {
       const client = getSupabaseClient()
 
       const { data, error } = await client
-        .from('system_users')
+        .from('user_profiles')
         .select('*')
-        .eq('email', id) // Buscar por email ya que no tenemos el id de auth.users
+        .eq('id', id)
+        .eq('organization_id', organizationId) // ✅ Validar org
         .single()
 
       if (error && error.code !== 'PGRST116') {
@@ -692,10 +691,20 @@ export async function syncAuthUserData(userId: string): Promise<UserProfile | nu
         throw new Error('Usuario no encontrado en auth')
       }
 
-      // Obtener perfil existente
-      const existingProfile = await getUserProfileById(userId)
+      // Obtener perfil existente primero para obtener organizationId
+      const { data: existingProfile, error: profileError } = await client
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw new Error(`Error al obtener perfil existente: ${profileError.message}`)
+      }
       
       if (existingProfile) {
+        // Usar organizationId del perfil existente para validar en la actualización
+        const organizationId = existingProfile.organization_id
         // Actualizar perfil existente con datos de auth
         const updateData: UpdateUserProfileData = {
           full_name: authUser.user.user_metadata?.full_name || existingProfile.full_name,
@@ -707,6 +716,7 @@ export async function syncAuthUserData(userId: string): Promise<UserProfile | nu
           }
         }
 
+        // Actualizar validando organization_id
         return await updateUserProfile(userId, updateData)
       }
 

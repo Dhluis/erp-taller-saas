@@ -1,10 +1,23 @@
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { getOrganizationId } from '@/lib/auth/organization-server'
+import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 export async function GET(request: NextRequest) {
   try {
     console.log('🔄 GET /api/orders/stats - Iniciando...')
+
+    // ✅ Obtener organizationId SOLO del usuario autenticado
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: organización no encontrada'
+        },
+        { status: 403 }
+      )
+    }
+    const organizationId = tenantContext.organizationId
 
     // Obtener parámetro de filtro de tiempo
     const { searchParams } = new URL(request.url)
@@ -63,14 +76,10 @@ export async function GET(request: NextRequest) {
       to: toDate.toISOString()
     })
 
-    // Crear cliente de Supabase y obtener organization_id
+    // Crear cliente de Supabase
     const supabase = await getSupabaseServerClient()
     
-    // ✅ USAR HELPER CENTRALIZADO - igual que el Kanban
-    const requestedOrganizationId = searchParams.get('organizationId')
-    const organizationIdToUse = requestedOrganizationId || await getOrganizationId(request)
-    
-    console.log('✅ Organization ID usado:', organizationIdToUse)
+    console.log('✅ Organization ID usado:', organizationId)
 
     const fromISO = fromDate.toISOString()
     const toISO = toDate.toISOString()
@@ -81,13 +90,13 @@ export async function GET(request: NextRequest) {
     const { data: orders, error: ordersError } = await supabase
       .from('work_orders')
       .select('status, created_at, entry_date')
-      .eq('organization_id', organizationIdToUse)
+      .eq('organization_id', organizationId)
 
     // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('🔌 API /orders/stats - QUERY EJECUTADA');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('Organization ID:', organizationIdToUse);
+    console.log('Organization ID:', organizationId);
     console.log('Filtro de tiempo:', timeFilter);
     console.log('Rango de fechas:', {
       from: fromDate.toISOString(),
@@ -203,7 +212,7 @@ export async function GET(request: NextRequest) {
         })()
       })));
     } else {
-      console.warn('⚠️ No se encontraron órdenes en la BD para organization_id:', organizationIdToUse);
+      console.warn('⚠️ No se encontraron órdenes en la BD para organization_id:', organizationId);
       console.warn('   Verifica que existan órdenes con este organization_id en la tabla work_orders');
     }
     
@@ -291,7 +300,7 @@ export async function GET(request: NextRequest) {
       ...statusCounts,
       total: ordersList.length || 0,
       _debug: {
-        organizationId: organizationIdToUse,
+        organizationId: organizationId,
         totalOrdersInDB: orders?.length || 0,
         ordersAfterDateFilter: ordersList.length,
         firstOrderDate: ordersList[0]?.created_at,

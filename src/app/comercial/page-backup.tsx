@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSession } from "@/lib/context/SessionContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -63,6 +64,7 @@ import {
 } from "@/lib/supabase/leads"
 
 export default function ComercialPage() {
+  const { organizationId, isLoading: sessionLoading } = useSession()
   const [leads, setLeads] = useState<Lead[]>([])
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [filteredLeads, setFilteredLeads] = useState<Lead[]>([])
@@ -97,7 +99,9 @@ export default function ComercialPage() {
 
   // Cargar datos al montar el componente
   useEffect(() => {
-    loadData()
+    if (organizationId && !sessionLoading) {
+      loadData()
+    }
 
     // Suscribirse a cambios en tiempo real
     const leadsSubscription = subscribeToLeads((payload) => {
@@ -114,7 +118,7 @@ export default function ComercialPage() {
       leadsSubscription.unsubscribe()
       campaignsSubscription.unsubscribe()
     }
-  }, [])
+  }, [organizationId, sessionLoading])
 
   // Filtrar leads cuando cambie el término de búsqueda
   useEffect(() => {
@@ -131,10 +135,14 @@ export default function ComercialPage() {
   }, [searchTerm, leads])
 
   const loadData = async () => {
+    if (!organizationId || sessionLoading) {
+      return
+    }
+    
     setIsLoading(true)
     try {
       const [leadsData, campaignsData, statsData] = await Promise.all([
-        getLeads(),
+        getLeads(organizationId), // ✅ Pasar organizationId
         getCampaigns(),
         getLeadsStats()
       ])

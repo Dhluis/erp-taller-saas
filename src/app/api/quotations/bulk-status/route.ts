@@ -11,25 +11,31 @@ import {
   getExpiredQuotations,
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
-// ⚠️ Hook eliminado - no se puede usar en server-side
-// import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization';
-function getOrganizationId(): string { return '00000000-0000-0000-0000-000000000001'; }
-function validateOrganization(organizationId: string): void { if (!organizationId) throw new Error('Organization ID required'); }
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
 // =====================================================
 // PUT - Actualización masiva de estados
 // =====================================================
 export async function PUT(request: NextRequest) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'quotations-bulk-status-api',
-    'PUT'
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'quotations-bulk-status-api',
+      'PUT'
+    );
     
     const body = await request.json();
     logger.info('Procesando actualización masiva de estados', context, { 
@@ -103,14 +109,14 @@ export async function PUT(request: NextRequest) {
 
       case 'mark_expired':
         // Marcar cotizaciones vencidas automáticamente
-        result = await markExpiredQuotations();
+        result = await markExpiredQuotations(organizationId);
         logger.businessEvent('quotations_bulk_expired', 'quotation', 'batch', context);
         logger.info(`Cotizaciones marcadas como vencidas: ${result.length}`, context);
         break;
 
       case 'get_expired':
         // Obtener cotizaciones vencidas
-        result = await getExpiredQuotations();
+        result = await getExpiredQuotations(organizationId);
         logger.info(`Cotizaciones vencidas encontradas: ${result.length}`, context);
         break;
 

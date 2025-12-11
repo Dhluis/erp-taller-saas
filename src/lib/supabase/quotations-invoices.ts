@@ -13,19 +13,6 @@ import { logger, createLogContext, measureExecutionTime, logSupabaseError } from
 
 const supabase = createClient();
 
-// ✅ Funciones helper temporales para compatibilidad
-// TODO: Refactorizar para usar getTenantContext del servidor
-function getOrganizationId(): string {
-  // Temporal: usar ID hardcodeado para desarrollo
-  return '00000000-0000-0000-0000-000000000001';
-}
-
-function validateOrganization(organizationId: string): void {
-  if (!organizationId || organizationId === '') {
-    throw new Error('Organization ID is required');
-  }
-}
-
 // =====================================================
 // TIPOS TYPESCRIPT
 // =====================================================
@@ -126,11 +113,8 @@ export interface Payment {
 // =====================================================
 
 // Obtener todas las cotizaciones
-export async function getAllQuotations(status?: string) {
+export async function getAllQuotations(organizationId: string, status?: string) {
   return executeWithErrorHandling(async () => {
-    const organizationId = getOrganizationId();
-    validateOrganization(organizationId);
-    
     const context = createLogContext(organizationId, undefined, 'quotations-invoices', 'getAllQuotations', { status });
     logger.info('Obteniendo todas las cotizaciones', context);
 
@@ -184,7 +168,7 @@ export async function getQuotationById(id: string) {
 }
 
 // Crear cotización
-export async function createQuotation(quotationData: {
+export async function createQuotation(organizationId: string, quotationData: {
   work_order_id?: string;
   customer_id: string;
   vehicle_id: string;
@@ -193,9 +177,6 @@ export async function createQuotation(quotationData: {
   valid_until?: string;
 }) {
   return executeWithErrorHandling(async () => {
-    const organizationId = getOrganizationId();
-    validateOrganization(organizationId);
-    
     const context = createLogContext(organizationId, undefined, 'quotations-invoices', 'createQuotation', {
       customer_id: quotationData.customer_id,
       vehicle_id: quotationData.vehicle_id,
@@ -293,7 +274,7 @@ export async function updateQuotationDiscount(id: string, discount: number) {
 }
 
 // Buscar cotizaciones
-export async function searchQuotations(searchTerm: string) {
+export async function searchQuotations(organizationId: string, searchTerm: string) {
   return executeWithErrorHandling(async () => {
     const { data, error } = await supabase
       .from('quotations')
@@ -302,7 +283,7 @@ export async function searchQuotations(searchTerm: string) {
         customer:customers(*),
         vehicle:vehicles(*)
       `)
-      .eq('organization_id', '00000000-0000-0000-0000-000000000001')
+      .eq('organization_id', organizationId)
       .or(
         `quotation_number.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`
       )
@@ -420,7 +401,7 @@ export async function deleteQuotationItem(id: string) {
 // =====================================================
 
 // Obtener todas las notas de venta
-export async function getAllInvoices(status?: string) {
+export async function getAllInvoices(organizationId: string, status?: string) {
   return executeWithErrorHandling(async () => {
     let query = supabase
       .from('invoices')
@@ -431,7 +412,7 @@ export async function getAllInvoices(status?: string) {
         // work_order:work_orders(*) // No hay relación en el schema actual,
         // quotation:quotations(*) // No hay relación en el schema actual
       `)
-      .eq('organization_id', '00000000-0000-0000-0000-000000000001')
+      .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
 
     if (status) {
@@ -468,7 +449,7 @@ export async function getInvoiceById(id: string) {
 }
 
 // Crear nota de venta
-export async function createInvoice(invoiceData: {
+export async function createInvoice(organizationId: string, invoiceData: {
   work_order_id?: string;
   quotation_id?: string;
   customer_id: string;
@@ -481,7 +462,7 @@ export async function createInvoice(invoiceData: {
     const { data, error } = await supabase
       .from('invoices')
       .insert({
-        organization_id: '00000000-0000-0000-0000-000000000001',
+        organization_id: organizationId,
         ...invoiceData,
       })
       .select()
@@ -535,7 +516,7 @@ export async function updateInvoiceDiscount(id: string, discount: number) {
 }
 
 // Buscar notas de venta
-export async function searchInvoices(searchTerm: string) {
+export async function searchInvoices(organizationId: string, searchTerm: string) {
   return executeWithErrorHandling(async () => {
     const { data, error } = await supabase
       .from('invoices')
@@ -544,7 +525,7 @@ export async function searchInvoices(searchTerm: string) {
         customer:customers(*),
         vehicle:vehicles(*)
       `)
-      .eq('organization_id', '00000000-0000-0000-0000-000000000001')
+      .eq('organization_id', organizationId)
       .or(
         `invoice_number.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`
       )
@@ -574,12 +555,12 @@ export async function getInvoicesByCustomer(customerId: string) {
 }
 
 // Obtener estadísticas de facturación
-export async function getInvoiceStats() {
+export async function getInvoiceStats(organizationId: string) {
   return executeWithErrorHandling(async () => {
     const { data, error } = await supabase
       .from('invoices')
       .select('status, total')
-      .eq('organization_id', '00000000-0000-0000-0000-000000000001');
+      .eq('organization_id', organizationId);
 
     if (error) throw error;
 
@@ -659,7 +640,7 @@ export async function deleteInvoiceItem(id: string) {
 // =====================================================
 
 // Obtener todos los pagos
-export async function getAllPayments(invoiceId?: string) {
+export async function getAllPayments(organizationId: string, invoiceId?: string) {
   return executeWithErrorHandling(async () => {
     let query = supabase
       .from('payments')
@@ -673,7 +654,7 @@ export async function getAllPayments(invoiceId?: string) {
           customer:customers(id, name, email, phone)
         )
       `)
-      .eq('organization_id', '00000000-0000-0000-0000-000000000001')
+      .eq('organization_id', organizationId)
       .order('payment_date', { ascending: false });
 
     if (invoiceId) {
@@ -711,7 +692,7 @@ export async function getPaymentById(id: string) {
 }
 
 // Crear pago
-export async function createPayment(paymentData: {
+export async function createPayment(organizationId: string, paymentData: {
   invoice_id: string;
   amount: number;
   payment_method: 'cash' | 'card' | 'transfer' | 'check' | 'other';
@@ -724,7 +705,7 @@ export async function createPayment(paymentData: {
     const { data, error } = await supabase
       .from('payments')
       .insert({
-        organization_id: '00000000-0000-0000-0000-000000000001',
+        organization_id: organizationId,
         ...paymentData,
       })
       .select(`
@@ -781,7 +762,7 @@ export async function deletePayment(id: string) {
 }
 
 // Buscar pagos
-export async function searchPayments(searchTerm: string) {
+export async function searchPayments(organizationId: string, searchTerm: string) {
   return executeWithErrorHandling(async () => {
     const { data, error } = await supabase
       .from('payments')
@@ -795,7 +776,7 @@ export async function searchPayments(searchTerm: string) {
           customer:customers(id, name, email, phone)
         )
       `)
-      .eq('organization_id', '00000000-0000-0000-0000-000000000001')
+      .eq('organization_id', organizationId)
       .or(
         `payment_number.ilike.%${searchTerm}%,reference.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`
       )
@@ -830,7 +811,7 @@ export async function getPaymentsByInvoice(invoiceId: string) {
 }
 
 // Obtener pagos por cliente
-export async function getPaymentsByCustomer(customerId: string) {
+export async function getPaymentsByCustomer(organizationId: string, customerId: string) {
   return executeWithErrorHandling(async () => {
     const { data, error } = await supabase
       .from('payments')
@@ -844,7 +825,7 @@ export async function getPaymentsByCustomer(customerId: string) {
           customer:customers(id, name, email, phone)
         )
       `)
-      .eq('organization_id', '00000000-0000-0000-0000-000000000001')
+      .eq('organization_id', organizationId)
       .eq('invoice.customer_id', customerId)
       .order('payment_date', { ascending: false });
 
@@ -854,12 +835,12 @@ export async function getPaymentsByCustomer(customerId: string) {
 }
 
 // Obtener estadísticas de pagos
-export async function getPaymentStats() {
+export async function getPaymentStats(organizationId: string) {
   return executeWithErrorHandling(async () => {
     const { data, error } = await supabase
       .from('payments')
       .select('amount, payment_method, payment_date')
-      .eq('organization_id', '00000000-0000-0000-0000-000000000001');
+      .eq('organization_id', organizationId);
 
     if (error) throw error;
 
@@ -1015,11 +996,8 @@ export async function getPaymentMethods() {
 // =====================================================
 
 // Crear nota de venta desde orden de trabajo
-export async function createInvoiceFromWorkOrder(workOrderId: string) {
+export async function createInvoiceFromWorkOrder(organizationId: string, workOrderId: string) {
   return executeWithErrorHandling(async () => {
-    const organizationId = getOrganizationId();
-    validateOrganization(organizationId);
-    
     const context = createLogContext(organizationId, undefined, 'quotations-invoices', 'createInvoiceFromWorkOrder', {
       workOrderId
     });
@@ -1096,11 +1074,8 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
 }
 
 // Crear nota de venta desde cotización
-export async function createInvoiceFromQuotation(quotationId: string) {
+export async function createInvoiceFromQuotation(organizationId: string, quotationId: string) {
   return executeWithErrorHandling(async () => {
-    const organizationId = getOrganizationId();
-    validateOrganization(organizationId);
-    
     const context = createLogContext(organizationId, undefined, 'quotations-invoices', 'createInvoiceFromQuotation', {
       quotationId
     });
@@ -1183,11 +1158,8 @@ export async function createInvoiceFromQuotation(quotationId: string) {
 }
 
 // Crear cotización desde orden de trabajo
-export async function createQuotationFromWorkOrder(workOrderId: string) {
+export async function createQuotationFromWorkOrder(organizationId: string, workOrderId: string) {
   return executeWithErrorHandling(async () => {
-    const organizationId = getOrganizationId();
-    validateOrganization(organizationId);
-    
     const context = createLogContext(organizationId, undefined, 'quotations-invoices', 'createQuotationFromWorkOrder', {
       workOrderId
     });
@@ -1261,7 +1233,7 @@ export async function createQuotationFromWorkOrder(workOrderId: string) {
       }
 
       // Recalcular totales de la cotización
-      await recalculateQuotationTotals(quotation.id);
+      await recalculateQuotationTotals(organizationId, quotation.id);
 
       logger.info(`Cotización creada exitosamente desde orden: ${quotation.id}`, context);
       return quotation as Quotation;
@@ -1270,11 +1242,8 @@ export async function createQuotationFromWorkOrder(workOrderId: string) {
 }
 
 // Recalcular totales de cotización
-export async function recalculateQuotationTotals(quotationId: string) {
+export async function recalculateQuotationTotals(organizationId: string, quotationId: string) {
   return executeWithErrorHandling(async () => {
-    const organizationId = getOrganizationId();
-    validateOrganization(organizationId);
-    
     const context = createLogContext(organizationId, undefined, 'quotations-invoices', 'recalculateQuotationTotals', {
       quotationId
     });
@@ -1319,11 +1288,8 @@ export async function recalculateQuotationTotals(quotationId: string) {
 }
 
 // Obtener cotizaciones vencidas
-export async function getExpiredQuotations() {
+export async function getExpiredQuotations(organizationId: string) {
   return executeWithErrorHandling(async () => {
-    const organizationId = getOrganizationId();
-    validateOrganization(organizationId);
-    
     const context = createLogContext(organizationId, undefined, 'quotations-invoices', 'getExpiredQuotations');
     logger.info('Obteniendo cotizaciones vencidas', context);
 
@@ -1354,11 +1320,8 @@ export async function getExpiredQuotations() {
 }
 
 // Marcar cotizaciones vencidas
-export async function markExpiredQuotations() {
+export async function markExpiredQuotations(organizationId: string) {
   return executeWithErrorHandling(async () => {
-    const organizationId = getOrganizationId();
-    validateOrganization(organizationId);
-    
     const context = createLogContext(organizationId, undefined, 'quotations-invoices', 'markExpiredQuotations');
     logger.info('Marcando cotizaciones vencidas', context);
 
@@ -1386,11 +1349,8 @@ export async function markExpiredQuotations() {
 }
 
 // Obtener estadísticas de cotizaciones
-export async function getQuotationStats() {
+export async function getQuotationStats(organizationId: string) {
   return executeWithErrorHandling(async () => {
-    const organizationId = getOrganizationId();
-    validateOrganization(organizationId);
-    
     const context = createLogContext(organizationId, undefined, 'quotations-invoices', 'getQuotationStats');
     logger.info('Obteniendo estadísticas de cotizaciones', context);
 

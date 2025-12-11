@@ -12,16 +12,7 @@ import {
   recalculateInvoiceTotals,
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
-// ⚠️ Hook eliminado - no se puede usar en server-side
-// import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization';
-
-// ✅ Helper temporal
-function getOrganizationId(): string {
-  return '00000000-0000-0000-0000-000000000001';
-}
-function validateOrganization(organizationId: string): void {
-  if (!organizationId) throw new Error('Organization ID required');
-}
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
 // =====================================================
 // GET - Obtener item específico
@@ -30,17 +21,26 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string; itemId: string } }
 ) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'invoices-items-api',
-    'GET',
-    { invoiceId: params.id, itemId: params.itemId }
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'invoices-items-api',
+      'GET',
+      { invoiceId: params.id, itemId: params.itemId }
+    );
     logger.info('Obteniendo item específico de nota de venta', context);
 
     // Verificar que la nota de venta existe
@@ -97,17 +97,26 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string; itemId: string } }
 ) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'invoices-items-api',
-    'PUT',
-    { invoiceId: params.id, itemId: params.itemId }
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'invoices-items-api',
+      'PUT',
+      { invoiceId: params.id, itemId: params.itemId }
+    );
     
     const body = await request.json();
     logger.info('Actualizando item específico de nota de venta', context, { updateData: body });
@@ -212,17 +221,26 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string; itemId: string } }
 ) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'invoices-items-api',
-    'DELETE',
-    { invoiceId: params.id, itemId: params.itemId }
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'invoices-items-api',
+      'DELETE',
+      { invoiceId: params.id, itemId: params.itemId }
+    );
     logger.info('Eliminando item específico de nota de venta', context);
 
     // Verificar que la nota de venta existe

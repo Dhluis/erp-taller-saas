@@ -6,6 +6,7 @@ import {
   getLowStockItems,
 } from '@/lib/database/queries/inventory';
 import { handleAPIError, createErrorResponse } from '@/lib/errors/APIError';
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
 /**
  * @swagger
@@ -72,14 +73,24 @@ import { handleAPIError, createErrorResponse } from '@/lib/errors/APIError';
 // GET: Obtener todos los items o buscar
 export async function GET(request: NextRequest) {
   try {
+    // ✅ Obtener organizationId del usuario autenticado
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const lowStock = searchParams.get('low_stock');
+    const organizationId = tenantContext.organizationId;
 
     let items;
-    
-    // Usar un organization_id válido temporalmente
-    const organizationId = '00000000-0000-0000-0000-000000000001';
     
     if (lowStock === 'true') {
       items = await getLowStockItems(organizationId);
@@ -106,7 +117,34 @@ export async function GET(request: NextRequest) {
 // POST: Crear nuevo item de inventario
 export async function POST(request: NextRequest) {
   try {
+    // ✅ Obtener organizationId del usuario autenticado
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
+    const organizationId = tenantContext.organizationId;
+
+    // ✅ VALIDACIÓN CRÍTICA: Si viene organization_id en el body, debe coincidir con el del usuario
+    if (body.organization_id && body.organization_id !== organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se puede crear item en otra organización. El organization_id será asignado automáticamente.',
+        },
+        { status: 403 }
+      );
+    }
+
+    // ✅ FORZAR organization_id del usuario (ignorar el del body por seguridad)
+    body.organization_id = organizationId;
 
     // Validaciones
     if (!body.name || !body.sku || !body.category_id) {
@@ -129,7 +167,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const item = await createInventoryItem(body);
+    const item = await createInventoryItem(organizationId, body);
 
     return NextResponse.json(
       {

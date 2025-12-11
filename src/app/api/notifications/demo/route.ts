@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { notifySystemAlert } from '@/lib/notifications/service'
+import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 // GET /api/notifications/demo - Demostrar sistema de notificaciones
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const organizationId = searchParams.get('organization_id') || '00000000-0000-0000-0000-000000000000'
+    // ✅ Obtener organizationId SOLO del usuario autenticado
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        { error: 'No autorizado: organización no encontrada' },
+        { status: 403 }
+      )
+    }
+    const organizationId = tenantContext.organizationId
 
     // Crear notificación de demostración
     const notification = await notifySystemAlert(

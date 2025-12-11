@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { markAllNotificationsAsRead } from '@/lib/database/queries/notifications'
-import { requireAuth, validateAccess } from '@/lib/auth/validation'
+import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 // POST /api/notifications/mark-all-read - Marcar todas como leídas
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
-    
-    if (!await validateAccess(user.id, 'notifications', 'update')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // ✅ Obtener organizationId SOLO del usuario autenticado
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        { error: 'No autorizado: organización no encontrada' },
+        { status: 403 }
+      )
     }
+    const organizationId = tenantContext.organizationId
 
-    const { searchParams } = new URL(request.url)
-    const organizationId = searchParams.get('organization_id') || user.organization_id
-
-    const notifications = await markAllNotificationsAsRead(organizationId, user.id)
+    const notifications = await markAllNotificationsAsRead(organizationId, tenantContext.userId)
 
     return NextResponse.json({
       data: {

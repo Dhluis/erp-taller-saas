@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSalesChart } from '@/lib/database/queries/kpis'
-import { requireAuth, validateAccess } from '@/lib/auth/validation'
+import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 /**
  * @swagger
@@ -84,11 +84,20 @@ import { requireAuth, validateAccess } from '@/lib/auth/validation'
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
-    await validateAccess(user.id, 'reports', 'read')
+    // ✅ Obtener organizationId SOLO del usuario autenticado
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          data: null,
+          error: 'No autorizado: organización no encontrada'
+        },
+        { status: 403 }
+      )
+    }
+    const organizationId = tenantContext.organizationId
 
     const { searchParams } = new URL(request.url)
-    const organizationId = searchParams.get('organization_id') || user.organization_id
     const days = parseInt(searchParams.get('days') || '30')
 
     const salesChart = await getSalesChart(organizationId, days)

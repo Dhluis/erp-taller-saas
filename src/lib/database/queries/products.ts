@@ -52,13 +52,14 @@ export async function getAllProducts(
 /**
  * Obtener un producto específico por ID
  */
-export async function getProductById(id: string): Promise<Product | null> {
+export async function getProductById(id: string, organizationId: string): Promise<Product | null> {
   return executeWithErrorHandling(async () => {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('products')
       .select(PRODUCT_SELECT_STATEMENT)
       .eq('id', id)
+      .eq('organization_id', organizationId) // ✅ Validar organización
       .single()
     if (error) throw error
     return data

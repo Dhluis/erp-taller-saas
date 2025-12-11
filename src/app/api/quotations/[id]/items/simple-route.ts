@@ -17,10 +17,7 @@ import {
   recalculateQuotationTotals,
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
-// ⚠️ Hook eliminado - no se puede usar en server-side
-// import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization';
-function getOrganizationId(): string { return '00000000-0000-0000-0000-000000000001'; }
-function validateOrganization(organizationId: string): void { if (!organizationId) throw new Error('Organization ID required'); }
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
 // =====================================================
 // GET - Obtener items de cotización (compatible con tu código)
@@ -29,18 +26,26 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'quotations-items-simple',
-    'GET',
-    { quotationId: params.id }
-  );
-
   try {
-    // Validación de organización (nuevo)
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'quotations-items-simple',
+      'GET',
+      { quotationId: params.id }
+    );
     
     // Logging (nuevo)
     logger.info('Obteniendo items de cotización (versión simple)', context);
@@ -91,18 +96,26 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'quotations-items-simple',
-    'POST',
-    { quotationId: params.id }
-  );
-
   try {
-    // Validación de organización (nuevo)
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'quotations-items-simple',
+      'POST',
+      { quotationId: params.id }
+    );
     
     const body = await request.json();
     
@@ -192,7 +205,7 @@ export async function POST(
     const item = await createQuotationItem(itemData);
 
     // Recálculo automático de totales (nuevo)
-    await recalculateQuotationTotals(params.id);
+    await recalculateQuotationTotals(organizationId, params.id);
 
     // Logging de evento de negocio (nuevo)
     logger.businessEvent('quotation_item_created', 'quotation_item', item.id, context);

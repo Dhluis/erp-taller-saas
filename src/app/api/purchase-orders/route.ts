@@ -3,12 +3,25 @@ import {
   getAllPurchaseOrders, 
   createPurchaseOrder 
 } from '@/lib/database/queries/purchase-orders'
+import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 // GET /api/purchase-orders - Listar órdenes de compra con filtros
 export async function GET(request: NextRequest) {
   try {
+    // ✅ Obtener organizationId SOLO del usuario autenticado
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          data: null,
+          error: 'No autorizado: organización no encontrada'
+        },
+        { status: 403 }
+      )
+    }
+    const organizationId = tenantContext.organizationId
+
     const { searchParams } = new URL(request.url)
-    const organizationId = searchParams.get('organization_id') || '00000000-0000-0000-0000-000000000000'
     
     // Construir filtros
     const filters: any = {}
@@ -63,19 +76,35 @@ export async function GET(request: NextRequest) {
 // POST /api/purchase-orders - Crear nueva orden de compra
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-
-    // Validar datos requeridos
-    const { organization_id, supplier_id } = body
-    if (!organization_id || !supplier_id) {
+    // ✅ Obtener organizationId SOLO del usuario autenticado
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
         {
           data: null,
-          error: 'Faltan datos requeridos: organization_id y supplier_id'
+          error: 'No autorizado: organización no encontrada'
+        },
+        { status: 403 }
+      )
+    }
+    const organizationId = tenantContext.organizationId
+
+    const body = await request.json()
+
+    // Validar datos requeridos
+    const { supplier_id } = body
+    if (!supplier_id) {
+      return NextResponse.json(
+        {
+          data: null,
+          error: 'Faltan datos requeridos: supplier_id'
         },
         { status: 400 }
       )
     }
+
+    // ✅ FORZAR organization_id del usuario autenticado (ignorar el del body)
+    body.organization_id = organizationId
 
     const newOrder = await createPurchaseOrder(body)
 

@@ -13,22 +13,31 @@ import {
   getInvoiceStats,
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
-// import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization'; // Funciones de cliente no disponibles en servidor
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
 // =====================================================
 // GET - Obtener todas las notas de venta
 // =====================================================
 export async function GET(request: NextRequest) {
-  const organizationId = '00000000-0000-0000-0000-000000000001'; // Temporal para desarrollo
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'invoices-api',
-    'GET'
-  );
-
   try {
-    // validateOrganization(organizationId); // Función de cliente no disponible en servidor
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'invoices-api',
+      'GET'
+    );
     
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
@@ -41,15 +50,15 @@ export async function GET(request: NextRequest) {
 
     if (stats) {
       // Obtener estadísticas
-      result = await getInvoiceStats();
+      result = await getInvoiceStats(organizationId);
       logger.info('Estadísticas de notas de venta obtenidas', context);
     } else if (search) {
       // Buscar notas de venta
-      result = await searchInvoices(search);
+      result = await searchInvoices(organizationId, search);
       logger.info(`Resultados de búsqueda: ${result.length} notas de venta`, context);
     } else {
       // Obtener todas las notas de venta
-      result = await getAllInvoices(status || undefined);
+      result = await getAllInvoices(organizationId, status || undefined);
       logger.info(`Notas de venta obtenidas: ${result.length}`, context);
     }
 
@@ -74,16 +83,25 @@ export async function GET(request: NextRequest) {
 // POST - Crear nueva nota de venta
 // =====================================================
 export async function POST(request: NextRequest) {
-  const organizationId = '00000000-0000-0000-0000-000000000001'; // Temporal para desarrollo
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'invoices-api',
-    'POST'
-  );
-
   try {
-    // validateOrganization(organizationId); // Función de cliente no disponible en servidor
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'invoices-api',
+      'POST'
+    );
     
     const body = await request.json();
     const { source, ...data } = body;
@@ -104,7 +122,7 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-        result = await createInvoiceFromWorkOrder(data.work_order_id);
+        result = await createInvoiceFromWorkOrder(organizationId, data.work_order_id);
         logger.businessEvent('invoice_created_from_work_order', 'invoice', result.id, context);
         break;
 
@@ -119,7 +137,7 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-        result = await createInvoiceFromQuotation(data.quotation_id);
+        result = await createInvoiceFromQuotation(organizationId, data.quotation_id);
         logger.businessEvent('invoice_created_from_quotation', 'invoice', result.id, context);
         break;
 
@@ -150,7 +168,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        result = await createInvoice(data);
+        result = await createInvoice(organizationId, data);
         logger.businessEvent('invoice_created', 'invoice', result.id, context);
         break;
     }

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { useSession } from '@/lib/context/SessionContext';
 
 const supabase = createClient();
 
@@ -126,6 +127,7 @@ export interface UpdateOrderItemData {
 }
 
 export function useWorkOrders() {
+  const { organizationId } = useSession();
   const [workOrders, setWorkOrders] = useState<WorkOrder[] | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -664,6 +666,14 @@ export function useWorkOrders() {
 
   // 📋 CARGAR TODOS LOS DATOS PARA KANBAN
   const loadData = useCallback(async () => {
+    // ✅ Validar organizationId del contexto
+    if (!organizationId) {
+      console.error('❌ No organization ID available');
+      setError('No se encontró la organización');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -681,9 +691,17 @@ export function useWorkOrders() {
         .single();
 
       if (!userData || !(userData as any).workshop_id) throw new Error('No se encontró el taller');
+      
+      // ✅ Validar que el organizationId del contexto coincida con el de la BD
+      const userOrganizationId = (userData as any).organization_id as string;
+      if (userOrganizationId !== organizationId) {
+        console.error('❌ Organization ID mismatch:', { context: organizationId, db: userOrganizationId });
+        throw new Error('Inconsistencia en la organización del usuario');
+      }
 
       const workshopId = (userData as any).workshop_id as string;
       console.log('✅ Workshop ID:', workshopId);
+      console.log('✅ Organization ID:', organizationId);
 
       // Cargar órdenes con relaciones
       const { data: ordersData, error: ordersError } = await supabase
@@ -694,6 +712,7 @@ export function useWorkOrders() {
           vehicle:vehicles(id, brand, model, year, license_plate),
           assigned_mechanic:employees(id, name)
         `)
+        .eq('organization_id', organizationId) // ✅ Filtrar primero por organization
         .eq('workshop_id', workshopId)
         .order('entry_date', { ascending: false });
 
@@ -708,6 +727,7 @@ export function useWorkOrders() {
       const { data: customersData, error: customersError } = await supabase
         .from('customers')
         .select('*')
+        .eq('organization_id', organizationId) // ✅ Filtrar primero por organization
         .eq('workshop_id', workshopId)
         .order('name');
 
@@ -722,7 +742,7 @@ export function useWorkOrders() {
       const { data: vehiclesData, error: vehiclesError } = await supabase
         .from('vehicles')
         .select('*')
-        .eq('workshop_id', workshopId)
+        .eq('organization_id', organizationId) // ✅ Filtrar primero por organization
         .order('brand');
 
       if (vehiclesError) {
@@ -754,16 +774,23 @@ export function useWorkOrders() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [organizationId]);
 
   // 🔄 ACTUALIZAR ESTADO DE ORDEN (PARA KANBAN)
   const updateOrderStatus = useCallback(async (orderId: string, newStatus: string) => {
+    // ✅ Validar organizationId del contexto
+    if (!organizationId) {
+      console.error('❌ No organization ID available');
+      throw new Error('No se encontró la organización');
+    }
+
     try {
       // @ts-expect-error - Supabase generated types don't match runtime
       const { error } = await supabase
         .from('work_orders')
         .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .eq('organization_id', organizationId); // ✅ Validar que pertenece a la org
 
       if (error) throw error;
       return { success: true };
@@ -771,7 +798,7 @@ export function useWorkOrders() {
       console.error('Error updating order status:', error);
       throw error;
     }
-  }, []);
+  }, [organizationId]);
 
   return {
     // Estado

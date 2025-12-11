@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAllWorkOrders, createWorkOrder } from '@/lib/database/queries/work-orders'
+import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 export async function GET(request: NextRequest) {
   try {
+    // ✅ Obtener organizationId SOLO del usuario autenticado
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        { error: 'No autorizado: organización no encontrada' },
+        { status: 403 }
+      )
+    }
+    const organizationId = tenantContext.organizationId
+
     const { searchParams } = new URL(request.url)
-    const organizationId = searchParams.get('organization_id')
     const status = searchParams.get('status')
     const customerId = searchParams.get('customer_id')
     const vehicleId = searchParams.get('vehicle_id')
@@ -18,7 +28,7 @@ export async function GET(request: NextRequest) {
     if (dateFrom) filters.date_from = dateFrom
     if (dateTo) filters.date_to = dateTo
 
-    const orders = await getAllWorkOrders(organizationId || undefined, filters)
+    const orders = await getAllWorkOrders(organizationId, filters)
     return NextResponse.json(orders)
   } catch (error) {
     console.error('Error in GET /api/orders:', error)

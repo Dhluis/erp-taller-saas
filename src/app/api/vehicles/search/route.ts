@@ -1,12 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { searchVehicles } from '@/lib/database/queries/vehicles'
+import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 // GET /api/vehicles/search - Buscar vehículos por placa, VIN, marca o modelo
 export async function GET(request: NextRequest) {
   try {
+    // ✅ Obtener organizationId SOLO del usuario autenticado
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          data: null,
+          error: 'No autorizado: organización no encontrada'
+        },
+        { status: 403 }
+      )
+    }
+    const organizationId = tenantContext.organizationId
+
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('q') || searchParams.get('query')
-    const organizationId = searchParams.get('organization_id') || '00000000-0000-0000-0000-000000000000'
     
     if (!query) {
       return NextResponse.json(

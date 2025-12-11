@@ -13,16 +13,7 @@ import {
   recalculateInvoiceTotals,
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
-// ⚠️ Hook eliminado - no se puede usar en server-side
-// import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization';
-
-// ✅ Helper temporal
-function getOrganizationId(): string {
-  return '00000000-0000-0000-0000-000000000001';
-}
-function validateOrganization(organizationId: string): void {
-  if (!organizationId) throw new Error('Organization ID required');
-}
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
 // =====================================================
 // GET - Obtener nota de venta por ID
@@ -31,17 +22,26 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'invoices-api',
-    'GET',
-    { invoiceId: params.id }
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'invoices-api',
+      'GET',
+      { invoiceId: params.id }
+    );
     logger.info('Obteniendo nota de venta por ID', context);
 
     const invoice = await getInvoiceById(params.id);
@@ -83,17 +83,26 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'invoices-api',
-    'PUT',
-    { invoiceId: params.id }
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'invoices-api',
+      'PUT',
+      { invoiceId: params.id }
+    );
     
     const body = await request.json();
     logger.info('Actualizando nota de venta', context, { updateData: body });
@@ -143,17 +152,26 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'invoices-api',
-    'DELETE',
-    { invoiceId: params.id }
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'invoices-api',
+      'DELETE',
+      { invoiceId: params.id }
+    );
     logger.info('Eliminando nota de venta', context);
 
     // Verificar que la nota de venta existe antes de eliminar
@@ -210,17 +228,26 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const organizationId = getOrganizationId();
-  const context = createLogContext(
-    organizationId,
-    undefined,
-    'invoices-api',
-    'PATCH',
-    { invoiceId: params.id }
-  );
-
   try {
-    validateOrganization(organizationId);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
+    const context = createLogContext(
+      organizationId,
+      undefined,
+      'invoices-api',
+      'PATCH',
+      { invoiceId: params.id }
+    );
     
     const body = await request.json();
     const { action, ...data } = body;
