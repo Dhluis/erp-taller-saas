@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,38 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { 
-  Plus, 
-  Search, 
-  RefreshCw, 
-  Eye, 
-  Edit, 
-  Trash2, 
-  MoreVertical,
-  FileText,
-  Calendar,
-  DollarSign
-} from 'lucide-react'
+import { Plus, Search, RefreshCw, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { CreateQuotationModal } from '@/components/quotations/CreateQuotationModal'
-import { QuotationPreview } from '@/components/quotations/QuotationPreview'
+import { useSession } from '@/lib/context/SessionContext'
 
-// Disable static generation
 export const dynamic = 'force-dynamic'
 
 interface Quotation {
@@ -80,13 +53,6 @@ interface Quotation {
     license_plate: string
     year?: number
   }
-  quotation_items?: Array<{
-    id: string
-    description: string
-    quantity: number
-    unit_price: number
-    total: number
-  }>
 }
 
 const STATUS_COLORS = {
@@ -108,18 +74,19 @@ const STATUS_LABELS = {
 }
 
 export default function QuotationsPage() {
-  const router = useRouter()
+  const { organizationId } = useSession()
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null)
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
-  const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null)
 
   // Cargar cotizaciones
   const loadQuotations = async () => {
+    if (!organizationId) {
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -155,115 +122,14 @@ export default function QuotationsPage() {
   }
 
   useEffect(() => {
-    loadQuotations()
-  }, [statusFilter])
+    if (organizationId) {
+      loadQuotations()
+    }
+  }, [organizationId, statusFilter])
 
   // Buscar cotizaciones
   const handleSearch = () => {
     loadQuotations()
-  }
-
-  // Eliminar cotización
-  const handleDelete = async (quotation: Quotation) => {
-    if (quotation.status !== 'draft') {
-      toast.error('Solo se pueden eliminar cotizaciones en estado borrador')
-      return
-    }
-
-    if (!confirm(`¿Estás seguro de eliminar la cotización ${quotation.quotation_number}?`)) {
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/quotations/${quotation.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-
-      if (!response.ok) {
-        throw new Error('Error al eliminar cotización')
-      }
-
-      toast.success('Cotización eliminada exitosamente')
-      loadQuotations()
-    } catch (error: any) {
-      console.error('Error eliminando cotización:', error)
-      toast.error(error.message || 'Error al eliminar cotización')
-    }
-  }
-
-  // Cambiar estado
-  const handleStatusChange = async (quotationId: string, newStatus: string) => {
-    try {
-      const response = await fetch(`/api/quotations/${quotationId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          action: 'update_status',
-          status: newStatus,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Error al actualizar estado')
-      }
-
-      toast.success('Estado actualizado exitosamente')
-      loadQuotations()
-    } catch (error: any) {
-      console.error('Error actualizando estado:', error)
-      toast.error(error.message || 'Error al actualizar estado')
-    }
-  }
-
-  // Ver cotización
-  const handleView = async (quotation: Quotation) => {
-    try {
-      const response = await fetch(`/api/quotations/${quotation.id}`, {
-        credentials: 'include',
-      })
-
-      if (!response.ok) {
-        throw new Error('Error al cargar cotización')
-      }
-
-      const result = await response.json()
-      if (result.success) {
-        setSelectedQuotation(result.data)
-        setIsPreviewOpen(true)
-      }
-    } catch (error: any) {
-      console.error('Error cargando cotización:', error)
-      toast.error(error.message || 'Error al cargar cotización')
-    }
-  }
-
-  // Editar cotización
-  const handleEdit = async (quotation: Quotation) => {
-    if (quotation.status !== 'draft') {
-      toast.error('Solo se pueden editar cotizaciones en estado borrador')
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/quotations/${quotation.id}`, {
-        credentials: 'include',
-      })
-
-      if (!response.ok) {
-        throw new Error('Error al cargar cotización')
-      }
-
-      const result = await response.json()
-      if (result.success) {
-        setEditingQuotation(result.data)
-        setIsCreateModalOpen(true)
-      }
-    } catch (error: any) {
-      console.error('Error cargando cotización:', error)
-      toast.error(error.message || 'Error al cargar cotización')
-    }
   }
 
   // Formatear moneda
@@ -297,7 +163,7 @@ export default function QuotationsPage() {
               Administra cotizaciones y presupuestos
             </p>
           </div>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
+          <Button onClick={() => toast.info('Funcionalidad en desarrollo')}>
             <Plus className="h-4 w-4 mr-2" />
             Nueva Cotización
           </Button>
@@ -355,12 +221,6 @@ export default function QuotationsPage() {
                   ? 'No se encontraron cotizaciones con los filtros aplicados'
                   : 'Crea tu primera cotización para comenzar'}
               </p>
-              {!searchTerm && statusFilter === 'all' && (
-                <Button onClick={() => setIsCreateModalOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Crear Cotización
-                </Button>
-              )}
             </div>
           ) : (
             <Table>
@@ -373,7 +233,6 @@ export default function QuotationsPage() {
                   <TableHead>Estado</TableHead>
                   <TableHead>Fecha</TableHead>
                   <TableHead>Vigencia</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -394,9 +253,7 @@ export default function QuotationsPage() {
                       {formatCurrency(quotation.total_amount)}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        className={STATUS_COLORS[quotation.status]}
-                      >
+                      <Badge className={STATUS_COLORS[quotation.status]}>
                         {STATUS_LABELS[quotation.status]}
                       </Badge>
                     </TableCell>
@@ -408,84 +265,12 @@ export default function QuotationsPage() {
                         ? formatDate(quotation.valid_until)
                         : 'N/A'}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleView(quotation)}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Ver
-                          </DropdownMenuItem>
-                          {quotation.status === 'draft' && (
-                            <DropdownMenuItem onClick={() => handleEdit(quotation)}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </DropdownMenuItem>
-                          )}
-                          {quotation.status === 'draft' && (
-                            <DropdownMenuItem
-                              onClick={() => handleDelete(quotation)}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Eliminar
-                            </DropdownMenuItem>
-                          )}
-                          {quotation.status === 'draft' && (
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(quotation.id, 'sent')}
-                            >
-                              <FileText className="h-4 w-4 mr-2" />
-                              Enviar
-                            </DropdownMenuItem>
-                          )}
-                          {quotation.status === 'sent' && (
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(quotation.id, 'approved')}
-                            >
-                              <FileText className="h-4 w-4 mr-2" />
-                              Marcar como Aprobada
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           )}
         </div>
-
-        {/* Modal de crear/editar */}
-        <CreateQuotationModal
-          open={isCreateModalOpen}
-          onOpenChange={(open) => {
-            setIsCreateModalOpen(open)
-            if (!open) {
-              setEditingQuotation(null)
-            }
-          }}
-          quotation={editingQuotation}
-          onSuccess={() => {
-            setIsCreateModalOpen(false)
-            setEditingQuotation(null)
-            loadQuotations()
-          }}
-        />
-
-        {/* Modal de vista previa */}
-        {selectedQuotation && (
-          <QuotationPreview
-            quotation={selectedQuotation}
-            open={isPreviewOpen}
-            onOpenChange={setIsPreviewOpen}
-          />
-        )}
       </div>
     </AppLayout>
   )
