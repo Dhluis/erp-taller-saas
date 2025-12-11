@@ -1,506 +1,492 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-
-// Disable static generation
-export const dynamic = 'force-dynamic';
-import { AppLayout } from '@/components/layout/AppLayout';
-import { Button } from '@/components/ui/button';
-import { Plus, RefreshCw, FileText } from 'lucide-react';
-import { PageHeader } from '@/components/navigation/page-header';
-import { useBilling } from '@/hooks/useBilling';
-import { QuotationFilters } from '@/components/ui/QuotationFilters';
-import { QuotationCard } from '@/components/ui/QuotationCard';
-import { QuotationForm } from '@/components/ui/QuotationForm';
-import { DeleteQuotationModal } from '@/components/ui/DeleteQuotationModal';
-import { Quotation } from '@/hooks/useBilling';
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { AppLayout } from '@/components/layout/AppLayout'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { BillingItemsManager } from '@/components/ui/BillingItemsManager';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { QuotationStatusBadge } from '@/components/ui/QuotationStatusBadge';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { User, Car, Calendar, DollarSign, RefreshCw as ConvertIcon } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { 
+  Plus, 
+  Search, 
+  RefreshCw, 
+  Eye, 
+  Edit, 
+  Trash2, 
+  MoreVertical,
+  FileText,
+  Calendar,
+  DollarSign
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
+import { CreateQuotationModal } from '@/components/quotations/CreateQuotationModal'
+import { QuotationPreview } from '@/components/quotations/QuotationPreview'
+
+// Disable static generation
+export const dynamic = 'force-dynamic'
+
+interface Quotation {
+  id: string
+  quotation_number: string
+  customer_id: string
+  vehicle_id: string
+  status: 'draft' | 'sent' | 'approved' | 'rejected' | 'expired' | 'converted'
+  valid_until: string
+  subtotal: number
+  tax_amount: number
+  discount_amount: number
+  total_amount: number
+  created_at: string
+  customers?: {
+    id: string
+    name: string
+    email?: string
+    phone?: string
+  }
+  vehicles?: {
+    id: string
+    brand: string
+    model: string
+    license_plate: string
+    year?: number
+  }
+  quotation_items?: Array<{
+    id: string
+    description: string
+    quantity: number
+    unit_price: number
+    total: number
+  }>
+}
+
+const STATUS_COLORS = {
+  draft: 'bg-gray-500',
+  sent: 'bg-blue-500',
+  approved: 'bg-green-500',
+  rejected: 'bg-red-500',
+  expired: 'bg-orange-500',
+  converted: 'bg-purple-500',
+}
+
+const STATUS_LABELS = {
+  draft: 'Borrador',
+  sent: 'Enviada',
+  approved: 'Aprobada',
+  rejected: 'Rechazada',
+  expired: 'Vencida',
+  converted: 'Convertida',
+}
 
 export default function QuotationsPage() {
-  const {
-    quotations,
-    currentQuotation,
-    loading,
-    fetchQuotations,
-    searchQuotations,
-    fetchQuotationById,
-    createQuotation,
-    updateQuotation,
-    deleteQuotation,
-    updateQuotationStatus,
-    addQuotationItem,
-    updateQuotationItem,
-    deleteQuotationItem,
-    createInvoiceFromQuotation,
-    setCurrentQuotation,
-  } = useBilling();
+  const router = useRouter()
+  const [quotations, setQuotations] = useState<Quotation[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null)
 
-  // Estados UI
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [deletingQuotation, setDeletingQuotation] = useState<Quotation | null>(null);
+  // Cargar cotizaciones
+  const loadQuotations = async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (statusFilter !== 'all') {
+        params.append('status', statusFilter)
+      }
+      if (searchTerm.trim()) {
+        params.append('search', searchTerm.trim())
+      }
 
-  // Cargar datos iniciales
+      const response = await fetch(`/api/quotations?${params.toString()}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al cargar cotizaciones')
+      }
+
+      const result = await response.json()
+      if (result.success) {
+        setQuotations(result.data || [])
+      } else {
+        throw new Error(result.error || 'Error al cargar cotizaciones')
+      }
+    } catch (error: any) {
+      console.error('Error cargando cotizaciones:', error)
+      toast.error(error.message || 'Error al cargar cotizaciones')
+      setQuotations([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    fetchQuotations();
-  }, []);
+    loadQuotations()
+  }, [statusFilter])
 
-  // Manejar búsqueda
+  // Buscar cotizaciones
   const handleSearch = () => {
-    if (searchTerm.trim()) {
-      searchQuotations(searchTerm);
-    } else {
-      fetchQuotations(selectedStatus !== 'all' ? selectedStatus : undefined);
-    }
-  };
-
-  // Manejar cambio de filtro de estado
-  const handleStatusFilterChange = (status: string) => {
-    setSelectedStatus(status);
-    if (status === 'all') {
-      fetchQuotations();
-    } else {
-      fetchQuotations(status);
-    }
-  };
-
-  // Limpiar filtros
-  const handleClearFilters = () => {
-    setSearchTerm('');
-    setSelectedStatus('all');
-    fetchQuotations();
-  };
-
-  // Refrescar datos
-  const handleRefresh = () => {
-    fetchQuotations(selectedStatus !== 'all' ? selectedStatus : undefined);
-  };
-
-  // Crear nueva cotización
-  const handleCreateQuotation = () => {
-    setEditingQuotation(null);
-    setIsFormOpen(true);
-  };
-
-  // Ver detalles de cotización
-  const handleViewDetails = async (quotation: Quotation) => {
-    await fetchQuotationById(quotation.id);
-    setIsDetailsOpen(true);
-  };
-
-  // Editar cotización
-  const handleEditQuotation = (quotation: Quotation) => {
-    setEditingQuotation(quotation);
-    setIsFormOpen(true);
-  };
+    loadQuotations()
+  }
 
   // Eliminar cotización
-  const handleDeleteClick = (quotation: Quotation) => {
-    setDeletingQuotation(quotation);
-    setIsDeleteModalOpen(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (deletingQuotation) {
-      await deleteQuotation(deletingQuotation.id);
-      setIsDeleteModalOpen(false);
-      setDeletingQuotation(null);
+  const handleDelete = async (quotation: Quotation) => {
+    if (quotation.status !== 'draft') {
+      toast.error('Solo se pueden eliminar cotizaciones en estado borrador')
+      return
     }
-  };
 
-  // Cambiar estado de cotización
-  const handleStatusChange = async (quotationId: string, newStatus: Quotation['status']) => {
-    await updateQuotationStatus(quotationId, newStatus);
-  };
-
-  // Convertir a nota de venta
-  const handleConvertToInvoice = async (quotation: Quotation) => {
-    const result = await createInvoiceFromQuotation(quotation.id);
-    if (result) {
-      setIsDetailsOpen(false);
+    if (!confirm(`¿Estás seguro de eliminar la cotización ${quotation.quotation_number}?`)) {
+      return
     }
-  };
 
-  // Submit formulario
-  const handleFormSubmit = async (data: any) => {
-    if (editingQuotation) {
-      await updateQuotation(editingQuotation.id, data);
-    } else {
-      await createQuotation(data);
+    try {
+      const response = await fetch(`/api/quotations/${quotation.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al eliminar cotización')
+      }
+
+      toast.success('Cotización eliminada exitosamente')
+      loadQuotations()
+    } catch (error: any) {
+      console.error('Error eliminando cotización:', error)
+      toast.error(error.message || 'Error al eliminar cotización')
     }
-  };
+  }
 
-  // Agrupar cotizaciones por estado
-  const groupedQuotations = {
-    pending: quotations.filter((q) => q.status === 'pending'),
-    approved: quotations.filter((q) => q.status === 'approved'),
-    rejected: quotations.filter((q) => q.status === 'rejected'),
-    converted: quotations.filter((q) => q.status === 'converted'),
-    expired: quotations.filter((q) => q.status === 'expired'),
-  };
+  // Cambiar estado
+  const handleStatusChange = async (quotationId: string, newStatus: string) => {
+    try {
+      const response = await fetch(`/api/quotations/${quotationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'update_status',
+          status: newStatus,
+        }),
+      })
 
-  const totalQuotations = quotations.length;
-  const totalAmount = quotations.reduce((sum, q) => sum + q.total_amount, 0);
+      if (!response.ok) {
+        throw new Error('Error al actualizar estado')
+      }
+
+      toast.success('Estado actualizado exitosamente')
+      loadQuotations()
+    } catch (error: any) {
+      console.error('Error actualizando estado:', error)
+      toast.error(error.message || 'Error al actualizar estado')
+    }
+  }
+
+  // Ver cotización
+  const handleView = async (quotation: Quotation) => {
+    try {
+      const response = await fetch(`/api/quotations/${quotation.id}`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al cargar cotización')
+      }
+
+      const result = await response.json()
+      if (result.success) {
+        setSelectedQuotation(result.data)
+        setIsPreviewOpen(true)
+      }
+    } catch (error: any) {
+      console.error('Error cargando cotización:', error)
+      toast.error(error.message || 'Error al cargar cotización')
+    }
+  }
+
+  // Editar cotización
+  const handleEdit = async (quotation: Quotation) => {
+    if (quotation.status !== 'draft') {
+      toast.error('Solo se pueden editar cotizaciones en estado borrador')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/quotations/${quotation.id}`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al cargar cotización')
+      }
+
+      const result = await response.json()
+      if (result.success) {
+        setEditingQuotation(result.data)
+        setIsCreateModalOpen(true)
+      }
+    } catch (error: any) {
+      console.error('Error cargando cotización:', error)
+      toast.error(error.message || 'Error al cargar cotización')
+    }
+  }
+
+  // Formatear moneda
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+    }).format(amount)
+  }
+
+  // Formatear fecha
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'dd/MM/yyyy', { locale: es })
+    } catch {
+      return dateString
+    }
+  }
 
   return (
     <AppLayout
       title="Cotizaciones"
       breadcrumbs={[{ label: 'Cotizaciones', href: '/cotizaciones' }]}
     >
-      <div className="flex flex-col gap-6">
-      {/* Page Header con Breadcrumbs */}
-      <PageHeader
-        title="Cotizaciones"
-        description="Administra cotizaciones y presupuestos"
-        breadcrumbs={[
-          { label: 'Cotizaciones', href: '/cotizaciones' }
-        ]}
-        actions={
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleRefresh} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refrescar
-            </Button>
-            <Button onClick={handleCreateQuotation}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva Cotización
-            </Button>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-text-primary">Cotizaciones</h1>
+            <p className="text-text-secondary mt-1">
+              Administra cotizaciones y presupuestos
+            </p>
           </div>
-        }
-      />
-
-      {/* Estadísticas rápidas */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalQuotations}</div>
-            <p className="text-xs text-muted-foreground">
-              ${totalAmount.toFixed(2)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {groupedQuotations.pending.length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Aprobadas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {groupedQuotations.approved.length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Convertidas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {groupedQuotations.converted.length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Rechazadas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {groupedQuotations.rejected.length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filtros */}
-      <QuotationFilters
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        selectedStatus={selectedStatus}
-        onStatusChange={handleStatusFilterChange}
-        onSearch={handleSearch}
-        onClearFilters={handleClearFilters}
-      />
-
-      {/* Grid de cotizaciones */}
-      {loading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader>
-                <div className="h-4 bg-muted rounded w-3/4 mb-2" />
-                <div className="h-3 bg-muted rounded w-full" />
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="h-3 bg-muted rounded w-full" />
-                  <div className="h-3 bg-muted rounded w-2/3" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Cotización
+          </Button>
         </div>
-      ) : quotations.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <FileText className="h-16 w-16 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No hay cotizaciones</h3>
-            <p className="text-muted-foreground text-center mb-4">
-              Crea tu primera cotización para comenzar
-            </p>
-            <Button onClick={handleCreateQuotation}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva Cotización
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {quotations.map((quotation) => (
-            <QuotationCard
-              key={quotation.id}
-              quotation={quotation}
-              onView={handleViewDetails}
-              onEdit={handleEditQuotation}
-              onDelete={handleDeleteClick}
-              onConvert={
-                quotation.status === 'approved'
-                  ? handleConvertToInvoice
-                  : undefined
-              }
+
+        {/* Filtros y búsqueda */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por número o cliente..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              className="pl-10"
             />
-          ))}
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="Filtrar por estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los estados</SelectItem>
+              <SelectItem value="draft">Borrador</SelectItem>
+              <SelectItem value="sent">Enviada</SelectItem>
+              <SelectItem value="approved">Aprobada</SelectItem>
+              <SelectItem value="rejected">Rechazada</SelectItem>
+              <SelectItem value="expired">Vencida</SelectItem>
+              <SelectItem value="converted">Convertida</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={handleSearch} disabled={loading}>
+            <Search className="h-4 w-4 mr-2" />
+            Buscar
+          </Button>
+          <Button variant="outline" onClick={loadQuotations} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refrescar
+          </Button>
         </div>
-      )}
 
-      {/* Formulario de cotización */}
-      <QuotationForm
-        quotation={editingQuotation}
-        isOpen={isFormOpen}
-        onClose={() => {
-          setIsFormOpen(false);
-          setEditingQuotation(null);
-        }}
-        onSubmit={handleFormSubmit}
-        isSubmitting={loading}
-      />
-
-      {/* Modal de detalles de cotización */}
-      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto border border-border shadow-lg" style={{backgroundColor: '#000000'}}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Detalles de la Cotización
-            </DialogTitle>
-            <DialogDescription>
-              Información completa y gestión de items
-            </DialogDescription>
-          </DialogHeader>
-
-          {currentQuotation && (
-            <div className="space-y-6">
-              {/* Información básica */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">
-                        {currentQuotation.quotation_number}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {currentQuotation.description}
-                      </p>
-                    </div>
-                    <QuotationStatusBadge status={currentQuotation.status} />
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {/* Cliente */}
-                    {currentQuotation.customer && (
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">
-                            {currentQuotation.customer.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {currentQuotation.customer.email}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Vehículo */}
-                    {currentQuotation.vehicle && (
-                      <div className="flex items-center gap-2">
-                        <Car className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">
-                            {currentQuotation.vehicle.brand} {currentQuotation.vehicle.model}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {currentQuotation.vehicle.year} - {currentQuotation.vehicle.license_plate}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Fecha de validez */}
-                  {currentQuotation.valid_until && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">
-                        Válida hasta:{' '}
-                        {format(new Date(currentQuotation.valid_until), 'dd MMM yyyy', {
-                          locale: es,
-                        })}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Notas */}
-                  {currentQuotation.notes && (
-                    <div className="pt-2 border-t">
-                      <p className="text-sm text-muted-foreground">Notas:</p>
-                      <p className="text-sm">{currentQuotation.notes}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Gestión de items */}
-              <BillingItemsManager
-                items={currentQuotation.items || []}
-                onAddItem={async (itemData) => {
-                  await addQuotationItem(currentQuotation.id, itemData);
-                }}
-                onUpdateItem={async (itemId, data) => {
-                  await updateQuotationItem(itemId, data);
-                }}
-                onDeleteItem={async (itemId) => {
-                  await deleteQuotationItem(itemId);
-                }}
-                isLoading={loading}
-              />
-
-              {/* Resumen financiero */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Resumen Financiero</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Subtotal:</span>
-                      <span>${currentQuotation.subtotal.toFixed(2)}</span>
-                    </div>
-                    {currentQuotation.discount > 0 && (
-                      <div className="flex justify-between text-sm text-green-600">
-                        <span>Descuento:</span>
-                        <span>-${currentQuotation.discount.toFixed(2)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-sm">
-                      <span>Impuestos:</span>
-                      <span>${currentQuotation.tax.toFixed(2)}</span>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>Total:</span>
-                      <span className="text-cyan-600">
-                        ${currentQuotation.total_amount.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Acciones */}
-              <div className="flex gap-2 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsDetailsOpen(false)}
-                >
-                  Cerrar
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setEditingQuotation(currentQuotation);
-                    setIsFormOpen(true);
-                    setIsDetailsOpen(false);
-                  }}
-                >
-                  Editar
-                </Button>
-                {currentQuotation.status === 'approved' && (
-                  <Button
-                    onClick={() => handleConvertToInvoice(currentQuotation)}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <ConvertIcon className="h-4 w-4 mr-2" />
-                    Convertir a Nota de Venta
-                  </Button>
-                )}
-              </div>
+        {/* Tabla de cotizaciones */}
+        <div className="border rounded-lg">
+          {loading ? (
+            <div className="p-8 text-center text-text-secondary">
+              <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
+              <p>Cargando cotizaciones...</p>
             </div>
+          ) : quotations.length === 0 ? (
+            <div className="p-8 text-center text-text-secondary">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-medium mb-2">No hay cotizaciones</p>
+              <p className="text-sm mb-4">
+                {searchTerm || statusFilter !== 'all'
+                  ? 'No se encontraron cotizaciones con los filtros aplicados'
+                  : 'Crea tu primera cotización para comenzar'}
+              </p>
+              {!searchTerm && statusFilter === 'all' && (
+                <Button onClick={() => setIsCreateModalOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear Cotización
+                </Button>
+              )}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Número</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Vehículo</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Vigencia</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {quotations.map((quotation) => (
+                  <TableRow key={quotation.id}>
+                    <TableCell className="font-medium">
+                      {quotation.quotation_number}
+                    </TableCell>
+                    <TableCell>
+                      {quotation.customers?.name || 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {quotation.vehicles
+                        ? `${quotation.vehicles.brand} ${quotation.vehicles.model} - ${quotation.vehicles.license_plate}`
+                        : 'N/A'}
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      {formatCurrency(quotation.total_amount)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        className={STATUS_COLORS[quotation.status]}
+                      >
+                        {STATUS_LABELS[quotation.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {formatDate(quotation.created_at)}
+                    </TableCell>
+                    <TableCell>
+                      {quotation.valid_until
+                        ? formatDate(quotation.valid_until)
+                        : 'N/A'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleView(quotation)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Ver
+                          </DropdownMenuItem>
+                          {quotation.status === 'draft' && (
+                            <DropdownMenuItem onClick={() => handleEdit(quotation)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                          )}
+                          {quotation.status === 'draft' && (
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(quotation)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Eliminar
+                            </DropdownMenuItem>
+                          )}
+                          {quotation.status === 'draft' && (
+                            <DropdownMenuItem
+                              onClick={() => handleStatusChange(quotation.id, 'sent')}
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              Enviar
+                            </DropdownMenuItem>
+                          )}
+                          {quotation.status === 'sent' && (
+                            <DropdownMenuItem
+                              onClick={() => handleStatusChange(quotation.id, 'approved')}
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              Marcar como Aprobada
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
-        </DialogContent>
-      </Dialog>
+        </div>
 
-      {/* Modal de confirmación de eliminación */}
-      <DeleteQuotationModal
-        quotation={deletingQuotation}
-        isOpen={isDeleteModalOpen}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setDeletingQuotation(null);
-        }}
-        onConfirm={handleConfirmDelete}
-        isDeleting={loading}
-      />
-    </div>
+        {/* Modal de crear/editar */}
+        <CreateQuotationModal
+          open={isCreateModalOpen}
+          onOpenChange={(open) => {
+            setIsCreateModalOpen(open)
+            if (!open) {
+              setEditingQuotation(null)
+            }
+          }}
+          quotation={editingQuotation}
+          onSuccess={() => {
+            setIsCreateModalOpen(false)
+            setEditingQuotation(null)
+            loadQuotations()
+          }}
+        />
+
+        {/* Modal de vista previa */}
+        {selectedQuotation && (
+          <QuotationPreview
+            quotation={selectedQuotation}
+            open={isPreviewOpen}
+            onOpenChange={setIsPreviewOpen}
+          />
+        )}
+      </div>
     </AppLayout>
-  );
+  )
 }

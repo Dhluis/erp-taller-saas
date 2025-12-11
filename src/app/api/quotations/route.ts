@@ -58,12 +58,89 @@ export async function GET(request: NextRequest) {
       result = await getExpiredQuotations(organizationId);
       logger.info(`Cotizaciones vencidas obtenidas: ${result.length}`, context);
     } else if (search) {
-      // Buscar cotizaciones
-      result = await searchQuotations(organizationId, search);
+      // Buscar cotizaciones usando Supabase directamente
+      const { createClient } = await import('@/lib/supabase/server');
+      const supabase = await createClient();
+
+      // Buscar por número de cotización
+      const { data: byNumber, error: error1 } = await supabase
+        .from('quotations')
+        .select(`
+          *,
+          customers (*),
+          vehicles (*),
+          quotation_items (*)
+        `)
+        .eq('organization_id', organizationId)
+        .ilike('quotation_number', `%${search}%`);
+
+      // Buscar por nombre de cliente
+      const { data: customers, error: error2 } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .ilike('name', `%${search}%`);
+
+      if (error2) {
+        logger.error('Error buscando clientes', context, error2 as Error);
+      }
+
+      const customerIds = customers?.map(c => c.id) || [];
+      
+      const { data: byCustomer, error: error3 } = customerIds.length > 0
+        ? await supabase
+            .from('quotations')
+            .select(`
+              *,
+              customers (*),
+              vehicles (*),
+              quotation_items (*)
+            `)
+            .eq('organization_id', organizationId)
+            .in('customer_id', customerIds)
+        : { data: null, error: null };
+
+      if (error1 || error3) {
+        logger.error('Error buscando cotizaciones', context, (error1 || error3) as Error);
+        throw error1 || error3;
+      }
+
+      // Combinar resultados y eliminar duplicados
+      const allResults = [...(byNumber || []), ...(byCustomer || [])];
+      const uniqueResults = allResults.filter((q, index, self) =>
+        index === self.findIndex((t) => t.id === q.id)
+      );
+
+      result = uniqueResults;
       logger.info(`Resultados de búsqueda: ${result.length} cotizaciones`, context);
     } else {
-      // Obtener todas las cotizaciones
-      result = await getAllQuotations(organizationId, status || undefined);
+      // Obtener todas las cotizaciones usando Supabase directamente
+      const { createClient } = await import('@/lib/supabase/server');
+      const supabase = await createClient();
+
+      let query = supabase
+        .from('quotations')
+        .select(`
+          *,
+          customers (*),
+          vehicles (*),
+          quotation_items (*)
+        `)
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false });
+
+      if (status && status !== 'all') {
+        query = query.eq('status', status);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        logger.error('Error obteniendo cotizaciones', context, error as Error);
+        throw error;
+      }
+
+      result = data || [];
       logger.info(`Cotizaciones obtenidas: ${result.length}`, context);
     }
 
@@ -112,7 +189,7 @@ export async function POST(request: NextRequest) {
     logger.info('Creando nueva cotización', context, { quotationData: body });
 
     // Validar datos requeridos
-    const requiredFields = ['customer_id', 'vehicle_id', 'description'];
+    const requiredFields = ['customer_id', 'vehicle_id'];
     const missingFields = requiredFields.filter(field => !body[field]);
     
     if (missingFields.length > 0) {
@@ -120,6 +197,17 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: `Campos requeridos faltantes: ${missingFields.join(', ')}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validar que haya items
+    if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Debe agregar al menos un item a la cotización',
         },
         { status: 400 }
       );
@@ -136,10 +224,100 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const quotation = await createQuotation(organizationId, body);
+    // Generar número de cotización único
+    const quotationNumber = `COT-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
-    logger.businessEvent('quotation_created', 'quotation', quotation.id, context);
+    // Crear cotización usando Supabase directamente
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = await createClient();
+
+    // Insertar cotización
+    const quotationData = {
+      organization_id: organizationId,
+      customer_id: body.customer_id,
+      vehicle_id: body.vehicle_id,
+      quotation_number: quotationNumber,
+      status: body.status || 'draft',
+      valid_until: body.valid_until || null,
+      terms_and_conditions: body.terms_and_conditions || '',
+      notes: body.notes || '',
+      subtotal: body.subtotal || 0,
+      tax_amount: body.tax_amount || 0,
+      discount_amount: body.discount_amount || 0,
+      total_amount: body.total_amount || 0,
+      created_by: tenantContext.userId,
+    };
+
+    const { data: quotation, error: quotationError } = await supabase
+      .from('quotations')
+      .insert(quotationData)
+      .select(`
+        *,
+        customers (*),
+        vehicles (*)
+      `)
+      .single();
+
+    if (quotationError) {
+      logger.error('Error insertando cotización', context, quotationError as Error);
+      throw quotationError;
+    }
+
+    // Insertar items
+    if (body.items && body.items.length > 0) {
+      const items = body.items.map((item: any) => ({
+        quotation_id: quotation.id,
+        organization_id: organizationId,
+        item_type: item.item_type || 'service',
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        discount_percent: item.discount_percent || 0,
+        discount_amount: item.discount_amount || 0,
+        tax_percent: item.tax_percent || 16,
+        subtotal: item.subtotal,
+        tax_amount: item.tax_amount,
+        total: item.total,
+        service_id: item.service_id || null,
+        inventory_id: item.inventory_id || null,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('quotation_items')
+        .insert(items);
+
+      if (itemsError) {
+        logger.error('Error insertando items', context, itemsError as Error);
+        // Eliminar cotización si falla la inserción de items
+        await supabase.from('quotations').delete().eq('id', quotation.id);
+        throw itemsError;
+      }
+
+      // Obtener cotización completa con items
+      const { data: quotationWithItems, error: fetchError } = await supabase
+        .from('quotations')
+        .select(`
+          *,
+          customers (*),
+          vehicles (*),
+          quotation_items (*)
+        `)
+        .eq('id', quotation.id)
+        .single();
+
+      if (!fetchError && quotationWithItems) {
+        logger.info(`Cotización creada exitosamente: ${quotation.id}`, context);
+        logger.businessEvent('quotation_created', 'quotation', quotation.id, context);
+
+        return NextResponse.json({
+          success: true,
+          data: quotationWithItems,
+        }, { status: 201 });
+      }
+    }
+
     logger.info(`Cotización creada exitosamente: ${quotation.id}`, context);
+    logger.businessEvent('quotation_created', 'quotation', quotation.id, context);
 
     return NextResponse.json({
       success: true,

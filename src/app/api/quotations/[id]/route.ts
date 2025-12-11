@@ -44,9 +44,23 @@ export async function GET(
     );
     logger.info('Obteniendo cotización por ID', context);
 
-    const quotation = await getQuotationById(params.id);
+    // Obtener cotización usando Supabase directamente
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = await createClient();
 
-    if (!quotation) {
+    const { data: quotation, error } = await supabase
+      .from('quotations')
+      .select(`
+        *,
+        customers (*),
+        vehicles (*),
+        quotation_items (*)
+      `)
+      .eq('id', params.id)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (error || !quotation) {
       logger.warn('Cotización no encontrada', context);
       return NextResponse.json(
         {
@@ -118,12 +132,131 @@ export async function PUT(
       );
     }
 
-    const quotation = await updateQuotation(params.id, body);
+    // Verificar que la cotización existe y pertenece a la organización
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = await createClient();
 
-    // Si se actualizaron items, recalcular totales
-    if (body.items || body.subtotal || body.tax || body.discount) {
-      await recalculateQuotationTotals(organizationId, params.id);
-      logger.info('Totales recalculados después de actualización', context);
+    const { data: existingQuotation, error: checkError } = await supabase
+      .from('quotations')
+      .select('id, status')
+      .eq('id', params.id)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (checkError || !existingQuotation) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Cotización no encontrada o no autorizada',
+        },
+        { status: 404 }
+      );
+    }
+
+    // Solo permitir editar borradores
+    if (existingQuotation.status !== 'draft' && body.status !== existingQuotation.status) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Solo se pueden editar cotizaciones en estado borrador',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Actualizar cotización
+    const updateData: any = {
+      updated_by: tenantContext.userId,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (body.customer_id) updateData.customer_id = body.customer_id;
+    if (body.vehicle_id) updateData.vehicle_id = body.vehicle_id;
+    if (body.valid_until) updateData.valid_until = body.valid_until;
+    if (body.terms_and_conditions !== undefined) updateData.terms_and_conditions = body.terms_and_conditions;
+    if (body.notes !== undefined) updateData.notes = body.notes;
+    if (body.status) updateData.status = body.status;
+    if (body.subtotal !== undefined) updateData.subtotal = body.subtotal;
+    if (body.tax_amount !== undefined) updateData.tax_amount = body.tax_amount;
+    if (body.discount_amount !== undefined) updateData.discount_amount = body.discount_amount;
+    if (body.total_amount !== undefined) updateData.total_amount = body.total_amount;
+
+    const { data: quotation, error: updateError } = await supabase
+      .from('quotations')
+      .update(updateData)
+      .eq('id', params.id)
+      .eq('organization_id', organizationId)
+      .select(`
+        *,
+        customers (*),
+        vehicles (*),
+        quotation_items (*)
+      `)
+      .single();
+
+    if (updateError) {
+      logger.error('Error actualizando cotización', context, updateError as Error);
+      throw updateError;
+    }
+
+    // Actualizar items si se proporcionaron
+    if (body.items && Array.isArray(body.items)) {
+      // Eliminar items existentes
+      await supabase
+        .from('quotation_items')
+        .delete()
+        .eq('quotation_id', params.id)
+        .eq('organization_id', organizationId);
+
+      // Insertar nuevos items
+      if (body.items.length > 0) {
+        const items = body.items.map((item: any) => ({
+          quotation_id: params.id,
+          organization_id: organizationId,
+          item_type: item.item_type || 'service',
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_percent: item.discount_percent || 0,
+          discount_amount: item.discount_amount || 0,
+          tax_percent: item.tax_percent || 16,
+          subtotal: item.subtotal,
+          tax_amount: item.tax_amount,
+          total: item.total,
+          service_id: item.service_id || null,
+          inventory_id: item.inventory_id || null,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('quotation_items')
+          .insert(items);
+
+        if (itemsError) {
+          logger.error('Error actualizando items', context, itemsError as Error);
+          throw itemsError;
+        }
+      }
+
+      // Obtener cotización actualizada con items
+      const { data: updatedQuotation, error: fetchError } = await supabase
+        .from('quotations')
+        .select(`
+          *,
+          customers (*),
+          vehicles (*),
+          quotation_items (*)
+        `)
+        .eq('id', params.id)
+        .eq('organization_id', organizationId)
+        .single();
+
+      if (!fetchError && updatedQuotation) {
+        logger.businessEvent('quotation_updated', 'quotation', params.id, context);
+        return NextResponse.json({
+          success: true,
+          data: updatedQuotation,
+        });
+      }
     }
 
     logger.businessEvent('quotation_updated', 'quotation', params.id, context);
@@ -174,14 +307,23 @@ export async function DELETE(
     );
     logger.info('Eliminando cotización', context);
 
-    // Verificar que la cotización existe antes de eliminar
-    const existingQuotation = await getQuotationById(params.id);
-    if (!existingQuotation) {
-      logger.warn('Intento de eliminar cotización inexistente', context);
+    // Verificar que la cotización existe y pertenece a la organización
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = await createClient();
+
+    const { data: existingQuotation, error: checkError } = await supabase
+      .from('quotations')
+      .select('id, status')
+      .eq('id', params.id)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (checkError || !existingQuotation) {
+      logger.warn('Intento de eliminar cotización inexistente o no autorizada', context);
       return NextResponse.json(
         {
           success: false,
-          error: 'Cotización no encontrada',
+          error: 'Cotización no encontrada o no autorizada',
         },
         { status: 404 }
       );
@@ -199,7 +341,36 @@ export async function DELETE(
       );
     }
 
-    await deleteQuotation(params.id);
+    // Solo permitir eliminar borradores
+    if (existingQuotation.status !== 'draft') {
+      logger.warn('Intento de eliminar cotización que no es borrador', context);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Solo se pueden eliminar cotizaciones en estado borrador',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Eliminar items primero
+    await supabase
+      .from('quotation_items')
+      .delete()
+      .eq('quotation_id', params.id)
+      .eq('organization_id', organizationId);
+
+    // Eliminar cotización
+    const { error: deleteError } = await supabase
+      .from('quotations')
+      .delete()
+      .eq('id', params.id)
+      .eq('organization_id', organizationId);
+
+    if (deleteError) {
+      logger.error('Error eliminando cotización', context, deleteError as Error);
+      throw deleteError;
+    }
 
     logger.businessEvent('quotation_deleted', 'quotation', params.id, context);
     logger.info('Cotización eliminada exitosamente', context);
