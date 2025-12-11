@@ -21,18 +21,78 @@ export default function ResetPasswordPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [isValidToken, setIsValidToken] = useState(false)
 
-  // Verificar si hay error en la URL
+  // Verificar token de recuperación en la URL o hash
   useEffect(() => {
-    const error = searchParams.get('error')
-    const errorCode = searchParams.get('error_code')
-    
-    if (error === 'access_denied' && errorCode === 'otp_expired') {
-      toast.error('El enlace ha expirado. Solicita uno nuevo.')
-    } else if (error) {
-      toast.error('Error al verificar el enlace. Intenta de nuevo.')
+    const checkRecoveryToken = async () => {
+      const supabase = createClient()
+      
+      // Verificar si hay token_hash en query params (viene del callback)
+      const tokenHash = searchParams.get('token_hash')
+      const type = searchParams.get('type')
+      
+      // También verificar hash en la URL (formato estándar de Supabase)
+      let hashParams: URLSearchParams | null = null
+      if (typeof window !== 'undefined' && window.location.hash) {
+        hashParams = new URLSearchParams(window.location.hash.substring(1))
+      }
+      
+      const hashType = hashParams?.get('type')
+      const hashToken = hashParams?.get('access_token') || hashParams?.get('token_hash')
+      
+      // Si hay token de recuperación, verificar que sea válido
+      if ((type === 'recovery' && tokenHash) || hashType === 'recovery') {
+        try {
+          // Verificar sesión actual (el callback ya debería haber establecido la sesión)
+          const { data: { session }, error } = await supabase.auth.getSession()
+          
+          if (error || !session) {
+            console.error('❌ [ResetPassword] No hay sesión válida:', error)
+            toast.error('El enlace de recuperación es inválido o ha expirado. Solicita uno nuevo.')
+            setTimeout(() => {
+              router.push('/auth/forgot-password')
+            }, 2000)
+            return
+          }
+          
+          setIsValidToken(true)
+          console.log('✅ [ResetPassword] Token de recuperación válido')
+        } catch (error: any) {
+          console.error('❌ [ResetPassword] Error verificando token:', error)
+          toast.error('Error al verificar el enlace. Intenta de nuevo.')
+          setTimeout(() => {
+            router.push('/auth/forgot-password')
+          }, 2000)
+        }
+      } else {
+        // Si no hay token de recuperación, verificar si hay error
+        const error = searchParams.get('error')
+        const errorCode = searchParams.get('error_code')
+        
+        if (error === 'access_denied' && errorCode === 'otp_expired') {
+          toast.error('El enlace ha expirado. Solicita uno nuevo.')
+        } else if (error) {
+          toast.error('Error al verificar el enlace. Intenta de nuevo.')
+        } else {
+          // Si no hay token ni error, probablemente el usuario llegó aquí directamente
+          // Permitir que intente cambiar la contraseña si tiene sesión activa
+          const supabase = createClient()
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session) {
+            setIsValidToken(true)
+          } else {
+            toast.error('No hay sesión activa. Solicita un nuevo enlace de recuperación.')
+            setTimeout(() => {
+              router.push('/auth/forgot-password')
+            }, 2000)
+          }
+        }
+      }
     }
-  }, [searchParams])
+    
+    checkRecoveryToken()
+  }, [searchParams, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,8 +103,8 @@ export default function ResetPasswordPage() {
       return
     }
 
-    if (password.length < 6) {
-      toast.error('La contraseña debe tener al menos 6 caracteres')
+    if (password.length < 8) {
+      toast.error('La contraseña debe tener al menos 8 caracteres')
       return
     }
 
@@ -58,18 +118,36 @@ export default function ResetPasswordPage() {
     try {
       const supabase = createClient()
 
+      // Verificar que hay una sesión válida antes de actualizar
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session) {
+        console.error('❌ [ResetPassword] No hay sesión válida:', sessionError)
+        toast.error('La sesión ha expirado. Solicita un nuevo enlace de recuperación.')
+        setTimeout(() => {
+          router.push('/auth/forgot-password')
+        }, 2000)
+        setLoading(false)
+        return
+      }
+
       // Actualizar contraseña
       const { error } = await supabase.auth.updateUser({
         password: password
       })
 
       if (error) {
-        console.error('Error updating password:', error)
+        console.error('❌ [ResetPassword] Error updating password:', error)
         toast.error(error.message || 'Error al actualizar la contraseña')
+        setLoading(false)
         return
       }
 
+      console.log('✅ [ResetPassword] Contraseña actualizada exitosamente')
       toast.success('Contraseña actualizada exitosamente')
+      
+      // Cerrar sesión para forzar nuevo login con la nueva contraseña
+      await supabase.auth.signOut()
       
       // Redirigir al login después de 2 segundos
       setTimeout(() => {
@@ -77,7 +155,7 @@ export default function ResetPasswordPage() {
       }, 2000)
 
     } catch (error: any) {
-      console.error('Error:', error)
+      console.error('❌ [ResetPassword] Excepción:', error)
       toast.error('Error al actualizar la contraseña')
     } finally {
       setLoading(false)
@@ -154,10 +232,16 @@ export default function ResetPasswordPage() {
             {/* Indicador de fortaleza */}
             {password && (
               <div className="text-xs text-muted-foreground">
-                {password.length < 6 && '⚠️ Demasiado corta'}
-                {password.length >= 6 && password.length < 8 && '⚡ Aceptable'}
+                {password.length < 8 && '⚠️ Debe tener al menos 8 caracteres'}
                 {password.length >= 8 && password.length < 12 && '✅ Buena'}
                 {password.length >= 12 && '🔒 Excelente'}
+              </div>
+            )}
+            
+            {/* Mensaje si no hay token válido */}
+            {!isValidToken && (
+              <div className="bg-yellow-500/10 border border-yellow-500 text-yellow-600 px-4 py-2 rounded-lg text-sm">
+                Verificando enlace de recuperación...
               </div>
             )}
 

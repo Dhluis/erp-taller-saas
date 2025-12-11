@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Manejar token_hash (email confirmation, magic link, etc.)
+  // Manejar token_hash (email confirmation, magic link, recovery, etc.)
   if (token_hash && type) {
     console.log('🔄 [Callback] Procesando token de confirmación...', { 
       type, 
@@ -170,12 +170,31 @@ export async function GET(request: NextRequest) {
       })
 
       if (!error && data?.session) {
-        console.log('✅ [Callback] Email confirmado exitosamente:', {
+        console.log('✅ [Callback] Token verificado exitosamente:', {
           userId: data.session.user.id,
           email: data.session.user.email,
-          sessionExists: !!data.session
+          sessionExists: !!data.session,
+          type
         })
         
+        // ✅ Si es tipo 'recovery', redirigir a reset-password (NO al dashboard)
+        if (type === 'recovery') {
+          console.log('🔄 [Callback] Tipo recovery detectado, redirigiendo a reset-password')
+          const resetPasswordUrl = new URL('/auth/reset-password', origin)
+          // Pasar el token_hash en la URL para que reset-password pueda usarlo
+          resetPasswordUrl.searchParams.set('token_hash', token_hash)
+          resetPasswordUrl.searchParams.set('type', type)
+          const resetResponse = NextResponse.redirect(resetPasswordUrl)
+          
+          // Copiar cookies de sesión
+          response.cookies.getAll().forEach(cookie => {
+            resetResponse.cookies.set(cookie.name, cookie.value)
+          })
+          
+          return resetResponse
+        }
+        
+        // Para otros tipos (email confirmation, etc.)
         // Verificar si el usuario tiene organización
         const organizationId = await checkUserOrganization(
           data.session.user.id,
