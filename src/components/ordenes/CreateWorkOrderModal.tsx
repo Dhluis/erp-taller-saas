@@ -248,7 +248,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
         if (value.trim().length < 3) return 'Mínimo 3 caracteres'
 
-        if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(value)) return 'Solo letras permitidas'
+        if (!/^[\p{L}\s'-]+$/u.test(value)) return 'Solo letras permitidas'
 
         return ''
 

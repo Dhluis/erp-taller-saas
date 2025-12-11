@@ -1307,3 +1307,4 @@ Este documento debe actualizarse cuando:
 **📅 Última actualización:** 2025-01-XX  
 **📝 Mantenido por:** Equipo de Desarrollo
 
+

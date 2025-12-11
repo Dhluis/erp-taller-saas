@@ -98,7 +98,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       case 'customerName':
         if (!value.trim()) return 'El nombre es requerido'
         if (value.trim().length < 3) return 'Mínimo 3 caracteres'
-        if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(value)) return 'Solo letras permitidas'
+        if (!/^[\p{L}\s'-]+$/u.test(value)) return 'Solo letras permitidas'
         return ''
         
       case 'customerPhone':
