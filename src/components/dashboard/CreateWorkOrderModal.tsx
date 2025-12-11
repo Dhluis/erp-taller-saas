@@ -551,7 +551,6 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         estimated_cost: parseFloat(formData.estimated_cost) || 0,
         status: 'reception',
         entry_date: new Date().toISOString()
-        // ✅ assigned_to removido temporalmente - las órdenes se crearán sin empleado asignado
       }
       
       // ✅ Solo agregar workshop_id si existe (opcional)
@@ -559,10 +558,23 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         orderData.workshop_id = workshopId
       }
       
+      // ✅ Incluir assigned_to solo si hay un empleado seleccionado
+      if (formData.assigned_to && formData.assigned_to.trim() !== '') {
+        orderData.assigned_to = formData.assigned_to
+        console.log('📊 [CreateOrder] Empleado asignado:', {
+          id: formData.assigned_to,
+          hasEmployee: true
+        })
+      } else {
+        console.log('📊 [CreateOrder] Sin empleado asignado')
+      }
+      
       console.log('📊 [CreateOrder] orderData completo:', {
         hasWorkshop: !!orderData.workshop_id,
         workshopId: orderData.workshop_id || 'sin asignar',
-        organizationId: orderData.organization_id
+        organizationId: orderData.organization_id,
+        hasAssignedTo: !!orderData.assigned_to,
+        assignedTo: orderData.assigned_to || 'sin asignar'
       })
 
       const { data: newOrder, error: orderError } = await supabase
@@ -886,7 +898,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 value={formData.assigned_to || undefined}
                 onValueChange={(value) => {
                   console.log('✏️ [Select] Cambio detectado: assigned_to →', value)
-                  setFormData(prev => ({ ...prev, assigned_to: value }))
+                  // Si se selecciona "Sin asignar" (valor vacío), limpiar el campo
+                  setFormData(prev => ({ ...prev, assigned_to: value || '' }))
                 }}
                 disabled={loading || loadingMechanics || mechanics.length === 0}
               >
@@ -902,6 +915,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">Sin asignar</SelectItem>
                   {mechanics.length > 0 ? (
                     mechanics
                       .filter(m => m.id && m.id.trim() !== '') // Seguridad extra
@@ -914,9 +928,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                         </SelectItem>
                       ))
                   ) : (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      No hay mecánicos disponibles
-                    </div>
+                    !loadingMechanics && (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        No hay mecánicos disponibles
+                      </div>
+                    )
                   )}
                 </SelectContent>
               </Select>

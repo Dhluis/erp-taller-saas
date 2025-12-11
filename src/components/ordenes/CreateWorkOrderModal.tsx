@@ -219,6 +219,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>([])
+  const [employees, setEmployees] = useState<any[]>([])
   
   // Estado para el dropdown de clientes
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
@@ -234,6 +235,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   }, [customers])
 
   const [loadingSystemUsers, setLoadingSystemUsers] = useState(false)
+  const [loadingEmployees, setLoadingEmployees] = useState(false)
 
   
 
@@ -417,15 +419,60 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     }
   }, [organizationId])
 
+  // ✅ Cargar empleados de la tabla employees para asignación
+  const loadEmployees = useCallback(async () => {
+    if (!organizationId) {
+      console.warn('⚠️ [loadEmployees] No hay organizationId disponible')
+      setEmployees([])
+      setLoadingEmployees(false)
+      return
+    }
+
+    try {
+      setLoadingEmployees(true)
+      const client = createClient()
+
+      // ✅ Filtrar por organization_id (requerido)
+      let query = client
+        .from('employees')
+        .select('id, name, role, email, is_active')
+        .eq('organization_id', organizationId)
+        .eq('is_active', true)
+        .order('name')
+
+      // ✅ Opcionalmente filtrar por workshop_id si existe
+      if (sessionWorkshopId && !hasMultipleWorkshops) {
+        query = query.eq('workshop_id', sessionWorkshopId)
+      }
+
+      const { data, error } = await query
+
+      if (error) throw error
+
+      setEmployees(data || [])
+      console.log('✅ [loadEmployees] Empleados cargados:', {
+        count: data?.length || 0,
+        organizationId: organizationId,
+        workshopId: sessionWorkshopId || 'sin asignar'
+      })
+    } catch (error) {
+      console.error('❌ [loadEmployees] Error cargando empleados:', error)
+      setEmployees([])
+    } finally {
+      setLoadingEmployees(false)
+    }
+  }, [organizationId, sessionWorkshopId, hasMultipleWorkshops])
+
   useEffect(() => {
 
     if (open) {
 
       loadSystemUsers()
+      loadEmployees()
 
     }
 
-  }, [open, loadSystemUsers])
+  }, [open, loadSystemUsers, loadEmployees])
 
   // ✅ Cargar datos de la cita cuando se proporciona appointmentId
   useEffect(() => {
@@ -763,7 +810,6 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         estimated_cost: parseFloat(formData.estimated_cost) || 0,
         status: 'reception',  // ✅ Primera etapa del proceso
         entry_date: new Date().toISOString()
-        // ✅ assigned_to removido temporalmente - las órdenes se crearán sin empleado asignado
       };
       
       // ✅ Solo agregar workshop_id si existe
@@ -771,10 +817,23 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         orderData.workshop_id = workshopId;
       }
       
+      // ✅ Incluir assigned_to solo si hay un empleado seleccionado
+      if (formData.assigned_to && formData.assigned_to.trim() !== '') {
+        orderData.assigned_to = formData.assigned_to;
+        console.log('📊 [CreateWorkOrderModal] Empleado asignado:', {
+          id: formData.assigned_to,
+          hasEmployee: true
+        });
+      } else {
+        console.log('📊 [CreateWorkOrderModal] Sin empleado asignado');
+      }
+      
       console.log('📊 [CreateWorkOrderModal] orderData completo:', {
         hasWorkshop: !!orderData.workshop_id,
         workshopId: orderData.workshop_id || 'sin asignar',
-        organizationId: orderData.organization_id
+        organizationId: orderData.organization_id,
+        hasAssignedTo: !!orderData.assigned_to,
+        assignedTo: orderData.assigned_to || 'sin asignar'
       });
 
       console.log('📝 [CreateWorkOrderModal] Datos de orden a insertar:', {
@@ -1817,11 +1876,15 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 onValueChange={(value) => {
 
-                  setFormData(prev => ({ ...prev, assigned_to: value }))
+                  console.log('✏️ [Select] Cambio detectado: assigned_to →', value)
+
+                  // Si se selecciona "Sin asignar" (valor vacío), limpiar el campo
+
+                  setFormData(prev => ({ ...prev, assigned_to: value || '' }))
 
                 }}
 
-                disabled={loading || loadingSystemUsers || systemUsers.length === 0}
+                disabled={loading || loadingEmployees}
 
               >
 
@@ -1831,11 +1894,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                     placeholder={
 
-                      loadingSystemUsers 
+                      loadingEmployees 
 
                         ? "Cargando empleados..." 
 
-                        : systemUsers.length === 0 
+                        : employees.length === 0 
 
                           ? "No hay empleados disponibles" 
 
@@ -1849,52 +1912,61 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 <SelectContent className="z-[9999] bg-slate-900 text-white border border-slate-600 shadow-2xl" sideOffset={4} position="popper">
 
-                  {systemUsers.length > 0 ? (
+                  <SelectItem value="" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
 
-                    systemUsers
+                    Sin asignar
 
-                      .filter(u => u.id && u.id.trim() !== '')
+                  </SelectItem>
 
-                      .map((user) => {
+                  {employees.length > 0 ? (
 
-                        const roleLabels: Record<string, string> = {
-                          'admin': 'Administrador',
-                          'manager': 'Gerente',
-                          'employee': 'Empleado',
-                          'viewer': 'Visualizador'
-                        }
+                    employees
 
-                        return (
+                      .filter(emp => emp.id && emp.id.trim() !== '')
 
-                          <SelectItem key={user.id} value={user.id} className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
+                      .map((employee) => (
 
-                            <div className="flex items-center gap-2">
+                        <SelectItem key={employee.id} value={employee.id} className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
 
-                              <User className="h-4 w-4" />
+                          <div className="flex items-center gap-2">
 
-                              {user.first_name} {user.last_name} ({roleLabels[user.role] || user.role})
+                            <User className="h-4 w-4" />
 
-                            </div>
+                            {employee.name} ({employee.role})
 
-                          </SelectItem>
+                          </div>
 
-                        )
+                        </SelectItem>
 
-                      })
+                      ))
 
                   ) : (
 
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    !loadingEmployees && (
 
-                      No hay empleados disponibles
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
 
-                    </div>
+                        No hay empleados disponibles
+
+                      </div>
+
+                    )
 
                   )}
 
                 </SelectContent>
 
               </Select>
+
+              {employees.length === 0 && !loadingEmployees && (
+
+                <p className="text-xs text-gray-500 mt-1">
+
+                  No hay empleados disponibles. Ve a la sección Empleados para agregar algunos.
+
+                </p>
+
+              )}
 
             </div>
 

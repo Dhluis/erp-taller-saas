@@ -62,9 +62,23 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    // ✅ Obtener contexto del usuario autenticado
+    const organizationId = await getOrganizationId(request)
+    
+    if (!organizationId) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Usuario no autenticado' 
+        },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
     console.log('🔄 [PATCH /api/orders/[id]] Actualizando orden:', params.id)
     console.log('🔄 [PATCH /api/orders/[id]] Datos recibidos:', body)
+    console.log('🔄 [PATCH /api/orders/[id]] Organization ID:', organizationId)
     
     // Si solo se está actualizando el status, usar función específica
     if (body.status && Object.keys(body).length === 1) {
@@ -80,6 +94,18 @@ export async function PATCH(
     console.error('❌ [PATCH /api/orders/[id]] Error:', error)
     console.error('❌ [PATCH /api/orders/[id]] Error message:', error?.message)
     console.error('❌ [PATCH /api/orders/[id]] Error stack:', error?.stack)
+    
+    // Si es error de autenticación, retornar 401
+    if (error?.message?.includes('no autenticado') || error?.message?.includes('autenticado')) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Usuario no autenticado' 
+        },
+        { status: 401 }
+      )
+    }
+    
     return NextResponse.json(
       { 
         success: false, 
@@ -97,10 +123,35 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // ✅ Obtener contexto del usuario autenticado
+    const organizationId = await getOrganizationId(request)
+    
+    if (!organizationId) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Usuario no autenticado' 
+        },
+        { status: 401 }
+      )
+    }
+
     await deleteWorkOrder(params.id)
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in DELETE /api/orders/[id]:', error)
+    
+    // Si es error de autenticación, retornar 401
+    if (error?.message?.includes('no autenticado') || error?.message?.includes('autenticado')) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Usuario no autenticado' 
+        },
+        { status: 401 }
+      )
+    }
+    
     return NextResponse.json(
       { success: false, error: 'Error interno del servidor' },
       { status: 500 }

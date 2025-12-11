@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { calculateOrderTotals } from '@/lib/database/queries/order-items'
+import { getOrganizationId } from '@/lib/auth/organization-server'
 
 // POST /api/orders/[id]/totals - Recalcular totales de una orden
 export async function POST(
@@ -7,12 +8,37 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const result = await calculateOrderTotals(params.id)
+    // ✅ Obtener contexto del usuario autenticado
+    const organizationId = await getOrganizationId(request)
+    
+    if (!organizationId) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Usuario no autenticado' 
+        },
+        { status: 401 }
+      )
+    }
+
+    const result = await calculateOrderTotals(params.id, organizationId)
     return NextResponse.json(result)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in POST /api/orders/[id]/totals:', error)
+    
+    // Si es error de autenticación, retornar 401
+    if (error?.message?.includes('no autenticado') || error?.message?.includes('autenticado')) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Usuario no autenticado' 
+        },
+        { status: 401 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { error: error?.message || 'Error interno del servidor' },
       { status: 500 }
     )
   }
@@ -24,7 +50,20 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const result = await calculateOrderTotals(params.id)
+    // ✅ Obtener contexto del usuario autenticado
+    const organizationId = await getOrganizationId(request)
+    
+    if (!organizationId) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Usuario no autenticado' 
+        },
+        { status: 401 }
+      )
+    }
+
+    const result = await calculateOrderTotals(params.id, organizationId)
     return NextResponse.json({
       subtotal: result.subtotal,
       tax_amount: result.tax_amount,
@@ -32,10 +71,22 @@ export async function GET(
       total_amount: result.total_amount,
       items_count: result.items_count
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in GET /api/orders/[id]/totals:', error)
+    
+    // Si es error de autenticación, retornar 401
+    if (error?.message?.includes('no autenticado') || error?.message?.includes('autenticado')) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Usuario no autenticado' 
+        },
+        { status: 401 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { error: error?.message || 'Error interno del servidor' },
       { status: 500 }
     )
   }

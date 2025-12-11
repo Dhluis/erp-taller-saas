@@ -285,8 +285,23 @@ export type OrderStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled'
 /**
  * Recalcular totales de una orden
  */
-export async function calculateOrderTotals(orderId: string) {
+export async function calculateOrderTotals(orderId: string, organizationId?: string) {
   const supabase = await createClient()
+
+  // ✅ Validar que la orden pertenece a la organización si se proporciona organizationId
+  if (organizationId) {
+    const { data: order, error: orderError } = await supabase
+      .from('work_orders')
+      .select('id, organization_id')
+      .eq('id', orderId)
+      .eq('organization_id', organizationId)
+      .single()
+
+    if (orderError || !order) {
+      console.error('Error validating order organization:', orderError)
+      throw new Error('Orden no encontrada o no pertenece a tu organización')
+    }
+  }
 
   // Obtener todos los items de la orden con sus detalles
   const { data: items, error: itemsError } = await supabase
@@ -310,7 +325,7 @@ export async function calculateOrderTotals(orderId: string) {
 
   if (!items || items.length === 0) {
     // Si no hay items, establecer totales en 0
-    const { data: updatedOrder, error: updateError } = await supabase
+    let updateQuery = supabase
       .from('work_orders')
       .update({
         subtotal: 0,
@@ -320,6 +335,13 @@ export async function calculateOrderTotals(orderId: string) {
         updated_at: new Date().toISOString()
       })
       .eq('id', orderId)
+    
+    // ✅ Validar organization_id si se proporciona
+    if (organizationId) {
+      updateQuery = updateQuery.eq('organization_id', organizationId)
+    }
+    
+    const { data: updatedOrder, error: updateError } = await updateQuery
       .select()
       .single()
 
@@ -375,7 +397,7 @@ export async function calculateOrderTotals(orderId: string) {
   })
 
   // Actualizar la orden con los nuevos totales calculados
-  const { data: updatedOrder, error: updateError } = await supabase
+  let updateQuery = supabase
     .from('work_orders')
     .update({
       subtotal,
@@ -385,6 +407,13 @@ export async function calculateOrderTotals(orderId: string) {
       updated_at: new Date().toISOString()
     })
     .eq('id', orderId)
+  
+  // ✅ Validar organization_id si se proporciona
+  if (organizationId) {
+    updateQuery = updateQuery.eq('organization_id', organizationId)
+  }
+  
+  const { data: updatedOrder, error: updateError } = await updateQuery
     .select()
     .single()
 
