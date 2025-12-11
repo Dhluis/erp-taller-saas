@@ -114,6 +114,7 @@ export interface CreateOrderItemData {
 interface WorkOrderFilters {
   status?: WorkOrderStatus;
   includeItems?: boolean; // ✅ Opcional: incluir order_items (default: false para mejor rendimiento)
+  workshopId?: string | null; // ✅ Opcional: filtrar por workshop_id
 }
 
 // ============================================================================
@@ -218,17 +219,19 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
     .from('work_orders')
     .select(selectQuery);
   
-  // Filtrar solo por el organization_id del usuario actual
+  // ✅ MULTI-TENANT: Filtrar por organization_id (SIEMPRE requerido)
   if (finalOrgId) {
     query = query.eq('organization_id', finalOrgId);
   }
   
-  // ✅ REMOVIDO: .not('workshop_id', 'is', null) - Mostrar todas las órdenes, con o sin workshop
+  // ✅ FILTRO OPCIONAL: Filtrar por workshop_id solo si se proporciona
+  // Si workshopId es null o undefined, mostrar todas las órdenes de la organización
+  if (filters?.workshopId) {
+    query = query.eq('workshop_id', filters.workshopId);
+  }
+  
   // ✅ FIX: Forzar que no use cache agregando un timestamp único a la query
   query = query.order('created_at', { ascending: false });
-  
-  // ✅ FIX: Deshabilitar cache en PostgREST agregando header
-  // Nota: Esto se hace a nivel de cliente de Supabase, pero también podemos forzar revalidación
 
   if (filters?.status) {
     query = query.eq('status', filters.status);

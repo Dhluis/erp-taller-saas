@@ -9,7 +9,7 @@ interface SessionState {
   user: User | null
   // Organization
   organizationId: string | null
-  workshopId: string | null
+  workshopId: string | null // ✅ Workshop ID dinámico (calculado inteligentemente)
   // Profile
   profile: any | null
   workshop: any | null
@@ -17,6 +17,8 @@ interface SessionState {
   isLoading: boolean
   isReady: boolean
   error: string | null
+  // Multi-workshop support
+  hasMultipleWorkshops: boolean // ✅ Indicador si la org tiene múltiples workshops
 }
 
 interface SessionContextType extends SessionState {
@@ -40,7 +42,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     workshop: null,
     isLoading: true,
     isReady: false,
-    error: null
+    error: null,
+    hasMultipleWorkshops: false
   }
   
   const [state, setState] = useState<SessionState>(initialState)
@@ -131,7 +134,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             workshop: null,
             isLoading: false,
             isReady: true,
-            error: null // No es un error, es estado normal
+            error: null, // No es un error, es estado normal
+            hasMultipleWorkshops: false
           }
           currentStateRef.current = noUserState
           setState(noUserState)
@@ -156,7 +160,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           workshop: null,
           isLoading: false,
           isReady: true,
-          error: errorMessage
+          error: errorMessage,
+          hasMultipleWorkshops: false
+          hasMultipleWorkshops: false
         }
         currentStateRef.current = noUserState
         setState(noUserState)
@@ -174,7 +180,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           workshop: null,
           isLoading: false,
           isReady: true,
-          error: null
+          error: null,
+          hasMultipleWorkshops: false
         }
         currentStateRef.current = noUserState
         setState(noUserState)
@@ -282,7 +289,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               profile: null,
               isLoading: false,
               isReady: true,
-              error: null // No es un error fatal, el usuario puede completar onboarding
+              error: null, // No es un error fatal, el usuario puede completar onboarding
+              hasMultipleWorkshops: false
             }
             currentStateRef.current = errorState
             setState(errorState)
@@ -296,7 +304,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             user,
             isLoading: false,
             isReady: true,
-            error: `Error obteniendo perfil: ${profileError.message}`
+            error: `Error obteniendo perfil: ${profileError.message}`,
+            hasMultipleWorkshops: false
           }
           currentStateRef.current = errorState
           setState(errorState)
@@ -311,7 +320,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           user,
           isLoading: false,
           isReady: true,
-          error: 'Perfil no encontrado (null)'
+          error: 'Perfil no encontrado (null)',
+          hasMultipleWorkshops: false
         }
         currentStateRef.current = errorState
         setState(errorState)
@@ -331,29 +341,65 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       console.log('📋 [Session] Organization ID del perfil:', profile.organization_id)
 
       const organizationId = profile.organization_id || null
-      const workshopId = profile.workshop_id || null
+      const userWorkshopId = profile.workshop_id || null
       
       console.log('📊 [Session] IDs extraídos del perfil:', {
         organizationId,
-        workshopId,
+        userWorkshopId,
         hasOrganization: !!organizationId,
-        hasWorkshop: !!workshopId
+        hasUserWorkshop: !!userWorkshopId
       })
 
-      // 3. Obtener workshop si es necesario (UNA sola query)
+      // 3. Obtener workshop_id dinámicamente (inteligente)
+      let workshopId: string | null = null
       let workshop = null
-      if (workshopId) {
-        const { data, error: workshopError } = await supabase
-          .from('workshops')
-          .select('*')
-          .eq('id', workshopId)
-          .single()
-        
-        if (workshopError) {
-          console.error('⚠️ [Session] Error obteniendo workshop:', workshopError)
+      let workshopsCount = 0
+      
+      if (organizationId) {
+        // Si el usuario tiene workshop_id asignado, usarlo
+        if (userWorkshopId) {
+          workshopId = userWorkshopId
+          console.log('✅ [Session] Usando workshop_id del perfil:', workshopId)
         } else {
-          workshop = data
-          console.log('✅ [Session] Workshop cargado:', workshop?.name)
+          // Si no, buscar workshops de la organización
+          console.log('🔍 [Session] Buscando workshops de la organización...')
+          const { data: workshops, error: workshopsError } = await supabase
+            .from('workshops')
+            .select('id')
+            .eq('organization_id', organizationId)
+            .order('created_at', { ascending: true })
+          
+          if (workshopsError) {
+            console.error('⚠️ [Session] Error obteniendo workshops:', workshopsError)
+          } else {
+            workshopsCount = workshops?.length || 0
+            console.log(`📊 [Session] Workshops encontrados: ${workshopsCount}`)
+            
+            // Si solo hay 1 workshop, usar ese automáticamente
+            if (workshops && workshops.length === 1) {
+              workshopId = workshops[0].id
+              console.log('✅ [Session] Un solo workshop encontrado, usando automáticamente:', workshopId)
+            } else if (workshops && workshops.length > 1) {
+              console.log('⚠️ [Session] Múltiples workshops encontrados, workshop_id será null (usuario debe elegir)')
+              // workshopId permanece null - el usuario debe tener uno asignado o elegir
+            }
+          }
+        }
+        
+        // Obtener datos completos del workshop si tenemos workshopId
+        if (workshopId) {
+          const { data: workshopData, error: workshopError } = await supabase
+            .from('workshops')
+            .select('*')
+            .eq('id', workshopId)
+            .single()
+          
+          if (workshopError) {
+            console.error('⚠️ [Session] Error obteniendo workshop:', workshopError)
+          } else {
+            workshop = workshopData
+            console.log('✅ [Session] Workshop cargado:', workshop?.name)
+          }
         }
       }
 
@@ -366,7 +412,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         workshop,
         isLoading: false,
         isReady: true,
-        error: null
+        error: null,
+        hasMultipleWorkshops: workshopsCount > 1
       }
       
       currentStateRef.current = newState
@@ -383,7 +430,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         profileRole: profile.role,
         workshopName: workshop?.name,
         hasOrganization: !!organizationId,
-        hasWorkshop: !!workshopId
+        hasWorkshop: !!workshopId,
+        hasMultipleWorkshops: workshopsCount > 1,
+        workshopsCount
       })
       
       // Verificar que tenemos los datos mínimos necesarios
@@ -407,7 +456,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         ...currentStateRef.current,
         isLoading: false,
         isReady: true,
-        error: error.message
+        error: error.message,
+        hasMultipleWorkshops: false
       }
       currentStateRef.current = errorState
       setState(errorState)

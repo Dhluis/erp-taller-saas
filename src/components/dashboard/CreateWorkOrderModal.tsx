@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
+import { useSession } from '@/lib/context/SessionContext'
 import { createClient } from '@/lib/supabase/client'
 import { AlertCircle, CheckCircle2, User } from 'lucide-react'
 
@@ -84,6 +85,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   // console.log('🔍 [CreateWorkOrderModal] Renderizado - open:', open)
   
   const { user, profile } = useAuth()
+  const { organizationId: sessionOrgId, workshopId: sessionWorkshopId, hasMultipleWorkshops } = useSession()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -396,37 +398,34 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     console.log('🚀 [CreateOrder] Iniciando creación de orden...')
 
     try {
-      const workshopId = profile.workshop_id
-
-      if (!workshopId) {
-        throw new Error('No se encontró workshop_id en el perfil')
+      // ✅ Usar organizationId y workshopId dinámicos del SessionContext
+      const organizationId = sessionOrgId || profile?.organization_id
+      
+      if (!organizationId) {
+        throw new Error('No se pudo obtener la organización del usuario')
       }
 
-      console.log('✅ [CreateOrder] Workshop ID:', workshopId)
+      // ✅ workshopId es opcional - puede ser null si la org tiene múltiples workshops
+      const workshopId = sessionWorkshopId || profile?.workshop_id || null
 
-      // Obtener organization_id del workshop
-      const { data: workshopData, error: workshopError } = await supabase
-        .from('workshops')
-        .select('organization_id')
-        .eq('id', workshopId)
-        .single()
-
-      if (workshopError || !workshopData) {
-        console.error('❌ [CreateOrder] Error obteniendo workshop:', workshopError)
-        throw new Error('No se pudo obtener los datos del taller')
-      }
-
-      const organizationId = workshopData.organization_id
       console.log('✅ [CreateOrder] Organization ID:', organizationId)
+      console.log('✅ [CreateOrder] Workshop ID:', workshopId || 'sin asignar')
+      console.log('✅ [CreateOrder] Has Multiple Workshops:', hasMultipleWorkshops)
 
       // Verificar si el cliente ya existe
       console.log('👤 [CreateOrder] Buscando cliente con teléfono:', formData.customerPhone)
-      const { data: existingCustomer } = await supabase
+      let query = supabase
         .from('customers')
         .select('*')
         .eq('phone', formData.customerPhone)
-        .eq('workshop_id', workshopId)
-        .maybeSingle()
+        .eq('organization_id', organizationId)
+      
+      // ✅ Solo filtrar por workshop_id si existe
+      if (workshopId) {
+        query = query.eq('workshop_id', workshopId)
+      }
+      
+      const { data: existingCustomer } = await query.maybeSingle()
       
       console.log('📞 [CreateOrder] Cliente encontrado:', existingCustomer)
 
@@ -448,15 +447,21 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       // Crear cliente si no existe
       if (!customerId) {
         console.log('➕ [CreateOrder] Creando cliente...')
+        const customerData: any = {
+          organization_id: organizationId,
+          name: formData.customerName,
+          phone: formData.customerPhone,
+          email: formData.customerEmail || null
+        }
+        
+        // ✅ Solo agregar workshop_id si existe
+        if (workshopId) {
+          customerData.workshop_id = workshopId
+        }
+        
         const { data: newCustomer, error: customerError } = await supabase
           .from('customers')
-          .insert({
-            organization_id: organizationId,
-            workshop_id: workshopId,
-            name: formData.customerName,
-            phone: formData.customerPhone,
-            email: formData.customerEmail || null
-          })
+          .insert(customerData)
           .select()
           .single()
 
@@ -469,30 +474,43 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
       // Verificar si el vehículo ya existe
       console.log('🚗 [CreateOrder] Buscando vehículo:', formData.vehiclePlate)
-      const { data: existingVehicle } = await supabase
+      let vehicleQuery = supabase
         .from('vehicles')
         .select('id')
         .eq('license_plate', formData.vehiclePlate.toUpperCase())
-        .eq('workshop_id', workshopId)
-        .maybeSingle()
+        .eq('organization_id', organizationId)
+      
+      // ✅ Solo filtrar por workshop_id si existe
+      if (workshopId) {
+        vehicleQuery = vehicleQuery.eq('workshop_id', workshopId)
+      }
+      
+      const { data: existingVehicle } = await vehicleQuery.maybeSingle()
 
       let vehicleId = existingVehicle?.id
 
       // Crear vehículo si no existe
       if (!vehicleId) {
         console.log('➕ [CreateOrder] Creando vehículo...')
+        const vehicleData: any = {
+          customer_id: customerId,
+          organization_id: organizationId,
+          brand: formData.vehicleBrand,
+          model: formData.vehicleModel,
+          year: formData.vehicleYear ? parseInt(formData.vehicleYear) : null,
+          license_plate: formData.vehiclePlate.toUpperCase(),
+          color: formData.vehicleColor || null,
+          mileage: formData.vehicleMileage ? parseInt(formData.vehicleMileage) : null
+        }
+        
+        // ✅ Solo agregar workshop_id si existe
+        if (workshopId) {
+          vehicleData.workshop_id = workshopId
+        }
+        
         const { data: newVehicle, error: vehicleError } = await supabase
           .from('vehicles')
-          .insert({
-            customer_id: customerId,
-            workshop_id: workshopId,
-            brand: formData.vehicleBrand,
-            model: formData.vehicleModel,
-            year: formData.vehicleYear ? parseInt(formData.vehicleYear) : null,
-            license_plate: formData.vehiclePlate.toUpperCase(),
-            color: formData.vehicleColor || null,
-            mileage: formData.vehicleMileage ? parseInt(formData.vehicleMileage) : null
-          })
+          .insert(vehicleData)
           .select()
           .single()
 
@@ -506,19 +524,29 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       // Crear la orden de trabajo
       console.log('📋 [CreateOrder] Creando orden...')
       
-      const orderData = {
+      const orderData: any = {
         organization_id: organizationId,
-          workshop_id: workshopId,
-          customer_id: customerId,
-          vehicle_id: vehicleId,
+        customer_id: customerId,
+        vehicle_id: vehicleId,
         description: formData.description?.trim() || 'Sin descripción',
         estimated_cost: parseFloat(formData.estimated_cost) || 0,
-          status: 'reception',
-          entry_date: new Date().toISOString(),
+        status: 'reception',
+        entry_date: new Date().toISOString(),
         assigned_to: formData.assigned_to && formData.assigned_to.trim() !== '' 
           ? formData.assigned_to 
           : null
       }
+      
+      // ✅ Solo agregar workshop_id si existe (opcional)
+      if (workshopId) {
+        orderData.workshop_id = workshopId
+      }
+      
+      console.log('📊 [CreateOrder] orderData completo:', {
+        hasWorkshop: !!orderData.workshop_id,
+        workshopId: orderData.workshop_id || 'sin asignar',
+        organizationId: orderData.organization_id
+      })
 
       console.log('📊 [CreateOrder] orderData completo:', JSON.stringify(orderData, null, 2))
 

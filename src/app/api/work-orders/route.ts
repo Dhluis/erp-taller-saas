@@ -125,9 +125,22 @@ export async function GET(request: NextRequest) {
 // POST: Crear nueva orden de trabajo
 export async function POST(request: NextRequest) {
   try {
+    // ✅ Obtener organizationId del usuario autenticado (SIEMPRE requerido)
+    const organizationId = await getOrganizationId(request);
+    
+    if (!organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado - No se pudo obtener la organización del usuario',
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
 
-    // Validaciones
+    // Validaciones básicas
     if (!body.customer_id || !body.vehicle_id || !body.description) {
       return NextResponse.json(
         {
@@ -164,7 +177,44 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const order = await createWorkOrder(body);
+    // ✅ VALIDACIÓN DE SEGURIDAD: Si el body incluye workshop_id, validar que pertenece a la organización
+    if (body.workshop_id) {
+      const { createClient } = await import('@/lib/supabase/server');
+      const supabase = await createClient();
+      
+      const { data: workshop, error: workshopError } = await supabase
+        .from('workshops')
+        .select('id')
+        .eq('id', body.workshop_id)
+        .eq('organization_id', organizationId)
+        .single();
+
+      if (workshopError || !workshop) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Workshop no válido para esta organización',
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    // ✅ Crear orden con organization_id del usuario autenticado (forzar seguridad)
+    // ✅ workshop_id es opcional - puede ser null si la org tiene múltiples workshops
+    const orderData = {
+      ...body,
+      organization_id: organizationId, // ✅ Forzar del usuario autenticado
+      // workshop_id se mantiene del body si existe y es válido, o se omite
+    };
+
+    console.log('[POST /api/work-orders] 📦 Creando orden:', {
+      hasWorkshop: !!orderData.workshop_id,
+      workshopId: orderData.workshop_id || 'sin asignar',
+      organizationId: orderData.organization_id
+    });
+
+    const order = await createWorkOrder(orderData);
 
     return NextResponse.json(
       {
