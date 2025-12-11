@@ -649,6 +649,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       }
 
       // ✅ workshopId es opcional - puede ser null si la org tiene múltiples workshops
+      // Si la organización tiene un solo taller, se infiere automáticamente desde SessionContext
       const workshopId = sessionWorkshopId || profile?.workshop_id || null;
       
       console.log('🔍 [CreateWorkOrderModal] organizationId:', organizationId);
