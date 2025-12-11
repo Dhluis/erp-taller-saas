@@ -74,7 +74,8 @@ const STATUS_LABELS = {
 }
 
 export default function QuotationsPage() {
-  const { organizationId } = useSession()
+  const session = useSession()
+  const organizationId = session?.organizationId || null
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
