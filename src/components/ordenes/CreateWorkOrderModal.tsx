@@ -762,10 +762,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         description: formData.description?.trim() || 'Sin descripción',
         estimated_cost: parseFloat(formData.estimated_cost) || 0,
         status: 'reception',  // ✅ Primera etapa del proceso
-        entry_date: new Date().toISOString(),
-        assigned_to: formData.assigned_to && formData.assigned_to.trim() !== '' 
-          ? formData.assigned_to 
-          : null
+        entry_date: new Date().toISOString()
+        // ✅ assigned_to removido temporalmente - las órdenes se crearán sin empleado asignado
       };
       
       // ✅ Solo agregar workshop_id si existe

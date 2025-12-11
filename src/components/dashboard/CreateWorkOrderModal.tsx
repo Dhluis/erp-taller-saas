@@ -543,33 +543,6 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       // Crear la orden de trabajo
       console.log('📋 [CreateOrder] Creando orden...')
       
-      // ✅ Validar assigned_to si existe - debe pertenecer a la organización
-      let validAssignedTo: string | null = null
-      if (formData.assigned_to && formData.assigned_to.trim() !== '') {
-        console.log('🔍 [CreateOrder] Validando assigned_to:', formData.assigned_to)
-        
-        // Verificar que el empleado existe y pertenece a la organización
-        const { data: employee, error: employeeError } = await supabase
-          .from('employees')
-          .select('id')
-          .eq('id', formData.assigned_to)
-          .eq('organization_id', organizationId)
-          .eq('is_active', true)
-          .single()
-        
-        if (employeeError || !employee) {
-          console.warn('⚠️ [CreateOrder] Empleado no válido o no pertenece a la organización:', {
-            assigned_to: formData.assigned_to,
-            error: employeeError?.message
-          })
-          // No lanzar error, solo no asignar el empleado
-          validAssignedTo = null
-        } else {
-          validAssignedTo = formData.assigned_to
-          console.log('✅ [CreateOrder] Empleado validado:', validAssignedTo)
-        }
-      }
-      
       const orderData: any = {
         organization_id: organizationId,
         customer_id: customerId,
@@ -577,8 +550,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         description: formData.description?.trim() || 'Sin descripción',
         estimated_cost: parseFloat(formData.estimated_cost) || 0,
         status: 'reception',
-        entry_date: new Date().toISOString(),
-        assigned_to: validAssignedTo
+        entry_date: new Date().toISOString()
+        // ✅ assigned_to removido temporalmente - las órdenes se crearán sin empleado asignado
       }
       
       // ✅ Solo agregar workshop_id si existe (opcional)
@@ -589,8 +562,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       console.log('📊 [CreateOrder] orderData completo:', {
         hasWorkshop: !!orderData.workshop_id,
         workshopId: orderData.workshop_id || 'sin asignar',
-        organizationId: orderData.organization_id,
-        assignedTo: orderData.assigned_to || 'sin asignar'
+        organizationId: orderData.organization_id
       })
 
       const { data: newOrder, error: orderError } = await supabase
@@ -610,10 +582,6 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       }
 
       console.log('✅ [CreateOrder] ¡Orden creada!:', newOrder.id)
-      
-      if (formData.assigned_to) {
-        console.log('👷 [CreateOrder] Mecánico asignado directamente a la orden:', formData.assigned_to)
-      }
 
       toast.success('Orden creada exitosamente', {
         description: `${formData.vehicleBrand} ${formData.vehicleModel} - ${formData.customerName}`
