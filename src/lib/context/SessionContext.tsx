@@ -162,7 +162,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           isReady: true,
           error: errorMessage,
           hasMultipleWorkshops: false
-          hasMultipleWorkshops: false
         }
         currentStateRef.current = noUserState
         setState(noUserState)
