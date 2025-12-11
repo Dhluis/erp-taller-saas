@@ -83,27 +83,33 @@ export async function POST(
     const total = subtotalAfterDiscount + taxAmount
 
     // Crear nuevo item
+    const itemData: any = {
+      order_id: params.id,
+      item_type: body.item_type,
+      service_id: body.service_id || null,
+      inventory_id: body.inventory_id || null,
+      description: body.description,
+      quantity,
+      unit_price: unitPrice,
+      discount_percent: discountPercent,
+      discount_amount: discountAmount,
+      tax_percent: taxPercent,
+      subtotal,
+      tax_amount: taxAmount,
+      total,
+      mechanic_id: body.mechanic_id || null,
+      status: body.status || 'pending',
+      notes: body.notes || null
+    }
+    
+    // ✅ Solo agregar workshop_id si existe
+    if (tenantContext.workshopId) {
+      itemData.workshop_id = tenantContext.workshopId
+    }
+    
     const { data: item, error } = await supabase
       .from('order_items')
-      .insert({
-        order_id: params.id,
-        workshop_id: tenantContext.workshopId,
-        item_type: body.item_type,
-        service_id: body.service_id || null,
-        inventory_id: body.inventory_id || null,
-        description: body.description,
-        quantity,
-        unit_price: unitPrice,
-        discount_percent: discountPercent,
-        discount_amount: discountAmount,
-        tax_percent: taxPercent,
-        subtotal,
-        tax_amount: taxAmount,
-        total,
-        mechanic_id: body.mechanic_id || null,
-        status: body.status || 'pending',
-        notes: body.notes || null
-      })
+      .insert(itemData)
       .select(`
         *,
         service:services (

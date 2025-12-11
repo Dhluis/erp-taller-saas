@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
+import { useSession } from '@/lib/context/SessionContext'
 import { createClient } from '@/lib/supabase/client'
 import { AlertCircle, CheckCircle2, Wrench } from 'lucide-react'
 
@@ -35,6 +36,7 @@ export function CreateMechanicModal({
   onSuccess
 }: CreateMechanicModalProps) {
   const { profile } = useAuth()
+  const { organizationId, workshopId: sessionWorkshopId } = useSession()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<ValidationErrors>({})
@@ -123,33 +125,30 @@ export function CreateMechanicModal({
       return
     }
     
-    if (!profile?.workshop_id) {
+    // ✅ Usar organizationId y workshopId dinámicos del SessionContext
+    if (!organizationId) {
       toast.error('Error', {
-        description: 'No hay sesión activa. Por favor recarga la página.'
+        description: 'No se pudo obtener la organización. Por favor recarga la página.'
+      })
+      return
+    }
+
+    // ✅ workshopId es opcional - para crear mecánicos, preferiblemente debería existir
+    const workshopId = sessionWorkshopId || profile?.workshop_id || null
+    
+    if (!workshopId) {
+      toast.error('Error', {
+        description: 'No se pudo determinar el taller. Si tu organización tiene múltiples talleres, por favor selecciona uno primero.'
       })
       return
     }
 
     setLoading(true)
     console.log('🚀 [CreateMechanic] Iniciando creación...')
-    console.log('🔍 [CreateMechanic] Workshop ID:', profile.workshop_id)
+    console.log('🔍 [CreateMechanic] Organization ID:', organizationId)
+    console.log('🔍 [CreateMechanic] Workshop ID:', workshopId)
 
     try {
-      // Obtener organization_id del workshop
-      console.log('🔍 [CreateMechanic] Obteniendo organization_id...')
-      const { data: workshopData, error: workshopError } = await supabase
-        .from('workshops')
-        .select('organization_id')
-        .eq('id', profile.workshop_id)
-        .single()
-
-      console.log('📊 [CreateMechanic] Workshop data:', workshopData)
-      console.log('📊 [CreateMechanic] Workshop error:', workshopError)
-
-      if (workshopError || !workshopData) {
-        console.error('❌ [CreateMechanic] Error obteniendo workshop')
-        throw new Error('No se pudo obtener los datos del taller')
-      }
 
       // Preparar especialidades
       const specialtiesArray = formData.specialties 
@@ -159,15 +158,19 @@ export function CreateMechanicModal({
       console.log('📝 [CreateMechanic] Especialidades procesadas:', specialtiesArray)
 
       // Preparar datos para insertar
-      const mechanicData = {
-        organization_id: workshopData.organization_id,
-        workshop_id: profile.workshop_id,
+      const mechanicData: any = {
+        organization_id: organizationId,
         name: formData.name,
         email: formData.email || null,
         phone: formData.phone || null,
         role: formData.role,
         specialties: specialtiesArray,
         is_active: true
+      }
+      
+      // ✅ Solo agregar workshop_id si existe
+      if (workshopId) {
+        mechanicData.workshop_id = workshopId
       }
 
       console.log('📋 [CreateMechanic] Datos a insertar:', mechanicData)

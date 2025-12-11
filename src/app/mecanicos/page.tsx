@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Wrench, Mail, Phone, Edit, Power } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
+import { useSession } from '@/lib/context/SessionContext'
 import { toast } from 'sonner'
 import CreateEditMechanicModal from '@/components/mecanicos/CreateEditMechanicModal'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -24,6 +25,7 @@ interface Mechanic {
 
 export default function MecanicosPage() {
   const { profile } = useAuth()
+  const { organizationId, workshopId: sessionWorkshopId } = useSession()
   const supabase = createClient()
   
   const [mechanics, setMechanics] = useState<Mechanic[]>([])
@@ -32,21 +34,32 @@ export default function MecanicosPage() {
   const [editingMechanicId, setEditingMechanicId] = useState<string | null>(null)
 
   const fetchMechanics = async () => {
-    if (!profile?.workshop_id) {
-      console.log('❌ No hay workshop_id en el perfil')
+    // ✅ Usar workshopId dinámico del SessionContext
+    const workshopId = sessionWorkshopId || profile?.workshop_id || null
+    
+    if (!organizationId) {
+      console.log('❌ No hay organizationId disponible')
       return
     }
 
     try {
       setLoading(true)
       
-      console.log('🔍 Buscando mecánicos para workshop:', profile.workshop_id)
+      console.log('🔍 Buscando mecánicos para organization:', organizationId)
+      console.log('🔍 Workshop ID:', workshopId || 'sin asignar')
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('employees')
         .select('*')
-        .eq('workshop_id', profile.workshop_id)
+        .eq('organization_id', organizationId)
         .in('role', ['mechanic', 'supervisor', 'receptionist', 'manager'])
+      
+      // ✅ Solo filtrar por workshop_id si existe
+      if (workshopId) {
+        query = query.eq('workshop_id', workshopId)
+      }
+      
+      const { data, error } = await query
         .order('name')
 
       console.log('📊 Resultado:', { data, error })
