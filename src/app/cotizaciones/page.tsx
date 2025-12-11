@@ -25,6 +25,7 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useSession } from '@/lib/context/SessionContext'
+import { CreateQuotationModal } from '@/components/quotations/CreateQuotationModal'
 
 export const dynamic = 'force-dynamic'
 
@@ -80,6 +81,7 @@ export default function QuotationsPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
   // Cargar cotizaciones
   const loadQuotations = async () => {
@@ -164,7 +166,7 @@ export default function QuotationsPage() {
               Administra cotizaciones y presupuestos
             </p>
           </div>
-          <Button onClick={() => toast.info('Funcionalidad en desarrollo')}>
+          <Button onClick={() => setIsCreateModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nueva Cotización
           </Button>
@@ -272,6 +274,17 @@ export default function QuotationsPage() {
             </Table>
           )}
         </div>
+
+        {/* Modal de crear cotización */}
+        <CreateQuotationModal
+          open={isCreateModalOpen}
+          onOpenChange={setIsCreateModalOpen}
+          quotation={null}
+          onSuccess={() => {
+            setIsCreateModalOpen(false)
+            loadQuotations()
+          }}
+        />
       </div>
     </AppLayout>
   )
