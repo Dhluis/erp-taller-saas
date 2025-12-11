@@ -179,30 +179,49 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   }
 
   const loadMechanics = useCallback(async () => {
-    if (!profile?.workshop_id) return
+    // ✅ Usar organizationId y workshopId dinámicos del SessionContext
+    const orgId = sessionOrgId || profile?.organization_id
+    const wsId = sessionWorkshopId || profile?.workshop_id || null
+    
+    if (!orgId) {
+      console.warn('⚠️ [loadMechanics] No hay organizationId disponible')
+      return
+    }
     
     try {
       setLoadingMechanics(true)
       const client = createClient()
       
-      const { data, error } = await client
+      // ✅ Filtrar primero por organization_id (requerido)
+      let query = client
         .from('employees')
         .select('id, name, role, email')
-        .eq('workshop_id', profile.workshop_id)
+        .eq('organization_id', orgId)
         .eq('is_active', true)
         .in('role', ['mechanic', 'technician'])
-        .order('name')
+      
+      // ✅ Solo filtrar por workshop_id si existe (opcional)
+      if (wsId) {
+        query = query.eq('workshop_id', wsId)
+      }
+      
+      const { data, error } = await query.order('name')
       
       if (error) throw error
       
       setMechanics(data || [])
-      console.log('✅ Mecánicos disponibles:', data?.length || 0)
+      console.log('✅ [loadMechanics] Mecánicos disponibles:', {
+        count: data?.length || 0,
+        organizationId: orgId,
+        workshopId: wsId || 'sin asignar'
+      })
     } catch (error) {
-      console.error('Error cargando mecánicos:', error)
+      console.error('❌ [loadMechanics] Error cargando mecánicos:', error)
+      setMechanics([]) // Asegurar que mechanics esté vacío en caso de error
     } finally {
       setLoadingMechanics(false)
     }
-  }, [profile?.workshop_id])
+  }, [sessionOrgId, sessionWorkshopId, profile?.organization_id, profile?.workshop_id])
 
   // Cargar mecánicos cuando se abre el modal
   useEffect(() => {
@@ -524,6 +543,33 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       // Crear la orden de trabajo
       console.log('📋 [CreateOrder] Creando orden...')
       
+      // ✅ Validar assigned_to si existe - debe pertenecer a la organización
+      let validAssignedTo: string | null = null
+      if (formData.assigned_to && formData.assigned_to.trim() !== '') {
+        console.log('🔍 [CreateOrder] Validando assigned_to:', formData.assigned_to)
+        
+        // Verificar que el empleado existe y pertenece a la organización
+        const { data: employee, error: employeeError } = await supabase
+          .from('employees')
+          .select('id')
+          .eq('id', formData.assigned_to)
+          .eq('organization_id', organizationId)
+          .eq('is_active', true)
+          .single()
+        
+        if (employeeError || !employee) {
+          console.warn('⚠️ [CreateOrder] Empleado no válido o no pertenece a la organización:', {
+            assigned_to: formData.assigned_to,
+            error: employeeError?.message
+          })
+          // No lanzar error, solo no asignar el empleado
+          validAssignedTo = null
+        } else {
+          validAssignedTo = formData.assigned_to
+          console.log('✅ [CreateOrder] Empleado validado:', validAssignedTo)
+        }
+      }
+      
       const orderData: any = {
         organization_id: organizationId,
         customer_id: customerId,
@@ -532,9 +578,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         estimated_cost: parseFloat(formData.estimated_cost) || 0,
         status: 'reception',
         entry_date: new Date().toISOString(),
-        assigned_to: formData.assigned_to && formData.assigned_to.trim() !== '' 
-          ? formData.assigned_to 
-          : null
+        assigned_to: validAssignedTo
       }
       
       // ✅ Solo agregar workshop_id si existe (opcional)
@@ -545,10 +589,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       console.log('📊 [CreateOrder] orderData completo:', {
         hasWorkshop: !!orderData.workshop_id,
         workshopId: orderData.workshop_id || 'sin asignar',
-        organizationId: orderData.organization_id
+        organizationId: orderData.organization_id,
+        assignedTo: orderData.assigned_to || 'sin asignar'
       })
-
-      console.log('📊 [CreateOrder] orderData completo:', JSON.stringify(orderData, null, 2))
 
       const { data: newOrder, error: orderError } = await supabase
         .from('work_orders')
