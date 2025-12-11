@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { toast } from 'sonner'
-import { useAuth } from '@/hooks/useAuth'
 import { useOrganization } from '@/lib/context/SessionContext'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from "@/components/ui/button"
@@ -99,9 +98,8 @@ interface CreateAppointmentData {
 }
 
 export default function CitasPage() {
-  // Obtener organization del contexto (los IDs se extraen en handleSubmit)
-  const { organization } = useAuth()
-  const { organizationId, loading: orgLoading } = useOrganization()
+  // ✅ Obtener organizationId y workshopId directamente del contexto (más confiable)
+  const { organizationId, workshopId, loading: orgLoading } = useOrganization()
 
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([])
@@ -141,15 +139,15 @@ export default function CitasPage() {
     estimated_duration: 60
   })
 
-  // Monitorear cuando organization carga
+  // Monitorear cuando organizationId y workshopId cargan
   useEffect(() => {
     console.log('🔄 [Citas] Organization actualizada:', {
-      exists: !!organization,
-      organization_id: organization?.organization_id,
-      workshop_id: organization?.id,  // ✅ CORRECCIÓN: es 'id', no 'workshop_id'
-      workshop_name: organization?.name
+      organizationId,
+      workshopId,
+      hasOrganization: !!organizationId,
+      hasWorkshop: !!workshopId
     })
-  }, [organization])
+  }, [organizationId, workshopId])
 
   // Cargar datos al montar el componente y cuando cambie organizationId
   useEffect(() => {
@@ -311,8 +309,8 @@ export default function CitasPage() {
     
     // ✅ VALIDACIÓN MEJORADA CON LOGGING DETALLADO
     console.log('📋 handleSubmit iniciado')
-    console.log('📦 organization completo:', organization)
     console.log('📦 organizationId del context:', organizationId)
+    console.log('📦 workshopId del context:', workshopId)
     
     // ✅ USAR organizationId del OrganizationContext (más confiable)
     if (!organizationId) {
@@ -323,37 +321,14 @@ export default function CitasPage() {
       return
     }
     
-    // ✅ Obtener workshopId de organization (necesario para crear cliente/vehículo)
-    if (!organization) {
-      console.error('❌ Organization no disponible:', organization)
-      toast.error('Error al crear cita', {
-        description: 'Esperando información del taller. Por favor intenta de nuevo.'
-      })
-      return
-    }
-    
-    const workshopId = organization.id  // ✅ CORRECCIÓN: es 'id', no 'workshop_id'
-    
-    console.log('🔍 Extrayendo IDs:', { 
-      organizationId,  // ✅ Del context
-      workshopId,
-      organization_id_from_context: organizationId,
-      workshop_id_from_org: workshopId
+    // ✅ workshopId es opcional según el schema, pero recomendado para mejor organización
+    // Si no hay workshopId, podemos continuar (el campo es nullable en customers y vehicles)
+    console.log('🔍 IDs disponibles:', { 
+      organizationId,  // ✅ Requerido
+      workshopId,      // ⚠️ Opcional pero recomendado
     })
     
-    if (!workshopId) {
-      console.error('❌ workshopId faltante:', { 
-        organizationId, 
-        workshopId,
-        organization: organization 
-      })
-      toast.error('Error al crear cita', {
-        description: 'No se pudo obtener la información del taller'
-      })
-      return
-    }
-    
-    console.log('✅ Organization IDs validados:', { organizationId, workshopId })
+    console.log('✅ Organization ID validado:', { organizationId, workshopId })
     
     if (!formData.customer_name.trim() || !formData.customer_phone.trim() || 
         !formData.vehicle_info.trim() || !formData.service_type.trim()) {
@@ -389,7 +364,7 @@ export default function CitasPage() {
           .from('customers')
           .insert({
             organization_id: organizationId,
-            workshop_id: workshopId,
+            workshop_id: workshopId || null, // ✅ workshop_id es opcional según schema
             name: formData.customer_name,
             phone: formData.customer_phone,
             email: formData.customer_email || null
@@ -417,12 +392,18 @@ export default function CitasPage() {
 
       if (licensePlate) {
         // BUSCAR POR PLACA
-        const { data: existingVehicle } = await supabase
+        let vehicleQuery = supabase
           .from('vehicles')
           .select('id')
           .eq('license_plate', licensePlate.toUpperCase())
-          .eq('workshop_id', workshopId)
-          .maybeSingle()
+          .eq('organization_id', organizationId) // ✅ Filtrar por organization_id primero
+        
+        // ✅ Solo filtrar por workshop_id si existe (es opcional según schema)
+        if (workshopId) {
+          vehicleQuery = vehicleQuery.eq('workshop_id', workshopId)
+        }
+        
+        const { data: existingVehicle } = await vehicleQuery.maybeSingle()
         
         if (existingVehicle) {
           vehicleId = existingVehicle.id
@@ -437,7 +418,7 @@ export default function CitasPage() {
             .from('vehicles')
             .insert({
               customer_id: customerId,
-              workshop_id: workshopId,
+              workshop_id: workshopId || null, // ✅ workshop_id es opcional según schema
               brand: brand,
               model: model,
               license_plate: licensePlate.toUpperCase(),
@@ -468,7 +449,7 @@ export default function CitasPage() {
           .from('vehicles')
           .insert({
             customer_id: customerId,
-            workshop_id: workshopId,
+            workshop_id: workshopId || null, // ✅ workshop_id es opcional según schema
             brand: brand,
             model: model,
             license_plate: tempPlate,
@@ -673,7 +654,7 @@ export default function CitasPage() {
                   estimated_duration: 60
                 })
               }}
-              disabled={!organization}
+              disabled={!organizationId || orgLoading}
             >
               <Plus className="h-4 w-4 mr-2" />
               Nueva Cita
