@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Users, Car, FileText, Calendar, Wrench, Settings, Hammer } from 'lucide-react'
+import { Plus, Users, Car, FileText, MessageSquare } from 'lucide-react'
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal'
 
 interface QuickActionsProps {
@@ -23,25 +23,12 @@ export function QuickActions({ onOrderCreated }: QuickActionsProps) {
     setModalOpen(true)
   }
 
-  const handleDiagnostico = () => {
-    console.log('🔥 [QuickActions] Diagnóstico clickeado')
-    setPrefilledServiceType('diagnostico')
-    setModalOpen(true)
-  }
-
-  const handleMantenimiento = () => {
-    console.log('🔥 [QuickActions] Mantenimiento clickeado')
-    setPrefilledServiceType('mantenimiento')
-    setModalOpen(true)
-  }
-
-  const handleReparacion = () => {
-    console.log('🔥 [QuickActions] Reparación clickeada')
-    setPrefilledServiceType('reparacion')
-    setModalOpen(true)
-  }
-
   // Funciones para navegación
+  const handleConversaciones = () => {
+    console.log('🔥 [QuickActions] Navegar a Conversaciones')
+    router.push('/dashboard/whatsapp/conversaciones')
+  }
+
   const handleCliente = () => {
     console.log('🔥 [QuickActions] Navegar a Clientes')
     router.push('/clientes')
@@ -53,14 +40,10 @@ export function QuickActions({ onOrderCreated }: QuickActionsProps) {
   }
 
   const handleCotizacion = () => {
-    console.log('🔥 [QuickActions] Navegar a nueva Cotización')
-    router.push('/cotizaciones/nueva')
+    console.log('🔥 [QuickActions] Navegar a Cotizaciones')
+    router.push('/cotizaciones')
   }
 
-  const handleCita = () => {
-    console.log('🔥 [QuickActions] Navegar a Citas')
-    router.push('/citas')
-  }
 
   const handleOrderCreated = () => {
     console.log('✅ Orden creada desde QuickActions')
@@ -81,96 +64,89 @@ export function QuickActions({ onOrderCreated }: QuickActionsProps) {
         <CardContent className="pt-4 space-y-3">
           {/* Nueva Orden de Trabajo - Acción principal */}
           <Button
-            className="w-full justify-start h-auto py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md"
+            className="w-full justify-start h-auto py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md transition-all duration-300"
             onClick={handleNewOrder}
           >
-            <Plus className="h-5 w-5 mr-3" />
-            <div className="text-left">
-              <div className="font-semibold">Nueva Orden de Trabajo</div>
-              <div className="text-xs text-blue-100 mt-0.5">
-                Registra un nuevo servicio
+            <div className="flex items-center">
+              <span className="text-xl mr-3">⚙️</span>
+              <Plus className="h-5 w-5 mr-2" />
+              <div className="text-left">
+                <div className="font-semibold">Nueva Orden de Trabajo</div>
+                <div className="text-xs text-blue-100 mt-0.5">
+                  Registra un nuevo servicio
+                </div>
               </div>
             </div>
           </Button>
 
           {/* Acciones Rápidas Específicas */}
           <div className="grid grid-cols-1 gap-2 pt-2 border-t">
+            {/* Ver Conversaciones - Verde/WhatsApp */}
             <Button
-              className="w-full justify-start h-auto py-2 px-3 bg-gray-800/50 border border-gray-700 hover:bg-blue-500/10 hover:border-blue-500/50 backdrop-blur-sm transition-all duration-300 shadow-sm"
-              onClick={handleDiagnostico}
+              className="w-full justify-start h-auto py-3 px-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-md transition-all duration-300"
+              onClick={handleConversaciones}
             >
-              <Wrench className="h-4 w-4 mr-2 text-blue-400" />
-              <div className="text-left">
-                <div className="font-medium text-sm text-white">Diagnóstico</div>
-                <div className="text-xs text-gray-400 mt-0.5">
-                  Evaluación inicial
+              <div className="flex items-center">
+                <span className="text-xl mr-3">💬</span>
+                <MessageSquare className="h-5 w-5 mr-2" />
+                <div className="text-left">
+                  <div className="font-semibold text-sm">Ver Conversaciones</div>
+                  <div className="text-xs text-green-100 mt-0.5">
+                    Mensajes de WhatsApp
+                  </div>
                 </div>
               </div>
             </Button>
 
+            {/* Vehículos - Azul */}
             <Button
-              className="w-full justify-start h-auto py-2 px-3 bg-gray-800/50 border border-gray-700 hover:bg-blue-500/10 hover:border-blue-500/50 backdrop-blur-sm transition-all duration-300 shadow-sm"
-              onClick={handleMantenimiento}
-            >
-              <Settings className="h-4 w-4 mr-2 text-blue-400" />
-              <div className="text-left">
-                <div className="font-medium text-sm text-white">Mantenimiento</div>
-                <div className="text-xs text-gray-400 mt-0.5">
-                  Servicio preventivo
-                </div>
-              </div>
-            </Button>
-
-            <Button
-              className="w-full justify-start h-auto py-2 px-3 bg-gray-800/50 border border-gray-700 hover:bg-blue-500/10 hover:border-blue-500/50 backdrop-blur-sm transition-all duration-300 shadow-sm"
-              onClick={handleReparacion}
-            >
-              <Hammer className="h-4 w-4 mr-2 text-blue-400" />
-              <div className="text-left">
-                <div className="font-medium text-sm text-white">Reparación</div>
-                <div className="text-xs text-gray-400 mt-0.5">
-                  Servicio correctivo
-                </div>
-              </div>
-            </Button>
-          </div>
-
-          {/* Acciones secundarias - Navegación */}
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-            <Button
-              variant="outline"
-              className="h-auto py-2 px-3 flex-col items-start border-gray-700 bg-gray-800/50 hover:bg-blue-500/10 hover:border-blue-500/50 backdrop-blur-sm transition-all duration-300"
-              onClick={handleCliente}
-            >
-              <Users className="h-4 w-4 mb-1 text-blue-400" />
-              <span className="text-xs font-medium text-white">Cliente</span>
-            </Button>
-
-            <Button
-              variant="outline"
-              className="h-auto py-2 px-3 flex-col items-start border-gray-700 bg-gray-800/50 hover:bg-blue-500/10 hover:border-blue-500/50 backdrop-blur-sm transition-all duration-300"
+              className="w-full justify-start h-auto py-3 px-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-md transition-all duration-300"
               onClick={handleVehiculo}
             >
-              <Car className="h-4 w-4 mb-1 text-blue-400" />
-              <span className="text-xs font-medium text-white">Vehículo</span>
+              <div className="flex items-center">
+                <span className="text-xl mr-3">🚗</span>
+                <Car className="h-5 w-5 mr-2" />
+                <div className="text-left">
+                  <div className="font-semibold text-sm">Vehículos</div>
+                  <div className="text-xs text-blue-100 mt-0.5">
+                    Gestionar vehículos
+                  </div>
+                </div>
+              </div>
             </Button>
 
+            {/* Clientes - Púrpura */}
             <Button
-              variant="outline"
-              className="h-auto py-2 px-3 flex-col items-start border-gray-700 bg-gray-800/50 hover:bg-blue-500/10 hover:border-blue-500/50 backdrop-blur-sm transition-all duration-300"
+              className="w-full justify-start h-auto py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md transition-all duration-300"
+              onClick={handleCliente}
+            >
+              <div className="flex items-center">
+                <span className="text-xl mr-3">👥</span>
+                <Users className="h-5 w-5 mr-2" />
+                <div className="text-left">
+                  <div className="font-semibold text-sm">Clientes</div>
+                  <div className="text-xs text-purple-100 mt-0.5">
+                    Gestionar clientes
+                  </div>
+                </div>
+              </div>
+            </Button>
+
+            {/* Cotización - Naranja/Amber */}
+            <Button
+              className="w-full justify-start h-auto py-3 px-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white shadow-md transition-all duration-300"
               onClick={handleCotizacion}
             >
-              <FileText className="h-4 w-4 mb-1 text-blue-400" />
-              <span className="text-xs font-medium text-white">Cotización</span>
-            </Button>
-
-            <Button
-              variant="outline"
-              className="h-auto py-2 px-3 flex-col items-start border-gray-700 bg-gray-800/50 hover:bg-blue-500/10 hover:border-blue-500/50 backdrop-blur-sm transition-all duration-300"
-              onClick={handleCita}
-            >
-              <Calendar className="h-4 w-4 mb-1 text-blue-400" />
-              <span className="text-xs font-medium text-white">Cita</span>
+              <div className="flex items-center">
+                <span className="text-xl mr-3">📋</span>
+                <FileText className="h-5 w-5 mr-2" />
+                <div className="text-left">
+                  <div className="font-semibold text-sm">Cotización</div>
+                  <div className="text-xs text-amber-100 mt-0.5">
+                    Crear nueva cotización
+                  </div>
+                </div>
+              </div>
             </Button>
           </div>
         </CardContent>
