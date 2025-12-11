@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('exclusicoparaclientes@gmail.com')
+  const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -14,22 +14,27 @@ export default function ForgotPasswordPage() {
     setMessage('')
 
     try {
-      console.log('🔍 [ForgotPassword] Iniciando reset para:', email)
-      
+      // ✅ Siempre enviar el reset sin validar existencia
+      // Supabase Auth maneja esto de forma segura y solo envía email si existe
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password-standalone`,
+        redirectTo: `${window.location.origin}/auth/reset-password`,
       })
 
+      // ✅ Siempre mostrar el mismo mensaje genérico para no revelar si el email existe
+      // Esto previene fuga de información sobre qué emails están registrados
       if (error) {
         console.error('❌ [ForgotPassword] Error:', error)
-        setMessage(`❌ Error: ${error.message}`)
+        // Aún así mostrar mensaje genérico para no revelar información
+        setMessage('Si el email está registrado, recibirás un enlace de recuperación en tu correo.')
       } else {
-        console.log('✅ [ForgotPassword] Email enviado exitosamente')
-        setMessage('✅ ¡Enlace de recuperación enviado! Revisa tu correo.')
+        console.log('✅ [ForgotPassword] Solicitud procesada')
+        // Mensaje genérico que no revela si el email existe o no
+        setMessage('Si el email está registrado, recibirás un enlace de recuperación en tu correo.')
       }
     } catch (error: any) {
       console.error('💥 [ForgotPassword] Excepción:', error)
-      setMessage(`💥 Error: ${error.message}`)
+      // Mensaje genérico incluso en caso de excepción
+      setMessage('Si el email está registrado, recibirás un enlace de recuperación en tu correo.')
     } finally {
       setLoading(false)
     }
@@ -63,16 +68,6 @@ export default function ForgotPasswordPage() {
           <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>
             Ingresa tu email para recibir un enlace de recuperación
           </p>
-          <div style={{ 
-            marginTop: '0.5rem', 
-            padding: '0.5rem', 
-            backgroundColor: '#fef3c7', 
-            borderRadius: '4px',
-            fontSize: '0.75rem',
-            color: '#92400e'
-          }}>
-            <strong>💡 Email válido:</strong> exclusicoparaclientes@gmail.com (ya precargado)
-          </div>
         </div>
 
         <form onSubmit={handleResetPassword} style={{ marginBottom: '1rem' }}>
@@ -127,9 +122,9 @@ export default function ForgotPasswordPage() {
             borderRadius: '4px',
             fontSize: '0.875rem',
             marginBottom: '1rem',
-            backgroundColor: message.includes('✅') ? '#f0fdf4' : '#fef2f2',
-            color: message.includes('✅') ? '#166534' : '#dc2626',
-            border: `1px solid ${message.includes('✅') ? '#bbf7d0' : '#fecaca'}`
+            backgroundColor: '#f0fdf4',
+            color: '#166534',
+            border: '1px solid #bbf7d0'
           }}>
             {message}
           </div>
@@ -148,16 +143,6 @@ export default function ForgotPasswordPage() {
           </a>
         </div>
 
-        <div style={{ 
-          marginTop: '1rem', 
-          padding: '0.75rem', 
-          backgroundColor: '#f3f4f6', 
-          borderRadius: '4px',
-          fontSize: '0.75rem',
-          color: '#6b7280'
-        }}>
-          <strong>Debug:</strong> Revisa la consola del navegador para ver los logs
-        </div>
       </div>
     </div>
   )
