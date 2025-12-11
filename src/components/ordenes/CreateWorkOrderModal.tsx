@@ -43,7 +43,7 @@ import {
 import { toast } from 'sonner'
 
 import { useAuth } from '@/hooks/useAuth'
-import { useOrganization } from '@/lib/context/SessionContext'
+import { useOrganization, useSession } from '@/lib/context/SessionContext'
 import { createClient } from '@/lib/supabase/client'
 import { useCustomers } from '@/hooks/useCustomers'
 
@@ -202,6 +202,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 }: CreateWorkOrderModalProps) {
   // ✅ Usar context si no se proporciona como prop
   const { organizationId: contextOrganizationId } = useOrganization();
+  const { workshopId: sessionWorkshopId, hasMultipleWorkshops } = useSession();
   const organizationId = propOrganizationId ?? contextOrganizationId;
 
   const { user, profile } = useAuth()
@@ -642,56 +643,52 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     setLoading(true)
 
     try {
-
-      const workshopId = profile.workshop_id
-
-      if (!workshopId) {
-
-        throw new Error('No se encontró workshop_id en el perfil')
-
-      }
-
-      // ✅ Usar organizationId del context o prop
+      // ✅ Usar organizationId del context o prop (SIEMPRE requerido)
       if (!organizationId) {
         throw new Error('No se pudo obtener organization_id');
       }
+
+      // ✅ workshopId es opcional - puede ser null si la org tiene múltiples workshops
+      const workshopId = sessionWorkshopId || profile?.workshop_id || null;
       
       console.log('🔍 [CreateWorkOrderModal] organizationId:', organizationId);
-      console.log('🔍 [CreateWorkOrderModal] workshopId:', workshopId);
+      console.log('🔍 [CreateWorkOrderModal] workshopId:', workshopId || 'sin asignar');
+      console.log('🔍 [CreateWorkOrderModal] Has Multiple Workshops:', hasMultipleWorkshops);
 
-      const { data: existingCustomer } = await supabase
-
+      // ✅ Búsqueda de cliente con filtro opcional por workshop_id
+      let customerQuery = supabase
         .from('customers')
-
         .select('*')
-
         .eq('phone', formData.customerPhone)
-
-        .eq('workshop_id', workshopId)
-
-        .maybeSingle()
+        .eq('organization_id', organizationId);
+      
+      // ✅ Solo filtrar por workshop_id si existe
+      if (workshopId) {
+        customerQuery = customerQuery.eq('workshop_id', workshopId);
+      }
+      
+      const { data: existingCustomer } = await customerQuery.maybeSingle()
 
       let customerId = (existingCustomer as any)?.id
 
       if (!customerId) {
 
+        // ✅ Crear cliente con workshop_id opcional
+        const customerData: any = {
+          organization_id: organizationId,
+          name: formData.customerName,
+          phone: formData.customerPhone,
+          email: formData.customerEmail || null
+        };
+        
+        // ✅ Solo agregar workshop_id si existe
+        if (workshopId) {
+          customerData.workshop_id = workshopId;
+        }
+
         const { data: newCustomer, error: customerError } = await supabase
-
           .from('customers')
-
-          .insert({
-
-            organization_id: organizationId,
-
-            workshop_id: workshopId,
-
-            name: formData.customerName,
-
-            phone: formData.customerPhone,
-
-            email: formData.customerEmail || null
-
-          } as any)
+          .insert(customerData)
 
           .select()
 
@@ -705,45 +702,44 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
       }
 
-      const { data: existingVehicle } = await supabase
-
+      // ✅ Búsqueda de vehículo con filtro opcional por workshop_id
+      let vehicleQuery = supabase
         .from('vehicles')
-
         .select('id')
-
         .eq('license_plate', formData.vehiclePlate.toUpperCase())
-
-        .eq('workshop_id', workshopId)
-
-        .maybeSingle()
+        .eq('organization_id', organizationId);
+      
+      // ✅ Solo filtrar por workshop_id si existe
+      if (workshopId) {
+        vehicleQuery = vehicleQuery.eq('workshop_id', workshopId);
+      }
+      
+      const { data: existingVehicle } = await vehicleQuery.maybeSingle()
 
       let vehicleId = (existingVehicle as any)?.id
 
       if (!vehicleId) {
 
+        // ✅ Crear vehículo con workshop_id opcional
+        const vehicleData: any = {
+          customer_id: customerId,
+          organization_id: organizationId,
+          brand: formData.vehicleBrand,
+          model: formData.vehicleModel,
+          year: formData.vehicleYear ? parseInt(formData.vehicleYear) : null,
+          license_plate: formData.vehiclePlate.toUpperCase(),
+          color: formData.vehicleColor || null,
+          mileage: formData.vehicleMileage ? parseInt(formData.vehicleMileage) : null
+        };
+        
+        // ✅ Solo agregar workshop_id si existe
+        if (workshopId) {
+          vehicleData.workshop_id = workshopId;
+        }
+
         const { data: newVehicle, error: vehicleError } = await supabase
-
           .from('vehicles')
-
-          .insert({
-
-            customer_id: customerId,
-
-            workshop_id: workshopId,
-
-            brand: formData.vehicleBrand,
-
-            model: formData.vehicleModel,
-
-            year: formData.vehicleYear ? parseInt(formData.vehicleYear) : null,
-
-            license_plate: formData.vehiclePlate.toUpperCase(),
-
-            color: formData.vehicleColor || null,
-
-            mileage: formData.vehicleMileage ? parseInt(formData.vehicleMileage) : null
-
-          } as any)
+          .insert(vehicleData)
 
           .select()
 
@@ -757,31 +753,30 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
       }
 
-      const orderData = {
-
+      // ✅ Crear orderData con workshop_id opcional
+      const orderData: any = {
         organization_id: organizationId,
-
-        workshop_id: workshopId,
-
         customer_id: customerId,
-
         vehicle_id: vehicleId,
-
         description: formData.description?.trim() || 'Sin descripción',
-
         estimated_cost: parseFloat(formData.estimated_cost) || 0,
-
         status: 'reception',  // ✅ Primera etapa del proceso
-
         entry_date: new Date().toISOString(),
-
         assigned_to: formData.assigned_to && formData.assigned_to.trim() !== '' 
-
           ? formData.assigned_to 
-
           : null
-
+      };
+      
+      // ✅ Solo agregar workshop_id si existe
+      if (workshopId) {
+        orderData.workshop_id = workshopId;
       }
+      
+      console.log('📊 [CreateWorkOrderModal] orderData completo:', {
+        hasWorkshop: !!orderData.workshop_id,
+        workshopId: orderData.workshop_id || 'sin asignar',
+        organizationId: orderData.organization_id
+      });
 
       console.log('📝 [CreateWorkOrderModal] Datos de orden a insertar:', {
         organization_id: orderData.organization_id,
@@ -847,7 +842,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           organization_id: organizationId,
 
-          workshop_id: workshopId,
+          ...(workshopId && { workshop_id: workshopId }), // ✅ Solo incluir si existe
 
           fluids_check: formData.fluids,
 

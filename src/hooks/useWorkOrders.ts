@@ -690,21 +690,24 @@ export function useWorkOrders() {
         .eq('auth_user_id', user.id)
         .single();
 
-      if (!userData || !(userData as any).workshop_id) throw new Error('No se encontró el taller');
-      
       // ✅ Validar que el organizationId del contexto coincida con el de la BD
+      if (!userData) {
+        throw new Error('No se encontró el perfil del usuario');
+      }
+      
       const userOrganizationId = (userData as any).organization_id as string;
       if (userOrganizationId !== organizationId) {
         console.error('❌ Organization ID mismatch:', { context: organizationId, db: userOrganizationId });
         throw new Error('Inconsistencia en la organización del usuario');
       }
 
-      const workshopId = (userData as any).workshop_id as string;
-      console.log('✅ Workshop ID:', workshopId);
+      // ✅ workshop_id es opcional - puede ser null si la org tiene múltiples workshops
+      const workshopId = (userData as any).workshop_id as string | null;
+      console.log('✅ Workshop ID:', workshopId || 'sin asignar');
       console.log('✅ Organization ID:', organizationId);
 
       // Cargar órdenes con relaciones
-      const { data: ordersData, error: ordersError } = await supabase
+      let ordersQuery = supabase
         .from('work_orders')
         .select(`
           *,
@@ -712,8 +715,14 @@ export function useWorkOrders() {
           vehicle:vehicles(id, brand, model, year, license_plate),
           assigned_mechanic:employees(id, name)
         `)
-        .eq('organization_id', organizationId) // ✅ Filtrar primero por organization
-        .eq('workshop_id', workshopId)
+        .eq('organization_id', organizationId); // ✅ Filtrar primero por organization
+      
+      // ✅ Solo filtrar por workshop_id si existe
+      if (workshopId) {
+        ordersQuery = ordersQuery.eq('workshop_id', workshopId);
+      }
+      
+      const { data: ordersData, error: ordersError } = await ordersQuery
         .order('entry_date', { ascending: false });
 
       if (ordersError) {
@@ -724,11 +733,17 @@ export function useWorkOrders() {
       console.log('✅ Órdenes cargadas:', ordersData?.length || 0);
 
       // Cargar clientes
-      const { data: customersData, error: customersError } = await supabase
+      let customersQuery = supabase
         .from('customers')
         .select('*')
-        .eq('organization_id', organizationId) // ✅ Filtrar primero por organization
-        .eq('workshop_id', workshopId)
+        .eq('organization_id', organizationId); // ✅ Filtrar primero por organization
+      
+      // ✅ Solo filtrar por workshop_id si existe
+      if (workshopId) {
+        customersQuery = customersQuery.eq('workshop_id', workshopId);
+      }
+      
+      const { data: customersData, error: customersError } = await customersQuery
         .order('name');
 
       if (customersError) {
