@@ -129,16 +129,19 @@ export async function getTenantContext(request?: any): Promise<TenantContext> {
         .single()
 
       if (workshopError || !workshop) {
-        console.error('[getTenantContext] ❌ Error obteniendo workshop:', {
+        console.warn('[getTenantContext] ⚠️ Workshop no encontrado o error al obtenerlo:', {
           message: workshopError?.message,
           code: workshopError?.code,
           workshopId: workshopId
         })
-        throw new Error('Workshop no encontrado')
+        // ✅ No lanzar error - el workshop_id puede ser inválido o el workshop puede haber sido eliminado
+        // Limpiar workshopId inválido
+        workshopId = null;
+        console.log('[getTenantContext] ⚠️ workshopId limpiado debido a workshop no encontrado');
+      } else {
+        organizationId = workshop.organization_id;
+        console.log('[getTenantContext] ✅ OrganizationId obtenido desde workshop:', organizationId);
       }
-      
-      organizationId = workshop.organization_id;
-      console.log('[getTenantContext] ✅ OrganizationId obtenido desde workshop:', organizationId);
     }
 
     if (!organizationId) {

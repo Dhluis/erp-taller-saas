@@ -54,10 +54,10 @@ export async function getTenantContextClient(): Promise<TenantContext> {
     throw new Error('Usuario no autenticado')
   }
 
-  // Obtener perfil del usuario con workshop_id
+  // Obtener perfil del usuario con organization_id y workshop_id (opcional)
   const { data: userProfile, error: profileError } = await supabase
     .from('users')
-    .select('workshop_id')
+    .select('workshop_id, organization_id')
     .eq('auth_user_id', user.id)
     .single()
 
@@ -65,20 +65,54 @@ export async function getTenantContextClient(): Promise<TenantContext> {
     throw new Error('Perfil de usuario no encontrado')
   }
 
-  // Obtener workshop y organization_id
-  const { data: workshop, error: workshopError } = await supabase
-    .from('workshops')
-    .select('id, organization_id')
-    .eq('id', userProfile.workshop_id)
-    .single()
+  const userWorkshopId = (userProfile as any).workshop_id as string | null
+  const organizationId = (userProfile as any).organization_id as string | null
 
-  if (workshopError || !workshop) {
-    throw new Error('Workshop no encontrado')
+  // ✅ organization_id es requerido
+  if (!organizationId) {
+    throw new Error('No se pudo obtener organization_id del perfil')
+  }
+
+  let workshopId: string | null = null
+
+  // ✅ workshop_id es opcional - intentar obtenerlo si existe
+  if (userWorkshopId) {
+    const { data: workshop, error: workshopError } = await supabase
+      .from('workshops')
+      .select('id, organization_id')
+      .eq('id', userWorkshopId)
+      .single()
+
+    if (!workshopError && workshop) {
+      // Validar que el workshop pertenece a la organización
+      if (workshop.organization_id === organizationId) {
+        workshopId = workshop.id
+      } else {
+        console.warn('[getTenantContextClient] ⚠️ Workshop no pertenece a la organización')
+      }
+    }
+  }
+
+  // ✅ Si no hay workshop_id, buscar si la org tiene un solo workshop
+  if (!workshopId) {
+    const { data: workshops } = await supabase
+      .from('workshops')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: true })
+
+    // Si solo hay 1 workshop, usar ese automáticamente
+    if (workshops && workshops.length === 1) {
+      workshopId = workshops[0].id
+      console.log('[getTenantContextClient] ✅ Un solo workshop encontrado, usando automáticamente')
+    } else {
+      console.log('[getTenantContextClient] ⚠️ Múltiples workshops o ninguno, workshopId será null')
+    }
   }
 
   return {
-    organizationId: workshop.organization_id,
-    workshopId: workshop.id,
+    organizationId,
+    workshopId: workshopId || organizationId, // Fallback a organizationId si no hay workshop
     userId: user.id
   }
 }
