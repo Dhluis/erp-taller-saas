@@ -27,7 +27,7 @@ export default function TrainAgentPage() {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     wahaConfig: {
-      waha_config_type: 'shared' as 'shared' | 'custom',
+      waha_config_type: 'shared' as 'shared',
       waha_api_url: undefined as string | undefined,
       waha_api_key: undefined as string | undefined
     },
@@ -97,30 +97,18 @@ export default function TrainAgentPage() {
 
     setLoading(true)
     try {
-      // ✅ Determinar credenciales de WAHA según el tipo elegido
-      const wahaConfigType = formData.wahaConfig.waha_config_type || 'shared'
-
-      if (wahaConfigType === 'custom') {
-        // Validar que las credenciales personalizadas estén completas
-        if (!formData.wahaConfig.waha_api_url || !formData.wahaConfig.waha_api_key) {
-          toast.error('Faltan credenciales de WAHA personalizadas. Por favor, completa todos los campos.')
-          setLoading(false)
-          return
-        }
-      }
-      // Si es 'shared', NO intentar obtener variables de entorno del cliente
-      // El backend las obtendrá de sus propias variables de entorno (process.env.WAHA_API_URL)
+      // ✅ Usar siempre servidor compartido
+      const wahaConfigType = 'shared'
+      // El backend obtendrá las credenciales de sus propias variables de entorno (process.env.WAHA_API_URL)
 
       // 🔍 Log para debugging antes de guardar
       console.log('🔍 [Wizard] Payload antes de guardar:', {
-        has_waha_config_type: !!wahaConfigType,
         waha_config_type: wahaConfigType,
-        will_send_credentials: wahaConfigType === 'custom',
         organization_id: organizationId
       })
 
       // Construir payload
-      // Solo incluir credenciales si es 'custom', dejar que el backend las obtenga si es 'shared'
+      // El backend obtendrá las credenciales de sus variables de entorno para 'shared'
       const payload: any = {
         waha_config_type: wahaConfigType,
         businessInfo: formData.businessInfo,
@@ -133,17 +121,10 @@ export default function TrainAgentPage() {
         appointmentScheduling: formData.appointmentScheduling
       }
 
-      // Solo incluir credenciales si es configuración personalizada
-      if (wahaConfigType === 'custom') {
-        payload.waha_api_url = formData.wahaConfig.waha_api_url
-        payload.waha_api_key = formData.wahaConfig.waha_api_key
-      }
-
-      // 📦 Log del payload final (sin mostrar la key completa)
+      // 📦 Log del payload final
       console.log('📦 [Wizard] Payload final:', {
         ...payload,
-        waha_api_key: payload.waha_api_key ? '***' + payload.waha_api_key.slice(-4) : 'backend obtendrá de env vars',
-        waha_api_url: payload.waha_api_url ? payload.waha_api_url.substring(0, 30) + '...' : 'backend obtendrá de env vars'
+        waha_config_type: 'shared (backend obtendrá credenciales de env vars)'
       })
 
       // Guardar configuración en ai_agent_config
@@ -418,20 +399,7 @@ export default function TrainAgentPage() {
           {step < 9 && (
             <Button 
               onClick={() => {
-                // Validar antes de avanzar
-                if (step === 1) {
-                  // Validar paso de WAHA
-                  const canContinue = formData.wahaConfig.waha_config_type === 'shared' || 
-                    (formData.wahaConfig.waha_config_type === 'custom' && 
-                     formData.wahaConfig.waha_api_url && 
-                     formData.wahaConfig.waha_api_key &&
-                     formData.wahaConfig.waha_api_url.startsWith('https://'))
-                  
-                  if (!canContinue) {
-                    toast.error('Por favor, completa la configuración de WAHA antes de continuar')
-                    return
-                  }
-                }
+                // El paso 1 siempre puede continuar ya que solo usamos servidor compartido
                 setStep(Math.min(9, step + 1))
               }}
             >
