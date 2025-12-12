@@ -369,7 +369,7 @@ export function CreateQuotationModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-bg-primary text-text-primary">
+      <DialogContent className="max-w-7xl w-[95vw] max-h-[90vh] overflow-y-auto bg-bg-primary text-text-primary">
         <DialogHeader>
           <DialogTitle>
             {quotation ? 'Editar Cotización' : 'Nueva Cotización'}
