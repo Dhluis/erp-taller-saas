@@ -4,6 +4,11 @@
 -- Este script crea índices compuestos optimizados para queries multi-tenant
 -- Ejecutar en Supabase Dashboard → SQL Editor
 -- 
+-- Total de índices: 30 índices
+-- Tablas cubiertas: 13 tablas (customers, work_orders, vehicles, products, 
+--                   invoices, quotations, employees, payments, suppliers, 
+--                   purchase_orders, services, appointments, inventory)
+-- 
 -- Beneficio estimado: 30-40% mejora en velocidad de queries multi-tenant
 -- =====================================================
 
@@ -89,17 +94,17 @@ WHERE organization_id IS NOT NULL AND is_active = true;
 
 -- Índice para búsquedas por organización y estado
 CREATE INDEX IF NOT EXISTS idx_invoices_org_status 
-ON sales_invoices(organization_id, status) 
+ON invoices(organization_id, status) 
 WHERE organization_id IS NOT NULL AND status IS NOT NULL;
 
 -- Índice para reportes por fecha
 CREATE INDEX IF NOT EXISTS idx_invoices_org_date 
-ON sales_invoices(organization_id, invoice_date DESC) 
-WHERE organization_id IS NOT NULL AND invoice_date IS NOT NULL;
+ON invoices(organization_id, created_at DESC) 
+WHERE organization_id IS NOT NULL AND created_at IS NOT NULL;
 
 -- Índice compuesto para reportes
 CREATE INDEX IF NOT EXISTS idx_invoices_reports 
-ON sales_invoices(organization_id, status, invoice_date DESC) 
+ON invoices(organization_id, status, created_at DESC) 
 WHERE organization_id IS NOT NULL AND status IS NOT NULL;
 
 -- =====================================================
@@ -173,6 +178,43 @@ ON purchase_orders(organization_id, order_date DESC)
 WHERE organization_id IS NOT NULL AND order_date IS NOT NULL;
 
 -- =====================================================
+-- SECCIÓN 11: SERVICES (2 índices)
+-- =====================================================
+
+-- Índice para búsquedas por organización y categoría
+CREATE INDEX IF NOT EXISTS idx_services_org_category 
+ON services(organization_id, category) 
+WHERE organization_id IS NOT NULL AND category IS NOT NULL;
+
+-- Índice para servicios activos por organización
+CREATE INDEX IF NOT EXISTS idx_services_org_active 
+ON services(organization_id, is_active) 
+WHERE organization_id IS NOT NULL AND is_active = true;
+
+-- =====================================================
+-- SECCIÓN 12: APPOINTMENTS (2 índices)
+-- =====================================================
+
+-- Índice para búsquedas por organización y estado
+CREATE INDEX IF NOT EXISTS idx_appointments_org_status 
+ON appointments(organization_id, status) 
+WHERE organization_id IS NOT NULL AND status IS NOT NULL;
+
+-- Índice para búsquedas por fecha de cita
+CREATE INDEX IF NOT EXISTS idx_appointments_org_date 
+ON appointments(organization_id, appointment_date DESC) 
+WHERE organization_id IS NOT NULL AND appointment_date IS NOT NULL;
+
+-- =====================================================
+-- SECCIÓN 13: INVENTORY (1 índice)
+-- =====================================================
+
+-- Índice para búsquedas por organización
+CREATE INDEX IF NOT EXISTS idx_inventory_organization_id 
+ON inventory(organization_id) 
+WHERE organization_id IS NOT NULL;
+
+-- =====================================================
 -- ACTUALIZAR ESTADÍSTICAS
 -- =====================================================
 
@@ -181,12 +223,15 @@ ANALYZE customers;
 ANALYZE work_orders;
 ANALYZE vehicles;
 ANALYZE products;
-ANALYZE sales_invoices;
+ANALYZE invoices;
 ANALYZE quotations;
 ANALYZE employees;
 ANALYZE payments;
 ANALYZE suppliers;
 ANALYZE purchase_orders;
+ANALYZE services;
+ANALYZE appointments;
+ANALYZE inventory;
 
 -- =====================================================
 -- VERIFICACIÓN DE ÍNDICES CREADOS
