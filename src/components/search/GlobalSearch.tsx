@@ -15,6 +15,8 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -164,6 +166,9 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] p-0 bg-slate-900 border-slate-700">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Búsqueda Global</DialogTitle>
+        </DialogHeader>
         {/* Search Input */}
         <div className="flex items-center border-b border-slate-700 px-4 py-3">
           <Search className="w-5 h-5 text-slate-400 mr-3" />
