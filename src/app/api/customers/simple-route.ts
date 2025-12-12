@@ -1,15 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
-// GET /api/customers - Listar clientes (versión simplificada para desarrollo)
+// GET /api/customers - Listar clientes
 export async function GET(request: NextRequest) {
   try {
+    // ✅ SEGURIDAD: Obtener organizationId del usuario autenticado
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        { success: false, error: 'No autorizado: No se pudo obtener la organización' },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
     const supabase = await createClient();
     
-    // Para desarrollo, usar organización temporal
-    const organizationId = '00000000-0000-0000-0000-000000000001';
-    
-    // ✅ CORRECTO: Join en la query principal
+    // ✅ CORRECTO: Join en la query principal con filtro de seguridad
     const { data: customers, error } = await supabase
       .from('customers')
       .select(`
@@ -40,9 +48,19 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/customers - Crear cliente (versión simplificada para desarrollo)
+// POST /api/customers - Crear cliente
 export async function POST(request: NextRequest) {
   try {
+    // ✅ SEGURIDAD: Obtener organizationId del usuario autenticado
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        { success: false, error: 'No autorizado: No se pudo obtener la organización' },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = tenantContext.organizationId;
     const supabase = await createClient();
     const body = await request.json();
     
@@ -54,14 +72,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Para desarrollo, usar organización temporal
-    const organizationId = '00000000-0000-0000-0000-000000000001';
-    
+    // ✅ SEGURIDAD: Forzar organization_id del usuario autenticado (ignorar si viene en body)
     const { data: customer, error } = await supabase
       .from('customers')
       .insert({
         ...body,
-        organization_id: organizationId
+        organization_id: organizationId // ✅ Siempre usar el del usuario autenticado
       })
       .select()
       .single();
