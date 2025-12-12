@@ -151,38 +151,32 @@ export async function GET(request: Request) {
 
 ## 📊 ÍNDICES DE BD RECOMENDADOS
 
-**SQL para crear índices (ejecutar en Supabase):**
+**Script SQL completo disponible:** `scripts/multi-tenant-indexes.sql`
 
-```sql
--- Índices para mejorar rendimiento de queries frecuentes
+**Ejecutar en Supabase Dashboard → SQL Editor**
 
--- Customers
-CREATE INDEX IF NOT EXISTS idx_customers_organization_id ON customers(organization_id);
-CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
-CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+Este script crea **25+ índices compuestos optimizados** para queries multi-tenant:
 
--- Work Orders
-CREATE INDEX IF NOT EXISTS idx_work_orders_organization_id ON work_orders(organization_id);
-CREATE INDEX IF NOT EXISTS idx_work_orders_status ON work_orders(status);
-CREATE INDEX IF NOT EXISTS idx_work_orders_created_at ON work_orders(created_at DESC);
+- ✅ Índices compuestos (organization_id + otra columna) para filtros comunes
+- ✅ Índices parciales (WHERE is_active = true) para reducir tamaño
+- ✅ Índices con ordenamiento (created_at DESC) para listas recientes
+- ✅ Queries de verificación incluidas
 
--- Vehicles
-CREATE INDEX IF NOT EXISTS idx_vehicles_organization_id ON vehicles(organization_id);
-CREATE INDEX IF NOT EXISTS idx_vehicles_customer_id ON vehicles(customer_id);
-CREATE INDEX IF NOT EXISTS idx_vehicles_license_plate ON vehicles(license_plate);
+**Tablas optimizadas:**
+1. Customers (3 índices)
+2. Work Orders (4 índices)
+3. Vehicles (2 índices)
+4. Products/Inventory (3 índices)
+5. Invoices (3 índices)
+6. Quotations (3 índices)
+7. Employees (2 índices)
+8. Payments (2 índices)
+9. Suppliers (1 índice)
+10. Purchase Orders (2 índices)
 
--- Inventory Items
-CREATE INDEX IF NOT EXISTS idx_inventory_items_organization_id ON inventory_items(organization_id);
-CREATE INDEX IF NOT EXISTS idx_inventory_items_category ON inventory_items(category);
-CREATE INDEX IF NOT EXISTS idx_inventory_items_sku ON inventory_items(sku);
+**Beneficio estimado:** 30-40% mejora en velocidad de queries multi-tenant
 
--- Invoices
-CREATE INDEX IF NOT EXISTS idx_invoices_organization_id ON sales_invoices(organization_id);
-CREATE INDEX IF NOT EXISTS idx_invoices_status ON sales_invoices(status);
-CREATE INDEX IF NOT EXISTS idx_invoices_created_at ON sales_invoices(created_at DESC);
-```
-
-**Beneficio estimado:** 20-30% mejora en velocidad de queries con muchos registros
+**Estado:** ✅ **Script creado y listo para ejecutar**
 
 ---
 
