@@ -8,6 +8,7 @@ import {
   DialogDescription,
   DialogClose
 } from '@/components/ui/dialog'
+import * as VisuallyHidden from '@radix-ui/react-visually-hidden'
 import { Badge } from '@/components/ui/badge'
 import { WorkOrderDetailsTabs } from './WorkOrderDetailsTabs'
 import { format } from 'date-fns'
@@ -54,6 +55,12 @@ export function WorkOrderDetailsModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        {/* DialogDescription para accesibilidad (oculto visualmente ya que hay header personalizado) */}
+        <VisuallyHidden.Root>
+          <DialogDescription>
+            Detalles de la orden de trabajo {order.id?.slice(0, 8).toUpperCase()}. Estado: {statusInfo.label}
+          </DialogDescription>
+        </VisuallyHidden.Root>
         
         {/* 🔧 HEADER MEJORADO */}
         <DialogHeader className="space-y-3 pb-4 border-b">

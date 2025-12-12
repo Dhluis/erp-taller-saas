@@ -17,7 +17,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
+import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useGlobalSearch } from '@/hooks/useGlobalSearch';
@@ -166,9 +168,12 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] p-0 bg-slate-900 border-slate-700">
-        {/* DialogTitle agregado para cumplir con requisitos de accesibilidad de Radix UI */}
+        {/* DialogTitle y DialogDescription agregados para cumplir con requisitos de accesibilidad de Radix UI */}
         <DialogHeader className="sr-only">
           <DialogTitle>Búsqueda Global</DialogTitle>
+          <DialogDescription>
+            Busca órdenes, clientes, vehículos y productos en el sistema
+          </DialogDescription>
         </DialogHeader>
         {/* Search Input */}
         <div className="flex items-center border-b border-slate-700 px-4 py-3">
