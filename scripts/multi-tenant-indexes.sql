@@ -97,15 +97,15 @@ CREATE INDEX IF NOT EXISTS idx_invoices_org_status
 ON invoices(organization_id, status) 
 WHERE organization_id IS NOT NULL AND status IS NOT NULL;
 
--- Índice para reportes por fecha
-CREATE INDEX IF NOT EXISTS idx_invoices_org_date 
+-- Índice para búsquedas por fecha de creación
+CREATE INDEX IF NOT EXISTS idx_invoices_org_created 
 ON invoices(organization_id, created_at DESC) 
 WHERE organization_id IS NOT NULL AND created_at IS NOT NULL;
 
--- Índice compuesto para reportes
-CREATE INDEX IF NOT EXISTS idx_invoices_reports 
-ON invoices(organization_id, status, created_at DESC) 
-WHERE organization_id IS NOT NULL AND status IS NOT NULL;
+-- Índice para búsquedas por cliente dentro de organización
+CREATE INDEX IF NOT EXISTS idx_invoices_org_customer 
+ON invoices(organization_id, customer_id) 
+WHERE organization_id IS NOT NULL AND customer_id IS NOT NULL;
 
 -- =====================================================
 -- SECCIÓN 6: QUOTATIONS (3 índices)
@@ -143,7 +143,7 @@ WHERE organization_id IS NOT NULL AND is_active = true;
 -- =====================================================
 -- SECCIÓN 8: PAYMENTS (3 índices)
 -- =====================================================
--- Pagos a proveedores (purchase orders)
+-- Pagos a proveedores (relacionados con purchase_orders)
 
 -- Índice para búsquedas por organización y proveedor
 CREATE INDEX IF NOT EXISTS idx_payments_org_supplier 
