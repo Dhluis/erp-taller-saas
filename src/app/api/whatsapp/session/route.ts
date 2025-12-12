@@ -248,12 +248,93 @@ export async function GET(request: NextRequest) {
     }
 
     // 6. CASO: Sesión FAILED, STOPPED, ERROR - Reiniciar de inmediato
-    if (['FAILED', 'STOPPED', 'ERROR'].includes(status.status) && status.exists) {
+    // ✅ FIX: También manejar cuando status.exists es false pero el estado indica error
+    if (['FAILED', 'STOPPED', 'ERROR'].includes(status.status)) {
+      // Si la sesión no existe, crear nueva directamente
+      if (!status.exists) {
+        console.log(`[/api/whatsapp/session] ⚠️ Sesión en estado ${status.status} pero no existe, creando nueva...`);
+        try {
+          await createOrganizationSession(organizationId);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          
+          // Verificar nuevo estado
+          const newStatus = await getSessionStatus(sessionName, organizationId);
+          if (newStatus.status === 'WORKING') {
+            const phone = newStatus.me?.id?.split('@')[0] || null;
+            return NextResponse.json({
+              success: true,
+              status: 'WORKING',
+              connected: true,
+              session: sessionName,
+              phone
+            });
+          }
+          
+          // Intentar obtener QR
+          if (['SCAN_QR', 'SCAN_QR_CODE', 'STARTING'].includes(newStatus.status)) {
+            try {
+              const qrData = await withRetry(
+                () => getSessionQR(sessionName, organizationId),
+                3,
+                1500,
+                'getSessionQR (después de crear desde FAILED)'
+              );
+              const qrValue = qrData?.value || qrData?.data || null;
+              
+              if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
+                return NextResponse.json({
+                  success: true,
+                  status: 'SCAN_QR',
+                  connected: false,
+                  session: sessionName,
+                  qr: qrValue,
+                  expiresIn: 60
+                });
+              }
+            } catch (qrError: any) {
+              console.warn(`[/api/whatsapp/session] ⚠️ Error obteniendo QR:`, qrError.message);
+            }
+          }
+          
+          return NextResponse.json({
+            success: true,
+            status: newStatus.status || 'STARTING',
+            connected: false,
+            session: sessionName,
+            message: 'Sesión creada. Recarga para obtener el QR.'
+          });
+        } catch (createError: any) {
+          console.error('[/api/whatsapp/session] ❌ Error creando sesión:', createError.message);
+          return NextResponse.json({
+            success: false,
+            error: `Error creando sesión: ${createError.message}`,
+            details: process.env.NODE_ENV === 'development' ? createError.stack : undefined
+          }, { status: 500 });
+        }
+      }
+      
+      // Si existe, intentar reiniciar
       console.log(`[/api/whatsapp/session] ⚠️ Sesión en estado ${status.status}, reiniciando de inmediato...`);
       
       try {
-        console.log('[/api/whatsapp/session] 🔄 Iniciando sesión...');
-        await startSession(sessionName, organizationId);
+        // ✅ FIX: Verificar si la sesión realmente existe antes de intentar reiniciarla
+        console.log('[/api/whatsapp/session] 🔍 Verificando si sesión existe en WAHA...');
+        try {
+          await startSession(sessionName, organizationId);
+          console.log('[/api/whatsapp/session] ✅ Sesión existe, iniciada correctamente');
+        } catch (startError: any) {
+          // Si el error es 404 (Session not found), crear la sesión primero
+          if (startError.message?.includes('404') || startError.message?.includes('Session not found') || startError.message?.includes('Not Found')) {
+            console.log('[/api/whatsapp/session] ⚠️ Sesión no existe en WAHA (404), creando nueva sesión...');
+            await createOrganizationSession(organizationId);
+            console.log('[/api/whatsapp/session] ✅ Nueva sesión creada');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          } else {
+            // Otro error, lanzarlo
+            throw startError;
+          }
+        }
+        
         await new Promise(resolve => setTimeout(resolve, 3000));
         
         console.log('[/api/whatsapp/session] 🔍 Verificando nuevo estado...');
@@ -704,7 +785,23 @@ export async function POST(request: NextRequest) {
     if (action === 'reconnect') {
       console.log(`[/api/whatsapp/session] 🔄 Reconnect solicitado`);
       try {
-        await startSession(sessionName, organizationId);
+        // ✅ FIX: Verificar si la sesión existe antes de intentar reconectar
+        try {
+          await startSession(sessionName, organizationId);
+          console.log('[/api/whatsapp/session] ✅ Sesión existe, reconectada correctamente');
+        } catch (startError: any) {
+          // Si el error es 404 (Session not found), crear la sesión primero
+          if (startError.message?.includes('404') || startError.message?.includes('Session not found') || startError.message?.includes('Not Found')) {
+            console.log('[/api/whatsapp/session] ⚠️ Sesión no existe en WAHA (404), creando nueva sesión...');
+            await createOrganizationSession(organizationId);
+            console.log('[/api/whatsapp/session] ✅ Nueva sesión creada desde reconnect');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          } else {
+            // Otro error, lanzarlo
+            throw startError;
+          }
+        }
+        
         await new Promise(resolve => setTimeout(resolve, 3000));
         
         return NextResponse.json({
