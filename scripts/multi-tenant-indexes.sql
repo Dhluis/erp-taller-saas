@@ -1,203 +1,211 @@
--- ===================================================
--- EAGLES ERP - ÍNDICES MULTI-TENANT OPTIMIZADOS
--- Fecha: 2025-01-09
--- Mejora estimada: 30-40% en queries multi-tenant
--- ===================================================
+-- =====================================================
+-- ÍNDICES MULTI-TENANT PARA ERP TALLER SAAS
+-- =====================================================
+-- Este script crea índices compuestos optimizados para queries multi-tenant
+-- Ejecutar en Supabase Dashboard → SQL Editor
+-- 
+-- Beneficio estimado: 30-40% mejora en velocidad de queries multi-tenant
+-- =====================================================
 
--- IMPORTANTE: Los índices compuestos (organization_id + otra columna)
--- optimizan queries que filtran PRIMERO por organization_id
--- y LUEGO por otro campo (status, fecha, etc.)
+-- =====================================================
+-- SECCIÓN 1: CUSTOMERS (3 índices)
+-- =====================================================
 
--- ===================================================
--- 1. CUSTOMERS (Clientes)
--- ===================================================
+-- Índice para búsquedas por organización
+CREATE INDEX IF NOT EXISTS idx_customers_org 
+ON customers(organization_id) 
+WHERE organization_id IS NOT NULL;
 
--- Índice compuesto: organization_id + email
--- Optimiza: Buscar cliente por email DENTRO de una organización
+-- Índice para búsquedas por email (único por organización)
 CREATE INDEX IF NOT EXISTS idx_customers_org_email 
-ON customers(organization_id, email);
+ON customers(organization_id, email) 
+WHERE organization_id IS NOT NULL AND email IS NOT NULL;
 
--- Índice compuesto: organization_id + phone
--- Optimiza: Buscar cliente por teléfono DENTRO de una organización
-CREATE INDEX IF NOT EXISTS idx_customers_org_phone 
-ON customers(organization_id, phone);
+-- Índice para búsquedas por nombre dentro de organización
+CREATE INDEX IF NOT EXISTS idx_customers_org_name 
+ON customers(organization_id, name) 
+WHERE organization_id IS NOT NULL AND name IS NOT NULL;
 
--- Índice simple: organization_id
--- Optimiza: Listar todos los clientes de una organización
-CREATE INDEX IF NOT EXISTS idx_customers_organization_id 
-ON customers(organization_id);
+-- =====================================================
+-- SECCIÓN 2: WORK_ORDERS (4 índices)
+-- =====================================================
 
--- ===================================================
--- 2. WORK ORDERS (Órdenes de Trabajo)
--- ===================================================
-
--- Índice compuesto: organization_id + status
--- Optimiza: Filtrar órdenes por estado DENTRO de una organización
+-- Índice para dashboard: organización + estado
 CREATE INDEX IF NOT EXISTS idx_work_orders_org_status 
-ON work_orders(organization_id, status);
+ON work_orders(organization_id, status) 
+WHERE organization_id IS NOT NULL AND status IS NOT NULL;
 
--- Índice compuesto: organization_id + created_at DESC
--- Optimiza: Listar órdenes recientes DENTRO de una organización
-CREATE INDEX IF NOT EXISTS idx_work_orders_org_created 
-ON work_orders(organization_id, created_at DESC);
-
--- Índice compuesto: organization_id + customer_id
--- Optimiza: Ver todas las órdenes de un cliente DENTRO de una organización
+-- Índice para búsquedas por cliente dentro de organización
 CREATE INDEX IF NOT EXISTS idx_work_orders_org_customer 
-ON work_orders(organization_id, customer_id);
+ON work_orders(organization_id, customer_id) 
+WHERE organization_id IS NOT NULL AND customer_id IS NOT NULL;
 
--- Índice compuesto: organization_id + assigned_to
--- Optimiza: Ver órdenes asignadas a un empleado DENTRO de una organización
-CREATE INDEX IF NOT EXISTS idx_work_orders_org_assigned 
-ON work_orders(organization_id, assigned_to);
+-- Índice para búsquedas por fecha de creación (orden descendente)
+CREATE INDEX IF NOT EXISTS idx_work_orders_org_created 
+ON work_orders(organization_id, created_at DESC) 
+WHERE organization_id IS NOT NULL AND created_at IS NOT NULL;
 
--- ===================================================
--- 3. VEHICLES (Vehículos)
--- ===================================================
+-- Índice compuesto para dashboard completo
+CREATE INDEX IF NOT EXISTS idx_work_orders_dashboard 
+ON work_orders(organization_id, status, created_at DESC) 
+WHERE organization_id IS NOT NULL AND status IS NOT NULL;
 
--- Índice compuesto: organization_id + customer_id
--- Optimiza: Ver vehículos de un cliente DENTRO de una organización
-CREATE INDEX IF NOT EXISTS idx_vehicles_org_customer 
-ON vehicles(organization_id, customer_id);
+-- =====================================================
+-- SECCIÓN 3: VEHICLES (2 índices)
+-- =====================================================
 
--- Índice compuesto: organization_id + license_plate
--- Optimiza: Buscar vehículo por placa DENTRO de una organización
-CREATE INDEX IF NOT EXISTS idx_vehicles_org_plate 
-ON vehicles(organization_id, license_plate);
+-- Índice para búsquedas por organización
+CREATE INDEX IF NOT EXISTS idx_vehicles_org 
+ON vehicles(organization_id) 
+WHERE organization_id IS NOT NULL;
 
--- ===================================================
--- 4. PRODUCTS/INVENTORY (Inventario)
--- ===================================================
+-- Índice para búsquedas por placa dentro de organización
+CREATE INDEX IF NOT EXISTS idx_vehicles_org_license_plate 
+ON vehicles(organization_id, license_plate) 
+WHERE organization_id IS NOT NULL AND license_plate IS NOT NULL;
 
--- Índice compuesto: organization_id + sku
--- Optimiza: Buscar producto por SKU DENTRO de una organización
-CREATE INDEX IF NOT EXISTS idx_products_org_sku 
-ON products(organization_id, sku);
+-- =====================================================
+-- SECCIÓN 4: PRODUCTS/INVENTORY (3 índices)
+-- =====================================================
 
--- Índice compuesto: organization_id + category_id
--- Optimiza: Filtrar productos por categoría DENTRO de una organización
+-- Índice para búsquedas por código dentro de organización
+CREATE INDEX IF NOT EXISTS idx_products_org_code 
+ON products(organization_id, code) 
+WHERE organization_id IS NOT NULL AND code IS NOT NULL;
+
+-- Índice para búsquedas por categoría dentro de organización
 CREATE INDEX IF NOT EXISTS idx_products_org_category 
-ON products(organization_id, category_id);
+ON products(organization_id, category) 
+WHERE organization_id IS NOT NULL AND category IS NOT NULL;
 
--- Índice compuesto: organization_id + is_active
--- Optimiza: Listar solo productos activos DENTRO de una organización
+-- Índice para productos activos por organización
 CREATE INDEX IF NOT EXISTS idx_products_org_active 
 ON products(organization_id, is_active) 
-WHERE is_active = true;
+WHERE organization_id IS NOT NULL AND is_active = true;
 
--- ===================================================
--- 5. INVOICES (Facturas)
--- ===================================================
+-- =====================================================
+-- SECCIÓN 5: INVOICES (3 índices)
+-- =====================================================
 
--- Índice compuesto: organization_id + status
--- Optimiza: Filtrar facturas por estado DENTRO de una organización
+-- Índice para búsquedas por organización y estado
 CREATE INDEX IF NOT EXISTS idx_invoices_org_status 
-ON invoices(organization_id, status);
+ON sales_invoices(organization_id, status) 
+WHERE organization_id IS NOT NULL AND status IS NOT NULL;
 
--- Índice compuesto: organization_id + created_at DESC
--- Optimiza: Listar facturas recientes DENTRO de una organización
-CREATE INDEX IF NOT EXISTS idx_invoices_org_created 
-ON invoices(organization_id, created_at DESC);
+-- Índice para reportes por fecha
+CREATE INDEX IF NOT EXISTS idx_invoices_org_date 
+ON sales_invoices(organization_id, invoice_date DESC) 
+WHERE organization_id IS NOT NULL AND invoice_date IS NOT NULL;
 
--- Índice compuesto: organization_id + customer_id
--- Optimiza: Ver facturas de un cliente DENTRO de una organización
-CREATE INDEX IF NOT EXISTS idx_invoices_org_customer 
-ON invoices(organization_id, customer_id);
+-- Índice compuesto para reportes
+CREATE INDEX IF NOT EXISTS idx_invoices_reports 
+ON sales_invoices(organization_id, status, invoice_date DESC) 
+WHERE organization_id IS NOT NULL AND status IS NOT NULL;
 
--- ===================================================
--- 6. QUOTATIONS (Cotizaciones)
--- ===================================================
+-- =====================================================
+-- SECCIÓN 6: QUOTATIONS (3 índices)
+-- =====================================================
 
--- Índice compuesto: organization_id + status
--- Optimiza: Filtrar cotizaciones por estado DENTRO de una organización
+-- Índice para búsquedas por organización y estado
 CREATE INDEX IF NOT EXISTS idx_quotations_org_status 
-ON quotations(organization_id, status);
+ON quotations(organization_id, status) 
+WHERE organization_id IS NOT NULL AND status IS NOT NULL;
 
--- Índice compuesto: organization_id + created_at DESC
--- Optimiza: Listar cotizaciones recientes DENTRO de una organización
-CREATE INDEX IF NOT EXISTS idx_quotations_org_created 
-ON quotations(organization_id, created_at DESC);
-
--- Índice compuesto: organization_id + customer_id
--- Optimiza: Ver cotizaciones de un cliente DENTRO de una organización
+-- Índice para búsquedas por cliente dentro de organización
 CREATE INDEX IF NOT EXISTS idx_quotations_org_customer 
-ON quotations(organization_id, customer_id);
+ON quotations(organization_id, customer_id) 
+WHERE organization_id IS NOT NULL AND customer_id IS NOT NULL;
 
--- ===================================================
--- 7. EMPLOYEES (Empleados)
--- ===================================================
+-- Índice para cotizaciones expiradas
+CREATE INDEX IF NOT EXISTS idx_quotations_org_expired 
+ON quotations(organization_id, status, expiry_date) 
+WHERE organization_id IS NOT NULL AND status = 'pending' AND expiry_date < NOW();
 
--- Índice compuesto: organization_id + is_active
--- Optimiza: Listar solo empleados activos DENTRO de una organización
+-- =====================================================
+-- SECCIÓN 7: EMPLOYEES (2 índices)
+-- =====================================================
+
+-- Índice para búsquedas por organización
+CREATE INDEX IF NOT EXISTS idx_employees_org 
+ON employees(organization_id) 
+WHERE organization_id IS NOT NULL;
+
+-- Índice para empleados activos por organización
 CREATE INDEX IF NOT EXISTS idx_employees_org_active 
-ON employees(organization_id, is_active);
+ON employees(organization_id, is_active) 
+WHERE organization_id IS NOT NULL AND is_active = true;
 
--- Índice compuesto: organization_id + role
--- Optimiza: Filtrar empleados por rol DENTRO de una organización
-CREATE INDEX IF NOT EXISTS idx_employees_org_role 
-ON employees(organization_id, role);
+-- =====================================================
+-- SECCIÓN 8: PAYMENTS (2 índices)
+-- =====================================================
 
--- ===================================================
--- 8. PAYMENTS (Pagos)
--- ===================================================
+-- Índice para búsquedas por organización
+CREATE INDEX IF NOT EXISTS idx_payments_org 
+ON payments(organization_id) 
+WHERE organization_id IS NOT NULL;
 
--- Índice compuesto: organization_id + invoice_id
--- Optimiza: Ver pagos de una factura DENTRO de una organización
-CREATE INDEX IF NOT EXISTS idx_payments_org_invoice 
-ON payments(organization_id, invoice_id);
+-- Índice para búsquedas por fecha de pago
+CREATE INDEX IF NOT EXISTS idx_payments_org_date 
+ON payments(organization_id, payment_date DESC) 
+WHERE organization_id IS NOT NULL AND payment_date IS NOT NULL;
 
--- Índice compuesto: organization_id + created_at DESC
--- Optimiza: Listar pagos recientes DENTRO de una organización
-CREATE INDEX IF NOT EXISTS idx_payments_org_created 
-ON payments(organization_id, created_at DESC);
+-- =====================================================
+-- SECCIÓN 9: SUPPLIERS (1 índice)
+-- =====================================================
 
--- ===================================================
--- 9. SUPPLIERS (Proveedores)
--- ===================================================
+-- Índice para búsquedas por organización
+CREATE INDEX IF NOT EXISTS idx_suppliers_org 
+ON suppliers(organization_id) 
+WHERE organization_id IS NOT NULL;
 
--- Índice simple: organization_id
--- Optimiza: Listar proveedores DENTRO de una organización
-CREATE INDEX IF NOT EXISTS idx_suppliers_organization_id 
-ON suppliers(organization_id);
+-- =====================================================
+-- SECCIÓN 10: PURCHASE_ORDERS (2 índices)
+-- =====================================================
 
--- ===================================================
--- 10. PURCHASE ORDERS (Órdenes de Compra)
--- ===================================================
-
--- Índice compuesto: organization_id + status
--- Optimiza: Filtrar órdenes de compra por estado DENTRO de una organización
+-- Índice para búsquedas por organización y estado
 CREATE INDEX IF NOT EXISTS idx_purchase_orders_org_status 
-ON purchase_orders(organization_id, status);
+ON purchase_orders(organization_id, status) 
+WHERE organization_id IS NOT NULL AND status IS NOT NULL;
 
--- Índice compuesto: organization_id + supplier_id
--- Optimiza: Ver órdenes de un proveedor DENTRO de una organización
-CREATE INDEX IF NOT EXISTS idx_purchase_orders_org_supplier 
-ON purchase_orders(organization_id, supplier_id);
+-- Índice para búsquedas por fecha
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_org_date 
+ON purchase_orders(organization_id, order_date DESC) 
+WHERE organization_id IS NOT NULL AND order_date IS NOT NULL;
 
--- ===================================================
--- VERIFICACIÓN: Ver todos los índices multi-tenant creados
--- ===================================================
-SELECT 
-  schemaname,
-  tablename,
-  indexname,
-  indexdef
-FROM pg_indexes 
-WHERE schemaname = 'public'
-  AND indexname LIKE 'idx_%'
-  AND indexdef LIKE '%organization_id%'
-ORDER BY tablename, indexname;
+-- =====================================================
+-- ACTUALIZAR ESTADÍSTICAS
+-- =====================================================
 
--- ===================================================
--- ANÁLISIS: Ver tamaño de índices creados
--- ===================================================
-SELECT 
-  schemaname,
-  tablename,
-  indexname,
-  pg_size_pretty(pg_relation_size(indexrelid)) as index_size
-FROM pg_stat_user_indexes
-WHERE schemaname = 'public'
-  AND indexrelname LIKE 'idx_%'
-ORDER BY pg_relation_size(indexrelid) DESC;
+-- Actualizar estadísticas después de crear índices para mejor planificación de queries
+ANALYZE customers;
+ANALYZE work_orders;
+ANALYZE vehicles;
+ANALYZE products;
+ANALYZE sales_invoices;
+ANALYZE quotations;
+ANALYZE employees;
+ANALYZE payments;
+ANALYZE suppliers;
+ANALYZE purchase_orders;
+
+-- =====================================================
+-- VERIFICACIÓN DE ÍNDICES CREADOS
+-- =====================================================
+
+-- Para verificar que los índices se crearon correctamente, ejecutar:
+-- SELECT indexname, tablename 
+-- FROM pg_indexes 
+-- WHERE schemaname = 'public' 
+-- AND indexname LIKE 'idx_%' 
+-- ORDER BY tablename, indexname;
+
+-- =====================================================
+-- NOTAS IMPORTANTES
+-- =====================================================
+
+-- ✅ Todos los índices usan organización como primer campo para filtrado multi-tenant
+-- ✅ Índices parciales (WHERE) reducen tamaño y mejoran rendimiento
+-- ✅ Índices con ordenamiento (DESC) optimizan listas recientes
+-- ✅ Los índices se crean solo si no existen (IF NOT EXISTS)
+-- ✅ Se recomienda ejecutar ANALYZE después de crear índices
 
