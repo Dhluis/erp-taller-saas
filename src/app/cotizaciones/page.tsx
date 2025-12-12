@@ -83,11 +83,6 @@ export default function QuotationsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
-  // Debug: Log cuando cambia statusFilter
-  useEffect(() => {
-    console.log('[Cotizaciones] 🔄 statusFilter cambió a:', statusFilter)
-  }, [statusFilter])
-
   // Cargar cotizaciones
   const loadQuotations = async () => {
     if (!organizationId) {
@@ -194,7 +189,14 @@ export default function QuotationsPage() {
               className="pl-10"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select 
+            value={statusFilter} 
+            onValueChange={(value) => {
+              console.log('[Cotizaciones] 🎯 Select cambió a:', value);
+              setStatusFilter(value);
+              // El useEffect se ejecutará automáticamente cuando statusFilter cambie
+            }}
+          >
             <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Filtrar por estado" />
             </SelectTrigger>
