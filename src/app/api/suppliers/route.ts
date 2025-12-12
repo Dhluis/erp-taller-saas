@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     console.log('🔄 GET /api/suppliers - Iniciando...')
     
     // Obtener contexto del tenant
-    const tenantContext = await getTenantContext()
+    const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({ 
         success: false, 
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     console.log('🔄 POST /api/suppliers - Iniciando...')
     
     // Obtener contexto del tenant
-    const tenantContext = await getTenantContext()
+    const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({ 
         success: false, 

@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔄 GET /api/employees - Iniciando...')
     
-    const tenantContext = await getTenantContext()
+    const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }

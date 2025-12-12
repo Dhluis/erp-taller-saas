@@ -10,7 +10,7 @@ export async function GET(
     console.log('🔄 GET /api/customers/[id] - Iniciando...')
     
     // Obtener contexto del tenant
-    const tenantContext = await getTenantContext()
+    const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
@@ -59,7 +59,7 @@ export async function PUT(
     console.log('🔄 PUT /api/customers/[id] - Iniciando...')
     
     // Obtener contexto del tenant
-    const tenantContext = await getTenantContext()
+    const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
@@ -121,7 +121,7 @@ export async function DELETE(
     console.log('🔄 DELETE /api/customers/[id] - Iniciando...')
     
     // Obtener contexto del tenant
-    const tenantContext = await getTenantContext()
+    const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }

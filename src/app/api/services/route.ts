@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔄 GET /api/services - Iniciando...')
     
-    const tenantContext = await getTenantContext()
+    const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔄 POST /api/services - Iniciando...')
     
-    const tenantContext = await getTenantContext()
+    const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }

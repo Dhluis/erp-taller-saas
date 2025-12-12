@@ -9,7 +9,7 @@ export async function PUT(
   try {
     console.log('🔄 PUT /api/orders/[id]/items/[itemId] - Iniciando...')
     
-    const tenantContext = await getTenantContext()
+    const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
@@ -94,7 +94,7 @@ export async function DELETE(
   try {
     console.log('🔄 DELETE /api/orders/[id]/items/[itemId] - Iniciando...')
     
-    const tenantContext = await getTenantContext()
+    const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
