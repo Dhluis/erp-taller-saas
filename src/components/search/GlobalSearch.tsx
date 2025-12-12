@@ -36,11 +36,23 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  // Buscar cuando cambia el query
+  // Buscar cuando cambia el query - CON DEBOUNCE REDUCIDO para respuesta más rápida
   useEffect(() => {
-    if (query.trim().length > 0) {
-      search(query);
+    const trimmedQuery = query.trim();
+    
+    // Limpiar resultados si el query está vacío
+    if (trimmedQuery.length === 0) {
+      return;
     }
+
+    // Debounce REDUCIDO: esperar solo 150ms para respuesta más rápida
+    const timeoutId = setTimeout(() => {
+      console.log('🔍 [GlobalSearch Component] Ejecutando búsqueda para:', trimmedQuery);
+      search(trimmedQuery);
+    }, 150);
+
+    // Limpiar timeout si el usuario sigue escribiendo
+    return () => clearTimeout(timeoutId);
   }, [query, search]);
 
   // Focus en el input cuando se abre el modal
@@ -61,6 +73,27 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     ...results.vehicles.map(item => ({ ...item, type: 'vehicle' as const })),
     ...results.products.map(item => ({ ...item, type: 'product' as const })),
   ];
+
+  // Log de resultados para debug - MEJORADO
+  useEffect(() => {
+    if (query.trim().length > 0) {
+      console.log('📊 [GlobalSearch Component] Estado actual:', {
+        query: query.trim(),
+        loading,
+        totalResults: allResults.length,
+        orders: results.orders.length,
+        customers: results.customers.length,
+        vehicles: results.vehicles.length,
+        products: results.products.length,
+        allResultsArray: allResults.slice(0, 3), // Primeros 3 para debug
+      });
+      
+      // Si hay resultados pero no se muestran, forzar re-render
+      if (allResults.length > 0 && !loading) {
+        console.log('✅ [GlobalSearch] HAY RESULTADOS - Deberían mostrarse:', allResults.length);
+      }
+    }
+  }, [query, loading, allResults.length, results, allResults]);
 
   // Navegación con teclado
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -190,7 +223,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
           {loading && <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />}
         </div>
 
-        {/* Results */}
+        {/* Results - AUTCOMPLETADO MIENTRAS SE ESCRIBE */}
         <div className="max-h-[400px] overflow-y-auto">
           {query.trim().length === 0 ? (
             <div className="p-8 text-center">
@@ -205,20 +238,33 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
           ) : loading ? (
             <div className="p-8 text-center">
               <Loader2 className="w-8 h-8 animate-spin text-cyan-400 mx-auto mb-4" />
-              <p className="text-slate-400 text-sm">Buscando...</p>
+              <p className="text-slate-400 text-sm">Buscando "{query}"...</p>
             </div>
           ) : allResults.length === 0 ? (
             <div className="p-8 text-center">
               <Search className="w-12 h-12 text-slate-600 mx-auto mb-4" />
               <p className="text-slate-300 text-sm font-medium mb-1">
-                No se encontraron resultados
+                No se encontraron resultados para "{query}"
               </p>
               <p className="text-slate-500 text-xs">
                 Intenta con otros términos de búsqueda
               </p>
+              {/* Debug info */}
+              <div className="mt-4 p-2 bg-slate-800 rounded text-xs text-slate-400">
+                <p>Debug: orders={results.orders.length}, customers={results.customers.length}, vehicles={results.vehicles.length}, products={results.products.length}</p>
+              </div>
             </div>
           ) : (
             <div className="py-2">
+              {/* DEBUG: Mostrar total de resultados */}
+              {console.log('🎯 [GlobalSearch] RENDERIZANDO RESULTADOS:', {
+                total: allResults.length,
+                orders: results.orders.length,
+                customers: results.customers.length,
+                vehicles: results.vehicles.length,
+                products: results.products.length,
+              })}
+              
               {/* Órdenes */}
               {results.orders.length > 0 && (
                 <div className="mb-4">

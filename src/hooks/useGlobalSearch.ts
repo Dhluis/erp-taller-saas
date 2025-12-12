@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useSession } from '@/lib/context/SessionContext';
 
 interface SearchResults {
   orders: any[];
@@ -19,10 +19,16 @@ export function useGlobalSearch() {
     products: [],
   });
   const [loading, setLoading] = useState(false);
-  const { organization } = useAuth();
+  const { organizationId } = useSession();
 
   const search = useCallback(async (query: string) => {
-    if (!query.trim() || !organization?.organization_id) {
+    const trimmedQuery = query.trim();
+    
+    // Buscar desde el primer carácter (no esperar mínimo)
+    if (!trimmedQuery || !organizationId) {
+      if (!organizationId) {
+        console.warn('⚠️ [GlobalSearch] No hay organizationId disponible');
+      }
       setResults({
         orders: [],
         customers: [],
@@ -36,8 +42,10 @@ export function useGlobalSearch() {
 
     try {
       const supabase = createClient();
-      const searchTerm = query.toLowerCase().trim();
-      const orgId = organization.organization_id;
+      const searchTerm = trimmedQuery.toLowerCase();
+      const orgId = organizationId;
+
+      console.log('🔍 [GlobalSearch] Buscando:', searchTerm, 'orgId:', orgId);
 
       // Búsqueda en paralelo de todas las entidades
       const [ordersRes, customersRes, vehiclesRes, productsRes] = await Promise.all([
@@ -57,7 +65,7 @@ export function useGlobalSearch() {
           .eq('organization_id', orgId)
           .or(`id.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
           .order('created_at', { ascending: false })
-          .limit(5),
+          .limit(10),
 
         // Clientes
         supabase
@@ -66,9 +74,9 @@ export function useGlobalSearch() {
           .eq('organization_id', orgId)
           .or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
           .order('created_at', { ascending: false })
-          .limit(5),
+          .limit(10),
 
-        // Vehículos
+        // Vehículos - CORREGIDO: usar organization_id en lugar de workshop_id
         supabase
           .from('vehicles')
           .select(`
@@ -80,10 +88,10 @@ export function useGlobalSearch() {
             color,
             customer:customers(id, name)
           `)
-          .eq('workshop_id', organization.id)
+          .eq('organization_id', orgId)
           .or(`brand.ilike.%${searchTerm}%,model.ilike.%${searchTerm}%,license_plate.ilike.%${searchTerm}%`)
           .order('created_at', { ascending: false })
-          .limit(5),
+          .limit(10),
 
         // Productos
         supabase
@@ -92,26 +100,33 @@ export function useGlobalSearch() {
           .eq('organization_id', orgId)
           .or(`name.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
           .order('name', { ascending: true })
-          .limit(5),
+          .limit(10),
       ]);
 
-      setResults({
+      const results = {
         orders: ordersRes.data || [],
         customers: customersRes.data || [],
         vehicles: vehiclesRes.data || [],
         products: productsRes.data || [],
+      };
+
+      // Log detallado para debug
+      console.log('✅ [GlobalSearch] Resultados encontrados:', {
+        query: searchTerm,
+        orders: results.orders.length,
+        customers: results.customers.length,
+        vehicles: results.vehicles.length,
+        products: results.products.length,
+        total: results.orders.length + results.customers.length + results.vehicles.length + results.products.length,
       });
 
-      // Log para debug (solo en desarrollo)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔍 Global Search Results:', {
-          query: searchTerm,
-          orders: ordersRes.data?.length || 0,
-          customers: customersRes.data?.length || 0,
-          vehicles: vehiclesRes.data?.length || 0,
-          products: productsRes.data?.length || 0,
-        });
-      }
+      // Log de errores si hay
+      if (ordersRes.error) console.error('❌ Error en órdenes:', ordersRes.error);
+      if (customersRes.error) console.error('❌ Error en clientes:', customersRes.error);
+      if (vehiclesRes.error) console.error('❌ Error en vehículos:', vehiclesRes.error);
+      if (productsRes.error) console.error('❌ Error en productos:', productsRes.error);
+
+      setResults(results);
     } catch (error) {
       console.error('❌ Error en búsqueda global:', error);
       setResults({
@@ -123,7 +138,7 @@ export function useGlobalSearch() {
     } finally {
       setLoading(false);
     }
-  }, [organization]);
+  }, [organizationId]);
 
   return {
     results,
