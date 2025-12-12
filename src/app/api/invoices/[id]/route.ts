@@ -14,6 +14,8 @@ import {
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { hasPermission, UserRole } from '@/lib/auth/permissions';
+import { createClient } from '@/lib/supabase/server';
 
 // =====================================================
 // GET - Obtener nota de venta por ID
@@ -64,7 +66,7 @@ export async function GET(
       data: invoice,
     });
   } catch (error) {
-    logger.error('Error al obtener nota de venta', context, error as Error);
+    logger.error('Error al obtener nota de venta', undefined, error as Error);
     
     return NextResponse.json(
       {
@@ -104,8 +106,41 @@ export async function PUT(
       { invoiceId: params.id }
     );
     
+    // Obtener rol del usuario actual
+    const supabase = await createClient();
+    const { data: currentUser, error: userError } = await (supabase as any)
+      .from('users')
+      .select('role')
+      .eq('auth_user_id', tenantContext.userId)
+      .single();
+    
+    if (userError || !currentUser || !currentUser.role) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Usuario no encontrado',
+        },
+        { status: 404 }
+      );
+    }
+    
     const body = await request.json();
     logger.info('Actualizando nota de venta', context, { updateData: body });
+
+    // ✅ VALIDACIÓN: Si se está marcando como pagada, solo admin puede hacerlo
+    if (body.status === 'paid') {
+      const currentUserRole = currentUser.role as UserRole;
+      if (!hasPermission(currentUserRole, 'invoices', 'pay')) {
+        logger.warn('Intento de marcar factura como pagada sin permisos', context);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'No tienes permisos para cobrar facturas. Solo administradores pueden hacerlo.',
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     // Validar datos de entrada
     if (!body || typeof body !== 'object') {
@@ -133,7 +168,7 @@ export async function PUT(
       data: invoice,
     });
   } catch (error) {
-    logger.error('Error al actualizar nota de venta', context, error as Error);
+    logger.error('Error al actualizar nota de venta', undefined, error as Error);
     
     return NextResponse.json(
       {
@@ -209,7 +244,7 @@ export async function DELETE(
       message: 'Nota de venta eliminada correctamente',
     });
   } catch (error) {
-    logger.error('Error al eliminar nota de venta', context, error as Error);
+    logger.error('Error al eliminar nota de venta', undefined, error as Error);
     
     return NextResponse.json(
       {
@@ -249,6 +284,24 @@ export async function PATCH(
       { invoiceId: params.id }
     );
     
+    // Obtener rol del usuario actual
+    const supabase = await createClient();
+    const { data: currentUser, error: userError } = await (supabase as any)
+      .from('users')
+      .select('role')
+      .eq('auth_user_id', tenantContext.userId)
+      .single();
+    
+    if (userError || !currentUser || !currentUser.role) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Usuario no encontrado',
+        },
+        { status: 404 }
+      );
+    }
+    
     const body = await request.json();
     const { action, ...data } = body;
 
@@ -273,6 +326,19 @@ export async function PATCH(
         break;
 
       case 'update_paid_amount':
+        // ✅ VALIDACIÓN: Solo admin puede procesar pagos
+        const currentUserRoleForPayment = currentUser.role as UserRole;
+        if (!hasPermission(currentUserRoleForPayment, 'invoices', 'pay')) {
+          logger.warn('Intento de procesar pago sin permisos', context);
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'No tienes permisos para procesar pagos. Solo administradores pueden cobrar facturas.',
+            },
+            { status: 403 }
+          );
+        }
+        
         if (typeof data.paid_amount !== 'number') {
           return NextResponse.json(
             {
@@ -307,7 +373,7 @@ export async function PATCH(
       data: result,
     });
   } catch (error) {
-    logger.error('Error en actualización específica de nota de venta', context, error as Error);
+    logger.error('Error en actualización específica de nota de venta', undefined, error as Error);
     
     return NextResponse.json(
       {

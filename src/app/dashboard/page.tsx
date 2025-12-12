@@ -12,6 +12,7 @@ import ModernIcons from '@/components/icons/ModernIcons';
 import { CalendarIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization, useSession } from '@/lib/context/SessionContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Loader2 } from 'lucide-react';
 import {
   LineChart,
@@ -31,6 +32,7 @@ export default function DashboardPage() {
   // Obtener datos de sesión - el layout maneja la redirección al onboarding
   const { organizationId, isLoading: sessionLoading, isReady: sessionReady } = useOrganization();
   const { user } = useSession();
+  const permissions = usePermissions();
   
   // Compatibilidad: obtener organization para componentes que lo necesitan
   const organization = organizationId ? { id: organizationId, organization_id: organizationId } : null;
@@ -248,7 +250,8 @@ export default function DashboardPage() {
                            'Personalizado';
 
   const kpiCards = [
-    {
+    // ✅ Solo mostrar ingresos si puede ver reportes financieros
+    ...(permissions.canViewFinancialReports() ? [{
       title: 'Ingresos del Mes',
       value: `$${stats.ingresos.toLocaleString()}`,
       description: 'Total facturado',
@@ -256,7 +259,7 @@ export default function DashboardPage() {
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-green-400',
       bgColor: 'bg-green-500/10'
-    },
+    }] : []),
     {
       title: 'Órdenes Activas',
       value: stats.ordenesActivas.toString(),

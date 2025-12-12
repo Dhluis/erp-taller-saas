@@ -41,11 +41,15 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor
   in_progress: { label: 'En Proceso', color: 'text-blue-700', bgColor: 'bg-blue-100' },
 };
 
-import { useOrganization } from '@/lib/context/SessionContext';
+import { useOrganization, useSession } from '@/lib/context/SessionContext';
+import { usePermissions } from '@/hooks/usePermissions';
+import { createClient } from '@/lib/supabase/client';
 
 export default function OrdenesPage() {
   const router = useRouter();
   const { organizationId, loading: orgLoading, ready } = useOrganization();
+  const { profile, userId } = useSession();
+  const permissions = usePermissions();
 
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<WorkOrder[]>([]);
@@ -278,13 +282,16 @@ export default function OrdenesPage() {
             <RefreshCw className="w-4 h-4" />
             Actualizar
           </Button>
-          <Button 
-            onClick={() => setIsCreateModalOpen(true)}
-            className="gap-2 bg-cyan-500 hover:bg-cyan-600"
-          >
-            <Plus className="w-4 h-4" />
-          Nueva Orden
-          </Button>
+          {/* ✅ Solo mostrar botón crear si tiene permisos */}
+          {permissions.canCreate('work_orders') && (
+            <Button 
+              onClick={() => setIsCreateModalOpen(true)}
+              className="gap-2 bg-cyan-500 hover:bg-cyan-600"
+            >
+              <Plus className="w-4 h-4" />
+            Nueva Orden
+            </Button>
+          )}
         </div>
       </div>
 
@@ -564,15 +571,18 @@ export default function OrdenesPage() {
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                          title="Eliminar"
-                          onClick={() => handleRequestDelete(order)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {/* ✅ Solo mostrar botón eliminar si tiene permisos (admin y advisor) */}
+                        {(permissions.isAdmin || permissions.isAdvisor) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            title="Eliminar"
+                            onClick={() => handleRequestDelete(order)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>

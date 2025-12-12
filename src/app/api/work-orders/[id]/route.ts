@@ -5,6 +5,9 @@ import {
   deleteWorkOrder,
 } from '@/lib/database/queries/work-orders';
 import { getOrganizationId } from '@/lib/auth/organization-server';
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { hasPermission, canAccessWorkOrder, UserRole } from '@/lib/auth/permissions';
+import { createClient } from '@/lib/supabase/server';
 
 // GET: Obtener una orden por ID
 export async function GET(
@@ -13,8 +16,58 @@ export async function GET(
 ) {
   try {
     // ✅ Verificar que el organizationId esté disponible antes de obtener la orden
-    const organizationId = await getOrganizationId(request);
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+    
+    const organizationId = tenantContext.organizationId;
     console.log('🔍 [API GET /work-orders/[id]] Organization ID:', organizationId);
+    
+    // ✅ VALIDACIÓN: Obtener rol del usuario actual
+    const supabase = await createClient();
+    const { data: currentUser, error: userError } = await (supabase as any)
+      .from('users')
+      .select('role')
+      .eq('auth_user_id', tenantContext.userId)
+      .single();
+    
+    if (userError || !currentUser || !currentUser.role) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Usuario no encontrado',
+        },
+        { status: 404 }
+      );
+    }
+    
+    // ✅ VALIDACIÓN: Si es mecánico, verificar que puede acceder a esta orden
+    const currentUserRole = currentUser.role as UserRole;
+    if (currentUserRole === 'mechanic') {
+      const canAccess = await canAccessWorkOrder(
+        tenantContext.userId,
+        params.id,
+        currentUserRole,
+        supabase
+      );
+      
+      if (!canAccess) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'No tienes permisos para acceder a esta orden. Solo puedes ver órdenes asignadas a ti.',
+          },
+          { status: 403 }
+        );
+      }
+    }
     
     const order = await getWorkOrderById(params.id);
 
@@ -51,6 +104,56 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    // ✅ VALIDACIÓN: Obtener contexto y rol del usuario
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+    
+    const supabase = await createClient();
+    const { data: currentUser, error: userError } = await (supabase as any)
+      .from('users')
+      .select('role')
+      .eq('auth_user_id', tenantContext.userId)
+      .single();
+    
+    if (userError || !currentUser || !currentUser.role) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Usuario no encontrado',
+        },
+        { status: 404 }
+      );
+    }
+    
+    // ✅ VALIDACIÓN: Si es mecánico, verificar que puede acceder a esta orden
+    const currentUserRole = currentUser.role as UserRole;
+    if (currentUserRole === 'mechanic') {
+      const canAccess = await canAccessWorkOrder(
+        tenantContext.userId,
+        params.id,
+        currentUserRole,
+        supabase
+      );
+      
+      if (!canAccess) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'No tienes permisos para editar esta orden. Solo puedes editar órdenes asignadas a ti.',
+          },
+          { status: 403 }
+        );
+      }
+    }
+    
     const body = await request.json();
 
     // Validaciones opcionales
@@ -115,6 +218,73 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // ✅ VALIDACIÓN: Obtener contexto y rol del usuario
+    const tenantContext = await getTenantContext(request);
+    if (!tenantContext || !tenantContext.organizationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: No se pudo obtener la organización',
+        },
+        { status: 403 }
+      );
+    }
+    
+    const supabase = await createClient();
+    const { data: currentUser, error: userError } = await (supabase as any)
+      .from('users')
+      .select('role')
+      .eq('auth_user_id', tenantContext.userId)
+      .single();
+    
+    if (userError || !currentUser || !currentUser.role) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Usuario no encontrado',
+        },
+        { status: 404 }
+      );
+    }
+    
+    // ✅ VALIDACIÓN: Verificar permisos para eliminar
+    const currentUserRole = currentUser.role as UserRole;
+    if (!hasPermission(currentUserRole, 'work_orders', 'delete')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No tienes permisos para eliminar órdenes de trabajo',
+        },
+        { status: 403 }
+      );
+    }
+    
+    // ✅ VALIDACIÓN: Si es advisor, solo puede eliminar órdenes en 'reception' o 'cancelled'
+    if (currentUserRole === 'advisor') {
+      const order = await getWorkOrderById(params.id);
+      
+      if (!order) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Orden de trabajo no encontrada',
+          },
+          { status: 404 }
+        );
+      }
+      
+      const allowedStatuses = ['reception', 'cancelled'];
+      if (!allowedStatuses.includes(order.status)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `No se puede eliminar una orden en estado "${order.status}". Solo se pueden eliminar órdenes en estado "reception" o "cancelled".`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+    
     await deleteWorkOrder(params.id);
 
     return NextResponse.json({

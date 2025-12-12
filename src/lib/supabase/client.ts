@@ -181,20 +181,23 @@ export async function testSupabaseConnection(): Promise<{ success: boolean; mess
 }
 
 /**
- * Obtener información de configuración
+ * Obtener información de configuración (SOLO variables públicas)
+ * ⚠️ Esta función solo debe acceder a variables NEXT_PUBLIC_*
+ * ⚠️ NO acceder a variables privadas como SUPABASE_SERVICE_ROLE_KEY aquí
  */
 export function getSupabaseInfo() {
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'Not configured'
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     
     return {
       url: url,
       urlPreview: url !== 'Not configured' ? `${url.substring(0, 30)}...` : 'Not configured',
       hasAnonKey: !!anonKey,
       anonKeyPreview: anonKey ? `${anonKey.substring(0, 20)}...` : 'Not configured',
-      hasServiceRoleKey: !!serviceKey,
+      // ⚠️ hasServiceRoleKey siempre será false en el cliente porque SUPABASE_SERVICE_ROLE_KEY
+      // no está disponible en el navegador (solo variables NEXT_PUBLIC_* están disponibles)
+      hasServiceRoleKey: false, // No verificar en cliente por seguridad
       isConfigured: !!(url && anonKey && url !== 'Not configured'),
       // Validar formato de URL
       urlIsValid: url.includes('supabase.co') || url.includes('localhost'),

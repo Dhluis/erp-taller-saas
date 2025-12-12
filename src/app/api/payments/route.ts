@@ -14,6 +14,8 @@ import {
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { hasPermission, UserRole } from '@/lib/auth/permissions';
+import { createClient } from '@/lib/supabase/server';
 
 // =====================================================
 // GET - Obtener todos los pagos
@@ -72,7 +74,7 @@ export async function GET(request: NextRequest) {
       data: result,
     });
   } catch (error) {
-    logger.error('Error al obtener pagos', context, error as Error);
+    logger.error('Error al obtener pagos', undefined, error as Error);
     
     return NextResponse.json(
       {
@@ -107,6 +109,37 @@ export async function POST(request: NextRequest) {
       'payments-api',
       'POST'
     );
+    
+    // ✅ VALIDACIÓN: Obtener rol del usuario actual
+    const supabase = await createClient();
+    const { data: currentUser, error: userError } = await (supabase as any)
+      .from('users')
+      .select('role')
+      .eq('auth_user_id', tenantContext.userId)
+      .single();
+    
+    if (userError || !currentUser || !currentUser.role) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Usuario no encontrado',
+        },
+        { status: 404 }
+      );
+    }
+    
+    // ✅ VALIDACIÓN: Solo admin puede crear pagos
+    const currentUserRole = currentUser.role as UserRole;
+    if (!hasPermission(currentUserRole, 'payments', 'create')) {
+      logger.warn('Intento de crear pago sin permisos', context);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No tienes permisos para crear pagos. Solo administradores pueden hacerlo.',
+        },
+        { status: 403 }
+      );
+    }
     
     const body = await request.json();
     logger.info('Creando nuevo pago', context, { paymentData: body });
@@ -181,7 +214,7 @@ export async function POST(request: NextRequest) {
       data: payment,
     }, { status: 201 });
   } catch (error) {
-    logger.error('Error al crear pago', context, error as Error);
+    logger.error('Error al crear pago', undefined, error as Error);
     
     return NextResponse.json(
       {

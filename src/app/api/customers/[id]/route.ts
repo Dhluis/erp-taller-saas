@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
+import { hasPermission, UserRole } from '@/lib/auth/permissions'
 
 export async function GET(
   request: NextRequest,
@@ -18,7 +19,7 @@ export async function GET(
     const supabase = await createClient()
     
     // Obtener cliente específico con sus vehículos
-    const { data: customer, error } = await supabase
+    const { data: customer, error } = await (supabase as any)
       .from('customers')
       .select(`
         *,
@@ -40,6 +41,10 @@ export async function GET(
     if (error) {
       console.error('❌ Error obteniendo cliente:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    if (!customer) {
+      return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
     }
 
     console.log('✅ Cliente obtenido:', customer.id)
@@ -84,7 +89,7 @@ export async function PUT(
     const supabase = await createClient()
     
     // Actualizar cliente
-    const { data: customer, error } = await supabase
+    const { data: customer, error } = await (supabase as any)
       .from('customers')
       .update({
         name: body.name,
@@ -102,6 +107,10 @@ export async function PUT(
     if (error) {
       console.error('❌ Error actualizando cliente:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    if (!customer) {
+      return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
     }
 
     console.log('✅ Cliente actualizado:', customer.id)
@@ -128,7 +137,47 @@ export async function DELETE(
 
     const supabase = await createClient()
     
-    // Verificar si el cliente tiene órdenes de trabajo
+    // ✅ VALIDACIÓN: Obtener rol del usuario actual
+    const { data: currentUser, error: userError } = await (supabase as any)
+      .from('users')
+      .select('role')
+      .eq('auth_user_id', tenantContext.userId)
+      .single()
+    
+    if (userError || !currentUser || !currentUser.role) {
+      return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
+    }
+    
+    // ✅ VALIDACIÓN: Verificar permisos para eliminar
+    const currentUserRole = currentUser.role as UserRole;
+    if (!hasPermission(currentUserRole, 'customers', 'delete')) {
+      return NextResponse.json({ 
+        error: 'No tienes permisos para eliminar clientes' 
+      }, { status: 403 })
+    }
+    
+    // ✅ VALIDACIÓN: Si es advisor, verificar que no tenga órdenes activas
+    if (currentUserRole === 'advisor') {
+      const { data: activeOrders, error: ordersError } = await supabase
+        .from('work_orders')
+        .select('id, status')
+        .eq('customer_id', params.id)
+        .eq('organization_id', tenantContext.organizationId)
+        .not('status', 'in', '("completed","cancelled")')
+
+      if (ordersError) {
+        console.error('❌ Error verificando órdenes activas:', ordersError)
+        return NextResponse.json({ error: ordersError.message }, { status: 500 })
+      }
+
+      if (activeOrders && activeOrders.length > 0) {
+        return NextResponse.json({ 
+          error: 'No se puede eliminar el cliente porque tiene órdenes de trabajo activas. Solo se pueden eliminar clientes con órdenes completadas o canceladas.' 
+        }, { status: 400 })
+      }
+    }
+    
+    // Verificar si el cliente tiene órdenes de trabajo (admin puede eliminarlo siempre)
     const { data: orders, error: ordersError } = await supabase
       .from('work_orders')
       .select('id')
@@ -141,10 +190,10 @@ export async function DELETE(
       return NextResponse.json({ error: ordersError.message }, { status: 500 })
     }
 
-    if (orders && orders.length > 0) {
-      return NextResponse.json({ 
-        error: 'No se puede eliminar el cliente porque tiene órdenes de trabajo asociadas' 
-      }, { status: 400 })
+    // Admin puede eliminar incluso con órdenes (ya que se validó arriba si es advisor)
+    // Esta verificación adicional es para advertir al admin
+    if (orders && orders.length > 0 && currentUserRole === 'admin') {
+      console.warn('⚠️ Admin eliminando cliente con órdenes asociadas')
     }
 
     // Eliminar cliente

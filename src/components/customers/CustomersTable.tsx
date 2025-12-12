@@ -11,6 +11,7 @@ import {
   EnvelopeIcon,
   MapPinIcon 
 } from '@heroicons/react/24/outline';
+import { usePermissions } from '@/hooks/usePermissions';
 import type { Customer } from '@/lib/database/queries/customers';
 
 interface CustomersTableProps {
@@ -28,6 +29,8 @@ export function CustomersTable({
   onView,
   loading = false 
 }: CustomersTableProps) {
+  const permissions = usePermissions();
+  const canDelete = permissions.canDelete('customers');
   
   // ✅ OPTIMIZACIÓN: useMemo para cálculos pesados
   const processedCustomers = useMemo(() => {
@@ -220,13 +223,16 @@ export function CustomersTable({
                       <PencilIcon className="w-5 h-5 text-text-secondary hover:text-primary" />
                     </button>
                     
-                    <button
-                      onClick={() => handleDelete(customer)}
-                      className="p-2 hover:bg-error/10 rounded-lg transition-colors"
-                      title="Eliminar"
-                    >
-                      <TrashIcon className="w-5 h-5 text-text-secondary hover:text-error" />
-                    </button>
+                    {/* ✅ Solo mostrar botón eliminar si tiene permisos */}
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDelete(customer)}
+                        className="p-2 hover:bg-error/10 rounded-lg transition-colors"
+                        title="Eliminar"
+                      >
+                        <TrashIcon className="w-5 h-5 text-text-secondary hover:text-error" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

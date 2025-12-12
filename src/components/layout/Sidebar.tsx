@@ -16,6 +16,7 @@ import {
   LogOut
 } from "lucide-react"
 import { useSidebar } from '@/contexts/SidebarContext'
+import { usePermissions } from '@/hooks/usePermissions'
 
 interface SidebarProps {
   className?: string
@@ -26,6 +27,7 @@ export function Sidebar({ className }: SidebarProps) {
   const router = useRouter()
   const [expandedSections, setExpandedSections] = useState<string[]>([])
   const { isCollapsed, toggleCollapse } = useSidebar()
+  const permissions = usePermissions()
   // Logo actualizado - EAGLES GEAR SYSTEM
   const logoUrl = "/eagles-logo-new.png"
 
@@ -73,36 +75,45 @@ export function Sidebar({ className }: SidebarProps) {
       href: "/dashboard", 
       label: "Dashboard", 
       icon: () => <ModernIcons.Dashboard size={20} />,
-      badge: null
+      badge: null,
+      // Todos pueden ver dashboard
+      visible: true
     },
     // Clientes movido al TopBar
     { 
       href: "/proveedores", 
       label: "Proveedores", 
       icon: () => <ModernIcons.Clientes size={20} />,
-      badge: null
+      badge: null,
+      // Solo admin puede ver proveedores
+      visible: permissions.canManageSuppliers()
     },
     { 
       href: "/vehiculos", 
       label: "Vehículos", 
       icon: () => <ModernIcons.Vehiculos size={20} />,
-      badge: null
+      badge: null,
+      // Todos pueden ver vehículos (read permission)
+      visible: permissions.canRead('vehicles')
     },
     // Órdenes movido al TopBar
     {
       href: "/cotizaciones",
       label: "Cotizaciones",
       icon: () => <ModernIcons.Cotizaciones size={20} />,
-      badge: null
+      badge: null,
+      // Todos pueden ver cotizaciones (read permission)
+      visible: permissions.canRead('quotations')
     }
     // WhatsApp movido al TopBar
-  ]
+  ].filter(item => item.visible)
 
   const collapsibleSections = [
     {
       key: 'inventarios',
       label: 'Inventarios',
       icon: () => <ModernIcons.Inventarios size={20} />,
+      visible: permissions.canRead('inventory'),
       items: [
         { href: "/inventarios", label: "Productos", icon: () => <ModernIcons.Productos size={18} /> },
         { href: "/inventarios/categorias", label: "Categorías", icon: () => <ModernIcons.Categorias size={18} /> },
@@ -113,41 +124,45 @@ export function Sidebar({ className }: SidebarProps) {
       key: 'ingresos',
       label: 'Ingresos',
       icon: () => <ModernIcons.Finanzas size={20} />,
+      visible: permissions.canRead('invoices') || permissions.canPayInvoices(),
       items: [
-        { href: "/ingresos", label: "Facturación", icon: () => <ModernIcons.Ordenes size={18} /> },
-        { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Cobros size={18} /> }
-      ]
+        { href: "/ingresos", label: "Facturación", icon: () => <ModernIcons.Ordenes size={18} />, visible: permissions.canRead('invoices') },
+        { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Cobros size={18} />, visible: permissions.canPayInvoices() }
+      ].filter(item => item.visible)
     },
     {
       key: 'compras',
       label: 'Compras',
       icon: () => <ModernIcons.Pagos size={20} />,
+      visible: permissions.canManagePurchases(),
       items: [
         { href: "/compras", label: "Órdenes de Compra", icon: () => <ModernIcons.Ordenes size={18} /> },
-        { href: "/compras/proveedores", label: "Proveedores", icon: () => <ModernIcons.Clientes size={18} /> },
-        { href: "/compras/pagos", label: "Pagos", icon: () => <ModernIcons.Transfer size={18} /> }
-      ]
+        { href: "/compras/proveedores", label: "Proveedores", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageSuppliers() },
+        { href: "/compras/pagos", label: "Pagos", icon: () => <ModernIcons.Transfer size={18} />, visible: permissions.canPayInvoices() }
+      ].filter(item => item.visible !== false)
     },
     {
       key: 'reportes',
       label: 'Reportes',
       icon: () => <ModernIcons.Reportes size={20} />,
+      visible: permissions.canRead('reports'),
       items: [
-        { href: "/reportes/ventas", label: "Ventas", icon: () => <ModernIcons.Finanzas size={18} /> },
-        { href: "/reportes/inventario", label: "Inventario", icon: () => <ModernIcons.Inventarios size={18} /> },
-        { href: "/reportes/financieros", label: "Financieros", icon: () => <ModernIcons.Financieros size={18} /> }
-      ]
+        { href: "/reportes/ventas", label: "Ventas", icon: () => <ModernIcons.Finanzas size={18} />, visible: permissions.canRead('reports') },
+        { href: "/reportes/inventario", label: "Inventario", icon: () => <ModernIcons.Inventarios size={18} />, visible: permissions.canRead('reports') },
+        { href: "/reportes/financieros", label: "Financieros", icon: () => <ModernIcons.Financieros size={18} />, visible: permissions.canViewFinancialReports() }
+      ].filter(item => item.visible)
     },
     {
       key: 'configuraciones',
       label: 'Configuraciones',
       icon: () => <ModernIcons.Configuracion size={20} />,
+      visible: permissions.canManageSettings(),
       items: [
-        { href: "/configuraciones/usuarios", label: "Usuarios", icon: () => <ModernIcons.Clientes size={18} /> },
-        { href: "/configuraciones/empresa", label: "Empresa", icon: () => <ModernIcons.Dashboard size={18} /> }
-      ]
+        { href: "/configuraciones/usuarios", label: "Usuarios", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageUsers() },
+        { href: "/configuraciones/empresa", label: "Empresa", icon: () => <ModernIcons.Dashboard size={18} />, visible: permissions.canManageSettings() }
+      ].filter(item => item.visible)
     }
-  ]
+  ].filter(section => section.visible && section.items.length > 0)
 
   const additionalNavItems = [
     { 
@@ -320,7 +335,9 @@ export function Sidebar({ className }: SidebarProps) {
                   
                   {shouldExpandSection(section.key) && (
                     <div className="ml-6 space-y-1 mt-1">
-                      {section.items.map((item) => (
+                      {section.items
+                        .filter((item: any) => item.visible !== false)
+                        .map((item: any) => (
                         <Link key={item.href} href={item.href}>
                           <Button
                             variant={isActive(item.href) ? "primary" : "ghost"}

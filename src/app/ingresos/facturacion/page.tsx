@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { MainLayout } from "@/components/main-layout"
 import { Button } from "@/components/ui/button"
+import { usePermissions } from '@/hooks/usePermissions'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -45,6 +46,12 @@ interface CreateInvoiceFormData {
 import { getCustomers } from "@/lib/supabase/customers"
 
 export default function FacturacionPage() {
+  const permissions = usePermissions()
+  const canPay = permissions.canPayInvoices()
+  const canCreate = permissions.canCreate('invoices')
+  const canDelete = permissions.canDelete('invoices')
+  const canUpdate = permissions.canUpdate('invoices')
+  
   const [searchTerm, setSearchTerm] = useState("")
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [customers, setCustomers] = useState<any[]>([])
@@ -337,6 +344,25 @@ export default function FacturacionPage() {
     setIsDialogOpen(true)
   }
 
+  const handleMarkAsPaid = async (invoice: Invoice) => {
+    if (confirm(`¿Marcar factura ${invoice.invoice_number} como pagada?`)) {
+      try {
+        const success = await updateInvoice(invoice.id, { ...invoice, status: 'paid' })
+        if (success) {
+          setInvoices(invoices.map(inv => inv.id === invoice.id ? { ...inv, status: 'paid' } : inv))
+          const statsData = await getInvoiceStats()
+          setStats(statsData)
+          alert('Factura marcada como pagada')
+        } else {
+          alert('Error al marcar la factura como pagada')
+        }
+      } catch (error) {
+        console.error('Error marking invoice as paid:', error)
+        alert('Error al marcar la factura como pagada')
+      }
+    }
+  }
+
   const handleDelete = async (id: string) => {
     if (confirm('¿Estás seguro de que quieres eliminar esta factura?')) {
       try {
@@ -403,9 +429,11 @@ export default function FacturacionPage() {
           { label: 'Facturación', href: '/ingresos/facturacion' }
         ]}
         actions={
-          <Button onClick={handleNewInvoice}>
-            <Plus className="mr-2 h-4 w-4" /> Crear Nueva Factura
-          </Button>
+          canCreate && (
+            <Button onClick={handleNewInvoice}>
+              <Plus className="mr-2 h-4 w-4" /> Crear Nueva Factura
+            </Button>
+          )
         }
       />
       </div>
@@ -516,20 +544,35 @@ export default function FacturacionPage() {
                     </td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
                       <div className="flex space-x-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleEdit(invoice)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleDelete(invoice.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {/* ✅ Botón cobrar solo si tiene permisos y la factura no está pagada */}
+                        {canPay && invoice.status !== 'paid' && (
+                          <Button 
+                            variant="default" 
+                            size="sm"
+                            onClick={() => handleMarkAsPaid(invoice)}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            Cobrar
+                          </Button>
+                        )}
+                        {canUpdate && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleEdit(invoice)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleDelete(invoice.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSalesReport } from '@/lib/database/queries/reports'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
+import { canViewFinancialReports, UserRole } from '@/lib/auth/permissions'
+import { createClient } from '@/lib/supabase/server'
 
 // GET /api/reports/sales - Obtener reporte de ventas
 export async function GET(request: NextRequest) {
@@ -17,6 +19,36 @@ export async function GET(request: NextRequest) {
       )
     }
     const organizationId = tenantContext.organizationId
+    
+    // ✅ VALIDACIÓN: Obtener rol del usuario actual
+    const supabase = await createClient();
+    const { data: currentUser, error: userError } = await (supabase as any)
+      .from('users')
+      .select('role')
+      .eq('auth_user_id', tenantContext.userId)
+      .single();
+    
+    if (userError || !currentUser || !currentUser.role) {
+      return NextResponse.json(
+        {
+          data: null,
+          error: 'Usuario no encontrado',
+        },
+        { status: 404 }
+      );
+    }
+    
+    // ✅ VALIDACIÓN: Solo admin puede ver reportes financieros
+    const currentUserRole = currentUser.role as UserRole;
+    if (!canViewFinancialReports(currentUserRole)) {
+      return NextResponse.json(
+        {
+          data: null,
+          error: 'No tienes permisos para ver reportes financieros. Solo administradores pueden acceder.',
+        },
+        { status: 403 }
+      );
+    }
 
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('start_date')
