@@ -1,6 +1,7 @@
 /**
  * Cliente Supabase para Navegador
  * Solo para uso en componentes del cliente
+ * Versión robusta con manejo de errores y retry
  */
 
 import { createBrowserClient } from '@supabase/ssr'
@@ -23,7 +24,21 @@ export function getSupabaseClient(): SupabaseClient {
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
     if (!url || !anonKey) {
+      const errorMsg = `
+❌ SUPABASE CONFIGURATION ERROR:
+   Missing required environment variables:
+   - NEXT_PUBLIC_SUPABASE_URL: ${url ? '✅' : '❌'}
+   - NEXT_PUBLIC_SUPABASE_ANON_KEY: ${anonKey ? '✅' : '❌'}
+   
+   Please check your .env.local file and ensure these variables are set.
+      `
+      console.error(errorMsg)
       throw new Error('Supabase configuration missing. Check your .env.local file.')
+    }
+
+    // Validar que la URL sea correcta
+    if (!url.includes('supabase.co')) {
+      console.warn('⚠️ Supabase URL does not contain "supabase.co". Verify it is correct.')
     }
     
     browserClient = createBrowserClient<Database>(url, anonKey, {
@@ -32,22 +47,56 @@ export function getSupabaseClient(): SupabaseClient {
           'X-Client-Info': 'erp-taller-saas-browser',
           'X-App-Version': process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
         },
-        fetch: (url, options = {}) => {
-          return fetch(url, {
-            ...options,
-            // Timeout de 120 segundos para operaciones lentas
-            signal: options.signal || AbortSignal.timeout(120000),
-          })
+        fetch: async (url, options = {}) => {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => {
+            controller.abort()
+          }, 10000) // Timeout de 10 segundos
+
+          try {
+            const response = await fetch(url, {
+              ...options,
+              signal: options.signal || controller.signal,
+            })
+            clearTimeout(timeoutId)
+            return response
+          } catch (error: any) {
+            clearTimeout(timeoutId)
+            
+            // Manejar errores de conexión específicos
+            if (error.name === 'AbortError') {
+              console.error('❌ Supabase request timeout after 10s:', url)
+              throw new Error('Connection timeout. Please check your internet connection and try again.')
+            }
+            
+            if (error.message?.includes('ERR_CONNECTION_CLOSED') || 
+                error.message?.includes('Failed to fetch') ||
+                error.message?.includes('NetworkError')) {
+              console.error('❌ Supabase connection error:', error.message)
+              throw new Error('Unable to connect to Supabase. Please check your internet connection and try again.')
+            }
+            
+            throw error
+          }
         },
       },
       auth: {
         detectSessionInUrl: true,
         persistSession: true,
         autoRefreshToken: true,
+        flowType: 'pkce',
       },
     })
 
+    // Configurar listeners de error
+    browserClient.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        console.log('🔄 Auth state changed:', event)
+      }
+    })
+
     console.log('✅ Supabase browser client initialized')
+    console.log('📍 Supabase URL:', url.substring(0, 30) + '...')
     return browserClient
   } catch (error: any) {
     console.error('❌ Failed to initialize Supabase browser client:', error)
@@ -56,32 +105,78 @@ export function getSupabaseClient(): SupabaseClient {
 }
 
 /**
- * Probar conexión a Supabase
+ * Probar conexión a Supabase con retry
  */
 export async function testSupabaseConnection(): Promise<{ success: boolean; message: string }> {
-  try {
-    const client = getSupabaseClient()
-    const { data, error } = await client.from('organizations').select('id').limit(1)
+  const maxRetries = 3
+  let lastError: any = null
 
-    if (error) {
-      console.error('❌ Supabase connection test failed:', error)
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const client = getSupabaseClient()
+      
+      // Probar conexión con timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Connection timeout')), 5000)
+      })
+
+      const queryPromise = client.from('organizations').select('id').limit(1)
+      
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any
+
+      if (error) {
+        lastError = error
+        
+        // Si es error de red, reintentar
+        if (error.message?.includes('Failed to fetch') || 
+            error.message?.includes('ERR_CONNECTION_CLOSED') ||
+            error.message?.includes('NetworkError')) {
+          if (attempt < maxRetries) {
+            console.warn(`⚠️ Connection attempt ${attempt}/${maxRetries} failed, retrying...`)
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+            continue
+          }
+        }
+        
+        console.error('❌ Supabase connection test failed:', error)
+        return { 
+          success: false, 
+          message: `Connection failed: ${error.message}` 
+        }
+      }
+
+      console.log('✅ Supabase connection test successful')
       return { 
-        success: false, 
-        message: `Connection failed: ${error.message}` 
+        success: true, 
+        message: 'Connection successful to Supabase' 
+      }
+    } catch (error: any) {
+      lastError = error
+      
+      if (error.message?.includes('timeout') || 
+          error.message?.includes('Failed to fetch') ||
+          error.message?.includes('ERR_CONNECTION_CLOSED')) {
+        if (attempt < maxRetries) {
+          console.warn(`⚠️ Connection attempt ${attempt}/${maxRetries} timed out, retrying...`)
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+          continue
+        }
+      }
+      
+      console.error(`❌ Supabase connection test exception (attempt ${attempt}/${maxRetries}):`, error)
+      
+      if (attempt === maxRetries) {
+        return { 
+          success: false, 
+          message: `Connection test failed after ${maxRetries} attempts: ${error.message || error}` 
+        }
       }
     }
+  }
 
-    console.log('✅ Supabase connection test successful')
-    return { 
-      success: true, 
-      message: 'Connection successful to Supabase' 
-    }
-  } catch (error: any) {
-    console.error('❌ Supabase connection test exception:', error)
-    return { 
-      success: false, 
-      message: `Connection test failed: ${error}` 
-    }
+  return { 
+    success: false, 
+    message: `Connection test failed: ${lastError?.message || 'Unknown error'}` 
   }
 }
 
@@ -90,18 +185,32 @@ export async function testSupabaseConnection(): Promise<{ success: boolean; mess
  */
 export function getSupabaseInfo() {
   try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'Not configured'
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    
     return {
-      url: process.env.NEXT_PUBLIC_SUPABASE_URL || 'Not configured',
-      hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-      isConfigured: !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      url: url,
+      urlPreview: url !== 'Not configured' ? `${url.substring(0, 30)}...` : 'Not configured',
+      hasAnonKey: !!anonKey,
+      anonKeyPreview: anonKey ? `${anonKey.substring(0, 20)}...` : 'Not configured',
+      hasServiceRoleKey: !!serviceKey,
+      isConfigured: !!(url && anonKey && url !== 'Not configured'),
+      // Validar formato de URL
+      urlIsValid: url.includes('supabase.co') || url.includes('localhost'),
+      // Validar formato de keys (JWT tokens)
+      anonKeyIsValid: anonKey ? anonKey.startsWith('eyJ') : false,
     }
   } catch (error) {
     return {
       url: 'Not configured',
+      urlPreview: 'Not configured',
       hasAnonKey: false,
+      anonKeyPreview: 'Not configured',
       hasServiceRoleKey: false,
       isConfigured: false,
+      urlIsValid: false,
+      anonKeyIsValid: false,
       error: error instanceof Error ? error.message : 'Unknown error'
     }
   }
