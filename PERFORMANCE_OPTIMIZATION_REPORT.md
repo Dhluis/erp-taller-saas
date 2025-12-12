@@ -19,34 +19,36 @@ Se realizó un análisis de rendimiento del sistema Eagles ERP. Se encontraron *
 ### 1. Imágenes sin optimizar
 
 **Archivos encontrados:**
-1. `src/components/user-profile.tsx` (línea 188)
-2. `src/app/configuraciones/empresa/page.tsx` (línea 287)
+1. `src/components/user-profile.tsx` (línea 188) - ✅ **COMPLETADO**
+2. `src/app/configuraciones/empresa/page.tsx` (línea 287) - ✅ **COMPLETADO**
 
 **Problema:**
 ```tsx
-// ❌ ACTUAL: Imagen sin optimizar
+// ❌ ANTES: Imagen sin optimizar
 <img src={formData.logo} alt="Logo" />
 ```
 
-**Recomendación:**
+**Solución aplicada:**
 ```tsx
-// ✅ OPTIMIZADO: Usar Next.js Image
+// ✅ DESPUÉS: Usar Next.js Image
 import Image from 'next/image'
 <Image 
   src={formData.logo} 
   alt="Logo" 
-  width={200} 
-  height={100}
+  width={128}
+  height={128}
   className="w-full h-full object-contain rounded-lg"
+  unoptimized={formData.logo?.startsWith('data:')}
 />
 ```
 
-**Beneficio:** 
-- Reducción de tamaño de imagen automática
-- Lazy loading automático
-- Mejor Core Web Vitals
+**Beneficios obtenidos:** 
+- ✅ Reducción de tamaño de imagen automática
+- ✅ Lazy loading automático
+- ✅ Mejor Core Web Vitals
+- ✅ Soporte para imágenes base64 con `unoptimized`
 
-**Prioridad:** 🟡 **MEDIA**
+**Estado:** ✅ **COMPLETADO**
 
 ---
 
@@ -136,7 +138,7 @@ export async function GET(request: Request) {
 1. ✅ **COMPLETADO**: Análisis de queries - No se requieren cambios
 
 ### Prioridad MEDIA:
-2. ⚠️ **PENDIENTE**: Reemplazar `<img>` por `<Image>` en 2 archivos
+2. ✅ **COMPLETADO**: Reemplazar `<img>` por `<Image>` en 2 archivos
 3. ⚠️ **PENDIENTE**: Agregar cache a endpoints de configuración (60s)
 4. ⚠️ **PENDIENTE**: Agregar cache a endpoints de catálogos (300s)
 
@@ -188,7 +190,7 @@ CREATE INDEX IF NOT EXISTS idx_invoices_created_at ON sales_invoices(created_at 
 
 - **Queries optimizadas:** ✅ Todas usan columnas específicas
 - **Componentes con optimizaciones:** 4+ componentes ya optimizados
-- **Imágenes sin optimizar:** 2 encontradas
+- **Imágenes sin optimizar:** 0 encontradas (2 optimizadas ✅)
 - **Módulos con lazy loading:** 0 requeridos urgentemente
 - **Cache implementado:** 0 endpoints (mejorable)
 - **Índices recomendados:** 10 índices sugeridos
