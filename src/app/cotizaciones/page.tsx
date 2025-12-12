@@ -83,6 +83,11 @@ export default function QuotationsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
+  // Debug: Log cuando cambia statusFilter
+  useEffect(() => {
+    console.log('[Cotizaciones] 🔄 statusFilter cambió a:', statusFilter)
+  }, [statusFilter])
+
   // Cargar cotizaciones
   const loadQuotations = async () => {
     if (!organizationId) {
@@ -93,14 +98,17 @@ export default function QuotationsPage() {
     setLoading(true)
     try {
       const params = new URLSearchParams()
-      if (statusFilter !== 'all') {
+      if (statusFilter && statusFilter !== 'all') {
         params.append('status', statusFilter)
       }
-      if (searchTerm.trim()) {
+      if (searchTerm && searchTerm.trim()) {
         params.append('search', searchTerm.trim())
       }
 
-      const response = await fetch(`/api/quotations?${params.toString()}`, {
+      const url = `/api/quotations?${params.toString()}`
+      console.log('[Cotizaciones] 🔍 Cargando con parámetros:', { statusFilter, searchTerm, url })
+
+      const response = await fetch(url, {
         credentials: 'include',
         cache: 'no-store',
       })
@@ -126,6 +134,7 @@ export default function QuotationsPage() {
 
   useEffect(() => {
     if (organizationId) {
+      console.log('[Cotizaciones] 🔄 useEffect ejecutado - Recargando cotizaciones', { organizationId, statusFilter, searchTerm });
       loadQuotations()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
