@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       const supabase = await createClient();
 
       // Buscar por número de cotización
-      const { data: byNumber, error: error1 } = await supabase
+      let queryByNumber = supabase
         .from('quotations')
         .select(`
           *,
@@ -73,6 +73,13 @@ export async function GET(request: NextRequest) {
         `)
         .eq('organization_id', organizationId)
         .ilike('quotation_number', `%${search}%`);
+
+      // Aplicar filtro de estado si existe
+      if (status && status !== 'all') {
+        queryByNumber = queryByNumber.eq('status', status);
+      }
+
+      const { data: byNumber, error: error1 } = await queryByNumber;
 
       // Buscar por nombre de cliente
       const { data: customers, error: error2 } = await supabase
@@ -87,8 +94,8 @@ export async function GET(request: NextRequest) {
 
       const customerIds = customers?.map(c => c.id) || [];
       
-      const { data: byCustomer, error: error3 } = customerIds.length > 0
-        ? await supabase
+      let queryByCustomer = customerIds.length > 0
+        ? supabase
             .from('quotations')
             .select(`
               *,
@@ -98,6 +105,15 @@ export async function GET(request: NextRequest) {
             `)
             .eq('organization_id', organizationId)
             .in('customer_id', customerIds)
+        : null;
+
+      // Aplicar filtro de estado si existe
+      if (queryByCustomer && status && status !== 'all') {
+        queryByCustomer = queryByCustomer.eq('status', status);
+      }
+
+      const { data: byCustomer, error: error3 } = queryByCustomer
+        ? await queryByCustomer
         : { data: null, error: null };
 
       if (error1 || error3) {

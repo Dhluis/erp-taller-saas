@@ -128,6 +128,7 @@ export default function QuotationsPage() {
     if (organizationId) {
       loadQuotations()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId, statusFilter])
 
   // Buscar cotizaciones
