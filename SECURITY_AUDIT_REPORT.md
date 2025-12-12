@@ -166,16 +166,18 @@ ORDER BY tablename;
 - ✅ `/api/notifications/*` - Usa `getTenantContext(request)`
 - ✅ `/api/backups/*` - Usa `getTenantContext(request)`
 
-### ⚠️ Endpoints que deberían pasar `request`:
+### ✅ Endpoints actualizados para pasar `request`:
 
-- ⚠️ `/api/orders/[id]/items` - Usa `getTenantContext()` sin request
-- ⚠️ `/api/customers/[id]` - Usa `getTenantContext()` sin request
-- ⚠️ `/api/suppliers` - Usa `getTenantContext()` sin request
-- ⚠️ `/api/services` - Usa `getTenantContext()` sin request
-- ⚠️ `/api/employees` - Usa `getTenantContext()` sin request
-- ⚠️ `/api/vehicles/[id]` - Usa `getTenantContext()` sin request
+- ✅ `/api/orders/[id]/items` - Actualizado (2 ocurrencias)
+- ✅ `/api/customers/[id]` - Actualizado (3 ocurrencias)
+- ✅ `/api/suppliers` - Actualizado (2 ocurrencias)
+- ✅ `/api/suppliers/stats` - Actualizado (1 ocurrencia)
+- ✅ `/api/services` - Actualizado (2 ocurrencias)
+- ✅ `/api/employees` - Actualizado (1 ocurrencia)
+- ✅ `/api/vehicles/[id]` - Actualizado (3 ocurrencias)
+- ✅ `/api/orders/[id]/items/[itemId]` - Actualizado (2 ocurrencias)
 
-**Nota:** Estos endpoints funcionan correctamente porque `getTenantContext()` tiene fallback, pero es mejor práctica pasar el `request`.
+**Total:** 16 ocurrencias actualizadas en 8 archivos.
 
 ---
 
@@ -184,7 +186,7 @@ ORDER BY tablename;
 ### Prioridad ALTA:
 1. ✅ **COMPLETADO**: Corregir `src/app/api/customers/simple-route.ts`
 2. ⚠️ **PENDIENTE**: Ejecutar query SQL para verificar RLS en Supabase
-3. ⚠️ **PENDIENTE**: Actualizar endpoints para pasar `request` a `getTenantContext()`
+3. ✅ **COMPLETADO**: Actualizar endpoints para pasar `request` a `getTenantContext()` (16 endpoints actualizados)
 
 ### Prioridad MEDIA:
 4. Revisar archivos `src/lib/supabase/purchase-orders.ts` y `work-orders.ts` para verificar si los IDs hardcodeados son solo para test
@@ -202,8 +204,9 @@ ORDER BY tablename;
 - **Vulnerabilidades críticas encontradas:** 1
 - **Vulnerabilidades críticas corregidas:** 1 ✅
 - **Mejoras recomendadas:** 16
-- **Endpoints seguros:** 150/151 (99.3%)
-- **Endpoints con mejoras recomendadas:** 16/151 (10.6%)
+- **Mejoras aplicadas:** 16 ✅
+- **Endpoints seguros:** 151/151 (100%)
+- **Endpoints con mejoras aplicadas:** 16/151 (10.6%)
 
 ---
 
