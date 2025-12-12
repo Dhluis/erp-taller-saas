@@ -111,6 +111,8 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
 
   // Navegar al resultado seleccionado
   const handleSelectResult = (result: any) => {
+    console.log('🎯 [GlobalSearch] Seleccionando resultado:', result);
+    
     let path = '';
     
     switch (result.type) {
@@ -129,8 +131,11 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     }
     
     if (path) {
-      router.push(path);
-      onOpenChange(false);
+      // Pequeño delay para que se note el click visual
+      setTimeout(() => {
+        router.push(path);
+        onOpenChange(false);
+      }, 100);
     }
   };
 
@@ -273,22 +278,37 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                   </div>
                   {results.orders.map((order, index) => {
                     const globalIndex = allResults.findIndex(r => r.type === 'order' && r.id === order.id);
+                    const isSelected = globalIndex === selectedIndex;
                     const formatted = formatResult({ ...order, type: 'order' });
                     return (
                       <button
                         key={`order-${order.id}`}
                         onClick={() => handleSelectResult({ ...order, type: 'order' })}
-                        className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-800 transition-colors ${
-                          globalIndex === selectedIndex ? 'bg-slate-800' : ''
+                        onMouseEnter={() => setSelectedIndex(globalIndex)}
+                        className={`w-full px-4 py-3 flex items-center justify-between transition-all duration-200 relative ${
+                          isSelected 
+                            ? 'bg-cyan-500/30 border-l-4 border-cyan-400 shadow-xl shadow-cyan-500/30 backdrop-blur-md ring-2 ring-cyan-400/50 scale-[1.02]' 
+                            : 'hover:bg-slate-800/50 border-l-4 border-transparent hover:border-slate-600'
                         }`}
                       >
+                        {/* Indicador de selección */}
+                        {isSelected && (
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-400 rounded-r-full animate-pulse" />
+                        )}
+                        
                         <div className="flex items-center gap-3 flex-1 text-left">
-                          {getIcon('order')}
+                          <div className={`transition-all duration-200 ${isSelected ? 'scale-110' : ''}`}>
+                            {getIcon('order')}
+                          </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-white truncate">
+                            <div className={`text-sm font-medium truncate transition-all duration-200 ${
+                              isSelected ? 'text-cyan-200 font-semibold' : 'text-white'
+                            }`}>
                               {formatted.title}
                             </div>
-                            <div className="text-xs text-slate-400 truncate">
+                            <div className={`text-xs truncate transition-all duration-200 ${
+                              isSelected ? 'text-cyan-300/80' : 'text-slate-400'
+                            }`}>
                               {formatted.subtitle}
                             </div>
                           </div>
@@ -299,7 +319,9 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                               {formatted.badge}
                             </Badge>
                           )}
-                          <ArrowRight className="w-4 h-4 text-slate-500" />
+                          <ArrowRight className={`w-4 h-4 transition-all duration-200 ${
+                            isSelected ? 'text-cyan-400 scale-110' : 'text-slate-500'
+                          }`} />
                         </div>
                       </button>
                     );
@@ -315,27 +337,44 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                   </div>
                   {results.customers.map((customer) => {
                     const globalIndex = allResults.findIndex(r => r.type === 'customer' && r.id === customer.id);
+                    const isSelected = globalIndex === selectedIndex;
                     const formatted = formatResult({ ...customer, type: 'customer' });
                     return (
                       <button
                         key={`customer-${customer.id}`}
                         onClick={() => handleSelectResult({ ...customer, type: 'customer' })}
-                        className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-800 transition-colors ${
-                          globalIndex === selectedIndex ? 'bg-slate-800' : ''
+                        onMouseEnter={() => setSelectedIndex(globalIndex)}
+                        className={`w-full px-4 py-3 flex items-center justify-between transition-all duration-200 relative ${
+                          isSelected 
+                            ? 'bg-green-500/30 border-l-4 border-green-400 shadow-xl shadow-green-500/30 backdrop-blur-md ring-2 ring-green-400/50 scale-[1.02]' 
+                            : 'hover:bg-slate-800/50 border-l-4 border-transparent hover:border-slate-600'
                         }`}
                       >
+                        {/* Indicador de selección */}
+                        {isSelected && (
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-400 rounded-r-full animate-pulse" />
+                        )}
+                        
                         <div className="flex items-center gap-3 flex-1 text-left">
-                          {getIcon('customer')}
+                          <div className={`transition-all duration-200 ${isSelected ? 'scale-110' : ''}`}>
+                            {getIcon('customer')}
+                          </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-white truncate">
+                            <div className={`text-sm font-medium truncate transition-all duration-200 ${
+                              isSelected ? 'text-green-200 font-semibold' : 'text-white'
+                            }`}>
                               {formatted.title}
                             </div>
-                            <div className="text-xs text-slate-400 truncate">
+                            <div className={`text-xs truncate transition-all duration-200 ${
+                              isSelected ? 'text-green-300/80' : 'text-slate-400'
+                            }`}>
                               {formatted.subtitle}
                             </div>
                           </div>
                         </div>
-                        <ArrowRight className="w-4 h-4 text-slate-500" />
+                        <ArrowRight className={`w-4 h-4 transition-all duration-200 ${
+                          isSelected ? 'text-green-400 scale-110' : 'text-slate-500'
+                        }`} />
                       </button>
                     );
                   })}
@@ -350,27 +389,44 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                   </div>
                   {results.vehicles.map((vehicle) => {
                     const globalIndex = allResults.findIndex(r => r.type === 'vehicle' && r.id === vehicle.id);
+                    const isSelected = globalIndex === selectedIndex;
                     const formatted = formatResult({ ...vehicle, type: 'vehicle' });
                     return (
                       <button
                         key={`vehicle-${vehicle.id}`}
                         onClick={() => handleSelectResult({ ...vehicle, type: 'vehicle' })}
-                        className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-800 transition-colors ${
-                          globalIndex === selectedIndex ? 'bg-slate-800' : ''
+                        onMouseEnter={() => setSelectedIndex(globalIndex)}
+                        className={`w-full px-4 py-3 flex items-center justify-between transition-all duration-200 relative ${
+                          isSelected 
+                            ? 'bg-blue-500/30 border-l-4 border-blue-400 shadow-xl shadow-blue-500/30 backdrop-blur-md ring-2 ring-blue-400/50 scale-[1.02]' 
+                            : 'hover:bg-slate-800/50 border-l-4 border-transparent hover:border-slate-600'
                         }`}
                       >
+                        {/* Indicador de selección */}
+                        {isSelected && (
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-400 rounded-r-full animate-pulse" />
+                        )}
+                        
                         <div className="flex items-center gap-3 flex-1 text-left">
-                          {getIcon('vehicle')}
+                          <div className={`transition-all duration-200 ${isSelected ? 'scale-110' : ''}`}>
+                            {getIcon('vehicle')}
+                          </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-white truncate">
+                            <div className={`text-sm font-medium truncate transition-all duration-200 ${
+                              isSelected ? 'text-blue-200 font-semibold' : 'text-white'
+                            }`}>
                               {formatted.title}
                             </div>
-                            <div className="text-xs text-slate-400 truncate">
+                            <div className={`text-xs truncate transition-all duration-200 ${
+                              isSelected ? 'text-blue-300/80' : 'text-slate-400'
+                            }`}>
                               {formatted.subtitle}
                             </div>
                           </div>
                         </div>
-                        <ArrowRight className="w-4 h-4 text-slate-500" />
+                        <ArrowRight className={`w-4 h-4 transition-all duration-200 ${
+                          isSelected ? 'text-blue-400 scale-110' : 'text-slate-500'
+                        }`} />
                       </button>
                     );
                   })}
@@ -385,22 +441,37 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                   </div>
                   {results.products.map((product) => {
                     const globalIndex = allResults.findIndex(r => r.type === 'product' && r.id === product.id);
+                    const isSelected = globalIndex === selectedIndex;
                     const formatted = formatResult({ ...product, type: 'product' });
                     return (
                       <button
                         key={`product-${product.id}`}
                         onClick={() => handleSelectResult({ ...product, type: 'product' })}
-                        className={`w-full px-4 py-3 flex items-center justify-between hover:bg-slate-800 transition-colors ${
-                          globalIndex === selectedIndex ? 'bg-slate-800' : ''
+                        onMouseEnter={() => setSelectedIndex(globalIndex)}
+                        className={`w-full px-4 py-3 flex items-center justify-between transition-all duration-200 relative ${
+                          isSelected 
+                            ? 'bg-purple-500/30 border-l-4 border-purple-400 shadow-xl shadow-purple-500/30 backdrop-blur-md ring-2 ring-purple-400/50 scale-[1.02]' 
+                            : 'hover:bg-slate-800/50 border-l-4 border-transparent hover:border-slate-600'
                         }`}
                       >
+                        {/* Indicador de selección */}
+                        {isSelected && (
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-400 rounded-r-full animate-pulse" />
+                        )}
+                        
                         <div className="flex items-center gap-3 flex-1 text-left">
-                          {getIcon('product')}
+                          <div className={`transition-all duration-200 ${isSelected ? 'scale-110' : ''}`}>
+                            {getIcon('product')}
+                          </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-white truncate">
+                            <div className={`text-sm font-medium truncate transition-all duration-200 ${
+                              isSelected ? 'text-purple-200 font-semibold' : 'text-white'
+                            }`}>
                               {formatted.title}
                             </div>
-                            <div className="text-xs text-slate-400 truncate">
+                            <div className={`text-xs truncate transition-all duration-200 ${
+                              isSelected ? 'text-purple-300/80' : 'text-slate-400'
+                            }`}>
                               {formatted.subtitle}
                             </div>
                           </div>
@@ -411,7 +482,9 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                               {formatted.badge}
                             </Badge>
                           )}
-                          <ArrowRight className="w-4 h-4 text-slate-500" />
+                          <ArrowRight className={`w-4 h-4 transition-all duration-200 ${
+                            isSelected ? 'text-purple-400 scale-110' : 'text-slate-500'
+                          }`} />
                         </div>
                       </button>
                     );
