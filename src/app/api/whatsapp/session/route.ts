@@ -39,8 +39,43 @@ async function fetchWithTimeout(
 }
 
 /**
+ * Helper para ejecutar operaciones con retry automático
+ */
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  delayMs: number = 1000,
+  operationName: string = 'Operation'
+): Promise<T> {
+  let lastError: any;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[/api/whatsapp/session] 🔄 [Retry] ${operationName} - Intento ${attempt}/${maxRetries}`);
+      const result = await operation();
+      if (attempt > 1) {
+        console.log(`[/api/whatsapp/session] ✅ [Retry] ${operationName} exitoso en intento ${attempt}`);
+      }
+      return result;
+    } catch (error: any) {
+      lastError = error;
+      console.warn(`[/api/whatsapp/session] ⚠️ [Retry] ${operationName} falló en intento ${attempt}:`, error.message);
+      
+      if (attempt < maxRetries) {
+        console.log(`[/api/whatsapp/session] ⏳ [Retry] Esperando ${delayMs}ms antes de reintentar...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
+      }
+    }
+  }
+  
+  console.error(`[/api/whatsapp/session] ❌ [Retry] ${operationName} falló después de ${maxRetries} intentos`);
+  throw lastError;
+}
+
+/**
  * GET /api/whatsapp/session
  * Obtiene el estado actual de la sesión de WhatsApp para la organización
+ * CON RETRY AUTOMÁTICO para manejar race conditions en primera carga
  */
 export async function GET(request: NextRequest) {
   try {
@@ -88,14 +123,19 @@ export async function GET(request: NextRequest) {
     console.log(`[/api/whatsapp/session] 🏢 Organization ID: ${organizationId}`);
     console.log(`[/api/whatsapp/session] 👤 User ID: ${userId || 'N/A'}`);
 
-    // 2. Obtener o crear nombre de sesión
+    // 2. Obtener o crear nombre de sesión CON RETRY
     let sessionName: string;
     try {
       console.log('[/api/whatsapp/session] 🔍 Obteniendo/creando nombre de sesión...');
-      sessionName = await getOrganizationSession(organizationId);
+      sessionName = await withRetry(
+        () => getOrganizationSession(organizationId),
+        3,
+        1000,
+        'getOrganizationSession'
+      );
       console.log(`[/api/whatsapp/session] ✅ Session Name: ${sessionName}`);
     } catch (sessionError: any) {
-      console.error('[/api/whatsapp/session] ❌ Error obteniendo sesión:', {
+      console.error('[/api/whatsapp/session] ❌ Error obteniendo sesión después de retries:', {
         message: sessionError.message,
         stack: sessionError.stack
       });
@@ -106,18 +146,23 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // 3. Obtener estado de la sesión
+    // 3. Obtener estado de la sesión CON RETRY
     let status;
     try {
       console.log('[/api/whatsapp/session] 🔍 Obteniendo estado de sesión...');
-      status = await getSessionStatus(sessionName, organizationId);
+      status = await withRetry(
+        () => getSessionStatus(sessionName, organizationId),
+        3,
+        1000,
+        'getSessionStatus'
+      );
       console.log(`[/api/whatsapp/session] 📊 Estado de sesión:`, {
         exists: status.exists,
         status: status.status,
         error: status.error
       });
     } catch (statusError: any) {
-      console.error('[/api/whatsapp/session] ❌ Error obteniendo estado:', {
+      console.error('[/api/whatsapp/session] ❌ Error obteniendo estado después de retries:', {
         message: statusError.message,
         stack: statusError.stack
       });
@@ -157,7 +202,13 @@ export async function GET(request: NextRequest) {
       
       try {
         console.log('[/api/whatsapp/session] 🔍 Obteniendo QR de sesión...');
-        const qrData = await getSessionQR(sessionName, organizationId);
+        // AGREGAR RETRY para obtener QR
+        const qrData = await withRetry(
+          () => getSessionQR(sessionName, organizationId),
+          3,
+          1500,
+          'getSessionQR'
+        );
         const qrValue = qrData?.value || qrData?.data || null;
         
         if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
@@ -179,7 +230,7 @@ export async function GET(request: NextRequest) {
           });
         }
       } catch (qrError: any) {
-        console.warn(`[/api/whatsapp/session] ⚠️ Error obteniendo QR:`, {
+        console.warn(`[/api/whatsapp/session] ⚠️ Error obteniendo QR después de retries:`, {
           message: qrError.message,
           stack: qrError.stack
         });
@@ -225,7 +276,13 @@ export async function GET(request: NextRequest) {
         if (['SCAN_QR', 'SCAN_QR_CODE', 'STARTING'].includes(newStatus.status)) {
           try {
             console.log('[/api/whatsapp/session] 🔍 Obteniendo QR después de reinicio...');
-            const qrData = await getSessionQR(sessionName, organizationId);
+            // AGREGAR RETRY para obtener QR después de reinicio
+            const qrData = await withRetry(
+              () => getSessionQR(sessionName, organizationId),
+              3,
+              1500,
+              'getSessionQR (después de reinicio)'
+            );
             const qrValue = qrData?.value || qrData?.data || null;
             
             if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
@@ -241,7 +298,7 @@ export async function GET(request: NextRequest) {
               });
             }
           } catch (qrError: any) {
-            console.warn(`[/api/whatsapp/session] ⚠️ Error obteniendo QR después de reinicio:`, {
+            console.warn(`[/api/whatsapp/session] ⚠️ Error obteniendo QR después de reinicio (después de retries):`, {
               message: qrError.message,
               stack: qrError.stack
             });
@@ -369,7 +426,13 @@ export async function GET(request: NextRequest) {
       if (['SCAN_QR', 'SCAN_QR_CODE', 'STARTING'].includes(newStatus.status)) {
         try {
           console.log('[/api/whatsapp/session] 🔍 Obteniendo QR después de crear sesión...');
-          const qrData = await getSessionQR(sessionName, organizationId);
+          // AGREGAR RETRY para obtener QR después de crear sesión
+          const qrData = await withRetry(
+            () => getSessionQR(sessionName, organizationId),
+            3,
+            1500,
+            'getSessionQR (después de crear)'
+          );
           const qrValue = qrData?.value || qrData?.data || null;
           
           if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
@@ -385,7 +448,7 @@ export async function GET(request: NextRequest) {
             });
           }
         } catch (qrError: any) {
-          console.warn(`[/api/whatsapp/session] ⚠️ Error obteniendo QR después de crear:`, {
+          console.warn(`[/api/whatsapp/session] ⚠️ Error obteniendo QR después de crear (después de retries):`, {
             message: qrError.message,
             stack: qrError.stack
           });

@@ -57,6 +57,7 @@ export function WhatsAppQRConnectorSimple({
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastConnectionEventRef = useRef<string | null>(null) // Rastrear último teléfono que disparó evento
   const previousStateRef = useRef<'loading' | 'connected' | 'pending' | 'error'>('loading') // Rastrear estado anterior
+  const isFirstLoadRef = useRef(true) // ✅ NUEVO: Rastrear primera carga
 
   // Limpiar timers de auto-refresh
   const clearAutoRefreshTimers = useCallback(() => {
@@ -85,12 +86,21 @@ export function WhatsAppQRConnectorSimple({
   // Verificar estado
   const checkStatus = useCallback(async () => {
     try {
+      // ✅ AGREGAR: Delay inicial solo en primera carga
+      if (isFirstLoadRef.current) {
+        console.log(`[WhatsApp Simple] ⏳ Primera carga en checkStatus, esperando 300ms...`)
+        await new Promise(resolve => setTimeout(resolve, 300))
+        isFirstLoadRef.current = false
+      }
+
       const response = await fetch('/api/whatsapp/session', {
         credentials: 'include',
         cache: 'no-store'
       })
 
       if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Error desconocido')
+        console.error(`[WhatsApp Simple] ❌ Error HTTP ${response.status} en checkStatus:`, errorText)
         throw new Error(`HTTP ${response.status}`)
       }
 
@@ -342,6 +352,13 @@ export function WhatsAppQRConnectorSimple({
     console.log(`[WhatsApp Simple] 🔄 Generando QR...`)
 
     try {
+      // ✅ AGREGAR: Delay inicial solo en primera carga para evitar race condition
+      if (isFirstLoadRef.current) {
+        console.log(`[WhatsApp Simple] ⏳ Primera carga, esperando 500ms para inicialización...`)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        isFirstLoadRef.current = false
+      }
+
       const response = await fetch('/api/whatsapp/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -350,6 +367,8 @@ export function WhatsAppQRConnectorSimple({
       })
 
       if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Error desconocido')
+        console.error(`[WhatsApp Simple] ❌ Error HTTP ${response.status}:`, errorText)
         throw new Error(`HTTP ${response.status}`)
       }
 
