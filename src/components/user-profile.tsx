@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -185,10 +186,13 @@ export function UserProfile() {
               <div className="flex items-center space-x-4">
                 <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
                   {user.avatar ? (
-                    <img 
+                    <Image 
                       src={user.avatar} 
                       alt={user.name}
+                      width={64}
+                      height={64}
                       className="w-16 h-16 rounded-full object-cover"
+                      unoptimized={user.avatar?.startsWith('data:')}
                     />
                   ) : (
                     <User className="h-8 w-8 text-primary" />

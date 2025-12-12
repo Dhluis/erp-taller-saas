@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -284,7 +285,14 @@ export default function EmpresaPage() {
           <div className="flex flex-col items-center space-y-4">
             <div className="w-32 h-32 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground">
               {formData.logo ? (
-                <img src={formData.logo} alt="Logo" className="w-full h-full object-contain rounded-lg" />
+                <Image 
+                  src={formData.logo} 
+                  alt="Logo" 
+                  width={128}
+                  height={128}
+                  className="w-full h-full object-contain rounded-lg"
+                  unoptimized={formData.logo?.startsWith('data:')}
+                />
               ) : (
                 <div className="text-center">
                   <Camera className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
