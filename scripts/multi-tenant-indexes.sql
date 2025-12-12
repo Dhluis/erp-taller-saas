@@ -4,7 +4,7 @@
 -- Este script crea índices compuestos optimizados para queries multi-tenant
 -- Ejecutar en Supabase Dashboard → SQL Editor
 -- 
--- Total de índices: 30 índices
+-- Total de índices: 31 índices
 -- Tablas cubiertas: 13 tablas (customers, work_orders, vehicles, products, 
 --                   invoices, quotations, employees, payments, suppliers, 
 --                   purchase_orders, services, appointments, inventory)
@@ -108,7 +108,7 @@ ON invoices(organization_id, status, created_at DESC)
 WHERE organization_id IS NOT NULL AND status IS NOT NULL;
 
 -- =====================================================
--- SECCIÓN 6: QUOTATIONS (2 índices)
+-- SECCIÓN 6: QUOTATIONS (3 índices)
 -- =====================================================
 
 -- Índice para búsquedas por organización y estado
@@ -120,6 +120,11 @@ WHERE organization_id IS NOT NULL AND status IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_quotations_org_customer 
 ON quotations(organization_id, customer_id) 
 WHERE organization_id IS NOT NULL AND customer_id IS NOT NULL;
+
+-- Índice para cotizaciones expiradas
+CREATE INDEX IF NOT EXISTS idx_quotations_org_expired 
+ON quotations(organization_id, status, expiry_date) 
+WHERE organization_id IS NOT NULL AND status = 'pending' AND expiry_date < NOW();
 
 -- =====================================================
 -- SECCIÓN 7: EMPLOYEES (2 índices)
