@@ -1,6 +1,6 @@
 # MATRIZ DE PERMISOS POR ROL
 
-**Última actualización**: Diciembre 2024
+**Última actualización**: Enero 2025
 
 Este documento describe los permisos completos para cada rol de usuario en el sistema ERP de Taller.
 
@@ -8,27 +8,39 @@ Este documento describe los permisos completos para cada rol de usuario en el si
 
 ## ROLES DEFINIDOS
 
-El sistema define **4 roles principales**:
+El sistema define **3 roles principales** específicos para taller mecánico:
 
-1. **`admin`**: Administrador completo del sistema
-2. **`manager`**: Gerente con permisos de gestión (sin eliminar)
-3. **`employee`**: Empleado con permisos limitados de creación y lectura
-4. **`viewer`**: Solo lectura, sin permisos de modificación
+### 1. Administrador (admin)
+- **Nivel**: 3 (máximo)
+- **Descripción**: Dueño o gerente del taller
+- **Acceso**: Total sin restricciones
+- **Funciones**: Puede gestionar todo el sistema, usuarios, configuraciones y transacciones financieras
 
-**Nota**: Existen referencias a roles adicionales (`mechanic`, `receptionist`) en algunos lugares del código, pero no están implementados en el sistema de permisos central. Se recomienda mapearlos a `employee` o crear roles específicos si se requiere.
+### 2. Asesor (advisor)
+- **Nivel**: 2
+- **Descripción**: Recepcionista o asesor de servicio
+- **Acceso**: Gestión completa de clientes y órdenes
+- **Restricciones**: NO maneja dinero (cobros, pagos). NO puede aprobar cotizaciones ni eliminar órdenes
+- **Funciones**: Atender clientes, crear órdenes, gestionar inventario para órdenes, responder WhatsApp
+
+### 3. Mecánico (mechanic)
+- **Nivel**: 1
+- **Descripción**: Técnico que ejecuta el trabajo
+- **Acceso**: Solo órdenes asignadas a él
+- **Restricciones**: NO crea órdenes, NO gestiona clientes, NO ve información financiera
+- **Funciones**: Ver órdenes asignadas, actualizar estado del trabajo, ver inventario disponible
 
 ---
 
 ## JERARQUÍA DE ROLES
 
 ```
-admin (nivel 4)
-  └─ manager (nivel 3)
-      └─ employee (nivel 2)
-          └─ viewer (nivel 1)
+admin (nivel 3) - Acceso total
+  └─ advisor (nivel 2) - Gestión operativa
+      └─ mechanic (nivel 1) - Ejecución de trabajo
 ```
 
-**Regla**: Un rol solo puede gestionar roles inferiores a él.
+**Regla**: Un rol solo puede gestionar roles inferiores a él. Solo `admin` puede gestionar usuarios.
 
 ---
 
@@ -36,201 +48,293 @@ admin (nivel 4)
 
 ### Módulo: Clientes (`customers`)
 
-| Acción | Admin | Manager | Employee | Viewer |
-|--------|:-----:|:-------:|:--------:|:------:|
-| Ver todos | ✅ | ✅ | ✅ | ✅ |
-| Crear | ✅ | ✅ | ✅ | ❌ |
-| Editar | ✅ | ✅ | ❌ | ❌ |
-| Eliminar | ✅ | ❌ | ❌ | ❌ |
+| Acción | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| Ver todos | ✅ | ✅ | ✅ |
+| Crear | ✅ | ✅ | ❌ |
+| Editar | ✅ | ✅ | ❌ |
+| Eliminar | ✅ | ✅ | ❌ |
 
 **Código de validación**:
 ```typescript
 // src/lib/auth/permissions.ts
 admin: { customers: ['create', 'read', 'update', 'delete'] }
-manager: { customers: ['create', 'read', 'update'] }
-employee: { customers: ['create', 'read'] }
-viewer: { customers: ['read'] }
+advisor: { customers: ['create', 'read', 'update', 'delete'] }
+mechanic: { customers: ['read'] }
 ```
 
 ---
 
 ### Módulo: Vehículos (`vehicles`)
 
-| Acción | Admin | Manager | Employee | Viewer |
-|--------|:-----:|:-------:|:--------:|:------:|
-| Ver todos | ✅ | ✅ | ✅ | ✅ |
-| Crear | ✅ | ✅ | ✅ | ❌ |
-| Editar | ✅ | ✅ | ❌ | ❌ |
-| Eliminar | ✅ | ❌ | ❌ | ❌ |
+| Acción | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| Ver todos | ✅ | ✅ | ✅ |
+| Crear | ✅ | ✅ | ❌ |
+| Editar | ✅ | ✅ | ❌ |
+| Eliminar | ✅ | ✅ | ❌ |
 
 **Código de validación**:
 ```typescript
 admin: { vehicles: ['create', 'read', 'update', 'delete'] }
-manager: { vehicles: ['create', 'read', 'update'] }
-employee: { vehicles: ['create', 'read'] }
-viewer: { vehicles: ['read'] }
+advisor: { vehicles: ['create', 'read', 'update', 'delete'] }
+mechanic: { vehicles: ['read'] }
 ```
 
 ---
 
 ### Módulo: Cotizaciones (`quotations`)
 
-| Acción | Admin | Manager | Employee | Viewer |
-|--------|:-----:|:-------:|:--------:|:------:|
-| Ver todas | ✅ | ✅ | ✅ | ✅ |
-| Crear | ✅ | ✅ | ✅ | ❌ |
-| Editar | ✅ | ✅ | ❌ | ❌ |
-| Eliminar | ✅ | ❌ | ❌ | ❌ |
-| Aprobar | ✅ | ✅ | ❌ | ❌ |
-| Convertir a factura | ✅ | ✅ | ❌ | ❌ |
+| Acción | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| Ver todas | ✅ | ✅ | ✅ |
+| Crear | ✅ | ✅ | ❌ |
+| Editar | ✅ | ✅ | ❌ |
+| Eliminar | ✅ | ❌ | ❌ |
+| Aprobar | ✅ | ❌ | ❌ |
+
+**Nota**: Solo `admin` puede aprobar y eliminar cotizaciones.
 
 **Código de validación**:
 ```typescript
-admin: { quotations: ['create', 'read', 'update', 'delete', 'approve', 'convert'] }
-manager: { quotations: ['create', 'read', 'update', 'approve', 'convert'] }
-employee: { quotations: ['create', 'read'] }
-viewer: { quotations: ['read'] }
+admin: { quotations: ['create', 'read', 'update', 'delete', 'approve'] }
+advisor: { quotations: ['create', 'read', 'update'] }
+mechanic: { quotations: ['read'] }
 ```
 
 ---
 
 ### Módulo: Órdenes de Trabajo (`work_orders`)
 
-| Acción | Admin | Manager | Employee | Viewer |
-|--------|:-----:|:-------:|:--------:|:------:|
-| Ver todas | ✅ | ✅ | ⚠️ Solo asignadas | ✅ |
-| Crear | ✅ | ✅ | ✅ | ❌ |
-| Editar | ✅ | ✅ | ⚠️ Solo asignadas | ❌ |
-| Eliminar | ✅ | ❌ | ❌ | ❌ |
-| Aprobar | ✅ | ✅ | ❌ | ❌ |
-| Completar | ✅ | ✅ | ⚠️ Solo asignadas | ❌ |
-| Asignar mecánico | ✅ | ✅ | ❌ | ❌ |
+| Acción | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| Ver todas | ✅ | ✅ | ⚠️ Solo asignadas |
+| Crear | ✅ | ✅ | ❌ |
+| Editar | ✅ | ✅ | ⚠️ Solo asignadas |
+| Eliminar | ✅ | ✅ | ❌ |
 
-**Nota**: Los empleados (`employee`) solo pueden ver/editar órdenes asignadas a ellos. Esta lógica debe implementarse en las queries, no solo en permisos.
+**Nota**: Los mecánicos (`mechanic`) solo pueden ver/editar órdenes asignadas a ellos. Usar función `canAccessWorkOrder()` para validar.
 
 **Código de validación**:
 ```typescript
-admin: { work_orders: ['create', 'read', 'update', 'delete', 'approve', 'complete'] }
-manager: { work_orders: ['create', 'read', 'update', 'approve', 'complete'] }
-employee: { work_orders: ['create', 'read', 'update'] }
-viewer: { work_orders: ['read'] }
+admin: { work_orders: ['create', 'read', 'update', 'delete'] }
+advisor: { work_orders: ['create', 'read', 'update', 'delete'] }
+mechanic: { work_orders: ['read', 'update'] } // Solo asignadas
+```
+
+**Validación especial**:
+```typescript
+import { canAccessWorkOrder } from '@/lib/auth/permissions'
+
+// Validar acceso a orden específica
+const canAccess = await canAccessWorkOrder(userId, workOrderId, userRole)
 ```
 
 ---
 
 ### Módulo: Facturas (`invoices`)
 
-| Acción | Admin | Manager | Employee | Viewer |
-|--------|:-----:|:-------:|:--------:|:------:|
-| Ver todas | ✅ | ✅ | ✅ | ✅ |
-| Crear | ✅ | ✅ | ❌ | ❌ |
-| Editar | ✅ | ✅ | ❌ | ❌ |
-| Eliminar | ✅ | ❌ | ❌ | ❌ |
-| Procesar pago | ✅ | ✅ | ❌ | ❌ |
-| Cancelar | ✅ | ❌ | ❌ | ❌ |
+| Acción | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| Ver todas | ✅ | ✅ | ❌ |
+| Crear | ✅ | ❌ | ❌ |
+| Editar | ✅ | ❌ | ❌ |
+| Eliminar | ✅ | ❌ | ❌ |
+| Procesar pago | ✅ | ❌ | ❌ |
+
+**Nota**: Solo `admin` maneja transacciones financieras (facturas y pagos).
 
 **Código de validación**:
 ```typescript
-admin: { invoices: ['create', 'read', 'update', 'delete', 'pay', 'cancel'] }
-manager: { invoices: ['create', 'read', 'update', 'pay'] }
-employee: { invoices: ['read'] }
-viewer: { invoices: ['read'] }
+admin: { invoices: ['create', 'read', 'update', 'delete', 'pay'] }
+advisor: { invoices: ['read'] }
+mechanic: { invoices: [] }
+```
+
+---
+
+### Módulo: Pagos (`payments`)
+
+| Acción | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| Ver todos | ✅ | ✅ | ❌ |
+| Crear | ✅ | ❌ | ❌ |
+| Editar | ✅ | ❌ | ❌ |
+| Eliminar | ✅ | ❌ | ❌ |
+
+**Nota**: Solo `admin` puede gestionar pagos a proveedores.
+
+**Código de validación**:
+```typescript
+admin: { payments: ['create', 'read', 'update', 'delete'] }
+advisor: { payments: ['read'] }
+mechanic: { payments: [] }
 ```
 
 ---
 
 ### Módulo: Inventario (`inventory`)
 
-| Acción | Admin | Manager | Employee | Viewer |
-|--------|:-----:|:-------:|:--------:|:------:|
-| Ver todos | ✅ | ✅ | ✅ | ✅ |
-| Crear producto | ✅ | ❌ | ❌ | ❌ |
-| Editar producto | ✅ | ❌ | ❌ | ❌ |
-| Eliminar producto | ✅ | ❌ | ❌ | ❌ |
-| Ajustar stock | ✅ | ✅ | ❌ | ❌ |
+| Acción | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| Ver todos | ✅ | ✅ | ✅ |
+| Crear producto | ✅ | ❌ | ❌ |
+| Editar producto | ✅ | ✅ | ❌ |
+| Eliminar producto | ✅ | ❌ | ❌ |
+| Ajustar stock | ✅ | ✅ | ❌ |
+
+**Nota**: `advisor` puede actualizar inventario (usar productos en órdenes), pero no crear/eliminar.
 
 **Código de validación**:
 ```typescript
 admin: { inventory: ['create', 'read', 'update', 'delete', 'adjust'] }
-manager: { inventory: ['read', 'adjust'] }
-employee: { inventory: ['read'] }
-viewer: { inventory: ['read'] }
+advisor: { inventory: ['read', 'update'] }
+mechanic: { inventory: ['read'] }
 ```
 
 ---
 
 ### Módulo: Proveedores (`suppliers`)
 
-| Acción | Admin | Manager | Employee | Viewer |
-|--------|:-----:|:-------:|:--------:|:------:|
-| Ver todos | ✅ | ✅ | ✅ | ✅ |
-| Crear | ✅ | ❌ | ❌ | ❌ |
-| Editar | ✅ | ❌ | ❌ | ❌ |
-| Eliminar | ✅ | ❌ | ❌ | ❌ |
+| Acción | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| Ver todos | ✅ | ❌ | ❌ |
+| Crear | ✅ | ❌ | ❌ |
+| Editar | ✅ | ❌ | ❌ |
+| Eliminar | ✅ | ❌ | ❌ |
+
+**Nota**: Solo `admin` gestiona proveedores.
 
 **Código de validación**:
 ```typescript
 admin: { suppliers: ['create', 'read', 'update', 'delete'] }
-manager: { suppliers: ['read'] }
-employee: { suppliers: ['read'] }
-viewer: { suppliers: ['read'] }
+advisor: { suppliers: [] }
+mechanic: { suppliers: [] }
 ```
 
 ---
 
 ### Módulo: Órdenes de Compra (`purchase_orders`)
 
-| Acción | Admin | Manager | Employee | Viewer |
-|--------|:-----:|:-------:|:--------:|:------:|
-| Ver todas | ✅ | ✅ | ✅ | ✅ |
-| Crear | ✅ | ❌ | ❌ | ❌ |
-| Editar | ✅ | ❌ | ❌ | ❌ |
-| Eliminar | ✅ | ❌ | ❌ | ❌ |
-| Aprobar | ✅ | ✅ | ❌ | ❌ |
-| Recibir | ✅ | ❌ | ❌ | ❌ |
-| Cancelar | ✅ | ❌ | ❌ | ❌ |
+| Acción | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| Ver todas | ✅ | ❌ | ❌ |
+| Crear | ✅ | ❌ | ❌ |
+| Editar | ✅ | ❌ | ❌ |
+| Eliminar | ✅ | ❌ | ❌ |
+| Aprobar | ✅ | ❌ | ❌ |
+
+**Nota**: Solo `admin` gestiona órdenes de compra.
 
 **Código de validación**:
 ```typescript
-admin: { purchase_orders: ['create', 'read', 'update', 'delete', 'approve', 'receive', 'cancel'] }
-manager: { purchase_orders: ['read', 'approve'] }
-employee: { purchase_orders: ['read'] }
-viewer: { purchase_orders: ['read'] }
+admin: { purchase_orders: ['create', 'read', 'update', 'delete', 'approve'] }
+advisor: { purchase_orders: [] }
+mechanic: { purchase_orders: [] }
+```
+
+---
+
+### Módulo: Empleados (`employees`)
+
+| Acción | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| Ver todos | ✅ | ✅ | ❌ |
+| Crear | ✅ | ❌ | ❌ |
+| Editar | ✅ | ❌ | ❌ |
+| Eliminar | ✅ | ❌ | ❌ |
+
+**Código de validación**:
+```typescript
+admin: { employees: ['create', 'read', 'update', 'delete'] }
+advisor: { employees: ['read'] }
+mechanic: { employees: [] }
+```
+
+---
+
+### Módulo: Usuarios (`users`)
+
+| Acción | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| Ver todos | ✅ | ❌ | ❌ |
+| Crear | ✅ | ❌ | ❌ |
+| Editar | ✅ | ❌ | ❌ |
+| Eliminar | ✅ | ❌ | ❌ |
+
+**Nota**: Solo `admin` puede gestionar usuarios del sistema.
+
+**Código de validación**:
+```typescript
+admin: { users: ['create', 'read', 'update', 'delete'] }
+advisor: { users: [] }
+mechanic: { users: [] }
 ```
 
 ---
 
 ### Módulo: Reportes (`reports`)
 
-| Acción | Admin | Manager | Employee | Viewer |
-|--------|:-----:|:-------:|:--------:|:------:|
-| Ver reportes | ✅ | ✅ | ❌ | ✅ |
+| Acción | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| Ver reportes | ✅ | ✅ | ❌ |
+
+**Nota**: 
+- `admin` ve todos los reportes (incluyendo financieros)
+- `advisor` ve reportes básicos (sin información financiera)
+- `mechanic` no tiene acceso a reportes
 
 **Código de validación**:
 ```typescript
 admin: { reports: ['read'] }
-manager: { reports: ['read'] }
-employee: { reports: [] }
-viewer: { reports: ['read'] }
+advisor: { reports: ['read'] }
+mechanic: { reports: [] }
 ```
 
-**Nota**: Los empleados no tienen acceso a reportes, pero los viewers sí (solo lectura).
+**Validación especial**:
+```typescript
+import { canViewFinancialReports } from '@/lib/auth/permissions'
+
+// Validar si puede ver reportes financieros
+const canViewFinancial = canViewFinancialReports(userRole) // Solo admin
+```
 
 ---
 
 ### Módulo: Configuraciones (`settings`)
 
-| Acción | Admin | Manager | Employee | Viewer |
-|--------|:-----:|:-------:|:--------:|:------:|
-| Ver configuración | ✅ | ✅ | ❌ | ❌ |
-| Modificar configuración | ✅ | ❌ | ❌ | ❌ |
+| Acción | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| Ver configuración | ✅ | ❌ | ❌ |
+| Modificar configuración | ✅ | ❌ | ❌ |
+
+**Nota**: Solo `admin` puede acceder a configuraciones.
 
 **Código de validación**:
 ```typescript
 admin: { settings: ['read', 'update'] }
-manager: { settings: ['read'] }
-employee: { settings: [] }
-viewer: { settings: [] }
+advisor: { settings: [] }
+mechanic: { settings: [] }
+```
+
+---
+
+### Módulo: WhatsApp (`whatsapp`)
+
+| Acción | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| Ver conversaciones | ✅ | ✅ | ❌ |
+| Configurar bot | ✅ | ❌ | ❌ |
+| Entrenar bot | ✅ | ❌ | ❌ |
+| Responder manualmente | ✅ | ✅ | ❌ |
+
+**Nota**: `advisor` puede ver y responder conversaciones de WhatsApp, pero no configurar el bot.
+
+**Código de validación**:
+```typescript
+admin: { whatsapp: ['create', 'read', 'update', 'delete'] }
+advisor: { whatsapp: ['read', 'update'] }
+mechanic: { whatsapp: [] }
 ```
 
 ---
@@ -239,39 +343,23 @@ viewer: { settings: [] }
 
 ### Gestión de Usuarios
 
-| Función | Admin | Manager | Employee | Viewer |
-|---------|:-----:|:-------:|:--------:|:------:|
-| Ver usuarios | ✅ | ✅ | ❌ | ❌ |
-| Crear usuarios | ✅ | ✅ | ❌ | ❌ |
-| Editar usuarios | ✅ | ✅ | ❌ | ❌ |
-| Eliminar usuarios | ✅ | ❌ | ❌ | ❌ |
-| Cambiar roles | ✅ | ⚠️ Solo inferiores | ❌ | ❌ |
+| Función | Admin | Advisor | Mechanic |
+|---------|:-----:|:-------:|:--------:|
+| Ver usuarios | ✅ | ❌ | ❌ |
+| Crear usuarios | ✅ | ❌ | ❌ |
+| Editar usuarios | ✅ | ❌ | ❌ |
+| Eliminar usuarios | ✅ | ❌ | ❌ |
+| Cambiar roles | ✅ | ❌ | ❌ |
 
 **Código de validación**:
 ```typescript
 // src/lib/auth/permissions.ts
 export function canManageUsers(userRole: UserRole): boolean {
-  return ['admin', 'manager'].includes(userRole)
+  return userRole === 'admin'
 }
 ```
 
-**Regla de jerarquía**: Un manager solo puede gestionar usuarios con roles inferiores (`employee`, `viewer`).
-
----
-
-### WhatsApp AI Agent
-
-| Función | Admin | Manager | Employee | Viewer |
-|---------|:-----:|:-------:|:--------:|:------:|
-| Ver conversaciones | ✅ | ✅ | ❌ | ❌ |
-| Configurar bot | ✅ | ✅ | ❌ | ❌ |
-| Entrenar bot | ✅ | ✅ | ❌ | ❌ |
-| Responder manualmente | ✅ | ✅ | ❌ | ❌ |
-
-**Nota**: Basado en código en `supabase/migrations/013_add_whatsapp_sessions.sql`:
-```sql
-AND user_profiles.role IN ('admin', 'manager')
-```
+**Regla**: Solo `admin` puede gestionar usuarios. `advisor` no tiene permisos de gestión de usuarios.
 
 ---
 
@@ -304,8 +392,8 @@ export async function GET(request: NextRequest) {
 // src/app/api/protected-example/route.ts
 import { withRoleValidation } from '@/lib/auth/validation'
 
-export const POST = withRoleValidation(['admin', 'manager'], async (request, user) => {
-  // Solo admin y manager pueden acceder
+export const POST = withRoleValidation(['admin', 'advisor'], async (request, user) => {
+  // Solo admin y advisor pueden acceder
   return NextResponse.json({ message: 'Autorizado' })
 })
 ```
@@ -317,7 +405,7 @@ export const POST = withRoleValidation(['admin', 'manager'], async (request, use
 import { withAccessValidation } from '@/lib/auth/validation'
 
 export const GET = withAccessValidation('quotations', 'approve', async (req, user) => {
-  // Solo usuarios con permiso 'approve' en 'quotations' pueden acceder
+  // Solo usuarios con permiso 'approve' en 'quotations' pueden acceder (solo admin)
   return NextResponse.json({ message: 'Cotización aprobada' })
 })
 ```
@@ -328,26 +416,44 @@ export const GET = withAccessValidation('quotations', 'approve', async (req, use
 // En componente o función
 import { hasPermission } from '@/lib/auth/permissions'
 
-const userRole = 'manager'
-const canApprove = hasPermission(userRole, 'quotations', 'approve')
-// canApprove = true
-
-const canDelete = hasPermission(userRole, 'customers', 'delete')
-// canDelete = false
+const userRole = 'advisor'
+const canDelete = hasPermission(userRole, 'customers', 'delete') // true
+const canApprove = hasPermission(userRole, 'quotations', 'approve') // false
 ```
 
 ---
 
 ## CASOS ESPECIALES
 
-### 1. Órdenes de Trabajo Asignadas
+### 1. Órdenes de Trabajo Asignadas (Mecánicos)
 
-**Problema**: Los empleados solo deben ver/editar órdenes asignadas a ellos.
+**Problema**: Los mecánicos solo deben ver/editar órdenes asignadas a ellos.
 
-**Solución**: Implementar filtro adicional en queries:
+**Solución**: Usar función `canAccessWorkOrder()`:
+
+```typescript
+import { canAccessWorkOrder } from '@/lib/auth/permissions'
+
+// En API Route
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  const user = await requireAuth(request)
+  
+  // Validar acceso específico para mecánicos
+  if (user.role === 'mechanic') {
+    const canAccess = await canAccessWorkOrder(user.id, params.id, user.role)
+    if (!canAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  }
+  
+  // Continuar con la lógica
+}
+```
+
+**En Queries**:
 ```typescript
 // src/lib/database/queries/work-orders.ts
-export async function getWorkOrdersForEmployee(employeeId: string) {
+export async function getWorkOrdersForMechanic(employeeId: string) {
   const supabase = await createClient()
   
   const { data } = await supabase
@@ -360,15 +466,27 @@ export async function getWorkOrdersForEmployee(employeeId: string) {
 }
 ```
 
-**Validación en API**:
+---
+
+### 2. Reportes Financieros
+
+**Problema**: Solo `admin` debe ver reportes con información financiera.
+
+**Solución**: Usar función `canViewFinancialReports()`:
+
 ```typescript
-// Verificar que el empleado solo acceda a sus órdenes
-if (user.role === 'employee' && order.assigned_to !== user.id) {
-  return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+import { canViewFinancialReports } from '@/lib/auth/permissions'
+
+// En componente o API
+if (!canViewFinancialReports(userRole)) {
+  // Ocultar secciones financieras
+  // O retornar error 403
 }
 ```
 
-### 2. Multi-Tenant: Filtro por Organization
+---
+
+### 3. Multi-Tenant: Filtro por Organization
 
 **Todas las queries deben filtrar por `organization_id`**:
 ```typescript
@@ -379,23 +497,16 @@ const { data } = await supabase
   .is('deleted_at', null) // Si aplica soft delete
 ```
 
-### 3. Jerarquía de Roles
+---
 
-**Un manager no puede gestionar otro manager o admin**:
+### 4. Jerarquía de Roles
+
+**Solo `admin` puede gestionar usuarios**:
 ```typescript
 // src/lib/auth/validation.ts
 export async function canManageUser(managerId: string, targetUserId: string): Promise<boolean> {
-  const roleHierarchy: Record<UserRole, number> = {
-    admin: 4,
-    manager: 3,
-    employee: 2,
-    viewer: 1
-  }
-  
-  const managerLevel = roleHierarchy[manager.role]
-  const targetLevel = roleHierarchy[target.role]
-  
-  return managerLevel > targetLevel // Solo si es superior
+  // Solo admin puede gestionar usuarios
+  return userRole === 'admin'
 }
 ```
 
@@ -409,8 +520,9 @@ export async function canManageUser(managerId: string, targetUserId: string): Pr
 import { hasPermission } from '@/lib/auth/permissions'
 
 // Verificar permiso específico
-hasPermission('manager', 'quotations', 'approve') // true
-hasPermission('employee', 'quotations', 'approve') // false
+hasPermission('advisor', 'customers', 'delete') // true
+hasPermission('advisor', 'quotations', 'approve') // false
+hasPermission('mechanic', 'customers', 'create') // false
 ```
 
 ### Obtener Acciones Permitidas
@@ -419,8 +531,18 @@ hasPermission('employee', 'quotations', 'approve') // false
 import { getAllowedActions } from '@/lib/auth/permissions'
 
 // Obtener todas las acciones permitidas para un recurso
-getAllowedActions('manager', 'quotations')
-// ['create', 'read', 'update', 'approve', 'convert']
+getAllowedActions('advisor', 'quotations')
+// ['create', 'read', 'update']
+```
+
+### Obtener Nombres de Roles
+
+```typescript
+import { ROLE_NAMES } from '@/lib/auth/permissions'
+
+ROLE_NAMES['admin'] // 'Administrador'
+ROLE_NAMES['advisor'] // 'Asesor'
+ROLE_NAMES['mechanic'] // 'Mecánico'
 ```
 
 ### Verificar Nivel de Acceso
@@ -429,8 +551,8 @@ getAllowedActions('manager', 'quotations')
 import { getAccessLevel } from '@/lib/auth/permissions'
 
 getAccessLevel('admin') // 'full'
-getAccessLevel('manager') // 'limited'
-getAccessLevel('viewer') // 'readonly'
+getAccessLevel('advisor') // 'limited'
+getAccessLevel('mechanic') // 'readonly'
 ```
 
 ### Verificar Jerarquía
@@ -438,8 +560,28 @@ getAccessLevel('viewer') // 'readonly'
 ```typescript
 import { isRoleSuperior } from '@/lib/auth/permissions'
 
-isRoleSuperior('admin', 'manager') // true
-isRoleSuperior('manager', 'admin') // false
+isRoleSuperior('admin', 'advisor') // true
+isRoleSuperior('advisor', 'mechanic') // true
+isRoleSuperior('mechanic', 'admin') // false
+```
+
+### Validar Acceso a Orden Específica
+
+```typescript
+import { canAccessWorkOrder } from '@/lib/auth/permissions'
+
+// Validar si un mecánico puede acceder a una orden
+const canAccess = await canAccessWorkOrder(userId, workOrderId, userRole)
+// Retorna true para admin/advisor, o verifica asignación para mechanic
+```
+
+### Validar Acceso a Reportes Financieros
+
+```typescript
+import { canViewFinancialReports } from '@/lib/auth/permissions'
+
+// Solo admin puede ver reportes financieros
+const canView = canViewFinancialReports(userRole) // true solo si es admin
 ```
 
 ---
@@ -485,10 +627,35 @@ export function QuotationForm() {
       <Input name="total" />
       <Checkbox 
         name="approved" 
-        disabled={!canApprove} // Deshabilitar si no tiene permiso
+        disabled={!canApprove} // Deshabilitar si no tiene permiso (solo admin)
       />
     </form>
   )
+}
+```
+
+### Ejemplo: Filtrar Órdenes por Rol
+
+```typescript
+'use client'
+import { useSession } from '@/contexts/SessionContext'
+import { useAuth } from '@/hooks/useAuth'
+import { useEffect, useState } from 'react'
+
+export function WorkOrdersList() {
+  const { user } = useSession()
+  const { profile } = useAuth()
+  const [orders, setOrders] = useState([])
+  
+  useEffect(() => {
+    if (user.role === 'mechanic') {
+      // Solo órdenes asignadas
+      fetchMyAssignedOrders(profile?.employee_id)
+    } else {
+      // Todas las órdenes
+      fetchAllOrders()
+    }
+  }, [user.role])
 }
 ```
 
@@ -512,7 +679,7 @@ export async function GET(request: NextRequest) {
   const organizationId = request.headers.get('x-organization-id')
   
   // Validar rol
-  if (!['admin', 'manager'].includes(userRole || '')) {
+  if (!['admin', 'advisor'].includes(userRole || '')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 }
@@ -520,45 +687,24 @@ export async function GET(request: NextRequest) {
 
 ---
 
-## ROLES ADICIONALES (NO IMPLEMENTADOS)
-
-### Mechanic / Receptionist
-
-**Estado**: Referenciados en código pero no implementados en sistema de permisos.
-
-**Recomendación**:
-1. **Opción A**: Mapear a `employee` (más simple)
-2. **Opción B**: Agregar como roles nuevos en `PERMISSIONS`:
-   ```typescript
-   mechanic: {
-     work_orders: ['read', 'update'], // Solo asignadas
-     customers: ['read'],
-     vehicles: ['read'],
-     // ...
-   }
-   ```
-
-**Código de referencia**:
-- `src/app/api/invitations/route.ts`: `const validRoles = ['admin', 'manager', 'mechanic', 'receptionist', 'user']`
-- `src/app/mecanicos/page.tsx`: Filtra por `role === 'mechanic'`
-
----
-
 ## TABLA DE RESUMEN RÁPIDO
 
-| Módulo | Admin | Manager | Employee | Viewer |
-|--------|:-----:|:-------:|:--------:|:------:|
-| **Clientes** | CRUD | CRU | CR | R |
-| **Vehículos** | CRUD | CRU | CR | R |
-| **Cotizaciones** | CRUD+AC | CRU+AC | CR | R |
-| **Órdenes** | CRUD+AC | CRU+AC | CR* | R |
-| **Facturas** | CRUD+PC | CRU+P | R | R |
-| **Inventario** | CRUD+A | R+A | R | R |
-| **Proveedores** | CRUD | R | R | R |
-| **Compras** | CRUD+ARC | R+A | R | R |
-| **Reportes** | R | R | - | R |
-| **Configuración** | RU | R | - | - |
-| **Usuarios** | CRUD | CRU* | - | - |
+| Módulo | Admin | Advisor | Mechanic |
+|--------|:-----:|:-------:|:--------:|
+| **Clientes** | CRUD | CRUD | R |
+| **Vehículos** | CRUD | CRUD | R |
+| **Cotizaciones** | CRUD+A | CRU | R |
+| **Órdenes** | CRUD | CRUD | RU* |
+| **Facturas** | CRUD+P | R | - |
+| **Pagos** | CRUD | R | - |
+| **Inventario** | CRUD+A | RU | R |
+| **Proveedores** | CRUD | - | - |
+| **Compras** | CRUD+A | - | - |
+| **Empleados** | CRUD | R | - |
+| **Usuarios** | CRUD | - | - |
+| **Reportes** | R | R** | - |
+| **Configuración** | RU | - | - |
+| **WhatsApp** | CRUD | RU | - |
 
 **Leyenda**:
 - **C** = Create (Crear)
@@ -567,21 +713,29 @@ export async function GET(request: NextRequest) {
 - **D** = Delete (Eliminar)
 - **A** = Approve (Aprobar)
 - **P** = Pay (Pagar)
-- **C** = Convert (Convertir)
-- **+** = Acciones adicionales
-- **\*** = Con restricciones (solo asignadas o roles inferiores)
+- **\*** = Solo órdenes asignadas
+- **\*\*** = Solo reportes básicos (sin financieros)
+
+---
+
+## FUNCIONES NUEVAS
+
+### `canAccessWorkOrder(userId, workOrderId, role, supabaseClient?)`
+Valida si un mecánico puede acceder a una orden específica. Retorna `true` para admin/advisor, o verifica que la orden esté asignada al empleado del mecánico.
+
+### `canViewFinancialReports(role)`
+Valida si puede ver reportes financieros. Solo retorna `true` para `admin`.
 
 ---
 
 ## MEJORAS RECOMENDADAS
 
-1. **Implementar roles `mechanic` y `receptionist`** si se requieren permisos específicos
-2. **Agregar permisos granulares** para acciones específicas (ej: "ver reportes financieros" vs "ver reportes generales")
-3. **Implementar permisos por módulo** en lugar de solo por rol (ej: "puede ver facturas pero no pagos")
-4. **Agregar auditoría de permisos** (log cuando se deniega acceso)
-5. **Crear UI para gestión de permisos** (asignar roles, ver permisos por rol)
+1. **Migrar roles existentes**: Actualizar usuarios con roles antiguos (`manager`, `employee`, `viewer`) a los nuevos roles
+2. **Agregar migración de BD**: Script SQL para actualizar roles en `system_users` y `user_profiles`
+3. **Actualizar UI**: Modificar componentes que muestran roles para usar los nuevos nombres
+4. **Actualizar validaciones**: Revisar todos los endpoints que validan roles antiguos
+5. **Documentar cambios**: Notificar a usuarios sobre el cambio de roles
 
 ---
 
-**Última actualización**: Diciembre 2024
-
+**Última actualización**: Enero 2025

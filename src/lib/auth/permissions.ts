@@ -6,61 +6,84 @@
  * para el ERP de taller automotriz
  */
 
-export type UserRole = 'admin' | 'manager' | 'employee' | 'viewer'
-export type Resource = 'customers' | 'quotations' | 'invoices' | 'reports' | 'suppliers' | 'settings' | 'vehicles' | 'inventory' | 'work_orders' | 'purchase_orders'
-export type Action = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'pay' | 'convert' | 'receive' | 'cancel'
+export type UserRole = 'admin' | 'advisor' | 'mechanic'
+export type Resource = 'customers' | 'quotations' | 'invoices' | 'reports' | 'suppliers' | 'settings' | 'vehicles' | 'inventory' | 'work_orders' | 'purchase_orders' | 'payments' | 'employees' | 'users' | 'whatsapp'
+export type Action = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'pay' | 'convert' | 'receive' | 'cancel' | 'adjust'
+
+/**
+ * Jerarquía de roles (de mayor a menor privilegio)
+ */
+export const ROLE_HIERARCHY: Record<UserRole, number> = {
+  admin: 3,      // Acceso total
+  advisor: 2,    // Gestión de clientes y órdenes
+  mechanic: 1,   // Solo órdenes asignadas
+}
+
+/**
+ * Nombres legibles de roles
+ */
+export const ROLE_NAMES: Record<UserRole, string> = {
+  admin: 'Administrador',
+  advisor: 'Asesor',
+  mechanic: 'Mecánico',
+}
 
 /**
  * Definir permisos por rol
+ * 
+ * Matriz de permisos para los 3 roles del sistema:
+ * - admin: Administrador/Dueño (acceso total)
+ * - advisor: Asesor/Recepcionista (gestión de clientes y órdenes)
+ * - mechanic: Mecánico (solo órdenes asignadas)
  */
-export const PERMISSIONS = {
+export const PERMISSIONS: Record<UserRole, Record<Resource, Action[]>> = {
   admin: {
     customers: ['create', 'read', 'update', 'delete'],
     vehicles: ['create', 'read', 'update', 'delete'],
-    quotations: ['create', 'read', 'update', 'delete', 'approve', 'convert'],
-    work_orders: ['create', 'read', 'update', 'delete', 'approve', 'complete'],
-    invoices: ['create', 'read', 'update', 'delete', 'pay', 'cancel'],
+    quotations: ['create', 'read', 'update', 'delete', 'approve'],
+    work_orders: ['create', 'read', 'update', 'delete'],
+    invoices: ['create', 'read', 'update', 'delete', 'pay'],
+    payments: ['create', 'read', 'update', 'delete'],
     reports: ['read'],
     suppliers: ['create', 'read', 'update', 'delete'],
-    purchase_orders: ['create', 'read', 'update', 'delete', 'approve', 'receive', 'cancel'],
+    purchase_orders: ['create', 'read', 'update', 'delete', 'approve'],
     inventory: ['create', 'read', 'update', 'delete', 'adjust'],
-    settings: ['read', 'update']
+    employees: ['create', 'read', 'update', 'delete'],
+    users: ['create', 'read', 'update', 'delete'],
+    settings: ['read', 'update'],
+    whatsapp: ['create', 'read', 'update', 'delete']
   },
-  manager: {
-    customers: ['create', 'read', 'update'],
-    vehicles: ['create', 'read', 'update'],
-    quotations: ['create', 'read', 'update', 'approve', 'convert'],
-    work_orders: ['create', 'read', 'update', 'approve', 'complete'],
-    invoices: ['create', 'read', 'update', 'pay'],
-    reports: ['read'],
-    suppliers: ['read'],
-    purchase_orders: ['read', 'approve'],
-    inventory: ['read', 'adjust'],
-    settings: ['read']
-  },
-  employee: {
-    customers: ['create', 'read'],
-    vehicles: ['create', 'read'],
-    quotations: ['create', 'read'],
-    work_orders: ['create', 'read', 'update'],
+  advisor: {
+    customers: ['create', 'read', 'update', 'delete'],
+    vehicles: ['create', 'read', 'update', 'delete'],
+    quotations: ['create', 'read', 'update'],
+    work_orders: ['create', 'read', 'update', 'delete'],
     invoices: ['read'],
-    reports: [],
-    suppliers: ['read'],
-    purchase_orders: ['read'],
-    inventory: ['read'],
-    settings: []
+    payments: ['read'],
+    reports: ['read'],
+    suppliers: [],
+    purchase_orders: [],
+    inventory: ['read', 'update'],
+    employees: ['read'],
+    users: [],
+    settings: [],
+    whatsapp: ['read', 'update']
   },
-  viewer: {
+  mechanic: {
     customers: ['read'],
     vehicles: ['read'],
     quotations: ['read'],
-    work_orders: ['read'],
-    invoices: ['read'],
-    reports: ['read'],
-    suppliers: ['read'],
-    purchase_orders: ['read'],
+    work_orders: ['read', 'update'], // Solo asignadas
+    invoices: [],
+    payments: [],
+    reports: [],
+    suppliers: [],
+    purchase_orders: [],
     inventory: ['read'],
-    settings: []
+    employees: [],
+    users: [],
+    settings: [],
+    whatsapp: []
   }
 } as const
 
@@ -155,29 +178,15 @@ export function getAccessibleResources(userRole: UserRole): Resource[] {
  * Verificar si un rol es superior a otro
  */
 export function isRoleSuperior(role1: UserRole, role2: UserRole): boolean {
-  const roleHierarchy: Record<UserRole, number> = {
-    admin: 4,
-    manager: 3,
-    employee: 2,
-    viewer: 1
-  }
-  
-  return roleHierarchy[role1] > roleHierarchy[role2]
+  return ROLE_HIERARCHY[role1] > ROLE_HIERARCHY[role2]
 }
 
 /**
  * Obtener roles inferiores a un rol dado
  */
 export function getInferiorRoles(userRole: UserRole): UserRole[] {
-  const roleHierarchy: Record<UserRole, number> = {
-    admin: 4,
-    manager: 3,
-    employee: 2,
-    viewer: 1
-  }
-  
-  const currentLevel = roleHierarchy[userRole]
-  return Object.entries(roleHierarchy)
+  const currentLevel = ROLE_HIERARCHY[userRole]
+  return Object.entries(ROLE_HIERARCHY)
     .filter(([_, level]) => level < currentLevel)
     .map(([role, _]) => role as UserRole)
 }
@@ -186,7 +195,7 @@ export function getInferiorRoles(userRole: UserRole): UserRole[] {
  * Verificar si un usuario puede gestionar otros usuarios
  */
 export function canManageUsers(userRole: UserRole): boolean {
-  return ['admin', 'manager'].includes(userRole)
+  return userRole === 'admin'
 }
 
 /**
@@ -224,11 +233,9 @@ export function getAccessLevel(userRole: UserRole): 'full' | 'limited' | 'readon
   switch (userRole) {
     case 'admin':
       return 'full'
-    case 'manager':
+    case 'advisor':
       return 'limited'
-    case 'employee':
-      return 'limited'
-    case 'viewer':
+    case 'mechanic':
       return 'readonly'
     default:
       return 'readonly'
@@ -247,5 +254,72 @@ export function canAccessSettings(userRole: UserRole): boolean {
  */
 export function canModifySettings(userRole: UserRole): boolean {
   return hasPermission(userRole, 'settings', 'update')
+}
+
+/**
+ * Valida si un mecánico puede acceder a una orden específica
+ * 
+ * @param userId - ID del usuario
+ * @param workOrderId - ID de la orden de trabajo
+ * @param role - Rol del usuario
+ * @param supabaseClient - Cliente de Supabase (opcional, se crea si no se proporciona)
+ * @returns true si puede acceder, false en caso contrario
+ */
+export async function canAccessWorkOrder(
+  userId: string,
+  workOrderId: string,
+  role: UserRole,
+  supabaseClient?: any
+): Promise<boolean> {
+  // Admin y advisor pueden acceder a todas
+  if (role === 'admin' || role === 'advisor') {
+    return true
+  }
+  
+  // Mecánico: solo órdenes asignadas a él
+  if (role === 'mechanic') {
+    // Crear cliente si no se proporciona
+    if (!supabaseClient) {
+      const { getSupabaseServerClient } = await import('@/lib/supabase/server')
+      supabaseClient = await getSupabaseServerClient()
+    }
+    
+    // Obtener la orden
+    const { data: workOrder, error: workOrderError } = await supabaseClient
+      .from('work_orders')
+      .select('assigned_to')
+      .eq('id', workOrderId)
+      .single()
+    
+    if (workOrderError || !workOrder || !workOrder.assigned_to) {
+      return false
+    }
+    
+    // Verificar si está asignada a este empleado
+    const { data: employee, error: employeeError } = await supabaseClient
+      .from('employees')
+      .select('id')
+      .eq('user_id', userId)
+      .single()
+    
+    if (employeeError || !employee) {
+      return false
+    }
+    
+    return workOrder.assigned_to === employee.id
+  }
+  
+  return false
+}
+
+/**
+ * Valida si puede ver reportes financieros
+ * Solo el administrador puede ver reportes con información financiera
+ * 
+ * @param role - Rol del usuario
+ * @returns true si puede ver reportes financieros
+ */
+export function canViewFinancialReports(role: UserRole): boolean {
+  return role === 'admin' // Solo admin ve reportes con dinero
 }
 
