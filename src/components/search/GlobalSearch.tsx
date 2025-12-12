@@ -166,6 +166,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] p-0 bg-slate-900 border-slate-700">
+        {/* DialogTitle agregado para cumplir con requisitos de accesibilidad de Radix UI */}
         <DialogHeader className="sr-only">
           <DialogTitle>Búsqueda Global</DialogTitle>
         </DialogHeader>

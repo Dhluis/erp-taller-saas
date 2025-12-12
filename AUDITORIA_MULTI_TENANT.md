@@ -474,3 +474,4 @@ WHERE tablename IN (
 **ANTES DE PRODUCCIÓN**: Corregir TODAS las vulnerabilidades de Prioridad 1. El sistema actualmente NO es seguro para uso multi-tenant en producción.
 
 
+
