@@ -255,38 +255,23 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         if (profileError.code === '404' || profileError.code === 'PGRST116') {
           console.warn('⚠️ [Session] PERFIL NO ENCONTRADO - El usuario necesita completar el onboarding')
           console.log('🔍 [Session] No se puede crear perfil automáticamente desde el cliente')
-          // No crear perfil desde el cliente - debe hacerse desde el backend
-          // El usuario será redirigido al onboarding si es necesario
-            .select()
-            .single()
           
-          if (!createError && newProfile) {
-            console.log('✅ [Session] Perfil creado automáticamente')
-            profile = newProfile
-            profileError = null
-          } else {
-            console.error('❌ [Session] Error al crear perfil automáticamente:', createError)
-            console.error('🔍 [Session] Verificar que existe un registro en public.users con:')
-            console.error('   - auth_user_id =', user.id)
-            console.error('   - email =', user.email)
-            
-            // Si no se pudo crear, continuar sin perfil pero permitir onboarding
-            const errorState = {
-              ...currentStateRef.current,
-              user,
-              organizationId: null,
-              workshopId: null,
-              profile: null,
-              isLoading: false,
-              isReady: true,
-              error: null, // No es un error fatal, el usuario puede completar onboarding
-              hasMultipleWorkshops: false
-            }
-            currentStateRef.current = errorState
-            setState(errorState)
-            console.warn('⚠️ [Session] Usuario sin perfil - será redirigido a onboarding')
-            return
+          // Continuar sin perfil pero permitir onboarding
+          const errorState = {
+            ...currentStateRef.current,
+            user,
+            organizationId: null,
+            workshopId: null,
+            profile: null,
+            isLoading: false,
+            isReady: true,
+            error: null, // No es un error fatal, el usuario puede completar onboarding
+            hasMultipleWorkshops: false
           }
+          currentStateRef.current = errorState
+          setState(errorState)
+          console.warn('⚠️ [Session] Usuario sin perfil - será redirigido a onboarding')
+          return
         } else {
           // Otro tipo de error (permisos, conexión, etc.)
           const errorState = {
