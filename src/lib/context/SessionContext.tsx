@@ -204,35 +204,42 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       lastUserId.current = user.id
 
       // 2. Obtener perfil de la tabla users (con organization_id)
+      // Usar endpoint API para evitar problemas de RLS
       console.log('🔍 [Session] Paso 2: Buscando perfil en tabla users...')
       console.log('🔍 [Session] Buscando perfil para auth_user_id:', user.id)
       
-      // Intentar primero con auth_user_id
-      let { data: profile, error: profileError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('auth_user_id', user.id)
-        .single()
-
-      // Si falla, intentar con email como fallback
-      if (profileError && (profileError.code === 'PGRST116' || profileError.code === '42703')) {
-        console.warn('⚠️ [Session] Perfil no encontrado con auth_user_id, intentando con email...')
-        console.log('🔍 [Session] Buscando perfil para email:', user.email)
+      let profile: any = null
+      let profileError: any = null
+      
+      try {
+        // Usar endpoint API que usa Service Role (bypass RLS)
+        const response = await fetch('/api/users/me', {
+          credentials: 'include',
+          cache: 'no-store'
+        })
         
-        const { data: profileByEmail, error: emailError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('email', user.email)
-          .single()
-        
-        if (!emailError && profileByEmail) {
-          console.log('✅ [Session] Perfil encontrado por email')
-          profile = profileByEmail
-          profileError = null
+        if (response.ok) {
+          const data = await response.json()
+          profile = data.profile
+          console.log('✅ [Session] Perfil obtenido desde API')
         } else {
-          console.error('❌ [Session] Error obteniendo perfil por email:', emailError)
-          profileError = emailError || profileError
+          const errorData = await response.json()
+          profileError = {
+            code: response.status.toString(),
+            message: errorData.error || 'Error al obtener perfil',
+            details: null,
+            hint: null
+          }
+          console.error('❌ [Session] Error obteniendo perfil desde API:', profileError)
         }
+      } catch (fetchError: any) {
+        profileError = {
+          code: 'FETCH_ERROR',
+          message: fetchError.message || 'Error al obtener perfil',
+          details: null,
+          hint: null
+        }
+        console.error('❌ [Session] Error en fetch a /api/users/me:', fetchError)
       }
 
       if (profileError) {
@@ -243,29 +250,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           hint: profileError.hint
         })
         
-        // Si el error es que no existe el perfil, intentar crearlo automáticamente
-        if (profileError.code === 'PGRST116') {
-          console.warn('⚠️ [Session] PERFIL NO ENCONTRADO - Intentando crear perfil automáticamente...')
-          console.log('🔍 [Session] Creando registro en public.users con:')
-          console.log('   - id =', user.id)
-          console.log('   - auth_user_id =', user.id)
-          console.log('   - email =', user.email)
-          
-          // Intentar crear el perfil básico
-          const { data: newProfile, error: createError } = await supabase
-            .from('users')
-            .insert({
-              id: user.id, // El id debe coincidir con auth.users.id según el schema
-              auth_user_id: user.id,
-              email: user.email || '',
-              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario',
-              organization_id: user.user_metadata?.organization_id || null,
-              workshop_id: null, // Se asignará en onboarding
-              role: 'ASESOR', // Rol por defecto
-              is_active: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
+        // Si el error es que no existe el perfil (404), no intentar crearlo automáticamente
+        // La creación de perfiles debe hacerse desde el backend
+        if (profileError.code === '404' || profileError.code === 'PGRST116') {
+          console.warn('⚠️ [Session] PERFIL NO ENCONTRADO - El usuario necesita completar el onboarding')
+          console.log('🔍 [Session] No se puede crear perfil automáticamente desde el cliente')
+          // No crear perfil desde el cliente - debe hacerse desde el backend
+          // El usuario será redirigido al onboarding si es necesario
             .select()
             .single()
           
