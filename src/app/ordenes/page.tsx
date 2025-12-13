@@ -516,10 +516,9 @@ export default function OrdenesPage() {
                               {(order as any).assigned_user.first_name} {(order as any).assigned_user.last_name}
                             </div>
                             <div className="text-xs text-slate-400">
-                              {((order as any).assigned_user.role === 'admin' ? 'Administrador' :
-                                (order as any).assigned_user.role === 'manager' ? 'Gerente' :
-                                (order as any).assigned_user.role === 'employee' ? 'Empleado' :
-                                (order as any).assigned_user.role === 'viewer' ? 'Visualizador' :
+                              {((order as any).assigned_user.role === 'ADMIN' ? 'Administrador' :
+                                (order as any).assigned_user.role === 'ASESOR' ? 'Asesor' :
+                                (order as any).assigned_user.role === 'MECANICO' ? 'Mecánico' :
                                 (order as any).assigned_user.role)}
                             </div>
                           </div>

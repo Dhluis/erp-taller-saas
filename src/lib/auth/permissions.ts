@@ -6,7 +6,7 @@
  * para el ERP de taller automotriz
  */
 
-export type UserRole = 'admin' | 'advisor' | 'mechanic'
+export type UserRole = 'ADMIN' | 'ASESOR' | 'MECANICO'
 export type Resource = 'customers' | 'quotations' | 'invoices' | 'reports' | 'suppliers' | 'settings' | 'vehicles' | 'inventory' | 'work_orders' | 'purchase_orders' | 'payments' | 'employees' | 'users' | 'whatsapp'
 export type Action = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'pay' | 'convert' | 'receive' | 'cancel' | 'adjust'
 
@@ -14,30 +14,30 @@ export type Action = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'pay'
  * Jerarquía de roles (de mayor a menor privilegio)
  */
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
-  admin: 3,      // Acceso total
-  advisor: 2,    // Gestión de clientes y órdenes
-  mechanic: 1,   // Solo órdenes asignadas
+  ADMIN: 3,      // Acceso total
+  ASESOR: 2,    // Gestión de clientes y órdenes
+  MECANICO: 1,   // Solo órdenes asignadas
 }
 
 /**
  * Nombres legibles de roles
  */
 export const ROLE_NAMES: Record<UserRole, string> = {
-  admin: 'Administrador',
-  advisor: 'Asesor',
-  mechanic: 'Mecánico',
+  ADMIN: 'Administrador',
+  ASESOR: 'Asesor',
+  MECANICO: 'Mecánico',
 }
 
 /**
  * Definir permisos por rol
  * 
  * Matriz de permisos para los 3 roles del sistema:
- * - admin: Administrador/Dueño (acceso total)
- * - advisor: Asesor/Recepcionista (gestión de clientes y órdenes)
- * - mechanic: Mecánico (solo órdenes asignadas)
+ * - ADMIN: Administrador/Dueño (acceso total)
+ * - ASESOR: Asesor/Recepcionista (gestión de clientes y órdenes)
+ * - MECANICO: Mecánico (solo órdenes asignadas)
  */
 export const PERMISSIONS: Record<UserRole, Record<Resource, Action[]>> = {
-  admin: {
+  ADMIN: {
     customers: ['create', 'read', 'update', 'delete'],
     vehicles: ['create', 'read', 'update', 'delete'],
     quotations: ['create', 'read', 'update', 'delete', 'approve'],
@@ -53,7 +53,7 @@ export const PERMISSIONS: Record<UserRole, Record<Resource, Action[]>> = {
     settings: ['read', 'update'],
     whatsapp: ['create', 'read', 'update', 'delete']
   },
-  advisor: {
+  ASESOR: {
     customers: ['create', 'read', 'update', 'delete'],
     vehicles: ['create', 'read', 'update', 'delete'],
     quotations: ['create', 'read', 'update'],
@@ -69,7 +69,7 @@ export const PERMISSIONS: Record<UserRole, Record<Resource, Action[]>> = {
     settings: [],
     whatsapp: ['read', 'update']
   },
-  mechanic: {
+  MECANICO: {
     customers: ['read'],
     vehicles: ['read'],
     quotations: ['read'],
@@ -195,7 +195,7 @@ export function getInferiorRoles(userRole: UserRole): UserRole[] {
  * Verificar si un usuario puede gestionar otros usuarios
  */
 export function canManageUsers(userRole: UserRole): boolean {
-  return userRole === 'admin'
+  return userRole === 'ADMIN'
 }
 
 /**
@@ -231,11 +231,11 @@ export function canManageInventory(userRole: UserRole): boolean {
  */
 export function getAccessLevel(userRole: UserRole): 'full' | 'limited' | 'readonly' {
   switch (userRole) {
-    case 'admin':
+    case 'ADMIN':
       return 'full'
-    case 'advisor':
+    case 'ASESOR':
       return 'limited'
-    case 'mechanic':
+    case 'MECANICO':
       return 'readonly'
     default:
       return 'readonly'
@@ -271,13 +271,13 @@ export async function canAccessWorkOrder(
   role: UserRole,
   supabaseClient: any // Requerido explícitamente para evitar imports del servidor
 ): Promise<boolean> {
-  // Admin y advisor pueden acceder a todas
-  if (role === 'admin' || role === 'advisor') {
+  // Admin y asesor pueden acceder a todas
+  if (role === 'ADMIN' || role === 'ASESOR') {
     return true
   }
   
   // Mecánico: solo órdenes asignadas a él
-  if (role === 'mechanic' && supabaseClient) {
+  if (role === 'MECANICO' && supabaseClient) {
     
     // Obtener la orden
     const { data: workOrder, error: workOrderError } = await supabaseClient
@@ -315,6 +315,6 @@ export async function canAccessWorkOrder(
  * @returns true si puede ver reportes financieros
  */
 export function canViewFinancialReports(role: UserRole): boolean {
-  return role === 'admin' // Solo admin ve reportes con dinero
+  return role === 'ADMIN' // Solo admin ve reportes con dinero
 }
 

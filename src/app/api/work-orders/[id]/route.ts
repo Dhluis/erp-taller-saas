@@ -50,7 +50,7 @@ export async function GET(
     
     // ✅ VALIDACIÓN: Si es mecánico, verificar que puede acceder a esta orden
     const currentUserRole = currentUser.role as UserRole;
-    if (currentUserRole === 'mechanic') {
+    if (currentUserRole === 'MECANICO') {
       const canAccess = await canAccessWorkOrder(
         tenantContext.userId,
         params.id,
@@ -135,7 +135,7 @@ export async function PUT(
     
     // ✅ VALIDACIÓN: Si es mecánico, verificar que puede acceder a esta orden
     const currentUserRole = currentUser.role as UserRole;
-    if (currentUserRole === 'mechanic') {
+    if (currentUserRole === 'MECANICO') {
       const canAccess = await canAccessWorkOrder(
         tenantContext.userId,
         params.id,
@@ -259,8 +259,8 @@ export async function DELETE(
       );
     }
     
-    // ✅ VALIDACIÓN: Si es advisor, solo puede eliminar órdenes en 'reception' o 'cancelled'
-    if (currentUserRole === 'advisor') {
+    // ✅ VALIDACIÓN: Si es asesor, solo puede eliminar órdenes en 'reception' o 'cancelled'
+    if (currentUserRole === 'ASESOR') {
       const order = await getWorkOrderById(params.id);
       
       if (!order) {

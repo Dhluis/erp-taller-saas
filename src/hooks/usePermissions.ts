@@ -18,9 +18,9 @@ export function usePermissions() {
 
   return {
     role,
-    isAdmin: role === 'admin',
-    isAdvisor: role === 'advisor',
-    isMechanic: role === 'mechanic',
+    isAdmin: role === 'ADMIN',
+    isAdvisor: role === 'ASESOR',
+    isMechanic: role === 'MECANICO',
     
     // Verificar permisos específicos
     canCreate: (resource: Resource) => {

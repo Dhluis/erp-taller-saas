@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
         email: body.email,
         first_name: body.fullName.split(' ')[0] || body.fullName,
         last_name: body.fullName.split(' ').slice(1).join(' ') || '',
-        role: 'admin', // El primer usuario es admin/owner
+        role: 'ADMIN', // El primer usuario es admin/owner
         is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

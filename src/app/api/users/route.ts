@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Validar que el rol sea válido
-    const validRoles: UserRole[] = ['admin', 'advisor', 'mechanic']
+    const validRoles: UserRole[] = ['ADMIN', 'ASESOR', 'MECANICO']
     if (!validRoles.includes(role)) {
       return NextResponse.json(
         { error: `Rol inválido. Debe ser: ${validRoles.join(', ')}` },
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
     }
     
     // 9. Si es mecánico, crear también registro en tabla employees
-    if (role === 'mechanic') {
+    if (role === 'MECANICO') {
       const { error: employeeError } = await (supabase as any)
         .from('employees')
         .insert({

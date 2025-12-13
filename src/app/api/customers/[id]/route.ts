@@ -156,8 +156,8 @@ export async function DELETE(
       }, { status: 403 })
     }
     
-    // ✅ VALIDACIÓN: Si es advisor, verificar que no tenga órdenes activas
-    if (currentUserRole === 'advisor') {
+    // ✅ VALIDACIÓN: Si es asesor, verificar que no tenga órdenes activas
+    if (currentUserRole === 'ASESOR') {
       const { data: activeOrders, error: ordersError } = await supabase
         .from('work_orders')
         .select('id, status')
@@ -192,7 +192,7 @@ export async function DELETE(
 
     // Admin puede eliminar incluso con órdenes (ya que se validó arriba si es advisor)
     // Esta verificación adicional es para advertir al admin
-    if (orders && orders.length > 0 && currentUserRole === 'admin') {
+    if (orders && orders.length > 0 && currentUserRole === 'ADMIN') {
       console.warn('⚠️ Admin eliminando cliente con órdenes asociadas')
     }
 

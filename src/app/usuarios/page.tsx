@@ -65,7 +65,7 @@ const userSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   email: z.string().email('Email inválido'),
   password: z.string().optional(),
-  role: z.enum(['admin', 'advisor', 'mechanic'] as const),
+  role: z.enum(['ADMIN', 'ASESOR', 'MECANICO'] as const),
   phone: z.string().optional(),
 }).refine((data) => {
   // Si no hay usuario seleccionado (modo crear), password es requerido
@@ -107,7 +107,7 @@ export default function UsuariosPage() {
       name: '',
       email: '',
       password: '',
-      role: 'advisor',
+      role: 'ASESOR',
       phone: '',
     },
   })
@@ -117,7 +117,7 @@ export default function UsuariosPage() {
   // ✅ PROTECCIÓN DE RUTA: Solo admin puede acceder
   useEffect(() => {
     if (!sessionLoading && profile) {
-      if (profile.role !== 'admin') {
+      if (profile.role !== 'ADMIN') {
         toast.error('No tienes permisos para acceder a esta página')
         router.push('/dashboard')
       }
@@ -126,7 +126,7 @@ export default function UsuariosPage() {
 
   // Cargar usuarios
   useEffect(() => {
-    if (profile?.role === 'admin') {
+    if (profile?.role === 'ADMIN') {
       loadUsers()
     }
   }, [profile])
@@ -305,7 +305,7 @@ export default function UsuariosPage() {
       name: '',
       email: '',
       password: '',
-      role: 'advisor',
+      role: 'ASESOR',
       phone: '',
     })
     setIsModalOpen(true)
@@ -320,11 +320,11 @@ export default function UsuariosPage() {
 
   const getRoleBadgeVariant = (role: UserRole) => {
     switch (role) {
-      case 'admin':
+      case 'ADMIN':
         return 'error' as const
-      case 'advisor':
+      case 'ASESOR':
         return 'info' as const
-      case 'mechanic':
+      case 'MECANICO':
         return 'success' as const
       default:
         return 'secondary' as const
@@ -332,7 +332,7 @@ export default function UsuariosPage() {
   }
 
   // No mostrar nada si no es admin
-  if (!sessionLoading && profile?.role !== 'admin') {
+  if (!sessionLoading && profile?.role !== 'ADMIN') {
     return null
   }
 
@@ -350,7 +350,7 @@ export default function UsuariosPage() {
               <Users className="h-6 w-6" />
               Usuarios
             </CardTitle>
-            {profile?.role === 'admin' && (
+            {profile?.role === 'ADMIN' && (
               <Button onClick={handleOpenCreateModal}>
                 <Plus className="h-4 w-4 mr-2" />
                 Crear Usuario
@@ -366,7 +366,7 @@ export default function UsuariosPage() {
               <div className="text-center py-12 text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No hay usuarios registrados</p>
-                {profile?.role === 'admin' && (
+                {profile?.role === 'ADMIN' && (
                   <Button onClick={handleOpenCreateModal} className="mt-4">
                     <Plus className="h-4 w-4 mr-2" />
                     Crear primer usuario
@@ -531,14 +531,14 @@ export default function UsuariosPage() {
                   <SelectValue placeholder="Seleccionar rol" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">
-                    {ROLE_NAMES.admin}
+                  <SelectItem value="ADMIN">
+                    {ROLE_NAMES.ADMIN}
                   </SelectItem>
-                  <SelectItem value="advisor">
-                    {ROLE_NAMES.advisor}
+                  <SelectItem value="ASESOR">
+                    {ROLE_NAMES.ASESOR}
                   </SelectItem>
-                  <SelectItem value="mechanic">
-                    {ROLE_NAMES.mechanic}
+                  <SelectItem value="MECANICO">
+                    {ROLE_NAMES.MECANICO}
                   </SelectItem>
                 </SelectContent>
               </Select>

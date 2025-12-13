@@ -106,7 +106,7 @@ export async function PATCH(
     const updateData: any = {}
     if (name !== undefined) updateData.name = name
     if (role !== undefined) {
-      const validRoles: UserRole[] = ['admin', 'advisor', 'mechanic']
+      const validRoles: UserRole[] = ['ADMIN', 'ASESOR', 'MECANICO']
       if (!validRoles.includes(role)) {
         return NextResponse.json(
           { error: `Rol inválido. Debe ser: ${validRoles.join(', ')}` },
