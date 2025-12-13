@@ -242,14 +242,14 @@ export async function DELETE(
     }
     
     // Validar que el usuario a eliminar existe y pertenece a la organización
-    const { data: existingUser, error: existingError } = await (supabase as any)
+    const { data: targetUser, error: existingError } = await (supabase as any)
       .from('users')
-      .select('id, auth_user_id')
+      .select('id, auth_user_id, role')
       .eq('id', params.id)
       .eq('organization_id', organizationId)
       .single()
     
-    if (existingError || !existingUser) {
+    if (existingError || !targetUser) {
       return NextResponse.json(
         { error: 'Usuario no encontrado' },
         { status: 404 }
@@ -257,11 +257,38 @@ export async function DELETE(
     }
     
     // No permitir auto-eliminación
-    if (existingUser.auth_user_id === userId) {
+    if (targetUser.auth_user_id === userId) {
       return NextResponse.json(
         { error: 'No puedes eliminarte a ti mismo' },
         { status: 400 }
       )
+    }
+    
+    // Validar: No permitir eliminar el último admin activo
+    if (targetUser.role === 'ADMIN') {
+      const { count, error: countError } = await (supabase as any)
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+        .eq('role', 'ADMIN')
+        .eq('is_active', true)
+      
+      console.log('[DELETE /api/users/[id]] Contando admins activos:', count)
+      
+      if (countError) {
+        console.error('[DELETE /api/users/[id]] Error contando admins:', countError)
+        return NextResponse.json(
+          { error: 'Error al validar permisos' },
+          { status: 500 }
+        )
+      }
+      
+      if (count === 1) {
+        return NextResponse.json(
+          { error: 'No puedes eliminar el último administrador activo de la organización' },
+          { status: 400 }
+        )
+      }
     }
     
     // Eliminar usuario de auth primero (usando service role)
