@@ -29,11 +29,13 @@ export async function GET(request: NextRequest) {
       )
     }
     
-    const supabase = await createClient()
+    // ⚠️ CRÍTICO: Usar Service Role Client para bypass RLS
+    const supabaseAdmin = getSupabaseServiceClient()
+    console.log('[GET /api/users] Usando Service Role Client para bypass RLS')
     
     // Obtener todos los usuarios de la organización
     console.log('[GET /api/users] Ejecutando query...')
-    const { data: users, error } = await supabase
+    const { data: users, error } = await supabaseAdmin
       .from('users')
       .select('id, auth_user_id, email, full_name, role, phone, is_active, created_at, updated_at')
       .eq('organization_id', organizationId)
@@ -110,9 +112,9 @@ export async function POST(request: NextRequest) {
     
     const { organizationId, userId } = await getTenantContext(request)
     
-    // Obtener rol del usuario actual
-    const supabase = await getSupabaseServerClient()
-    const { data: currentUser } = await supabase
+    // Obtener rol del usuario actual usando Service Role (bypass RLS)
+    const supabaseAdmin = getSupabaseServiceClient()
+    const { data: currentUser } = await supabaseAdmin
       .from('users')
       .select('role')
       .eq('auth_user_id', userId)
@@ -136,8 +138,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Rol inválido' }, { status: 400 })
     }
 
-    // ⚠️ CRÍTICO: Usar Service Role Client (bypasses RLS)
-    const supabaseAdmin = getSupabaseServiceClient()
+    // ⚠️ CRÍTICO: Usar Service Role Client para crear usuario (bypasses RLS)
     console.log('[POST /api/users] Usando Service Role Client para crear usuario')
 
     // 1. Crear en auth.users
