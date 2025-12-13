@@ -24,10 +24,33 @@ function getSupabaseAdmin() {
 
 export async function GET(request: NextRequest) {
   try {
-    const { organizationId } = await getTenantContext(request)
+    console.log('[GET /api/users] Iniciando...')
+    
+    // Obtener contexto del tenant
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext) {
+      console.error('[GET /api/users] No se pudo obtener tenantContext')
+      return NextResponse.json(
+        { error: 'No autorizado' },
+        { status: 401 }
+      )
+    }
+    
+    const { organizationId } = tenantContext
+    console.log('[GET /api/users] organizationId:', organizationId)
+    
+    if (!organizationId) {
+      console.error('[GET /api/users] organizationId es null o undefined')
+      return NextResponse.json(
+        { error: 'No se pudo obtener la organización' },
+        { status: 400 }
+      )
+    }
+    
     const supabase = await createClient()
     
     // Obtener todos los usuarios de la organización
+    console.log('[GET /api/users] Ejecutando query...')
     const { data: users, error } = await supabase
       .from('users')
       .select('id, auth_user_id, email, name, role, phone, is_active, created_at, updated_at')
@@ -35,13 +58,33 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
     
     if (error) {
-      console.error('Error in GET /api/users:', error)
-      throw error
+      console.error('[GET /api/users] Error en query Supabase:', error)
+      console.error('[GET /api/users] Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
+      return NextResponse.json(
+        { error: `Error al obtener usuarios: ${error.message}` },
+        { status: 500 }
+      )
+    }
+    
+    console.log('[GET /api/users] Usuarios obtenidos:', users?.length || 0)
+    if (users && users.length > 0) {
+      console.log('[GET /api/users] Primer usuario:', {
+        id: users[0].id,
+        email: users[0].email,
+        name: users[0].name,
+        role: users[0].role
+      })
     }
     
     return NextResponse.json({ users: users || [] })
   } catch (error: any) {
-    console.error('Error in GET /api/users:', error)
+    console.error('[GET /api/users] Error catch:', error)
+    console.error('[GET /api/users] Error stack:', error.stack)
     return NextResponse.json(
       { error: error.message || 'Error al obtener usuarios' },
       { status: 500 }
