@@ -23,88 +23,79 @@ import {
   Trash2,
   Save
 } from "lucide-react"
-import { getSystemUsers, getUserStats, createSystemUser, updateSystemUser, deleteSystemUser, SystemUser, UserStats } from "@/lib/supabase/system-users"
-import { useOrganization } from "@/lib/context/SessionContext"
 import { toast } from "sonner"
+import type { User, CreateUserRequest } from "@/types/user"
+import { UserRole, ROLE_NAMES } from "@/lib/auth/permissions"
+
+interface UserResponse {
+  users: User[]
+}
 
 export default function UsuariosPage() {
-  const { organizationId, loading: orgLoading } = useOrganization()
   const [searchTerm, setSearchTerm] = useState("")
-  const [users, setUsers] = useState<SystemUser[]>([])
-  const [stats, setStats] = useState<UserStats>({
+  const [users, setUsers] = useState<User[]>([])
+  const [stats, setStats] = useState({
     totalUsers: 0,
     activeUsers: 0,
     inactiveUsers: 0,
-    usersByRole: {
-      admin: 0,
-      manager: 0,
-      employee: 0,
-      viewer: 0
-    }
+    adminUsers: 0
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingUser, setEditingUser] = useState<SystemUser | null>(null)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
+    name: '',
     email: '',
-    role: 'employee' as 'admin' | 'manager' | 'employee' | 'viewer',
-    is_active: true
+    role: 'ASESOR' as UserRole,
+    phone: '',
+    password: ''
   })
 
   useEffect(() => {
-    if (!orgLoading && organizationId) {
-      loadData()
-    }
-  }, [organizationId, orgLoading])
+    loadData()
+  }, [])
 
   const loadData = async () => {
-    if (!organizationId) {
-      console.log('⚠️ No hay organizationId, esperando...')
-      return
-    }
-
     setIsLoading(true)
     try {
-      console.log('🔄 Cargando usuarios para organizationId:', organizationId)
+      const response = await fetch('/api/users', {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al cargar usuarios')
+      }
+
+      const data: UserResponse = await response.json()
+      const usersData = data.users || []
       
-      const [usersData, statsData] = await Promise.all([
-        getSystemUsers({ organization_id: organizationId }),
-        getUserStats(organizationId)
-      ])
-      
-      console.log('✅ Usuarios cargados:', usersData.length)
-      console.log('✅ Estadísticas:', statsData)
-      
-      // ✅ USAR DATOS REALES - NO MOCKS
       setUsers(usersData)
       
-      // Convertir usersByRole de array a objeto para compatibilidad
-      const usersByRoleObj = statsData.usersByRole.reduce((acc: any, item: any) => {
-        acc[item.role] = item.count
-        return acc
-      }, { admin: 0, manager: 0, employee: 0, viewer: 0 })
+      // Calcular estadísticas
+      const totalUsers = usersData.length
+      const activeUsers = usersData.filter(u => u.is_active).length
+      const inactiveUsers = totalUsers - activeUsers
+      const adminUsers = usersData.filter(u => u.role === 'ADMIN').length
       
       setStats({
-        totalUsers: statsData.totalUsers,
-        activeUsers: statsData.activeUsers,
-        inactiveUsers: statsData.inactiveUsers,
-        usersByRole: usersByRoleObj
+        totalUsers,
+        activeUsers,
+        inactiveUsers,
+        adminUsers
       })
     } catch (error) {
       console.error('❌ Error loading data:', error)
       toast.error('Error al cargar usuarios', {
         description: error instanceof Error ? error.message : 'Intenta recargar la página'
       })
-      // ✅ NO USAR MOCKS - Dejar arrays vacíos
       setUsers([])
       setStats({
         totalUsers: 0,
         activeUsers: 0,
         inactiveUsers: 0,
-        usersByRole: { admin: 0, manager: 0, employee: 0, viewer: 0 }
+        adminUsers: 0
       })
     } finally {
       setIsLoading(false)
@@ -113,23 +104,22 @@ export default function UsuariosPage() {
 
   const filteredUsers = users.filter(
     (user) =>
-      `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.role || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const getRoleBadge = (role: string) => {
+  const getRoleBadge = (role: UserRole) => {
+    const roleName = ROLE_NAMES[role] || role
     switch (role) {
-      case "admin":
-        return <Badge variant="outline" className="bg-red-500 text-white">{role}</Badge>
-      case "manager":
-        return <Badge variant="outline" className="bg-blue-500 text-white">{role}</Badge>
-      case "employee":
-        return <Badge variant="outline" className="bg-green-500 text-white">{role}</Badge>
-      case "viewer":
-        return <Badge variant="outline" className="bg-gray-500 text-white">{role}</Badge>
+      case "ADMIN":
+        return <Badge variant="outline" className="bg-red-500 text-white">{roleName}</Badge>
+      case "ASESOR":
+        return <Badge variant="outline" className="bg-blue-500 text-white">{roleName}</Badge>
+      case "MECANICO":
+        return <Badge variant="outline" className="bg-green-500 text-white">{roleName}</Badge>
       default:
-        return <Badge variant="outline">{role}</Badge>
+        return <Badge variant="outline">{roleName}</Badge>
     }
   }
 
@@ -149,37 +139,62 @@ export default function UsuariosPage() {
     setFormData(prev => ({ ...prev, [id]: value }))
   }
 
-  const handleSelectChange = (id: string, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [id]: value }))
+  const handleSelectChange = (id: string, value: string) => {
+    setFormData(prev => ({ ...prev, [id]: value as UserRole }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!organizationId) {
-      toast.error('Error', {
-        description: 'No se pudo obtener la organización. Intenta recargar la página.'
-      })
-      return
-    }
-
     setIsSubmitting(true)
 
     try {
-      const userData = {
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        email: formData.email,
-        role: formData.role,
-        organization_id: organizationId,
-        is_active: formData.is_active
-      }
-
       if (editingUser) {
-        await updateSystemUser(editingUser.id, userData)
+        // Actualizar usuario
+        const response = await fetch(`/api/users/${editingUser.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: formData.name,
+            email: formData.email,
+            role: formData.role,
+            phone: formData.phone || undefined
+          })
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Error al actualizar usuario')
+        }
+
         toast.success('Usuario actualizado exitosamente')
       } else {
-        await createSystemUser(userData)
+        // Crear usuario
+        if (!formData.password || formData.password.length < 8) {
+          toast.error('La contraseña debe tener al menos 8 caracteres')
+          setIsSubmitting(false)
+          return
+        }
+
+        const response = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: formData.name,
+            email: formData.email,
+            password: formData.password,
+            role: formData.role,
+            phone: formData.phone || undefined
+          } as CreateUserRequest)
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Error al crear usuario')
+        }
+
         toast.success('Usuario creado exitosamente')
       }
       
@@ -187,11 +202,11 @@ export default function UsuariosPage() {
       setIsDialogOpen(false)
       setEditingUser(null)
       setFormData({
-        first_name: '',
-        last_name: '',
+        name: '',
         email: '',
-        role: 'employee',
-        is_active: true
+        role: 'ASESOR',
+        phone: '',
+        password: ''
       })
     } catch (error) {
       console.error("❌ Error submitting user:", error)
@@ -203,14 +218,14 @@ export default function UsuariosPage() {
     }
   }
 
-  const handleEdit = (user: SystemUser) => {
+  const handleEdit = (user: User) => {
     setEditingUser(user)
     setFormData({
-      first_name: user.first_name || '',
-      last_name: user.last_name || '',
+      name: user.name || '',
       email: user.email,
       role: user.role,
-      is_active: user.is_active ?? true
+      phone: user.phone || '',
+      password: '' // No mostrar contraseña
     })
     setIsDialogOpen(true)
   }
@@ -219,7 +234,16 @@ export default function UsuariosPage() {
     if (confirm("¿Estás seguro de que quieres eliminar este usuario?")) {
       setIsSubmitting(true)
       try {
-        await deleteSystemUser(id)
+        const response = await fetch(`/api/users/${id}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Error al eliminar usuario')
+        }
+
         await loadData()
         toast.success('Usuario eliminado exitosamente')
       } catch (error) {
@@ -236,11 +260,11 @@ export default function UsuariosPage() {
   const handleAddUser = () => {
     setEditingUser(null)
     setFormData({
-      first_name: '',
-      last_name: '',
+      name: '',
       email: '',
-      role: 'employee',
-      is_active: true
+      role: 'ASESOR',
+      phone: '',
+      password: ''
     })
     setIsDialogOpen(true)
   }
@@ -288,20 +312,10 @@ export default function UsuariosPage() {
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="first_name">Nombre</Label>
+                  <Label htmlFor="name">Nombre Completo</Label>
                   <Input
-                    id="first_name"
-                    value={formData.first_name}
-                    onChange={handleInputChange}
-                    className="w-full bg-slate-900/70 border-slate-600 text-white h-11"
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="last_name">Apellido</Label>
-                  <Input
-                    id="last_name"
-                    value={formData.last_name}
+                    id="name"
+                    value={formData.name}
                     onChange={handleInputChange}
                     className="w-full bg-slate-900/70 border-slate-600 text-white h-11"
                     required
@@ -318,6 +332,30 @@ export default function UsuariosPage() {
                     required
                   />
                 </div>
+                {!editingUser && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="password">Contraseña</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className="w-full bg-slate-900/70 border-slate-600 text-white h-11"
+                      required={!editingUser}
+                      minLength={8}
+                    />
+                  </div>
+                )}
+                <div className="grid gap-2">
+                  <Label htmlFor="phone">Teléfono (Opcional)</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    className="w-full bg-slate-900/70 border-slate-600 text-white h-11"
+                  />
+                </div>
                 <div className="grid gap-2">
                   <Label htmlFor="role">Rol</Label>
                   <Select value={formData.role} onValueChange={(value) => handleSelectChange('role', value)}>
@@ -329,26 +367,9 @@ export default function UsuariosPage() {
                       sideOffset={4}
                       position="popper"
                     >
-                      <SelectItem value="admin" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">Administrador</SelectItem>
-                      <SelectItem value="manager" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">Gerente</SelectItem>
-                      <SelectItem value="employee" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">Empleado</SelectItem>
-                      <SelectItem value="viewer" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">Visualizador</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="is_active">Estado</Label>
-                  <Select value={formData.is_active ? 'active' : 'inactive'} onValueChange={(value) => handleSelectChange('is_active', value === 'active')}>
-                    <SelectTrigger className="w-full h-11 bg-slate-900 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
-                      <SelectValue placeholder="Selecciona estado" />
-                    </SelectTrigger>
-                    <SelectContent
-                      className="z-[9999] bg-slate-900 text-white border border-slate-600 shadow-2xl"
-                      sideOffset={4}
-                      position="popper"
-                    >
-                      <SelectItem value="active" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">Activo</SelectItem>
-                      <SelectItem value="inactive" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">Inactivo</SelectItem>
+                      <SelectItem value="ADMIN" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">{ROLE_NAMES.ADMIN}</SelectItem>
+                      <SelectItem value="ASESOR" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">{ROLE_NAMES.ASESOR}</SelectItem>
+                      <SelectItem value="MECANICO" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">{ROLE_NAMES.MECANICO}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -410,7 +431,7 @@ export default function UsuariosPage() {
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.usersByRole.admin}</div>
+            <div className="text-2xl font-bold">{stats.adminUsers}</div>
             <p className="text-xs text-muted-foreground">Con acceso completo</p>
           </CardContent>
         </Card>
@@ -436,9 +457,9 @@ export default function UsuariosPage() {
                 <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Usuario</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Email</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Teléfono</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Rol</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Estado</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Último Acceso</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Acciones</th>
                 </tr>
               </thead>
@@ -451,7 +472,7 @@ export default function UsuariosPage() {
                           <User className="h-4 w-4 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">{`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Sin nombre'}</p>
+                          <p className="font-medium">{user.name || 'Sin nombre'}</p>
                           <p className="text-sm text-muted-foreground">ID: {user.id}</p>
                         </div>
                       </div>
@@ -460,12 +481,11 @@ export default function UsuariosPage() {
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       {user.email}
                     </td>
+                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+                      {user.phone || '-'}
+                    </td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{getRoleBadge(user.role)}</td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{getStatusBadge(user.is_active ? 'active' : 'inactive')}</td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Nunca'}
-                    </td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
                       <div className="flex space-x-2">
                         <Button 
