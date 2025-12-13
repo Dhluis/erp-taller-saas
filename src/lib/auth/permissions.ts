@@ -269,7 +269,7 @@ export async function canAccessWorkOrder(
   userId: string,
   workOrderId: string,
   role: UserRole,
-  supabaseClient?: any
+  supabaseClient: any // Requerido explícitamente para evitar imports del servidor
 ): Promise<boolean> {
   // Admin y advisor pueden acceder a todas
   if (role === 'admin' || role === 'advisor') {
@@ -277,12 +277,7 @@ export async function canAccessWorkOrder(
   }
   
   // Mecánico: solo órdenes asignadas a él
-  if (role === 'mechanic') {
-    // Crear cliente si no se proporciona
-    if (!supabaseClient) {
-      const { getSupabaseServerClient } = await import('@/lib/supabase/server')
-      supabaseClient = await getSupabaseServerClient()
-    }
+  if (role === 'mechanic' && supabaseClient) {
     
     // Obtener la orden
     const { data: workOrder, error: workOrderError } = await supabaseClient
