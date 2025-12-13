@@ -4,6 +4,8 @@ import { hasPermission, UserRole } from '@/lib/auth/permissions'
 import { createClient as getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 import type { CreateUserRequest } from '@/types/user'
 
+// Usa Service Role Client para bypass RLS en todas las operaciones
+
 export async function GET(request: NextRequest) {
   try {
     console.log('[GET /api/users] Iniciando...')
