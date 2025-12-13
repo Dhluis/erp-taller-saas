@@ -53,7 +53,7 @@ export async function GET(
   }
 }
 
-export async function PATCH(
+export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -85,7 +85,7 @@ export async function PATCH(
     }
     
     const body = await request.json()
-    const { name, role, phone, is_active, password } = body
+    const { name, email, role, phone, is_active, password } = body
     
     // Validar que el usuario a editar pertenece a la organización
     const { data: existingUser, error: existingError } = await (supabase as any)
@@ -103,8 +103,22 @@ export async function PATCH(
     }
     
     // Preparar datos de actualización
-    const updateData: any = {}
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    }
+    
     if (name !== undefined) updateData.full_name = name // La columna es 'full_name', no 'name'
+    if (email !== undefined) {
+      // Validar formato de email si se proporciona
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        return NextResponse.json(
+          { error: 'Email inválido' },
+          { status: 400 }
+        )
+      }
+      updateData.email = email
+    }
     if (role !== undefined) {
       const validRoles: UserRole[] = ['ADMIN', 'ASESOR', 'MECANICO']
       if (!validRoles.includes(role)) {
@@ -117,7 +131,6 @@ export async function PATCH(
     }
     if (phone !== undefined) updateData.phone = phone || null
     if (is_active !== undefined) updateData.is_active = is_active
-    updateData.updated_at = new Date().toISOString()
     
     // Actualizar en tabla users
     const { data: updatedUser, error: updateError } = await (supabase as any)
@@ -155,7 +168,7 @@ export async function PATCH(
       message: 'Usuario actualizado exitosamente'
     })
   } catch (error: any) {
-    console.error('Error in PATCH /api/users/[id]:', error)
+    console.error('Error in PUT /api/users/[id]:', error)
     return NextResponse.json(
       { error: error.message || 'Error interno del servidor' },
       { status: 500 }
@@ -194,7 +207,7 @@ export async function DELETE(
       )
     }
     
-    // Validar que no se elimine a sí mismo
+    // Validar que el usuario a eliminar existe y pertenece a la organización
     const { data: existingUser, error: existingError } = await (supabase as any)
       .from('users')
       .select('id, auth_user_id')
@@ -209,9 +222,10 @@ export async function DELETE(
       )
     }
     
+    // No permitir auto-eliminación
     if (existingUser.auth_user_id === userId) {
       return NextResponse.json(
-        { error: 'No puedes eliminar tu propio usuario' },
+        { error: 'No puedes eliminarte a ti mismo' },
         { status: 400 }
       )
     }
