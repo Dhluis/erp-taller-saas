@@ -82,10 +82,34 @@ export async function GET(request: NextRequest) {
     }
     
     // Mapear full_name a name para compatibilidad con el tipo User
-    const mappedUsers = users?.map(user => ({
-      ...user,
-      name: user.full_name || '' // Mapear full_name a name
-    })) || []
+    const mappedUsers = users?.map((user: any) => {
+      const mapped: any = {
+        id: user.id,
+        auth_user_id: user.auth_user_id,
+        email: user.email,
+        name: user.full_name || '', // Mapear full_name a name
+        full_name: user.full_name, // Mantener también full_name por si acaso
+        role: user.role,
+        phone: user.phone,
+        is_active: user.is_active,
+        organization_id: user.organization_id,
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      }
+      console.log('[GET /api/users] Usuario mapeado:', {
+        id: mapped.id,
+        email: mapped.email,
+        full_name: user.full_name,
+        name: mapped.name,
+        'name existe?': 'name' in mapped
+      })
+      return mapped
+    }) || []
+    
+    console.log('[GET /api/users] Total usuarios mapeados:', mappedUsers.length)
+    if (mappedUsers.length > 0) {
+      console.log('[GET /api/users] Primer usuario mapeado completo:', mappedUsers[0])
+    }
     
     return NextResponse.json({ users: mappedUsers })
   } catch (error: any) {

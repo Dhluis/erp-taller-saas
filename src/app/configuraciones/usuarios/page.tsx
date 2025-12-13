@@ -71,6 +71,17 @@ export default function UsuariosPage() {
       const data: UserResponse = await response.json()
       const usersData = data.users || []
       
+      console.log('[UsuariosPage] Datos recibidos del API:', usersData.length, 'usuarios')
+      if (usersData.length > 0) {
+        console.log('[UsuariosPage] Primer usuario recibido:', {
+          id: usersData[0].id,
+          email: usersData[0].email,
+          name: (usersData[0] as any).name,
+          full_name: (usersData[0] as any).full_name,
+          role: usersData[0].role
+        })
+      }
+      
       setUsers(usersData)
       
       // Calcular estadísticas
