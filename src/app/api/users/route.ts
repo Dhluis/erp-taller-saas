@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     console.log('[GET /api/users] Ejecutando query...')
     const { data: users, error } = await supabase
       .from('users')
-      .select('id, auth_user_id, email, name, role, phone, is_active, created_at, updated_at')
+      .select('id, auth_user_id, email, full_name, role, phone, is_active, created_at, updated_at')
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
     
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
       console.log('[GET /api/users] Primer usuario:', {
         id: users[0].id,
         email: users[0].email,
-        name: users[0].name,
+        full_name: users[0].full_name,
         role: users[0].role
       })
     }
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
         id: authData.user.id, // Usar el mismo ID de auth.users
         auth_user_id: authData.user.id,
         email,
-        name,
+        full_name: name, // La columna es 'full_name', no 'name'
         phone: phone || null,
         role,
         organization_id: organizationId,
@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
       user: {
         id: newUser.id,
         email: newUser.email,
-        name: newUser.name,
+        name: newUser.full_name || newUser.name, // Compatibilidad: usar full_name si existe
         role: newUser.role,
         phone: newUser.phone,
         is_active: newUser.is_active,

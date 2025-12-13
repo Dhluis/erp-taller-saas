@@ -31,7 +31,7 @@ export async function GET(
     
     const { data: user, error } = await (supabase as any)
       .from('users')
-      .select('id, email, name, role, phone, is_active, created_at, updated_at')
+      .select('id, email, full_name, role, phone, is_active, created_at, updated_at')
       .eq('id', params.id)
       .eq('organization_id', organizationId)
       .single()
