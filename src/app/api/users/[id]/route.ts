@@ -93,19 +93,47 @@ export async function PUT(
     const body = await request.json()
     const { name, email, role, phone, is_active, password } = body
     
-    // Validar que el usuario a editar pertenece a la organización
-    const { data: existingUser, error: existingError } = await (supabase as any)
+    // Validar que el usuario a editar pertenece a la organización y obtener su rol actual
+    const { data: targetUser, error: existingError } = await (supabase as any)
       .from('users')
-      .select('id, email, auth_user_id')
+      .select('id, email, auth_user_id, role')
       .eq('id', params.id)
       .eq('organization_id', organizationId)
       .single()
     
-    if (existingError || !existingUser) {
+    if (existingError || !targetUser) {
       return NextResponse.json(
         { error: 'Usuario no encontrado' },
         { status: 404 }
       )
+    }
+    
+    // Validar: No permitir cambiar el rol del último admin
+    if (targetUser.role === 'ADMIN' && role !== 'ADMIN') {
+      // Contar cuántos admins hay en la organización
+      const { count, error: countError } = await (supabase as any)
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+        .eq('role', 'ADMIN')
+        .eq('is_active', true)
+      
+      console.log('[PUT /api/users/[id]] Contando admins activos:', count)
+      
+      if (countError) {
+        console.error('[PUT /api/users/[id]] Error contando admins:', countError)
+        return NextResponse.json(
+          { error: 'Error al validar permisos' },
+          { status: 500 }
+        )
+      }
+      
+      if (count === 1) {
+        return NextResponse.json(
+          { error: 'No puedes cambiar el rol del último administrador activo de la organización' },
+          { status: 400 }
+        )
+      }
     }
     
     // Preparar datos de actualización
@@ -159,7 +187,7 @@ export async function PUT(
       const supabaseAdmin = getSupabaseAdmin()
       
       const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
-        existingUser.auth_user_id,
+        targetUser.auth_user_id,
         { password }
       )
       
@@ -240,7 +268,7 @@ export async function DELETE(
     const supabaseAdmin = getSupabaseAdmin()
     
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(
-      existingUser.auth_user_id
+      targetUser.auth_user_id
     )
     
     if (deleteAuthError) {
