@@ -160,9 +160,12 @@ export async function POST(request: NextRequest) {
     console.log('[POST /api/users] Usuario creado en auth:', authData.user.id)
 
     // 2. Crear perfil en users CON SERVICE ROLE (bypasses RLS)
+    // ⚠️ NO incluir campo "id" - se genera automáticamente por la BD
+    // El "id" es diferente de "auth_user_id"
     const { data: userData, error: profileError } = await supabaseAdmin
       .from('users')
       .insert({
+        // NO incluir "id" - se genera automáticamente por gen_random_uuid()
         auth_user_id: authData.user.id,
         organization_id: organizationId,
         full_name: name,
