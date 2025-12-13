@@ -103,10 +103,14 @@ export default function UsuariosPage() {
   }
 
   const filteredUsers = users.filter(
-    (user) =>
-      (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.role || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (user) => {
+      const name = (user as any).name || (user as any).full_name || ''
+      return (
+        name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.role || '').toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
   )
 
   const getRoleBadge = (role: UserRole) => {
@@ -220,8 +224,9 @@ export default function UsuariosPage() {
 
   const handleEdit = (user: User) => {
     setEditingUser(user)
+    const userName = (user as any).name || (user as any).full_name || ''
     setFormData({
-      name: user.name || '',
+      name: userName,
       email: user.email,
       role: user.role,
       phone: user.phone || '',
@@ -472,7 +477,7 @@ export default function UsuariosPage() {
                           <User className="h-4 w-4 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">{user.name || 'Sin nombre'}</p>
+                          <p className="font-medium">{(user as any).name || (user as any).full_name || 'Sin nombre'}</p>
                           <p className="text-sm text-muted-foreground">ID: {user.id}</p>
                         </div>
                       </div>

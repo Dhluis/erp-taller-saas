@@ -43,7 +43,13 @@ export async function GET(
       )
     }
     
-    return NextResponse.json({ user })
+    // Mapear full_name a name para compatibilidad
+    const mappedUser = {
+      ...user,
+      name: user.full_name || '' // Mapear full_name a name
+    }
+    
+    return NextResponse.json({ user: mappedUser })
   } catch (error: any) {
     console.error('Error in GET /api/users/[id]:', error)
     return NextResponse.json(

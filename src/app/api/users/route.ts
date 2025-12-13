@@ -81,7 +81,13 @@ export async function GET(request: NextRequest) {
       })
     }
     
-    return NextResponse.json({ users: users || [] })
+    // Mapear full_name a name para compatibilidad con el tipo User
+    const mappedUsers = users?.map(user => ({
+      ...user,
+      name: user.full_name || '' // Mapear full_name a name
+    })) || []
+    
+    return NextResponse.json({ users: mappedUsers })
   } catch (error: any) {
     console.error('[GET /api/users] Error catch:', error)
     console.error('[GET /api/users] Error stack:', error.stack)
