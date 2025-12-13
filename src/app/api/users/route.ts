@@ -1,26 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 import { hasPermission, UserRole } from '@/lib/auth/permissions'
-import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createClient as getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 import type { CreateUserRequest } from '@/types/user'
-
-// Cliente de Supabase con permisos de Service Role (para crear usuarios en auth)
-function getSupabaseAdmin() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-  
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing Supabase configuration: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
-  }
-  
-  return createAdminClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  })
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -124,182 +106,98 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Validar autenticación y contexto multi-tenant
-    const { userId, organizationId } = await getTenantContext(request)
-    const supabase = await createClient()
+    console.log('[POST /api/users] Iniciando creación de usuario...')
     
-    // 2. Obtener rol del usuario actual
-    const { data: currentUser, error: userError } = await (supabase as any)
+    const { organizationId, userId } = await getTenantContext(request)
+    
+    // Obtener rol del usuario actual
+    const supabase = await getSupabaseServerClient()
+    const { data: currentUser } = await supabase
       .from('users')
       .select('role')
       .eq('auth_user_id', userId)
       .single()
-    
-    if (userError || !currentUser || !currentUser.role) {
-      return NextResponse.json(
-        { error: 'Usuario no encontrado' },
-        { status: 404 }
-      )
+
+    if (!currentUser || !hasPermission(currentUser.role as UserRole, 'users', 'create')) {
+      console.log('[POST /api/users] Sin permisos:', currentUser?.role)
+      return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
     }
-    
-    // 3. Validar permisos (solo admin puede crear usuarios)
-    const currentUserRole = currentUser.role as UserRole
-    if (!hasPermission(currentUserRole, 'users', 'create')) {
-      return NextResponse.json(
-        { error: 'No tienes permisos para crear usuarios' },
-        { status: 403 }
-      )
-    }
-    
-    // 4. Obtener datos del body
+
     const body: CreateUserRequest = await request.json()
-    const { email, password, name, role, phone } = body
-    
-    // 5. Validaciones
-    if (!email || !password || !name || !role) {
-      return NextResponse.json(
-        { error: 'Faltan campos requeridos: email, password, name, role' },
-        { status: 400 }
-      )
+    const { name, email, password, role, phone } = body
+
+    // Validaciones
+    if (!name || !email || !password || !role) {
+      return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
     }
-    
-    // Validar que el rol sea válido
+
     const validRoles: UserRole[] = ['ADMIN', 'ASESOR', 'MECANICO']
     if (!validRoles.includes(role)) {
-      return NextResponse.json(
-        { error: `Rol inválido. Debe ser: ${validRoles.join(', ')}` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Rol inválido' }, { status: 400 })
     }
-    
-    // Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: 'Email inválido' },
-        { status: 400 }
-      )
-    }
-    
-    // Validar longitud de contraseña
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: 'La contraseña debe tener al menos 8 caracteres' },
-        { status: 400 }
-      )
-    }
-    
-    // 6. Verificar que el email no exista en la organización
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .eq('organization_id', organizationId)
-      .single()
-    
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'Ya existe un usuario con este email en tu organización' },
-        { status: 409 }
-      )
-    }
-    
-    // 7. Crear usuario en Supabase Auth (usando Service Role)
-    const supabaseAdmin = getSupabaseAdmin()
+
+    // ⚠️ CRÍTICO: Usar Service Role Client (bypasses RLS)
+    const supabaseAdmin = getSupabaseServiceClient()
+    console.log('[POST /api/users] Usando Service Role Client para crear usuario')
+
+    // 1. Crear en auth.users
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Auto-confirmar email
-      user_metadata: {
-        name,
-        organization_id: organizationId,
-        role,
-      }
+      email_confirm: true
     })
-    
+
     if (authError) {
-      console.error('Error creating auth user:', authError)
-      return NextResponse.json(
-        { error: `Error al crear usuario: ${authError.message}` },
-        { status: 500 }
-      )
+      console.error('[POST /api/users] Error creating auth user:', authError)
+      throw new Error(`Error al crear usuario en auth: ${authError.message}`)
     }
-    
+
     if (!authData.user) {
-      return NextResponse.json(
-        { error: 'No se pudo crear el usuario en autenticación' },
-        { status: 500 }
-      )
+      throw new Error('No se pudo crear el usuario en autenticación')
     }
-    
-    // 8. Crear perfil en tabla users
-    const { data: newUser, error: profileError } = await (supabase as any)
+
+    console.log('[POST /api/users] Usuario creado en auth:', authData.user.id)
+
+    // 2. Crear perfil en users CON SERVICE ROLE (bypasses RLS)
+    const { data: userData, error: profileError } = await supabaseAdmin
       .from('users')
       .insert({
-        id: authData.user.id, // Usar el mismo ID de auth.users
         auth_user_id: authData.user.id,
-        email,
-        full_name: name, // La columna es 'full_name', no 'name'
-        phone: phone || null,
-        role,
         organization_id: organizationId,
-        workshop_id: null, // Se puede asignar después si es necesario
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        full_name: name,
+        email,
+        role,
+        phone: phone || null,
+        is_active: true
       })
       .select()
       .single()
+
+    if (profileError) {
+      console.error('[POST /api/users] Error creating profile:', profileError)
+      // Rollback: eliminar de auth
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      throw new Error(`Error al crear perfil: ${profileError.message}`)
+    }
+
+    console.log('[POST /api/users] Usuario creado exitosamente:', userData.id)
     
-    if (profileError || !newUser) {
-      console.error('Error creating user profile:', profileError)
-      
-      // Intentar eliminar usuario de auth si falla la creación del perfil
-      try {
-        await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-      } catch (deleteError) {
-        console.error('Error deleting auth user after profile creation failure:', deleteError)
-      }
-      
-      return NextResponse.json(
-        { error: `Error al crear perfil: ${profileError?.message || 'Error desconocido'}` },
-        { status: 500 }
-      )
+    // Mapear full_name a name para compatibilidad
+    const mappedUser = {
+      ...userData,
+      name: userData.full_name || ''
     }
     
-    // 9. Si es mecánico, crear también registro en tabla employees
-    if (role === 'MECANICO') {
-      const { error: employeeError } = await (supabase as any)
-        .from('employees')
-        .insert({
-          organization_id: organizationId,
-          user_id: authData.user.id,
-          name,
-          email,
-          phone: phone || null,
-          role: 'mechanic',
-          is_active: true,
-        })
-      
-      if (employeeError) {
-        console.error('Error creating employee record:', employeeError)
-        // No falla todo, solo loguear el error
-      }
-    }
-    
-    // 10. Retornar usuario creado (sin datos sensibles)
-    return NextResponse.json({
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.full_name || newUser.name, // Compatibilidad: usar full_name si existe
-        role: newUser.role,
-        phone: newUser.phone,
-        is_active: newUser.is_active,
-        created_at: newUser.created_at,
-      },
-      message: 'Usuario creado exitosamente'
-    }, { status: 201 })
+    return NextResponse.json({ user: mappedUser }, { status: 201 })
+
+  } catch (error: any) {
+    console.error('[POST /api/users] Error:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Error al crear usuario' },
+      { status: 500 }
+    )
+  }
+}
     
   } catch (error: any) {
     console.error('Error in POST /api/users:', error)
