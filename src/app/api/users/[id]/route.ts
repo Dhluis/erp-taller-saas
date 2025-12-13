@@ -104,7 +104,7 @@ export async function PATCH(
     
     // Preparar datos de actualización
     const updateData: any = {}
-    if (name !== undefined) updateData.name = name
+    if (name !== undefined) updateData.full_name = name // La columna es 'full_name', no 'name'
     if (role !== undefined) {
       const validRoles: UserRole[] = ['ADMIN', 'ASESOR', 'MECANICO']
       if (!validRoles.includes(role)) {
