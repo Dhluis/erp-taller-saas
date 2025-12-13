@@ -198,12 +198,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-    
-  } catch (error: any) {
-    console.error('Error in POST /api/users:', error)
-    return NextResponse.json(
-      { error: error.message || 'Error interno del servidor' },
-      { status: 500 }
-    )
-  }
-}
