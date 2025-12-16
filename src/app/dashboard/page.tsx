@@ -236,6 +236,7 @@ export default function DashboardPage() {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
       let fromDate: Date;
+      let toDate: Date = today;
       
       switch (dateRange) {
         case '7d':
@@ -254,6 +255,7 @@ export default function DashboardPage() {
         case 'custom':
           if (customDateRange.from && customDateRange.to) {
             fromDate = customDateRange.from;
+            toDate = customDateRange.to;
           } else {
             fromDate = new Date(today);
             fromDate.setDate(today.getDate() - 7);
@@ -266,26 +268,54 @@ export default function DashboardPage() {
           fromDate.setHours(0, 0, 0, 0);
       }
 
-      // Obtener órdenes completadas con total_amount
+      // Obtener órdenes completadas (la API no soporta filtro de fecha, así que filtramos en frontend)
       const response = await fetch(
-        `/api/work-orders?status=completed&from=${fromDate.toISOString()}&to=${today.toISOString()}`,
+        `/api/work-orders?status=completed`,
         { credentials: 'include', cache: 'no-store' }
       );
 
       if (response.ok) {
         const data = await response.json();
-        const orders = data.data || [];
+        const allOrders = data.data || [];
+        
+        // Filtrar órdenes por rango de fechas (usar completed_at o created_at)
+        const filteredOrders = allOrders.filter((order: any) => {
+          const orderDate = order.completed_at 
+            ? new Date(order.completed_at)
+            : order.created_at 
+            ? new Date(order.created_at)
+            : null;
+          
+          if (!orderDate) return false;
+          
+          orderDate.setHours(0, 0, 0, 0);
+          const from = new Date(fromDate);
+          from.setHours(0, 0, 0, 0);
+          const to = new Date(toDate);
+          to.setHours(23, 59, 59, 999);
+          
+          return orderDate >= from && orderDate <= to;
+        });
         
         // Calcular ingresos totales
-        const totalIngresos = orders.reduce((sum: number, order: any) => {
+        const totalIngresos = filteredOrders.reduce((sum: number, order: any) => {
           return sum + (parseFloat(order.total_amount) || 0);
         }, 0);
         
         // Contar clientes únicos
-        const uniqueCustomers = new Set(orders.map((order: any) => order.customer_id).filter(Boolean));
+        const uniqueCustomers = new Set(
+          filteredOrders.map((order: any) => order.customer_id).filter(Boolean)
+        );
         
         setIngresos(totalIngresos);
         setClientesAtendidos(uniqueCustomers.size);
+        
+        console.log('💰 Ingresos calculados:', {
+          totalIngresos,
+          clientesAtendidos: uniqueCustomers.size,
+          ordenesFiltradas: filteredOrders.length,
+          rango: { from: fromDate.toISOString(), to: toDate.toISOString() }
+        });
       }
     } catch (error) {
       console.error('Error cargando ingresos:', error);
