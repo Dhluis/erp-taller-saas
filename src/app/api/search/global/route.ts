@@ -105,6 +105,12 @@ export async function GET(request: NextRequest) {
         title: item.name,
         description: `SKU: ${item.sku || 'N/A'} - Stock: ${item.current_stock || 0}`,
         url: `/inventarios`,
+        // ✅ Incluir campos directamente
+        name: item.name,
+        sku: item.sku || null,
+        current_stock: item.current_stock || 0,
+        min_stock: item.min_stock || 0,
+        category: item.category || null,
         metadata: { sku: item.sku, stock: item.current_stock, category: item.category }
       });
     });
@@ -129,13 +135,22 @@ export async function GET(request: NextRequest) {
       results.push({
         id: vehicle.id,
         type: 'vehicle',
-        title: `${vehicle.brand} ${vehicle.model} ${vehicle.year || ''}`,
+        title: `${vehicle.brand || ''} ${vehicle.model || ''} ${vehicle.year || ''}`.trim(),
         description: vehicle.license_plate || 'Sin placa',
         url: `/vehiculos`,
+        // ✅ Incluir campos directamente para que el componente pueda accederlos
+        brand: vehicle.brand || null,
+        model: vehicle.model || null,
+        year: vehicle.year || null,
+        license_plate: vehicle.license_plate || null,
+        color: vehicle.color || null,
+        customer: (vehicle.customer as any)?.name || null,
         metadata: { 
           brand: vehicle.brand, 
           model: vehicle.model, 
+          year: vehicle.year,
           license_plate: vehicle.license_plate,
+          color: vehicle.color,
           customer: (vehicle.customer as any)?.name 
         }
       });
