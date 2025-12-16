@@ -11,6 +11,7 @@ import { GlobalSearch } from '@/components/search/GlobalSearch'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useUserProfile } from '@/hooks/use-user-profile'
+import { usePermissions } from '@/hooks/usePermissions'
 
 interface TopBarProps {
   onMenuClick?: () => void
@@ -21,6 +22,8 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
   const pathname = usePathname()
   const { profile, getInitials } = useUserProfile()
+  const permissions = usePermissions()
+  const isMechanic = permissions.isMechanic
   
   const isCitasActive = pathname?.startsWith('/citas')
   const isClientesActive = pathname?.startsWith('/clientes')
@@ -59,81 +62,102 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
             </button>
           )}
           
-          {/* Botones de navegación - movidos desde sidebar */}
-          <Link href="/citas">
-            <Button
-              variant={isCitasActive ? "default" : "outline"}
-              className={cn(
-                "transition-all duration-200 gap-2",
-                isCitasActive 
-                  ? "bg-primary text-bg-primary hover:bg-primary-dark" 
-                  : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
-              )}
-            >
-              <ModernIcons.Citas size={16} />
-              <span className="text-sm font-medium">Citas</span>
-            </Button>
-          </Link>
-          
-          <Link href="/clientes">
-            <Button
-              variant={isClientesActive ? "default" : "outline"}
-              className={cn(
-                "transition-all duration-200 gap-2",
-                isClientesActive 
-                  ? "bg-primary text-bg-primary hover:bg-primary-dark" 
-                  : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
-              )}
-            >
-              <ModernIcons.Clientes size={16} />
-              <span className="text-sm font-medium">Clientes</span>
-            </Button>
-          </Link>
-          
-          <Link href="/ordenes">
-            <Button
-              variant={isOrdenesActive ? "default" : "outline"}
-              className={cn(
-                "transition-all duration-200 gap-2",
-                isOrdenesActive 
-                  ? "bg-primary text-bg-primary hover:bg-primary-dark" 
-                  : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
-              )}
-            >
-              <ModernIcons.Ordenes size={16} />
-              <span className="text-sm font-medium">Órdenes</span>
-            </Button>
-          </Link>
-          
-          <Link href="/reportes">
-            <Button
-              variant={isReportesActive ? "default" : "outline"}
-              className={cn(
-                "transition-all duration-200 gap-2",
-                isReportesActive 
-                  ? "bg-primary text-bg-primary hover:bg-primary-dark" 
-                  : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
-              )}
-            >
-              <ModernIcons.Reportes size={16} />
-              <span className="text-sm font-medium">Reportes</span>
-            </Button>
-          </Link>
-          
-          <Link href="/dashboard/whatsapp">
-            <Button
-              variant={isWhatsAppActive ? "default" : "outline"}
-              className={cn(
-                "transition-all duration-200 gap-2",
-                isWhatsAppActive 
-                  ? "bg-primary text-bg-primary hover:bg-primary-dark" 
-                  : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
-              )}
-            >
-              <ModernIcons.WhatsApp size={16} />
-              <span className="text-sm font-medium">WhatsApp</span>
-            </Button>
-          </Link>
+          {/* ✅ NAVEGACIÓN SIMPLIFICADA PARA MECÁNICOS - Solo Órdenes */}
+          {isMechanic ? (
+            <Link href="/ordenes/kanban">
+              <Button
+                variant={isOrdenesActive ? "default" : "outline"}
+                className={cn(
+                  "transition-all duration-200 gap-2",
+                  "min-h-[44px] min-w-[44px] md:min-w-auto", // ✅ Mobile-first: botones táctiles grandes
+                  isOrdenesActive 
+                    ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                    : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
+                )}
+              >
+                <ModernIcons.Ordenes size={18} />
+                <span className="text-sm font-medium hidden sm:inline">Mis Órdenes</span>
+              </Button>
+            </Link>
+          ) : (
+            <>
+              {/* Botones de navegación - movidos desde sidebar */}
+              <Link href="/citas">
+                <Button
+                  variant={isCitasActive ? "default" : "outline"}
+                  className={cn(
+                    "transition-all duration-200 gap-2",
+                    isCitasActive 
+                      ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                      : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
+                  )}
+                >
+                  <ModernIcons.Citas size={16} />
+                  <span className="text-sm font-medium">Citas</span>
+                </Button>
+              </Link>
+              
+              <Link href="/clientes">
+                <Button
+                  variant={isClientesActive ? "default" : "outline"}
+                  className={cn(
+                    "transition-all duration-200 gap-2",
+                    isClientesActive 
+                      ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                      : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
+                  )}
+                >
+                  <ModernIcons.Clientes size={16} />
+                  <span className="text-sm font-medium">Clientes</span>
+                </Button>
+              </Link>
+              
+              <Link href="/ordenes">
+                <Button
+                  variant={isOrdenesActive ? "default" : "outline"}
+                  className={cn(
+                    "transition-all duration-200 gap-2",
+                    isOrdenesActive 
+                      ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                      : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
+                  )}
+                >
+                  <ModernIcons.Ordenes size={16} />
+                  <span className="text-sm font-medium">Órdenes</span>
+                </Button>
+              </Link>
+              
+              <Link href="/reportes">
+                <Button
+                  variant={isReportesActive ? "default" : "outline"}
+                  className={cn(
+                    "transition-all duration-200 gap-2",
+                    isReportesActive 
+                      ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                      : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
+                  )}
+                >
+                  <ModernIcons.Reportes size={16} />
+                  <span className="text-sm font-medium">Reportes</span>
+                </Button>
+              </Link>
+              
+              <Link href="/dashboard/whatsapp">
+                <Button
+                  variant={isWhatsAppActive ? "default" : "outline"}
+                  className={cn(
+                    "transition-all duration-200 gap-2",
+                    isWhatsAppActive 
+                      ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                      : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
+                  )}
+                >
+                  <ModernIcons.WhatsApp size={16} />
+                  <span className="text-sm font-medium">WhatsApp</span>
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
 
         <div className="flex items-center space-x-4">

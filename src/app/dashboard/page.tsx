@@ -249,7 +249,38 @@ export default function DashboardPage() {
                            dateRange === 'current_month' ? 'Mes actual' :
                            'Personalizado';
 
-  const kpiCards = [
+  // ✅ DASHBOARD SIMPLIFICADO PARA MECÁNICOS (mobile-first)
+  const isMechanic = permissions.isMechanic;
+  const kpiCards = isMechanic ? [
+    // Mecánicos solo ven sus órdenes asignadas
+    {
+      title: 'Mis Órdenes Activas',
+      value: stats.ordenesActivas.toString(),
+      description: `En proceso (${filterDescription})`,
+      trend: `Total: ${totalOrdenes} órdenes`,
+      icon: () => <ModernIcons.Ordenes size={32} />,
+      color: 'text-blue-400',
+      bgColor: 'bg-blue-500/10'
+    },
+    {
+      title: 'Órdenes Pendientes',
+      value: stats.ordenesPendientes.toString(),
+      description: `En recepción (${filterDescription})`,
+      trend: '',
+      icon: () => <ModernIcons.Citas size={32} />,
+      color: 'text-yellow-400',
+      bgColor: 'bg-yellow-500/10'
+    },
+    {
+      title: 'Órdenes Completadas',
+      value: stats.ordenesCompletadas.toString(),
+      description: `Finalizadas (${filterDescription})`,
+      trend: '',
+      icon: () => <ModernIcons.Check size={32} />,
+      color: 'text-green-400',
+      bgColor: 'bg-green-500/10'
+    }
+  ] : [
     // ✅ Solo mostrar ingresos si puede ver reportes financieros
     ...(permissions.canViewFinancialReports() ? [{
       title: 'Ingresos del Mes',

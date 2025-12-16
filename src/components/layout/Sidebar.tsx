@@ -74,8 +74,26 @@ export function Sidebar({ className }: SidebarProps) {
 
   // Si está cargando o es admin, mostrar más opciones por defecto
   const showAllForAdmin = !sessionLoading && permissions.isAdmin
+  const isMechanic = permissions.isMechanic
   
-  const mainNavItems = [
+  // ✅ NAVEGACIÓN SIMPLIFICADA PARA MECÁNICOS (mobile-first)
+  // Mecánicos solo ven: Dashboard, Kanban, Mi Perfil
+  const mainNavItems = isMechanic ? [
+    { 
+      href: "/dashboard", 
+      label: "Dashboard", 
+      icon: () => <ModernIcons.Dashboard size={20} />,
+      badge: null,
+      visible: true
+    },
+    { 
+      href: "/ordenes/kanban", 
+      label: "Mis Órdenes", 
+      icon: () => <ModernIcons.Ordenes size={20} />,
+      badge: null,
+      visible: true
+    }
+  ] : [
     { 
       href: "/dashboard", 
       label: "Dashboard", 
@@ -113,7 +131,8 @@ export function Sidebar({ className }: SidebarProps) {
     // WhatsApp movido al TopBar
   ].filter(item => item.visible)
 
-  const collapsibleSections = [
+  // ✅ MECÁNICOS: No ven secciones colapsables
+  const collapsibleSections = isMechanic ? [] : [
     {
       key: 'inventarios',
       label: 'Inventarios',
@@ -169,7 +188,15 @@ export function Sidebar({ className }: SidebarProps) {
     }
   ].filter(section => section.visible && section.items.length > 0)
 
-  const additionalNavItems = [
+  // ✅ MECÁNICOS: Solo ven Mi Perfil (Kanban ya está en mainNavItems)
+  const additionalNavItems = isMechanic ? [
+    { 
+      href: "/perfil", 
+      label: "Mi Perfil", 
+      icon: () => <ModernIcons.Perfil size={20} />,
+      badge: null
+    }
+  ] : [
     { 
       href: "/perfil", 
       label: "Mi Perfil", 
@@ -184,7 +211,8 @@ export function Sidebar({ className }: SidebarProps) {
     }
   ]
 
-  const actionButtons = [
+  // ✅ MECÁNICOS: No ven botones de acción adicionales
+  const actionButtons = isMechanic ? [] : [
     // ✅ CITAS movido al TopBar
     {
       href: "/comercial",

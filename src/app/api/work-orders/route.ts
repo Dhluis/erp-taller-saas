@@ -103,11 +103,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener organization_id del perfil del usuario usando Service Role Client
+    // Obtener organization_id y rol del perfil del usuario usando Service Role Client
     const supabaseAdmin = getSupabaseServiceClient();
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('organization_id')
+      .select('organization_id, role')
       .eq('auth_user_id', user.id)
       .single();
 
@@ -124,6 +124,22 @@ export async function GET(request: NextRequest) {
     }
 
     const organizationId = userProfile.organization_id;
+    const userRole = userProfile.role;
+    
+    // ✅ Si es mecánico, obtener su employee_id para filtrar órdenes asignadas
+    let assignedEmployeeId: string | null = null;
+    if (userRole === 'MECANICO') {
+      const { data: employee, error: employeeError } = await supabaseAdmin
+        .from('employees')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+      
+      if (!employeeError && employee) {
+        assignedEmployeeId = employee.id;
+      }
+    }
     
     // ✅ Usar Service Role Client directamente para queries (bypass RLS)
     // search y status ya están declarados arriba (líneas 77-78)
