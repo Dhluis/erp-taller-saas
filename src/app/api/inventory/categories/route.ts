@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getAllCategories,
-  createCategory,
-} from '@/lib/database/queries/inventory';
+import { createCategory } from '@/lib/database/queries/inventory';
 import { handleAPIError, createErrorResponse } from '@/lib/errors/APIError';
-import { ValidationUtils } from '@/lib/validations/utils';
-import { PaginationSchema, CreateInventoryCategorySchema } from '@/lib/validations/schemas';
 
 /**
  * @swagger
@@ -97,15 +92,31 @@ export async function GET(request: NextRequest) {
     console.log('✅ Usuario autenticado:', user.email)
     console.log('✅ Organization ID:', userProfile.organization_id)
     
-    // Obtener categorías con timeout extendido
-    const categories = await getAllCategories(userProfile.organization_id)
+    // ✅ Usar Service Role Client directamente para queries (bypass RLS)
+    const { data: categories, error: categoriesError } = await supabaseAdmin
+      .from('inventory_categories')
+      .select('*')
+      .eq('organization_id', userProfile.organization_id)
+      .order('name', { ascending: true })
     
-    console.log('✅ Categorías obtenidas:', categories.length)
+    if (categoriesError) {
+      console.error('❌ Error obteniendo categorías:', categoriesError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Error al obtener categorías de inventario',
+          data: []
+        },
+        { status: 500 }
+      )
+    }
+    
+    console.log('✅ Categorías obtenidas:', categories?.length || 0)
 
     return NextResponse.json({
       success: true,
-      data: categories,
-      count: categories.length,
+      data: categories || [],
+      count: categories?.length || 0,
     });
   } catch (error) {
     console.error('❌ Error en GET /api/inventory/categories:', error)

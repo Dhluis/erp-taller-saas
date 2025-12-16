@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getAllInventoryItems,
-  createInventoryItem,
-  searchInventoryItems,
-  getLowStockItems,
-} from '@/lib/database/queries/inventory';
+import { createInventoryItem } from '@/lib/database/queries/inventory';
 import { handleAPIError, createErrorResponse } from '@/lib/errors/APIError';
 import { createClientFromRequest } from '@/lib/supabase/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
@@ -116,20 +111,46 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const lowStock = searchParams.get('low_stock');
 
-    let items;
-    
+    // ✅ Usar Service Role Client directamente para queries (bypass RLS)
+    let query = supabaseAdmin
+      .from('inventory')
+      .select(`
+        *,
+        category:inventory_categories(
+          id,
+          name,
+          description
+        )
+      `)
+      .eq('organization_id', organizationId);
+
     if (lowStock === 'true') {
-      items = await getLowStockItems(organizationId);
+      // Filtrar por stock bajo (usando threshold desde configuración)
+      query = query.lte('quantity', supabaseAdmin.raw('minimum_stock'));
     } else if (search) {
-      items = await searchInventoryItems(search, organizationId);
-    } else {
-      items = await getAllInventoryItems(organizationId);
+      query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%,description.ilike.%${search}%`);
+    }
+
+    query = query.order('name', { ascending: true });
+
+    const { data: items, error: itemsError } = await query;
+
+    if (itemsError) {
+      console.error('[GET /api/inventory] Error en query:', itemsError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Error al obtener artículos de inventario',
+          data: []
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
       success: true,
-      data: items,
-      count: items.length,
+      data: items || [],
+      count: items?.length || 0,
     });
   } catch (error) {
     const apiError = handleAPIError(error, 'GET /api/inventory');
