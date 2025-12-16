@@ -344,8 +344,10 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-            <p className="text-gray-400">Resumen general de tu taller</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Dashboard</h1>
+            <p className="text-sm md:text-base text-gray-400">
+              {permissions.isMechanic ? 'Mis órdenes asignadas' : 'Resumen general de tu taller'}
+            </p>
           </div>
         </div>
 
