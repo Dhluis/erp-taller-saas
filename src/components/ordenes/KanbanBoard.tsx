@@ -656,7 +656,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-2 sm:gap-4 overflow-x-auto pb-4 min-h-[400px]">
           {columns.map(column => (
             <KanbanColumn
               key={column.id}

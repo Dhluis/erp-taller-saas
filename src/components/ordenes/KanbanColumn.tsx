@@ -16,7 +16,7 @@ export function KanbanColumn({ column, onOrderClick }: KanbanColumnProps) {
   });
 
   return (
-    <div className="flex-shrink-0 w-80">
+    <div className="flex-shrink-0 w-[280px] sm:w-80">
       {/* Header */}
       <div className={`${column.bgColor} ${column.borderColor} border rounded-lg p-3 mb-3`}>
         <div className="flex items-center justify-between">

@@ -556,10 +556,12 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Columna Derecha: Acciones Rápidas (1/3) */}
-          <div className="lg:col-span-1">
-            <QuickActions onOrderCreated={handleOrderCreated} />
-          </div>
+          {/* Columna Derecha: Acciones Rápidas (1/3) - Ocultar para mecánicos */}
+          {!permissions.isMechanic && (
+            <div className="lg:col-span-1">
+              <QuickActions onOrderCreated={handleOrderCreated} />
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>
