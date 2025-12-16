@@ -37,7 +37,7 @@ export default function DashboardPage() {
   
   // Compatibilidad: obtener organization para componentes que lo necesitan
   const organization = organizationId ? { id: organizationId, organization_id: organizationId } : null;
-  const [dateRange, setDateRange] = useState('7d');
+  const [dateRange, setDateRange] = useState('all'); // ✅ Cambiar a 'all' por defecto para mostrar todas las órdenes
   const [customDateRange, setCustomDateRange] = useState<{
     from: Date | undefined
     to: Date | undefined
@@ -525,7 +525,7 @@ export default function DashboardPage() {
         {/* Filtros de fecha - Responsive para mobile */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
           <div className="flex flex-wrap bg-gray-800 rounded-lg p-1 gap-1">
-            {['7d', '30d', 'current_month'].map((range) => (
+            {['all', '7d', '30d', 'current_month'].map((range) => (
               <button
                 key={range}
                 onClick={() => {
@@ -538,7 +538,8 @@ export default function DashboardPage() {
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                {range === '7d' ? '7 días' :
+                {range === 'all' ? 'Todas' :
+                 range === '7d' ? '7 días' :
                  range === '30d' ? '30 días' :
                  'Mes actual'}
               </button>
