@@ -240,6 +240,12 @@ export default function DashboardPage() {
       let toDate: Date = today;
       
       switch (dateRange) {
+        case 'all':
+          // ✅ Para "all", usar un rango muy amplio (últimos 10 años) para incluir todas las órdenes
+          fromDate = new Date(today);
+          fromDate.setFullYear(today.getFullYear() - 10);
+          fromDate.setHours(0, 0, 0, 0);
+          break;
         case '7d':
           fromDate = new Date(today);
           fromDate.setDate(today.getDate() - 7);
@@ -415,7 +421,8 @@ export default function DashboardPage() {
   const COLORS = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#f97316', '#84cc16', '#06b6d4'];
 
   // Texto descriptivo del filtro actual
-  const filterDescription = dateRange === '7d' ? 'Últimos 7 días' :
+  const filterDescription = dateRange === 'all' ? 'Todas las órdenes' :
+                           dateRange === '7d' ? 'Últimos 7 días' :
                            dateRange === '30d' ? 'Últimos 30 días' :
                            dateRange === 'current_month' ? 'Mes actual' :
                            'Personalizado';
@@ -654,7 +661,8 @@ export default function DashboardPage() {
             {/* Gráfico de Ingresos */}
             <div className="bg-gray-800 rounded-lg p-3 sm:p-4 md:p-6 border border-gray-700">
               <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-4">
-                Ingresos {dateRange === '7d' ? 'de los Últimos 7 Días' : 
+                Ingresos {dateRange === 'all' ? '(Todas las Órdenes)' :
+                         dateRange === '7d' ? 'de los Últimos 7 Días' : 
                          dateRange === '30d' ? 'de los Últimos 30 Días' :
                          dateRange === 'current_month' ? 'del Mes Actual' :
                          'del Período Seleccionado'}
