@@ -183,15 +183,15 @@ export async function POST(request: NextRequest) {
     console.log('[POST /api/users] Usando Service Role Client para crear usuario')
 
     // 1. Crear en auth.users
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    const { data: authData, error: createAuthError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true
     })
 
-    if (authError) {
-      console.error('[POST /api/users] Error creating auth user:', authError)
-      throw new Error(`Error al crear usuario en auth: ${authError.message}`)
+    if (createAuthError) {
+      console.error('[POST /api/users] Error creating auth user:', createAuthError)
+      throw new Error(`Error al crear usuario en auth: ${createAuthError.message}`)
     }
 
     if (!authData.user) {
