@@ -331,9 +331,10 @@ export async function GET(request: NextRequest) {
         ordersAfterDateFilter: ordersList.length,
         firstOrderDate: ordersList[0]?.created_at,
         firstEntryDate: ordersList[0]?.entry_date,
-        filterFrom: fromDate.toISOString(),
+        filterFrom: fromDate ? fromDate.toISOString() : null,
         filterTo: toDate.toISOString(),
         timeFilter: timeFilter,
+        shouldFilterByDate: shouldFilterByDate,
         sampleOrders: orders?.slice(0, 3).map((o: any) => ({
           status: o.status,
           created_at: o.created_at,
