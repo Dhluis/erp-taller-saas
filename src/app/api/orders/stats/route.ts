@@ -107,7 +107,8 @@ export async function GET(request: NextRequest) {
     
     console.log('✅ Organization ID usado:', organizationId)
 
-    const fromISO = fromDate.toISOString()
+    // ✅ Solo crear ISO strings si hay filtro de fecha (no necesario para 'all')
+    const fromISO = fromDate ? fromDate.toISOString() : undefined
     const toISO = toDate.toISOString()
 
     // Consultar órdenes por estado para la organización específica
