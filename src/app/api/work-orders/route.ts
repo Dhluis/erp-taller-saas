@@ -163,6 +163,11 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('organization_id', organizationId);
+    
+    // ✅ Si es mecánico, filtrar solo órdenes asignadas a él
+    if (userRole === 'MECANICO' && assignedEmployeeId) {
+      query = query.eq('assigned_to', assignedEmployeeId);
+    }
 
     if (search) {
       query = query.or(`id.ilike.%${search}%,description.ilike.%${search}%`);
