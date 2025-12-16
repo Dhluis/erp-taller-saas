@@ -4,10 +4,9 @@ import {
   updateWorkOrder,
   deleteWorkOrder,
 } from '@/lib/database/queries/work-orders';
-import { getOrganizationId } from '@/lib/auth/organization-server';
-import { getTenantContext } from '@/lib/core/multi-tenant-server';
 import { hasPermission, canAccessWorkOrder, UserRole } from '@/lib/auth/permissions';
-import { createClient } from '@/lib/supabase/server';
+import { createClientFromRequest } from '@/lib/supabase/server';
+import { getSupabaseServiceClient } from '@/lib/supabase/server';
 
 // GET: Obtener una orden por ID
 export async function GET(
@@ -15,27 +14,43 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // ✅ Verificar que el organizationId esté disponible antes de obtener la orden
-    const tenantContext = await getTenantContext(request);
-    if (!tenantContext || !tenantContext.organizationId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'No autorizado: No se pudo obtener la organización',
-        },
-        { status: 403 }
-      );
-    }
+    // ✅ Obtener usuario autenticado usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    const organizationId = tenantContext.organizationId;
+    if (authError || !user) {
+      console.error('❌ [API GET /work-orders/[id]] Error de autenticación:', authError)
+      return NextResponse.json(
+        { error: 'No autorizado' },
+        { status: 401 }
+      )
+    }
+
+    // Obtener organization_id y rol del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id, role')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [API GET /work-orders/[id]] Error obteniendo perfil:', profileError)
+      return NextResponse.json(
+        { error: 'No se pudo obtener la organización del usuario' },
+        { status: 403 }
+      )
+    }
+
+    const organizationId = userProfile.organization_id;
+    const currentUserRole = userProfile.role as UserRole;
     console.log('🔍 [API GET /work-orders/[id]] Organization ID:', organizationId);
     
-    // ✅ VALIDACIÓN: Obtener rol del usuario actual
-    const supabase = await createClient();
-    const { data: currentUser, error: userError } = await (supabase as any)
+    // ✅ VALIDACIÓN: Si es mecánico, verificar que puede acceder a esta orden
+    const { data: currentUser, error: userError } = await supabaseAdmin
       .from('users')
       .select('role')
-      .eq('auth_user_id', tenantContext.userId)
+      .eq('auth_user_id', user.id)
       .single();
     
     if (userError || !currentUser || !currentUser.role) {
@@ -104,43 +119,44 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    // ✅ VALIDACIÓN: Obtener contexto y rol del usuario
-    const tenantContext = await getTenantContext(request);
-    if (!tenantContext || !tenantContext.organizationId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'No autorizado: No se pudo obtener la organización',
-        },
-        { status: 403 }
-      );
-    }
+    // ✅ Obtener usuario autenticado usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    const supabase = await createClient();
-    const { data: currentUser, error: userError } = await (supabase as any)
+    if (authError || !user) {
+      console.error('❌ [API PUT /work-orders/[id]] Error de autenticación:', authError)
+      return NextResponse.json(
+        { error: 'No autorizado' },
+        { status: 401 }
+      )
+    }
+
+    // Obtener organization_id y rol del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('role')
-      .eq('auth_user_id', tenantContext.userId)
+      .select('organization_id, role')
+      .eq('auth_user_id', user.id)
       .single();
-    
-    if (userError || !currentUser || !currentUser.role) {
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [API PUT /work-orders/[id]] Error obteniendo perfil:', profileError)
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Usuario no encontrado',
-        },
-        { status: 404 }
-      );
+        { error: 'No se pudo obtener la organización del usuario' },
+        { status: 403 }
+      )
     }
+
+    const organizationId = userProfile.organization_id;
+    const currentUserRole = userProfile.role as UserRole;
     
     // ✅ VALIDACIÓN: Si es mecánico, verificar que puede acceder a esta orden
-    const currentUserRole = currentUser.role as UserRole;
     if (currentUserRole === 'MECANICO') {
       const canAccess = await canAccessWorkOrder(
-        tenantContext.userId,
+        user.id,
         params.id,
         currentUserRole,
-        supabase
+        supabaseAdmin
       );
       
       if (!canAccess) {
@@ -218,37 +234,38 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // ✅ VALIDACIÓN: Obtener contexto y rol del usuario
-    const tenantContext = await getTenantContext(request);
-    if (!tenantContext || !tenantContext.organizationId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'No autorizado: No se pudo obtener la organización',
-        },
-        { status: 403 }
-      );
-    }
+    // ✅ Obtener usuario autenticado usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    const supabase = await createClient();
-    const { data: currentUser, error: userError } = await (supabase as any)
+    if (authError || !user) {
+      console.error('❌ [API DELETE /work-orders/[id]] Error de autenticación:', authError)
+      return NextResponse.json(
+        { error: 'No autorizado' },
+        { status: 401 }
+      )
+    }
+
+    // Obtener organization_id y rol del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('role')
-      .eq('auth_user_id', tenantContext.userId)
+      .select('organization_id, role')
+      .eq('auth_user_id', user.id)
       .single();
-    
-    if (userError || !currentUser || !currentUser.role) {
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [API DELETE /work-orders/[id]] Error obteniendo perfil:', profileError)
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Usuario no encontrado',
-        },
-        { status: 404 }
-      );
+        { error: 'No se pudo obtener la organización del usuario' },
+        { status: 403 }
+      )
     }
+
+    const organizationId = userProfile.organization_id;
+    const currentUserRole = userProfile.role as UserRole;
     
     // ✅ VALIDACIÓN: Verificar permisos para eliminar
-    const currentUserRole = currentUser.role as UserRole;
     if (!hasPermission(currentUserRole, 'work_orders', 'delete')) {
       return NextResponse.json(
         {

@@ -14,8 +14,7 @@ import {
 import type { WorkOrder, OrderStatus, KanbanColumn as KanbanColumnType } from '@/types/orders';
 import { KanbanColumn } from './KanbanColumn';
 import { OrderCard } from './OrderCard';
-// ✅ Removido: getAllWorkOrders - ahora se usa API route
-import { updateWorkOrder } from '@/lib/database/queries/work-orders';
+// ✅ Removido: getAllWorkOrders y updateWorkOrder - ahora se usan API routes
 import { FileText, CalendarIcon } from 'lucide-react';
 import { OrderDetailModal } from './OrderDetailModal';
 import { WorkOrderDetailsModal } from '@/components/work-orders/WorkOrderDetailsModal';
@@ -395,10 +394,24 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
         return newColumns;
       });
 
-      // Actualizar estado en la base de datos DESPUÉS
-      console.log('🔄 [handleDragEnd] Llamando updateWorkOrder con:', { orderId, newStatus });
-      const updatedOrder = await updateWorkOrder(orderId, { status: newStatus as any });
-      console.log('✅ [handleDragEnd] Orden actualizada en DB:', updatedOrder);
+      // Actualizar estado en la base de datos DESPUÉS usando API route
+      console.log('🔄 [handleDragEnd] Llamando API route PUT /api/work-orders/[id] con:', { orderId, newStatus });
+      
+      const response = await fetch(`/api/work-orders/${orderId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Error al actualizar orden');
+      }
+
+      const result = await response.json();
+      console.log('✅ [handleDragEnd] Orden actualizada en DB:', result.data);
       console.log('✅ [handleDragEnd] Orden movida exitosamente');
 
       // NO recargar órdenes - confiar en la actualización local y DB
