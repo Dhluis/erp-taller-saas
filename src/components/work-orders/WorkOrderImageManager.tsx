@@ -33,8 +33,6 @@ import {
 import { toast } from 'sonner'
 import {
   uploadWorkOrderImage,
-  addImageToWorkOrder,
-  removeImageFromWorkOrder,
   updateImageDescription,
   WorkOrderImage,
   ImageCategory
