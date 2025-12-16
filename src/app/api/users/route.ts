@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getTenantContext } from '@/lib/core/multi-tenant-server'
 import { hasPermission, UserRole } from '@/lib/auth/permissions'
-import { createClient as getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import type { CreateUserRequest } from '@/types/user'
 
 // Usa Service Role Client para bypass RLS en todas las operaciones
@@ -10,26 +9,38 @@ export async function GET(request: NextRequest) {
   try {
     console.log('[GET /api/users] Iniciando...')
     
-    // Obtener contexto del tenant
-    const tenantContext = await getTenantContext(request)
-    if (!tenantContext) {
-      console.error('[GET /api/users] No se pudo obtener tenantContext')
+    // Obtener usuario autenticado directamente
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      console.error('[GET /api/users] Usuario no autenticado')
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
       )
     }
+
+    // Obtener organizationId del perfil del usuario usando Service Role
+    const supabaseAdmin = getSupabaseServiceClient()
     
-    const { organizationId } = tenantContext
-    console.log('[GET /api/users] organizationId:', organizationId)
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', authUser.id)
+      .single()
     
-    if (!organizationId) {
-      console.error('[GET /api/users] organizationId es null o undefined')
+    if (profileError || !userProfile || !userProfile.organization_id) {
+      console.error('[GET /api/users] Error obteniendo perfil:', profileError)
       return NextResponse.json(
         { error: 'No se pudo obtener la organización' },
-        { status: 400 }
+        { status: 403 }
       )
     }
+    
+    const organizationId = userProfile.organization_id
+    console.log('[GET /api/users] organizationId:', organizationId)
     
     // ⚠️ CRÍTICO: Usar Service Role Client para bypass RLS
     const supabaseAdmin = getSupabaseServiceClient()
@@ -127,15 +138,31 @@ export async function POST(request: NextRequest) {
   try {
     console.log('[POST /api/users] Iniciando creación de usuario...')
     
-    const { organizationId, userId } = await getTenantContext(request)
+    // Obtener usuario autenticado directamente
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     
-    // Obtener rol del usuario actual usando Service Role (bypass RLS)
+    if (authError || !authUser) {
+      console.error('[POST /api/users] Usuario no autenticado')
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    // Obtener organizationId y rol del usuario actual usando Service Role
     const supabaseAdmin = getSupabaseServiceClient()
-    const { data: currentUser } = await supabaseAdmin
+    const { data: currentUser, error: currentUserError } = await supabaseAdmin
       .from('users')
-      .select('role')
-      .eq('auth_user_id', userId)
+      .select('role, organization_id')
+      .eq('auth_user_id', authUser.id)
       .single()
+    
+    if (currentUserError || !currentUser || !currentUser.organization_id) {
+      console.error('[POST /api/users] Error obteniendo usuario actual:', currentUserError)
+      return NextResponse.json({ error: 'No se pudo obtener la información del usuario' }, { status: 403 })
+    }
+    
+    const organizationId = currentUser.organization_id
+    const userId = authUser.id
 
     if (!currentUser || !hasPermission(currentUser.role as UserRole, 'users', 'create')) {
       console.log('[POST /api/users] Sin permisos:', currentUser?.role)
