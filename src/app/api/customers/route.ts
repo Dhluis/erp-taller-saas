@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔄 GET /api/customers - Iniciando...')
     
-    // Obtener usuario autenticado directamente
-    const { createClient } = await import('@/lib/supabase/server')
-    const supabase = await createClient()
+    // Obtener usuario autenticado directamente usando el request
+    // Esto es más confiable para usuarios nuevos que acaban de hacer login
+    const supabase = createClientFromRequest(request)
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !authUser) {
