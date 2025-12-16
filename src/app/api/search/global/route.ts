@@ -230,9 +230,41 @@ export async function GET(request: NextRequest) {
     });
 
     // Filtrar por tipo si se especificó
-    const filteredResults = typeFilter 
+    let filteredResults = typeFilter 
       ? results.filter(r => r.type === typeFilter)
       : results;
+
+    // ✅ ORDENAR POR RELEVANCIA: Los que mejor coinciden aparecen primero
+    const queryLower = query.toLowerCase();
+    filteredResults = filteredResults.sort((a, b) => {
+      // Calcular score de relevancia para cada resultado
+      const getRelevanceScore = (result: SearchResult): number => {
+        let score = 0;
+        const titleLower = (result.title || '').toLowerCase();
+        const descriptionLower = (result.description || '').toLowerCase();
+        
+        // Coincidencia exacta en título = mayor prioridad
+        if (titleLower === queryLower) score += 100;
+        // Coincidencia que empieza con la query = alta prioridad
+        else if (titleLower.startsWith(queryLower)) score += 50;
+        // Coincidencia en título = prioridad media
+        else if (titleLower.includes(queryLower)) score += 30;
+        
+        // Coincidencia en descripción = prioridad baja
+        if (descriptionLower.includes(queryLower)) score += 10;
+        
+        // Prioridad por tipo: clientes y vehículos primero
+        if (result.type === 'customer' || result.type === 'vehicle') score += 5;
+        
+        return score;
+      };
+      
+      const scoreA = getRelevanceScore(a);
+      const scoreB = getRelevanceScore(b);
+      
+      // Ordenar de mayor a menor score
+      return scoreB - scoreA;
+    });
 
     return NextResponse.json({
       success: true,
