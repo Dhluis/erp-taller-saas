@@ -5,7 +5,8 @@ import {
   searchWorkOrders,
   getWorkOrderStats,
 } from '@/lib/database/queries/work-orders';
-import { getOrganizationId } from '@/lib/auth/organization-server';
+import { createClientFromRequest } from '@/lib/supabase/server';
+import { getSupabaseServiceClient } from '@/lib/supabase/server';
 
 /**
  * @swagger
@@ -91,8 +92,43 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // ✅ Obtener organizationId del request para asegurar multi-tenant
-    const organizationId = await getOrganizationId(request);
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('[GET /api/work-orders] Error de autenticación:', authError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado',
+          data: []
+        },
+        { status: 401 }
+      );
+    }
+
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('[GET /api/work-orders] Error obteniendo perfil:', profileError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se pudo obtener la organización del usuario',
+          data: []
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = userProfile.organization_id;
     
     let orders;
 
@@ -125,8 +161,41 @@ export async function GET(request: NextRequest) {
 // POST: Crear nueva orden de trabajo
 export async function POST(request: NextRequest) {
   try {
-    // ✅ Obtener organizationId del usuario autenticado (SIEMPRE requerido)
-    const organizationId = await getOrganizationId(request);
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('[POST /api/work-orders] Error de autenticación:', authError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado',
+        },
+        { status: 401 }
+      );
+    }
+
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('[POST /api/work-orders] Error obteniendo perfil:', profileError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se pudo obtener la organización del usuario',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = userProfile.organization_id;
     
     if (!organizationId) {
       return NextResponse.json(
@@ -179,10 +248,7 @@ export async function POST(request: NextRequest) {
 
     // ✅ VALIDACIÓN DE SEGURIDAD: Si el body incluye workshop_id, validar que pertenece a la organización
     if (body.workshop_id) {
-      const { createClient } = await import('@/lib/supabase/server');
-      const supabase = await createClient();
-      
-      const { data: workshop, error: workshopError } = await supabase
+      const { data: workshop, error: workshopError } = await supabaseAdmin
         .from('workshops')
         .select('id')
         .eq('id', body.workshop_id)

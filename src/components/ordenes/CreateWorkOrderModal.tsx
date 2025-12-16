@@ -846,26 +846,23 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         estimated_cost: orderData.estimated_cost
       });
 
-      const { data: newOrder, error: orderError } = await supabase
+      // ✅ Usar API route en lugar de query directa
+      const response = await fetch('/api/work-orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData),
+      });
 
-        .from('work_orders')
-
-        .insert(orderData as any)
-
-        .select()
-
-        .single()
-
-      if (orderError) {
-        console.error('❌ [CreateWorkOrderModal] Error de Supabase al crear orden:', orderError);
-        console.error('❌ [CreateWorkOrderModal] Detalles del error:', {
-          message: orderError.message,
-          details: orderError.details,
-          hint: orderError.hint,
-          code: orderError.code
-        });
-        throw new Error(`Error creando orden: ${orderError.message}`)
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ [CreateWorkOrderModal] Error al crear orden:', errorData);
+        throw new Error(errorData.error || 'Error al crear orden');
       }
+
+      const result = await response.json();
+      const newOrder = result.data;
 
       if (!newOrder) {
         console.error('❌ [CreateWorkOrderModal] newOrder es null o undefined');

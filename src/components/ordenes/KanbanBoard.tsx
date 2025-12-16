@@ -14,7 +14,8 @@ import {
 import type { WorkOrder, OrderStatus, KanbanColumn as KanbanColumnType } from '@/types/orders';
 import { KanbanColumn } from './KanbanColumn';
 import { OrderCard } from './OrderCard';
-import { getAllWorkOrders, updateWorkOrder } from '@/lib/database/queries/work-orders';
+// ✅ Removido: getAllWorkOrders - ahora se usa API route
+import { updateWorkOrder } from '@/lib/database/queries/work-orders';
 import { FileText, CalendarIcon } from 'lucide-react';
 import { OrderDetailModal } from './OrderDetailModal';
 import { WorkOrderDetailsModal } from '@/components/work-orders/WorkOrderDetailsModal';
@@ -160,9 +161,21 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
         console.log('🧹 [KanbanBoard] Cache limpiado para organizationId:', organizationId);
       }
       
-      // ✅ OPTIMIZACIÓN: No cargar order_items en Kanban (no se usan)
-      const orders = await getAllWorkOrders(organizationId, { includeItems: false });
-      console.log('📊 [KanbanBoard] Órdenes recibidas de getAllWorkOrders:', orders?.length || 0);
+      // ✅ Usar API route en lugar de query directa
+      const response = await fetch('/api/work-orders', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al cargar órdenes');
+      }
+
+      const result = await response.json();
+      const orders = result.success ? result.data : [];
+      console.log('📊 [KanbanBoard] Órdenes recibidas de API:', orders?.length || 0);
       
       // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

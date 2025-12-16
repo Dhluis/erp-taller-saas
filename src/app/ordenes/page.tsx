@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAllWorkOrders, deleteWorkOrder } from '@/lib/database/queries/work-orders';
+// ✅ Removido: getAllWorkOrders - ahora se usa API route
+import { deleteWorkOrder } from '@/lib/database/queries/work-orders';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
@@ -91,8 +92,20 @@ export default function OrdenesPage() {
         setHasLoadedOnce(true);
       }
 
-      // ✅ OPTIMIZACIÓN: No cargar order_items en la lista (no se usan)
-      const data = await getAllWorkOrders(organizationId, { includeItems: false });
+      // ✅ Usar API route en lugar de query directa
+      const response = await fetch('/api/work-orders', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al cargar órdenes');
+      }
+
+      const result = await response.json();
+      const data = result.success ? result.data : [];
 
       // ✅ OPTIMIZACIÓN: Cargar usuarios asignados en paralelo con la normalización
       const assignedUserIds = [...new Set(

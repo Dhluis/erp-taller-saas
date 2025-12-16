@@ -577,21 +577,23 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         assignedTo: orderData.assigned_to || 'sin asignar'
       })
 
-      const { data: newOrder, error: orderError } = await supabase
-        .from('work_orders')
-        .insert(orderData)
-        .select()
-        .single()
+      // ✅ Usar API route en lugar de query directa
+      const response = await fetch('/api/work-orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData),
+      });
 
-      if (orderError) {
-        console.error('❌ [CreateOrder] Error completo:', {
-          message: orderError.message,
-          details: orderError.details,
-          hint: orderError.hint,
-          code: orderError.code
-        })
-        throw new Error(`Error creando orden: ${orderError.message}`)
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ [CreateOrder] Error completo:', errorData);
+        throw new Error(errorData.error || 'Error al crear orden');
       }
+
+      const result = await response.json();
+      const newOrder = result.data;
 
       console.log('✅ [CreateOrder] ¡Orden creada!:', newOrder.id)
 

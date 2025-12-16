@@ -1,9 +1,7 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { createClient } from '@/lib/supabase/client';
+// ✅ Removido: createClient - ahora se usan API routes
 import { useSession } from '@/lib/context/SessionContext';
-
-const supabase = createClient();
 
 export interface WorkOrderItem {
   id: string;
@@ -680,90 +678,55 @@ export function useWorkOrders() {
     try {
       console.log('🔄 Cargando datos del Kanban...');
       
-      // Obtener usuario y workshop
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuario no autenticado');
+      // ✅ Usar API routes en lugar de queries directas desde el cliente
+      const [ordersRes, customersRes, vehiclesRes] = await Promise.all([
+        // Cargar órdenes desde API
+        fetch('/api/work-orders', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        }),
+        // Cargar clientes desde API
+        fetch('/api/customers', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        }),
+        // Cargar vehículos desde API
+        fetch('/api/vehicles', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        }),
+      ]);
 
-      const { data: userData } = await supabase
-        .from('users')
-        .select('workshop_id, organization_id')
-        .eq('auth_user_id', user.id)
-        .single();
-
-      // ✅ Validar que el organizationId del contexto coincida con el de la BD
-      if (!userData) {
-        throw new Error('No se encontró el perfil del usuario');
+      // Procesar respuesta de órdenes
+      if (!ordersRes.ok) {
+        const errorData = await ordersRes.json();
+        throw new Error(errorData.error || 'Error al cargar órdenes');
       }
-      
-      const userOrganizationId = (userData as any).organization_id as string;
-      if (userOrganizationId !== organizationId) {
-        console.error('❌ Organization ID mismatch:', { context: organizationId, db: userOrganizationId });
-        throw new Error('Inconsistencia en la organización del usuario');
-      }
+      const ordersResult = await ordersRes.json();
+      const ordersData = ordersResult.success ? ordersResult.data : [];
 
-      // ✅ workshop_id es opcional - puede ser null si la org tiene múltiples workshops
-      const workshopId = (userData as any).workshop_id as string | null;
-      console.log('✅ Workshop ID:', workshopId || 'sin asignar');
-      console.log('✅ Organization ID:', organizationId);
-
-      // Cargar órdenes con relaciones
-      let ordersQuery = supabase
-        .from('work_orders')
-        .select(`
-          *,
-          customer:customers(id, name, email, phone),
-          vehicle:vehicles(id, brand, model, year, license_plate),
-          assigned_mechanic:employees(id, name)
-        `)
-        .eq('organization_id', organizationId); // ✅ Filtrar primero por organization
-      
-      // ✅ Solo filtrar por workshop_id si existe
-      if (workshopId) {
-        ordersQuery = ordersQuery.eq('workshop_id', workshopId);
+      // Procesar respuesta de clientes
+      if (!customersRes.ok) {
+        const errorData = await customersRes.json();
+        throw new Error(errorData.error || 'Error al cargar clientes');
       }
-      
-      const { data: ordersData, error: ordersError } = await ordersQuery
-        .order('entry_date', { ascending: false });
+      const customersResult = await customersRes.json();
+      const customersData = customersResult.success ? customersResult.data : [];
 
-      if (ordersError) {
-        console.error('❌ Error cargando órdenes:', ordersError);
-        throw ordersError;
+      // Procesar respuesta de vehículos
+      if (!vehiclesRes.ok) {
+        const errorData = await vehiclesRes.json();
+        throw new Error(errorData.error || 'Error al cargar vehículos');
       }
+      const vehiclesResult = await vehiclesRes.json();
+      const vehiclesData = vehiclesResult.success ? vehiclesResult.data : [];
 
       console.log('✅ Órdenes cargadas:', ordersData?.length || 0);
-
-      // Cargar clientes
-      let customersQuery = supabase
-        .from('customers')
-        .select('*')
-        .eq('organization_id', organizationId); // ✅ Filtrar primero por organization
-      
-      // ✅ Solo filtrar por workshop_id si existe
-      if (workshopId) {
-        customersQuery = customersQuery.eq('workshop_id', workshopId);
-      }
-      
-      const { data: customersData, error: customersError } = await customersQuery
-        .order('name');
-
-      if (customersError) {
-        console.error('❌ Error cargando clientes:', customersError);
-        throw customersError;
-      }
-
       console.log('✅ Clientes cargados:', customersData?.length || 0);
-
-      // Cargar vehículos
-      const { data: vehiclesData, error: vehiclesError } = await supabase
-        .from('vehicles')
-        .select('*')
-        .eq('organization_id', organizationId) // ✅ Filtrar primero por organization
-        .order('brand');
-
-      if (vehiclesError) {
-        console.error('❌ Error cargando vehículos:', vehiclesError);
-        throw vehiclesError;
-      }
+      console.log('✅ Vehículos cargados:', vehiclesData?.length || 0);
 
       console.log('✅ Vehículos cargados:', vehiclesData?.length || 0);
 
@@ -800,15 +763,25 @@ export function useWorkOrders() {
     }
 
     try {
-      // @ts-expect-error - Supabase generated types don't match runtime
-      const { error } = await supabase
-        .from('work_orders')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', orderId)
-        .eq('organization_id', organizationId); // ✅ Validar que pertenece a la org
+      // ✅ Usar API route en lugar de query directa
+      const response = await fetch(`/api/work-orders/${orderId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+        }),
+      });
 
-      if (error) throw error;
-      return { success: true };
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al actualizar estado');
+      }
+
+      const result = await response.json();
+      return { success: result.success };
     } catch (error: any) {
       console.error('Error updating order status:', error);
       throw error;
