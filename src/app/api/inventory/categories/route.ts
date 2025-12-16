@@ -63,29 +63,30 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔄 GET /api/inventory/categories - Iniciando...')
     
-    // Crear cliente de Supabase
-    const { createClient } = await import('@/lib/supabase/server')
-    const supabase = await createClient()
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    const { createClientFromRequest } = await import('@/lib/supabase/server')
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
     
-    // Obtener sesión del usuario
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    if (sessionError || !session) {
-      console.error('❌ Error de sesión:', sessionError)
+    if (authError || !user) {
+      console.error('❌ Error de autenticación:', authError)
       return NextResponse.json(
         { success: false, error: 'No autorizado' },
         { status: 401 }
       )
     }
 
-    // Obtener perfil del usuario
-    const { data: profile, error: profileError } = await supabase
-      .from('system_users')
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
       .select('organization_id')
-      .eq('email', session.user.email)
+      .eq('auth_user_id', user.id)
       .single()
 
-    if (profileError || !profile) {
+    if (profileError || !userProfile?.organization_id) {
       console.error('❌ Error obteniendo perfil:', profileError)
       return NextResponse.json(
         { success: false, error: 'Perfil de usuario no encontrado' },
@@ -93,11 +94,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.log('✅ Usuario autenticado:', session.user.email)
-    console.log('✅ Organization ID:', profile.organization_id)
+    console.log('✅ Usuario autenticado:', user.email)
+    console.log('✅ Organization ID:', userProfile.organization_id)
     
     // Obtener categorías con timeout extendido
-    const categories = await getAllCategories(profile.organization_id)
+    const categories = await getAllCategories(userProfile.organization_id)
     
     console.log('✅ Categorías obtenidas:', categories.length)
 
@@ -123,29 +124,30 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json();
 
-    // Crear cliente de Supabase
-    const { createClient } = await import('@/lib/supabase/server')
-    const supabase = await createClient()
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    const { createClientFromRequest } = await import('@/lib/supabase/server')
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
     
-    // Obtener sesión del usuario
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    if (sessionError || !session) {
-      console.error('❌ Error de sesión:', sessionError)
+    if (authError || !user) {
+      console.error('❌ Error de autenticación:', authError)
       return NextResponse.json(
         { success: false, error: 'No autorizado' },
         { status: 401 }
       )
     }
 
-    // Obtener perfil del usuario
-    const { data: profile, error: profileError } = await supabase
-      .from('system_users')
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
       .select('organization_id')
-      .eq('email', session.user.email)
+      .eq('auth_user_id', user.id)
       .single()
 
-    if (profileError || !profile) {
+    if (profileError || !userProfile?.organization_id) {
       console.error('❌ Error obteniendo perfil:', profileError)
       return NextResponse.json(
         { success: false, error: 'Perfil de usuario no encontrado' },
@@ -153,8 +155,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ Usuario autenticado:', session.user.email)
-    console.log('✅ Organization ID:', profile.organization_id)
+    console.log('✅ Usuario autenticado:', user.email)
+    console.log('✅ Organization ID:', userProfile.organization_id)
 
     // Validaciones
     if (!body.name || body.name.trim() === '') {
@@ -179,7 +181,7 @@ export async function POST(request: NextRequest) {
 
     const category = await createCategory({
       ...body,
-      organization_id: profile.organization_id // Usar el organization_id del usuario autenticado
+      organization_id: userProfile.organization_id // Usar el organization_id del usuario autenticado
     });
 
     console.log('✅ Categoría creada:', category.id)

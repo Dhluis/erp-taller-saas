@@ -6,7 +6,8 @@ import {
   getLowStockItems,
 } from '@/lib/database/queries/inventory';
 import { handleAPIError, createErrorResponse } from '@/lib/errors/APIError';
-import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { createClientFromRequest } from '@/lib/supabase/server';
+import { getSupabaseServiceClient } from '@/lib/supabase/server';
 
 /**
  * @swagger
@@ -73,22 +74,47 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server';
 // GET: Obtener todos los items o buscar
 export async function GET(request: NextRequest) {
   try {
-    // ✅ Obtener organizationId del usuario autenticado
-    const tenantContext = await getTenantContext(request);
-    if (!tenantContext || !tenantContext.organizationId) {
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('[GET /api/inventory] Error de autenticación:', authError);
       return NextResponse.json(
         {
           success: false,
-          error: 'No autorizado: No se pudo obtener la organización',
+          error: 'No autorizado',
+          data: []
+        },
+        { status: 401 }
+      );
+    }
+
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('[GET /api/inventory] Error obteniendo perfil:', profileError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se pudo obtener la organización del usuario',
+          data: []
         },
         { status: 403 }
       );
     }
 
+    const organizationId = userProfile.organization_id;
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const lowStock = searchParams.get('low_stock');
-    const organizationId = tenantContext.organizationId;
 
     let items;
     
@@ -117,20 +143,42 @@ export async function GET(request: NextRequest) {
 // POST: Crear nuevo item de inventario
 export async function POST(request: NextRequest) {
   try {
-    // ✅ Obtener organizationId del usuario autenticado
-    const tenantContext = await getTenantContext(request);
-    if (!tenantContext || !tenantContext.organizationId) {
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('[POST /api/inventory] Error de autenticación:', authError);
       return NextResponse.json(
         {
           success: false,
-          error: 'No autorizado: No se pudo obtener la organización',
+          error: 'No autorizado',
+        },
+        { status: 401 }
+      );
+    }
+
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('[POST /api/inventory] Error obteniendo perfil:', profileError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se pudo obtener la organización del usuario',
         },
         { status: 403 }
       );
     }
 
+    const organizationId = userProfile.organization_id;
     const body = await request.json();
-    const organizationId = tenantContext.organizationId;
 
     // ✅ VALIDACIÓN CRÍTICA: Si viene organization_id en el body, debe coincidir con el del usuario
     if (body.organization_id && body.organization_id !== organizationId) {
