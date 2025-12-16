@@ -187,8 +187,13 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
           badge: null,
         };
       case 'vehicle':
+        // ✅ Manejar valores null/undefined correctamente
+        const brand = result.brand || '';
+        const model = result.model || '';
+        const year = result.year ? ` ${result.year}` : '';
+        const vehicleTitle = `${brand} ${model}${year}`.trim() || 'Vehículo sin información';
         return {
-          title: `${result.brand} ${result.model} ${result.year || ''}`,
+          title: vehicleTitle,
           subtitle: result.license_plate || 'Sin placa',
           badge: null,
         };
