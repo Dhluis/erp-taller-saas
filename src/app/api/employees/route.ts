@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getTenantContext } from '@/lib/core/multi-tenant-server'
+import { createClientFromRequest } from '@/lib/supabase/server'
+import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import { hasPermission, UserRole } from '@/lib/auth/permissions'
 import type { CreateEmployeeRequest } from '@/types/employee'
 
@@ -8,23 +8,54 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔄 GET /api/employees - Iniciando...')
     
-    const tenantContext = await getTenantContext(request)
-    if (!tenantContext) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('[GET /api/employees] Error de autenticación:', authError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado',
+          data: []
+        },
+        { status: 401 }
+      );
     }
 
-    const supabase = await createClient()
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('[GET /api/employees] Error obteniendo perfil:', profileError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se pudo obtener la organización del usuario',
+          data: []
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = userProfile.organization_id;
     
     // Obtener parámetros de query
     const { searchParams } = new URL(request.url)
     const activeOnly = searchParams.get('active') === 'true'
     const role = searchParams.get('role')
     
-    // Construir query
-    let query = supabase
+    // Construir query usando Service Role Client
+    let query = supabaseAdmin
       .from('employees')
       .select('*')
-      .eq('organization_id', tenantContext.organizationId)
+      .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
     
     // Filtrar por activos
@@ -41,11 +72,21 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('❌ Error obteniendo empleados:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+          data: []
+        },
+        { status: 500 }
+      )
     }
 
     console.log('✅ Empleados obtenidos:', employees?.length || 0)
-    return NextResponse.json({ employees: employees || [] })
+    return NextResponse.json({
+      success: true,
+      data: employees || []
+    })
 
   } catch (error: any) {
     console.error('💥 Error en GET /api/employees:', error)

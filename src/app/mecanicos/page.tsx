@@ -34,9 +34,6 @@ export default function MecanicosPage() {
   const [editingMechanicId, setEditingMechanicId] = useState<string | null>(null)
 
   const fetchMechanics = async () => {
-    // ✅ Usar workshopId dinámico del SessionContext
-    const workshopId = sessionWorkshopId || profile?.workshop_id || null
-    
     if (!organizationId) {
       console.log('❌ No hay organizationId disponible')
       return
@@ -46,31 +43,30 @@ export default function MecanicosPage() {
       setLoading(true)
       
       console.log('🔍 Buscando mecánicos para organization:', organizationId)
-      console.log('🔍 Workshop ID:', workshopId || 'sin asignar')
       
-      let query = supabase
-        .from('employees')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .in('role', ['mechanic', 'supervisor', 'receptionist', 'manager'])
-      
-      // ✅ Solo filtrar por workshop_id si existe
-      if (workshopId) {
-        query = query.eq('workshop_id', workshopId)
-      }
-      
-      const { data, error } = await query
-        .order('name')
+      // ✅ Usar API route en lugar de query directa
+      const response = await fetch('/api/employees', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
 
-      console.log('📊 Resultado:', { data, error })
-
-      if (error) {
-        console.error('❌ Error de Supabase:', error)
-        throw error
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al cargar mecánicos');
       }
 
-      setMechanics(data || [])
-      console.log('✅ Mecánicos cargados:', data?.length || 0)
+      const result = await response.json();
+      // La API devuelve { employees: [...] } o { success: true, data: [...] }
+      const allEmployees = result.employees || result.data || [];
+      
+      // Filtrar por roles de mecánicos
+      const mechanicsData = allEmployees.filter((emp: any) => 
+        ['mechanic', 'supervisor', 'receptionist', 'manager'].includes(emp.role)
+      );
+
+      setMechanics(mechanicsData);
+      console.log('✅ Mecánicos cargados:', mechanicsData?.length || 0)
     } catch (error: any) {
       console.error('❌ Error general:', error)
       console.error('❌ Error message:', error?.message)
