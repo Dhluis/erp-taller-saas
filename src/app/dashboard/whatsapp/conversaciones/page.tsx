@@ -1260,14 +1260,20 @@ export default function ConversacionesPage() {
           if (usersResult.success && usersResult.data) {
             setAvailableAgents((usersResult.data || []).map((u: any) => ({
               id: u.auth_user_id || u.id,
-            name: u.full_name || 'Usuario sin nombre'
-          })))
-        } else {
-          setAvailableAgents((employees || []).map((emp: any) => ({
-            id: emp.id,
-            name: emp.name || 'Empleado sin nombre'
-          })))
+              name: u.full_name || u.email || 'Usuario sin nombre'
+            })))
+            return
+          }
         }
+
+        // Si falla todo, usar lista por defecto
+        console.error('Error cargando usuarios')
+        setAvailableAgents([
+          { id: '1', name: 'Juan Pérez' },
+          { id: '2', name: 'María García' },
+          { id: '3', name: 'Carlos López' },
+          { id: '4', name: 'Ana Martínez' }
+        ])
       } catch (error) {
         console.error('Error cargando agentes:', error)
         // Usar lista por defecto en caso de error
