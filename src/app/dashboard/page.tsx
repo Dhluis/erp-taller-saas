@@ -641,9 +641,22 @@ export default function DashboardPage() {
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Gráfico de Ingresos */}
             <div className="bg-gray-800 rounded-lg p-3 sm:p-4 md:p-6 border border-gray-700">
-              <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-4">Ingresos de los Últimos 7 Días</h3>
+              <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-4">
+                Ingresos {dateRange === '7d' ? 'de los Últimos 7 Días' : 
+                         dateRange === '30d' ? 'de los Últimos 30 Días' :
+                         dateRange === 'current_month' ? 'del Mes Actual' :
+                         'del Período Seleccionado'}
+              </h3>
               <p className="text-gray-400 text-xs sm:text-sm mb-3 sm:mb-4">Tendencia de ingresos y órdenes procesadas</p>
               <div className="h-48 sm:h-64">
+                {incomeData.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                      <p className="text-gray-400 text-sm">Cargando datos de ingresos...</p>
+                    </div>
+                  </div>
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={incomeData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
