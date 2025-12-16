@@ -41,9 +41,6 @@ export async function GET(request: NextRequest) {
     
     const organizationId = userProfile.organization_id
     console.log('[GET /api/users] organizationId:', organizationId)
-    
-    // ⚠️ CRÍTICO: Usar Service Role Client para bypass RLS
-    const supabaseAdmin = getSupabaseServiceClient()
     console.log('[GET /api/users] Usando Service Role Client para bypass RLS')
     
     // Obtener el nombre de la organización primero
