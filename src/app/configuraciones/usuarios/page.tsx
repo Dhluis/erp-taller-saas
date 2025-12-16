@@ -550,16 +550,19 @@ export default function UsuariosPage() {
                           <Edit className="h-4 w-4 mr-1" />
                           Editar
                         </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleDelete(user.id)}
-                          disabled={isSubmitting}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          Eliminar
-                        </Button>
+                        {/* ✅ Ocultar botón eliminar para mecánicos */}
+                        {!permissions.isMechanic && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleDelete(user.id)}
+                            disabled={isSubmitting}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Eliminar
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
