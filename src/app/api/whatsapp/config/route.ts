@@ -1,8 +1,6 @@
 import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseServerClient } from '@/integrations/whatsapp/utils/supabase-server-helpers'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
-import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 /**
  * ✅ Genera un nombre de sesión único para WAHA por organización
@@ -23,14 +21,37 @@ export async function POST(request: NextRequest) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   
   try {
-    // Obtener contexto del tenant
-    const tenantContext = await getTenantContext(request)
-    if (!tenantContext) {
+    // Obtener usuario autenticado directamente
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      console.error('[Config POST] Usuario no autenticado')
       return NextResponse.json({
         success: false,
         error: 'No autorizado'
       }, { status: 401 })
     }
+
+    // Obtener organizationId del perfil del usuario usando Service Role
+    const supabaseAdmin = getSupabaseServiceClient()
+    
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', authUser.id)
+      .single()
+    
+    if (profileError || !userProfile || !userProfile.organization_id) {
+      console.error('[Config POST] Error obteniendo perfil:', profileError)
+      return NextResponse.json({
+        success: false,
+        error: 'No autorizado'
+      }, { status: 401 })
+    }
+    
+    const organizationId = userProfile.organization_id
 
     const data = await request.json()
 
@@ -38,7 +59,7 @@ export async function POST(request: NextRequest) {
     if (data.test === true && data.message) {
       try {
         const { processMessage } = await import('@/integrations/whatsapp/services/ai-agent')
-        const organizationId = data.organizationId || tenantContext.organizationId
+        const testOrganizationId = data.organizationId || organizationId
 
         console.log('[Config Test] 🧪 Procesando mensaje de prueba...')
         console.log('[Config Test] Organization:', organizationId)
@@ -96,9 +117,8 @@ export async function POST(request: NextRequest) {
         try {
           serviceClient = getSupabaseServiceClient()
         } catch (serviceError) {
-          console.warn('[Config Test] ⚠️ Service role no disponible, usando cliente regular:', serviceError)
-          // Fallback al cliente regular si no hay service role
-          serviceClient = await getSupabaseServerClient()
+          console.warn('[Config Test] ⚠️ Service role no disponible:', serviceError)
+          throw new Error('Service role client no disponible')
         }
 
         // Verificar si ya existe configuración
@@ -257,43 +277,17 @@ export async function POST(request: NextRequest) {
     }
 
     // RESTO DEL CÓDIGO ORIGINAL (guardar configuración)
-    // ✅ Si llegamos aquí, el usuario está autenticado y tiene acceso a la organización
-    // (ya fue verificado en getTenantContext)
-    
-    // Verificar autenticación con cliente regular (tiene sesión)
-    const supabase = await getSupabaseServerClient()
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return NextResponse.json({
-        success: false,
-        error: 'Usuario no autenticado'
-      }, { status: 401 })
-    }
-
-    // ✅ Si tiene tenantContext válido, significa que:
-    // - Está autenticado
-    // - Tiene un perfil en users
-    // - Pertenece a un workshop
-    // - El workshop pertenece a una organización
-    // Por lo tanto, permitimos guardar la configuración
+    // ✅ Usuario ya autenticado y organizationId obtenido arriba
     console.log('[Config Save] ✅ Usuario autenticado y con acceso a la organización, permitiendo guardar configuración')
 
     // Usar service client para bypass RLS al guardar configuración
-    let serviceClient
-    try {
-      serviceClient = getSupabaseServiceClient()
-      console.log('[Config Save] ✅ Usando service client para operaciones de BD (bypass RLS)')
-    } catch (serviceError) {
-      console.warn('[Config Save] ⚠️ Service role no disponible, usando cliente regular:', serviceError)
-      // Fallback al cliente regular si no hay service role
-      serviceClient = supabase
-    }
+    const serviceClient = supabaseAdmin
 
     // Verificar si ya existe configuración
     const { data: existingConfig, error: checkError } = await serviceClient
       .from('ai_agent_config')
       .select('id')
-      .eq('organization_id', tenantContext.organizationId)
+      .eq('organization_id', organizationId)
       .single()
 
     if (checkError && checkError.code !== 'PGRST116') {
@@ -322,7 +316,7 @@ export async function POST(request: NextRequest) {
       const { data: existingConfig, error: checkError } = await serviceClient
         .from('ai_agent_config')
         .select('id, policies')
-        .eq('organization_id', tenantContext.organizationId)
+        .eq('organization_id', organizationId)
         .single()
 
       if (checkError && checkError.code !== 'PGRST116') {
@@ -338,7 +332,7 @@ export async function POST(request: NextRequest) {
         if (data.waha_api_url || data.waha_api_key || data.whatsapp_phone) {
           // ✅ Crear configuración básica (con o sin entrenamiento previo)
           // Generar session_name único para esta organización
-          const whatsappSessionName = generateWhatsAppSessionName(tenantContext.organizationId)
+          const whatsappSessionName = generateWhatsAppSessionName(organizationId)
           
           // ✅ Obtener credenciales de WAHA según el tipo
           // Si es shared, obtener de BD
@@ -405,7 +399,7 @@ export async function POST(request: NextRequest) {
           const wahaConfigType = data.waha_config_type || 'shared'
           
           const newConfigData: any = {
-              organization_id: tenantContext.organizationId,
+              organization_id: organizationId,
             enabled: data.whatsapp_phone ? true : false, // Habilitar si se vincula WhatsApp
             system_prompt: 'Asistente virtual de taller automotriz. Responde de manera amable y profesional.', // Prompt por defecto
               policies: {
@@ -422,7 +416,7 @@ export async function POST(request: NextRequest) {
           }
           
           console.log('[Config Save] 🔐 Creando nueva config multi-tenant:', {
-            organization_id: tenantContext.organizationId,
+            organization_id: organizationId,
             whatsapp_session_name: whatsappSessionName,
             waha_config_type: wahaConfigType,
             has_waha_api_url: !!wahaApiUrl,
@@ -497,7 +491,7 @@ export async function POST(request: NextRequest) {
         
         console.log('[Config Save] ✅ Configuración de WAHA guardada en policies')
         console.log('[Config Save] 📋 Policies actualizado:', JSON.stringify(updatedPolicies, null, 2))
-        console.log('[Config Save] 🔍 Organization ID:', tenantContext.organizationId)
+        console.log('[Config Save] 🔍 Organization ID:', organizationId)
         
         // Verificar que se guardó correctamente leyendo de vuelta
         const { data: verifyConfig, error: verifyError } = await serviceClient
@@ -524,7 +518,7 @@ export async function POST(request: NextRequest) {
             updated: true,
             waha_api_url: data.waha_api_url,
             waha_api_key_configured: !!data.waha_api_key,
-            organization_id: tenantContext.organizationId
+            organization_id: organizationId
           }
         })
       }
@@ -636,7 +630,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ✅ Generar session_name único para esta organización (multi-tenant)
-    const whatsappSessionName = generateWhatsAppSessionName(tenantContext.organizationId)
+    const whatsappSessionName = generateWhatsAppSessionName(organizationId)
     
     console.log('[Config Save] 📥 Body recibido:', {
       waha_config_type: data.waha_config_type,
@@ -728,7 +722,7 @@ export async function POST(request: NextRequest) {
     })
     
     const configData = {
-      organization_id: tenantContext.organizationId,
+      organization_id: organizationId,
       enabled: true,
       provider: 'openai',
       model: 'gpt-4o-mini',
@@ -755,7 +749,7 @@ export async function POST(request: NextRequest) {
     }
     
     console.log('[Config Save] 🔐 Multi-tenant config:', {
-      organization_id: tenantContext.organizationId,
+      organization_id: organizationId,
       whatsapp_session_name: whatsappSessionName,
       waha_config_type: wahaConfigType,
       has_waha_api_url: !!wahaApiUrl,
@@ -901,30 +895,45 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const tenantContext = await getTenantContext(request)
-    if (!tenantContext) {
+    // Obtener usuario autenticado directamente
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      console.error('[Config GET] Usuario no autenticado')
       return NextResponse.json({
         success: false,
         error: 'No autorizado'
       }, { status: 401 })
     }
 
-    // Intentar primero con service client (bypass RLS) para evitar problemas
-    let supabase
-    let useServiceClient = false
-    try {
-      supabase = getSupabaseServiceClient()
-      useServiceClient = true
-      console.log('[Config GET] ✅ Usando service client (bypass RLS)')
-    } catch (serviceError) {
-      console.warn('[Config GET] ⚠️ Service client no disponible, usando cliente regular:', serviceError)
-      supabase = await getSupabaseServerClient()
+    // Obtener organizationId del perfil del usuario usando Service Role
+    const supabaseAdmin = getSupabaseServiceClient()
+    
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', authUser.id)
+      .single()
+    
+    if (profileError || !userProfile || !userProfile.organization_id) {
+      console.error('[Config GET] Error obteniendo perfil:', profileError)
+      return NextResponse.json({
+        success: false,
+        error: 'No autorizado'
+      }, { status: 401 })
     }
+    
+    const organizationId = userProfile.organization_id
 
-    const { data: config, error } = await supabase
+    // Usar service client directamente (bypass RLS)
+    console.log('[Config GET] ✅ Usando service client (bypass RLS)')
+
+    const { data: config, error } = await supabaseAdmin
       .from('ai_agent_config')
       .select('*')
-      .eq('organization_id', tenantContext.organizationId)
+      .eq('organization_id', organizationId)
       .single()
 
     if (error) {
@@ -934,30 +943,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           success: true,
           data: null
-        })
-      }
-      
-      // Si falla con service client, intentar con cliente regular como fallback
-      if (useServiceClient) {
-        console.warn('[Config GET] ⚠️ Error con service client, intentando con cliente regular...')
-        const regularClient = await getSupabaseServerClient()
-        const retry = await regularClient
-          .from('ai_agent_config')
-          .select('*')
-          .eq('organization_id', tenantContext.organizationId)
-          .single()
-        
-        if (retry.error && retry.error.code !== 'PGRST116') {
-          console.error('[Config GET] ❌ Error obteniendo configuración:', retry.error)
-          return NextResponse.json({
-            success: false,
-            error: retry.error.message
-          }, { status: 500 })
-        }
-        
-        return NextResponse.json({
-          success: true,
-          data: retry.data || null
         })
       }
       

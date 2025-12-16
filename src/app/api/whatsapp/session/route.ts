@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTenantContext } from '@/lib/core/multi-tenant-server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { 
   getOrganizationSession, 
@@ -86,39 +85,43 @@ export async function GET(request: NextRequest) {
       userAgent: request.headers.get('user-agent')?.substring(0, 50)
     });
     
-    // 1. Obtener contexto del usuario con manejo robusto de errores
-    let tenantContext;
-    try {
-      console.log('[/api/whatsapp/session] 🔍 Obteniendo tenant context...');
-      tenantContext = await getTenantContext(request);
-      console.log('[/api/whatsapp/session] ✅ Tenant context obtenido:', {
-        hasOrganizationId: !!tenantContext?.organizationId,
-        hasUserId: !!tenantContext?.userId,
-        organizationId: tenantContext?.organizationId,
-        userId: tenantContext?.userId
-      });
-    } catch (tenantError: any) {
-      console.error('[/api/whatsapp/session] ❌ Error obteniendo tenant context:', {
-        message: tenantError.message,
-        stack: tenantError.stack,
-        name: tenantError.name
-      });
+    // Obtener usuario autenticado directamente
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      console.error('[/api/whatsapp/session] Usuario no autenticado')
       return NextResponse.json({ 
         success: false, 
-        error: 'No autorizado',
-        details: process.env.NODE_ENV === 'development' ? tenantError.message : undefined
-      }, { status: 403 });
+        error: 'No autorizado'
+      }, { status: 401 })
     }
+
+    // Obtener organizationId del perfil del usuario usando Service Role
+    const supabaseAdmin = getSupabaseServiceClient()
     
-    const { organizationId, userId } = tenantContext || {};
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', authUser.id)
+      .single()
     
-    if (!organizationId) {
-      console.error('[/api/whatsapp/session] ❌ Sin organizationId en tenant context');
+    if (profileError || !userProfile || !userProfile.organization_id) {
+      console.error('[/api/whatsapp/session] Error obteniendo perfil:', profileError)
       return NextResponse.json({
         success: false,
         error: 'No se pudo obtener la organización del usuario'
-      }, { status: 400 });
+      }, { status: 403 })
     }
+    
+    const organizationId = userProfile.organization_id
+    const userId = authUser.id
+    
+    console.log('[/api/whatsapp/session] ✅ Usuario autenticado:', {
+      organizationId,
+      userId
+    })
 
     console.log(`[/api/whatsapp/session] 🏢 Organization ID: ${organizationId}`);
     console.log(`[/api/whatsapp/session] 👤 User ID: ${userId || 'N/A'}`);
@@ -581,7 +584,38 @@ export async function POST(request: NextRequest) {
   try {
     console.log('\n=== [WhatsApp Session POST] Iniciando ===');
     
-    const { organizationId, userId } = await getTenantContext(request);
+    // Obtener usuario autenticado directamente
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      console.error('[WhatsApp Session POST] Usuario no autenticado')
+      return NextResponse.json({
+        success: false,
+        error: 'No autorizado'
+      }, { status: 401 })
+    }
+
+    // Obtener organizationId del perfil del usuario usando Service Role
+    const supabaseAdmin = getSupabaseServiceClient()
+    
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', authUser.id)
+      .single()
+    
+    if (profileError || !userProfile || !userProfile.organization_id) {
+      console.error('[WhatsApp Session POST] Error obteniendo perfil:', profileError)
+      return NextResponse.json({
+        success: false,
+        error: 'No se pudo obtener la organización del usuario'
+      }, { status: 403 })
+    }
+    
+    const organizationId = userProfile.organization_id
+    const userId = authUser.id
     
     if (!organizationId) {
       console.error('[WhatsApp Session POST] ❌ No hay organizationId');
