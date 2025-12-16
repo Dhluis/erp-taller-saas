@@ -63,7 +63,11 @@ export function useCustomers(): UseCustomersReturn {
         hasData: !!result.data,
         dataType: typeof result.data,
         dataKeys: result.data ? Object.keys(result.data) : [],
-        error: result.error
+        error: result.error,
+        status: result.status,
+        statusText: result.statusText,
+        // Log completo del data para diagnóstico
+        dataPreview: result.data ? JSON.stringify(result.data).substring(0, 200) : null
       });
       
       if (!result.success) {
@@ -77,25 +81,48 @@ export function useCustomers(): UseCustomersReturn {
       
       // ✅ FIX: Manejar ambos formatos de respuesta
       // La API devuelve { success: true, data: [...] }
-      // safeFetch puede envolver esto en result.data
+      // safeFetch devuelve el JSON parseado directamente en result.data
       let customersData: Customer[] = [];
       
-      if (result.data) {
-        // Si result.data tiene la estructura { success: true, data: [...] }
-        if (typeof result.data === 'object' && 'success' in result.data && result.data.success) {
-          customersData = (result.data as CustomersResponse).data || [];
-          console.log('✅ [useCustomers] Clientes desde result.data.data:', customersData.length);
-        } 
-        // Si result.data es directamente un array
-        else if (Array.isArray(result.data)) {
-          customersData = result.data;
-          console.log('✅ [useCustomers] Clientes desde result.data (array directo):', customersData.length);
+      if (!result.data) {
+        console.error('❌ [useCustomers] result.data es null o undefined');
+        setError('No se recibieron datos de la API');
+        return [];
+      }
+      
+      // Si result.data tiene la estructura { success: true, data: [...] }
+      if (typeof result.data === 'object' && 'success' in result.data) {
+        const apiResponse = result.data as CustomersResponse;
+        if (apiResponse.success && apiResponse.data) {
+          customersData = apiResponse.data;
+          console.log('✅ [useCustomers] Clientes desde result.data.data (formato API estándar):', customersData.length);
+        } else {
+          console.error('❌ [useCustomers] API devolvió success:false:', apiResponse.error);
+          setError(apiResponse.error || 'Error al obtener clientes');
+          return [];
         }
-        // Si result.data tiene data dentro
-        else if (typeof result.data === 'object' && 'data' in result.data && Array.isArray((result.data as any).data)) {
-          customersData = (result.data as any).data;
-          console.log('✅ [useCustomers] Clientes desde result.data.data (nested):', customersData.length);
-        }
+      } 
+      // Si result.data es directamente un array (formato alternativo)
+      else if (Array.isArray(result.data)) {
+        customersData = result.data;
+        console.log('✅ [useCustomers] Clientes desde result.data (array directo):', customersData.length);
+      }
+      // Si result.data tiene data dentro (formato anidado)
+      else if (typeof result.data === 'object' && 'data' in result.data && Array.isArray((result.data as any).data)) {
+        customersData = (result.data as any).data;
+        console.log('✅ [useCustomers] Clientes desde result.data.data (nested):', customersData.length);
+      }
+      else {
+        console.error('❌ [useCustomers] Formato de respuesta inesperado:', {
+          dataType: typeof result.data,
+          isObject: typeof result.data === 'object',
+          hasSuccess: result.data && typeof result.data === 'object' && 'success' in result.data,
+          hasData: result.data && typeof result.data === 'object' && 'data' in result.data,
+          isArray: Array.isArray(result.data),
+          data: result.data
+        });
+        setError('Formato de respuesta inesperado de la API');
+        return [];
       }
       
       console.log('✅ [useCustomers] Clientes cargados:', customersData.length);
