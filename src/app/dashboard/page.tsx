@@ -440,8 +440,13 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* ✅ KPI Cards - Mobile-first: 1 col en móvil, 2 en tablet, 3 en desktop */}
+        <div className={cn(
+          "grid gap-4 md:gap-6",
+          permissions.isMechanic 
+            ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" // Mecánicos: máximo 3 columnas
+            : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" // Otros: hasta 3 columnas
+        )}>
           {kpiCards.map((kpi, index) => {
             const IconComponent = kpi.icon;
             return (
