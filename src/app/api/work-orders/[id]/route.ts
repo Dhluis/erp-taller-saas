@@ -47,30 +47,12 @@ export async function GET(
     console.log('🔍 [API GET /work-orders/[id]] Organization ID:', organizationId);
     
     // ✅ VALIDACIÓN: Si es mecánico, verificar que puede acceder a esta orden
-    const { data: currentUser, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('role')
-      .eq('auth_user_id', user.id)
-      .single();
-    
-    if (userError || !currentUser || !currentUser.role) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Usuario no encontrado',
-        },
-        { status: 404 }
-      );
-    }
-    
-    // ✅ VALIDACIÓN: Si es mecánico, verificar que puede acceder a esta orden
-    const currentUserRole = currentUser.role as UserRole;
     if (currentUserRole === 'MECANICO') {
       const canAccess = await canAccessWorkOrder(
-        tenantContext.userId,
+        user.id,
         params.id,
         currentUserRole,
-        supabase
+        supabaseAdmin
       );
       
       if (!canAccess) {
