@@ -139,13 +139,23 @@ export function useCustomers(): UseCustomersReturn {
       // ✅ FIX: Filtrar solo clientes de la organización actual (por seguridad)
       const filteredCustomers = customersData.filter((c: any) => {
         const customerOrgId = c.organization_id;
-        const matches = customerOrgId === organizationId;
+        // ✅ Normalizar ambos valores para comparación (trim y convertir a string)
+        const normalizedCustomerOrgId = customerOrgId ? String(customerOrgId).trim() : null;
+        const normalizedExpectedOrgId = organizationId ? String(organizationId).trim() : null;
+        const matches = normalizedCustomerOrgId === normalizedExpectedOrgId;
+        
         if (!matches) {
           console.warn('⚠️ [useCustomers] Cliente con organization_id diferente encontrado:', {
             customer_id: c.id,
             customer_name: c.name,
             customer_org_id: customerOrgId,
-            expected_org_id: organizationId
+            customer_org_id_normalized: normalizedCustomerOrgId,
+            expected_org_id: organizationId,
+            expected_org_id_normalized: normalizedExpectedOrgId,
+            customer_org_id_type: typeof customerOrgId,
+            expected_org_id_type: typeof organizationId,
+            areEqual: customerOrgId === organizationId,
+            areEqualAfterNormalization: normalizedCustomerOrgId === normalizedExpectedOrgId
           });
         }
         return matches;
