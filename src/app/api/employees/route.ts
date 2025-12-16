@@ -85,7 +85,8 @@ export async function GET(request: NextRequest) {
     console.log('✅ Empleados obtenidos:', employees?.length || 0)
     return NextResponse.json({
       success: true,
-      data: employees || []
+      employees: employees || [], // ✅ Mantener compatibilidad con código que espera 'employees'
+      data: employees || [] // ✅ También incluir 'data' para consistencia
     })
 
   } catch (error: any) {
