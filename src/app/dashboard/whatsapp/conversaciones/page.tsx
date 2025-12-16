@@ -421,15 +421,26 @@ export default function ConversacionesPage() {
 
     try {
       setLoadingMessages(true)
-      const { data, error } = await supabase
-        .from('whatsapp_messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: true })
-        .limit(100)
+      
+      // ✅ Usar API route en lugar de query directa
+      const response = await fetch(`/api/whatsapp/conversations/${conversationId}/messages?limit=100`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Error al cargar mensajes')
+      }
+
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Error al cargar mensajes')
+      }
+
+      const data = result.data || []
 
       const formattedMessages: Message[] = (data || []).map((msg: any) => {
         // La columna correcta es created_at, no timestamp
@@ -460,65 +471,57 @@ export default function ConversacionesPage() {
       // Cargar detalles del contacto
       const conv = conversations.find(c => c.id === conversationId)
       if (conv && conv.contactPhone) {
-        // Obtener información del cliente
-        // Obtener customer_id de la conversación desde la BD
-        const { data: convFromDb } = await supabase
-          .from('whatsapp_conversations')
-          .select('customer_id')
-          .eq('id', conversationId)
-          .eq('organization_id', organizationId)
-          .single()
-        
+        // ✅ Usar API route para obtener detalles de conversación
         let customerData: any = null
+        let convData: any = null
         
-        // Si hay customer_id, buscar directamente
-        if (convFromDb && (convFromDb as any).customer_id) {
-          const { data: customerById } = await supabase
-          .from('customers')
-          .select('*')
-            .eq('id', (convFromDb as any).customer_id)
-            .eq('organization_id', organizationId)
-          .maybeSingle()
-          
-          if (customerById) {
-            customerData = customerById
+        try {
+          const convResponse = await fetch(`/api/whatsapp/conversations/${conversationId}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            cache: 'no-store',
+          })
+
+          if (convResponse.ok) {
+            const convResult = await convResponse.json()
+            if (convResult.success && convResult.data) {
+              convData = convResult.data
+              customerData = convResult.data.customer || null
+            }
           }
-        }
-        
-        // Si no se encontró por ID, intentar por teléfono (normalizar formato)
-        if (!customerData && conv.contactPhone) {
-          // Normalizar teléfono: remover +, espacios, guiones, solo números
-          const normalizedPhone = conv.contactPhone.replace(/[\s\+\-\(\)]/g, '')
-          
-          // Buscar todos los clientes de la organización y filtrar por teléfono normalizado
-          const { data: allCustomers } = await supabase
-            .from('customers')
-            .select('*')
-            .eq('organization_id', organizationId)
-          
-          if (allCustomers && allCustomers.length > 0) {
-            customerData = allCustomers.find((c: any) => {
-              if (!c.phone) return false
-              const normalizedCustomerPhone = c.phone.replace(/[\s\+\-\(\)]/g, '')
-              return normalizedCustomerPhone === normalizedPhone || 
-                     normalizedCustomerPhone.endsWith(normalizedPhone) ||
-                     normalizedPhone.endsWith(normalizedCustomerPhone)
-            }) || null
-          }
+        } catch (error) {
+          console.warn('⚠️ [loadMessages] Error cargando detalles de conversación:', error)
         }
 
-        // Obtener conversación completa para metadata y notas
-        // Nota: La columna 'notes' puede no existir, usar solo las que sabemos que existen
-        const { data: convData, error: convDataError } = await supabase
-          .from('whatsapp_conversations')
-          .select('metadata, created_at')
-          .eq('id', conversationId)
-          .eq('organization_id', organizationId) // Agregar filtro de organización para RLS
-          .single()
-        
-        if (convDataError) {
-          console.warn('⚠️ [loadMessages] Error cargando metadata de conversación:', convDataError)
-          // Continuar sin metadata si hay error
+        // Si no se encontró por ID, intentar por teléfono (normalizar formato)
+        if (!customerData && conv.contactPhone) {
+          // ✅ Usar API route para buscar cliente por teléfono
+          try {
+            // Normalizar teléfono: remover +, espacios, guiones, solo números
+            const normalizedPhone = conv.contactPhone.replace(/[\s\+\-\(\)]/g, '')
+            
+            // Obtener todos los clientes y filtrar por teléfono en el frontend
+            const customersResponse = await fetch('/api/customers', {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+              cache: 'no-store',
+            })
+
+            if (customersResponse.ok) {
+              const customersResult = await customersResponse.json()
+              if (customersResult.success && customersResult.data) {
+                customerData = customersResult.data.find((c: any) => {
+                  if (!c.phone) return false
+                  const normalizedCustomerPhone = c.phone.replace(/[\s\+\-\(\)]/g, '')
+                  return normalizedCustomerPhone === normalizedPhone || 
+                         normalizedCustomerPhone.endsWith(normalizedPhone) ||
+                         normalizedPhone.endsWith(normalizedCustomerPhone)
+                }) || null
+              }
+            }
+          } catch (error) {
+            console.warn('⚠️ [loadMessages] Error buscando cliente por teléfono:', error)
+          }
         }
 
         setContactDetails({
