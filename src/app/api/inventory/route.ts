@@ -125,8 +125,30 @@ export async function GET(request: NextRequest) {
       .eq('organization_id', organizationId);
 
     if (lowStock === 'true') {
-      // Filtrar por stock bajo (usando threshold desde configuración)
-      query = query.lte('quantity', supabaseAdmin.raw('minimum_stock'));
+      // Filtrar por stock bajo: quantity <= minimum_stock
+      // Necesitamos hacer esto con una query que compare columnas
+      // Por ahora, obtenemos todos y filtramos en memoria (mejor usar función dedicada)
+      const { data: allItems } = await supabaseAdmin
+        .from('inventory')
+        .select(`
+          *,
+          category:inventory_categories(
+            id,
+            name,
+            description
+          )
+        `)
+        .eq('organization_id', organizationId);
+      
+      const lowStockItems = (allItems || []).filter((item: any) => 
+        item.quantity <= item.minimum_stock
+      );
+      
+      return NextResponse.json({
+        success: true,
+        data: lowStockItems,
+        count: lowStockItems.length,
+      });
     } else if (search) {
       query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%,description.ilike.%${search}%`);
     }
