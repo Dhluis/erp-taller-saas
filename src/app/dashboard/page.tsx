@@ -341,20 +341,20 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 md:px-6">
         {/* Header */}
         <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">Dashboard</h1>
-            <p className="text-sm md:text-base text-gray-400">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Dashboard</h1>
+            <p className="text-xs sm:text-sm md:text-base text-gray-400">
               {permissions.isMechanic ? 'Mis órdenes asignadas' : 'Resumen general de tu taller'}
             </p>
           </div>
         </div>
 
-        {/* Filtros de fecha */}
-        <div className="flex items-center gap-4">
-          <div className="flex bg-gray-800 rounded-lg p-1 gap-1">
+        {/* Filtros de fecha - Responsive para mobile */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+          <div className="flex flex-wrap bg-gray-800 rounded-lg p-1 gap-1">
             {['7d', '30d', 'current_month'].map((range) => (
               <button
                 key={range}
@@ -362,35 +362,38 @@ export default function DashboardPage() {
                   setDateRange(range);
                   setCustomDateRange({ from: undefined, to: undefined });
                 }}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors flex-1 sm:flex-none ${
                   dateRange === range
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                {range === '7d' ? 'Últimos 7 días' :
-                 range === '30d' ? 'Últimos 30 días' :
-                 'Mes actual'}
+                {range === '7d' ? '7d' :
+                 range === '30d' ? '30d' :
+                 'Mes'}
               </button>
             ))}
             
             <Popover>
               <PopoverTrigger asChild>
                 <button
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                  className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none ${
                     dateRange === 'custom'
                       ? 'bg-blue-600 text-white'
                       : 'text-gray-400 hover:text-white'
                   }`}
                 >
-                  <CalendarIcon className="h-4 w-4" />
-                  {customDateRange.from && customDateRange.to ? (
-                    <>
-                      {format(customDateRange.from, 'dd/MM', { locale: es })} - {format(customDateRange.to, 'dd/MM', { locale: es })}
-                    </>
-                  ) : (
-                    'Personalizado'
-                  )}
+                  <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">
+                    {customDateRange.from && customDateRange.to ? (
+                      <>
+                        {format(customDateRange.from, 'dd/MM', { locale: es })} - {format(customDateRange.to, 'dd/MM', { locale: es })}
+                      </>
+                    ) : (
+                      'Personalizado'
+                    )}
+                  </span>
+                  <span className="sm:hidden">Custom</span>
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 bg-gray-800 border-gray-700" align="start">
@@ -434,16 +437,17 @@ export default function DashboardPage() {
           <button 
             onClick={loadOrdersByStatus}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm w-full sm:w-auto"
           >
-            <ModernIcons.Reportes size={16} />
-            {loading ? 'Cargando...' : 'Actualizar'}
+            <ModernIcons.Reportes size={14} className="sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">{loading ? 'Cargando...' : 'Actualizar'}</span>
+            <span className="sm:hidden">{loading ? '...' : '↻'}</span>
           </button>
         </div>
 
         {/* ✅ KPI Cards - Mobile-first: 1 col en móvil, 2 en tablet, 3 en desktop */}
         <div className={cn(
-          "grid gap-4 md:gap-6",
+          "grid gap-3 sm:gap-4 md:gap-6",
           permissions.isMechanic 
             ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" // Mecánicos: máximo 3 columnas
             : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" // Otros: hasta 3 columnas
@@ -451,20 +455,20 @@ export default function DashboardPage() {
           {kpiCards.map((kpi, index) => {
             const IconComponent = kpi.icon;
             return (
-              <div key={index} className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`p-3 rounded-lg ${kpi.bgColor}`}>
+              <div key={index} className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <div className={`p-2 sm:p-3 rounded-lg ${kpi.bgColor}`}>
                     <IconComponent />
                   </div>
                   {kpi.trend && (
-                    <span className={`text-sm ${kpi.trend.includes('↓') ? 'text-red-400' : 'text-green-400'}`}>
+                    <span className={`text-xs sm:text-sm ${kpi.trend.includes('↓') ? 'text-red-400' : 'text-green-400'}`}>
                       {kpi.trend}
                     </span>
                   )}
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-2xl font-bold text-white">{kpi.value}</h3>
-                  <p className="text-gray-400 text-sm">{kpi.title}</p>
+                  <h3 className="text-xl sm:text-2xl font-bold text-white">{kpi.value}</h3>
+                  <p className="text-gray-400 text-xs sm:text-sm">{kpi.title}</p>
                   <p className="text-gray-500 text-xs">{kpi.description}</p>
                 </div>
               </div>
@@ -473,14 +477,14 @@ export default function DashboardPage() {
         </div>
 
         {/* Gráficos y Acciones Rápidas */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Columna Izquierda: Gráficos (2/3) */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Gráfico de Ingresos */}
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h3 className="text-lg font-semibold text-white mb-4">Ingresos de los Últimos 7 Días</h3>
-              <p className="text-gray-400 text-sm mb-4">Tendencia de ingresos y órdenes procesadas</p>
-              <div className="h-64">
+            <div className="bg-gray-800 rounded-lg p-3 sm:p-4 md:p-6 border border-gray-700">
+              <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-4">Ingresos de los Últimos 7 Días</h3>
+              <p className="text-gray-400 text-xs sm:text-sm mb-3 sm:mb-4">Tendencia de ingresos y órdenes procesadas</p>
+              <div className="h-48 sm:h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={incomeData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -503,10 +507,10 @@ export default function DashboardPage() {
             </div>
 
             {/* Gráfico de Órdenes por Estado */}
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h3 className="text-lg font-semibold text-white mb-4">Órdenes por Estado</h3>
-              <p className="text-gray-400 text-sm mb-4">Distribución de órdenes en el flujo de trabajo</p>
-              <div className="h-64">
+            <div className="bg-gray-800 rounded-lg p-3 sm:p-4 md:p-6 border border-gray-700">
+              <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-4">Órdenes por Estado</h3>
+              <p className="text-gray-400 text-xs sm:text-sm mb-3 sm:mb-4">Distribución de órdenes en el flujo de trabajo</p>
+              <div className="h-64 sm:h-80 md:h-96">
                 {loading ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
@@ -523,34 +527,64 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={ordersByStatus}
-                      cx="30%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {ordersByStatus.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend 
-                      layout="vertical" 
-                      align="right" 
-                      verticalAlign="middle"
-                      iconType="circle"
-                      formatter={(value, entry: any) => {
-                        const item = ordersByStatus.find(s => s.name === value)
-                        return `${value} (${item?.value || 0})`
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                  <ResponsiveContainer width="100%" height={250} className="sm:hidden">
+                    <PieChart>
+                      <Pie
+                        data={ordersByStatus}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {ordersByStatus.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <ResponsiveContainer width="100%" height={300} className="hidden sm:block">
+                    <PieChart>
+                      <Pie
+                        data={ordersByStatus}
+                        cx="30%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {ordersByStatus.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend 
+                        layout="vertical" 
+                        align="right" 
+                        verticalAlign="middle"
+                        iconType="circle"
+                        wrapperStyle={{ fontSize: '12px' }}
+                        formatter={(value, entry: any) => {
+                          const item = ordersByStatus.find(s => s.name === value)
+                          return `${value} (${item?.value || 0})`
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Leyenda para mobile */}
+                  <div className="sm:hidden grid grid-cols-2 gap-2 w-full text-xs">
+                    {ordersByStatus.map((entry, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
+                        <span className="text-gray-300">{entry.name} ({entry.value})</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 )}
               </div>
             </div>
