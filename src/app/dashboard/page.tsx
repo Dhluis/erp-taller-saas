@@ -209,6 +209,7 @@ export default function DashboardPage() {
   const [ingresos, setIngresos] = useState(0);
   const [clientesAtendidos, setClientesAtendidos] = useState(0);
   const [alertasInventario, setAlertasInventario] = useState(0);
+  const [incomeData, setIncomeData] = useState<Array<{ date: string; ingresos: number; ordenes: number }>>([]);
 
   // Calcular estadísticas dinámicamente de ordersByStatus
   const totalOrdenes = ordersByStatus.reduce((sum, item) => sum + item.value, 0);
@@ -310,11 +311,70 @@ export default function DashboardPage() {
         setIngresos(totalIngresos);
         setClientesAtendidos(uniqueCustomers.size);
         
+        // ✅ Calcular ingresos y órdenes por día para el gráfico
+        // Agrupar órdenes por día
+        const ordersByDay: { [key: string]: { ingresos: number; ordenes: number } } = {};
+        
+        filteredOrders.forEach((order: any) => {
+          const orderDate = order.completed_at 
+            ? new Date(order.completed_at)
+            : order.created_at 
+            ? new Date(order.created_at)
+            : null;
+          
+          if (!orderDate) return;
+          
+          // Formatear fecha como clave (YYYY-MM-DD)
+          const dateKey = orderDate.toISOString().split('T')[0];
+          
+          if (!ordersByDay[dateKey]) {
+            ordersByDay[dateKey] = { ingresos: 0, ordenes: 0 };
+          }
+          
+          ordersByDay[dateKey].ingresos += parseFloat(order.total_amount) || 0;
+          ordersByDay[dateKey].ordenes += 1;
+        });
+        
+        // Generar datos para los últimos 7 días (o el rango seleccionado)
+        const daysToShow = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 
+                          dateRange === 'current_month' ? new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() :
+                          customDateRange.from && customDateRange.to 
+                            ? Math.ceil((customDateRange.to.getTime() - customDateRange.from.getTime()) / (1000 * 60 * 60 * 24))
+                            : 7;
+        
+        const chartData: Array<{ date: string; ingresos: number; ordenes: number }> = [];
+        const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        
+        for (let i = daysToShow - 1; i >= 0; i--) {
+          const date = new Date(today);
+          date.setDate(date.getDate() - i);
+          date.setHours(0, 0, 0, 0);
+          
+          const dateKey = date.toISOString().split('T')[0];
+          const dayData = ordersByDay[dateKey] || { ingresos: 0, ordenes: 0 };
+          
+          // Formatear fecha para mostrar (día de la semana abreviado)
+          const dayName = dayNames[date.getDay()];
+          const dayNumber = date.getDate();
+          const monthName = date.toLocaleDateString('es-MX', { month: 'short' }).substring(0, 3);
+          
+          chartData.push({
+            date: daysToShow <= 7 ? dayName : `${dayNumber} ${monthName}`,
+            ingresos: dayData.ingresos,
+            ordenes: dayData.ordenes
+          });
+        }
+        
+        setIncomeData(chartData);
+        
         console.log('💰 Ingresos calculados:', {
           totalIngresos,
           clientesAtendidos: uniqueCustomers.size,
           ordenesFiltradas: filteredOrders.length,
-          rango: { from: fromDate.toISOString(), to: toDate.toISOString() }
+          rango: { from: fromDate.toISOString(), to: toDate.toISOString() },
+          chartData: chartData.length,
+          // ✅ Multi-tenancy: Verificar que todas las órdenes pertenezcan a la organización
+          todasOrdenesConOrgId: filteredOrders.every((o: any) => o.organization_id === organizationId)
         });
       }
     } catch (error) {
@@ -337,16 +397,8 @@ export default function DashboardPage() {
     ordenesCompletadas: ordenesCompletadas
   };
 
-  // Datos para las gráficas
-  const incomeData = [
-    { date: 'Lun', ingresos: 4000, ordenes: 2 },
-    { date: 'Mar', ingresos: 3000, ordenes: 1 },
-    { date: 'Mié', ingresos: 2000, ordenes: 3 },
-    { date: 'Jue', ingresos: 2780, ordenes: 2 },
-    { date: 'Vie', ingresos: 1890, ordenes: 1 },
-    { date: 'Sáb', ingresos: 2390, ordenes: 2 },
-    { date: 'Dom', ingresos: 3490, ordenes: 4 }
-  ];
+  // ✅ incomeData ahora se carga dinámicamente desde loadIncomeAndCustomers
+  // Si no hay datos aún, mostrar array vacío (se mostrará cuando carguen los datos)
 
 
   const COLORS = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#f97316', '#84cc16', '#06b6d4'];
@@ -610,6 +662,7 @@ export default function DashboardPage() {
                     <Line type="monotone" dataKey="ordenes" stroke="#9333ea" name="Órdenes" strokeWidth={2} />
                   </LineChart>
                 </ResponsiveContainer>
+                )}
               </div>
             </div>
 
