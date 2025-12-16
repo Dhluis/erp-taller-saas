@@ -229,7 +229,7 @@ export async function GET(request: NextRequest) {
     const { data: orders, error: ordersError } = await query;
 
     if (ordersError) {
-      console.error('[GET /api/work-orders] Error en query:', ordersError);
+      console.error('[GET /api/work-orders] ❌ Error en query:', ordersError);
       return NextResponse.json(
         {
           success: false,
@@ -238,6 +238,29 @@ export async function GET(request: NextRequest) {
         },
         { status: 500 }
       );
+    }
+
+    // ✅ DEBUG: Log para mecánicos
+    if (userRole === 'MECANICO') {
+      console.log(`[GET /api/work-orders] 📊 Órdenes encontradas para mecánico: ${orders?.length || 0}`);
+      if (orders && orders.length > 0) {
+        console.log(`[GET /api/work-orders] 📋 Primeras órdenes:`, orders.slice(0, 3).map((o: any) => ({
+          id: o.id,
+          assigned_to: o.assigned_to,
+          status: o.status,
+          customer: o.customer?.name
+        })));
+      } else {
+        // ✅ DEBUG: Verificar si hay órdenes sin assigned_to o con otro assigned_to
+        const { data: allOrders, error: allOrdersError } = await supabaseAdmin
+          .from('work_orders')
+          .select('id, assigned_to, status, customer:customers(name)')
+          .eq('organization_id', organizationId)
+          .limit(10);
+        
+        console.log(`[GET /api/work-orders] 🔍 Todas las órdenes en la organización (primeras 10):`, allOrders);
+        console.log(`[GET /api/work-orders] 🔍 assignedEmployeeId buscado:`, assignedEmployeeId);
+      }
     }
 
     return NextResponse.json({
