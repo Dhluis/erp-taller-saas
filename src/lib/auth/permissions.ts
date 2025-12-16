@@ -291,38 +291,32 @@ export async function canAccessWorkOrder(
     }
     
     // Verificar si está asignada a este empleado
-    // Nota: La relación puede ser por user_id o por email
-    // Primero intentar por user_id (si existe el campo)
-    let employeeQuery = supabaseClient
-      .from('employees')
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle();
-    
-    const { data: employee, error: employeeError } = await employeeQuery;
-    
-    // Si no se encontró por user_id y tenemos email, intentar por email
-    if ((employeeError || !employee) && userId) {
-      // Obtener email del usuario desde auth.users
-      const { data: authUser } = await supabaseClient.auth.admin.getUserById(userId);
-      if (authUser?.user?.email) {
-        const { data: employeeByEmail, error: emailError } = await supabaseClient
-          .from('employees')
-          .select('id')
-          .eq('email', authUser.user.email)
-          .maybeSingle();
-        
-        if (!emailError && employeeByEmail) {
-          return workOrder.assigned_to === employeeByEmail.id;
-        }
+    // Nota: La tabla employees NO tiene user_id, se relaciona por email
+    // Necesitamos obtener el email del usuario desde auth.users
+    try {
+      // Obtener email del usuario desde auth.users usando Service Role
+      const { data: authUser, error: authUserError } = await supabaseClient.auth.admin.getUserById(userId);
+      
+      if (authUserError || !authUser?.user?.email) {
+        return false;
       }
+      
+      // Buscar employee por email
+      const { data: employee, error: employeeError } = await supabaseClient
+        .from('employees')
+        .select('id')
+        .eq('email', authUser.user.email)
+        .maybeSingle();
+      
+      if (employeeError || !employee) {
+        return false;
+      }
+      
+      return workOrder.assigned_to === employee.id;
+    } catch (error) {
+      console.error('[canAccessWorkOrder] Error verificando acceso:', error);
+      return false;
     }
-    
-    if (employeeError || !employee) {
-      return false
-    }
-    
-    return workOrder.assigned_to === employee.id
   }
   
   return false
