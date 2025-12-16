@@ -33,31 +33,38 @@ async function getUserOrganizationId(): Promise<string> {
     return user.user_metadata.organization_id
   }
 
-  // Si no está en metadata, obtener desde el perfil
+  // Si no está en metadata, obtener organization_id directamente del perfil
   const { data: profile, error: profileError } = await supabase
     .from('users')
-    .select('workshop_id')
+    .select('organization_id, workshop_id')
     .eq('auth_user_id', user.id)
     .single()
 
-  if (profileError || !profile?.workshop_id) {
-    console.warn('No se pudo obtener organization_id, usando fallback')
+  if (profileError) {
+    console.warn('No se pudo obtener organization_id, usando fallback', profileError)
     return '00000000-0000-0000-0000-000000000001'
   }
 
-  // Obtener organization_id desde el workshop
-  const { data: workshop, error: workshopError } = await supabase
-    .from('workshops')
-    .select('organization_id')
-    .eq('id', profile.workshop_id)
-    .single()
-
-  if (workshopError || !workshop?.organization_id) {
-    console.warn('No se pudo obtener organization_id del workshop, usando fallback')
-    return '00000000-0000-0000-0000-000000000001'
+  // ✅ organization_id está directamente en el perfil del usuario
+  if (profile?.organization_id) {
+    return profile.organization_id
   }
 
-  return workshop.organization_id
+  // Fallback: intentar obtener desde workshop si existe workshop_id
+  if (profile?.workshop_id) {
+    const { data: workshop, error: workshopError } = await supabase
+      .from('workshops')
+      .select('organization_id')
+      .eq('id', profile.workshop_id)
+      .single()
+
+    if (!workshopError && workshop?.organization_id) {
+      return workshop.organization_id
+    }
+  }
+
+  console.warn('No se pudo obtener organization_id, usando fallback')
+  return '00000000-0000-0000-0000-000000000001'
 }
 
 /**
