@@ -58,7 +58,16 @@ export function useCustomers(): UseCustomersReturn {
         }
       });
       
+      console.log('🔍 [useCustomers] Resultado de safeFetch:', {
+        success: result.success,
+        hasData: !!result.data,
+        dataType: typeof result.data,
+        dataKeys: result.data ? Object.keys(result.data) : [],
+        error: result.error
+      });
+      
       if (!result.success) {
+        console.error('❌ [useCustomers] Error en safeFetch:', result.error);
         setError(result.error || 'Error al cargar clientes');
         toast.error('Error al cargar clientes', {
           description: result.error || 'No se pudieron cargar los clientes'
@@ -66,32 +75,50 @@ export function useCustomers(): UseCustomersReturn {
         return [];
       }
       
-      if (result.data?.success) {
-        const customersData = result.data.data || [];
-        console.log('✅ [useCustomers] Clientes cargados:', customersData.length);
-        console.log('✅ [useCustomers] Primeros clientes:', customersData.slice(0, 3).map(c => ({ id: c.id, name: c.name, org_id: (c as any).organization_id })));
-        
-        // ✅ FIX: Filtrar solo clientes de la organización actual (por seguridad)
-        const filteredCustomers = customersData.filter((c: any) => {
-          const customerOrgId = c.organization_id;
-          const matches = customerOrgId === organizationId;
-          if (!matches) {
-            console.warn('⚠️ [useCustomers] Cliente con organization_id diferente encontrado:', {
-              customer_id: c.id,
-              customer_name: c.name,
-              customer_org_id: customerOrgId,
-              expected_org_id: organizationId
-            });
-          }
-          return matches;
-        });
-        
-        console.log('✅ [useCustomers] Clientes filtrados por organizationId:', filteredCustomers.length);
-        setCustomers(filteredCustomers);
-        return filteredCustomers;
-      } else {
-        throw new Error(result.data?.error || 'Error al obtener clientes');
+      // ✅ FIX: Manejar ambos formatos de respuesta
+      // La API devuelve { success: true, data: [...] }
+      // safeFetch puede envolver esto en result.data
+      let customersData: Customer[] = [];
+      
+      if (result.data) {
+        // Si result.data tiene la estructura { success: true, data: [...] }
+        if (typeof result.data === 'object' && 'success' in result.data && result.data.success) {
+          customersData = (result.data as CustomersResponse).data || [];
+          console.log('✅ [useCustomers] Clientes desde result.data.data:', customersData.length);
+        } 
+        // Si result.data es directamente un array
+        else if (Array.isArray(result.data)) {
+          customersData = result.data;
+          console.log('✅ [useCustomers] Clientes desde result.data (array directo):', customersData.length);
+        }
+        // Si result.data tiene data dentro
+        else if (typeof result.data === 'object' && 'data' in result.data && Array.isArray((result.data as any).data)) {
+          customersData = (result.data as any).data;
+          console.log('✅ [useCustomers] Clientes desde result.data.data (nested):', customersData.length);
+        }
       }
+      
+      console.log('✅ [useCustomers] Clientes cargados:', customersData.length);
+      console.log('✅ [useCustomers] Primeros clientes:', customersData.slice(0, 3).map(c => ({ id: c.id, name: c.name, org_id: (c as any).organization_id })));
+      
+      // ✅ FIX: Filtrar solo clientes de la organización actual (por seguridad)
+      const filteredCustomers = customersData.filter((c: any) => {
+        const customerOrgId = c.organization_id;
+        const matches = customerOrgId === organizationId;
+        if (!matches) {
+          console.warn('⚠️ [useCustomers] Cliente con organization_id diferente encontrado:', {
+            customer_id: c.id,
+            customer_name: c.name,
+            customer_org_id: customerOrgId,
+            expected_org_id: organizationId
+          });
+        }
+        return matches;
+      });
+      
+      console.log('✅ [useCustomers] Clientes filtrados por organizationId:', filteredCustomers.length);
+      setCustomers(filteredCustomers);
+      return filteredCustomers;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(errorMessage);
