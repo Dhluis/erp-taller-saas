@@ -1,14 +1,37 @@
-import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 export async function GET(request: NextRequest) {
   try {
     console.log('🔄 GET /api/orders/stats - Iniciando...')
 
-    // ✅ Obtener organizationId SOLO del usuario autenticado
-    const tenantContext = await getTenantContext(request)
-    if (!tenantContext || !tenantContext.organizationId) {
+    // Obtener usuario autenticado directamente
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      console.error('❌ [GET /api/orders/stats] Usuario no autenticado')
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado'
+        },
+        { status: 401 }
+      )
+    }
+
+    // Obtener organizationId del perfil del usuario usando Service Role
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+    const supabaseAdmin = getSupabaseServiceClient()
+    
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', authUser.id)
+      .single()
+    
+    if (profileError || !userProfile || !userProfile.organization_id) {
+      console.error('❌ [GET /api/orders/stats] Error obteniendo perfil:', profileError)
       return NextResponse.json(
         {
           success: false,
@@ -17,7 +40,8 @@ export async function GET(request: NextRequest) {
         { status: 403 }
       )
     }
-    const organizationId = tenantContext.organizationId
+    
+    const organizationId = userProfile.organization_id
 
     // Obtener parámetro de filtro de tiempo
     const { searchParams } = new URL(request.url)
@@ -76,8 +100,8 @@ export async function GET(request: NextRequest) {
       to: toDate.toISOString()
     })
 
-    // Crear cliente de Supabase
-    const supabase = await getSupabaseServerClient()
+    // Usar Service Role Client para las queries (bypass RLS)
+    const supabase = supabaseAdmin
     
     console.log('✅ Organization ID usado:', organizationId)
 

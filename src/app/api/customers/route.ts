@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseServerClient } from '@/lib/supabase/server'
-import { getOrganizationId } from '@/lib/auth/organization-server'
+import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 
 // ✅ Función helper para retry logic
 async function retryQuery<T>(
@@ -29,27 +28,38 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔄 GET /api/customers - Iniciando...')
     
-    // ✅ USAR HELPER CENTRALIZADO - igual que órdenes y citas
-    let organizationId: string;
-    try {
-      organizationId = await getOrganizationId(request)
-      console.log('✅ [GET /api/customers] Organization ID:', organizationId)
-    } catch (orgError: any) {
-      console.error('❌ [GET /api/customers] Error obteniendo organizationId:', orgError)
-      console.error('❌ [GET /api/customers] Stack del error:', orgError?.stack)
+    // Obtener usuario autenticado directamente
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      console.error('❌ [GET /api/customers] Usuario no autenticado')
       return NextResponse.json({ 
         success: false, 
-        error: `Error obteniendo organización: ${orgError?.message || 'Error desconocido'}` 
-      }, { status: 500 })
+        error: 'No autorizado' 
+      }, { status: 401 })
     }
 
-    if (!organizationId) {
-      console.error('❌ [GET /api/customers] organizationId es null o undefined')
+    // Obtener organizationId del perfil del usuario usando Service Role
+    const supabaseAdmin = getSupabaseServiceClient()
+    
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', authUser.id)
+      .single()
+    
+    if (profileError || !userProfile || !userProfile.organization_id) {
+      console.error('❌ [GET /api/customers] Error obteniendo perfil:', profileError)
       return NextResponse.json({ 
         success: false, 
         error: 'No se pudo obtener el ID de la organización' 
-      }, { status: 500 })
+      }, { status: 403 })
     }
+    
+    const organizationId = userProfile.organization_id
+    console.log('✅ [GET /api/customers] Organization ID:', organizationId)
 
     const supabase = await getSupabaseServerClient()
     
@@ -261,25 +271,38 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔄 POST /api/customers - Iniciando...')
     
-    // ✅ VALIDACIÓN: Obtener organization_id del usuario autenticado
-    let organizationId: string;
-    try {
-      organizationId = await getOrganizationId(request);
-      console.log('✅ [POST /api/customers] Organization ID:', organizationId);
-    } catch (error: any) {
-      console.error('❌ [POST /api/customers] Error obteniendo organizationId:', error);
+    // Obtener usuario autenticado directamente
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      console.error('❌ [POST /api/customers] Usuario no autenticado')
       return NextResponse.json({ 
         success: false, 
-        error: 'No se pudo obtener la organización del usuario. Por favor, contacta al administrador.' 
-      }, { status: 403 });
+        error: 'No autorizado' 
+      }, { status: 401 })
     }
 
-    if (!organizationId) {
+    // Obtener organizationId del perfil del usuario usando Service Role
+    const supabaseAdmin = getSupabaseServiceClient()
+    
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', authUser.id)
+      .single()
+    
+    if (profileError || !userProfile || !userProfile.organization_id) {
+      console.error('❌ [POST /api/customers] Error obteniendo perfil:', profileError)
       return NextResponse.json({ 
         success: false, 
         error: 'Usuario sin organización asignada. Por favor, contacta al administrador.' 
-      }, { status: 403 });
+      }, { status: 403 })
     }
+    
+    const organizationId = userProfile.organization_id
+    console.log('✅ [POST /api/customers] Organization ID:', organizationId)
 
     const body = await request.json();
     console.log('📝 Datos recibidos:', body);
