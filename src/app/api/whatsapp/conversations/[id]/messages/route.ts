@@ -4,6 +4,7 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server';
 
 /**
  * GET /api/whatsapp/conversations/[id]/messages - Obtener mensajes de una conversación
+ * POST /api/whatsapp/conversations/[id]/messages - Crear un nuevo mensaje
  */
 export async function GET(
   request: NextRequest,

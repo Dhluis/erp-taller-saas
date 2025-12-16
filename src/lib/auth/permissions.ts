@@ -70,16 +70,16 @@ export const PERMISSIONS: Record<UserRole, Record<Resource, Action[]>> = {
     whatsapp: ['read', 'update']
   },
   MECANICO: {
-    customers: ['read'],
-    vehicles: ['read'],
-    quotations: ['read'],
-    work_orders: ['read', 'update'], // Solo asignadas
+    customers: [], // No acceso directo - solo a través de órdenes asignadas
+    vehicles: [], // No acceso directo - solo a través de órdenes asignadas
+    quotations: [], // No necesita ver cotizaciones
+    work_orders: ['read', 'update'], // Solo órdenes asignadas (validado en canAccessWorkOrder)
     invoices: [],
     payments: [],
     reports: [],
     suppliers: [],
     purchase_orders: [],
-    inventory: ['read'],
+    inventory: [], // No acceso directo - solo a través de órdenes asignadas
     employees: [],
     users: [],
     settings: [],
