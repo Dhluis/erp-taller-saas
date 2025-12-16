@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganization, useSession } from '@/lib/context/SessionContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   LineChart,
   Line,
