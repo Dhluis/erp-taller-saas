@@ -60,6 +60,8 @@ export async function GET(request: NextRequest) {
     
     const organizationId = userProfile.organization_id
     console.log('✅ [GET /api/customers] Organization ID:', organizationId)
+    console.log('✅ [GET /api/customers] Auth User ID:', authUser.id)
+    console.log('✅ [GET /api/customers] User Profile completo:', JSON.stringify(userProfile, null, 2))
     
     // ✅ Obtener parámetros de query
     const { searchParams } = new URL(request.url)
@@ -82,6 +84,7 @@ export async function GET(request: NextRequest) {
     let customers, error;
     try {
       const queryPromise = retryQuery(async () => {
+        console.log('🔍 [GET /api/customers] Construyendo query con organizationId:', organizationId);
         let query = supabaseAdmin
           .from('customers')
           .select(`
@@ -90,6 +93,7 @@ export async function GET(request: NextRequest) {
             email,
             phone,
             address,
+            organization_id,
             vehicles (
               id,
               brand,
@@ -106,7 +110,19 @@ export async function GET(request: NextRequest) {
           query = query.in('id', idsParam)
         }
         
-        return await query.order('created_at', { ascending: false })
+        const result = await query.order('created_at', { ascending: false });
+        console.log('🔍 [GET /api/customers] Query ejecutada, resultado:', {
+          hasData: !!result.data,
+          dataLength: result.data?.length || 0,
+          error: result.error,
+          // Log de los primeros 3 clientes para verificar organization_id
+          firstCustomers: result.data?.slice(0, 3).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            organization_id: c.organization_id
+          })) || []
+        });
+        return result;
       }, 2, 500);
       
       // Race entre query y timeout
