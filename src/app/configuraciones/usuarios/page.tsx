@@ -27,12 +27,24 @@ import {
 import { toast } from "sonner"
 import type { User, CreateUserRequest } from "@/types/user"
 import { UserRole, ROLE_NAMES } from "@/lib/auth/permissions"
+import { usePermissions } from "@/hooks/usePermissions"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface UserResponse {
   users: User[]
 }
 
 export default function UsuariosPage() {
+  const permissions = usePermissions()
   const [searchTerm, setSearchTerm] = useState("")
   const [users, setUsers] = useState<User[]>([])
   const [stats, setStats] = useState({
@@ -247,30 +259,47 @@ export default function UsuariosPage() {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = async (id: string) => {
-    if (confirm("¿Estás seguro de que quieres eliminar este usuario?")) {
-      setIsSubmitting(true)
-      try {
-        const response = await fetch(`/api/users/${id}`, {
-          method: 'DELETE',
-          credentials: 'include'
-        })
+  const handleDelete = (id: string) => {
+    // ✅ Validar permisos: Mecánicos no pueden eliminar usuarios
+    if (permissions.isMechanic) {
+      toast.error('No tienes permisos para eliminar usuarios', {
+        description: 'Solo administradores y asesores pueden eliminar usuarios.'
+      })
+      return
+    }
 
-        if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || 'Error al eliminar usuario')
-        }
+    // Abrir diálogo de confirmación
+    const user = users.find(u => u.id === id)
+    setUserToDelete(user || null)
+    setDeleteDialogOpen(true)
+  }
 
-        await loadData()
-        toast.success('Usuario eliminado exitosamente')
-      } catch (error) {
-        console.error("❌ Error deleting user:", error)
-        toast.error("Error al eliminar el usuario", {
-          description: error instanceof Error ? error.message : 'Inténtalo de nuevo.'
-        })
-      } finally {
-        setIsSubmitting(false)
+  const confirmDelete = async () => {
+    if (!userToDelete) return
+
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/users/${userToDelete.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Error al eliminar usuario')
       }
+
+      await loadData()
+      toast.success('Usuario eliminado exitosamente')
+      setDeleteDialogOpen(false)
+      setUserToDelete(null)
+    } catch (error) {
+      console.error("❌ Error deleting user:", error)
+      toast.error("Error al eliminar el usuario", {
+        description: error instanceof Error ? error.message : 'Inténtalo de nuevo.'
+      })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
