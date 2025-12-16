@@ -291,11 +291,32 @@ export async function canAccessWorkOrder(
     }
     
     // Verificar si está asignada a este empleado
-    const { data: employee, error: employeeError } = await supabaseClient
+    // Nota: La relación puede ser por user_id o por email
+    // Primero intentar por user_id (si existe el campo)
+    let employeeQuery = supabaseClient
       .from('employees')
       .select('id')
       .eq('user_id', userId)
-      .single()
+      .maybeSingle();
+    
+    const { data: employee, error: employeeError } = await employeeQuery;
+    
+    // Si no se encontró por user_id y tenemos email, intentar por email
+    if ((employeeError || !employee) && userId) {
+      // Obtener email del usuario desde auth.users
+      const { data: authUser } = await supabaseClient.auth.admin.getUserById(userId);
+      if (authUser?.user?.email) {
+        const { data: employeeByEmail, error: emailError } = await supabaseClient
+          .from('employees')
+          .select('id')
+          .eq('email', authUser.user.email)
+          .maybeSingle();
+        
+        if (!emailError && employeeByEmail) {
+          return workOrder.assigned_to === employeeByEmail.id;
+        }
+      }
+    }
     
     if (employeeError || !employee) {
       return false

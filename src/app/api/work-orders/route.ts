@@ -127,17 +127,41 @@ export async function GET(request: NextRequest) {
     const userRole = userProfile.role;
     
     // ✅ Si es mecánico, obtener su employee_id para filtrar órdenes asignadas
+    // Nota: La relación entre users y employees puede ser por email o por un campo user_id
+    // Si employees no tiene user_id, intentamos por email del usuario
     let assignedEmployeeId: string | null = null;
     if (userRole === 'MECANICO') {
-      const { data: employee, error: employeeError } = await supabaseAdmin
+      // Primero intentar por user_id si existe el campo
+      let employeeQuery = supabaseAdmin
         .from('employees')
         .select('id')
+        .eq('organization_id', organizationId);
+      
+      // Intentar por user_id primero (si el campo existe)
+      const { data: employeeByUserId, error: errorByUserId } = await employeeQuery
         .eq('user_id', user.id)
-        .eq('organization_id', organizationId)
         .maybeSingle();
       
-      if (!employeeError && employee) {
-        assignedEmployeeId = employee.id;
+      if (!errorByUserId && employeeByUserId) {
+        assignedEmployeeId = employeeByUserId.id;
+      } else if (user.email) {
+        // Si no se encontró por user_id, intentar por email
+        const { data: employeeByEmail, error: errorByEmail } = await supabaseAdmin
+          .from('employees')
+          .select('id')
+          .eq('email', user.email)
+          .eq('organization_id', organizationId)
+          .maybeSingle();
+        
+        if (!errorByEmail && employeeByEmail) {
+          assignedEmployeeId = employeeByEmail.id;
+        }
+      }
+      
+      // Si aún no se encontró, el mecánico no tiene employee_id asociado
+      // En este caso, no podrá ver órdenes (retornará array vacío)
+      if (!assignedEmployeeId) {
+        console.warn(`[GET /api/work-orders] Mecánico ${user.id} no tiene employee_id asociado`);
       }
     }
     
