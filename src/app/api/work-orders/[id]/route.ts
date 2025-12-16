@@ -190,11 +190,68 @@ export async function PUT(
       );
     }
 
-    const order = await updateWorkOrder(params.id, body);
+    // ✅ Actualizar directamente usando supabaseAdmin (no usar updateWorkOrder que usa funciones del cliente)
+    // Primero validar que la orden pertenezca a la organización del usuario
+    const { data: existingOrder, error: fetchError } = await supabaseAdmin
+      .from('work_orders')
+      .select('id, organization_id')
+      .eq('id', params.id)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (fetchError || !existingOrder) {
+      console.error('❌ [API PUT /work-orders/[id]] Orden no encontrada o no autorizada:', fetchError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Orden no encontrada o no autorizada',
+        },
+        { status: 404 }
+      );
+    }
+
+    // Actualizar la orden
+    const { data: updatedOrder, error: updateError } = await supabaseAdmin
+      .from('work_orders')
+      .update({
+        ...body,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', params.id)
+      .eq('organization_id', organizationId) // ✅ Validar multi-tenancy
+      .select(`
+        *,
+        customer:customers(
+          id,
+          name,
+          email,
+          phone
+        ),
+        vehicle:vehicles(
+          id,
+          brand,
+          model,
+          year,
+          license_plate
+        ),
+        order_items(*)
+      `)
+      .single();
+
+    if (updateError) {
+      console.error('❌ [API PUT /work-orders/[id]] Error actualizando orden:', updateError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: updateError.message || 'Error al actualizar orden de trabajo',
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      data: order,
+      data: updatedOrder,
       message: 'Orden de trabajo actualizada exitosamente',
     });
   } catch (error) {
