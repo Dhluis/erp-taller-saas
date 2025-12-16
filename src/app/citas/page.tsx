@@ -195,28 +195,34 @@ export default function CitasPage() {
     
     setIsLoading(true)
     try {
-      // Obtener citas con datos de cliente y vehículo, filtradas por organization_id
-      const supabase = createClient()
-      const { data: appointmentsData, error } = await supabase
-        .from('appointments')
-        .select(`
-          *,
-          customer:customers(id, name, phone, email),
-          vehicle:vehicles(id, brand, model, license_plate)
-        `)
-        .eq('organization_id', organizationId)
-        .order('appointment_date', { ascending: false })
-      
-      if (error) {
-        console.error('Error loading appointments:', error)
-        throw error
+      // ✅ Usar API route en lugar de queries directas desde el cliente
+      const response = await fetch('/api/appointments', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Error loading appointments:', errorData)
+        throw new Error(errorData.error || 'Error al cargar citas')
       }
+
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Error al cargar citas')
+      }
+
+      const appointmentsData = result.data || []
       
       // Obtener estadísticas filtradas por organization_id
       const statsData = await getAppointmentStats(organizationId)
 
-      setAppointments(appointmentsData || [])
-      setFilteredAppointments(appointmentsData || [])
+      setAppointments(appointmentsData)
+      setFilteredAppointments(appointmentsData)
       setStats(statsData)
     } catch (error) {
       console.error('Error loading data:', error)
