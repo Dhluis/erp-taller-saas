@@ -61,33 +61,35 @@ export async function GET(request: NextRequest) {
     const organizationId = userProfile.organization_id
     console.log('✅ [GET /api/customers] Organization ID:', organizationId)
     
+    // ✅ Obtener parámetros de query
+    const { searchParams } = new URL(request.url)
+    const idsParam = searchParams.getAll('ids') // Soporta múltiples IDs
+    
     // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO - igual que orders/stats
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('🔌 API /customers - INICIANDO QUERY')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('Organization ID:', organizationId)
-    
-    // ✅ Logs detallados del cliente Supabase
-    console.log('🔍 Cliente Supabase configurado:', {
-      hasAuth: !!supabaseAdmin.auth,
-      hasFrom: !!supabaseAdmin.from,
-      organizationId: organizationId
-    })
+    console.log('IDs solicitados:', idsParam.length > 0 ? idsParam : 'Todos')
     
     // ✅ Helper para crear timeout promise
     const createTimeoutPromise = () => new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Query timeout después de 10 segundos')), 10000);
     });
     
-    // Obtener todos los clientes de la organización
-    // Intentar primero con vehicles (join opcional) con retry logic
+    // Obtener clientes de la organización
+    // Si se proporcionan IDs, filtrar por ellos
     let customers, error;
     try {
       const queryPromise = retryQuery(async () => {
-        return await supabaseAdmin
+        let query = supabaseAdmin
           .from('customers')
           .select(`
-            *,
+            id,
+            name,
+            email,
+            phone,
+            address,
             vehicles (
               id,
               brand,
@@ -98,7 +100,13 @@ export async function GET(request: NextRequest) {
             )
           `)
           .eq('organization_id', organizationId)
-          .order('created_at', { ascending: false })
+        
+        // Si se proporcionan IDs, filtrar por ellos
+        if (idsParam.length > 0) {
+          query = query.in('id', idsParam)
+        }
+        
+        return await query.order('created_at', { ascending: false })
       }, 2, 500);
       
       // Race entre query y timeout

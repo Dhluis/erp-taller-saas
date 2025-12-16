@@ -279,26 +279,32 @@ export default function ConversacionesPage() {
       let customersMap: Record<string, { name: string; email?: string; phone?: string }> = {}
       if (customerIds.length > 0) {
         try {
-          // Usar .in() con hasta 100 IDs (límite de Supabase)
+          // ✅ Usar API route para obtener clientes
           const batchSize = 100
           for (let i = 0; i < customerIds.length; i += batchSize) {
             const batch = customerIds.slice(i, i + batchSize)
-            const { data: customersData, error: customersError } = await supabase
-              .from('customers')
-              .select('id, name, email, phone')
-              .in('id', batch)
-              .eq('organization_id', organizationId)
+            // Construir query params para múltiples IDs
+            const idsParam = batch.map(id => `ids=${encodeURIComponent(id)}`).join('&')
+            const response = await fetch(`/api/customers?${idsParam}`, {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+              cache: 'no-store',
+            })
             
-            if (!customersError && customersData) {
-              customersData.forEach((customer: any) => {
-                customersMap[customer.id] = {
-                  name: customer.name,
-                  email: customer.email,
-                  phone: customer.phone
-                }
-              })
-            } else if (customersError) {
-              console.warn(`[loadConversations] ⚠️ Error cargando lote de clientes:`, customersError)
+            if (response.ok) {
+              const result = await response.json()
+              if (result.success && result.data) {
+                result.data.forEach((customer: any) => {
+                  customersMap[customer.id] = {
+                    name: customer.name,
+                    email: customer.email,
+                    phone: customer.phone
+                  }
+                })
+              }
+            } else {
+              const errorText = await response.text().catch(() => 'Unknown error')
+              console.warn(`[loadConversations] ⚠️ Error cargando lote de clientes:`, errorText)
             }
           }
           console.log(`[loadConversations] ✅ Clientes cargados: ${Object.keys(customersMap).length} de ${customerIds.length}`)
