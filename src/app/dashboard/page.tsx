@@ -279,8 +279,19 @@ export default function DashboardPage() {
         const data = await response.json();
         const allOrders = data.data || [];
         
+        // ✅ MULTI-TENANCY: Filtrar órdenes por organización (seguridad adicional)
+        // La API ya filtra por organization_id, pero esto es una capa extra de seguridad
+        const ordersFromOrg = allOrders.filter((order: any) => {
+          return order.organization_id === organizationId;
+        });
+        
+        if (ordersFromOrg.length !== allOrders.length) {
+          console.warn('⚠️ MULTI-TENANCY: Se encontraron órdenes de otras organizaciones. Filtrando...');
+          console.warn(`   Órdenes totales: ${allOrders.length}, Órdenes de la org: ${ordersFromOrg.length}`);
+        }
+        
         // Filtrar órdenes por rango de fechas (usar completed_at o created_at)
-        const filteredOrders = allOrders.filter((order: any) => {
+        const filteredOrders = ordersFromOrg.filter((order: any) => {
           const orderDate = order.completed_at 
             ? new Date(order.completed_at)
             : order.created_at 
