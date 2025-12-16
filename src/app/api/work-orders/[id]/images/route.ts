@@ -44,18 +44,57 @@ export async function POST(
     const organizationId = userProfile.organization_id;
     
     console.log('🔵 [API] Parseando body...')
-    const body = await request.json()
-    
-    // ✅ Soportar tanto una imagen como múltiples imágenes
-    const imagesToAdd = body.images ? body.images : [body]
-    console.log('🔵 [API] Imágenes recibidas:', imagesToAdd.length)
-    
-    if (!Array.isArray(imagesToAdd) || imagesToAdd.length === 0) {
+    let body
+    try {
+      body = await request.json()
+      console.log('🔵 [API] Body recibido:', JSON.stringify(body).substring(0, 200))
+    } catch (parseError: any) {
+      console.error('❌ [API] Error parseando JSON:', parseError)
       return NextResponse.json(
-        { error: 'No se recibieron imágenes válidas' },
+        { error: 'Formato de datos inválido' },
         { status: 400 }
       )
     }
+    
+    // ✅ Soportar tanto una imagen como múltiples imágenes
+    let imagesToAdd: any[]
+    if (body.images && Array.isArray(body.images)) {
+      imagesToAdd = body.images
+    } else if (body.path || body.url) {
+      // Es un objeto de imagen individual
+      imagesToAdd = [body]
+    } else {
+      console.error('❌ [API] Formato de datos inválido:', body)
+      return NextResponse.json(
+        { error: 'Formato de datos inválido. Se espera { images: [...] } o un objeto de imagen' },
+        { status: 400 }
+      )
+    }
+    
+    console.log('🔵 [API] Imágenes recibidas:', imagesToAdd.length)
+    
+    // Validar que todas las imágenes tengan la estructura correcta
+    const validImages = imagesToAdd.filter(img => {
+      const isValid = img && (img.path || img.url) && img.uploadedAt
+      if (!isValid) {
+        console.warn('⚠️ [API] Imagen inválida ignorada:', img)
+      }
+      return isValid
+    })
+    
+    if (validImages.length === 0) {
+      console.error('❌ [API] No hay imágenes válidas después de validación')
+      return NextResponse.json(
+        { error: 'No se recibieron imágenes válidas. Cada imagen debe tener: path (o url) y uploadedAt' },
+        { status: 400 }
+      )
+    }
+    
+    if (validImages.length < imagesToAdd.length) {
+      console.warn(`⚠️ [API] ${imagesToAdd.length - validImages.length} imagen(es) inválida(s) fueron ignoradas`)
+    }
+    
+    imagesToAdd = validImages
     
     console.log('🔵 [API] Obteniendo orden...')
     // ✅ Validar que la orden pertenezca a la organización del usuario
