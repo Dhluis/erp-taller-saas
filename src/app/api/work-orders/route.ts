@@ -127,41 +127,39 @@ export async function GET(request: NextRequest) {
     const userRole = userProfile.role;
     
     // ✅ Si es mecánico, obtener su employee_id para filtrar órdenes asignadas
-    // Nota: La relación entre users y employees puede ser por email o por un campo user_id
-    // Si employees no tiene user_id, intentamos por email del usuario
+    // Nota: La relación entre users y employees puede ser por email
+    // La tabla employees NO tiene user_id, se relaciona por email
     let assignedEmployeeId: string | null = null;
-    if (userRole === 'MECANICO') {
-      // Primero intentar por user_id si existe el campo
-      let employeeQuery = supabaseAdmin
-        .from('employees')
-        .select('id')
-        .eq('organization_id', organizationId);
-      
-      // Intentar por user_id primero (si el campo existe)
-      const { data: employeeByUserId, error: errorByUserId } = await employeeQuery
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
-      if (!errorByUserId && employeeByUserId) {
-        assignedEmployeeId = employeeByUserId.id;
-      } else if (user.email) {
-        // Si no se encontró por user_id, intentar por email
-        const { data: employeeByEmail, error: errorByEmail } = await supabaseAdmin
+    if (userRole === 'MECANICO' && user.email) {
+      try {
+        // Buscar employee por email (relación más común)
+        const { data: employee, error: employeeError } = await supabaseAdmin
           .from('employees')
           .select('id')
           .eq('email', user.email)
           .eq('organization_id', organizationId)
           .maybeSingle();
         
-        if (!errorByEmail && employeeByEmail) {
-          assignedEmployeeId = employeeByEmail.id;
+        if (!employeeError && employee) {
+          assignedEmployeeId = employee.id;
+        } else {
+          console.warn(`[GET /api/work-orders] Mecánico ${user.id} (${user.email}) no tiene employee_id asociado`);
+          // Si no tiene employee_id, retornar array vacío (no puede ver órdenes)
+          return NextResponse.json({
+            success: true,
+            data: [],
+            count: 0,
+            message: 'No se encontró empleado asociado a este usuario'
+          });
         }
-      }
-      
-      // Si aún no se encontró, el mecánico no tiene employee_id asociado
-      // En este caso, no podrá ver órdenes (retornará array vacío)
-      if (!assignedEmployeeId) {
-        console.warn(`[GET /api/work-orders] Mecánico ${user.id} no tiene employee_id asociado`);
+      } catch (error) {
+        console.error('[GET /api/work-orders] Error buscando employee:', error);
+        // En caso de error, retornar array vacío para no romper la aplicación
+        return NextResponse.json({
+          success: true,
+          data: [],
+          count: 0
+        });
       }
     }
     
