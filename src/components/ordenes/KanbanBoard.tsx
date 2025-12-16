@@ -235,7 +235,10 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
         }
         
         filteredByDate = orders.filter(order => {
-          const orderDate = new Date(order.created_at);
+          // Usar entry_date si está disponible, sino created_at
+          const orderDateStr = order.entry_date || order.created_at;
+          if (!orderDateStr) return false; // Si no hay fecha, excluir
+          const orderDate = new Date(orderDateStr);
           return orderDate >= dateRange.from! && orderDate <= dateRange.to!;
         });
       }
