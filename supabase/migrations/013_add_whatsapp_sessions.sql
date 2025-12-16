@@ -99,3 +99,4 @@ COMMENT ON COLUMN public.whatsapp_sessions.phone_number IS 'Número de teléfono
 
 
 
+

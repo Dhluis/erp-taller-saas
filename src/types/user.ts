@@ -16,6 +16,7 @@ export interface User {
   phone?: string
   is_active: boolean
   organization_id: string
+  organization_name?: string
   created_at: string
   updated_at: string
 }

@@ -21,7 +21,8 @@ import {
   Calendar,
   Edit,
   Trash2,
-  Save
+  Save,
+  Building2
 } from "lucide-react"
 import { toast } from "sonner"
 import type { User, CreateUserRequest } from "@/types/user"
@@ -473,6 +474,7 @@ export default function UsuariosPage() {
                 <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Usuario</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Email</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Organización</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Teléfono</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Rol</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Estado</th>
@@ -496,6 +498,10 @@ export default function UsuariosPage() {
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 flex items-center gap-2">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       {user.email}
+                    </td>
+                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{(user as any).organization_name || 'N/A'}</span>
                     </td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
                       {user.phone || '-'}

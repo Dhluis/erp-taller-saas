@@ -35,11 +35,24 @@ export async function GET(request: NextRequest) {
     const supabaseAdmin = getSupabaseServiceClient()
     console.log('[GET /api/users] Usando Service Role Client para bypass RLS')
     
+    // Obtener el nombre de la organización primero
+    const { data: organization, error: orgError } = await supabaseAdmin
+      .from('organizations')
+      .select('name')
+      .eq('id', organizationId)
+      .single()
+    
+    if (orgError) {
+      console.warn('[GET /api/users] No se pudo obtener el nombre de la organización:', orgError.message)
+    }
+    
+    const organizationName = organization?.name || null
+    
     // Obtener todos los usuarios de la organización
     console.log('[GET /api/users] Ejecutando query...')
     const { data: users, error } = await supabaseAdmin
       .from('users')
-      .select('id, auth_user_id, email, full_name, role, phone, is_active, created_at, updated_at')
+      .select('id, auth_user_id, email, full_name, role, phone, is_active, organization_id, created_at, updated_at')
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
     
@@ -67,7 +80,7 @@ export async function GET(request: NextRequest) {
       })
     }
     
-    // Mapear full_name a name para compatibilidad con el tipo User
+    // Mapear full_name a name y agregar organization_name
     const mappedUsers = users?.map((user: any) => {
       const mapped: any = {
         id: user.id,
@@ -79,6 +92,7 @@ export async function GET(request: NextRequest) {
         phone: user.phone,
         is_active: user.is_active,
         organization_id: user.organization_id,
+        organization_name: organizationName, // Agregar organization_name
         created_at: user.created_at,
         updated_at: user.updated_at
       }
@@ -87,6 +101,7 @@ export async function GET(request: NextRequest) {
         email: mapped.email,
         full_name: user.full_name,
         name: mapped.name,
+        organization_name: mapped.organization_name,
         'name existe?': 'name' in mapped
       })
       return mapped

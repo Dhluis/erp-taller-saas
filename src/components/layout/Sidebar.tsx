@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { useSidebar } from '@/contexts/SidebarContext'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useSession } from '@/lib/context/SessionContext'
 
 interface SidebarProps {
   className?: string
@@ -28,6 +29,7 @@ export function Sidebar({ className }: SidebarProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>([])
   const { isCollapsed, toggleCollapse } = useSidebar()
   const permissions = usePermissions()
+  const { isLoading: sessionLoading } = useSession()
   // Logo actualizado - EAGLES GEAR SYSTEM
   const logoUrl = "/eagles-logo-new.png"
 
@@ -70,6 +72,9 @@ export function Sidebar({ className }: SidebarProps) {
     )
   }
 
+  // Si está cargando o es admin, mostrar más opciones por defecto
+  const showAllForAdmin = !sessionLoading && permissions.isAdmin
+  
   const mainNavItems = [
     { 
       href: "/dashboard", 
@@ -85,16 +90,16 @@ export function Sidebar({ className }: SidebarProps) {
       label: "Proveedores", 
       icon: () => <ModernIcons.Clientes size={20} />,
       badge: null,
-      // Solo admin puede ver proveedores
-      visible: permissions.canManageSuppliers()
+      // Admin siempre puede ver, otros según permisos
+      visible: showAllForAdmin || permissions.canManageSuppliers()
     },
     { 
       href: "/vehiculos", 
       label: "Vehículos", 
       icon: () => <ModernIcons.Vehiculos size={20} />,
       badge: null,
-      // Todos pueden ver vehículos (read permission)
-      visible: permissions.canRead('vehicles')
+      // Admin siempre puede ver, otros según permisos
+      visible: showAllForAdmin || permissions.canRead('vehicles')
     },
     // Órdenes movido al TopBar
     {
@@ -102,8 +107,8 @@ export function Sidebar({ className }: SidebarProps) {
       label: "Cotizaciones",
       icon: () => <ModernIcons.Cotizaciones size={20} />,
       badge: null,
-      // Todos pueden ver cotizaciones (read permission)
-      visible: permissions.canRead('quotations')
+      // Admin siempre puede ver, otros según permisos
+      visible: showAllForAdmin || permissions.canRead('quotations')
     }
     // WhatsApp movido al TopBar
   ].filter(item => item.visible)
@@ -113,7 +118,7 @@ export function Sidebar({ className }: SidebarProps) {
       key: 'inventarios',
       label: 'Inventarios',
       icon: () => <ModernIcons.Inventarios size={20} />,
-      visible: permissions.canRead('inventory'),
+      visible: showAllForAdmin || permissions.canRead('inventory'),
       items: [
         { href: "/inventarios", label: "Productos", icon: () => <ModernIcons.Productos size={18} /> },
         { href: "/inventarios/categorias", label: "Categorías", icon: () => <ModernIcons.Categorias size={18} /> },
@@ -124,7 +129,7 @@ export function Sidebar({ className }: SidebarProps) {
       key: 'ingresos',
       label: 'Ingresos',
       icon: () => <ModernIcons.Finanzas size={20} />,
-      visible: permissions.canRead('invoices') || permissions.canPayInvoices(),
+      visible: showAllForAdmin || permissions.canRead('invoices') || permissions.canPayInvoices(),
       items: [
         { href: "/ingresos", label: "Facturación", icon: () => <ModernIcons.Ordenes size={18} />, visible: permissions.canRead('invoices') },
         { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Cobros size={18} />, visible: permissions.canPayInvoices() }
@@ -134,7 +139,7 @@ export function Sidebar({ className }: SidebarProps) {
       key: 'compras',
       label: 'Compras',
       icon: () => <ModernIcons.Pagos size={20} />,
-      visible: permissions.canManagePurchases(),
+      visible: showAllForAdmin || permissions.canManagePurchases(),
       items: [
         { href: "/compras", label: "Órdenes de Compra", icon: () => <ModernIcons.Ordenes size={18} /> },
         { href: "/compras/proveedores", label: "Proveedores", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageSuppliers() },
@@ -145,7 +150,7 @@ export function Sidebar({ className }: SidebarProps) {
       key: 'reportes',
       label: 'Reportes',
       icon: () => <ModernIcons.Reportes size={20} />,
-      visible: permissions.canRead('reports'),
+      visible: showAllForAdmin || permissions.canRead('reports'),
       items: [
         { href: "/reportes/ventas", label: "Ventas", icon: () => <ModernIcons.Finanzas size={18} />, visible: permissions.canRead('reports') },
         { href: "/reportes/inventario", label: "Inventario", icon: () => <ModernIcons.Inventarios size={18} />, visible: permissions.canRead('reports') },
@@ -156,9 +161,9 @@ export function Sidebar({ className }: SidebarProps) {
       key: 'configuraciones',
       label: 'Configuraciones',
       icon: () => <ModernIcons.Configuracion size={20} />,
-      visible: permissions.canManageSettings(),
+      visible: showAllForAdmin || permissions.canManageSettings(),
       items: [
-        { href: "/configuraciones/usuarios", label: "Usuarios", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageUsers() },
+        { href: "/usuarios", label: "Usuarios", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageUsers() },
         { href: "/configuraciones/empresa", label: "Empresa", icon: () => <ModernIcons.Dashboard size={18} />, visible: permissions.canManageSettings() }
       ].filter(item => item.visible)
     }
