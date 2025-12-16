@@ -353,7 +353,10 @@ export default function DashboardPage() {
         });
         
         // Generar datos para los últimos 7 días (o el rango seleccionado)
-        const daysToShow = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 
+        // Para 'all', mostrar los últimos 30 días para no sobrecargar el gráfico
+        const daysToShow = dateRange === 'all' ? 30 :
+                          dateRange === '7d' ? 7 : 
+                          dateRange === '30d' ? 30 : 
                           dateRange === 'current_month' ? new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() :
                           customDateRange.from && customDateRange.to 
                             ? Math.ceil((customDateRange.to.getTime() - customDateRange.from.getTime()) / (1000 * 60 * 60 * 24))
