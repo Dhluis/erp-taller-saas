@@ -100,8 +100,7 @@ export async function GET(request: NextRequest) {
       to: toDate.toISOString()
     })
 
-    // Usar Service Role Client para las queries (bypass RLS)
-    const supabase = supabaseAdmin
+    // Usar supabaseAdmin directamente para las queries (bypass RLS)
     
     console.log('✅ Organization ID usado:', organizationId)
 
@@ -111,7 +110,7 @@ export async function GET(request: NextRequest) {
     // Consultar órdenes por estado para la organización específica
     // Primero obtener todas las órdenes de la organización (sin filtro de fecha en la query)
     // Luego filtrar en JavaScript para mayor flexibilidad
-    const { data: orders, error: ordersError } = await supabase
+    const { data: orders, error: ordersError } = await supabaseAdmin
       .from('work_orders')
       .select('status, created_at, entry_date')
       .eq('organization_id', organizationId)

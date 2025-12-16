@@ -61,7 +61,8 @@ export async function GET(request: NextRequest) {
     const organizationId = userProfile.organization_id
     console.log('✅ [GET /api/customers] Organization ID:', organizationId)
 
-    const supabase = await getSupabaseServerClient()
+    // Usar supabaseAdmin para las queries (bypass RLS)
+    const supabase = supabaseAdmin
     
     // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO - igual que orders/stats
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
