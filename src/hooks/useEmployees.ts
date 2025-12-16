@@ -62,9 +62,9 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
 
   // Cargar empleados
   const loadEmployees = useCallback(async () => {
-    // ✅ FIX: Solo cargar si workshopId está ready y disponible
-    if (!workshopId || !ready) {
-      console.log('⏳ [useEmployees] Esperando a que workshopId esté ready...', { workshopId: !!workshopId, ready })
+    // ✅ FIX: Solo cargar si el contexto está ready (no requiere workshopId específico)
+    if (!ready) {
+      console.log('⏳ [useEmployees] Esperando a que contexto esté ready...', { ready })
       setLoading(false)
       setEmployees([]) // Limpiar empleados mientras espera
       return
@@ -74,12 +74,31 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
       setLoading(true)
       setError(null)
       
-      console.log('🔄 [useEmployees] Cargando empleados para workshopId:', workshopId)
+      console.log('🔄 [useEmployees] Cargando empleados desde API...')
       
-      const data = await getAllEmployees(workshopId)
-      setEmployees(data)
+      // ✅ FIX: Usar API route en lugar de query directa para evitar problemas de RLS
+      const response = await fetch('/api/employees', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al cargar empleados');
+      }
+
+      const result = await response.json();
+      const employeesData = result.employees || result.data || [];
       
-      console.log('✅ [useEmployees] Empleados cargados:', data.length)
+      // ✅ Filtrar por workshopId si está disponible (opcional)
+      const filteredData = workshopId 
+        ? employeesData.filter((emp: any) => emp.workshop_id === workshopId)
+        : employeesData;
+      
+      setEmployees(filteredData)
+      
+      console.log('✅ [useEmployees] Empleados cargados:', filteredData.length)
     } catch (err: any) {
       const errorMessage = err.message || 'Error al cargar empleados'
       setError(errorMessage)
@@ -94,9 +113,9 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
 
   // Cargar mecánicos
   const loadMechanics = useCallback(async () => {
-    // ✅ FIX: Solo cargar si workshopId está ready y disponible
-    if (!workshopId || !ready) {
-      console.log('⏳ [useEmployees] Esperando a que workshopId esté ready para mecánicos...', { workshopId: !!workshopId, ready })
+    // ✅ FIX: Solo cargar si el contexto está ready
+    if (!ready) {
+      console.log('⏳ [useEmployees] Esperando a que contexto esté ready para mecánicos...', { ready })
       setLoading(false)
       setMechanics([]) // Limpiar mecánicos mientras espera
       return
@@ -106,12 +125,33 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
       setLoading(true)
       setError(null)
       
-      console.log('🔄 [useEmployees] Cargando mecánicos para workshopId:', workshopId)
+      console.log('🔄 [useEmployees] Cargando mecánicos desde API...')
       
-      const data = await getActiveMechanics(workshopId)
-      setMechanics(data)
+      // ✅ FIX: Usar API route en lugar de query directa para evitar problemas de RLS
+      const response = await fetch('/api/employees', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al cargar mecánicos');
+      }
+
+      const result = await response.json();
+      const allEmployees = result.employees || result.data || [];
       
-      console.log('✅ [useEmployees] Mecánicos cargados:', data.length)
+      // ✅ Filtrar por roles de mecánicos y workshopId si está disponible
+      const mechanicsData = allEmployees.filter((emp: any) => {
+        const isMechanic = ['mechanic', 'supervisor', 'receptionist', 'manager'].includes(emp.role);
+        const matchesWorkshop = !workshopId || emp.workshop_id === workshopId;
+        return isMechanic && matchesWorkshop && emp.is_active;
+      });
+      
+      setMechanics(mechanicsData)
+      
+      console.log('✅ [useEmployees] Mecánicos cargados:', mechanicsData.length)
     } catch (err: any) {
       const errorMessage = err.message || 'Error al cargar mecánicos'
       setError(errorMessage)

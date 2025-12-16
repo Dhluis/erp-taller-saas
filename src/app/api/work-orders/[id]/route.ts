@@ -66,15 +66,40 @@ export async function GET(
       }
     }
     
-    const order = await getWorkOrderById(params.id);
+    // ✅ Obtener orden directamente usando supabaseAdmin (bypass RLS)
+    // Esto evita problemas con RLS y garantiza que solo se obtengan órdenes de la organización correcta
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from('work_orders')
+      .select(`
+        *,
+        customer:customers(
+          id,
+          name,
+          email,
+          phone
+        ),
+        vehicle:vehicles(
+          id,
+          brand,
+          model,
+          year,
+          license_plate
+        ),
+        order_items(*)
+      `)
+      .eq('id', params.id)
+      .eq('organization_id', organizationId)
+      .single();
 
-    if (!order) {
+    if (orderError || !order) {
+      console.error('❌ [API GET /work-orders/[id]] Error obteniendo orden:', orderError);
       return NextResponse.json(
         {
           success: false,
-          error: 'Orden de trabajo no encontrada',
+          error: 'Orden de trabajo no encontrada o no autorizada',
+          details: orderError?.message
         },
-        { status: 404 }
+        { status: orderError ? 500 : 404 }
       );
     }
 
