@@ -132,33 +132,55 @@ export async function GET(request: NextRequest) {
     let assignedEmployeeId: string | null = null;
     if (userRole === 'MECANICO' && user.email) {
       try {
+        console.log(`[GET /api/work-orders] 🔍 Buscando employee para mecánico: ${user.email} (org: ${organizationId})`);
+        
         // Buscar employee por email (relación más común)
         const { data: employee, error: employeeError } = await supabaseAdmin
           .from('employees')
-          .select('id')
+          .select('id, email, name')
           .eq('email', user.email)
           .eq('organization_id', organizationId)
           .maybeSingle();
         
         if (!employeeError && employee) {
           assignedEmployeeId = employee.id;
+          console.log(`[GET /api/work-orders] ✅ Employee encontrado: ${employee.id} (${employee.name || employee.email})`);
         } else {
-          console.warn(`[GET /api/work-orders] Mecánico ${user.id} (${user.email}) no tiene employee_id asociado`);
+          console.warn(`[GET /api/work-orders] ⚠️ Mecánico ${user.id} (${user.email}) no tiene employee_id asociado`);
+          console.warn(`[GET /api/work-orders] ⚠️ Error:`, employeeError);
+          
+          // ✅ DEBUG: Buscar todos los employees de la organización para ver qué hay
+          const { data: allEmployees, error: allEmployeesError } = await supabaseAdmin
+            .from('employees')
+            .select('id, email, name, organization_id')
+            .eq('organization_id', organizationId)
+            .limit(10);
+          
+          console.log(`[GET /api/work-orders] 🔍 Employees en la organización:`, allEmployees);
+          console.log(`[GET /api/work-orders] 🔍 Error al buscar todos:`, allEmployeesError);
+          
           // Si no tiene employee_id, retornar array vacío (no puede ver órdenes)
           return NextResponse.json({
             success: true,
             data: [],
             count: 0,
-            message: 'No se encontró empleado asociado a este usuario'
+            message: 'No se encontró empleado asociado a este usuario',
+            debug: {
+              userEmail: user.email,
+              organizationId,
+              employeeError: employeeError?.message,
+              availableEmployees: allEmployees?.length || 0
+            }
           });
         }
       } catch (error) {
-        console.error('[GET /api/work-orders] Error buscando employee:', error);
+        console.error('[GET /api/work-orders] ❌ Error buscando employee:', error);
         // En caso de error, retornar array vacío para no romper la aplicación
         return NextResponse.json({
           success: true,
           data: [],
-          count: 0
+          count: 0,
+          error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     }
@@ -188,7 +210,10 @@ export async function GET(request: NextRequest) {
     
     // ✅ Si es mecánico, filtrar solo órdenes asignadas a él
     if (userRole === 'MECANICO' && assignedEmployeeId) {
+      console.log(`[GET /api/work-orders] 🔍 Filtrando órdenes por assigned_to: ${assignedEmployeeId}`);
       query = query.eq('assigned_to', assignedEmployeeId);
+    } else if (userRole === 'MECANICO' && !assignedEmployeeId) {
+      console.log(`[GET /api/work-orders] ⚠️ Mecánico sin assignedEmployeeId, no se pueden mostrar órdenes`);
     }
 
     if (search) {

@@ -513,7 +513,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
 
   // Empty state cuando no hay órdenes
   const totalOrders = columns.reduce((sum, col) => sum + col.orders.length, 0);
-  
+
   return (
     <>
       {/* Filtros de fecha - Siempre visibles para todos los usuarios */}
