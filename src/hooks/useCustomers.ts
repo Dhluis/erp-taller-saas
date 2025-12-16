@@ -103,7 +103,7 @@ export function useCustomers(): UseCustomersReturn {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [organizationId, ready]); // ✅ FIX: Agregar organizationId y ready a las dependencias
 
   const createCustomer = useCallback(async (data: Omit<Customer, 'id' | 'created_at' | 'updated_at'>) => {
     try {
