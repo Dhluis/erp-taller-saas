@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     // Calcular rango de fechas según el filtro
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
-    let fromDate: Date
+    let fromDate: Date | undefined
     let toDate: Date = today
 
     // Manejar caso "all" - sin filtro de fecha
@@ -61,44 +61,47 @@ export async function GET(request: NextRequest) {
     if (timeFilter === 'all') {
       shouldFilterByDate = false
       console.log('📅 Filtro: TODAS las órdenes (sin filtro de fecha)')
+      // ✅ Para 'all', no necesitamos fromDate/toDate, pero los inicializamos para evitar errores
+      fromDate = undefined
+      toDate = today
     } else {
-    switch (timeFilter) {
-      case '7d':
-        fromDate = new Date(today)
-        fromDate.setDate(today.getDate() - 7)
-        fromDate.setHours(0, 0, 0, 0)
-        break
-      case '30d':
-        fromDate = new Date(today)
-        fromDate.setDate(today.getDate() - 30)
-        fromDate.setHours(0, 0, 0, 0)
-        break
-      case 'current_month':
-        fromDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0)
-        break
-      case 'custom':
-        if (customFrom && customTo) {
-          fromDate = new Date(customFrom)
-          toDate = new Date(customTo)
-          console.log('📅 Usando fechas personalizadas')
-        } else {
-          // Fallback a 7 días si no hay fechas custom
+      switch (timeFilter) {
+        case '7d':
           fromDate = new Date(today)
           fromDate.setDate(today.getDate() - 7)
           fromDate.setHours(0, 0, 0, 0)
-        }
-        break
-      default:
-        fromDate = new Date(today)
-        fromDate.setDate(today.getDate() - 7)
-        fromDate.setHours(0, 0, 0, 0)
+          break
+        case '30d':
+          fromDate = new Date(today)
+          fromDate.setDate(today.getDate() - 30)
+          fromDate.setHours(0, 0, 0, 0)
+          break
+        case 'current_month':
+          fromDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0)
+          break
+        case 'custom':
+          if (customFrom && customTo) {
+            fromDate = new Date(customFrom)
+            toDate = new Date(customTo)
+            console.log('📅 Usando fechas personalizadas')
+          } else {
+            // Fallback a 7 días si no hay fechas custom
+            fromDate = new Date(today)
+            fromDate.setDate(today.getDate() - 7)
+            fromDate.setHours(0, 0, 0, 0)
+          }
+          break
+        default:
+          fromDate = new Date(today)
+          fromDate.setDate(today.getDate() - 7)
+          fromDate.setHours(0, 0, 0, 0)
       }
     }
 
-    console.log('📅 Rango de fechas:', {
-      from: fromDate.toISOString(),
+    console.log('📅 Rango de fechas:', shouldFilterByDate ? {
+      from: fromDate?.toISOString(),
       to: toDate.toISOString()
-    })
+    } : 'Sin filtro de fecha (TODAS las órdenes)')
 
     // Usar supabaseAdmin directamente para las queries (bypass RLS)
     
