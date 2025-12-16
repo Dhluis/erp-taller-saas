@@ -126,7 +126,15 @@ export function useCustomers(): UseCustomersReturn {
       }
       
       console.log('✅ [useCustomers] Clientes cargados:', customersData.length);
-      console.log('✅ [useCustomers] Primeros clientes:', customersData.slice(0, 3).map(c => ({ id: c.id, name: c.name, org_id: (c as any).organization_id })));
+      console.log('✅ [useCustomers] OrganizationId esperado:', organizationId);
+      console.log('✅ [useCustomers] Primeros clientes con organization_id:', customersData.slice(0, 3).map(c => ({ 
+        id: c.id, 
+        name: c.name, 
+        org_id: (c as any).organization_id,
+        matches: (c as any).organization_id === organizationId
+      })));
+      console.log('✅ [useCustomers] Todos los organization_id únicos en los clientes:', 
+        [...new Set(customersData.map((c: any) => c.organization_id))]);
       
       // ✅ FIX: Filtrar solo clientes de la organización actual (por seguridad)
       const filteredCustomers = customersData.filter((c: any) => {
