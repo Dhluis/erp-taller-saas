@@ -233,48 +233,36 @@ export default function ConversacionesPage() {
       
       console.log('📊 [loadConversations] Construyendo query con organization_id:', organizationId)
       
-      // Construir query base - primero obtener conversaciones
-      let query = supabase
-        .from('whatsapp_conversations')
-        .select('*')
-        .eq('organization_id', organizationId)
+      // ✅ Usar API route en lugar de query directa
+      const statusParam = activeFilter === 'resolved' ? 'resolved' : activeFilter === 'all' ? 'all' : null;
+      const url = `/api/whatsapp/conversations${statusParam ? `?status=${statusParam}&limit=100` : '?limit=100'}`;
+      
+      console.log('📤 [loadConversations] Llamando API route:', url);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      });
 
-      // Aplicar filtro de status solo si no es 'all', 'unread' o 'favorite'
-      if (activeFilter === 'resolved') {
-        query = query.eq('status', 'resolved')
-      } else if (activeFilter === 'all') {
-        // No filtrar por status
-      } else {
-        // Para 'unread' y 'favorite', cargar todas y filtrar en el frontend
-        // (ya que estos campos no están en la BD directamente)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ [loadConversations] Error en API:', errorData);
+        
+        toast.error(errorData.error || 'Error al cargar conversaciones');
+        throw new Error(errorData.error || 'Error al cargar conversaciones');
       }
 
-      query = query.order('last_message_at', { ascending: false, nullsFirst: false })
-        .limit(100) // Aumentar límite para permitir filtrado en frontend
-
-      console.log('📤 [loadConversations] Ejecutando query...')
-      const { data, error } = await query
-
-      if (error) {
-        console.error('❌ [loadConversations] Error en query:', error)
-        console.error('❌ [loadConversations] Error details:', {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint
-        })
-        
-        // Si es error de permisos (RLS), mostrar mensaje más claro
-        if (error.code === 'PGRST301' || error.message?.includes('permission') || error.message?.includes('RLS')) {
-          toast.error('No tienes permisos para ver estas conversaciones. Contacta al administrador.', {
-            duration: 5000
-          })
-        } else {
-          toast.error(`Error al cargar conversaciones: ${error.message}`)
-        }
-        
-        throw error
+      const result = await response.json();
+      
+      if (!result.success) {
+        console.error('❌ [loadConversations] Error en respuesta:', result);
+        toast.error(result.error || 'Error al cargar conversaciones');
+        throw new Error(result.error || 'Error al cargar conversaciones');
       }
+
+      const data = result.data || [];
 
       console.log('✅ [loadConversations] Query ejecutada exitosamente')
       console.log('📊 [loadConversations] Datos recibidos:', {
@@ -1235,38 +1223,37 @@ export default function ConversacionesPage() {
       try {
         setLoadingAgents(true)
         // Intentar obtener empleados activos
-        const { data: employees, error: employeesError } = await supabase
-          .from('employees')
-          .select('id, name')
-          .eq('organization_id', organizationId)
-          .eq('is_active', true)
-          .order('name', { ascending: true })
-          .limit(50)
+        // ✅ Usar API route para obtener empleados
+        const employeesResponse = await fetch('/api/employees?active=true&limit=50', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        })
 
-        if (employeesError) {
-          console.warn('Error cargando empleados, intentando con usuarios:', employeesError)
-          // Fallback: intentar con usuarios del sistema
-          const { data: users, error: usersError } = await supabase
-            .from('users')
-            .select('auth_user_id, full_name')
-            .eq('organization_id', organizationId)
-            .order('full_name', { ascending: true })
-            .limit(50)
-
-          if (usersError) {
-            console.error('Error cargando usuarios:', usersError)
-            // Usar lista por defecto si falla todo
-            setAvailableAgents([
-              { id: '1', name: 'Juan Pérez' },
-              { id: '2', name: 'María García' },
-              { id: '3', name: 'Carlos López' },
-              { id: '4', name: 'Ana Martínez' }
-            ])
+        if (employeesResponse.ok) {
+          const employeesResult = await employeesResponse.json()
+          if (employeesResult.success && employeesResult.data) {
+            setAvailableAgents((employeesResult.data || []).map((emp: any) => ({
+              id: emp.id,
+              name: emp.name
+            })))
             return
           }
+        }
 
-          setAvailableAgents((users || []).map((u: any) => ({
-            id: u.auth_user_id || u.id,
+        // Fallback: intentar con usuarios del sistema
+        console.warn('Error cargando empleados, intentando con usuarios')
+        const usersResponse = await fetch('/api/users', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        })
+
+        if (usersResponse.ok) {
+          const usersResult = await usersResponse.json()
+          if (usersResult.success && usersResult.data) {
+            setAvailableAgents((usersResult.data || []).map((u: any) => ({
+              id: u.auth_user_id || u.id,
             name: u.full_name || 'Usuario sin nombre'
           })))
         } else {
