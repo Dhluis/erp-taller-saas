@@ -192,24 +192,31 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       setLoadingMechanics(true)
       const client = createClient()
       
-      // ✅ Filtrar primero por organization_id (requerido)
-      let query = client
-        .from('employees')
-        .select('id, name, role, email')
-        .eq('organization_id', orgId)
-        .eq('is_active', true)
-        .in('role', ['mechanic', 'technician'])
+      // ✅ Usar API route en lugar de query directa
+      const response = await fetch('/api/employees?active=true', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al cargar mecánicos');
+      }
+
+      const result = await response.json();
+      const allEmployees = result.employees || result.data || [];
       
-      // ✅ Solo filtrar por workshop_id si existe (opcional)
+      // Filtrar por roles de mecánicos y workshop_id si es necesario
+      let filteredEmployees = allEmployees.filter((emp: any) => 
+        ['mechanic', 'technician'].includes(emp.role)
+      );
+      
       if (wsId) {
-        query = query.eq('workshop_id', wsId)
+        filteredEmployees = filteredEmployees.filter((emp: any) => emp.workshop_id === wsId);
       }
       
-      const { data, error } = await query.order('name')
-      
-      if (error) throw error
-      
-      setMechanics(data || [])
+      setMechanics(filteredEmployees)
       console.log('✅ [loadMechanics] Mecánicos disponibles:', {
         count: data?.length || 0,
         organizationId: orgId,

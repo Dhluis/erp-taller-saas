@@ -419,7 +419,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     }
   }, [organizationId])
 
-  // ✅ Cargar empleados de la tabla employees para asignación
+  // ✅ Cargar empleados usando API route
   const loadEmployees = useCallback(async () => {
     if (!organizationId) {
       console.warn('⚠️ [loadEmployees] No hay organizationId disponible')
@@ -430,28 +430,31 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
     try {
       setLoadingEmployees(true)
-      const client = createClient()
 
-      // ✅ Filtrar por organization_id (requerido)
-      let query = client
-        .from('employees')
-        .select('id, name, role, email, is_active')
-        .eq('organization_id', organizationId)
-        .eq('is_active', true)
-        .order('name')
+      // ✅ Usar API route en lugar de query directa
+      const response = await fetch('/api/employees?active=true', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
 
-      // ✅ Opcionalmente filtrar por workshop_id si existe
-      if (sessionWorkshopId && !hasMultipleWorkshops) {
-        query = query.eq('workshop_id', sessionWorkshopId)
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al cargar empleados');
       }
 
-      const { data, error } = await query
+      const result = await response.json();
+      const allEmployees = result.employees || result.data || [];
+      
+      // Filtrar por workshop_id si es necesario (el filtrado por organization_id ya lo hace la API)
+      let filteredEmployees = allEmployees;
+      if (sessionWorkshopId && !hasMultipleWorkshops) {
+        filteredEmployees = allEmployees.filter((emp: any) => emp.workshop_id === sessionWorkshopId);
+      }
 
-      if (error) throw error
-
-      setEmployees(data || [])
+      setEmployees(filteredEmployees);
       console.log('✅ [loadEmployees] Empleados cargados:', {
-        count: data?.length || 0,
+        count: filteredEmployees?.length || 0,
         organizationId: organizationId,
         workshopId: sessionWorkshopId || 'sin asignar'
       })

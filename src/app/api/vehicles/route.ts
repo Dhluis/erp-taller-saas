@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getAllVehicles,
-  createVehicle,
-  searchVehicles,
-} from '@/lib/database/queries/vehicles';
+import { createVehicle } from '@/lib/database/queries/vehicles';
+import { createClientFromRequest } from '@/lib/supabase/server';
+import { getSupabaseServiceClient } from '@/lib/supabase/server';
 
 /**
  * @swagger
@@ -64,15 +62,79 @@ import {
 // GET: Obtener todos los vehículos o buscar
 export async function GET(request: NextRequest) {
   try {
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('[GET /api/vehicles] Error de autenticación:', authError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado',
+          data: []
+        },
+        { status: 401 }
+      );
+    }
+
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('[GET /api/vehicles] Error obteniendo perfil:', profileError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se pudo obtener la organización del usuario',
+          data: []
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = userProfile.organization_id;
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
 
-    let vehicles;
-    
+    // ✅ Usar Service Role Client directamente para queries
+    let query = supabaseAdmin
+      .from('vehicles')
+      .select(`
+        *,
+        customer:customers(
+          id,
+          name,
+          email,
+          phone
+        )
+      `)
+      .eq('organization_id', organizationId);
+
     if (search) {
-      vehicles = await searchVehicles(search);
-    } else {
-      vehicles = await getAllVehicles();
+      query = query.or(`brand.ilike.%${search}%,model.ilike.%${search}%,license_plate.ilike.%${search}%`);
+    }
+
+    query = query.order('created_at', { ascending: false });
+
+    const { data: vehicles, error: vehiclesError } = await query;
+
+    if (vehiclesError) {
+      console.error('[GET /api/vehicles] Error en query:', vehiclesError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Error al obtener vehículos',
+          data: []
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
@@ -96,6 +158,41 @@ export async function GET(request: NextRequest) {
 // POST: Crear un nuevo vehículo
 export async function POST(request: NextRequest) {
   try {
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('[POST /api/vehicles] Error de autenticación:', authError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado',
+        },
+        { status: 401 }
+      );
+    }
+
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('[POST /api/vehicles] Error obteniendo perfil:', profileError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se pudo obtener la organización del usuario',
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = userProfile.organization_id;
     const body = await request.json();
 
     // Validaciones básicas
@@ -123,7 +220,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const vehicle = await createVehicle(body);
+    // ✅ Asegurar que el vehículo se cree con el organization_id del usuario autenticado
+    const vehicleData = {
+      ...body,
+      organization_id: organizationId,
+    };
+
+    const vehicle = await createVehicle(vehicleData);
 
     return NextResponse.json(
       {

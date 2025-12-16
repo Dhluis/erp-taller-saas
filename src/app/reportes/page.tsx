@@ -10,7 +10,7 @@ import { safeFetch } from '@/lib/api';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useVehicles } from '@/hooks/useVehicles';
 import { useOrganization } from '@/lib/context/SessionContext';
-import { getAllWorkOrders } from '@/lib/database/queries/work-orders';
+// ✅ Removido: getAllWorkOrders - ahora se usa API route
 import { toast } from 'sonner';
 import { 
   ChartBarIcon,
@@ -81,8 +81,20 @@ export default function ReportesPage() {
           setHasLoadedOnce(true);
         }
         
-        // ✅ OPTIMIZACIÓN: No cargar order_items en reportes (no se usan)
-        const orders = await getAllWorkOrders(organizationId, { includeItems: false });
+        // ✅ Usar API route en lugar de query directa
+        const ordersResponse = await fetch('/api/work-orders', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        });
+
+        if (!ordersResponse.ok) {
+          const errorData = await ordersResponse.json();
+          throw new Error(errorData.error || 'Error al cargar órdenes');
+        }
+
+        const ordersResult = await ordersResponse.json();
+        const orders = ordersResult.success ? ordersResult.data : [];
         
         console.log('📊 [Reportes] Órdenes cargadas:', orders.length);
         

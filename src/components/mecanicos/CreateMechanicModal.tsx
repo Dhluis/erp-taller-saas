@@ -175,32 +175,26 @@ export function CreateMechanicModal({
 
       console.log('📋 [CreateMechanic] Datos a insertar:', mechanicData)
 
-      // Crear el mecánico/empleado en la tabla employees
-      console.log('➕ [CreateMechanic] Insertando en tabla employees...')
-      const { data: newMechanic, error: mechanicError } = await supabase
-        .from('employees')
-        .insert(mechanicData)
-        .select()
-        .single()
+      // ✅ Usar API route en lugar de insert directo
+      console.log('➕ [CreateMechanic] Creando empleado vía API...')
+      const response = await fetch('/api/employees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(mechanicData),
+      });
 
-      console.log('📊 [CreateMechanic] Resultado insert:', { newMechanic, mechanicError })
-
-      if (mechanicError) {
-        console.error('❌ [CreateMechanic] Error de Supabase:', mechanicError)
-        console.error('❌ [CreateMechanic] Error completo:', JSON.stringify(mechanicError, null, 2))
-        console.error('❌ [CreateMechanic] Error keys:', Object.keys(mechanicError))
-        console.error('❌ [CreateMechanic] Error code:', mechanicError.code)
-        console.error('❌ [CreateMechanic] Error message:', mechanicError.message)
-        console.error('❌ [CreateMechanic] Error details:', mechanicError.details)
-        console.error('❌ [CreateMechanic] Error hint:', mechanicError.hint)
-        
-        // Si el error está vacío, podría ser un problema de RLS
-        if (Object.keys(mechanicError).length === 0) {
-          throw new Error('Error de permisos: Verifica las políticas RLS de la tabla employees')
-        }
-        
-        throw mechanicError
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ [CreateMechanic] Error completo:', errorData);
+        throw new Error(errorData.error || 'Error al crear mecánico');
       }
+
+      const result = await response.json();
+      const newMechanic = result.employee || result.data;
+      
+      console.log('📊 [CreateMechanic] Resultado:', { newMechanic })
       
       // Verificar que realmente se creó el registro
       if (!newMechanic) {

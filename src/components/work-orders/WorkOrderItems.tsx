@@ -147,10 +147,20 @@ export function WorkOrderItems({ orderId, orderStatus, onTotalChange }: WorkOrde
 
   async function loadEmployees() {
     try {
-      const response = await fetch('/api/employees')
-      if (!response.ok) throw new Error('Error al cargar empleados')
-      const data = await response.json()
-      setEmployees(data.filter((e: Employee) => e.role === 'mechanic'))
+      const response = await fetch('/api/employees?active=true', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al cargar empleados');
+      }
+      
+      const result = await response.json();
+      const allEmployees = result.employees || result.data || [];
+      setEmployees(allEmployees.filter((e: Employee) => e.role === 'mechanic'))
     } catch (error) {
       console.error('Error cargando empleados:', error)
     }

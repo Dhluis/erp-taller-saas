@@ -47,12 +47,11 @@ import {
   Wrench
 } from "lucide-react"
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal'
+// ✅ Removido: getAppointmentStats - ahora se usa API route
 import {
-  getAppointments,
   createAppointment,
   updateAppointment,
   deleteAppointment,
-  getAppointmentStats,
   searchAppointments,
   subscribeToAppointments,
   type AppointmentStats,
@@ -218,8 +217,32 @@ export default function CitasPage() {
 
       const appointmentsData = result.data || []
       
-      // Obtener estadísticas filtradas por organization_id
-      const statsData = await getAppointmentStats(organizationId)
+      // ✅ Usar API route para estadísticas en lugar de query directa
+      const statsResponse = await fetch('/api/appointments/stats', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
+
+      let statsData = {
+        total: 0,
+        scheduled: 0,
+        confirmed: 0,
+        in_progress: 0,
+        completed: 0,
+        cancelled: 0,
+        no_show: 0,
+        today: 0,
+        thisWeek: 0,
+        thisMonth: 0
+      };
+
+      if (statsResponse.ok) {
+        const statsResult = await statsResponse.json();
+        if (statsResult.success && statsResult.data) {
+          statsData = statsResult.data;
+        }
+      }
 
       setAppointments(appointmentsData)
       setFilteredAppointments(appointmentsData)
