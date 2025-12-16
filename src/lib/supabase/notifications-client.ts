@@ -41,8 +41,8 @@ async function getUserOrganizationId(): Promise<string> {
     .single()
 
   if (profileError) {
-    console.warn('No se pudo obtener organization_id, usando fallback', profileError)
-    return '00000000-0000-0000-0000-000000000001'
+    console.error('❌ Error obteniendo organization_id del perfil:', profileError)
+    throw new Error('No se pudo obtener la organización del usuario. Por favor, contacta al administrador.')
   }
 
   // ✅ organization_id está directamente en el perfil del usuario
@@ -63,8 +63,9 @@ async function getUserOrganizationId(): Promise<string> {
     }
   }
 
-  console.warn('No se pudo obtener organization_id, usando fallback')
-  return '00000000-0000-0000-0000-000000000001'
+  // ❌ NO usar fallback - lanzar error si no se puede obtener
+  console.error('❌ No se pudo obtener organization_id del usuario')
+  throw new Error('No se pudo obtener la organización del usuario. Por favor, contacta al administrador.')
 }
 
 /**

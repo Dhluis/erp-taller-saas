@@ -99,8 +99,10 @@ export const TESTING_CONFIG = {
 // CONFIGURACIÓN ESPECÍFICA DEL ERP
 // =====================================================
 export const ERP_CONFIG = {
-  // Organización por defecto
-  defaultOrganizationId: process.env.DEFAULT_ORGANIZATION_ID || '00000000-0000-0000-0000-000000000001',
+  // ❌ ELIMINADO: defaultOrganizationId - NO usar IDs hardcodeados
+  // Siempre obtener organization_id del usuario autenticado
+  // Si se necesita un valor por defecto para desarrollo, usar variable de entorno explícitamente
+  defaultOrganizationId: process.env.DEFAULT_ORGANIZATION_ID || null, // null = requerido del usuario
   
   // Configuración de moneda
   defaultCurrency: process.env.DEFAULT_CURRENCY || 'MXN',

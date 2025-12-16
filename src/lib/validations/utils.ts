@@ -310,14 +310,15 @@ export class ValidationUtils {
    */
   static validateOrganization(organizationId: string): boolean {
     if (!organizationId) return false;
-    if (organizationId === '00000000-0000-0000-0000-000000000001') return true; // Aceptar ID por defecto
+    // ❌ NO aceptar IDs hardcodeados - solo UUIDs válidos
     return this.validateUUID(organizationId);
   }
 
   /**
    * Obtiene organización del request
+   * ❌ NO usar fallbacks hardcodeados - siempre debe venir del usuario autenticado
    */
-  static getOrganizationFromRequest(request: NextRequest): string {
+  static getOrganizationFromRequest(request: NextRequest): string | null {
     // Intentar obtener de headers
     const orgHeader = request.headers.get('x-organization-id');
     if (orgHeader && this.validateOrganization(orgHeader)) {
@@ -331,8 +332,8 @@ export class ValidationUtils {
       return orgParam;
     }
     
-    // Usar ID temporal como fallback (solo para desarrollo)
-    return '00000000-0000-0000-0000-000000000001';
+    // ❌ NO usar fallback - retornar null para que el código que llama maneje el error
+    return null;
   }
 }
 

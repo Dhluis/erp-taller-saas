@@ -248,8 +248,8 @@ export const VALIDATION_CONSTANTS = {
  * CONSTANTES DE ORGANIZACIÓN
  */
 export const ORGANIZATION_CONSTANTS = {
-  // ID temporal para desarrollo
-  TEMP_ORG_ID: '00000000-0000-0000-0000-000000000001',
+  // ❌ ELIMINADO: TEMP_ORG_ID - NO usar IDs hardcodeados
+  // Siempre obtener organization_id del usuario autenticado
   
   // Configuración por defecto
   DEFAULT_SETTINGS: {
