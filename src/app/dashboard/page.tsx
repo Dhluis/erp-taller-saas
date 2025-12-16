@@ -362,15 +362,15 @@ export default function DashboardPage() {
                   setDateRange(range);
                   setCustomDateRange({ from: undefined, to: undefined });
                 }}
-                className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors flex-1 sm:flex-none ${
+                className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors flex-1 sm:flex-none ${
                   dateRange === range
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                {range === '7d' ? '7d' :
-                 range === '30d' ? '30d' :
-                 'Mes'}
+                {range === '7d' ? '7 días' :
+                 range === '30d' ? '30 días' :
+                 'Mes actual'}
               </button>
             ))}
             
@@ -510,7 +510,7 @@ export default function DashboardPage() {
             <div className="bg-gray-800 rounded-lg p-3 sm:p-4 md:p-6 border border-gray-700">
               <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-4">Órdenes por Estado</h3>
               <p className="text-gray-400 text-xs sm:text-sm mb-3 sm:mb-4">Distribución de órdenes en el flujo de trabajo</p>
-              <div className="h-64 sm:h-80 md:h-96">
+              <div className="h-64 sm:h-80 md:h-[500px] lg:h-[600px]">
                 {loading ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
@@ -528,6 +528,7 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                 <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                  {/* Mobile: Pie chart pequeño con leyenda debajo */}
                   <ResponsiveContainer width="100%" height={250} className="sm:hidden">
                     <PieChart>
                       <Pie
@@ -546,14 +547,15 @@ export default function DashboardPage() {
                       <Tooltip />
                     </PieChart>
                   </ResponsiveContainer>
-                  <ResponsiveContainer width="100%" height={300} className="hidden sm:block">
+                  {/* Tablet: Pie chart mediano */}
+                  <ResponsiveContainer width="100%" height={400} className="hidden sm:block md:hidden">
                     <PieChart>
                       <Pie
                         data={ordersByStatus}
-                        cx="30%"
+                        cx="35%"
                         cy="50%"
                         labelLine={false}
-                        outerRadius={100}
+                        outerRadius={120}
                         fill="#8884d8"
                         dataKey="value"
                       >
@@ -568,6 +570,36 @@ export default function DashboardPage() {
                         verticalAlign="middle"
                         iconType="circle"
                         wrapperStyle={{ fontSize: '12px' }}
+                        formatter={(value, entry: any) => {
+                          const item = ordersByStatus.find(s => s.name === value)
+                          return `${value} (${item?.value || 0})`
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Desktop: Pie chart grande y proporcional */}
+                  <ResponsiveContainer width="100%" height="100%" className="hidden md:block">
+                    <PieChart>
+                      <Pie
+                        data={ordersByStatus}
+                        cx="35%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={140}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {ordersByStatus.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend 
+                        layout="vertical" 
+                        align="right" 
+                        verticalAlign="middle"
+                        iconType="circle"
+                        wrapperStyle={{ fontSize: '14px', paddingLeft: '20px' }}
                         formatter={(value, entry: any) => {
                           const item = ordersByStatus.find(s => s.name === value)
                           return `${value} (${item?.value || 0})`
