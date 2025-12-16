@@ -135,14 +135,47 @@ export async function GET(request: NextRequest) {
         console.log(`[GET /api/work-orders] 🔍 Buscando employee para mecánico: ${user.email} (org: ${organizationId})`);
         
         // Buscar employee por email (relación más común)
-        const { data: employee, error: employeeError } = await supabaseAdmin
+        let { data: employee, error: employeeError } = await supabaseAdmin
           .from('employees')
           .select('id, email, name')
           .eq('email', user.email)
           .eq('organization_id', organizationId)
           .maybeSingle();
         
-        if (!employeeError && employee) {
+        // ✅ Si no se encuentra por email, buscar employees sin email y actualizar el primero
+        if (!employee && !employeeError) {
+          console.log(`[GET /api/work-orders] ⚠️ No se encontró employee con email ${user.email}, buscando employees sin email...`);
+          
+          // Buscar employees sin email en la organización
+          const { data: employeesWithoutEmail, error: employeesError } = await supabaseAdmin
+            .from('employees')
+            .select('id, email, name')
+            .eq('organization_id', organizationId)
+            .is('email', null)
+            .limit(1);
+          
+          if (!employeesError && employeesWithoutEmail && employeesWithoutEmail.length > 0) {
+            const employeeToUpdate = employeesWithoutEmail[0];
+            console.log(`[GET /api/work-orders] 🔧 Actualizando employee ${employeeToUpdate.id} (${employeeToUpdate.name}) con email ${user.email}`);
+            
+            // Actualizar el employee con el email del usuario
+            const { data: updatedEmployee, error: updateError } = await supabaseAdmin
+              .from('employees')
+              .update({ email: user.email })
+              .eq('id', employeeToUpdate.id)
+              .select('id, email, name')
+              .single();
+            
+            if (!updateError && updatedEmployee) {
+              employee = updatedEmployee;
+              console.log(`[GET /api/work-orders] ✅ Employee actualizado exitosamente: ${updatedEmployee.id}`);
+            } else {
+              console.error(`[GET /api/work-orders] ❌ Error actualizando employee:`, updateError);
+            }
+          }
+        }
+        
+        if (employee) {
           assignedEmployeeId = employee.id;
           console.log(`[GET /api/work-orders] ✅ Employee encontrado: ${employee.id} (${employee.name || employee.email})`);
         } else {
