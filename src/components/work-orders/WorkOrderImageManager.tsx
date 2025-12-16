@@ -200,45 +200,21 @@ export function WorkOrderImageManager({
       return
     }
 
-    console.log('🔄 [handleFileChange] Archivo seleccionado:', {
-      name: files[0].name,
-      size: files[0].size,
-      type: files[0].type
-    })
+    const filesArray = Array.from(files)
+    console.log('🔄 [handleFileChange] Archivos seleccionados:', filesArray.length)
 
-    if (images.length >= maxImages) {
-      toast.error(`Máximo ${maxImages} imágenes por orden`)
+    // Validar límite total
+    if (images.length + filesArray.length > maxImages) {
+      toast.error(`Máximo ${maxImages} imágenes por orden. Ya tienes ${images.length} y estás intentando subir ${filesArray.length}`)
+      e.target.value = ''
       return
     }
 
     setUploading(true)
-    console.log('🔄 [handleFileChange] Iniciando subida...')
+    console.log('🔄 [handleFileChange] Iniciando subida de múltiples imágenes...')
 
     try {
-      const file = files[0]
-      
-      // Comprimir imagen antes de subir
-      console.log('📸 Procesando imagen...')
-      console.log('📊 Tamaño original:', (file.size / 1024 / 1024).toFixed(2), 'MB')
-
-      let fileToUpload = file
-
-      try {
-        if (file.type.startsWith('image/')) {
-          toast.info('Optimizando imagen...', { duration: 2000 })
-          fileToUpload = await compressImage(file)
-          const sizeKB = (fileToUpload.size / 1024).toFixed(0)
-          toast.success(`Imagen optimizada: ${sizeKB}KB`, { duration: 2000 })
-        }
-      } catch (error) {
-        console.error('❌ Error comprimiendo imagen:', error)
-        toast.warning('Subiendo imagen sin comprimir...', { duration: 2000 })
-        fileToUpload = file
-      }
-
-      console.log('📊 Tamaño a subir:', (fileToUpload.size / 1024 / 1024).toFixed(2), 'MB')
-
-      // ✅ Obtener token de sesión desde Supabase client
+      // ✅ Obtener token de sesión desde Supabase client (una sola vez)
       console.log('🔐 [CONTEXT] Obteniendo sesión de Supabase...')
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       
@@ -255,60 +231,103 @@ export function WorkOrderImageManager({
 
       console.log('✅ [CONTEXT] Token disponible desde sesión')
       
-      // Subir imagen
-      const uploadResult = await uploadWorkOrderImage(
-        fileToUpload,
-        orderId,
-        userId,
-        selectedCategory,
-        uploadDescription || undefined,
-        currentStatus,
-        session.access_token
-      )
+      // Procesar y subir todas las imágenes en paralelo
+      toast.info(`Procesando ${filesArray.length} imagen${filesArray.length > 1 ? 'es' : ''}...`, { duration: 2000 })
+      
+      const uploadPromises = filesArray.map(async (file, index) => {
+        try {
+          // Comprimir imagen antes de subir
+          console.log(`📸 [${index + 1}/${filesArray.length}] Procesando imagen:`, file.name)
+          console.log(`📊 [${index + 1}/${filesArray.length}] Tamaño original:`, (file.size / 1024 / 1024).toFixed(2), 'MB')
 
-      console.log('✅ [UPLOAD RESULT] Upload completado:', uploadResult)
-      console.log('✅ [UPLOAD RESULT] Success:', uploadResult.success)
-      console.log('✅ [UPLOAD RESULT] Data:', uploadResult.data)
+          let fileToUpload = file
 
-      if (!uploadResult.success || !uploadResult.data) {
-        console.error('❌ [UPLOAD RESULT] Falló la validación')
-        toast.error(uploadResult.error || 'Error al subir imagen')
+          try {
+            if (file.type.startsWith('image/')) {
+              fileToUpload = await compressImage(file)
+              const sizeKB = (fileToUpload.size / 1024).toFixed(0)
+              console.log(`✅ [${index + 1}/${filesArray.length}] Imagen optimizada: ${sizeKB}KB`)
+            }
+          } catch (error) {
+            console.error(`❌ [${index + 1}/${filesArray.length}] Error comprimiendo imagen:`, error)
+            fileToUpload = file
+          }
+
+          console.log(`📊 [${index + 1}/${filesArray.length}] Tamaño a subir:`, (fileToUpload.size / 1024 / 1024).toFixed(2), 'MB')
+          
+          // Subir imagen
+          const uploadResult = await uploadWorkOrderImage(
+            fileToUpload,
+            orderId,
+            userId,
+            selectedCategory,
+            uploadDescription || undefined,
+            currentStatus,
+            session.access_token
+          )
+
+          if (!uploadResult.success || !uploadResult.data) {
+            console.error(`❌ [${index + 1}/${filesArray.length}] Falló la subida:`, uploadResult.error)
+            throw new Error(uploadResult.error || `Error al subir ${file.name}`)
+          }
+
+          console.log(`✅ [${index + 1}/${filesArray.length}] Upload completado:`, file.name)
+          return uploadResult.data
+        } catch (error: any) {
+          console.error(`❌ [${index + 1}/${filesArray.length}] Error:`, error)
+          throw error
+        }
+      })
+
+      // Esperar a que todas las imágenes se suban
+      const uploadResults = await Promise.all(uploadPromises)
+      const successfulUploads = uploadResults.filter(result => result !== null)
+
+      console.log(`✅ [handleFileChange] ${successfulUploads.length}/${filesArray.length} imágenes subidas exitosamente`)
+
+      if (successfulUploads.length === 0) {
+        toast.error('No se pudo subir ninguna imagen')
         return
       }
 
-      // ✅ Imagen subida exitosamente a Storage
-      // Persistir en BD usando API route (servidor)
+      // ✅ Persistir todas las imágenes en BD usando API route (una sola petición)
       console.log('💾 [PERSIST] Guardando en BD via API...')
 
       try {
         const response = await fetch(`/api/work-orders/${orderId}/images`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(uploadResult.data)
+          body: JSON.stringify({ images: successfulUploads })
         })
         
         if (!response.ok) {
-          throw new Error('Error al guardar en BD')
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || 'Error al guardar en BD')
         }
         
         console.log('✅ [PERSIST] Guardado exitosamente')
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ [PERSIST] Error:', error)
-        toast.error('Error al guardar imagen')
+        toast.error(error.message || 'Error al guardar imágenes')
         return
       }
 
-      // Actualizar UI
-      const newImagesList = [...images, uploadResult.data]
+      // Actualizar UI con todas las imágenes nuevas
+      const newImagesList = [...images, ...successfulUploads]
       onImagesChange(newImagesList)
 
-      toast.success('Imagen subida exitosamente')
+      if (successfulUploads.length === filesArray.length) {
+        toast.success(`${successfulUploads.length} imagen${successfulUploads.length > 1 ? 'es' : ''} subida${successfulUploads.length > 1 ? 's' : ''} exitosamente`)
+      } else {
+        toast.warning(`${successfulUploads.length} de ${filesArray.length} imagen${filesArray.length > 1 ? 'es' : ''} subida${successfulUploads.length > 1 ? 's' : ''} exitosamente`)
+      }
 
       // Limpiar
       e.target.value = ''
       setUploadDescription('')
     } catch (error: any) {
-      toast.error(error.message || 'Error al subir imagen')
+      console.error('❌ [handleFileChange] Error general:', error)
+      toast.error(error.message || 'Error al subir imágenes')
     } finally {
       setUploading(false)
     }
@@ -477,13 +496,15 @@ export function WorkOrderImageManager({
               onChange={handleFileChange}
               className="hidden"
               disabled={uploading || images.length >= maxImages}
+              // Nota: No agregamos 'multiple' aquí porque capture="environment" generalmente no lo soporta bien
             />
 
-            {/* Input oculto para GALERÍA */}
+            {/* Input oculto para GALERÍA - Permite múltiples archivos */}
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              multiple
               onChange={handleFileChange}
               className="hidden"
               disabled={uploading || images.length >= maxImages}

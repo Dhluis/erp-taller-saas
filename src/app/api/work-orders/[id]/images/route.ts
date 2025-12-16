@@ -44,8 +44,18 @@ export async function POST(
     const organizationId = userProfile.organization_id;
     
     console.log('🔵 [API] Parseando body...')
-    const imageData = await request.json()
-    console.log('🔵 [API] Image data recibida')
+    const body = await request.json()
+    
+    // ✅ Soportar tanto una imagen como múltiples imágenes
+    const imagesToAdd = body.images ? body.images : [body]
+    console.log('🔵 [API] Imágenes recibidas:', imagesToAdd.length)
+    
+    if (!Array.isArray(imagesToAdd) || imagesToAdd.length === 0) {
+      return NextResponse.json(
+        { error: 'No se recibieron imágenes válidas' },
+        { status: 400 }
+      )
+    }
     
     console.log('🔵 [API] Obteniendo orden...')
     // ✅ Validar que la orden pertenezca a la organización del usuario
@@ -67,7 +77,7 @@ export async function POST(
     console.log('🔵 [API] Orden obtenida, actualizando...')
     
     const currentImages = order?.images || []
-    const updatedImages = [...currentImages, imageData]
+    const updatedImages = [...currentImages, ...imagesToAdd]
     
     const { error: updateError } = await supabaseAdmin
       .from('work_orders')
@@ -86,8 +96,11 @@ export async function POST(
       )
     }
     
-    console.log('✅ [API] Imagen agregada exitosamente')
-    return NextResponse.json({ success: true })
+    console.log(`✅ [API] ${imagesToAdd.length} imagen${imagesToAdd.length > 1 ? 'es' : ''} agregada${imagesToAdd.length > 1 ? 's' : ''} exitosamente`)
+    return NextResponse.json({ 
+      success: true,
+      count: imagesToAdd.length
+    })
     
   } catch (error: any) {
     console.error('❌ [API] Exception:', error)
