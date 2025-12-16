@@ -338,11 +338,21 @@ export function WorkOrderImageManager({
     setDeletingIndex(index)
 
     try {
-      const result = await removeImageFromWorkOrder(orderId, image.path)
+      // ✅ Usar API route en lugar de query directa
+      const response = await fetch(`/api/work-orders/${orderId}/images?imagePath=${encodeURIComponent(image.path)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      })
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Error al eliminar imagen')
+      }
+
+      const result = await response.json()
+      
       if (!result.success) {
-        toast.error(result.error || 'Error al eliminar imagen')
-        return
+        throw new Error(result.error || 'Error al eliminar imagen')
       }
 
       const updatedImages = images.filter((_, i) => i !== index)
@@ -354,6 +364,7 @@ export function WorkOrderImageManager({
         setSelectedImage(null)
       }
     } catch (error: any) {
+      console.error('❌ [handleDelete] Error:', error)
       toast.error(error.message || 'Error al eliminar imagen')
     } finally {
       setDeletingIndex(null)
