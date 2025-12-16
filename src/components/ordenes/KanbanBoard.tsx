@@ -514,33 +514,9 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
   // Empty state cuando no hay órdenes
   const totalOrders = columns.reduce((sum, col) => sum + col.orders.length, 0);
   
-  if (totalOrders === 0 && !loading && !error) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FileText className="w-12 h-12 text-slate-600" />
-          </div>
-          <h3 className="text-xl font-semibold text-white mb-2">
-            No hay órdenes todavía
-          </h3>
-          <p className="text-slate-400 mb-6">
-            Comienza creando tu primera orden de trabajo
-          </p>
-          <button
-            onClick={() => onCreateOrder?.()}
-            className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors font-medium"
-          >
-            Crear Primera Orden
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
-      {/* Filtros de fecha */}
+      {/* Filtros de fecha - Siempre visibles para todos los usuarios */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <Button
           size="sm"
@@ -653,6 +629,31 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
         )}
       </div>
 
+      {/* Empty state cuando no hay órdenes - Mostrar después de los filtros */}
+      {totalOrders === 0 && !loading && !error && (
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-12 h-12 text-slate-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              No hay órdenes todavía
+            </h3>
+            <p className="text-slate-400 mb-6">
+              Comienza creando tu primera orden de trabajo
+            </p>
+            <button
+              onClick={() => onCreateOrder?.()}
+              className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors font-medium"
+            >
+              Crear Primera Orden
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Kanban Board - Solo mostrar si hay órdenes o está cargando */}
+      {(totalOrders > 0 || loading || error) && (
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -699,6 +700,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
           }}
         />
       </DndContext>
+      )}
     </>
   );
 }
