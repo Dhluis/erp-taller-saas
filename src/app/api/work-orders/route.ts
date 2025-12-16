@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getAllWorkOrders,
-  createWorkOrder,
-  searchWorkOrders,
-  getWorkOrderStats,
-} from '@/lib/database/queries/work-orders';
+import { createWorkOrder } from '@/lib/database/queries/work-orders';
 import { createClientFromRequest } from '@/lib/supabase/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 
@@ -130,20 +125,59 @@ export async function GET(request: NextRequest) {
 
     const organizationId = userProfile.organization_id;
     
-    let orders;
+    // ✅ Usar Service Role Client directamente para queries (bypass RLS)
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search');
+    const status = searchParams.get('status');
+
+    let query = supabaseAdmin
+      .from('work_orders')
+      .select(`
+        *,
+        customer:customers(
+          id,
+          name,
+          email,
+          phone
+        ),
+        vehicle:vehicles(
+          id,
+          brand,
+          model,
+          year,
+          license_plate
+        )
+      `)
+      .eq('organization_id', organizationId);
 
     if (search) {
-      orders = await searchWorkOrders(search);
-    } else if (status) {
-      orders = await getAllWorkOrders(organizationId, { status: status as any });
-    } else {
-      orders = await getAllWorkOrders(organizationId);
+      query = query.or(`id.ilike.%${search}%,description.ilike.%${search}%`);
+    }
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    query = query.order('created_at', { ascending: false });
+
+    const { data: orders, error: ordersError } = await query;
+
+    if (ordersError) {
+      console.error('[GET /api/work-orders] Error en query:', ordersError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Error al obtener órdenes de trabajo',
+          data: []
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
       success: true,
-      data: orders,
-      count: orders.length,
+      data: orders || [],
+      count: orders?.length || 0,
     });
   } catch (error) {
     console.error('Error fetching work orders:', error);
