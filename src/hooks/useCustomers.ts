@@ -254,15 +254,27 @@ export function useCustomers(): UseCustomersReturn {
 
   // ✅ FIX: Solo cargar cuando organizationId esté ready
   useEffect(() => {
+    console.log('🔄 [useCustomers] useEffect ejecutado:', {
+      ready,
+      organizationId: !!organizationId,
+      organizationIdValue: organizationId,
+      fetchCustomersExists: !!fetchCustomers
+    });
+    
     if (ready && organizationId) {
-      console.log('🔄 [useCustomers] useEffect triggered - organizationId ready:', organizationId);
+      console.log('✅ [useCustomers] Condiciones cumplidas, llamando fetchCustomers...');
       // ✅ FIX: Limpiar clientes anteriores antes de cargar nuevos
       setCustomers([]);
       fetchCustomers();
     } else {
-      console.log('⏳ [useCustomers] Esperando a que organizationId esté ready...', { ready, organizationId: !!organizationId });
+      console.log('⏳ [useCustomers] Esperando a que organizationId esté ready...', { 
+        ready, 
+        organizationId: !!organizationId,
+        organizationIdValue: organizationId 
+      });
       // Limpiar clientes si organizationId cambia
       setCustomers([]);
+      setLoading(false);
     }
   }, [ready, organizationId, fetchCustomers]);
 
