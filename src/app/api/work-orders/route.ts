@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createWorkOrder } from '@/lib/database/queries/work-orders';
+import { createWorkOrder, getWorkOrderStats } from '@/lib/database/queries/work-orders';
 import { createClientFromRequest } from '@/lib/supabase/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 
@@ -78,27 +78,13 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const stats = searchParams.get('stats');
 
-    // Si se solicitan estadísticas, redirigir a la ruta dedicada
+    // Si se solicitan estadísticas
     if (stats === 'true') {
-      // Redirigir a /api/work-orders/stats que maneja las estadísticas
-      const statsUrl = new URL('/api/work-orders/stats', request.url);
-      const statsResponse = await fetch(statsUrl.toString(), {
-        method: 'GET',
-        headers: request.headers,
+      const statistics = await getWorkOrderStats();
+      return NextResponse.json({
+        success: true,
+        data: statistics,
       });
-      
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        return NextResponse.json(statsData);
-      }
-      
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Error al obtener estadísticas',
-        },
-        { status: 500 }
-      );
     }
 
     // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
