@@ -263,11 +263,25 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    // ✅ DEBUG: Incluir información de debug en la respuesta para mecánicos
+    const responseData: any = {
       success: true,
       data: orders || [],
       count: orders?.length || 0,
-    });
+    };
+
+    if (userRole === 'MECANICO') {
+      responseData.debug = {
+        userRole,
+        userEmail: user.email,
+        assignedEmployeeId,
+        organizationId,
+        ordersFound: orders?.length || 0,
+        hasAssignedEmployeeId: !!assignedEmployeeId
+      };
+    }
+
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error('Error fetching work orders:', error);
     return NextResponse.json(

@@ -176,6 +176,19 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
       const orders = result.success ? result.data : [];
       console.log('📊 [KanbanBoard] Órdenes recibidas de API:', orders?.length || 0);
       
+      // ✅ DEBUG: Mostrar información de debug si está disponible
+      if (result.debug) {
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('🔍 DEBUG INFO PARA MECÁNICO');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('📧 Email del usuario:', result.debug.userEmail);
+        console.log('👤 Employee ID encontrado:', result.debug.assignedEmployeeId || 'NO ENCONTRADO');
+        console.log('🏢 Organization ID:', result.debug.organizationId);
+        console.log('📊 Órdenes encontradas:', result.debug.ordersFound);
+        console.log('✅ Tiene assignedEmployeeId:', result.debug.hasAssignedEmployeeId);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      }
+      
       // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('📋 KANBAN - ÓRDENES ANTES DE FILTRAR');
