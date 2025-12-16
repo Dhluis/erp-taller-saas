@@ -205,6 +205,11 @@ export default function DashboardPage() {
     router.refresh(); // Refrescar la página
   };
   
+  // Estado para ingresos y otras métricas
+  const [ingresos, setIngresos] = useState(0);
+  const [clientesAtendidos, setClientesAtendidos] = useState(0);
+  const [alertasInventario, setAlertasInventario] = useState(0);
+
   // Calcular estadísticas dinámicamente de ordersByStatus
   const totalOrdenes = ordersByStatus.reduce((sum, item) => sum + item.value, 0);
   const ordenesActivas = ordersByStatus
@@ -217,15 +222,87 @@ export default function DashboardPage() {
     total: totalOrdenes,
     activas: ordenesActivas,
     completadas: ordenesCompletadas,
-    pendientes: ordenesPendientes
+    pendientes: ordenesPendientes,
+    ingresos,
+    clientesAtendidos
   });
+
+  // Función para cargar ingresos y clientes atendidos desde órdenes completadas
+  const loadIncomeAndCustomers = useCallback(async () => {
+    if (!organizationId || sessionLoading || !sessionReady) return;
+
+    try {
+      // Calcular rango de fechas según el filtro actual
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      let fromDate: Date;
+      
+      switch (dateRange) {
+        case '7d':
+          fromDate = new Date(today);
+          fromDate.setDate(today.getDate() - 7);
+          fromDate.setHours(0, 0, 0, 0);
+          break;
+        case '30d':
+          fromDate = new Date(today);
+          fromDate.setDate(today.getDate() - 30);
+          fromDate.setHours(0, 0, 0, 0);
+          break;
+        case 'current_month':
+          fromDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+          break;
+        case 'custom':
+          if (customDateRange.from && customDateRange.to) {
+            fromDate = customDateRange.from;
+          } else {
+            fromDate = new Date(today);
+            fromDate.setDate(today.getDate() - 7);
+            fromDate.setHours(0, 0, 0, 0);
+          }
+          break;
+        default:
+          fromDate = new Date(today);
+          fromDate.setDate(today.getDate() - 7);
+          fromDate.setHours(0, 0, 0, 0);
+      }
+
+      // Obtener órdenes completadas con total_amount
+      const response = await fetch(
+        `/api/work-orders?status=completed&from=${fromDate.toISOString()}&to=${today.toISOString()}`,
+        { credentials: 'include', cache: 'no-store' }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const orders = data.data || [];
+        
+        // Calcular ingresos totales
+        const totalIngresos = orders.reduce((sum: number, order: any) => {
+          return sum + (parseFloat(order.total_amount) || 0);
+        }, 0);
+        
+        // Contar clientes únicos
+        const uniqueCustomers = new Set(orders.map((order: any) => order.customer_id).filter(Boolean));
+        
+        setIngresos(totalIngresos);
+        setClientesAtendidos(uniqueCustomers.size);
+      }
+    } catch (error) {
+      console.error('Error cargando ingresos:', error);
+    }
+  }, [organizationId, dateRange, customDateRange, sessionLoading, sessionReady]);
+
+  // Cargar ingresos cuando cambia el filtro
+  useEffect(() => {
+    loadIncomeAndCustomers();
+  }, [loadIncomeAndCustomers]);
 
   // Datos dinámicos para mostrar el dashboard
   const stats = {
-    ingresos: 0, // ✅ Se calculará desde las órdenes
+    ingresos: ingresos,
     ordenesActivas: ordenesActivas,
-    clientesAtendidos: 0, // ✅ Se calculará desde las órdenes
-    alertasInventario: 0, // ✅ Se calculará desde el inventario
+    clientesAtendidos: clientesAtendidos,
+    alertasInventario: alertasInventario, // TODO: Cargar desde API de inventario
     ordenesPendientes: ordenesPendientes,
     ordenesCompletadas: ordenesCompletadas
   };
@@ -578,7 +655,7 @@ export default function DashboardPage() {
                     </PieChart>
                   </ResponsiveContainer>
                   {/* Desktop: Pie chart grande y proporcional */}
-                  <ResponsiveContainer width="100%" height="100%" className="hidden md:block">
+                  <ResponsiveContainer width="100%" height={500} className="hidden md:block lg:hidden">
                     <PieChart>
                       <Pie
                         data={ordersByStatus}
@@ -586,6 +663,36 @@ export default function DashboardPage() {
                         cy="50%"
                         labelLine={false}
                         outerRadius={140}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {ordersByStatus.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend 
+                        layout="vertical" 
+                        align="right" 
+                        verticalAlign="middle"
+                        iconType="circle"
+                        wrapperStyle={{ fontSize: '14px', paddingLeft: '20px' }}
+                        formatter={(value, entry: any) => {
+                          const item = ordersByStatus.find(s => s.name === value)
+                          return `${value} (${item?.value || 0})`
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Desktop Large: Pie chart extra grande */}
+                  <ResponsiveContainer width="100%" height={600} className="hidden lg:block">
+                    <PieChart>
+                      <Pie
+                        data={ordersByStatus}
+                        cx="35%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={160}
                         fill="#8884d8"
                         dataKey="value"
                       >
