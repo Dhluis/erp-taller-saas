@@ -60,9 +60,6 @@ export async function GET(request: NextRequest) {
     
     const organizationId = userProfile.organization_id
     console.log('✅ [GET /api/customers] Organization ID:', organizationId)
-
-    // Usar supabaseAdmin para las queries (bypass RLS)
-    const supabase = supabaseAdmin
     
     // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO - igual que orders/stats
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
@@ -72,8 +69,8 @@ export async function GET(request: NextRequest) {
     
     // ✅ Logs detallados del cliente Supabase
     console.log('🔍 Cliente Supabase configurado:', {
-      hasAuth: !!supabase.auth,
-      hasFrom: !!supabase.from,
+      hasAuth: !!supabaseAdmin.auth,
+      hasFrom: !!supabaseAdmin.from,
       organizationId: organizationId
     })
     
@@ -87,7 +84,7 @@ export async function GET(request: NextRequest) {
     let customers, error;
     try {
       const queryPromise = retryQuery(async () => {
-        return await supabase
+        return await supabaseAdmin
           .from('customers')
           .select(`
             *,
@@ -157,7 +154,7 @@ export async function GET(request: NextRequest) {
       let customersSimple, errorSimple;
       try {
         const queryPromise = retryQuery(async () => {
-          return await supabase
+          return await supabaseAdmin
             .from('customers')
             .select('*')
             .eq('organization_id', organizationId)
@@ -323,27 +320,19 @@ export async function POST(request: NextRequest) {
     // ✅ FORZAR organization_id del usuario (ignorar el del body por seguridad)
     body.organization_id = organizationId;
 
-    const supabase = await getSupabaseServerClient()
+    // Obtener workshop_id del usuario autenticado usando Service Role
+    const supabaseAdminPost = getSupabaseServiceClient()
     
-    // ✅ Obtener workshop_id del usuario autenticado
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'No autorizado' 
-      }, { status: 401 })
-    }
-
-    const { data: userData, error: userDataError } = await supabase
+    const { data: userData, error: userDataError } = await supabaseAdminPost
       .from('users')
       .select('workshop_id')
-      .eq('auth_user_id', user.id)
+      .eq('auth_user_id', authUser.id)
       .single()
 
     const workshopId = (userData && !userDataError) ? (userData as { workshop_id: string | null }).workshop_id : null
     
-    // Crear nuevo cliente
-    const { data: customer, error } = await supabase
+    // Crear nuevo cliente usando Service Role
+    const { data: customer, error } = await supabaseAdminPost
       .from('customers')
       .insert({
         organization_id: organizationId,
