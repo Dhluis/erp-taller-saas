@@ -437,7 +437,7 @@ export default function RegisterPage() {
                       // Reenviar correo de confirmación
                       const baseUrl = typeof window !== 'undefined' 
                         ? window.location.origin 
-                        : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+                        : (await import('@/lib/config/env')).getAppUrl()
                       
                       const { error: resendError } = await supabase.auth.resend({
                         type: 'signup',

@@ -260,11 +260,16 @@ export const CorsUtils = {
   isOriginAllowed: (origin: string | null): boolean => {
     if (!origin) return true; // Permitir requests sin origen (ej: Postman)
     
+    // Obtener URL de la aplicación dinámicamente
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                   (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 'http://localhost:3000')
+    
     const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://yourdomain.com'
-    ];
+      appUrl,
+      'http://localhost:3000', // Desarrollo local
+      'http://localhost:3001', // Desarrollo alternativo
+      process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, ''), // Sin trailing slash
+    ].filter(Boolean) as string[]; // Filtrar valores undefined/null
     
     return allowedOrigins.includes(origin);
   },

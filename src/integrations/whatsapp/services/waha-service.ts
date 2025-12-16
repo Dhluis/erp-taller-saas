@@ -233,7 +233,8 @@ export async function createSession(organizationId: string): Promise<WAHASession
     console.log(`[WAHA] Creando sesión: ${sessionName}`);
     
     // Configurar webhook del ERP
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'http://localhost:3000';
+    const { getAppUrl } = await import('@/lib/config/env')
+    const appUrl = getAppUrl()
     const webhookUrl = `${appUrl}/api/webhooks/whatsapp/${organizationId}`;
     
     // Intentar crear la sesión primero (si WAHA soporta POST /api/sessions)

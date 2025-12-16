@@ -3,10 +3,13 @@
 /**
  * CONSTANTES DE INVENTARIO
  */
+// Importar configuración de entorno para valores dinámicos
+import { ERP_CONFIG } from '@/lib/config/env'
+
 export const INVENTORY_CONSTANTS = {
-  // ✅ CORRECTO: Constantes nombradas para umbrales de stock
-  LOW_STOCK_THRESHOLD: 5,
-  CRITICAL_STOCK_THRESHOLD: 2,
+  // ✅ Usar valores de configuración de entorno (pueden ser configurados por organización)
+  LOW_STOCK_THRESHOLD: ERP_CONFIG.lowStockThreshold,
+  CRITICAL_STOCK_THRESHOLD: parseInt(process.env.CRITICAL_STOCK_THRESHOLD || '2'),
   OUT_OF_STOCK_THRESHOLD: 0,
   
   // Tipos de movimiento
@@ -48,7 +51,7 @@ export const WORK_ORDER_CONSTANTS = {
   ESTIMATED_HOURS: {
     MIN: 0.5,
     MAX: 24,
-    DEFAULT: 2
+    DEFAULT: ERP_CONFIG.estimatedHoursDefault
   } as const
 } as const;
 
@@ -67,7 +70,7 @@ export const QUOTATION_CONSTANTS = {
   
   // Días de validez
   VALIDITY_DAYS: {
-    DEFAULT: 30,
+    DEFAULT: parseInt(process.env.QUOTATION_VALIDITY_DAYS || '30'),
     MIN: 1,
     MAX: 365
   } as const,
@@ -94,7 +97,7 @@ export const INVOICE_CONSTANTS = {
   
   // Días de pago
   PAYMENT_DAYS: {
-    DEFAULT: 30,
+    DEFAULT: parseInt(process.env.INVOICE_PAYMENT_DAYS || '30'),
     MIN: 1,
     MAX: 365
   } as const,

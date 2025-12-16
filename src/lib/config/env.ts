@@ -17,8 +17,39 @@ export const SUPABASE_CONFIG = {
 // =====================================================
 // CONFIGURACIÓN DE LA APLICACIÓN
 // =====================================================
+
+/**
+ * Obtener URL base de la aplicación
+ * Detecta automáticamente en producción (Vercel) o usa variable de entorno
+ */
+export function getAppUrl(): string {
+  // 1. Usar variable de entorno si está definida
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '') // Remover trailing slash
+  }
+  
+  // 2. En producción (Vercel), detectar automáticamente
+  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
+    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+  }
+  
+  // 3. Fallback solo para desarrollo local
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3000'
+  }
+  
+  // 4. Si no hay ninguna opción, lanzar error
+  throw new Error(
+    'NEXT_PUBLIC_APP_URL no está definida y no se puede detectar automáticamente. ' +
+    'Por favor, define NEXT_PUBLIC_APP_URL en tus variables de entorno.'
+  )
+}
+
 export const APP_CONFIG = {
-  url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+  // url se obtiene dinámicamente con getAppUrl() para evitar problemas de inicialización
+  get url() {
+    return getAppUrl()
+  },
   environment: process.env.NODE_ENV || 'development',
   version: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
   port: parseInt(process.env.DEV_PORT || '3000'),
@@ -44,8 +75,12 @@ export const DATABASE_CONFIG = {
 // CONFIGURACIÓN DE AUTENTICACIÓN
 // =====================================================
 export const AUTH_CONFIG = {
-  redirectUrl: process.env.NEXT_PUBLIC_AUTH_REDIRECT_URL || 'http://localhost:3000/auth/callback',
-  logoutRedirectUrl: process.env.NEXT_PUBLIC_LOGOUT_REDIRECT_URL || 'http://localhost:3000/login',
+  get redirectUrl() {
+    return process.env.NEXT_PUBLIC_AUTH_REDIRECT_URL || `${getAppUrl()}/auth/callback`
+  },
+  get logoutRedirectUrl() {
+    return process.env.NEXT_PUBLIC_LOGOUT_REDIRECT_URL || `${getAppUrl()}/login`
+  },
   jwtSecret: process.env.JWT_SECRET || '',
   encryptionKey: process.env.ENCRYPTION_KEY || '',
 } as const;
@@ -126,7 +161,14 @@ export const ERP_CONFIG = {
   
   // Configuración de inventario
   lowStockThreshold: parseInt(process.env.LOW_STOCK_THRESHOLD || '5'),
+  criticalStockThreshold: parseInt(process.env.CRITICAL_STOCK_THRESHOLD || '2'),
   enableStockAlerts: process.env.ENABLE_STOCK_ALERTS === 'true',
+  
+  // Configuración de cotizaciones
+  quotationValidityDays: parseInt(process.env.QUOTATION_VALIDITY_DAYS || '30'),
+  
+  // Configuración de facturas
+  invoicePaymentDays: parseInt(process.env.INVOICE_PAYMENT_DAYS || '30'),
   
   // Configuración de facturación
   invoiceNumberPrefix: process.env.INVOICE_NUMBER_PREFIX || 'FAC',

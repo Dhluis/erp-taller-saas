@@ -317,10 +317,8 @@ async function sendInvitationEmail(
   organizationId: string
 ) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                   process.env.NEXT_PUBLIC_VERCEL_URL ? 
-                     `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 
-                     'http://localhost:3000'
+    const { getAppUrl } = await import('@/lib/config/env')
+    const baseUrl = getAppUrl()
 
     // Obtener nombre de la organización
     const supabase = await createClient()

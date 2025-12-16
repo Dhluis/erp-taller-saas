@@ -200,10 +200,8 @@ export async function signUpWithProfile(userData: {
     const supabase = getAuthClient()
     
     // Obtener URL base de la aplicación
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                   process.env.NEXT_PUBLIC_VERCEL_URL ? 
-                     `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 
-                     'http://localhost:3000'
+    const { getAppUrl } = await import('@/lib/config/env')
+    const baseUrl = getAppUrl()
     
     // Registrar usuario en auth
     const { data: authData, error: authError } = await supabase.auth.signUp({

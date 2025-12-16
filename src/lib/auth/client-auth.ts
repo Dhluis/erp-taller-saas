@@ -65,7 +65,7 @@ export async function signUpWithProfile(userData: {
     // Obtener URL base de la aplicación
     const baseUrl = typeof window !== 'undefined' 
       ? window.location.origin 
-      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      : (await import('@/lib/config/env')).getAppUrl()
     
     const { data, error } = await supabase.auth.signUp({
       email: userData.email,
