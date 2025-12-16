@@ -125,10 +125,10 @@ export async function GET(request: NextRequest) {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('Organization ID:', organizationId);
     console.log('Filtro de tiempo:', timeFilter);
-    console.log('Rango de fechas:', {
-      from: fromDate.toISOString(),
+    console.log('Rango de fechas:', shouldFilterByDate ? {
+      from: fromDate?.toISOString(),
       to: toDate.toISOString()
-    });
+    } : 'Sin filtro de fecha (TODAS las órdenes)');
     
     if (ordersError) {
       console.log('❌ Error al consultar órdenes:', ordersError)
