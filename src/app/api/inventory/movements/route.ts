@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClientFromRequest } from '@/lib/supabase/server'
+import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import { InventoryMovementInsert, InventoryMovement } from '@/types/supabase-simple'
 import { z } from 'zod'
 
@@ -17,7 +18,37 @@ const createMovementSchema = z.object({
 // GET - Obtener movimientos de inventario
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('[GET /api/inventory/movements] Error de autenticación:', authError);
+      return NextResponse.json({ 
+        success: false,
+        error: 'No autorizado',
+        data: []
+      }, { status: 401 })
+    }
+
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('[GET /api/inventory/movements] Error obteniendo perfil:', profileError);
+      return NextResponse.json({ 
+        success: false,
+        error: 'Perfil de usuario no encontrado',
+        data: []
+      }, { status: 404 })
+    }
+
+    const organizationId = userProfile.organization_id;
     const { searchParams } = new URL(request.url)
     
     // Obtener parámetros de consulta
@@ -27,26 +58,9 @@ export async function GET(request: NextRequest) {
     const movement_type = searchParams.get('movement_type')
     const start_date = searchParams.get('start_date')
     const end_date = searchParams.get('end_date')
-    
-    // Obtener usuario actual
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
 
-    // Obtener organización del usuario
-    const { data: profile } = await supabase
-      .from('system_users')
-      .select('organization_id')
-      .eq('email', user.email)
-      .single()
-
-    if (!profile) {
-      return NextResponse.json({ error: 'Perfil de usuario no encontrado' }, { status: 404 })
-    }
-
-    // Construir consulta
-    let query = supabase
+    // ✅ Construir consulta usando Service Role Client
+    let query = supabaseAdmin
       .from('inventory_movements')
       .select(`
         *,
@@ -55,7 +69,7 @@ export async function GET(request: NextRequest) {
           name
         )
       `)
-      .eq('organization_id', profile.organization_id)
+      .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
 
     // Aplicar filtros
@@ -88,13 +102,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Obtener total para paginación
-    const { count } = await supabase
+    const { count } = await supabaseAdmin
       .from('inventory_movements')
       .select('*', { count: 'exact', head: true })
-      .eq('organization_id', profile.organization_id)
+      .eq('organization_id', organizationId)
 
     return NextResponse.json({
-      data: movements,
+      success: true,
+      data: movements || [],
       pagination: {
         page,
         limit,
@@ -112,35 +127,46 @@ export async function GET(request: NextRequest) {
 // POST - Crear nuevo movimiento de inventario
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    // Obtener usuario actual
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    if (authError || !user) {
+      console.error('[POST /api/inventory/movements] Error de autenticación:', authError);
+      return NextResponse.json({ 
+        success: false,
+        error: 'No autorizado'
+      }, { status: 401 })
     }
 
-    // Obtener organización del usuario
-    const { data: profile } = await supabase
-      .from('system_users')
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
       .select('organization_id')
-      .eq('email', user.email)
-      .single()
+      .eq('auth_user_id', user.id)
+      .single();
 
-    if (!profile) {
-      return NextResponse.json({ error: 'Perfil de usuario no encontrado' }, { status: 404 })
+    if (profileError || !userProfile?.organization_id) {
+      console.error('[POST /api/inventory/movements] Error obteniendo perfil:', profileError);
+      return NextResponse.json({ 
+        success: false,
+        error: 'Perfil de usuario no encontrado'
+      }, { status: 404 })
     }
+
+    const organizationId = userProfile.organization_id;
 
     // Validar datos del request
     const body = await request.json()
     const validatedData = createMovementSchema.parse(body)
 
     // Verificar que el producto existe y pertenece a la organización
-    const { data: product, error: productError } = await supabase
+    const { data: product, error: productError } = await supabaseAdmin
       .from('products')
       .select('id, name, stock')
       .eq('id', validatedData.product_id)
-      .eq('organization_id', profile.organization_id)
+      .eq('organization_id', organizationId)
       .single()
 
     if (productError || !product) {
@@ -148,7 +174,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Usar la función de PostgreSQL para crear el movimiento
-    const { data: movementId, error: movementError } = await supabase
+    const { data: movementId, error: movementError } = await supabaseAdmin
       .rpc('create_inventory_movement', {
         p_product_id: validatedData.product_id,
         p_movement_type: validatedData.movement_type,
@@ -168,7 +194,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtener el movimiento creado con datos relacionados
-    const { data: newMovement, error: fetchError } = await supabase
+    const { data: newMovement, error: fetchError } = await supabaseAdmin
       .from('inventory_movements')
       .select(`
         *,

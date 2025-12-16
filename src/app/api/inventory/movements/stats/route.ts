@@ -1,39 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClientFromRequest } from '@/lib/supabase/server'
+import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
 // GET - Obtener estadísticas de movimientos de inventario
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('[GET /api/inventory/movements/stats] Error de autenticación:', authError);
+      return NextResponse.json({ 
+        success: false,
+        error: 'No autorizado'
+      }, { status: 401 })
+    }
+
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('[GET /api/inventory/movements/stats] Error obteniendo perfil:', profileError);
+      return NextResponse.json({ 
+        success: false,
+        error: 'Perfil de usuario no encontrado'
+      }, { status: 404 })
+    }
+
+    const organizationId = userProfile.organization_id;
     const { searchParams } = new URL(request.url)
     
     // Obtener parámetros de consulta
     const start_date = searchParams.get('start_date')
     const end_date = searchParams.get('end_date')
     const product_id = searchParams.get('product_id')
-    
-    // Obtener usuario actual
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
 
-    // Obtener organización del usuario
-    const { data: profile } = await supabase
-      .from('system_users')
-      .select('organization_id')
-      .eq('email', user.email)
-      .single()
-
-    if (!profile) {
-      return NextResponse.json({ error: 'Perfil de usuario no encontrado' }, { status: 404 })
-    }
-
-    // Construir consulta base
-    let query = supabase
+    // ✅ Construir consulta base usando Service Role Client
+    let query = supabaseAdmin
       .from('inventory_movements')
       .select('*')
-      .eq('organization_id', profile.organization_id)
+      .eq('organization_id', organizationId)
 
     // Aplicar filtros de fecha
     if (start_date) {
@@ -138,6 +150,7 @@ export async function GET(request: NextRequest) {
       .slice(0, 10)
 
     return NextResponse.json({
+      success: true,
       data: {
         general: stats,
         by_reference: referenceStats,

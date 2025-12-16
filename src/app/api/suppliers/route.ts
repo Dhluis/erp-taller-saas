@@ -1,34 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getTenantContext } from '@/lib/core/multi-tenant-server'
+import { createClientFromRequest } from '@/lib/supabase/server'
+import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
     console.log('🔄 GET /api/suppliers - Iniciando...')
     
-    // Obtener contexto del tenant
-    const tenantContext = await getTenantContext(request)
-    if (!tenantContext) {
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('❌ Error de autenticación:', authError)
       return NextResponse.json({ 
         success: false, 
-        error: 'No autorizado' 
+        error: 'No autorizado',
+        data: []
       }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ Error obteniendo perfil:', profileError)
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No se pudo obtener la organización del usuario',
+        data: []
+      }, { status: 403 })
+    }
+
+    const organizationId = userProfile.organization_id;
     
-    // Obtener todos los proveedores de la organización
-    const { data: suppliers, error } = await supabase
+    // ✅ Usar Service Role Client directamente para queries (bypass RLS)
+    const { data: suppliers, error } = await supabaseAdmin
       .from('suppliers')
       .select('*')
-      .eq('organization_id', tenantContext.organizationId)
+      .eq('organization_id', organizationId)
       .order('name', { ascending: true })
 
     if (error) {
       console.error('❌ Error obteniendo proveedores:', error)
       return NextResponse.json({ 
         success: false, 
-        error: error.message 
+        error: error.message,
+        data: []
       }, { status: 500 })
     }
 
@@ -43,7 +65,8 @@ export async function GET(request: NextRequest) {
     console.error('💥 Error en GET /api/suppliers:', error)
     return NextResponse.json({ 
       success: false, 
-      error: error.message 
+      error: error.message || 'Error al obtener proveedores',
+      data: []
     }, { status: 500 })
   }
 }
@@ -52,25 +75,43 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔄 POST /api/suppliers - Iniciando...')
     
-    // Obtener contexto del tenant
-    const tenantContext = await getTenantContext(request)
-    if (!tenantContext) {
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('❌ Error de autenticación:', authError)
       return NextResponse.json({ 
         success: false, 
-        error: 'No autorizado' 
+        error: 'No autorizado'
       }, { status: 401 })
     }
 
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ Error obteniendo perfil:', profileError)
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No se pudo obtener la organización del usuario'
+      }, { status: 403 })
+    }
+
+    const organizationId = userProfile.organization_id;
     const body = await request.json()
     console.log('📝 Datos recibidos:', body)
-
-    const supabase = await createClient()
     
-    // Crear nuevo proveedor
-    const { data: supplier, error } = await supabase
+    // Crear nuevo proveedor usando Service Role Client
+    const { data: supplier, error } = await supabaseAdmin
       .from('suppliers')
       .insert({
-        organization_id: tenantContext.organizationId,
+        organization_id: organizationId,
         name: body.name,
         contact_person: body.contact_person,
         email: body.email,
@@ -113,7 +154,7 @@ export async function POST(request: NextRequest) {
     console.error('💥 Error en POST /api/suppliers:', error)
     return NextResponse.json({ 
       success: false, 
-      error: error.message 
+      error: error.message || 'Error al crear proveedor'
     }, { status: 500 })
   }
 }
