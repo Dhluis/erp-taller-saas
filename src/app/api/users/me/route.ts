@@ -8,27 +8,30 @@ export async function GET(request: NextRequest) {
   try {
     console.log('[GET /api/users/me] Iniciando...')
     
-    const tenantContext = await getTenantContext(request)
-    if (!tenantContext) {
-      console.error('[GET /api/users/me] No hay contexto de tenant')
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    const { userId } = tenantContext
-    console.log('[GET /api/users/me] userId:', userId)
+    // Obtener usuario autenticado directamente desde Supabase
+    const supabaseAdmin = getSupabaseServiceClient()
     
-    if (!userId) {
-      console.error('[GET /api/users/me] userId es null o undefined')
+    // Crear cliente para obtener el usuario autenticado
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      console.error('[GET /api/users/me] Usuario no autenticado:', authError?.message)
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
       )
     }
     
+    const userId = authUser.id
+    console.log('[GET /api/users/me] userId:', userId)
+    
     // Usar Service Role para bypass RLS
-    const supabaseAdmin = getSupabaseServiceClient()
     console.log('[GET /api/users/me] Usando Service Role Client')
     
+    // Intentar obtener el usuario de la tabla users
     const { data: user, error } = await supabaseAdmin
       .from('users')
       .select('id, auth_user_id, email, full_name, role, phone, is_active, organization_id, created_at, updated_at')
@@ -43,9 +46,19 @@ export async function GET(request: NextRequest) {
         details: error.details,
         hint: error.hint
       })
+      
+      // Si el error es que no existe el registro, devolver 404
+      if (error.code === 'PGRST116' || error.message?.includes('No rows')) {
+        return NextResponse.json(
+          { error: 'Usuario no encontrado' },
+          { status: 404 }
+        )
+      }
+      
+      // Para otros errores, devolver 500 con más detalles
       return NextResponse.json(
-        { error: 'Usuario no encontrado' },
-        { status: 404 }
+        { error: `Error al obtener usuario: ${error.message}` },
+        { status: 500 }
       )
     }
 
@@ -70,9 +83,15 @@ export async function GET(request: NextRequest) {
     })
   } catch (error: any) {
     console.error('[GET /api/users/me] Error catch:', error)
-    console.error('[GET /api/users/me] Error stack:', error.stack)
+    console.error('[GET /api/users/me] Error stack:', error?.stack)
+    console.error('[GET /api/users/me] Error name:', error?.name)
+    console.error('[GET /api/users/me] Error message:', error?.message)
+    
     return NextResponse.json(
-      { error: error.message || 'Error al obtener perfil' },
+      { 
+        error: error?.message || 'Error al obtener perfil',
+        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      },
       { status: 500 }
     )
   }
