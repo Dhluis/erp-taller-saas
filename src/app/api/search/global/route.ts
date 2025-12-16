@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrganizationId } from '@/lib/auth/organization-server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createClientFromRequest } from '@/lib/supabase/server';
+import { getSupabaseServiceClient } from '@/lib/supabase/server';
 
 export interface SearchResult {
   id: string;
-  type: 'customer' | 'product' | 'order' | 'invoice' | 'supplier';
+  type: 'customer' | 'product' | 'order' | 'invoice' | 'supplier' | 'vehicle';
   title: string;
   description: string;
   url: string;
@@ -27,42 +27,50 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // ✅ Obtener organization_id del usuario autenticado
-    let organizationId: string;
-    try {
-      organizationId = await getOrganizationId(request);
-    } catch (error: any) {
-      console.error('[GET /api/search/global] Error obteniendo organizationId:', error);
+    // ✅ Obtener usuario autenticado y organization_id
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('[GET /api/search/global] Error de autenticación:', authError);
       return NextResponse.json(
         {
           success: false,
-          error: 'No se pudo obtener la organización del usuario. Por favor, contacta al administrador.',
+          error: 'No autorizado',
+          data: []
+        },
+        { status: 401 }
+      );
+    }
+
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('[GET /api/search/global] Error obteniendo perfil:', profileError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se pudo obtener la organización del usuario',
           data: []
         },
         { status: 403 }
       );
     }
 
-    if (!organizationId) {
-      console.error('[GET /api/search/global] organizationId es null o undefined');
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Usuario sin organización asignada. Por favor, contacta al administrador.',
-          data: []
-        },
-        { status: 403 }
-      );
-    }
-
-    const supabase = await createServerClient();
+    const organizationId = userProfile.organization_id;
 
     const results: SearchResult[] = [];
 
     // ✅ Buscar en clientes (FILTRADO POR ORGANIZACIÓN)
-    const { data: customers } = await supabase
+    const { data: customers } = await supabaseAdmin
       .from('customers')
-      .select('id, name, email, phone')
+      .select('id, name, email, phone, address')
       .eq('organization_id', organizationId) // ✅ FILTRO CRÍTICO
       .or(`name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`)
       .limit(5);
@@ -78,46 +86,94 @@ export async function GET(request: NextRequest) {
       });
     });
 
-    // ✅ Buscar en productos (FILTRADO POR ORGANIZACIÓN)
-    const { data: products } = await supabase
-      .from('products')
-      .select('id, name, description, code')
+    // ✅ Buscar en productos/inventario (FILTRADO POR ORGANIZACIÓN)
+    const { data: inventoryItems } = await supabaseAdmin
+      .from('inventory_items')
+      .select('id, name, sku, current_stock, min_stock, unit_price, category')
       .eq('organization_id', organizationId) // ✅ FILTRO CRÍTICO
-      .or(`name.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%`)
+      .or(`name.ilike.%${query}%,sku.ilike.%${query}%,category.ilike.%${query}%`)
       .limit(5);
 
-    products?.forEach(product => {
+    inventoryItems?.forEach(item => {
       results.push({
-        id: product.id,
+        id: item.id,
         type: 'product',
-        title: product.name,
-        description: product.description || product.code || 'Producto',
-        url: `/inventario/productos/${product.id}`,
-        metadata: { code: product.code }
+        title: item.name,
+        description: `SKU: ${item.sku || 'N/A'} - Stock: ${item.current_stock || 0}`,
+        url: `/inventarios`,
+        metadata: { sku: item.sku, stock: item.current_stock, category: item.category }
+      });
+    });
+
+    // ✅ Buscar en vehículos (FILTRADO POR ORGANIZACIÓN)
+    const { data: vehicles } = await supabaseAdmin
+      .from('vehicles')
+      .select(`
+        id,
+        brand,
+        model,
+        year,
+        license_plate,
+        color,
+        customer:customers(id, name)
+      `)
+      .eq('organization_id', organizationId) // ✅ FILTRO CRÍTICO
+      .or(`brand.ilike.%${query}%,model.ilike.%${query}%,license_plate.ilike.%${query}%`)
+      .limit(5);
+
+    vehicles?.forEach(vehicle => {
+      results.push({
+        id: vehicle.id,
+        type: 'vehicle',
+        title: `${vehicle.brand} ${vehicle.model} ${vehicle.year || ''}`,
+        description: vehicle.license_plate || 'Sin placa',
+        url: `/vehiculos`,
+        metadata: { 
+          brand: vehicle.brand, 
+          model: vehicle.model, 
+          license_plate: vehicle.license_plate,
+          customer: (vehicle.customer as any)?.name 
+        }
       });
     });
 
     // ✅ Buscar en órdenes (FILTRADO POR ORGANIZACIÓN)
-    const { data: orders } = await supabase
+    const { data: orders } = await supabaseAdmin
       .from('work_orders')
-      .select('id, order_number, status, total_amount, customer:customers(name)')
+      .select(`
+        id,
+        status,
+        description,
+        entry_date,
+        estimated_cost,
+        total_amount,
+        customer:customers(id, name, phone, email),
+        vehicle:vehicles(id, brand, model, year, license_plate)
+      `)
       .eq('organization_id', organizationId) // ✅ FILTRO CRÍTICO
-      .or(`order_number.ilike.%${query}%`)
+      .or(`id.ilike.%${query}%,description.ilike.%${query}%`)
       .limit(5);
 
     orders?.forEach(order => {
+      const customer = order.customer as any;
+      const vehicle = order.vehicle as any;
       results.push({
         id: order.id,
         type: 'order',
-        title: `Orden ${order.order_number}`,
-        description: `${(order.customer as any)?.name || 'Cliente'} - $${order.total_amount}`,
+        title: `Orden ${order.id.substring(0, 8)}...`,
+        description: `${customer?.name || 'Sin cliente'} - ${vehicle?.brand || ''} ${vehicle?.model || ''}`,
         url: `/ordenes/${order.id}`,
-        metadata: { status: order.status, amount: order.total_amount }
+        metadata: { 
+          status: order.status, 
+          amount: order.total_amount,
+          customer: customer?.name,
+          vehicle: vehicle ? `${vehicle.brand} ${vehicle.model}` : null
+        }
       });
     });
 
     // ✅ Buscar en facturas (FILTRADO POR ORGANIZACIÓN)
-    const { data: invoices } = await supabase
+    const { data: invoices } = await supabaseAdmin
       .from('sales_invoices')
       .select('id, invoice_number, status, total_amount, customer:customers(name)')
       .eq('organization_id', organizationId) // ✅ FILTRO CRÍTICO
@@ -136,7 +192,7 @@ export async function GET(request: NextRequest) {
     });
 
     // ✅ Buscar en proveedores (FILTRADO POR ORGANIZACIÓN)
-    const { data: suppliers } = await supabase
+    const { data: suppliers } = await supabaseAdmin
       .from('suppliers')
       .select('id, name, email, phone')
       .eq('organization_id', organizationId) // ✅ FILTRO CRÍTICO
