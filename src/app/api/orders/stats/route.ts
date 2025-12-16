@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getSupabaseServiceClient, createClientFromRequest } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
     console.log('🔄 GET /api/orders/stats - Iniciando...')
 
-    // Obtener usuario autenticado directamente
-    const { createClient } = await import('@/lib/supabase/server')
-    const supabase = await createClient()
+    // Obtener usuario autenticado directamente usando el request
+    // Esto es más confiable para usuarios nuevos que acaban de hacer login
+    const supabase = createClientFromRequest(request)
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !authUser) {
@@ -21,7 +22,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Obtener organizationId del perfil del usuario usando Service Role
-    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
     const supabaseAdmin = getSupabaseServiceClient()
     
     const { data: userProfile, error: profileError } = await supabaseAdmin

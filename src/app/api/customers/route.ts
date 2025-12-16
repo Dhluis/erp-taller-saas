@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient, createClientFromRequest } from '@/lib/supabase/server'
 
 // ✅ Función helper para retry logic
 async function retryQuery<T>(
