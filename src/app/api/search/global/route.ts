@@ -82,7 +82,11 @@ export async function GET(request: NextRequest) {
         title: customer.name,
         description: customer.email || customer.phone || 'Cliente',
         url: `/clientes/${customer.id}`,
-        metadata: { email: customer.email, phone: customer.phone }
+        // ✅ Incluir campos directamente para que el componente pueda accederlos
+        email: customer.email || null,
+        phone: customer.phone || null,
+        name: customer.name,
+        metadata: { email: customer.email, phone: customer.phone, address: customer.address }
       });
     });
 
