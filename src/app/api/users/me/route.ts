@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getTenantContext } from '@/lib/core/multi-tenant-server'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient, createClientFromRequest } from '@/lib/supabase/server'
 
 // Endpoint para obtener el perfil del usuario actual
 // Usa Service Role para bypass RLS
@@ -8,12 +7,9 @@ export async function GET(request: NextRequest) {
   try {
     console.log('[GET /api/users/me] Iniciando...')
     
-    // Obtener usuario autenticado directamente desde Supabase
-    const supabaseAdmin = getSupabaseServiceClient()
-    
-    // Crear cliente para obtener el usuario autenticado
-    const { createClient } = await import('@/lib/supabase/server')
-    const supabase = await createClient()
+    // Obtener usuario autenticado directamente desde Supabase usando el request
+    // Esto es más confiable para usuarios nuevos que acaban de hacer login
+    const supabase = createClientFromRequest(request)
     
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     
@@ -29,6 +25,7 @@ export async function GET(request: NextRequest) {
     console.log('[GET /api/users/me] userId:', userId)
     
     // Usar Service Role para bypass RLS
+    const supabaseAdmin = getSupabaseServiceClient()
     console.log('[GET /api/users/me] Usando Service Role Client')
     
     // Intentar obtener el usuario de la tabla users
