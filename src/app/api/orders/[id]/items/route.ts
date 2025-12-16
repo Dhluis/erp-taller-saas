@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getTenantContext } from '@/lib/core/multi-tenant-server'
+import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 
 export async function GET(
   request: NextRequest,
@@ -9,15 +8,51 @@ export async function GET(
   try {
     console.log('🔄 GET /api/orders/[id]/items - Iniciando...')
     
-    const tenantContext = await getTenantContext(request)
-    if (!tenantContext) {
+    // ✅ Obtener usuario autenticado usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('❌ [GET /api/orders/[id]/items] Error de autenticación:', authError)
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [GET /api/orders/[id]/items] Error obteniendo perfil:', profileError)
+      return NextResponse.json(
+        { error: 'No se pudo obtener la organización del usuario' },
+        { status: 403 }
+      )
+    }
+
+    const organizationId = userProfile.organization_id;
     
-    // Obtener items de la orden
-    const { data: items, error } = await supabase
+    // ✅ Verificar que la orden pertenece a la organización del usuario
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from('work_orders')
+      .select('id, organization_id')
+      .eq('id', params.id)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (orderError || !order) {
+      console.error('❌ [GET /api/orders/[id]/items] Orden no encontrada o no autorizada:', orderError)
+      return NextResponse.json(
+        { error: 'Orden no encontrada o no autorizada' },
+        { status: 404 }
+      )
+    }
+    
+    // ✅ Obtener items de la orden usando supabaseAdmin (bypass RLS)
+    const { data: items, error } = await supabaseAdmin
       .from('order_items')
       .select(`
         *,
@@ -60,15 +95,52 @@ export async function POST(
   try {
     console.log('🔄 POST /api/orders/[id]/items - Iniciando...')
     
-    const tenantContext = await getTenantContext(request)
-    if (!tenantContext) {
+    // ✅ Obtener usuario autenticado usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('❌ [POST /api/orders/[id]/items] Error de autenticación:', authError)
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id, workshop_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [POST /api/orders/[id]/items] Error obteniendo perfil:', profileError)
+      return NextResponse.json(
+        { error: 'No se pudo obtener la organización del usuario' },
+        { status: 403 }
+      )
+    }
+
+    const organizationId = userProfile.organization_id;
+    const workshopId = userProfile.workshop_id;
+    
+    // ✅ Verificar que la orden pertenece a la organización del usuario
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from('work_orders')
+      .select('id, organization_id')
+      .eq('id', params.id)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (orderError || !order) {
+      console.error('❌ [POST /api/orders/[id]/items] Orden no encontrada o no autorizada:', orderError)
+      return NextResponse.json(
+        { error: 'Orden no encontrada o no autorizada' },
+        { status: 404 }
+      )
     }
 
     const body = await request.json()
     console.log('📝 Datos recibidos:', body)
-
-    const supabase = await createClient()
     
     // Calcular totales
     const quantity = body.quantity || 1
@@ -103,11 +175,11 @@ export async function POST(
     }
     
     // ✅ Solo agregar workshop_id si existe
-    if (tenantContext.workshopId) {
-      itemData.workshop_id = tenantContext.workshopId
+    if (workshopId) {
+      itemData.workshop_id = workshopId
     }
     
-    const { data: item, error } = await supabase
+    const { data: item, error } = await supabaseAdmin
       .from('order_items')
       .insert(itemData)
       .select(`
@@ -135,7 +207,7 @@ export async function POST(
     }
 
     // Actualizar totales de la orden
-    await updateOrderTotals(supabase, params.id)
+    await updateOrderTotals(supabaseAdmin, params.id)
 
     console.log('✅ Item creado:', item.id)
     return NextResponse.json(item)
