@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getNotificationById, markNotificationAsRead, deleteNotification } from '@/lib/database/queries/notifications'
-import { requireAuth, validateAccess } from '@/lib/auth/validation'
+import { createClientFromRequest } from '@/lib/supabase/server'
+import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
 // GET /api/notifications/[id] - Obtener notificación
 export async function GET(
@@ -8,29 +8,69 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await requireAuth(request)
+    console.log('🔄 GET /api/notifications/[id] - Iniciando...', params.id)
     
-    if (!await validateAccess(user.id, 'notifications', 'read')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // ✅ Obtener usuario autenticado usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('❌ [GET /api/notifications/[id]] Error de autenticación:', authError)
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const notification = await getNotificationById(params.id)
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
 
-    return NextResponse.json({
-      data: notification,
-      error: null
-    })
-  } catch (error: any) {
-    if (error.message.includes('Token') || error.message.includes('autenticado')) {
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [GET /api/notifications/[id]] Error obteniendo perfil:', profileError)
       return NextResponse.json(
-        { error: 'Usuario no autenticado' },
-        { status: 401 }
+        { error: 'No se pudo obtener la organización del usuario' },
+        { status: 403 }
       )
     }
 
-    console.error('Error in GET /api/notifications/[id]:', error)
+    const organizationId = userProfile.organization_id;
+
+    // ✅ Obtener notificación usando supabaseAdmin con validación de organización
+    const { data: notification, error: queryError } = await supabaseAdmin
+      .from('notifications')
+      .select('*')
+      .eq('id', params.id)
+      .eq('organization_id', organizationId) // ✅ Validación explícita de multi-tenancy
+      .single();
+
+    if (queryError || !notification) {
+      console.error('❌ [GET /api/notifications/[id]] Notificación no encontrada:', queryError)
+      return NextResponse.json(
+        { error: 'Notificación no encontrada o no autorizada' },
+        { status: 404 }
+      )
+    }
+
+    // Normalizar campo read/is_read
+    const normalized = {
+      ...notification,
+      read: notification.read !== undefined ? notification.read : notification.is_read || false,
+      is_read: notification.is_read !== undefined ? notification.is_read : notification.read || false
+    }
+
+    return NextResponse.json({
+      data: normalized,
+      error: null
+    })
+  } catch (error: any) {
+    console.error('❌ Error in GET /api/notifications/[id]:', error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { 
+        error: error?.message || 'Error interno del servidor',
+        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      },
       { status: 500 }
     )
   }
@@ -42,29 +82,90 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await requireAuth(request)
+    console.log('🔄 PUT /api/notifications/[id] - Iniciando...', params.id)
     
-    if (!await validateAccess(user.id, 'notifications', 'update')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // ✅ Obtener usuario autenticado usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('❌ [PUT /api/notifications/[id]] Error de autenticación:', authError)
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const notification = await markNotificationAsRead(params.id)
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
 
-    return NextResponse.json({
-      data: notification,
-      error: null
-    })
-  } catch (error: any) {
-    if (error.message.includes('Token') || error.message.includes('autenticado')) {
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [PUT /api/notifications/[id]] Error obteniendo perfil:', profileError)
       return NextResponse.json(
-        { error: 'Usuario no autenticado' },
-        { status: 401 }
+        { error: 'No se pudo obtener la organización del usuario' },
+        { status: 403 }
       )
     }
 
-    console.error('Error in PUT /api/notifications/[id]:', error)
+    const organizationId = userProfile.organization_id;
+
+    // ✅ Verificar que la notificación existe y pertenece a la organización
+    const { data: existingNotification, error: fetchError } = await supabaseAdmin
+      .from('notifications')
+      .select('id, organization_id')
+      .eq('id', params.id)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (fetchError || !existingNotification) {
+      console.error('❌ [PUT /api/notifications/[id]] Notificación no encontrada:', fetchError)
+      return NextResponse.json(
+        { error: 'Notificación no encontrada o no autorizada' },
+        { status: 404 }
+      )
+    }
+
+    // ✅ Actualizar notificación usando supabaseAdmin
+    const { data: updatedNotification, error: updateError } = await supabaseAdmin
+      .from('notifications')
+      .update({
+        read: true,
+        is_read: true, // Compatibilidad con ambos campos
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', params.id)
+      .eq('organization_id', organizationId) // ✅ Validación explícita
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ [PUT /api/notifications/[id]] Error actualizando:', updateError)
+      return NextResponse.json(
+        { error: 'Error al actualizar notificación' },
+        { status: 500 }
+      )
+    }
+
+    // Normalizar campo read/is_read
+    const normalized = {
+      ...updatedNotification,
+      read: updatedNotification.read !== undefined ? updatedNotification.read : updatedNotification.is_read || false,
+      is_read: updatedNotification.is_read !== undefined ? updatedNotification.is_read : updatedNotification.read || false
+    }
+
+    return NextResponse.json({
+      data: normalized,
+      error: null
+    })
+  } catch (error: any) {
+    console.error('❌ Error in PUT /api/notifications/[id]:', error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { 
+        error: error?.message || 'Error interno del servidor',
+        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      },
       { status: 500 }
     )
   }
@@ -76,29 +177,77 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await requireAuth(request)
+    console.log('🔄 DELETE /api/notifications/[id] - Iniciando...', params.id)
     
-    if (!await validateAccess(user.id, 'notifications', 'delete')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // ✅ Obtener usuario autenticado usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('❌ [DELETE /api/notifications/[id]] Error de autenticación:', authError)
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const notification = await deleteNotification(params.id)
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
 
-    return NextResponse.json({
-      data: notification,
-      error: null
-    })
-  } catch (error: any) {
-    if (error.message.includes('Token') || error.message.includes('autenticado')) {
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [DELETE /api/notifications/[id]] Error obteniendo perfil:', profileError)
       return NextResponse.json(
-        { error: 'Usuario no autenticado' },
-        { status: 401 }
+        { error: 'No se pudo obtener la organización del usuario' },
+        { status: 403 }
       )
     }
 
-    console.error('Error in DELETE /api/notifications/[id]:', error)
+    const organizationId = userProfile.organization_id;
+
+    // ✅ Verificar que la notificación existe y pertenece a la organización
+    const { data: existingNotification, error: fetchError } = await supabaseAdmin
+      .from('notifications')
+      .select('id, organization_id')
+      .eq('id', params.id)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (fetchError || !existingNotification) {
+      console.error('❌ [DELETE /api/notifications/[id]] Notificación no encontrada:', fetchError)
+      return NextResponse.json(
+        { error: 'Notificación no encontrada o no autorizada' },
+        { status: 404 }
+      )
+    }
+
+    // ✅ Eliminar notificación usando supabaseAdmin
+    const { error: deleteError } = await supabaseAdmin
+      .from('notifications')
+      .delete()
+      .eq('id', params.id)
+      .eq('organization_id', organizationId); // ✅ Validación explícita
+
+    if (deleteError) {
+      console.error('❌ [DELETE /api/notifications/[id]] Error eliminando:', deleteError)
+      return NextResponse.json(
+        { error: 'Error al eliminar notificación' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      data: { message: 'Notificación eliminada exitosamente' },
+      error: null
+    })
+  } catch (error: any) {
+    console.error('❌ Error in DELETE /api/notifications/[id]:', error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { 
+        error: error?.message || 'Error interno del servidor',
+        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      },
       { status: 500 }
     )
   }
