@@ -201,7 +201,7 @@ export async function GET(request: NextRequest) {
       data: result,
     });
   } catch (error) {
-    logger.error('Error al obtener cotizaciones', context, error as Error);
+    console.error('❌ [GET /api/quotations] Error:', error);
     
     return NextResponse.json(
       {
