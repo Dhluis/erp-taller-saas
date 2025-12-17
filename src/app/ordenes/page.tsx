@@ -24,6 +24,8 @@ import { Search, FileText, Edit, Trash2, Eye, Plus, Download, RefreshCw, User } 
 import { toast } from 'sonner';
 import { useWorkOrders, type WorkOrder } from '@/hooks/useWorkOrders';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useOrganization, useSession } from '@/lib/context/SessionContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import type { OrderStatus } from '@/types/orders';
 
 // Mapeo de estados con colores
@@ -43,34 +45,16 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor
   in_progress: { label: 'En Proceso', color: 'text-blue-700', bgColor: 'bg-blue-100' },
 };
 
-import { useOrganization, useSession } from '@/lib/context/SessionContext';
-import { usePermissions } from '@/hooks/usePermissions';
-
 export default function OrdenesPage() {
   const router = useRouter();
   const { organizationId, loading: orgLoading, ready } = useOrganization();
-  const { profile, userId } = useSession();
+  const { profile } = useSession();
   const permissions = usePermissions();
 
-  // ✅ Hook con paginación
-  const {
-    workOrders,
-    loading,
-    pagination,
-    goToPage,
-    changePageSize,
-    setSearch,
-    setFilters,
-    refresh,
-    deleteWorkOrder: deleteWorkOrderFromHook,
-  } = useWorkOrders({
-    page: 1,
-    pageSize: 10,
-    autoLoad: true,
-    enableCache: false,
-  });
-
-  // Estados locales
+  // ==========================================
+  // STATE LOCAL
+  // ==========================================
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -79,16 +63,47 @@ export default function OrdenesPage() {
   const [orderPendingDelete, setOrderPendingDelete] = useState<WorkOrder | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [assignedUsersMap, setAssignedUsersMap] = useState<Record<string, any>>({});
 
-  // ✅ Debounce para búsqueda
+  // ==========================================
+  // ✅ DEBOUNCE DE BÚSQUEDA
+  // ==========================================
   const debouncedSearch = useDebouncedValue(searchQuery, 500);
 
-  // ✅ Sincronizar búsqueda debounced con hook
+  // ==========================================
+  // ✅ HOOK CON PAGINACIÓN
+  // ==========================================
+  const {
+    workOrders,
+    loading,
+    error,
+    pagination,
+    goToPage,
+    changePageSize,
+    setSearch,
+    setFilters,
+    refresh,
+    deleteWorkOrder: deleteWorkOrderFromHook,
+    fetchWorkOrderById,
+  } = useWorkOrders({
+    page: 1,
+    pageSize: 10, // 10 para work orders (tienen más info)
+    sortBy: 'created_at',
+    sortOrder: 'desc',
+    autoLoad: true,
+    enableCache: false,
+  });
+
+  // ==========================================
+  // ✅ EFFECTS
+  // ==========================================
+  
+  // Actualizar búsqueda en el backend cuando cambia el debounce
   useEffect(() => {
     setSearch(debouncedSearch);
   }, [debouncedSearch, setSearch]);
 
-  // ✅ Sincronizar filtro de estado con hook
+  // Actualizar filtro de status en el backend
   useEffect(() => {
     if (statusFilter !== 'all') {
       setFilters({ status: statusFilter });
@@ -97,11 +112,19 @@ export default function OrdenesPage() {
     }
   }, [statusFilter, setFilters]);
 
-  // ✅ Cargar usuarios asignados para mostrar en la tabla
-  const [assignedUsersMap, setAssignedUsersMap] = useState<Record<string, any>>({});
-  
+  // Mostrar error si hay uno
   useEffect(() => {
-    if (workOrders.length === 0) return;
+    if (error) {
+      toast.error('Error al cargar órdenes', { description: error });
+    }
+  }, [error]);
+
+  // Cargar usuarios asignados para mostrar en la tabla
+  useEffect(() => {
+    if (workOrders.length === 0) {
+      setAssignedUsersMap({});
+      return;
+    }
 
     const assignedUserIds = [...new Set(
       workOrders
@@ -138,40 +161,27 @@ export default function OrdenesPage() {
     loadUsers();
   }, [workOrders]);
 
-  // Formatear fecha
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  };
+  // ==========================================
+  // HANDLERS
+  // ==========================================
 
-  // Formatear moneda
-  const formatCurrency = (amount?: number) => {
-    if (!amount) return '$0';
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  // Truncar ID
-  const truncateId = (id: string) => {
-    return id.substring(0, 8) + '...';
-  };
-
-  const handleViewOrder = (order: WorkOrder) => {
-    setSelectedOrder(order);
-    setIsDetailModalOpen(true);
+  const handleViewOrder = async (order: WorkOrder) => {
+    try {
+      const fullOrder = await fetchWorkOrderById(order.id);
+      if (fullOrder) {
+        setSelectedOrder(fullOrder);
+        setIsDetailModalOpen(true);
+      }
+    } catch (error) {
+      toast.error('Error al cargar detalles de la orden');
+    }
   };
 
   const handleEditOrder = (order: WorkOrder) => {
     router.push(`/ordenes/${order.id}`);
   };
 
-  const handleRequestDelete = (order: WorkOrder) => {
+  const handleDeleteClick = (order: WorkOrder) => {
     setOrderPendingDelete(order);
     setIsDeleteDialogOpen(true);
   };
@@ -179,11 +189,12 @@ export default function OrdenesPage() {
   const handleConfirmDelete = async () => {
     if (!orderPendingDelete) return;
 
+    setIsDeleting(true);
     try {
-      setIsDeleting(true);
       const success = await deleteWorkOrderFromHook(orderPendingDelete.id);
+      
       if (success) {
-        toast.success('Orden eliminada correctamente');
+        toast.success('Orden eliminada exitosamente');
         setIsDeleteDialogOpen(false);
         setOrderPendingDelete(null);
         await refresh();
@@ -191,14 +202,48 @@ export default function OrdenesPage() {
         throw new Error('No se pudo eliminar la orden');
       }
     } catch (error) {
-      console.error('Error eliminando orden:', error);
-      toast.error('No se pudo eliminar la orden. Intenta nuevamente.');
+      console.error('Error deleting order:', error);
+      toast.error('Error al eliminar la orden');
     } finally {
       setIsDeleting(false);
     }
   };
 
-  // ✅ FIX: Esperar a que organizationId esté listo y estable antes de renderizar
+  const handleRefresh = () => {
+    refresh();
+    toast.success('Lista actualizada');
+  };
+
+  const handleExport = () => {
+    toast.info('Función de exportación en desarrollo');
+  };
+
+  const formatCurrency = (amount?: number | null) => {
+    if (!amount) return '$0.00';
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  };
+
+  const truncateId = (id: string) => {
+    return id.substring(0, 8) + '...';
+  };
+
+  // ==========================================
+  // LOADING STATE
+  // ==========================================
+  
   if (!organizationId || orgLoading || !ready) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -213,6 +258,10 @@ export default function OrdenesPage() {
     );
   }
 
+  // ==========================================
+  // RENDER
+  // ==========================================
+
   return (
     <div className="p-6 space-y-6">
       {/* Breadcrumbs */}
@@ -223,24 +272,38 @@ export default function OrdenesPage() {
         <div>
           <h1 className="text-3xl font-bold text-white">Órdenes de Trabajo</h1>
           <p className="text-slate-400 mt-1">Gestiona todas las órdenes del taller</p>
+          
+          {/* ✅ Stats de paginación */}
+          {!loading && pagination.total > 0 && (
+            <p className="text-sm text-slate-500 mt-1">
+              Total: {pagination.total} órdenes | Página {pagination.page} de {pagination.totalPages}
+            </p>
+          )}
         </div>
+
         <div className="flex gap-3">
           <Button
             variant="outline"
-            onClick={() => refresh()}
+            onClick={handleRefresh}
+            disabled={loading}
             className="gap-2 border-slate-600 text-slate-200 hover:bg-slate-700/40"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
           </Button>
-          {/* ✅ Solo mostrar botón crear si tiene permisos */}
+
+          <Button variant="outline" onClick={handleExport} className="gap-2">
+            <Download className="w-4 h-4" />
+            Exportar
+          </Button>
+
           {permissions.canCreate('work_orders') && (
             <Button 
               onClick={() => setIsCreateModalOpen(true)}
               className="gap-2 bg-cyan-500 hover:bg-cyan-600"
             >
               <Plus className="w-4 h-4" />
-            Nueva Orden
+              Nueva Orden
             </Button>
           )}
         </div>
@@ -313,37 +376,48 @@ export default function OrdenesPage() {
         <div className="flex flex-col md:flex-row gap-4">
           {/* Búsqueda */}
           <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
             <Input
-            type="text"
+              type="text"
               placeholder="Buscar por cliente, vehículo, placa o ID..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-slate-900/50 border-slate-700 text-white"
-          />
-        </div>
+              disabled={loading}
+            />
+          </div>
 
           {/* Filtro de estado */}
-        <select
-          value={statusFilter}
+          <select
+            value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as OrderStatus | 'all')}
             className="px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-        >
-          <option value="all">Todos los estados</option>
-          <option value="reception">Recepción</option>
-          <option value="diagnosis">Diagnóstico</option>
-          <option value="initial_quote">Cotización</option>
-            <option value="waiting_approval">Aprobación</option>
-          <option value="disassembly">Desarmado</option>
-          <option value="waiting_parts">Esperando Piezas</option>
-          <option value="assembly">Armado</option>
-          <option value="testing">Pruebas</option>
-          <option value="ready">Listo</option>
-          <option value="completed">Completado</option>
-        </select>
+            disabled={loading}
+          >
+            <option value="all">Todos los estados</option>
+            {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+              <option key={key} value={key}>
+                {config.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Limpiar filtros */}
+          {(searchQuery || statusFilter !== 'all') && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearchQuery('');
+                setStatusFilter('all');
+              }}
+              className="border-slate-600 text-slate-200 hover:bg-slate-700/40"
+            >
+              Limpiar filtros
+            </Button>
+          )}
 
           {/* Exportar */}
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" onClick={handleExport} className="gap-2">
             <Download className="w-4 h-4" />
             Exportar
           </Button>
@@ -364,6 +438,13 @@ export default function OrdenesPage() {
               <p className="text-slate-400">Cargando órdenes...</p>
             </div>
           </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="text-red-400 mb-4">❌ {error}</div>
+            <Button onClick={refresh} variant="outline">
+              Reintentar
+            </Button>
+          </div>
         ) : workOrders.length === 0 ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
@@ -374,6 +455,12 @@ export default function OrdenesPage() {
                   ? 'Intenta ajustar los filtros'
                   : 'Crea tu primera orden de trabajo'}
               </p>
+              {!searchQuery && statusFilter === 'all' && permissions.canCreate('work_orders') && (
+                <Button onClick={() => setIsCreateModalOpen(true)} className="mt-4">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear Primera Orden
+                </Button>
+              )}
             </div>
           </div>
         ) : (
@@ -415,130 +502,129 @@ export default function OrdenesPage() {
                   {workOrders.map((order) => {
                     const assignedUser = order.assigned_to ? assignedUsersMap[order.assigned_to] : null;
                     return (
-                  <tr
-                    key={order.id}
-                    className="hover:bg-slate-700/30 transition-colors"
-                  >
-                    {/* ID */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <FileText className="w-4 h-4 text-slate-500 mr-2" />
-                        <span className="text-sm font-mono text-slate-300" title={order.id}>
-                          {truncateId(order.id)}
-                        </span>
-                      </div>
-                    </td>
+                      <tr
+                        key={order.id}
+                        className="hover:bg-slate-700/30 transition-colors"
+                      >
+                        {/* ID */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <FileText className="w-4 h-4 text-slate-500 mr-2" />
+                            <span className="text-sm font-mono text-slate-300" title={order.id}>
+                              {truncateId(order.id)}
+                            </span>
+                          </div>
+                        </td>
 
-                    {/* Cliente */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-white">
-                          {order.customer?.name || 'Sin cliente'}
-                        </div>
-                        {order.customer?.phone && (
-                          <div className="text-xs text-slate-400">{order.customer.phone}</div>
-                        )}
-                      </div>
-                    </td>
+                        {/* Cliente */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-white">
+                              {order.customer?.name || 'Sin cliente'}
+                            </div>
+                            {order.customer?.phone && (
+                              <div className="text-xs text-slate-400">{order.customer.phone}</div>
+                            )}
+                          </div>
+                        </td>
 
-                    {/* Vehículo */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm text-white">
-                          {order.vehicle?.brand} {order.vehicle?.model}
-                        </div>
-                        <div className="text-xs text-slate-400">
-                          {order.vehicle?.license_plate || 'Sin placa'}
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Servicio */}
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-slate-300 max-w-xs truncate" title={order.description}>
-                        {order.description || 'Sin descripción'}
-                      </div>
-                    </td>
-
-                    {/* Empleado */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {assignedUser ? (
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-slate-400" />
+                        {/* Vehículo */}
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="text-sm text-white">
-                              {assignedUser.first_name} {assignedUser.last_name}
+                              {order.vehicle?.brand} {order.vehicle?.model}
                             </div>
                             <div className="text-xs text-slate-400">
-                              {assignedUser.role === 'ADMIN' ? 'Administrador' :
-                                assignedUser.role === 'ASESOR' ? 'Asesor' :
-                                assignedUser.role === 'MECANICO' ? 'Mecánico' :
-                                assignedUser.role}
+                              {order.vehicle?.license_plate || 'Sin placa'}
                             </div>
                           </div>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-slate-500 italic">Sin asignar</span>
-                      )}
-                    </td>
+                        </td>
 
-                    {/* Total */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-semibold text-cyan-400">
-                        {formatCurrency(order.total_amount || order.estimated_cost)}
-                      </div>
-                    </td>
+                        {/* Servicio */}
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-slate-300 max-w-xs truncate" title={order.description}>
+                            {order.description || 'Sin descripción'}
+                          </div>
+                        </td>
 
-                    {/* Estado */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge
-                        className={`${STATUS_CONFIG[order.status]?.bgColor} ${STATUS_CONFIG[order.status]?.color} border-0`}
-                      >
-                        {STATUS_CONFIG[order.status]?.label || order.status}
-                      </Badge>
-                    </td>
+                        {/* Empleado */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {assignedUser ? (
+                            <div className="flex items-center gap-2">
+                              <User className="w-4 h-4 text-slate-400" />
+                              <div>
+                                <div className="text-sm text-white">
+                                  {assignedUser.first_name} {assignedUser.last_name}
+                                </div>
+                                <div className="text-xs text-slate-400">
+                                  {assignedUser.role === 'ADMIN' ? 'Administrador' :
+                                    assignedUser.role === 'ASESOR' ? 'Asesor' :
+                                    assignedUser.role === 'MECANICO' ? 'Mecánico' :
+                                    assignedUser.role}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-slate-500 italic">Sin asignar</span>
+                          )}
+                        </td>
 
-                    {/* Fecha */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
-                      {formatDate(order.entry_date || order.created_at)}
-                    </td>
+                        {/* Total */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-semibold text-cyan-400">
+                            {formatCurrency(order.total_amount || order.estimated_cost)}
+                          </div>
+                        </td>
 
-                    {/* Acciones */}
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-slate-800/95 z-20 border-l border-slate-700/50">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
-                          title="Ver detalles"
-                          onClick={() => handleViewOrder(order)}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
-                          title="Editar"
-                          onClick={() => handleEditOrder(order)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        {/* ✅ Solo mostrar botón eliminar si tiene permisos (admin y advisor) */}
-                        {(permissions.isAdmin || permissions.isAdvisor) && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                            title="Eliminar"
-                            onClick={() => handleRequestDelete(order)}
+                        {/* Estado */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <Badge
+                            className={`${STATUS_CONFIG[order.status]?.bgColor} ${STATUS_CONFIG[order.status]?.color} border-0`}
                           >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                            {STATUS_CONFIG[order.status]?.label || order.status}
+                          </Badge>
+                        </td>
+
+                        {/* Fecha */}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                          {formatDate(order.entry_date || order.created_at)}
+                        </td>
+
+                        {/* Acciones */}
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-slate-800/95 z-20 border-l border-slate-700/50">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+                              title="Ver detalles"
+                              onClick={() => handleViewOrder(order)}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                              title="Editar"
+                              onClick={() => handleEditOrder(order)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            {(permissions.isAdmin || permissions.isAdvisor) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                title="Eliminar"
+                                onClick={() => handleDeleteClick(order)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
                     );
                   })}
                 </tbody>
@@ -574,7 +660,10 @@ export default function OrdenesPage() {
       {/* Modal de detalles */}
       <OrderDetailModal
         isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedOrder(null);
+        }}
         order={selectedOrder}
         onUpdate={() => {
           refresh();
