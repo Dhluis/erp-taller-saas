@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServiceClient, createClientFromRequest } from '@/lib/supabase/server'
+import { extractPaginationFromURL, calculateOffset, generatePaginationMeta } from '@/lib/utils/pagination'
+import { createPaginatedResponse } from '@/types/pagination'
 
 // ✅ Función helper para retry logic
 async function retryQuery<T>(
@@ -64,15 +66,25 @@ export async function GET(request: NextRequest) {
     console.log('✅ [GET /api/customers] User Profile completo:', JSON.stringify(userProfile, null, 2))
     
     // ✅ Obtener parámetros de query
-    const { searchParams } = new URL(request.url)
-    const idsParam = searchParams.getAll('ids') // Soporta múltiples IDs
+    const url = new URL(request.url)
+    const { searchParams } = url
     
-    // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO - igual que orders/stats
+    // ✅ Extraer parámetros de paginación
+    const paginationParams = extractPaginationFromURL(url)
+    const { page, pageSize, sortBy, sortOrder } = paginationParams
+    
+    // Parámetros adicionales
+    const idsParam = searchParams.getAll('ids') // Soporta múltiples IDs
+    const search = searchParams.get('search') || undefined
+    
+    // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('🔌 API /customers - INICIANDO QUERY')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('Organization ID:', organizationId)
+    console.log('Paginación:', { page, pageSize, sortBy, sortOrder })
     console.log('IDs solicitados:', idsParam.length > 0 ? idsParam : 'Todos')
+    console.log('Búsqueda:', search || 'Ninguna')
     
     // ✅ Helper para crear timeout promise
     const createTimeoutPromise = () => new Promise((_, reject) => {
@@ -102,7 +114,7 @@ export async function GET(request: NextRequest) {
               license_plate,
               color
             )
-          `)
+          `, { count: 'exact' })
           .eq('organization_id', organizationId)
         
         // Si se proporcionan IDs, filtrar por ellos
@@ -110,7 +122,21 @@ export async function GET(request: NextRequest) {
           query = query.in('id', idsParam)
         }
         
-        const result = await query.order('created_at', { ascending: false });
+        // Búsqueda por nombre, email o teléfono
+        if (search) {
+          query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`)
+        }
+        
+        // Ordenamiento
+        const orderColumn = sortBy || 'created_at'
+        const ascending = sortOrder === 'asc' || (sortOrder !== 'desc' && orderColumn === 'created_at')
+        query = query.order(orderColumn, { ascending })
+        
+        // Paginación
+        const offset = calculateOffset(page, pageSize)
+        query = query.range(offset, offset + pageSize - 1)
+        
+        const result = await query;
         console.log('🔍 [GET /api/customers] Query ejecutada, resultado:', {
           hasData: !!result.data,
           dataLength: result.data?.length || 0,
@@ -178,11 +204,26 @@ export async function GET(request: NextRequest) {
       let customersSimple, errorSimple;
       try {
         const queryPromise = retryQuery(async () => {
-          return await supabaseAdmin
+          let query = supabaseAdmin
             .from('customers')
-            .select('*')
+            .select('*', { count: 'exact' })
             .eq('organization_id', organizationId)
-            .order('created_at', { ascending: false })
+          
+          // Búsqueda por nombre, email o teléfono
+          if (search) {
+            query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`)
+          }
+          
+          // Ordenamiento
+          const orderColumn = sortBy || 'created_at'
+          const ascending = sortOrder === 'asc' || (sortOrder !== 'desc' && orderColumn === 'created_at')
+          query = query.order(orderColumn, { ascending })
+          
+          // Paginación
+          const offset = calculateOffset(page, pageSize)
+          query = query.range(offset, offset + pageSize - 1)
+          
+          return await query
         }, 2, 500);
         
         // Race entre query y timeout
@@ -266,11 +307,22 @@ export async function GET(request: NextRequest) {
     console.log('Clientes obtenidos:', customers?.length || 0)
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     
-    // ✅ DEVOLVER EN EL FORMATO CORRECTO
-    return NextResponse.json({ 
-      success: true, 
-      data: customers || [] 
-    })
+    // ✅ Si se solicita paginación (pageSize > 0), devolver formato paginado
+    // Si no (idsParam o sin paginación), devolver array simple
+    if (pageSize > 0 && idsParam.length === 0) {
+      // Obtener total para paginación (si no viene en el resultado)
+      const total = (customers as any)?._count || customers?.length || 0
+      
+      return NextResponse.json(
+        createPaginatedResponse(customers || [], page, pageSize, total)
+      )
+    } else {
+      // ✅ DEVOLVER EN EL FORMATO SIMPLE (sin paginación)
+      return NextResponse.json({ 
+        success: true, 
+        data: customers || [] 
+      })
+    }
 
   } catch (error: any) {
     console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
