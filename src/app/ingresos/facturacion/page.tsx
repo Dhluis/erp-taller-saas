@@ -47,10 +47,24 @@ import { getCustomers } from "@/lib/supabase/customers"
 
 export default function FacturacionPage() {
   const permissions = usePermissions()
+  const router = useRouter()
+  
+  // ✅ PROTECCIÓN: Solo ADMIN puede acceder a Facturación
+  useEffect(() => {
+    if (!permissions.isAdmin && !permissions.canRead('invoices')) {
+      router.push('/dashboard');
+    }
+  }, [permissions, router]);
+  
   const canPay = permissions.canPayInvoices()
   const canCreate = permissions.canCreate('invoices')
   const canDelete = permissions.canDelete('invoices')
   const canUpdate = permissions.canUpdate('invoices')
+  
+  // Si no tiene permisos, no renderizar nada
+  if (!permissions.isAdmin && !permissions.canRead('invoices')) {
+    return null;
+  }
   
   const [searchTerm, setSearchTerm] = useState("")
   const [invoices, setInvoices] = useState<Invoice[]>([])

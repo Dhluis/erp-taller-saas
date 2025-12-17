@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/navigation/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +20,7 @@ import {
   Receipt
 } from 'lucide-react';
 import Link from 'next/link';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface IncomeStats {
   totalRevenue: number;
@@ -30,6 +32,16 @@ interface IncomeStats {
 }
 
 export default function IngresosPage() {
+  const router = useRouter();
+  const permissions = usePermissions();
+  
+  // ✅ PROTECCIÓN: Solo ADMIN puede acceder a Ingresos
+  useEffect(() => {
+    if (!permissions.isAdmin && !permissions.canRead('invoices') && !permissions.canPayInvoices()) {
+      router.push('/dashboard');
+    }
+  }, [permissions, router]);
+
   const [stats, setStats] = useState<IncomeStats>({
     totalRevenue: 0,
     monthlyRevenue: 0,
@@ -39,6 +51,11 @@ export default function IngresosPage() {
     averageInvoiceValue: 0,
   });
   const [loading, setLoading] = useState(true);
+  
+  // Si no tiene permisos, no renderizar nada
+  if (!permissions.isAdmin && !permissions.canRead('invoices') && !permissions.canPayInvoices()) {
+    return null;
+  }
 
   useEffect(() => {
     // Simular carga de datos

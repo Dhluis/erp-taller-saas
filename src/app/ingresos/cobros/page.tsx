@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { usePermissions } from '@/hooks/usePermissions'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -38,6 +40,21 @@ import { getCollections, getCollectionStats, createCollection, Collection, Creat
 import { useErrorHandler } from "@/lib/utils/error-handler"
 
 export default function CobrosPage() {
+  const router = useRouter()
+  const permissions = usePermissions()
+  
+  // ✅ PROTECCIÓN: Solo ADMIN puede acceder a Cobros
+  useEffect(() => {
+    if (!permissions.isAdmin && !permissions.canPayInvoices()) {
+      router.push('/dashboard');
+    }
+  }, [permissions, router]);
+  
+  // Si no tiene permisos, no renderizar nada
+  if (!permissions.isAdmin && !permissions.canPayInvoices()) {
+    return null;
+  }
+  
   const [searchTerm, setSearchTerm] = useState("")
   const [collections, setCollections] = useState<Collection[]>([])
   const [stats, setStats] = useState({
