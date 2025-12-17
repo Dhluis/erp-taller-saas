@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
     
     // Obtener clientes de la organización
     // Si se proporcionan IDs, filtrar por ellos
-    let customers, error;
+    let customers, error, totalCount: number | null = null;
     try {
       const queryPromise = retryQuery(async () => {
         console.log('🔍 [GET /api/customers] Construyendo query con organizationId:', organizationId);
@@ -140,6 +140,7 @@ export async function GET(request: NextRequest) {
         console.log('🔍 [GET /api/customers] Query ejecutada, resultado:', {
           hasData: !!result.data,
           dataLength: result.data?.length || 0,
+          count: result.count,
           error: result.error,
           // Log de los primeros 3 clientes para verificar organization_id
           firstCustomers: result.data?.slice(0, 3).map((c: any) => ({
@@ -157,10 +158,7 @@ export async function GET(request: NextRequest) {
       if (result && typeof result === 'object' && 'data' in result) {
         customers = result.data;
         error = result.error;
-        // Guardar el count si está disponible
-        if ('count' in result) {
-          (customers as any)._totalCount = result.count;
-        }
+        totalCount = result.count ?? null;
       } else {
         throw new Error('Resultado inesperado de la query');
       }
@@ -236,10 +234,7 @@ export async function GET(request: NextRequest) {
         if (result && typeof result === 'object' && 'data' in result) {
           customersSimple = result.data;
           errorSimple = result.error;
-          // Guardar el count si está disponible
-          if ('count' in result) {
-            (customersSimple as any)._totalCount = result.count;
-          }
+          totalCount = result.count ?? null;
         } else {
           throw new Error('Resultado inesperado de la query simple');
         }
@@ -317,15 +312,15 @@ export async function GET(request: NextRequest) {
     
     // ✅ Si se solicita paginación (pageSize > 0), devolver formato paginado
     // Si no (idsParam o sin paginación), devolver array simple
-    if (pageSize > 0 && idsParam.length === 0 && !search) {
+    if (pageSize > 0 && idsParam.length === 0) {
       // Obtener total para paginación desde el resultado o calcular
-      const total = (customers as any)?._totalCount || customers?.length || 0
+      const total = totalCount ?? customers?.length || 0
       
       return NextResponse.json(
         createPaginatedResponse(customers || [], page, pageSize, total)
       )
     } else {
-      // ✅ DEVOLVER EN EL FORMATO SIMPLE (sin paginación o con búsqueda/IDs)
+      // ✅ DEVOLVER EN EL FORMATO SIMPLE (sin paginación o con IDs específicos)
       return NextResponse.json({ 
         success: true, 
         data: customers || [] 
