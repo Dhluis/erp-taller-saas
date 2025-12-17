@@ -1,9 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-// ✅ Removido: getAllWorkOrders - ahora se usa API route
-import { deleteWorkOrder } from '@/lib/database/queries/work-orders';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
@@ -11,6 +9,7 @@ import { OrderDetailModal } from '@/components/ordenes/OrderDetailModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Pagination } from '@/components/ui/pagination';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +22,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Search, FileText, Edit, Trash2, Eye, Plus, Download, RefreshCw, User } from 'lucide-react';
 import { toast } from 'sonner';
-import type { WorkOrder, OrderStatus } from '@/types/orders';
+import { useWorkOrders, type WorkOrder } from '@/hooks/useWorkOrders';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import type { OrderStatus } from '@/types/orders';
 
 // Mapeo de estados con colores
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor: string }> = {
@@ -44,7 +45,6 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor
 
 import { useOrganization, useSession } from '@/lib/context/SessionContext';
 import { usePermissions } from '@/hooks/usePermissions';
-import { createClient } from '@/lib/supabase/client';
 
 export default function OrdenesPage() {
   const router = useRouter();
@@ -52,9 +52,25 @@ export default function OrdenesPage() {
   const { profile, userId } = useSession();
   const permissions = usePermissions();
 
-  const [orders, setOrders] = useState<WorkOrder[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<WorkOrder[]>([]);
-  const [loading, setLoading] = useState(true);
+  // ✅ Hook con paginación
+  const {
+    workOrders,
+    loading,
+    pagination,
+    goToPage,
+    changePageSize,
+    setSearch,
+    setFilters,
+    refresh,
+    deleteWorkOrder: deleteWorkOrderFromHook,
+  } = useWorkOrders({
+    page: 1,
+    pageSize: 10,
+    autoLoad: true,
+    enableCache: false,
+  });
+
+  // Estados locales
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -63,146 +79,64 @@ export default function OrdenesPage() {
   const [orderPendingDelete, setOrderPendingDelete] = useState<WorkOrder | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
-  // Cargar órdenes - función reutilizable (OPTIMIZADA)
-  const loadOrders = useCallback(async () => {
-    if (!organizationId) {
-      console.log('⚠️ No hay organizationId');
+  // ✅ Debounce para búsqueda
+  const debouncedSearch = useDebouncedValue(searchQuery, 500);
+
+  // ✅ Sincronizar búsqueda debounced con hook
+  useEffect(() => {
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch]);
+
+  // ✅ Sincronizar filtro de estado con hook
+  useEffect(() => {
+    if (statusFilter !== 'all') {
+      setFilters({ status: statusFilter });
+    } else {
+      setFilters({});
+    }
+  }, [statusFilter, setFilters]);
+
+  // ✅ Cargar usuarios asignados para mostrar en la tabla
+  const [assignedUsersMap, setAssignedUsersMap] = useState<Record<string, any>>({});
+  
+  useEffect(() => {
+    if (workOrders.length === 0) return;
+
+    const assignedUserIds = [...new Set(
+      workOrders
+        .map((order: any) => order.assigned_to)
+        .filter((id: string | null | undefined) => id)
+    )] as string[];
+
+    if (assignedUserIds.length === 0) {
+      setAssignedUsersMap({});
       return;
     }
 
-    // ✅ OPTIMIZACIÓN: Solo logs en desarrollo
-    const isDev = process.env.NODE_ENV === 'development';
-
-    try {
-      setLoading(true);
-      
-      if (isDev) {
-        console.log('🔍 Cargando órdenes...');
-        console.log('🔍 organizationId:', organizationId);
-        console.log('🔍 Primera carga?', !hasLoadedOnce);
+    const loadUsers = async () => {
+      try {
+        const { createClient } = await import('@/lib/supabase/client');
+        const supabase = createClient();
+        const { data: users, error } = await supabase
+          .from('system_users')
+          .select('id, first_name, last_name, role, email')
+          .in('id', assignedUserIds);
+        
+        if (!error && users) {
+          const usersMap = users.reduce((acc: Record<string, any>, user: any) => {
+            acc[user.id] = user;
+            return acc;
+          }, {});
+          setAssignedUsersMap(usersMap);
+        }
+      } catch (error) {
+        console.error('Error cargando usuarios:', error);
       }
+    };
 
-      // ✅ FIX: Limpiar cache en la primera carga para asegurar datos frescos
-      if (!hasLoadedOnce) {
-        const { clearOrdersCache } = await import('@/lib/database/queries/work-orders');
-        clearOrdersCache(organizationId);
-        console.log('🧹 [OrdenesPage] Cache limpiado para primera carga');
-        setHasLoadedOnce(true);
-      }
-
-      // ✅ Usar API route en lugar de query directa
-      const response = await fetch('/api/work-orders', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al cargar órdenes');
-      }
-
-      const result = await response.json();
-      const data = result.success ? result.data : [];
-
-      // ✅ OPTIMIZACIÓN: Cargar usuarios asignados en paralelo con la normalización
-      const assignedUserIds = [...new Set(
-        (data ?? [])
-          .map((order: any) => order.assigned_to)
-          .filter((id: string | null | undefined) => id)
-      )] as string[];
-
-      // Cargar usuarios y normalizar datos en paralelo
-      const [usersData] = await Promise.allSettled([
-        assignedUserIds.length > 0
-          ? (async () => {
-              const { createClient } = await import('@/lib/supabase/client');
-              const supabase = createClient();
-              const { data: users, error } = await supabase
-                .from('system_users')
-                .select('id, first_name, last_name, role, email')
-                .in('id', assignedUserIds);
-              return error ? null : users;
-            })()
-          : Promise.resolve(null),
-      ]);
-
-      // Normalizar datos
-      let normalizedData = (data ?? []).map((order: any) => ({
-        ...order,
-        entry_date: order.entry_date ?? order.created_at ?? '',
-      })) as WorkOrder[];
-
-      // Agregar usuarios asignados si se cargaron exitosamente
-      if (usersData.status === 'fulfilled' && usersData.value) {
-        const assignedUsersMap = usersData.value.reduce((acc: Record<string, any>, user: any) => {
-          acc[user.id] = user;
-          return acc;
-        }, {});
-
-        normalizedData = normalizedData.map((order: any) => ({
-          ...order,
-          assigned_user: order.assigned_to ? assignedUsersMap[order.assigned_to] || null : null,
-        })) as WorkOrder[];
-      }
-
-      setOrders(normalizedData as unknown as WorkOrder[]);
-      setFilteredOrders(normalizedData as unknown as WorkOrder[]);
-      
-      if (isDev) {
-        console.log('✅ Órdenes cargadas:', normalizedData.length);
-      }
-    } catch (error) {
-      console.error('❌ Error cargando órdenes:', error);
-      toast.error('Error al cargar órdenes', {
-        description: error instanceof Error ? error.message : 'Error desconocido'
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [organizationId]);
-
-  // ✅ FIX: Solo cargar órdenes cuando organizationId esté listo, estable y no esté cargando
-  // IMPORTANTE: Ahora usamos el estado 'ready' para asegurar que organizationId está estable
-  useEffect(() => {
-    if (ready && organizationId && !orgLoading) {
-      console.log('🔄 [OrdenesPage] useEffect triggered - organizationId READY y disponible:', organizationId);
-      console.log('🔄 [OrdenesPage] Ejecutando loadOrders...');
-      loadOrders();
-    } else if (orgLoading || !ready) {
-      console.log('⏳ [OrdenesPage] Esperando a que organizationId esté ready...', { orgLoading, ready, organizationId: !!organizationId });
-    } else if (!organizationId) {
-      console.log('⚠️ [OrdenesPage] organizationId no disponible todavía');
-    }
-  }, [ready, orgLoading, organizationId, loadOrders]);
-
-  // Filtrar órdenes
-  useEffect(() => {
-    let filtered = orders;
-
-    // Filtro de búsqueda
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (order) =>
-          order.customer?.name?.toLowerCase().includes(query) ||
-          order.vehicle?.brand?.toLowerCase().includes(query) ||
-          order.vehicle?.model?.toLowerCase().includes(query) ||
-          order.vehicle?.license_plate?.toLowerCase().includes(query) ||
-          order.description?.toLowerCase().includes(query) ||
-          order.id.toLowerCase().includes(query)
-      );
-    }
-
-    // Filtro de estado
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter((order) => order.status === statusFilter);
-    }
-
-    setFilteredOrders(filtered);
-  }, [searchQuery, statusFilter, orders]);
+    loadUsers();
+  }, [workOrders]);
 
   // Formatear fecha
   const formatDate = (dateString: string) => {
@@ -247,11 +181,15 @@ export default function OrdenesPage() {
 
     try {
       setIsDeleting(true);
-      await deleteWorkOrder(orderPendingDelete.id);
-      toast.success('Orden eliminada correctamente');
-      setIsDeleteDialogOpen(false);
-      setOrderPendingDelete(null);
-      loadOrders();
+      const success = await deleteWorkOrderFromHook(orderPendingDelete.id);
+      if (success) {
+        toast.success('Orden eliminada correctamente');
+        setIsDeleteDialogOpen(false);
+        setOrderPendingDelete(null);
+        await refresh();
+      } else {
+        throw new Error('No se pudo eliminar la orden');
+      }
     } catch (error) {
       console.error('Error eliminando orden:', error);
       toast.error('No se pudo eliminar la orden. Intenta nuevamente.');
@@ -289,7 +227,7 @@ export default function OrdenesPage() {
         <div className="flex gap-3">
           <Button
             variant="outline"
-            onClick={() => loadOrders()}
+            onClick={() => refresh()}
             className="gap-2 border-slate-600 text-slate-200 hover:bg-slate-700/40"
           >
             <RefreshCw className="w-4 h-4" />
@@ -317,7 +255,7 @@ export default function OrdenesPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-slate-400 text-sm">Total Órdenes</p>
-              <p className="text-2xl font-bold text-white">{orders.length}</p>
+              <p className="text-2xl font-bold text-white">{pagination.total}</p>
             </div>
             <FileText className="w-8 h-8 text-slate-500" />
           </div>
@@ -328,7 +266,7 @@ export default function OrdenesPage() {
             <div>
               <p className="text-slate-400 text-sm">En Proceso</p>
               <p className="text-2xl font-bold text-blue-400">
-                {orders.filter((o) => !['completed', 'cancelled'].includes(o.status)).length}
+                {workOrders.filter((o) => !['completed', 'cancelled'].includes(o.status)).length}
               </p>
             </div>
             <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
@@ -342,7 +280,7 @@ export default function OrdenesPage() {
             <div>
               <p className="text-slate-400 text-sm">Completadas</p>
               <p className="text-2xl font-bold text-green-400">
-                {orders.filter((o) => o.status === 'completed').length}
+                {workOrders.filter((o) => o.status === 'completed').length}
               </p>
             </div>
             <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
@@ -357,7 +295,7 @@ export default function OrdenesPage() {
               <p className="text-slate-400 text-sm">Total Facturado</p>
               <p className="text-2xl font-bold text-cyan-400">
                 {formatCurrency(
-                  orders
+                  workOrders
                     .filter((o) => o.status === 'completed')
                     .reduce((sum, o) => sum + (o.total_amount || o.estimated_cost || 0), 0)
                 )}
@@ -413,7 +351,7 @@ export default function OrdenesPage() {
 
         {/* Resultados */}
         <div className="mt-4 text-sm text-slate-400">
-          Mostrando {filteredOrders.length} de {orders.length} órdenes
+          Mostrando {workOrders.length} de {pagination.total} órdenes
         </div>
       </div>
 
@@ -426,7 +364,7 @@ export default function OrdenesPage() {
               <p className="text-slate-400">Cargando órdenes...</p>
             </div>
           </div>
-        ) : filteredOrders.length === 0 ? (
+        ) : workOrders.length === 0 ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <FileText className="w-16 h-16 text-slate-600 mx-auto mb-4" />
@@ -439,41 +377,44 @@ export default function OrdenesPage() {
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-900/50 border-b border-slate-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    Cliente
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    Vehículo
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    Servicio
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    Empleado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    Total
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider min-w-[100px]">
-                    Fecha
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider sticky right-0 bg-slate-800/95 z-20 min-w-[150px] border-l border-slate-700">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700/50">
-                {filteredOrders.map((order) => (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-900/50 border-b border-slate-700">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      Cliente
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      Vehículo
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      Servicio
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      Empleado
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      Total
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      Estado
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider min-w-[100px]">
+                      Fecha
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider sticky right-0 bg-slate-800/95 z-20 min-w-[150px] border-l border-slate-700">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/50">
+                  {workOrders.map((order) => {
+                    const assignedUser = order.assigned_to ? assignedUsersMap[order.assigned_to] : null;
+                    return (
                   <tr
                     key={order.id}
                     className="hover:bg-slate-700/30 transition-colors"
@@ -521,18 +462,18 @@ export default function OrdenesPage() {
 
                     {/* Empleado */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {(order as any).assigned_user ? (
+                      {assignedUser ? (
                         <div className="flex items-center gap-2">
                           <User className="w-4 h-4 text-slate-400" />
                           <div>
                             <div className="text-sm text-white">
-                              {(order as any).assigned_user.first_name} {(order as any).assigned_user.last_name}
+                              {assignedUser.first_name} {assignedUser.last_name}
                             </div>
                             <div className="text-xs text-slate-400">
-                              {((order as any).assigned_user.role === 'ADMIN' ? 'Administrador' :
-                                (order as any).assigned_user.role === 'ASESOR' ? 'Asesor' :
-                                (order as any).assigned_user.role === 'MECANICO' ? 'Mecánico' :
-                                (order as any).assigned_user.role)}
+                              {assignedUser.role === 'ADMIN' ? 'Administrador' :
+                                assignedUser.role === 'ASESOR' ? 'Asesor' :
+                                assignedUser.role === 'MECANICO' ? 'Mecánico' :
+                                assignedUser.role}
                             </div>
                           </div>
                         </div>
@@ -598,10 +539,26 @@ export default function OrdenesPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* ✅ Componente de Paginación */}
+            {pagination.totalPages > 1 && (
+              <Pagination
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                pageSize={pagination.pageSize}
+                total={pagination.total}
+                onPageChange={goToPage}
+                onPageSizeChange={changePageSize}
+                loading={loading}
+                pageSizeOptions={[10, 20, 50, 100]}
+              />
+            )}
+          </>
         )}
       </div>
 
@@ -610,14 +567,7 @@ export default function OrdenesPage() {
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
         onSuccess={() => {
-          console.log('🔄 [OrdenesPage] onSuccess llamado, recargando órdenes...');
-          console.log('🔄 [OrdenesPage] organizationId:', organizationId);
-          // Forzar recarga después de un pequeño delay
-          setTimeout(() => {
-            console.log('🔄 [OrdenesPage] Ejecutando loadOrders...');
-            loadOrders();
-            console.log('✅ [OrdenesPage] loadOrders ejecutado');
-          }, 500);
+          refresh();
         }}
       />
 
@@ -627,7 +577,7 @@ export default function OrdenesPage() {
         onClose={() => setIsDetailModalOpen(false)}
         order={selectedOrder}
         onUpdate={() => {
-          loadOrders();
+          refresh();
           setIsDetailModalOpen(false);
         }}
       />
