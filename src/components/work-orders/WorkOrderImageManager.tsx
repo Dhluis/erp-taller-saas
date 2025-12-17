@@ -28,7 +28,8 @@ import {
   Loader2,
   ZoomIn,
   Edit,
-  Camera
+  Camera,
+  ChevronDown
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -43,6 +44,8 @@ import { useSession } from '@/lib/context/SessionContext'
 import Image from 'next/image'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { useIntersectionObserver } from '@/hooks/useIntersectionObserver'
+import { useImagePagination } from '@/hooks/useImagePagination'
 
 interface WorkOrderImageManagerProps {
   orderId: string
