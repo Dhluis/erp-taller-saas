@@ -17,6 +17,10 @@ DROP POLICY IF EXISTS "Authenticated users can update" ON storage.objects;
 -- 2. FUNCIÓN HELPER: Obtener organization_id del usuario
 -- ================================================
 -- ✅ IMPORTANTE: Crear en schema 'public', no 'storage'
+-- ✅ Eliminar función existente si existe (puede tener tipo de retorno diferente)
+
+DROP FUNCTION IF EXISTS public.get_user_organization_id();
+DROP FUNCTION IF EXISTS public.get_user_organization_id() CASCADE;
 
 CREATE OR REPLACE FUNCTION public.get_user_organization_id()
 RETURNS TEXT AS $$
@@ -32,6 +36,10 @@ $$ LANGUAGE sql SECURITY DEFINER;
 -- Path format: {organizationId}/{orderId}/{category}-{timestamp}-{random}.{ext}
 -- Esta función extrae el primer segmento del path (organizationId)
 -- ✅ IMPORTANTE: Crear en schema 'public', no 'storage'
+-- ✅ Eliminar función existente si existe
+
+DROP FUNCTION IF EXISTS public.extract_organization_id_from_path(TEXT);
+DROP FUNCTION IF EXISTS public.extract_organization_id_from_path(TEXT) CASCADE;
 
 CREATE OR REPLACE FUNCTION public.extract_organization_id_from_path(path TEXT)
 RETURNS TEXT AS $$
