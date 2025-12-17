@@ -1,7 +1,20 @@
-import { useState, useCallback } from 'react';
+/**
+ * useWorkOrders Hook con Paginación
+ * Eagles ERP - Hook para gestión de órdenes de trabajo con paginación completa
+ */
+
+'use client'
+
+import { useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-// ✅ Removido: createClient - ahora se usan API routes
 import { useSession } from '@/lib/context/SessionContext';
+import { safeFetch, safePost, safePut, safeDelete } from '@/lib/api';
+import type { PaginatedResponse, SearchParams } from '@/types/pagination';
+import { buildPaginationQueryString } from '@/lib/utils/pagination';
+
+// ==========================================
+// TYPES
+// ==========================================
 
 export interface WorkOrderItem {
   id: string;
@@ -124,8 +137,99 @@ export interface UpdateOrderItemData {
   unit_price?: number;
 }
 
-export function useWorkOrders() {
+interface UseWorkOrdersOptions extends Partial<SearchParams> {
+  autoLoad?: boolean;
+  enableCache?: boolean;
+  status?: string; // Filtro por estado
+}
+
+interface UseWorkOrdersReturn {
+  // Estado
+  workOrders: WorkOrder[] | null;
+  customers: Customer[];
+  vehicles: Vehicle[];
+  currentWorkOrder: WorkOrder | null;
+  stats: WorkOrderStats | null;
+  loading: boolean;
+  error: string | null;
+
+  // Paginación
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+
+  // Navigation Actions
+  goToPage: (page: number) => void;
+  goToNextPage: () => void;
+  goToPreviousPage: () => void;
+  goToFirstPage: () => void;
+  goToLastPage: () => void;
+  changePageSize: (size: number) => void;
+
+  // Filter Actions
+  setSearch: (search: string) => void;
+  setFilters: (filters: Record<string, any>) => void;
+  setSorting: (sortBy: string, sortOrder: 'asc' | 'desc') => void;
+  clearFilters: () => void;
+
+  // Operaciones de órdenes
+  fetchWorkOrders: (status?: string) => Promise<WorkOrder[]>;
+  searchWorkOrders: (searchTerm: string) => Promise<WorkOrder[]>;
+  fetchStats: () => Promise<WorkOrderStats | null>;
+  fetchWorkOrderById: (id: string) => Promise<WorkOrder | null>;
+  createWorkOrder: (orderData: CreateWorkOrderData) => Promise<WorkOrder | null>;
+  updateWorkOrder: (id: string, orderData: UpdateWorkOrderData) => Promise<WorkOrder | null>;
+  deleteWorkOrder: (id: string) => Promise<boolean>;
+  updateWorkOrderStatus: (id: string, status: WorkOrder['status']) => Promise<WorkOrder | null>;
+  updateDiscount: (id: string, discount: number) => Promise<WorkOrder | null>;
+
+  // Operaciones de items
+  fetchOrderItems: (workOrderId: string) => Promise<WorkOrderItem[]>;
+  addOrderItem: (workOrderId: string, itemData: CreateOrderItemData) => Promise<WorkOrderItem | null>;
+  updateOrderItem: (workOrderId: string, itemId: string, itemData: UpdateOrderItemData) => Promise<WorkOrderItem | null>;
+  deleteOrderItem: (workOrderId: string, itemId: string) => Promise<boolean>;
+
+  // Consultas especiales
+  fetchWorkOrdersByCustomer: (customerId: string) => Promise<WorkOrder[]>;
+  fetchWorkOrdersByVehicle: (vehicleId: string) => Promise<WorkOrder[]>;
+
+  // Funciones para Kanban
+  loadData: () => Promise<void>;
+  updateOrderStatus: (orderId: string, newStatus: string) => Promise<{ success: boolean }>;
+
+  // Utilidades
+  setCurrentWorkOrder: (order: WorkOrder | null) => void;
+  refresh: () => Promise<void>;
+}
+
+// ==========================================
+// HOOK
+// ==========================================
+
+export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrdersReturn {
+  const {
+    page: initialPage = 1,
+    pageSize: initialPageSize = 20,
+    search: initialSearch = '',
+    filters: initialFilters = {},
+    sortBy: initialSortBy = 'created_at',
+    sortOrder: initialSortOrder = 'desc',
+    status: initialStatus,
+    autoLoad = false, // Por defecto false para mantener compatibilidad
+    enableCache = false
+  } = options;
+
   const { organizationId } = useSession();
+  
+  // ==========================================
+  // STATE
+  // ==========================================
+  
   const [workOrders, setWorkOrders] = useState<WorkOrder[] | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -134,25 +238,125 @@ export function useWorkOrders() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 📋 OBTENER TODAS LAS ÓRDENES
+  // Pagination state
+  const [page, setPage] = useState(initialPage);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPreviousPage: false
+  });
+
+  // Filter state
+  const [search, setSearchState] = useState(initialSearch);
+  const [filters, setFiltersState] = useState(initialFilters);
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const [sortBy, setSortByState] = useState(initialSortBy);
+  const [sortOrder, setSortOrderState] = useState<'asc' | 'desc'>(initialSortOrder);
+
+  // Refs
+  const isFetching = useRef(false);
+  const cacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+
+  // ==========================================
+  // FETCH FUNCTION (con paginación)
+  // ==========================================
+  
   const fetchWorkOrders = useCallback(async (status?: string) => {
-    setLoading(true);
-    setError(null);
+    // Si se pasa status como parámetro, actualizar el filtro
+    if (status !== undefined) {
+      setStatusFilter(status);
+    }
+
+    const currentStatus = status || statusFilter;
+
+    // Guard: Prevenir fetch múltiples simultáneos
+    if (isFetching.current) {
+      console.log('⏸️ [useWorkOrders] Fetch ya en progreso, ignorando...');
+      return workOrders || [];
+    }
 
     try {
-      const url = status
-        ? `/api/work-orders?status=${status}`
-        : '/api/work-orders';
-      
-      const response = await fetch(url);
-      const data = await response.json();
+      isFetching.current = true;
+      setLoading(true);
+      setError(null);
 
-      if (!data.success) {
-        throw new Error(data.error || 'Error al obtener órdenes');
+      // Construir query params
+      const queryParams: any = {
+        page,
+        pageSize,
+        sortBy,
+        sortOrder,
+        search: search || undefined,
+        filters
+      };
+
+      if (currentStatus) {
+        queryParams.status = currentStatus;
       }
 
-      setWorkOrders(data.data);
-      return data.data;
+      const queryString = buildPaginationQueryString(queryParams);
+      const url = `/api/work-orders?${queryString}`;
+      
+      console.log('🔄 [useWorkOrders] Fetching:', url);
+
+      // Check cache
+      if (enableCache) {
+        const cached = cacheRef.current.get(url);
+        const cacheAge = cached ? Date.now() - cached.timestamp : Infinity;
+        
+        // Cache válido por 30 segundos
+        if (cached && cacheAge < 30000) {
+          console.log('💾 [useWorkOrders] Usando cache');
+          const responseData = cached.data.data || cached.data;
+          const items = responseData.items || [];
+          setWorkOrders(items);
+          setPagination(responseData.pagination);
+          setLoading(false);
+          isFetching.current = false;
+          return items;
+        }
+      }
+
+      // Fetch
+      const result = await safeFetch<PaginatedResponse<WorkOrder>>(url, { 
+        timeout: 30000,
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Error al obtener órdenes');
+      }
+
+      // Extraer datos
+      const responseData = result.data.data || result.data;
+      const items = responseData.items || [];
+      const paginationData = responseData.pagination;
+
+      // Actualizar state
+      setWorkOrders(items);
+      setPagination(paginationData);
+
+      // Guardar en cache
+      if (enableCache) {
+        cacheRef.current.set(url, {
+          data: result.data,
+          timestamp: Date.now()
+        });
+      }
+
+      console.log('✅ [useWorkOrders] Órdenes cargadas:', {
+        items: items.length,
+        page: paginationData.page,
+        total: paginationData.total
+      });
+
+      return items;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(errorMessage);
@@ -162,35 +366,101 @@ export function useWorkOrders() {
       return [];
     } finally {
       setLoading(false);
+      isFetching.current = false;
     }
+  }, [page, pageSize, search, filters, statusFilter, sortBy, sortOrder, enableCache, workOrders]);
+
+  // ==========================================
+  // NAVIGATION ACTIONS
+  // ==========================================
+
+  const goToPage = useCallback((newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages && newPage !== page) {
+      setPage(newPage);
+    }
+  }, [pagination.totalPages, page]);
+
+  const goToNextPage = useCallback(() => {
+    if (pagination.hasNextPage) {
+      setPage(p => p + 1);
+    }
+  }, [pagination.hasNextPage]);
+
+  const goToPreviousPage = useCallback(() => {
+    if (pagination.hasPreviousPage) {
+      setPage(p => Math.max(1, p - 1));
+    }
+  }, [pagination.hasPreviousPage]);
+
+  const goToFirstPage = useCallback(() => {
+    setPage(1);
   }, []);
+
+  const goToLastPage = useCallback(() => {
+    setPage(pagination.totalPages);
+  }, [pagination.totalPages]);
+
+  const changePageSize = useCallback((newSize: number) => {
+    setPageSize(newSize);
+    setPage(1); // Reset to first page when changing page size
+    
+    // Limpiar cache al cambiar pageSize
+    if (enableCache) {
+      cacheRef.current.clear();
+    }
+  }, [enableCache]);
+
+  // ==========================================
+  // FILTER ACTIONS
+  // ==========================================
+
+  const setSearch = useCallback((newSearch: string) => {
+    setSearchState(newSearch);
+    setPage(1); // Reset to first page when searching
+    
+    // Limpiar cache al buscar
+    if (enableCache) {
+      cacheRef.current.clear();
+    }
+  }, [enableCache]);
+
+  const setFilters = useCallback((newFilters: Record<string, any>) => {
+    setFiltersState(newFilters);
+    setPage(1); // Reset to first page when filtering
+    
+    // Limpiar cache al filtrar
+    if (enableCache) {
+      cacheRef.current.clear();
+    }
+  }, [enableCache]);
+
+  const setSorting = useCallback((newSortBy: string, newSortOrder: 'asc' | 'desc') => {
+    setSortByState(newSortBy);
+    setSortOrderState(newSortOrder);
+    setPage(1); // Reset to first page when sorting
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setSearchState('');
+    setFiltersState({});
+    setStatusFilter(undefined);
+    setPage(1);
+    
+    // Limpiar cache
+    if (enableCache) {
+      cacheRef.current.clear();
+    }
+  }, [enableCache]);
+
+  // ==========================================
+  // OTHER FUNCTIONS (mantener compatibilidad)
+  // ==========================================
 
   // 🔍 BUSCAR ÓRDENES
   const searchWorkOrders = useCallback(async (searchTerm: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/work-orders?search=${encodeURIComponent(searchTerm)}`);
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Error al buscar órdenes');
-      }
-
-      setWorkOrders(data.data);
-      return data.data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error en búsqueda', {
-        description: errorMessage,
-      });
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    setSearch(searchTerm);
+    return await fetchWorkOrders();
+  }, [setSearch, fetchWorkOrders]);
 
   // 📊 OBTENER ESTADÍSTICAS
   const fetchStats = useCallback(async () => {
@@ -198,15 +468,16 @@ export function useWorkOrders() {
     setError(null);
 
     try {
-      const response = await fetch('/api/work-orders?stats=true');
-      const data = await response.json();
+      const result = await safeFetch<{ success: boolean; data: WorkOrderStats }>('/api/work-orders?stats=true', { 
+        timeout: 30000 
+      });
 
-      if (!data.success) {
-        throw new Error(data.error || 'Error al obtener estadísticas');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Error al obtener estadísticas');
       }
 
-      setStats(data.data);
-      return data.data;
+      setStats(result.data.data);
+      return result.data.data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(errorMessage);
@@ -225,15 +496,16 @@ export function useWorkOrders() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/work-orders/${id}`);
-      const data = await response.json();
+      const result = await safeFetch<{ success: boolean; data: WorkOrder }>(`/api/work-orders/${id}`, { 
+        timeout: 30000 
+      });
 
-      if (!data.success) {
-        throw new Error(data.error || 'Error al obtener orden');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Error al obtener orden');
       }
 
-      setCurrentWorkOrder(data.data);
-      return data.data;
+      setCurrentWorkOrder(result.data.data);
+      return result.data.data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(errorMessage);
@@ -252,28 +524,29 @@ export function useWorkOrders() {
     setError(null);
 
     try {
-      const response = await fetch('/api/work-orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData),
-      });
+      const result = await safePost<{ success: boolean; data: WorkOrder }>(
+        '/api/work-orders',
+        orderData,
+        { timeout: 30000 }
+      );
 
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Error al crear orden');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Error al crear orden');
       }
 
       toast.success('Orden creada exitosamente', {
-        description: `Orden #${data.data.id.slice(0, 8)} ha sido creada`,
+        description: `Orden #${result.data.data.id.slice(0, 8)} ha sido creada`,
       });
+
+      // Limpiar cache
+      if (enableCache) {
+        cacheRef.current.clear();
+      }
 
       // Actualizar lista
       await fetchWorkOrders();
 
-      return data.data;
+      return result.data.data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(errorMessage);
@@ -284,7 +557,7 @@ export function useWorkOrders() {
     } finally {
       setLoading(false);
     }
-  }, [fetchWorkOrders]);
+  }, [fetchWorkOrders, enableCache]);
 
   // ✏️ ACTUALIZAR ORDEN
   const updateWorkOrder = useCallback(async (id: string, orderData: UpdateWorkOrderData) => {
@@ -292,28 +565,29 @@ export function useWorkOrders() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/work-orders/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData),
-      });
+      const result = await safePut<{ success: boolean; data: WorkOrder }>(
+        `/api/work-orders/${id}`,
+        orderData,
+        { timeout: 30000 }
+      );
 
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Error al actualizar orden');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Error al actualizar orden');
       }
 
       toast.success('Orden actualizada', {
         description: 'Los cambios han sido guardados',
       });
 
+      // Limpiar cache
+      if (enableCache) {
+        cacheRef.current.clear();
+      }
+
       // Actualizar lista
       await fetchWorkOrders();
 
-      return data.data;
+      return result.data.data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(errorMessage);
@@ -324,7 +598,7 @@ export function useWorkOrders() {
     } finally {
       setLoading(false);
     }
-  }, [fetchWorkOrders]);
+  }, [fetchWorkOrders, enableCache]);
 
   // 🗑️ ELIMINAR ORDEN
   const deleteWorkOrder = useCallback(async (id: string) => {
@@ -332,19 +606,22 @@ export function useWorkOrders() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/work-orders/${id}`, {
-        method: 'DELETE',
+      const result = await safeDelete(`/api/work-orders/${id}`, {
+        timeout: 30000
       });
 
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Error al eliminar orden');
+      if (!result.success) {
+        throw new Error(result.error || 'Error al eliminar orden');
       }
 
       toast.success('Orden eliminada', {
         description: 'La orden ha sido eliminada correctamente',
       });
+
+      // Limpiar cache
+      if (enableCache) {
+        cacheRef.current.clear();
+      }
 
       // Actualizar lista
       await fetchWorkOrders();
@@ -360,7 +637,7 @@ export function useWorkOrders() {
     } finally {
       setLoading(false);
     }
-  }, [fetchWorkOrders]);
+  }, [fetchWorkOrders, enableCache]);
 
   // 🔄 CAMBIAR ESTADO DE ORDEN
   const updateWorkOrderStatus = useCallback(async (id: string, status: WorkOrder['status']) => {
@@ -368,39 +645,43 @@ export function useWorkOrders() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/work-orders/${id}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status }),
-      });
+      const result = await safePut<{ success: boolean; data: WorkOrder }>(
+        `/api/work-orders/${id}/status`,
+        { status },
+        { timeout: 30000 }
+      );
 
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Error al cambiar estado');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Error al cambiar estado');
       }
 
-      const statusLabels = {
-        pending: 'Pendiente',
-        in_progress: 'En Progreso',
-        diagnosed: 'Diagnosticada',
-        approved: 'Aprobada',
-        in_repair: 'En Reparación',
+      const statusLabels: Record<string, string> = {
+        reception: 'Recepción',
+        diagnosis: 'Diagnóstico',
+        initial_quote: 'Cotización Inicial',
+        waiting_approval: 'Esperando Aprobación',
+        disassembly: 'Desmontaje',
         waiting_parts: 'Esperando Piezas',
+        assembly: 'Ensamblaje',
+        testing: 'Pruebas',
+        ready: 'Lista',
         completed: 'Completada',
-        delivered: 'Entregada',
+        cancelled: 'Cancelada',
       };
 
       toast.success('Estado actualizado', {
-        description: `Orden cambió a: ${statusLabels[status]}`,
+        description: `Orden cambió a: ${statusLabels[status] || status}`,
       });
+
+      // Limpiar cache
+      if (enableCache) {
+        cacheRef.current.clear();
+      }
 
       // Actualizar lista
       await fetchWorkOrders();
 
-      return data.data;
+      return result.data.data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(errorMessage);
@@ -411,7 +692,7 @@ export function useWorkOrders() {
     } finally {
       setLoading(false);
     }
-  }, [fetchWorkOrders]);
+  }, [fetchWorkOrders, enableCache]);
 
   // 💰 ACTUALIZAR DESCUENTO
   const updateDiscount = useCallback(async (id: string, discount: number) => {
@@ -419,18 +700,14 @@ export function useWorkOrders() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/work-orders/${id}/discount`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ discount }),
-      });
+      const result = await safePut<{ success: boolean; data: WorkOrder }>(
+        `/api/work-orders/${id}/discount`,
+        { discount },
+        { timeout: 30000 }
+      );
 
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Error al actualizar descuento');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Error al actualizar descuento');
       }
 
       toast.success('Descuento actualizado', {
@@ -439,13 +716,18 @@ export function useWorkOrders() {
 
       // Si tenemos la orden actual cargada, actualizarla
       if (currentWorkOrder?.id === id) {
-        setCurrentWorkOrder(data.data);
+        setCurrentWorkOrder(result.data.data);
+      }
+
+      // Limpiar cache
+      if (enableCache) {
+        cacheRef.current.clear();
       }
 
       // Actualizar lista
       await fetchWorkOrders();
 
-      return data.data;
+      return result.data.data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(errorMessage);
@@ -456,7 +738,7 @@ export function useWorkOrders() {
     } finally {
       setLoading(false);
     }
-  }, [currentWorkOrder, fetchWorkOrders]);
+  }, [currentWorkOrder, fetchWorkOrders, enableCache]);
 
   // 📦 OBTENER ITEMS DE UNA ORDEN
   const fetchOrderItems = useCallback(async (workOrderId: string) => {
@@ -464,14 +746,15 @@ export function useWorkOrders() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/work-orders/${workOrderId}/items`);
-      const data = await response.json();
+      const result = await safeFetch<WorkOrderItem[]>(`/api/work-orders/${workOrderId}/items`, { 
+        timeout: 30000 
+      });
 
-      if (!data.success) {
-        throw new Error(data.error || 'Error al obtener items');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Error al obtener items');
       }
 
-      return data.data;
+      return result.data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(errorMessage);
@@ -490,18 +773,14 @@ export function useWorkOrders() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/work-orders/${workOrderId}/items`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(itemData),
-      });
+      const result = await safePost<{ success: boolean; data: WorkOrderItem }>(
+        `/api/work-orders/${workOrderId}/items`,
+        itemData,
+        { timeout: 30000 }
+      );
 
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Error al agregar item');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Error al agregar item');
       }
 
       toast.success('Item agregado', {
@@ -513,7 +792,12 @@ export function useWorkOrders() {
         await fetchWorkOrderById(workOrderId);
       }
 
-      return data.data;
+      // Limpiar cache
+      if (enableCache) {
+        cacheRef.current.clear();
+      }
+
+      return result.data.data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(errorMessage);
@@ -524,7 +808,7 @@ export function useWorkOrders() {
     } finally {
       setLoading(false);
     }
-  }, [currentWorkOrder, fetchWorkOrderById]);
+  }, [currentWorkOrder, fetchWorkOrderById, enableCache]);
 
   // ✏️ ACTUALIZAR ITEM
   const updateOrderItem = useCallback(async (
@@ -536,18 +820,14 @@ export function useWorkOrders() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/work-orders/${workOrderId}/items/${itemId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(itemData),
-      });
+      const result = await safePut<{ success: boolean; data: WorkOrderItem }>(
+        `/api/work-orders/${workOrderId}/items/${itemId}`,
+        itemData,
+        { timeout: 30000 }
+      );
 
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Error al actualizar item');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Error al actualizar item');
       }
 
       toast.success('Item actualizado', {
@@ -559,7 +839,12 @@ export function useWorkOrders() {
         await fetchWorkOrderById(workOrderId);
       }
 
-      return data.data;
+      // Limpiar cache
+      if (enableCache) {
+        cacheRef.current.clear();
+      }
+
+      return result.data.data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(errorMessage);
@@ -570,7 +855,7 @@ export function useWorkOrders() {
     } finally {
       setLoading(false);
     }
-  }, [currentWorkOrder, fetchWorkOrderById]);
+  }, [currentWorkOrder, fetchWorkOrderById, enableCache]);
 
   // 🗑️ ELIMINAR ITEM
   const deleteOrderItem = useCallback(async (workOrderId: string, itemId: string) => {
@@ -578,14 +863,12 @@ export function useWorkOrders() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/work-orders/${workOrderId}/items/${itemId}`, {
-        method: 'DELETE',
+      const result = await safeDelete(`/api/work-orders/${workOrderId}/items/${itemId}`, {
+        timeout: 30000
       });
 
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Error al eliminar item');
+      if (!result.success) {
+        throw new Error(result.error || 'Error al eliminar item');
       }
 
       toast.success('Item eliminado', {
@@ -595,6 +878,11 @@ export function useWorkOrders() {
       // Recargar orden actual si es la misma
       if (currentWorkOrder?.id === workOrderId) {
         await fetchWorkOrderById(workOrderId);
+      }
+
+      // Limpiar cache
+      if (enableCache) {
+        cacheRef.current.clear();
       }
 
       return true;
@@ -608,7 +896,7 @@ export function useWorkOrders() {
     } finally {
       setLoading(false);
     }
-  }, [currentWorkOrder, fetchWorkOrderById]);
+  }, [currentWorkOrder, fetchWorkOrderById, enableCache]);
 
   // 👤 OBTENER ÓRDENES POR CLIENTE
   const fetchWorkOrdersByCustomer = useCallback(async (customerId: string) => {
@@ -616,14 +904,16 @@ export function useWorkOrders() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/work-orders/customer/${customerId}`);
-      const data = await response.json();
+      const result = await safeFetch<{ success: boolean; data: WorkOrder[] }>(
+        `/api/work-orders/customer/${customerId}`,
+        { timeout: 30000 }
+      );
 
-      if (!data.success) {
-        throw new Error(data.error || 'Error al obtener órdenes');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Error al obtener órdenes');
       }
 
-      return data.data;
+      return result.data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(errorMessage);
@@ -642,14 +932,16 @@ export function useWorkOrders() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/work-orders/vehicle/${vehicleId}`);
-      const data = await response.json();
+      const result = await safeFetch<{ success: boolean; data: WorkOrder[] }>(
+        `/api/work-orders/vehicle/${vehicleId}`,
+        { timeout: 30000 }
+      );
 
-      if (!data.success) {
-        throw new Error(data.error || 'Error al obtener órdenes');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Error al obtener órdenes');
       }
 
-      return data.data;
+      return result.data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(errorMessage);
@@ -680,14 +972,14 @@ export function useWorkOrders() {
       
       // ✅ Usar API routes en lugar de queries directas desde el cliente
       const [ordersRes, customersRes, vehiclesRes] = await Promise.all([
-        // Cargar órdenes desde API
-        fetch('/api/work-orders', {
+        // Cargar órdenes desde API (sin paginación para Kanban - todas las órdenes)
+        fetch('/api/work-orders?page=1&pageSize=1000', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
         }),
         // Cargar clientes desde API
-        fetch('/api/customers', {
+        fetch('/api/customers?page=1&pageSize=1000', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
@@ -706,7 +998,9 @@ export function useWorkOrders() {
         throw new Error(errorData.error || 'Error al cargar órdenes');
       }
       const ordersResult = await ordersRes.json();
-      const ordersData = ordersResult.success ? ordersResult.data : [];
+      const ordersData = ordersResult.success 
+        ? (ordersResult.data?.items || ordersResult.data || [])
+        : [];
 
       // Procesar respuesta de clientes
       if (!customersRes.ok) {
@@ -714,7 +1008,9 @@ export function useWorkOrders() {
         throw new Error(errorData.error || 'Error al cargar clientes');
       }
       const customersResult = await customersRes.json();
-      const customersData = customersResult.success ? customersResult.data : [];
+      const customersData = customersResult.success 
+        ? (customersResult.data?.items || customersResult.data || [])
+        : [];
 
       // Procesar respuesta de vehículos
       if (!vehiclesRes.ok) {
@@ -722,12 +1018,12 @@ export function useWorkOrders() {
         throw new Error(errorData.error || 'Error al cargar vehículos');
       }
       const vehiclesResult = await vehiclesRes.json();
-      const vehiclesData = vehiclesResult.success ? vehiclesResult.data : [];
+      const vehiclesData = vehiclesResult.success 
+        ? (vehiclesResult.data?.items || vehiclesResult.data || [])
+        : [];
 
       console.log('✅ Órdenes cargadas:', ordersData?.length || 0);
       console.log('✅ Clientes cargados:', customersData?.length || 0);
-      console.log('✅ Vehículos cargados:', vehiclesData?.length || 0);
-
       console.log('✅ Vehículos cargados:', vehiclesData?.length || 0);
 
       // Actualizar estados
@@ -764,29 +1060,39 @@ export function useWorkOrders() {
 
     try {
       // ✅ Usar API route en lugar de query directa
-      const response = await fetch(`/api/work-orders/${orderId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const result = await safePut<{ success: boolean }>(
+        `/api/work-orders/${orderId}`,
+        {
           status: newStatus,
           updated_at: new Date().toISOString(),
-        }),
-      });
+        },
+        { timeout: 30000 }
+      );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al actualizar estado');
+      if (!result.success) {
+        throw new Error(result.error || 'Error al actualizar estado');
       }
 
-      const result = await response.json();
+      // Limpiar cache
+      if (enableCache) {
+        cacheRef.current.clear();
+      }
+
       return { success: result.success };
     } catch (error: any) {
       console.error('Error updating order status:', error);
       throw error;
     }
-  }, [organizationId]);
+  }, [organizationId, enableCache]);
+
+  // 🔄 REFRESH
+  const refresh = useCallback(async () => {
+    await fetchWorkOrders();
+  }, [fetchWorkOrders]);
+
+  // ==========================================
+  // RETURN
+  // ==========================================
 
   return {
     // Estado
@@ -797,6 +1103,23 @@ export function useWorkOrders() {
     stats,
     loading,
     error,
+
+    // Paginación
+    pagination,
+
+    // Navigation Actions
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    goToFirstPage,
+    goToLastPage,
+    changePageSize,
+
+    // Filter Actions
+    setSearch,
+    setFilters,
+    setSorting,
+    clearFilters,
 
     // Operaciones de órdenes
     fetchWorkOrders,
@@ -825,5 +1148,6 @@ export function useWorkOrders() {
 
     // Utilidades
     setCurrentWorkOrder,
+    refresh,
   };
 }

@@ -2,6 +2,35 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createWorkOrder, getWorkOrderStats } from '@/lib/database/queries/work-orders';
 import { createClientFromRequest } from '@/lib/supabase/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
+import { 
+  extractPaginationFromURL, 
+  calculateOffset, 
+  generatePaginationMeta 
+} from '@/lib/utils/pagination';
+import type { PaginatedResponse } from '@/types/pagination';
+
+// ✅ Función helper para retry logic
+async function retryQuery<T>(
+  queryFn: () => Promise<T>,
+  maxRetries = 2,
+  delayMs = 500
+): Promise<T> {
+  let lastError: any;
+  
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      return await queryFn();
+    } catch (error) {
+      lastError = error;
+      if (i < maxRetries) {
+        console.warn(`⚠️ [Retry] Intento ${i + 1} falló, reintentando en ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  
+  throw lastError;
+}
 
 /**
  * @swagger
@@ -73,7 +102,8 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server';
 // GET: Obtener todas las órdenes o buscar
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const url = new URL(request.url);
+    const { searchParams } = url;
     const search = searchParams.get('search');
     const status = searchParams.get('status');
     const stats = searchParams.get('stats');
@@ -86,6 +116,18 @@ export async function GET(request: NextRequest) {
         data: statistics,
       });
     }
+
+    // ✅ Extraer parámetros de paginación
+    const { page, pageSize, sortBy, sortOrder } = extractPaginationFromURL(url);
+    
+    console.log('📄 [GET /api/work-orders] Parámetros de paginación:', {
+      page,
+      pageSize,
+      sortBy,
+      sortOrder,
+      search,
+      status
+    });
 
     // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
     const supabase = createClientFromRequest(request);
@@ -218,61 +260,132 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    // ✅ Usar Service Role Client directamente para queries (bypass RLS)
-    // search y status ya están declarados arriba (líneas 77-78)
-
-    let query = supabaseAdmin
-      .from('work_orders')
-      .select(`
-        *,
-        customer:customers(
-          id,
-          name,
-          email,
-          phone
-        ),
-        vehicle:vehicles(
-          id,
-          brand,
-          model,
-          year,
-          license_plate
-        )
-      `)
-      .eq('organization_id', organizationId);
+    // ✅ Helper para crear timeout promise
+    const createTimeoutPromise = () => new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Query timeout después de 10 segundos')), 10000);
+    });
     
-    // ✅ Si es mecánico, filtrar solo órdenes asignadas a él
-    if (userRole === 'MECANICO' && assignedEmployeeId) {
-      console.log(`[GET /api/work-orders] 🔍 Filtrando órdenes por assigned_to: ${assignedEmployeeId}`);
-      query = query.eq('assigned_to', assignedEmployeeId);
-    } else if (userRole === 'MECANICO' && !assignedEmployeeId) {
-      console.log(`[GET /api/work-orders] ⚠️ Mecánico sin assignedEmployeeId, no se pueden mostrar órdenes`);
+    // ✅ Construir y ejecutar query con paginación
+    let orders, count, ordersError;
+    
+    try {
+      const queryPromise = retryQuery(async () => {
+        console.log('🔍 [GET /api/work-orders] Construyendo query paginada...');
+        
+        // Base query
+        let query = supabaseAdmin
+          .from('work_orders')
+          .select(`
+            *,
+            customer:customers(
+              id,
+              name,
+              email,
+              phone
+            ),
+            vehicle:vehicles(
+              id,
+              brand,
+              model,
+              year,
+              license_plate
+            )
+          `, { count: 'exact' }) // ✅ IMPORTANTE: count para paginación
+          .eq('organization_id', organizationId);
+        
+        // ✅ Si es mecánico, filtrar solo órdenes asignadas a él
+        if (userRole === 'MECANICO' && assignedEmployeeId) {
+          console.log(`[GET /api/work-orders] 🔍 Filtrando órdenes por assigned_to: ${assignedEmployeeId}`);
+          query = query.eq('assigned_to', assignedEmployeeId);
+        } else if (userRole === 'MECANICO' && !assignedEmployeeId) {
+          console.log(`[GET /api/work-orders] ⚠️ Mecánico sin assignedEmployeeId, no se pueden mostrar órdenes`);
+        }
+
+        // ✅ Filtros
+        if (search) {
+          query = query.or(`id.ilike.%${search}%,description.ilike.%${search}%,notes.ilike.%${search}%`);
+        }
+
+        if (status) {
+          query = query.eq('status', status);
+        }
+        
+        // ✅ Ordenamiento
+        const orderColumn = sortBy || 'created_at';
+        const orderDirection = sortOrder === 'asc';
+        query = query.order(orderColumn, { ascending: orderDirection });
+        
+        // ✅ Paginación - CLAVE PARA PERFORMANCE
+        const offset = calculateOffset(page, pageSize);
+        query = query.range(offset, offset + pageSize - 1);
+        
+        console.log('🔍 [GET /api/work-orders] Query configurada:', {
+          offset,
+          limit: pageSize,
+          orderBy: `${orderColumn} ${orderDirection ? 'ASC' : 'DESC'}`
+        });
+        
+        // Ejecutar query
+        const result = await query;
+        
+        console.log('✅ [GET /api/work-orders] Query ejecutada:', {
+          itemsReturned: result.data?.length || 0,
+          totalCount: result.count,
+          hasError: !!result.error
+        });
+        
+        return result;
+      }, 2, 500);
+      
+      // Race entre query y timeout
+      const result = await Promise.race([queryPromise, createTimeoutPromise()]) as any;
+      
+      if (result && typeof result === 'object' && 'data' in result) {
+        orders = result.data;
+        count = result.count;
+        ordersError = result.error;
+      } else {
+        throw new Error('Resultado inesperado de la query');
+      }
+      
+    } catch (retryError: any) {
+      console.error('❌ [GET /api/work-orders] Falló después de reintentos:', retryError);
+      
+      // Si es timeout, retornar error específico
+      if (retryError?.message?.includes('timeout')) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'La consulta tardó demasiado. Por favor, intenta de nuevo.' 
+        }, { status: 504 });
+      }
+      
+      ordersError = retryError;
+      orders = null;
+      count = null;
     }
 
-    if (search) {
-      query = query.or(`id.ilike.%${search}%,description.ilike.%${search}%`);
-    }
-
-    if (status) {
-      query = query.eq('status', status);
-    }
-
-    query = query.order('created_at', { ascending: false });
-
-    const { data: orders, error: ordersError } = await query;
-
+    // ✅ Manejar errores
     if (ordersError) {
-      console.error('[GET /api/work-orders] ❌ Error en query:', ordersError);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Error al obtener órdenes de trabajo',
-          data: []
-        },
-        { status: 500 }
-      );
+      console.error('❌ [GET /api/work-orders] Error en query:', ordersError);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Error al obtener órdenes de trabajo' 
+      }, { status: 500 });
     }
 
+    if (!orders) {
+      console.warn('⚠️ [GET /api/work-orders] No se obtuvieron órdenes');
+      orders = [];
+    }
+    
+    // ✅ Generar metadata de paginación
+    const pagination = generatePaginationMeta(page, pageSize, count || 0);
+    
+    console.log('✅ [GET /api/work-orders] Respuesta preparada:', {
+      itemsCount: orders.length,
+      pagination
+    });
+    
     // ✅ DEBUG: Log para mecánicos
     if (userRole === 'MECANICO') {
       console.log(`[GET /api/work-orders] 📊 Órdenes encontradas para mecánico: ${orders?.length || 0}`);
@@ -283,28 +396,21 @@ export async function GET(request: NextRequest) {
           status: o.status,
           customer: o.customer?.name
         })));
-      } else {
-        // ✅ DEBUG: Verificar si hay órdenes sin assigned_to o con otro assigned_to
-        const { data: allOrders, error: allOrdersError } = await supabaseAdmin
-          .from('work_orders')
-          .select('id, assigned_to, status, customer:customers(name)')
-          .eq('organization_id', organizationId)
-          .limit(10);
-        
-        console.log(`[GET /api/work-orders] 🔍 Todas las órdenes en la organización (primeras 10):`, allOrders);
-        console.log(`[GET /api/work-orders] 🔍 assignedEmployeeId buscado:`, assignedEmployeeId);
       }
     }
 
-    // ✅ DEBUG: Incluir información de debug en la respuesta para mecánicos
-    const responseData: any = {
+    // ✅ Retornar respuesta paginada
+    const response: PaginatedResponse<any> = {
       success: true,
-      data: orders || [],
-      count: orders?.length || 0,
+      data: {
+        items: orders,
+        pagination
+      }
     };
 
-    if (userRole === 'MECANICO') {
-      responseData.debug = {
+    // ✅ DEBUG: Incluir información de debug en la respuesta para mecánicos (solo en desarrollo)
+    if (userRole === 'MECANICO' && process.env.NODE_ENV === 'development') {
+      (response as any).debug = {
         userRole,
         userEmail: user.email,
         assignedEmployeeId,
@@ -314,7 +420,7 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    return NextResponse.json(responseData);
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Error fetching work orders:', error);
     return NextResponse.json(
