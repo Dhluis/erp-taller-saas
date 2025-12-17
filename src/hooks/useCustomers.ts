@@ -1,309 +1,432 @@
-'use client';
+/**
+ * useCustomers Hook con Paginación
+ * Eagles ERP - Hook para gestión de clientes con paginación completa
+ */
 
-import { useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner';
-import { safeFetch, safePost, safePut, safeDelete } from '@/lib/api';
-import { useOrganization } from '@/lib/context/SessionContext';
-import type { Customer } from '@/lib/database/queries/customers';
+'use client'
 
-// API Response Types
-interface CustomersResponse {
-  success: boolean;
-  data: Customer[];
-  error?: string;
-}
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { toast } from 'sonner'
+import { safeFetch, safePost, safePut, safeDelete } from '@/lib/api'
+import { useOrganization } from '@/lib/context/SessionContext'
+import type { Customer } from '@/lib/database/queries/customers'
+import type { PaginatedResponse, SearchParams } from '@/types/pagination'
+import { buildPaginationQueryString } from '@/lib/utils/pagination'
 
-interface CustomerResponse {
-  success: boolean;
-  data: Customer;
-  error?: string;
+// ==========================================
+// TYPES
+// ==========================================
+
+interface UseCustomersOptions extends Partial<SearchParams> {
+  autoLoad?: boolean // Si debe cargar automáticamente al montar
+  enableCache?: boolean // Habilitar cache simple
 }
 
 interface UseCustomersReturn {
-  customers: Customer[];
-  loading: boolean;
-  error: string | null;
-  createCustomer: (data: Omit<Customer, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
-  updateCustomer: (id: string, data: Partial<Customer>) => Promise<void>;
-  deleteCustomer: (id: string) => Promise<boolean>;
-  refreshCustomers: () => Promise<void>;
+  // Data
+  customers: Customer[]
+  loading: boolean
+  error: string | null
+  
+  // Pagination
+  pagination: {
+    page: number
+    pageSize: number
+    total: number
+    totalPages: number
+    hasNextPage: boolean
+    hasPreviousPage: boolean
+  }
+  
+  // Navigation Actions
+  goToPage: (page: number) => void
+  goToNextPage: () => void
+  goToPreviousPage: () => void
+  goToFirstPage: () => void
+  goToLastPage: () => void
+  changePageSize: (size: number) => void
+  
+  // Filter Actions
+  setSearch: (search: string) => void
+  setFilters: (filters: Record<string, any>) => void
+  setSorting: (sortBy: string, sortOrder: 'asc' | 'desc') => void
+  clearFilters: () => void
+  
+  // CRUD Actions
+  refresh: () => Promise<void>
+  createCustomer: (data: Omit<Customer, 'id' | 'created_at' | 'updated_at'>) => Promise<Customer>
+  updateCustomer: (id: string, data: Partial<Customer>) => Promise<Customer>
+  deleteCustomer: (id: string) => Promise<boolean>
 }
 
-export function useCustomers(): UseCustomersReturn {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { organizationId, ready } = useOrganization(); // ✅ FIX: Obtener organizationId y ready
+// ==========================================
+// HOOK
+// ==========================================
 
+export function useCustomers(options: UseCustomersOptions = {}): UseCustomersReturn {
+  const {
+    page: initialPage = 1,
+    pageSize: initialPageSize = 20,
+    search: initialSearch = '',
+    filters: initialFilters = {},
+    sortBy: initialSortBy = 'created_at',
+    sortOrder: initialSortOrder = 'desc',
+    autoLoad = true,
+    enableCache = false
+  } = options
+
+  // ==========================================
+  // STATE
+  // ==========================================
+  
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
+  // Pagination state
+  const [page, setPage] = useState(initialPage)
+  const [pageSize, setPageSize] = useState(initialPageSize)
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPreviousPage: false
+  })
+  
+  // Filter state
+  const [search, setSearchState] = useState(initialSearch)
+  const [filters, setFiltersState] = useState(initialFilters)
+  const [sortBy, setSortByState] = useState(initialSortBy)
+  const [sortOrder, setSortOrderState] = useState<'asc' | 'desc'>(initialSortOrder)
+  
+  // Context
+  const { organizationId, ready } = useOrganization()
+  
+  // Refs
+  const isFetching = useRef(false)
+  const cacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map())
+
+  // ==========================================
+  // FETCH FUNCTION
+  // ==========================================
+  
   const fetchCustomers = useCallback(async () => {
-    // ✅ FIX: Solo cargar si organizationId está ready
+    // Guard: No fetch si no está ready
     if (!organizationId || !ready) {
-      console.log('⏳ [useCustomers] Esperando a que organizationId esté ready...', { organizationId: !!organizationId, ready });
-      setLoading(false);
-      setCustomers([]); // Limpiar clientes mientras espera
-      return [];
+      console.log('⏳ [useCustomers] Esperando organizationId...')
+      setCustomers([])
+      setLoading(false)
+      return
+    }
+
+    // Guard: Prevenir fetch múltiples simultáneos
+    if (isFetching.current) {
+      console.log('⏸️ [useCustomers] Fetch ya en progreso, ignorando...')
+      return
     }
 
     try {
-      setLoading(true);
-      setError(null);
-      
-      console.log('🔄 [useCustomers] Cargando clientes para organizationId:', organizationId);
-      
-      // ✅ FIX: Forzar sin cache agregando timestamp
-      const result = await safeFetch<CustomersResponse>(`/api/customers?_t=${Date.now()}`, {
+      isFetching.current = true
+      setLoading(true)
+      setError(null)
+
+      // Construir query params
+      const queryString = buildPaginationQueryString({
+        page,
+        pageSize,
+        sortBy,
+        sortOrder,
+        search: search || undefined,
+        filters
+      })
+
+      const url = `/api/customers?${queryString}`
+      console.log('🔄 [useCustomers] Fetching:', url)
+
+      // Check cache
+      if (enableCache) {
+        const cached = cacheRef.current.get(url)
+        const cacheAge = cached ? Date.now() - cached.timestamp : Infinity
+        
+        // Cache válido por 30 segundos
+        if (cached && cacheAge < 30000) {
+          console.log('💾 [useCustomers] Usando cache')
+          const responseData = cached.data.data || cached.data
+          setCustomers(responseData.items || [])
+          setPagination(responseData.pagination)
+          setLoading(false)
+          isFetching.current = false
+          return
+        }
+      }
+
+      // Fetch
+      const result = await safeFetch<PaginatedResponse<Customer>>(url, { 
         timeout: 30000,
         headers: {
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'no-cache'
         }
-      });
-      
-      console.log('🔍 [useCustomers] Resultado de safeFetch:', {
-        success: result.success,
-        hasData: !!result.data,
-        dataType: typeof result.data,
-        dataKeys: result.data ? Object.keys(result.data) : [],
-        error: result.error,
-        status: result.status,
-        statusText: result.statusText,
-        // Log completo del data para diagnóstico
-        dataPreview: result.data ? JSON.stringify(result.data).substring(0, 200) : null
-      });
-      
-      if (!result.success) {
-        console.error('❌ [useCustomers] Error en safeFetch:', result.error);
-        setError(result.error || 'Error al cargar clientes');
-        toast.error('Error al cargar clientes', {
-          description: result.error || 'No se pudieron cargar los clientes'
-        });
-        return [];
+      })
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Error al cargar clientes')
       }
-      
-      // ✅ FIX: Manejar ambos formatos de respuesta
-      // La API devuelve { success: true, data: [...] }
-      // safeFetch devuelve el JSON parseado directamente en result.data
-      let customersData: Customer[] = [];
-      
-      if (!result.data) {
-        console.error('❌ [useCustomers] result.data es null o undefined');
-        setError('No se recibieron datos de la API');
-        return [];
+
+      // Extraer datos
+      const responseData = result.data.data || result.data
+      const items = responseData.items || []
+      const paginationData = responseData.pagination
+
+      // Actualizar state
+      setCustomers(items)
+      setPagination(paginationData)
+
+      // Guardar en cache
+      if (enableCache) {
+        cacheRef.current.set(url, {
+          data: result.data,
+          timestamp: Date.now()
+        })
       }
-      
-      // Si result.data tiene la estructura { success: true, data: [...] }
-      if (typeof result.data === 'object' && 'success' in result.data) {
-        const apiResponse = result.data as CustomersResponse;
-        if (apiResponse.success && apiResponse.data) {
-          customersData = apiResponse.data;
-          console.log('✅ [useCustomers] Clientes desde result.data.data (formato API estándar):', customersData.length);
-        } else {
-          console.error('❌ [useCustomers] API devolvió success:false:', apiResponse.error);
-          setError(apiResponse.error || 'Error al obtener clientes');
-          return [];
-        }
-      } 
-      // Si result.data es directamente un array (formato alternativo)
-      else if (Array.isArray(result.data)) {
-        customersData = result.data;
-        console.log('✅ [useCustomers] Clientes desde result.data (array directo):', customersData.length);
-      }
-      // Si result.data tiene data dentro (formato anidado)
-      else if (typeof result.data === 'object' && 'data' in result.data && Array.isArray((result.data as any).data)) {
-        customersData = (result.data as any).data;
-        console.log('✅ [useCustomers] Clientes desde result.data.data (nested):', customersData.length);
-      }
-      else {
-        console.error('❌ [useCustomers] Formato de respuesta inesperado:', {
-          dataType: typeof result.data,
-          isObject: typeof result.data === 'object',
-          hasSuccess: result.data && typeof result.data === 'object' && 'success' in result.data,
-          hasData: result.data && typeof result.data === 'object' && 'data' in result.data,
-          isArray: Array.isArray(result.data),
-          data: result.data
-        });
-        setError('Formato de respuesta inesperado de la API');
-        return [];
-      }
-      
-      console.log('✅ [useCustomers] Clientes cargados:', customersData.length);
-      console.log('✅ [useCustomers] OrganizationId esperado:', organizationId);
-      console.log('✅ [useCustomers] Primeros clientes con organization_id:', customersData.slice(0, 3).map(c => ({ 
-        id: c.id, 
-        name: c.name, 
-        org_id: (c as any).organization_id,
-        matches: (c as any).organization_id === organizationId
-      })));
-      console.log('✅ [useCustomers] Todos los organization_id únicos en los clientes:', 
-        [...new Set(customersData.map((c: any) => c.organization_id))]);
-      
-      // ✅ FIX: Filtrar solo clientes de la organización actual (por seguridad)
-      const filteredCustomers = customersData.filter((c: any) => {
-        const customerOrgId = c.organization_id;
-        // ✅ Normalizar ambos valores para comparación (trim y convertir a string)
-        const normalizedCustomerOrgId = customerOrgId ? String(customerOrgId).trim() : null;
-        const normalizedExpectedOrgId = organizationId ? String(organizationId).trim() : null;
-        const matches = normalizedCustomerOrgId === normalizedExpectedOrgId;
-        
-        if (!matches) {
-          console.warn('⚠️ [useCustomers] Cliente con organization_id diferente encontrado:', {
-            customer_id: c.id,
-            customer_name: c.name,
-            customer_org_id: customerOrgId,
-            customer_org_id_normalized: normalizedCustomerOrgId,
-            expected_org_id: organizationId,
-            expected_org_id_normalized: normalizedExpectedOrgId,
-            customer_org_id_type: typeof customerOrgId,
-            expected_org_id_type: typeof organizationId,
-            areEqual: customerOrgId === organizationId,
-            areEqualAfterNormalization: normalizedCustomerOrgId === normalizedExpectedOrgId
-          });
-        }
-        return matches;
-      });
-      
-      console.log('✅ [useCustomers] Clientes filtrados por organizationId:', filteredCustomers.length);
-      setCustomers(filteredCustomers);
-      return filteredCustomers;
+
+      console.log('✅ [useCustomers] Clientes cargados:', {
+        items: items.length,
+        page: paginationData.page,
+        total: paginationData.total
+      })
+
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al cargar clientes', {
-        description: errorMessage
-      });
-      console.error('Error fetching customers:', err);
-      return [];
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      setError(errorMessage)
+      toast.error('Error al cargar clientes', { description: errorMessage })
+      console.error('❌ [useCustomers] Error:', err)
     } finally {
-      setLoading(false);
+      setLoading(false)
+      isFetching.current = false
     }
-  }, [organizationId, ready]); // ✅ FIX: Agregar organizationId y ready a las dependencias
+  }, [organizationId, ready, page, pageSize, search, filters, sortBy, sortOrder, enableCache])
+
+  // ==========================================
+  // NAVIGATION ACTIONS
+  // ==========================================
+
+  const goToPage = useCallback((newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages && newPage !== page) {
+      setPage(newPage)
+    }
+  }, [pagination.totalPages, page])
+
+  const goToNextPage = useCallback(() => {
+    if (pagination.hasNextPage) {
+      setPage(p => p + 1)
+    }
+  }, [pagination.hasNextPage])
+
+  const goToPreviousPage = useCallback(() => {
+    if (pagination.hasPreviousPage) {
+      setPage(p => Math.max(1, p - 1))
+    }
+  }, [pagination.hasPreviousPage])
+
+  const goToFirstPage = useCallback(() => {
+    setPage(1)
+  }, [])
+
+  const goToLastPage = useCallback(() => {
+    setPage(pagination.totalPages)
+  }, [pagination.totalPages])
+
+  const changePageSize = useCallback((newSize: number) => {
+    setPageSize(newSize)
+    setPage(1) // Reset to first page when changing page size
+    
+    // Limpiar cache al cambiar pageSize
+    if (enableCache) {
+      cacheRef.current.clear()
+    }
+  }, [enableCache])
+
+  // ==========================================
+  // FILTER ACTIONS
+  // ==========================================
+
+  const setSearch = useCallback((newSearch: string) => {
+    setSearchState(newSearch)
+    setPage(1) // Reset to first page when searching
+    
+    // Limpiar cache al buscar
+    if (enableCache) {
+      cacheRef.current.clear()
+    }
+  }, [enableCache])
+
+  const setFilters = useCallback((newFilters: Record<string, any>) => {
+    setFiltersState(newFilters)
+    setPage(1) // Reset to first page when filtering
+    
+    // Limpiar cache al filtrar
+    if (enableCache) {
+      cacheRef.current.clear()
+    }
+  }, [enableCache])
+
+  const setSorting = useCallback((newSortBy: string, newSortOrder: 'asc' | 'desc') => {
+    setSortByState(newSortBy)
+    setSortOrderState(newSortOrder)
+    setPage(1) // Reset to first page when sorting
+  }, [])
+
+  const clearFilters = useCallback(() => {
+    setSearchState('')
+    setFiltersState({})
+    setPage(1)
+    
+    // Limpiar cache
+    if (enableCache) {
+      cacheRef.current.clear()
+    }
+  }, [enableCache])
+
+  // ==========================================
+  // CRUD ACTIONS
+  // ==========================================
 
   const createCustomer = useCallback(async (data: Omit<Customer, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const result = await safePost<CustomerResponse>('/api/customers', data, {
-        timeout: 30000
-      });
+      const result = await safePost<{ success: boolean; data: Customer }>(
+        '/api/customers',
+        data,
+        { timeout: 30000 }
+      )
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Error al crear cliente')
+      }
+
+      toast.success('Cliente creado correctamente')
       
-      if (!result.success) {
-        setError(result.error || 'Error al crear cliente');
-        toast.error('Error al crear cliente', {
-          description: result.error || 'No se pudo crear el cliente'
-        });
-        return;
+      // Limpiar cache
+      if (enableCache) {
+        cacheRef.current.clear()
       }
       
-      if (result.data?.success) {
-        await fetchCustomers(); // Recargar lista
-        toast.success('Cliente creado correctamente');
-        return result.data.data;
-      } else {
-        throw new Error(result.data?.error || 'Error al crear cliente');
-      }
+      // Refresh list
+      await fetchCustomers()
+
+      return result.data.data
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al crear cliente', {
-        description: errorMessage
-      });
-      throw err;
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      toast.error('Error al crear cliente', { description: errorMessage })
+      throw err
     }
-  }, [fetchCustomers]);
+  }, [fetchCustomers, enableCache])
 
   const updateCustomer = useCallback(async (id: string, data: Partial<Customer>) => {
     try {
-      const result = await safePut<CustomerResponse>(`/api/customers/${id}`, data, {
-        timeout: 30000
-      });
-      
-      if (!result.success) {
-        setError(result.error || 'Error al actualizar cliente');
-        toast.error('Error al actualizar cliente', {
-          description: result.error || 'No se pudo actualizar el cliente'
-        });
-        return;
+      // Optimistic update
+      setCustomers(prev =>
+        prev.map(c => c.id === id ? { ...c, ...data } : c)
+      )
+
+      const result = await safePut<{ success: boolean; data: Customer }>(
+        `/api/customers/${id}`,
+        data,
+        { timeout: 30000 }
+      )
+
+      if (!result.success || !result.data) {
+        // Revert on error
+        await fetchCustomers()
+        throw new Error(result.error || 'Error al actualizar cliente')
       }
+
+      toast.success('Cliente actualizado correctamente')
       
-      if (result.data?.success) {
-        await fetchCustomers(); // Recargar lista
-        toast.success('Cliente actualizado correctamente');
-        return result.data.data;
-      } else {
-        throw new Error(result.data?.error || 'Error al actualizar cliente');
+      // Limpiar cache
+      if (enableCache) {
+        cacheRef.current.clear()
       }
+
+      return result.data.data
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al actualizar cliente', {
-        description: errorMessage
-      });
-      throw err;
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      toast.error('Error al actualizar cliente', { description: errorMessage })
+      throw err
     }
-  }, [fetchCustomers]);
+  }, [fetchCustomers, enableCache])
 
   const deleteCustomer = useCallback(async (id: string) => {
     try {
       const result = await safeDelete(`/api/customers/${id}`, {
         timeout: 30000
-      });
-      
+      })
+
       if (!result.success) {
-        setError(result.error || 'Error al eliminar cliente');
-        toast.error('Error al eliminar cliente', {
-          description: result.error || 'No se pudo eliminar el cliente'
-        });
-        return;
+        throw new Error(result.error || 'Error al eliminar cliente')
+      }
+
+      toast.success('Cliente eliminado correctamente')
+      
+      // Limpiar cache
+      if (enableCache) {
+        cacheRef.current.clear()
       }
       
-      await fetchCustomers(); // Recargar lista
-      toast.success('Cliente eliminado correctamente');
-      return true;
+      // Refresh list
+      await fetchCustomers()
+      
+      return true
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al eliminar cliente', {
-        description: errorMessage
-      });
-      throw err;
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      toast.error('Error al eliminar cliente', { description: errorMessage })
+      throw err
     }
-  }, [fetchCustomers]);
+  }, [fetchCustomers, enableCache])
 
-  const refreshCustomers = useCallback(async () => {
-    await fetchCustomers();
-  }, [fetchCustomers]);
+  // ==========================================
+  // EFFECTS
+  // ==========================================
 
-  // ✅ FIX: Solo cargar cuando organizationId esté ready
+  // Auto-load on mount and when params change
   useEffect(() => {
-    console.log('🔄 [useCustomers] useEffect ejecutado:', {
-      ready,
-      organizationId: !!organizationId,
-      organizationIdValue: organizationId,
-      fetchCustomersExists: !!fetchCustomers
-    });
-    
-    if (ready && organizationId) {
-      console.log('✅ [useCustomers] Condiciones cumplidas, llamando fetchCustomers...');
-      // ✅ FIX: Limpiar clientes anteriores antes de cargar nuevos
-      setCustomers([]);
-      fetchCustomers();
-    } else {
-      console.log('⏳ [useCustomers] Esperando a que organizationId esté ready...', { 
-        ready, 
-        organizationId: !!organizationId,
-        organizationIdValue: organizationId 
-      });
-      // Limpiar clientes si organizationId cambia
-      setCustomers([]);
-      setLoading(false);
+    if (autoLoad && ready && organizationId) {
+      fetchCustomers()
     }
-  }, [ready, organizationId, fetchCustomers]);
+  }, [autoLoad, ready, organizationId, fetchCustomers])
+
+  // ==========================================
+  // RETURN
+  // ==========================================
 
   return {
+    // Data
     customers,
     loading,
     error,
+    
+    // Pagination
+    pagination,
+    
+    // Navigation
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    goToFirstPage,
+    goToLastPage,
+    changePageSize,
+    
+    // Filters
+    setSearch,
+    setFilters,
+    setSorting,
+    clearFilters,
+    
+    // CRUD
+    refresh: fetchCustomers,
     createCustomer,
     updateCustomer,
-    deleteCustomer,
-    refreshCustomers,
-  };
+    deleteCustomer
+  }
 }
-
