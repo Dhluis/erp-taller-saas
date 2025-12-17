@@ -43,34 +43,8 @@ export interface APIResponse<T> {
 }
 
 /**
- * Helper function to calculate pagination metadata
- */
-export function calculatePaginationMeta(
-  page: number,
-  pageSize: number,
-  total: number
-): PaginationMeta {
-  const totalPages = Math.ceil(total / pageSize)
-  
-  return {
-    page,
-    pageSize,
-    total,
-    totalPages,
-    hasNextPage: page < totalPages,
-    hasPreviousPage: page > 1
-  }
-}
-
-/**
- * Helper function to calculate offset from page and pageSize
- */
-export function calculateOffset(page: number, pageSize: number): number {
-  return (page - 1) * pageSize
-}
-
-/**
  * Helper function to create paginated response
+ * Nota: Las funciones de cálculo están en @/lib/utils/pagination
  */
 export function createPaginatedResponse<T>(
   items: T[],
@@ -80,11 +54,13 @@ export function createPaginatedResponse<T>(
   success: boolean = true,
   error?: string
 ): PaginatedResponse<T> {
+  const { generatePaginationMeta } = require('@/lib/utils/pagination')
+  
   return {
     success,
     data: {
       items,
-      pagination: calculatePaginationMeta(page, pageSize, total)
+      pagination: generatePaginationMeta(page, pageSize, total)
     },
     error
   }
