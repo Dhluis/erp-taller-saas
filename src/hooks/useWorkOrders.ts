@@ -663,7 +663,9 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
   // ==========================================
 
   const loadData = useCallback(async () => {
+    // ✅ Validar organizationId del contexto
     if (!organizationId) {
+      console.error('❌ No organization ID available')
       setError('No se encontró la organización')
       setLoading(false)
       return
@@ -673,34 +675,83 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
     setError(null)
 
     try {
+      console.log('🔄 Cargando datos del Kanban...')
+      
+      // ✅ Usar API routes en lugar de queries directas desde el cliente
       const [ordersRes, customersRes, vehiclesRes] = await Promise.all([
-        fetch('/api/work-orders?page=1&pageSize=1000', { cache: 'no-store' }),
-        fetch('/api/customers?page=1&pageSize=1000', { cache: 'no-store' }),
-        fetch('/api/vehicles', { cache: 'no-store' }),
+        // Cargar órdenes desde API
+        fetch('/api/work-orders', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        }),
+        // Cargar clientes desde API
+        fetch('/api/customers', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        }),
+        // Cargar vehículos desde API
+        fetch('/api/vehicles', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        }),
       ])
 
-      const [ordersResult, customersResult, vehiclesResult] = await Promise.all([
-        ordersRes.json(),
-        customersRes.json(),
-        vehiclesRes.json(),
-      ])
-
-      // Extraer items de respuesta paginada si existe
+      // Procesar respuesta de órdenes
+      if (!ordersRes.ok) {
+        const errorData = await ordersRes.json()
+        throw new Error(errorData.error || 'Error al cargar órdenes')
+      }
+      const ordersResult = await ordersRes.json()
+      // ✅ FIX: Manejar estructura paginada { data: { items, pagination } }
       const ordersData = ordersResult.success 
         ? (ordersResult.data?.items || ordersResult.data || [])
         : []
+
+      // Procesar respuesta de clientes
+      if (!customersRes.ok) {
+        const errorData = await customersRes.json()
+        throw new Error(errorData.error || 'Error al cargar clientes')
+      }
+      const customersResult = await customersRes.json()
+      // ✅ FIX: Manejar estructura paginada { data: { items, pagination } }
       const customersData = customersResult.success 
         ? (customersResult.data?.items || customersResult.data || [])
         : []
+
+      // Procesar respuesta de vehículos
+      if (!vehiclesRes.ok) {
+        const errorData = await vehiclesRes.json()
+        throw new Error(errorData.error || 'Error al cargar vehículos')
+      }
+      const vehiclesResult = await vehiclesRes.json()
+      // ✅ FIX: Manejar estructura paginada { data: { items, pagination } }
       const vehiclesData = vehiclesResult.success 
         ? (vehiclesResult.data?.items || vehiclesResult.data || [])
         : []
 
-      setWorkOrders(ordersData)
-      setCustomers(customersData)
-      setVehicles(vehiclesData)
-    } catch (err) {
-      toast.error('Error al cargar datos')
+      console.log('✅ Órdenes cargadas:', ordersData?.length || 0)
+      console.log('✅ Clientes cargados:', customersData?.length || 0)
+      console.log('✅ Vehículos cargados:', vehiclesData?.length || 0)
+
+      // Actualizar estados
+      setWorkOrders(ordersData || [])
+      setCustomers(customersData || [])
+      setVehicles(vehiclesData || [])
+
+      console.log('✅ Datos cargados exitosamente')
+
+    } catch (err: any) {
+      const errorMessage = err?.message || 'Error desconocido'
+      console.error('💥 Error en loadData:', errorMessage)
+      setError(errorMessage)
+      toast.error('Error al cargar datos', {
+        description: errorMessage,
+      })
+      
+      // IMPORTANTE: Setear arrays vacíos para que el Kanban no se quede cargando
       setWorkOrders([])
       setCustomers([])
       setVehicles([])
@@ -710,21 +761,38 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
   }, [organizationId])
 
   const updateOrderStatus = useCallback(async (orderId: string, newStatus: string) => {
-    if (!organizationId) throw new Error('No se encontró la organización')
-    
+    // ✅ Validar organizationId del contexto
+    if (!organizationId) {
+      console.error('❌ No organization ID available')
+      throw new Error('No se encontró la organización')
+    }
+
     try {
+      // ✅ Usar API route en lugar de query directa
       const response = await fetch(`/api/work-orders/${orderId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+        }),
       })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al actualizar estado')
+      }
+
       const result = await response.json()
       
       // Limpiar cache
       if (enableCache) cacheRef.current.clear()
       
       return { success: result.success }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error updating order status:', error)
       throw error
     }
   }, [organizationId, enableCache])

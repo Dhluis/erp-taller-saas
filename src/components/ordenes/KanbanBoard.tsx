@@ -173,8 +173,27 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
       }
 
       const result = await response.json();
-      const orders = result.success ? result.data : [];
-      console.log('📊 [KanbanBoard] Órdenes recibidas de API:', orders?.length || 0);
+      // ✅ FIX: Manejar estructura paginada { data: { items, pagination } }
+      // El API retorna: { success: true, data: { items: [...], pagination: {...} } }
+      let orders: any[] = [];
+      if (result.success && result.data) {
+        if (result.data.items && Array.isArray(result.data.items)) {
+          // Estructura paginada
+          orders = result.data.items;
+        } else if (Array.isArray(result.data)) {
+          // Estructura directa (array)
+          orders = result.data;
+        }
+      }
+      console.log('📊 [KanbanBoard] Órdenes recibidas de API:', orders.length);
+      console.log('📊 [KanbanBoard] Estructura de respuesta:', {
+        success: result.success,
+        hasData: !!result.data,
+        hasItems: !!(result.data?.items),
+        isArray: Array.isArray(result.data),
+        itemsLength: result.data?.items?.length,
+        dataType: typeof result.data
+      });
       
       // ✅ DEBUG: Mostrar información de debug si está disponible
       if (result.debug) {
@@ -187,6 +206,14 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
         console.log('📊 Órdenes encontradas:', result.debug.ordersFound);
         console.log('✅ Tiene assignedEmployeeId:', result.debug.hasAssignedEmployeeId);
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      }
+      
+      // ✅ Validar que orders sea un array antes de continuar
+      if (!Array.isArray(orders)) {
+        console.error('❌ [KanbanBoard] orders no es un array:', typeof orders, orders);
+        setError('Error: formato de datos inválido');
+        setLoading(false);
+        return [];
       }
       
       // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO

@@ -71,7 +71,8 @@ export async function GET(request: NextRequest) {
     }
     if (is_read !== null) {
       const isReadBool = is_read === 'true'
-      query = query.eq('is_read', isReadBool)
+      // ✅ FIX: La columna en la BD es 'read', no 'is_read'
+      query = query.eq('read', isReadBool)
     }
     if (search) {
       query = query.or(`title.ilike.%${search}%,message.ilike.%${search}%`)
