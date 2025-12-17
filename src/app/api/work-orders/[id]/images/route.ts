@@ -255,9 +255,20 @@ export async function DELETE(
 
     // ✅ Eliminar del storage (opcional, no crítico si falla)
     try {
-      // Extraer el path correcto del storage
-      const storagePath = imagePath.replace('work-order-images/', '').replace(/^.*\//, '')
-      const fullPath = imagePath.includes('/') ? imagePath : `${orderId}/${storagePath}`
+      // ✅ MULTI-TENANT: Extraer el path correcto del storage
+      // Path format en BD: "work-order-images/{organizationId}/{orderId}/{filename}"
+      // Path format para Storage: "{organizationId}/{orderId}/{filename}"
+      let storagePath = imagePath
+      
+      // Remover prefijo "work-order-images/" si existe
+      if (storagePath.startsWith('work-order-images/')) {
+        storagePath = storagePath.replace('work-order-images/', '')
+      }
+      
+      // El path ya incluye organizationId/orderId/filename, usarlo directamente
+      const fullPath = storagePath
+      
+      console.log('🔴 [API DELETE] Eliminando del storage:', fullPath)
       
       const { error: storageError } = await supabaseAdmin.storage
         .from('work-order-images')

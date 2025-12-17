@@ -72,6 +72,7 @@ async function uploadWithDirectFetch(
 
 /**
  * Subir imagen de orden de trabajo
+ * ✅ MULTI-TENANT: Obtiene organization_id de la orden para aislamiento en Storage
  */
 export async function uploadWorkOrderImage(
   file: File,
@@ -109,13 +110,33 @@ export async function uploadWorkOrderImage(
       return { success: false, error: 'La imagen no debe superar 10MB' }
     }
 
-    // Generar nombre único con carpeta por orden
+    // ✅ MULTI-TENANT: Obtener organization_id de la orden
+    console.log('🔍 [uploadWorkOrderImage] Obteniendo organization_id de la orden...')
+    const { data: order, error: orderError } = await supabase
+      .from('work_orders')
+      .select('organization_id')
+      .eq('id', orderId)
+      .single()
+
+    if (orderError || !order?.organization_id) {
+      console.error('❌ [uploadWorkOrderImage] Error obteniendo orden:', orderError)
+      return { 
+        success: false, 
+        error: orderError?.message || 'Orden no encontrada. No se puede subir la imagen.' 
+      }
+    }
+
+    const organizationId = order.organization_id
+    console.log('✅ [uploadWorkOrderImage] Organization ID obtenido:', organizationId)
+
+    // ✅ MULTI-TENANT: Generar nombre único con carpeta por organización y orden
     const fileExt = file.name.split('.').pop()
     const timestamp = Date.now()
     const random = Math.random().toString(36).substring(7)
-    const fileName = `${orderId}/${category}-${timestamp}-${random}.${fileExt}`
+    // Path: {organizationId}/{orderId}/{category}-{timestamp}-{random}.{ext}
+    const fileName = `${organizationId}/${orderId}/${category}-${timestamp}-${random}.${fileExt}`
     
-    console.log('✅ [uploadWorkOrderImage] Nombre de archivo generado:', fileName)
+    console.log('✅ [uploadWorkOrderImage] Nombre de archivo generado (multi-tenant):', fileName)
 
     try {
       console.log('🔹 [DEBUG] Paso 1: Nombre generado exitosamente')
