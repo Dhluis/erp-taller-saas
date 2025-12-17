@@ -62,59 +62,128 @@ const CATEGORY_LABELS: Record<ImageCategory, { label: string; color: string }> =
 }
 
 /**
- * Comprime imagen antes de subir a Supabase
- * Reduce tamaño de 4-12MB a ~500KB-1MB
+ * Comprime imagen y genera thumbnail
+ * Reduce tamaño de 4-12MB a ~500KB-1MB (imagen completa)
+ * Genera thumbnail de 200x200px (~10-20KB)
  */
-async function compressImage(file: File): Promise<File> {
+async function compressImage(file: File): Promise<{
+  full: File
+  thumbnail: File
+}> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.readAsDataURL(file)
     
     reader.onload = (e) => {
-      // Crear elemento img usando HTMLImageElement para evitar conflicto con Next.js Image
       const img = document.createElement('img')
       img.src = e.target?.result as string
       
       img.onload = () => {
-        // Redimensionar a máximo 1920px
-        let { width, height } = img
+        const originalWidth = img.width
+        const originalHeight = img.height
+        
+        // ============================================
+        // 1. GENERAR IMAGEN COMPLETA (1920px máximo)
+        // ============================================
+        let fullWidth = originalWidth
+        let fullHeight = originalHeight
         const MAX_SIZE = 1920
         
-        if (width > height && width > MAX_SIZE) {
-          height = Math.round((height * MAX_SIZE) / width)
-          width = MAX_SIZE
-        } else if (height > MAX_SIZE) {
-          width = Math.round((width * MAX_SIZE) / height)
-          height = MAX_SIZE
+        if (fullWidth > fullHeight && fullWidth > MAX_SIZE) {
+          fullHeight = Math.round((fullHeight * MAX_SIZE) / fullWidth)
+          fullWidth = MAX_SIZE
+        } else if (fullHeight > MAX_SIZE) {
+          fullWidth = Math.round((fullWidth * MAX_SIZE) / fullHeight)
+          fullHeight = MAX_SIZE
         }
         
-        // Crear canvas y comprimir
-        const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
-        const ctx = canvas.getContext('2d')
-        ctx?.drawImage(img, 0, 0, width, height)
+        const fullCanvas = document.createElement('canvas')
+        fullCanvas.width = fullWidth
+        fullCanvas.height = fullHeight
+        const fullCtx = fullCanvas.getContext('2d')
+        fullCtx?.drawImage(img, 0, 0, fullWidth, fullHeight)
         
-        // Convertir a blob comprimido
-        canvas.toBlob(
+        // ============================================
+        // 2. GENERAR THUMBNAIL (200x200px)
+        // ============================================
+        const THUMBNAIL_SIZE = 200
+        const thumbCanvas = document.createElement('canvas')
+        thumbCanvas.width = THUMBNAIL_SIZE
+        thumbCanvas.height = THUMBNAIL_SIZE
+        const thumbCtx = thumbCanvas.getContext('2d')
+        
+        // Calcular crop para mantener aspect ratio
+        const thumbAspect = THUMBNAIL_SIZE / THUMBNAIL_SIZE
+        const imgAspect = originalWidth / originalHeight
+        
+        let sx = 0, sy = 0, sw = originalWidth, sh = originalHeight
+        
+        if (imgAspect > thumbAspect) {
+          // Imagen más ancha - crop horizontal
+          sw = originalHeight * thumbAspect
+          sx = (originalWidth - sw) / 2
+        } else {
+          // Imagen más alta - crop vertical
+          sh = originalWidth / thumbAspect
+          sy = (originalHeight - sh) / 2
+        }
+        
+        thumbCtx?.drawImage(
+          img,
+          sx, sy, sw, sh,  // Source crop
+          0, 0, THUMBNAIL_SIZE, THUMBNAIL_SIZE  // Destination
+        )
+        
+        // ============================================
+        // 3. CONVERTIR A FILES
+        // ============================================
+        let fullFile: File | null = null
+        let thumbFile: File | null = null
+        let completed = 0
+        
+        const checkComplete = () => {
+          completed++
+          if (completed === 2 && fullFile && thumbFile) {
+            const originalSize = (file.size / 1024 / 1024).toFixed(2)
+            const fullSize = (fullFile.size / 1024 / 1024).toFixed(2)
+            const thumbSize = (thumbFile.size / 1024).toFixed(0)
+            console.log(`📸 Imagen optimizada: ${originalSize}MB → ${fullSize}MB (full) + ${thumbSize}KB (thumb)`)
+            resolve({ full: fullFile, thumbnail: thumbFile })
+          }
+        }
+        
+        // Generar imagen completa
+        fullCanvas.toBlob(
           (blob) => {
             if (blob) {
-              const compressedFile = new File([blob], file.name, {
+              fullFile = new File([blob], file.name, {
                 type: 'image/jpeg',
                 lastModified: Date.now()
               })
-              
-              const originalSize = (file.size / 1024 / 1024).toFixed(2)
-              const compressedSize = (compressedFile.size / 1024 / 1024).toFixed(2)
-              console.log(`📸 Imagen comprimida: ${originalSize}MB → ${compressedSize}MB`)
-              
-              resolve(compressedFile)
+              checkComplete()
             } else {
-              reject(new Error('Error al comprimir imagen'))
+              reject(new Error('Error al comprimir imagen completa'))
             }
           },
           'image/jpeg',
-          0.8 // 80% de calidad (imperceptible a la vista)
+          0.8 // 80% de calidad
+        )
+        
+        // Generar thumbnail
+        thumbCanvas.toBlob(
+          (blob) => {
+            if (blob) {
+              thumbFile = new File([blob], `thumb_${file.name}`, {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              })
+              checkComplete()
+            } else {
+              reject(new Error('Error al generar thumbnail'))
+            }
+          },
+          'image/jpeg',
+          0.85 // 85% de calidad para thumbnail (más pequeño, puede ser más calidad)
         )
       }
       
@@ -234,28 +303,61 @@ export function WorkOrderImageManager({
       
       const uploadPromises = filesArray.map(async (file, index) => {
         try {
-          // Comprimir imagen antes de subir
+          // ✅ OPTIMIZACIÓN: Comprimir y generar thumbnail
           console.log(`📸 [${index + 1}/${filesArray.length}] Procesando imagen:`, file.name)
           console.log(`📊 [${index + 1}/${filesArray.length}] Tamaño original:`, (file.size / 1024 / 1024).toFixed(2), 'MB')
 
-          let fileToUpload = file
+          let fullFile = file
+          let thumbFile: File | null = null
 
           try {
             if (file.type.startsWith('image/')) {
-              fileToUpload = await compressImage(file)
-              const sizeKB = (fileToUpload.size / 1024).toFixed(0)
-              console.log(`✅ [${index + 1}/${filesArray.length}] Imagen optimizada: ${sizeKB}KB`)
+              // ✅ Generar imagen completa + thumbnail
+              const { full, thumbnail } = await compressImage(file)
+              fullFile = full
+              thumbFile = thumbnail
+              
+              const fullSizeKB = (fullFile.size / 1024).toFixed(0)
+              const thumbSizeKB = (thumbFile.size / 1024).toFixed(0)
+              console.log(`✅ [${index + 1}/${filesArray.length}] Optimizada: ${fullSizeKB}KB (full) + ${thumbSizeKB}KB (thumb)`)
             }
           } catch (error) {
-            console.error(`❌ [${index + 1}/${filesArray.length}] Error comprimiendo imagen:`, error)
-            fileToUpload = file
+            console.error(`❌ [${index + 1}/${filesArray.length}] Error optimizando imagen:`, error)
+            // Continuar con archivo original si falla la compresión
           }
 
-          console.log(`📊 [${index + 1}/${filesArray.length}] Tamaño a subir:`, (fileToUpload.size / 1024 / 1024).toFixed(2), 'MB')
+          // ✅ Subir thumbnail primero (más rápido, mejor UX)
+          let thumbnailUrl: string | undefined
+          let thumbnailPath: string | undefined
           
-          // Subir imagen
+          if (thumbFile) {
+            try {
+              const thumbResult = await uploadWorkOrderImage(
+                thumbFile,
+                orderId,
+                userId,
+                `${selectedCategory}_thumb`, // Categoría especial para thumbnails
+                uploadDescription || undefined,
+                currentStatus,
+                session.access_token
+              )
+              
+              if (thumbResult.success && thumbResult.data) {
+                thumbnailUrl = thumbResult.data.url
+                thumbnailPath = thumbResult.data.path
+                console.log(`✅ [${index + 1}/${filesArray.length}] Thumbnail subido`)
+              }
+            } catch (thumbError) {
+              console.warn(`⚠️ [${index + 1}/${filesArray.length}] Error subiendo thumbnail (no crítico):`, thumbError)
+              // No fallar si thumbnail falla, continuar con imagen completa
+            }
+          }
+          
+          // ✅ Subir imagen completa
+          console.log(`📊 [${index + 1}/${filesArray.length}] Subiendo imagen completa:`, (fullFile.size / 1024 / 1024).toFixed(2), 'MB')
+          
           const uploadResult = await uploadWorkOrderImage(
-            fileToUpload,
+            fullFile,
             orderId,
             userId,
             selectedCategory,
@@ -269,8 +371,15 @@ export function WorkOrderImageManager({
             throw new Error(uploadResult.error || `Error al subir ${file.name}`)
           }
 
+          // ✅ Incluir thumbnailUrl en el resultado
+          const imageData = {
+            ...uploadResult.data,
+            thumbnailUrl,
+            thumbnailPath
+          }
+
           console.log(`✅ [${index + 1}/${filesArray.length}] Upload completado:`, file.name)
-          return uploadResult.data
+          return imageData
         } catch (error: any) {
           console.error(`❌ [${index + 1}/${filesArray.length}] Error:`, error)
           throw error
@@ -587,77 +696,120 @@ export function WorkOrderImageManager({
       {/* Imágenes por categoría */}
       {images.length > 0 ? (
         <div className="space-y-6">
-          {Object.entries(imagesByCategory).map(([category, categoryImages]) => (
-            <div key={category} className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[category as ImageCategory].color}`} />
-                <h4 className="font-semibold">
-                  {CATEGORY_LABELS[category as ImageCategory].label} ({categoryImages.length})
-                </h4>
-              </div>
+          {Object.entries(imagesByCategory).map(([category, categoryImages]) => {
+            // ✅ OPTIMIZACIÓN: Paginación por categoría
+            const {
+              paginatedItems,
+              hasMore,
+              showing,
+              total,
+              loadMore
+            } = useImagePagination(categoryImages, { itemsPerPage: 6 })
 
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {categoryImages.map((image, index) => {
-                  const globalIndex = images.indexOf(image)
-                  return (
-                    <Card key={globalIndex} className="relative group overflow-hidden cursor-pointer">
-                      <div className="aspect-square relative" onClick={() => openImageDetail(image)}>
-                        <Image
-                          src={image.url}
-                          alt={image.description || image.name}
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 768px) 50vw, 20vw"
-                        />
-                      </div>
+            return (
+              <div key={category} className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[category as ImageCategory].color}`} />
+                  <h4 className="font-semibold">
+                    {CATEGORY_LABELS[category as ImageCategory].label} ({total})
+                    {showing < total && (
+                      <span className="text-sm text-muted-foreground ml-2">
+                        (mostrando {showing})
+                      </span>
+                    )}
+                  </h4>
+                </div>
 
-                      {/* Overlay con info */}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            className="h-8 w-8 p-0"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              openImageDetail(image)
-                            }}
-                          >
-                            <ZoomIn className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            className="h-8 w-8 p-0"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDelete(globalIndex)
-                            }}
-                            disabled={deletingIndex === globalIndex}
-                          >
-                            {deletingIndex === globalIndex ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <X className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-
-                        <div className="text-white text-xs space-y-1">
-                          {image.description && (
-                            <p className="line-clamp-2">{image.description}</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  {paginatedItems.map((image, index) => {
+                    const globalIndex = images.indexOf(image)
+                    // ✅ OPTIMIZACIÓN: Lazy loading por imagen
+                    const { ref, hasIntersected } = useIntersectionObserver()
+                    
+                    return (
+                      <Card 
+                        key={globalIndex} 
+                        ref={ref}
+                        className="relative group overflow-hidden cursor-pointer"
+                      >
+                        <div className="aspect-square relative" onClick={() => openImageDetail(image)}>
+                          {hasIntersected ? (
+                            <Image
+                              src={image.thumbnailUrl || image.url} // ✅ Usar thumbnail si existe
+                              alt={image.description || image.name}
+                              fill
+                              className="object-cover transition-opacity duration-300"
+                              sizes="(max-width: 768px) 50vw, 20vw"
+                              loading="lazy"
+                            />
+                          ) : (
+                            // ✅ Skeleton loader mientras no es visible
+                            <div className="w-full h-full bg-muted animate-pulse">
+                              <div className="w-full h-full bg-gradient-to-r from-muted via-muted/50 to-muted" />
+                            </div>
                           )}
-                          <p className="text-white/70">
-                            {format(new Date(image.uploadedAt), 'dd/MM/yyyy HH:mm', { locale: es })}
-                          </p>
                         </div>
-                      </div>
-                    </Card>
-                  )
-                })}
+
+                        {/* Overlay con info */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="h-8 w-8 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openImageDetail(image)
+                              }}
+                            >
+                              <ZoomIn className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              className="h-8 w-8 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDelete(globalIndex)
+                              }}
+                              disabled={deletingIndex === globalIndex}
+                            >
+                              {deletingIndex === globalIndex ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <X className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+
+                          <div className="text-white text-xs space-y-1">
+                            {image.description && (
+                              <p className="line-clamp-2">{image.description}</p>
+                            )}
+                            <p className="text-white/70">
+                              {format(new Date(image.uploadedAt), 'dd/MM/yyyy HH:mm', { locale: es })}
+                            </p>
+                          </div>
+                        </div>
+                      </Card>
+                    )
+                  })}
+                </div>
+
+                {/* ✅ Botón "Ver más" para paginación */}
+                {hasMore && (
+                  <Button
+                    onClick={loadMore}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <ChevronDown className="mr-2 h-4 w-4" />
+                    Ver más ({total - showing} restantes)
+                  </Button>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       ) : (
         <Card className="p-12">

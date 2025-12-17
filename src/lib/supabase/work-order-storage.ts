@@ -7,6 +7,8 @@ export type ImageCategory = 'reception' | 'damage' | 'process' | 'completed' | '
 export interface WorkOrderImage {
   url: string
   path: string
+  thumbnailUrl?: string // ✅ NUEVO: URL del thumbnail (200x200px)
+  thumbnailPath?: string // ✅ NUEVO: Path del thumbnail en storage
   uploadedAt: string
   uploadedBy: string
   category: ImageCategory
