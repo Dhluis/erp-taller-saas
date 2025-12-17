@@ -1,11 +1,20 @@
+/**
+ * useInventory Hook con Paginación
+ * Eagles ERP - Hook para gestión de inventario con paginación
+ */
+
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { safeFetch, safePost, safePut, safeDelete } from '@/lib/api';
 import { useOrganization } from '@/lib/context/SessionContext';
+import type { PaginatedResponse, SearchParams } from '@/types/pagination';
+import { buildPaginationQueryString } from '@/lib/utils/pagination';
 
-// Tipos para el inventario
+// ==========================================
+// TYPES
+// ==========================================
+
 export interface InventoryItem {
   id: string;
   organization_id: string;
@@ -15,6 +24,7 @@ export interface InventoryItem {
   sku: string;
   quantity: number;
   min_quantity: number;
+  minimum_stock?: number;
   unit_price: number;
   created_at: string;
   updated_at: string;
@@ -53,18 +63,6 @@ export interface InventoryCategory {
   created_at: string;
 }
 
-export interface InventoryResponse {
-  success: boolean;
-  data: InventoryItem[];
-  count: number;
-}
-
-export interface InventoryItemResponse {
-  success: boolean;
-  data: InventoryItem;
-  message: string;
-}
-
 export interface CreateCategoryData {
   name: string;
   description?: string;
@@ -72,284 +70,527 @@ export interface CreateCategoryData {
 
 export interface UpdateCategoryData extends Partial<CreateCategoryData> {}
 
-export interface UseInventoryReturn {
+// ==========================================
+// HOOK OPTIONS
+// ==========================================
+
+interface UseInventoryOptions extends Partial<SearchParams> {
+  autoLoad?: boolean;
+  enableCache?: boolean;
+}
+
+interface UseInventoryReturn {
+  // Data
   items: InventoryItem[];
   categories: InventoryCategory[];
   loading: boolean;
   error: string | null;
-  fetchItems: () => Promise<void>;
+  
+  // Pagination
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+  
+  // Navigation Actions
+  goToPage: (page: number) => void;
+  goToNextPage: () => void;
+  goToPreviousPage: () => void;
+  goToFirstPage: () => void;
+  goToLastPage: () => void;
+  changePageSize: (size: number) => void;
+  
+  // Filter Actions
+  setSearch: (search: string) => void;
+  setFilters: (filters: Record<string, any>) => void;
+  setSorting: (sortBy: string, sortOrder: 'asc' | 'desc') => void;
+  clearFilters: () => void;
+  
+  // CRUD Actions
+  refresh: () => Promise<void>;
   createItem: (itemData: CreateInventoryItemData) => Promise<InventoryItem | null>;
   updateItem: (id: string, itemData: UpdateInventoryItemData) => Promise<InventoryItem | null>;
   deleteItem: (id: string) => Promise<boolean>;
+  
+  // Categories
   fetchCategories: () => Promise<void>;
   createCategory: (categoryData: CreateCategoryData) => Promise<InventoryCategory | null>;
   updateCategory: (id: string, categoryData: UpdateCategoryData) => Promise<InventoryCategory | null>;
   deleteCategory: (id: string) => Promise<boolean>;
 }
 
-export function useInventory(): UseInventoryReturn {
+// ==========================================
+// HOOK
+// ==========================================
+
+export function useInventory(options: UseInventoryOptions = {}): UseInventoryReturn {
+  const {
+    page: initialPage = 1,
+    pageSize: initialPageSize = 50, // 50 para inventory
+    search: initialSearch = '',
+    filters: initialFilters = {},
+    sortBy: initialSortBy = 'name',
+    sortOrder: initialSortOrder = 'asc',
+    autoLoad = true,
+    enableCache = false
+  } = options;
+
+  // ==========================================
+  // STATE
+  // ==========================================
+  
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<InventoryCategory[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { organizationId, ready } = useOrganization(); // ✅ FIX: Obtener organizationId y ready
+  
+  // Pagination state
+  const [page, setPage] = useState(initialPage);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: 50,
+    total: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPreviousPage: false
+  });
+  
+  // Filter state
+  const [search, setSearchState] = useState(initialSearch);
+  const [filters, setFiltersState] = useState(initialFilters);
+  const [sortBy, setSortByState] = useState(initialSortBy);
+  const [sortOrder, setSortOrderState] = useState<'asc' | 'desc'>(initialSortOrder);
+  
+  // Context
+  const { organizationId, ready } = useOrganization();
+  
+  // Refs
+  const isFetching = useRef(false);
+  const cacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
 
-  // Cargar items de inventario
-  const fetchItems = useCallback(async (): Promise<void> => {
-    // ✅ FIX: Solo cargar si organizationId está ready
+  // ==========================================
+  // FETCH FUNCTION CON PAGINACIÓN
+  // ==========================================
+  
+  const fetchItems = useCallback(async () => {
     if (!organizationId || !ready) {
-      console.log('⏳ [useInventory] Esperando a que organizationId esté ready...', { organizationId: !!organizationId, ready });
+      console.log('⏳ [useInventory] Esperando organizationId...');
+      setItems([]);
       setLoading(false);
-      setItems([]); // Limpiar items mientras espera
+      return;
+    }
+
+    if (isFetching.current) {
+      console.log('⏸️ [useInventory] Fetch ya en progreso');
       return;
     }
 
     try {
+      isFetching.current = true;
       setLoading(true);
       setError(null);
-      
-      console.log('🔄 [useInventory] Cargando items para organizationId:', organizationId);
-      
-      const result = await safeFetch<InventoryResponse>('/api/inventory', {
-        timeout: 30000
+
+      // Construir query params con paginación
+      const queryString = buildPaginationQueryString({
+        page,
+        pageSize,
+        sortBy,
+        sortOrder,
+        search: search || undefined,
+        filters
+      });
+
+      const url = `/api/inventory?${queryString}`;
+      console.log('🔄 [useInventory] Fetching:', url);
+
+      // Check cache
+      if (enableCache) {
+        const cached = cacheRef.current.get(url);
+        const cacheAge = cached ? Date.now() - cached.timestamp : Infinity;
+        
+        if (cached && cacheAge < 30000) {
+          console.log('💾 [useInventory] Usando cache');
+          const responseData = cached.data.data || cached.data;
+          setItems(responseData.items || []);
+          setPagination(responseData.pagination);
+          setLoading(false);
+          isFetching.current = false;
+          return;
+        }
+      }
+
+      // Fetch
+      const response = await fetch(url, {
+        headers: { 'Cache-Control': 'no-cache' }
       });
       
-      if (result.success) {
-        console.log('✅ [useInventory] Items cargados:', result.data.data.length);
-        setItems(result.data.data);
-      } else {
-        setError('Error al cargar inventario');
-        toast.error('Error al cargar inventario');
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Error al cargar inventario');
       }
-    } catch (error) {
-      console.error('Error fetching inventory:', error);
-      setError('Error al cargar inventario');
-      toast.error('Error al cargar inventario');
+
+      // Extraer datos
+      const responseData = result.data || result;
+      const itemsData = responseData.items || [];
+      const paginationData = responseData.pagination;
+
+      // Actualizar state
+      setItems(itemsData);
+      setPagination(paginationData);
+
+      // Guardar en cache
+      if (enableCache) {
+        cacheRef.current.set(url, {
+          data: result,
+          timestamp: Date.now()
+        });
+      }
+
+      console.log('✅ [useInventory] Items cargados:', {
+        items: itemsData.length,
+        page: paginationData.page,
+        total: paginationData.total
+      });
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      setError(errorMessage);
+      toast.error('Error al cargar inventario', { description: errorMessage });
+      console.error('❌ [useInventory] Error:', err);
+    } finally {
+      setLoading(false);
+      isFetching.current = false;
+    }
+  }, [organizationId, ready, page, pageSize, search, filters, sortBy, sortOrder, enableCache]);
+
+  // ==========================================
+  // NAVIGATION ACTIONS
+  // ==========================================
+
+  const goToPage = useCallback((newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages && newPage !== page) {
+      setPage(newPage);
+    }
+  }, [pagination.totalPages, page]);
+
+  const goToNextPage = useCallback(() => {
+    if (pagination.hasNextPage) {
+      setPage(p => p + 1);
+    }
+  }, [pagination.hasNextPage]);
+
+  const goToPreviousPage = useCallback(() => {
+    if (pagination.hasPreviousPage) {
+      setPage(p => Math.max(1, p - 1));
+    }
+  }, [pagination.hasPreviousPage]);
+
+  const goToFirstPage = useCallback(() => {
+    setPage(1);
+  }, []);
+
+  const goToLastPage = useCallback(() => {
+    setPage(pagination.totalPages);
+  }, [pagination.totalPages]);
+
+  const changePageSize = useCallback((newSize: number) => {
+    setPageSize(newSize);
+    setPage(1);
+    if (enableCache) cacheRef.current.clear();
+  }, [enableCache]);
+
+  // ==========================================
+  // FILTER ACTIONS
+  // ==========================================
+
+  const setSearch = useCallback((newSearch: string) => {
+    setSearchState(newSearch);
+    setPage(1);
+    if (enableCache) cacheRef.current.clear();
+  }, [enableCache]);
+
+  const setFilters = useCallback((newFilters: Record<string, any>) => {
+    setFiltersState(newFilters);
+    setPage(1);
+    if (enableCache) cacheRef.current.clear();
+  }, [enableCache]);
+
+  const setSorting = useCallback((newSortBy: string, newSortOrder: 'asc' | 'desc') => {
+    setSortByState(newSortBy);
+    setSortOrderState(newSortOrder);
+    setPage(1);
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setSearchState('');
+    setFiltersState({});
+    setPage(1);
+    if (enableCache) cacheRef.current.clear();
+  }, [enableCache]);
+
+  // ==========================================
+  // CRUD OPERATIONS
+  // ==========================================
+
+  const createItem = useCallback(async (itemData: CreateInventoryItemData) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(itemData),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Error al crear producto');
+      }
+
+      toast.success('Producto creado exitosamente');
+      
+      if (enableCache) cacheRef.current.clear();
+      await fetchItems();
+
+      return data.data;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      setError(errorMessage);
+      toast.error('Error al crear producto', { description: errorMessage });
+      return null;
     } finally {
       setLoading(false);
     }
-  }, [organizationId, ready]);
+  }, [fetchItems, enableCache]);
 
-  // Cargar categorías de inventario
+  const updateItem = useCallback(async (id: string, itemData: UpdateInventoryItemData) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/inventory/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(itemData),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Error al actualizar producto');
+      }
+
+      toast.success('Producto actualizado');
+      
+      if (enableCache) cacheRef.current.clear();
+      await fetchItems();
+
+      return data.data;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      setError(errorMessage);
+      toast.error('Error al actualizar producto', { description: errorMessage });
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchItems, enableCache]);
+
+  const deleteItem = useCallback(async (id: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/inventory/${id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Error al eliminar producto');
+      }
+
+      toast.success('Producto eliminado');
+      
+      if (enableCache) cacheRef.current.clear();
+      await fetchItems();
+
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      setError(errorMessage);
+      toast.error('Error al eliminar producto', { description: errorMessage });
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchItems, enableCache]);
+
+  // ==========================================
+  // CATEGORIES
+  // ==========================================
+
   const fetchCategories = useCallback(async (): Promise<void> => {
-    // ✅ FIX: Solo cargar si organizationId está ready
     if (!organizationId || !ready) {
-      console.log('⏳ [useInventory] Esperando a que organizationId esté ready para categorías...', { organizationId: !!organizationId, ready });
-      setCategories([]); // Limpiar categorías mientras espera
+      console.log('⏳ [useInventory] Esperando organizationId para categorías...');
+      setCategories([]);
       return;
     }
 
     try {
       console.log('🔄 [useInventory] fetchCategories - Iniciando para organizationId:', organizationId);
       
-      const result = await safeFetch<{ success: boolean; data: InventoryCategory[] }>('/api/inventory/categories', {
-        timeout: 30000, // 30 segundos para categorías
-        retries: 1,     // Solo 1 reintento para evitar rate limits
-        retryDelay: 3000 // 3 segundos entre reintentos
+      const response = await fetch('/api/inventory/categories', {
+        headers: { 'Cache-Control': 'no-cache' }
       });
       
+      const result = await response.json();
+      
       if (result.success) {
-        console.log('✅ [useInventory] fetchCategories - Exitoso:', result.data.data.length, 'categorías');
-        setCategories(result.data.data);
-        setError(null); // Limpiar errores previos
+        console.log('✅ [useInventory] fetchCategories - Exitoso:', result.data.length, 'categorías');
+        setCategories(result.data);
+        setError(null);
       } else {
         console.error('❌ [useInventory] fetchCategories - Error:', result.error);
         setError('Error al cargar categorías: ' + result.error);
-        // No mostrar toast para evitar spam
       }
     } catch (error) {
       console.error('❌ [useInventory] fetchCategories - Excepción:', error);
       setError('Error al cargar categorías');
-      // No mostrar toast para evitar spam
     }
   }, [organizationId, ready]);
 
-  // Crear nuevo item
-  const createItem = async (itemData: CreateInventoryItemData): Promise<InventoryItem | null> => {
+  const createCategory = useCallback(async (categoryData: CreateCategoryData) => {
     try {
-      setError(null);
-      
-      const result = await safePost<InventoryItemResponse>('/api/inventory', itemData, {
-        timeout: 30000
+      const response = await fetch('/api/inventory/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(categoryData),
       });
-      
-      if (result.success) {
-        const newItem = result.data.data;
-        setItems(prev => [newItem, ...prev]);
-        toast.success('Producto creado exitosamente');
-        return newItem;
-      } else {
-        setError('Error al crear producto');
-        toast.error('Error al crear producto');
-        return null;
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Error al crear categoría');
       }
-    } catch (error) {
-      console.error('Error creating inventory item:', error);
-      setError('Error al crear producto');
-      toast.error('Error al crear producto');
+
+      toast.success('Categoría creada exitosamente');
+      await fetchCategories();
+
+      return data.data;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      setError(errorMessage);
+      toast.error('Error al crear categoría', { description: errorMessage });
       return null;
     }
-  };
+  }, [fetchCategories]);
 
-  // Actualizar item
-  const updateItem = async (id: string, itemData: UpdateInventoryItemData): Promise<InventoryItem | null> => {
+  const updateCategory = useCallback(async (id: string, categoryData: UpdateCategoryData) => {
     try {
-      setError(null);
-      
-      const result = await safePut<InventoryItemResponse>(`/api/inventory/${id}`, itemData, {
-        timeout: 30000
+      const response = await fetch(`/api/inventory/categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(categoryData),
       });
-      
-      if (result.success) {
-        const updatedItem = result.data.data;
-        setItems(prev => prev.map(item => item.id === id ? updatedItem : item));
-        toast.success('Producto actualizado exitosamente');
-        return updatedItem;
-      } else {
-        setError('Error al actualizar producto');
-        toast.error('Error al actualizar producto');
-        return null;
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Error al actualizar categoría');
       }
-    } catch (error) {
-      console.error('Error updating inventory item:', error);
-      setError('Error al actualizar producto');
-      toast.error('Error al actualizar producto');
+
+      toast.success('Categoría actualizada');
+      await fetchCategories();
+
+      return data.data;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      setError(errorMessage);
+      toast.error('Error al actualizar categoría', { description: errorMessage });
       return null;
     }
-  };
+  }, [fetchCategories]);
 
-  // Eliminar item
-  const deleteItem = async (id: string): Promise<boolean> => {
+  const deleteCategory = useCallback(async (id: string) => {
     try {
-      setError(null);
-      
-      const result = await safeDelete(`/api/inventory/${id}`, {
-        timeout: 30000
+      const response = await fetch(`/api/inventory/categories/${id}`, {
+        method: 'DELETE',
       });
-      
-      if (result.success) {
-        setItems(prev => prev.filter(item => item.id !== id));
-        toast.success('Producto eliminado exitosamente');
-        return true;
-      } else {
-        setError('Error al eliminar producto');
-        toast.error('Error al eliminar producto');
-        return false;
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Error al eliminar categoría');
       }
-    } catch (error) {
-      console.error('Error deleting inventory item:', error);
-      setError('Error al eliminar producto');
-      toast.error('Error al eliminar producto');
+
+      toast.success('Categoría eliminada');
+      await fetchCategories();
+
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      setError(errorMessage);
+      toast.error('Error al eliminar categoría', { description: errorMessage });
       return false;
     }
-  };
+  }, [fetchCategories]);
 
-  // Crear nueva categoría
-  const createCategory = async (categoryData: CreateCategoryData): Promise<InventoryCategory | null> => {
-    try {
-      setError(null);
-      
-      const result = await safePost<{ success: boolean; data: InventoryCategory }>('/api/inventory/categories', categoryData, {
-        timeout: 30000
-      });
-      
-      if (result.success) {
-        const newCategory = result.data.data;
-        setCategories(prev => [newCategory, ...prev]);
-        toast.success('Categoría creada exitosamente');
-        return newCategory;
-      } else {
-        setError('Error al crear categoría');
-        toast.error('Error al crear categoría');
-        return null;
-      }
-    } catch (error) {
-      console.error('Error creating category:', error);
-      setError('Error al crear categoría');
-      toast.error('Error al crear categoría');
-      return null;
-    }
-  };
+  // ==========================================
+  // EFFECTS
+  // ==========================================
 
-  // Actualizar categoría
-  const updateCategory = async (id: string, categoryData: UpdateCategoryData): Promise<InventoryCategory | null> => {
-    try {
-      setError(null);
-      
-      const result = await safePut<{ success: boolean; data: InventoryCategory }>(`/api/inventory/categories/${id}`, categoryData, {
-        timeout: 30000
-      });
-      
-      if (result.success) {
-        const updatedCategory = result.data.data;
-        setCategories(prev => prev.map(category => category.id === id ? updatedCategory : category));
-        toast.success('Categoría actualizada exitosamente');
-        return updatedCategory;
-      } else {
-        setError('Error al actualizar categoría');
-        toast.error('Error al actualizar categoría');
-        return null;
-      }
-    } catch (error) {
-      console.error('Error updating category:', error);
-      setError('Error al actualizar categoría');
-      toast.error('Error al actualizar categoría');
-      return null;
-    }
-  };
-
-  // Eliminar categoría
-  const deleteCategory = async (id: string): Promise<boolean> => {
-    try {
-      setError(null);
-      
-      const result = await safeDelete(`/api/inventory/categories/${id}`, {
-        timeout: 30000
-      });
-      
-      if (result.success) {
-        setCategories(prev => prev.filter(category => category.id !== id));
-        toast.success('Categoría eliminada exitosamente');
-        return true;
-      } else {
-        setError('Error al eliminar categoría');
-        toast.error('Error al eliminar categoría');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error deleting category:', error);
-      setError('Error al eliminar categoría');
-      toast.error('Error al eliminar categoría');
-      return false;
-    }
-  };
-
-  // ✅ FIX: Solo cargar cuando organizationId esté ready
   useEffect(() => {
-    if (ready && organizationId) {
-      console.log('🔄 [useInventory] useEffect triggered - organizationId ready:', organizationId);
-      // Limpiar datos anteriores antes de cargar nuevos
-      setItems([]);
-      setCategories([]);
+    if (autoLoad && ready && organizationId) {
       fetchItems();
       fetchCategories();
-    } else {
-      console.log('⏳ [useInventory] Esperando a que organizationId esté ready...', { ready, organizationId: !!organizationId });
-      // Limpiar datos si organizationId cambia
-      setItems([]);
-      setCategories([]);
     }
-  }, [ready, organizationId, fetchItems, fetchCategories]);
+  }, [autoLoad, ready, organizationId, fetchItems, fetchCategories]);
+
+  // ==========================================
+  // RETURN
+  // ==========================================
 
   return {
+    // Data
     items,
     categories,
     loading,
     error,
-    fetchItems,
+    
+    // Pagination
+    pagination,
+    
+    // Navigation
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    goToFirstPage,
+    goToLastPage,
+    changePageSize,
+    
+    // Filters
+    setSearch,
+    setFilters,
+    setSorting,
+    clearFilters,
+    
+    // CRUD
+    refresh: fetchItems,
     createItem,
     updateItem,
     deleteItem,
+    
+    // Categories
     fetchCategories,
     createCategory,
     updateCategory,

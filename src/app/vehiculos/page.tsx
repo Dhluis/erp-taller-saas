@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { PlusIcon } from '@heroicons/react/24/outline';
+import { RefreshCw } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/navigation/page-header';
 import { Button } from '@/components/ui/button';
+import { Pagination } from '@/components/ui/pagination';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { 
   VehiclesTable, 
   VehiclesFilters, 
@@ -19,22 +22,33 @@ import type { Vehicle } from '@/lib/database/queries/vehicles';
 
 export default function VehiculosPage() {
   // Hooks
-  const { 
-    vehicles, 
-    loading, 
-    error, 
-    createVehicle, 
-    updateVehicle, 
-    deleteVehicle, 
-    refreshVehicles 
-  } = useVehicles();
+  const {
+    vehicles,
+    pagination,
+    loading,
+    error,
+    goToPage,
+    changePageSize,
+    setSearch,
+    setFilters,
+    refresh,
+    createVehicle,
+    updateVehicle,
+    deleteVehicle,
+  } = useVehicles({
+    page: 1,
+    pageSize: 20,
+    sortBy: 'created_at',
+    sortOrder: 'desc',
+    autoLoad: true
+  });
   
   const { toast, showToast, hideToast } = useToast();
 
   // Estados locales
-  const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState<any>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebouncedValue(searchQuery, 500);
+  const [customerFilter, setCustomerFilter] = useState('');
 
   // Estados de modales
   const [showVehicleForm, setShowVehicleForm] = useState(false);
@@ -44,33 +58,19 @@ export default function VehiculosPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Filtrar vehículos cuando cambie la búsqueda o filtros
+  // Sincronizar búsqueda con debounce
   useEffect(() => {
-    let filtered = vehicles;
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch]);
 
-    // Filtro por búsqueda
-    if (searchTerm) {
-      filtered = filtered.filter(vehicle => 
-        vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vehicle.license_plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vehicle.vin?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+  // Sincronizar filtro de cliente
+  useEffect(() => {
+    if (customerFilter) {
+      setFilters({ customer_id: customerFilter });
+    } else {
+      setFilters({});
     }
-
-    // Filtros adicionales
-    if (filters.brand) {
-      filtered = filtered.filter(vehicle => vehicle.brand === filters.brand);
-    }
-    if (filters.year) {
-      filtered = filtered.filter(vehicle => vehicle.year.toString() === filters.year);
-    }
-    if (filters.customer) {
-      filtered = filtered.filter(vehicle => vehicle.customer_id === filters.customer);
-    }
-
-    setFilteredVehicles(filtered);
-  }, [vehicles, searchTerm, filters]);
+  }, [customerFilter, setFilters]);
 
   // Mostrar error si hay uno
   useEffect(() => {
@@ -80,11 +80,18 @@ export default function VehiculosPage() {
   }, [error, showToast]);
 
   const handleSearch = (search: string) => {
-    setSearchTerm(search);
+    setSearchQuery(search);
   };
 
   const handleFilter = (newFilters: any) => {
-    setFilters(newFilters);
+    // Si viene customer_id en los filtros, actualizar el estado local
+    if (newFilters.customer) {
+      setCustomerFilter(newFilters.customer);
+    } else if (newFilters.customer_id) {
+      setCustomerFilter(newFilters.customer_id);
+    } else {
+      setCustomerFilter('');
+    }
   };
 
   const handleAddVehicle = () => {
@@ -166,10 +173,20 @@ export default function VehiculosPage() {
             { label: 'Vehículos', href: '/vehiculos' }
           ]}
           actions={
-            <Button onClick={handleAddVehicle} className="flex items-center space-x-2">
-              <PlusIcon className="h-4 w-4 mr-2" />
-              Nuevo Vehículo
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={refresh}
+                disabled={loading}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Actualizar
+              </Button>
+              <Button onClick={handleAddVehicle} className="flex items-center space-x-2">
+                <PlusIcon className="h-4 w-4 mr-2" />
+                Nuevo Vehículo
+              </Button>
+            </div>
           }
         />
 
@@ -179,17 +196,56 @@ export default function VehiculosPage() {
           </div>
         )}
 
+        {/* Stats */}
+        {!loading && pagination.total > 0 && (
+          <p className="text-sm text-muted-foreground mt-1">
+            Total: {pagination.total} vehículos | 
+            Página {pagination.page} de {pagination.totalPages}
+          </p>
+        )}
+
         <div className="mb-6">
-          <VehiclesFilters onSearch={handleSearch} onFilter={handleFilter} />
+          <VehiclesFilters 
+            onSearch={handleSearch} 
+            onFilter={handleFilter}
+            searchValue={searchQuery}
+            disabled={loading}
+          />
         </div>
 
-        <VehiclesTable
-          vehicles={filteredVehicles}
-          onEdit={handleEditVehicle}
-          onDelete={handleDeleteVehicle}
-          onView={handleViewVehicle}
-          loading={loading}
-        />
+        {!loading && !error && vehicles.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">
+              {searchQuery || customerFilter
+                ? 'No se encontraron vehículos con los filtros aplicados'
+                : 'No hay vehículos registrados'}
+            </p>
+          </div>
+        ) : (
+          <VehiclesTable
+            vehicles={vehicles}
+            onEdit={handleEditVehicle}
+            onDelete={handleDeleteVehicle}
+            onView={handleViewVehicle}
+            loading={loading}
+            hasFilters={!!(searchQuery || customerFilter)}
+          />
+        )}
+
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="mt-6">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              pageSize={pagination.pageSize}
+              total={pagination.total}
+              onPageChange={goToPage}
+              onPageSizeChange={changePageSize}
+              loading={loading}
+            />
+          </div>
+        )}
 
         <VehicleForm
           isOpen={showVehicleForm}

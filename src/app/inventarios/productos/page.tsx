@@ -7,17 +7,42 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageHeader } from '@/components/navigation/page-header';
+import { Pagination } from '@/components/ui/pagination';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { 
   MagnifyingGlassIcon,
   PlusIcon,
   FunnelIcon,
   AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
+import { RefreshCw } from 'lucide-react';
 import { useInventory, type CreateInventoryItemData, type UpdateInventoryItemData, type InventoryItem } from '@/hooks/useInventory';
 
 export default function InventariosProductosPage() {
-  const { items, categories, loading, createItem, updateItem, fetchCategories } = useInventory();
-  const [searchTerm, setSearchTerm] = useState('');
+  const {
+    items,
+    categories,
+    pagination,
+    loading,
+    goToPage,
+    changePageSize,
+    setSearch,
+    setFilters,
+    refresh,
+    createItem,
+    updateItem,
+    fetchCategories
+  } = useInventory({
+    page: 1,
+    pageSize: 50,
+    sortBy: 'name',
+    sortOrder: 'asc',
+    autoLoad: true
+  });
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebouncedValue(searchQuery, 500);
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [showNewProductModal, setShowNewProductModal] = useState(false);
   const [showEditProductModal, setShowEditProductModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -42,10 +67,19 @@ export default function InventariosProductosPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  // Cargar categorías al montar el componente
+  // Sincronizar búsqueda con debounce
   useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch]);
+
+  // Sincronizar filtro de categoría
+  useEffect(() => {
+    if (categoryFilter) {
+      setFilters({ category_id: categoryFilter });
+    } else {
+      setFilters({});
+    }
+  }, [categoryFilter, setFilters]);
 
   const handleInputChange = (field: string, value: string) => {
     setNewProduct(prev => ({
@@ -151,10 +185,7 @@ export default function InventariosProductosPage() {
     }
   };
 
-  const filteredProducts = items.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Ya no necesitamos filteredProducts - items ya viene filtrado del backend
 
   if (loading) {
     return (
@@ -208,14 +239,32 @@ export default function InventariosProductosPage() {
             { label: 'Productos', href: '/inventarios/productos' }
           ]}
           actions={
-            <Button
-              onClick={() => setShowNewProductModal(true)}
-            >
-              <PlusIcon className="w-5 h-5 mr-2" />
-              Nuevo Producto
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={refresh}
+                disabled={loading}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Actualizar
+              </Button>
+              <Button
+                onClick={() => setShowNewProductModal(true)}
+              >
+                <PlusIcon className="w-5 h-5 mr-2" />
+                Nuevo Producto
+              </Button>
+            </div>
           }
         />
+
+        {/* Stats */}
+        {!loading && pagination.total > 0 && (
+          <p className="text-sm text-muted-foreground mt-1">
+            Total: {pagination.total} items | 
+            Página {pagination.page} de {pagination.totalPages}
+          </p>
+        )}
 
         {/* Filtros y búsqueda */}
         <Card>
@@ -225,10 +274,25 @@ export default function InventariosProductosPage() {
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Buscar productos por nombre o SKU..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
+              </div>
+              <div className="w-48">
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todas las categorías" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todas las categorías</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm">
@@ -245,20 +309,20 @@ export default function InventariosProductosPage() {
         </Card>
 
         {/* Lista de productos */}
-        {filteredProducts.length === 0 ? (
+        {items.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <div className="text-6xl mb-4">📦</div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                {searchTerm ? 'No se encontraron productos' : 'No hay productos'}
+                {searchQuery ? 'No se encontraron productos' : 'No hay productos'}
               </h3>
               <p className="text-gray-600 mb-4">
-                {searchTerm 
+                {searchQuery 
                   ? 'Intenta con otros términos de búsqueda'
                   : 'Comienza agregando el primer producto al inventario'
                 }
               </p>
-              {!searchTerm && (
+              {!searchQuery && (
                 <Button onClick={() => setShowNewProductModal(true)}>
                   <PlusIcon className="w-5 h-5 mr-2" />
                   Agregar Producto
@@ -267,8 +331,9 @@ export default function InventariosProductosPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map((product) => (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {items.map((product) => (
               <Card key={product.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
@@ -322,8 +387,24 @@ export default function InventariosProductosPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+              <div className="mt-6">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  pageSize={pagination.pageSize}
+                  total={pagination.total}
+                  onPageChange={goToPage}
+                  onPageSizeChange={changePageSize}
+                  loading={loading}
+                />
+              </div>
+            )}
+          </>
         )}
 
         {/* Modal para Nuevo Producto */}

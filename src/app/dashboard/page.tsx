@@ -246,12 +246,39 @@ export default function DashboardPage() {
 
       if (response.ok) {
         const data = await response.json();
-        const allOrders = data.data || [];
+        
+        // ✅ FIX: Manejar estructura paginada { data: { items, pagination } }
+        let allOrders: any[] = [];
+        
+        if (data.success && data.data) {
+          // Estructura paginada
+          if (data.data.items && Array.isArray(data.data.items)) {
+            allOrders = data.data.items;
+          } else if (Array.isArray(data.data)) {
+            // Estructura directa (array)
+            allOrders = data.data;
+          }
+        } else if (Array.isArray(data.data)) {
+          // Fallback: data.data es array directo
+          allOrders = data.data;
+        } else if (Array.isArray(data)) {
+          // Fallback: data es array directo
+          allOrders = data;
+        }
+        
+        // ✅ Validar que allOrders sea un array antes de continuar
+        if (!Array.isArray(allOrders)) {
+          console.error('❌ [Dashboard] allOrders no es un array:', typeof allOrders, allOrders);
+          setIngresos(0);
+          setClientesAtendidos(0);
+          setIncomeData([]);
+          return;
+        }
         
         // ✅ MULTI-TENANCY: Filtrar órdenes por organización (seguridad adicional)
         // La API ya filtra por organization_id, pero esto es una capa extra de seguridad
         const ordersFromOrg = allOrders.filter((order: any) => {
-          return order.organization_id === organizationId;
+          return order && order.organization_id === organizationId;
         });
         
         if (ordersFromOrg.length !== allOrders.length) {

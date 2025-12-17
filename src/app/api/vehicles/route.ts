@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createVehicle } from '@/lib/database/queries/vehicles';
 import { createClientFromRequest } from '@/lib/supabase/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
+import { 
+  extractPaginationFromURL, 
+  calculateOffset, 
+  generatePaginationMeta 
+} from '@/lib/utils/pagination';
+import type { PaginatedResponse } from '@/types/pagination';
 
 /**
  * @swagger
@@ -100,8 +106,21 @@ export async function GET(request: NextRequest) {
 
     const organizationId = userProfile.organization_id;
 
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search');
+    // ✅ Extraer parámetros de paginación
+    const url = new URL(request.url);
+    const { page, pageSize, sortBy, sortOrder } = extractPaginationFromURL(url);
+    const search = url.searchParams.get('search') || undefined;
+    // ✅ Leer customer_id de filter_customer_id (del hook) o customer_id (directo)
+    const customerId = url.searchParams.get('filter_customer_id') || url.searchParams.get('customer_id') || undefined;
+
+    console.log('📄 [GET /api/vehicles] Parámetros:', {
+      page,
+      pageSize,
+      sortBy,
+      sortOrder,
+      search,
+      customerId
+    });
 
     // ✅ Usar Service Role Client directamente para queries
     let query = supabaseAdmin
@@ -114,16 +133,27 @@ export async function GET(request: NextRequest) {
           email,
           phone
         )
-      `)
+      `, { count: 'exact' })
       .eq('organization_id', organizationId);
 
+    // Búsqueda en múltiples campos
     if (search) {
-      query = query.or(`brand.ilike.%${search}%,model.ilike.%${search}%,license_plate.ilike.%${search}%`);
+      query = query.or(`brand.ilike.%${search}%,model.ilike.%${search}%,license_plate.ilike.%${search}%,vin.ilike.%${search}%`);
     }
 
-    query = query.order('created_at', { ascending: false });
+    // Filtrar por cliente específico
+    if (customerId) {
+      query = query.eq('customer_id', customerId);
+    }
 
-    const { data: vehicles, error: vehiclesError } = await query;
+    // Ordenamiento
+    query = query.order(sortBy || 'created_at', { ascending: sortOrder === 'asc' });
+
+    // Paginación
+    const offset = calculateOffset(page, pageSize);
+    query = query.range(offset, offset + pageSize - 1);
+
+    const { data: vehicles, count, error: vehiclesError } = await query;
 
     if (vehiclesError) {
       console.error('[GET /api/vehicles] Error en query:', vehiclesError);
@@ -137,11 +167,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: vehicles,
-      count: vehicles.length,
+    // ✅ Generar metadata de paginación
+    const pagination = generatePaginationMeta(page, pageSize, count || 0);
+    
+    console.log('✅ [GET /api/vehicles] Respuesta preparada:', {
+      itemsCount: vehicles?.length || 0,
+      pagination
     });
+
+    // ✅ Retornar respuesta paginada
+    const response: PaginatedResponse<any> = {
+      success: true,
+      data: {
+        items: vehicles || [],
+        pagination
+      }
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Error fetching vehicles:', error);
     return NextResponse.json(

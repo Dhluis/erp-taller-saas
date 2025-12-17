@@ -1,16 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
 
 interface VehiclesFiltersProps {
   onSearch: (search: string) => void;
   onFilter: (filters: any) => void;
+  searchValue?: string;
+  disabled?: boolean;
 }
 
-export function VehiclesFilters({ onSearch, onFilter }: VehiclesFiltersProps) {
-  const [searchTerm, setSearchTerm] = useState('');
+export function VehiclesFilters({ onSearch, onFilter, searchValue = '', disabled = false }: VehiclesFiltersProps) {
+  const [searchTerm, setSearchTerm] = useState(searchValue);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Sincronizar con prop externa si cambia
+  useEffect(() => {
+    if (searchValue !== searchTerm) {
+      setSearchTerm(searchValue);
+    }
+  }, [searchValue]);
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
@@ -28,10 +37,11 @@ export function VehiclesFilters({ onSearch, onFilter }: VehiclesFiltersProps) {
             placeholder="Buscar por marca, modelo, placa o VIN..."
             value={searchTerm}
             onChange={(e) => handleSearch(e.target.value)}
+            disabled={disabled}
             className="w-full pl-10 pr-4 py-3 bg-bg-tertiary border border-border rounded-lg
                      text-text-primary placeholder-text-muted
                      focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary
-                     transition-all"
+                     transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </div>
 

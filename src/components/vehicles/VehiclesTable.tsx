@@ -17,6 +17,7 @@ interface VehiclesTableProps {
   onDelete: (vehicle: Vehicle) => void;
   onView: (vehicle: Vehicle) => void;
   loading?: boolean;
+  hasFilters?: boolean;
 }
 
 export function VehiclesTable({ 
@@ -24,7 +25,8 @@ export function VehiclesTable({
   onEdit, 
   onDelete, 
   onView,
-  loading = false 
+  loading = false,
+  hasFilters = false
 }: VehiclesTableProps) {
   
   // ✅ OPTIMIZACIÓN: useMemo para cálculos pesados
@@ -106,15 +108,19 @@ export function VehiclesTable({
     );
   }
 
-  if (vehicles.length === 0) {
+  if (vehicles.length === 0 && !loading) {
     return (
       <div className="bg-bg-secondary rounded-xl border border-border p-12 text-center">
         <div className="text-6xl mb-4">🚗</div>
         <h3 className="text-xl font-bold text-text-primary mb-2">
-          No hay vehículos registrados
+          {hasFilters
+            ? 'No se encontraron vehículos con los filtros aplicados'
+            : 'No hay vehículos registrados'}
         </h3>
         <p className="text-text-secondary">
-          Comienza agregando el primer vehículo
+          {hasFilters
+            ? 'Intenta ajustar los filtros de búsqueda'
+            : 'Comienza agregando el primer vehículo'}
         </p>
       </div>
     );
