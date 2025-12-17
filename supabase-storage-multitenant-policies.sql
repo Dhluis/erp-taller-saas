@@ -16,11 +16,12 @@ DROP POLICY IF EXISTS "Authenticated users can update" ON storage.objects;
 -- ================================================
 -- 2. FUNCIÓN HELPER: Obtener organization_id del usuario
 -- ================================================
+-- ✅ IMPORTANTE: Crear en schema 'public', no 'storage'
 
-CREATE OR REPLACE FUNCTION storage.get_user_organization_id()
+CREATE OR REPLACE FUNCTION public.get_user_organization_id()
 RETURNS TEXT AS $$
   SELECT organization_id::TEXT
-  FROM users
+  FROM public.users
   WHERE auth_user_id = auth.uid()
   LIMIT 1;
 $$ LANGUAGE sql SECURITY DEFINER;
@@ -30,8 +31,9 @@ $$ LANGUAGE sql SECURITY DEFINER;
 -- ================================================
 -- Path format: {organizationId}/{orderId}/{category}-{timestamp}-{random}.{ext}
 -- Esta función extrae el primer segmento del path (organizationId)
+-- ✅ IMPORTANTE: Crear en schema 'public', no 'storage'
 
-CREATE OR REPLACE FUNCTION storage.extract_organization_id_from_path(path TEXT)
+CREATE OR REPLACE FUNCTION public.extract_organization_id_from_path(path TEXT)
 RETURNS TEXT AS $$
   SELECT (string_to_array(path, '/'))[1];
 $$ LANGUAGE sql IMMUTABLE;
@@ -46,7 +48,7 @@ ON storage.objects FOR SELECT
 USING (
   bucket_id = 'work-order-images'
   AND auth.role() = 'authenticated'
-  AND storage.extract_organization_id_from_path(name) = storage.get_user_organization_id()
+  AND public.extract_organization_id_from_path(name) = public.get_user_organization_id()
 );
 
 -- ✅ INSERT: Usuarios solo pueden subir a paths de su organización
@@ -55,7 +57,7 @@ ON storage.objects FOR INSERT
 WITH CHECK (
   bucket_id = 'work-order-images' 
   AND auth.role() = 'authenticated'
-  AND storage.extract_organization_id_from_path(name) = storage.get_user_organization_id()
+  AND public.extract_organization_id_from_path(name) = public.get_user_organization_id()
 );
 
 -- ✅ DELETE: Usuarios solo pueden eliminar imágenes de su organización
@@ -64,7 +66,7 @@ ON storage.objects FOR DELETE
 USING (
   bucket_id = 'work-order-images'
   AND auth.role() = 'authenticated'
-  AND storage.extract_organization_id_from_path(name) = storage.get_user_organization_id()
+  AND public.extract_organization_id_from_path(name) = public.get_user_organization_id()
 );
 
 -- ✅ UPDATE: Usuarios solo pueden actualizar imágenes de su organización
@@ -73,7 +75,7 @@ ON storage.objects FOR UPDATE
 USING (
   bucket_id = 'work-order-images'
   AND auth.role() = 'authenticated'
-  AND storage.extract_organization_id_from_path(name) = storage.get_user_organization_id()
+  AND public.extract_organization_id_from_path(name) = public.get_user_organization_id()
 );
 
 -- ================================================
@@ -101,10 +103,12 @@ ORDER BY policyname;
 -- ================================================
 -- 1. Estas políticas requieren que el path de las imágenes
 --    siga el formato: {organizationId}/{orderId}/{filename}
--- 2. La función get_user_organization_id() usa SECURITY DEFINER
+-- 2. Las funciones helper se crean en schema 'public' (no 'storage')
+--    porque no tenemos permisos para crear funciones en 'storage'
+-- 3. La función get_user_organization_id() usa SECURITY DEFINER
 --    para poder acceder a la tabla users sin problemas de RLS
--- 3. Si una imagen no tiene organization_id en el path, será
+-- 4. Si una imagen no tiene organization_id en el path, será
 --    rechazada por las políticas (seguridad por defecto)
--- 4. Las imágenes antiguas (sin organization_id en path) seguirán
+-- 5. Las imágenes antiguas (sin organization_id en path) seguirán
 --    funcionando si se migran o se dejan como están (sin protección RLS)
 
