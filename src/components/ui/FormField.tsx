@@ -120,13 +120,17 @@ export const FormField = forwardRef<HTMLInputElement, FormFieldProps>(({
         )
 
       case 'select':
+        // ✅ FIX: Convertir value vacío a undefined y filtrar options con value vacío
+        const selectValue = value === '' ? undefined : value;
+        const validOptions = options.filter(opt => opt.value !== '');
+        
         return (
-          <Select value={value} onValueChange={handleChange} disabled={disabled}>
+          <Select value={selectValue} onValueChange={handleChange} disabled={disabled}>
             <SelectTrigger className={baseProps.className}>
               <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>
-              {options.map((option) => (
+              {validOptions.map((option) => (
                 <SelectItem
                   key={option.value}
                   value={option.value}
