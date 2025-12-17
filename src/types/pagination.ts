@@ -46,6 +46,8 @@ export interface APIResponse<T> {
  * Helper function to create paginated response
  * Nota: Las funciones de cálculo están en @/lib/utils/pagination
  */
+import { generatePaginationMeta } from '@/lib/utils/pagination'
+
 export function createPaginatedResponse<T>(
   items: T[],
   page: number,
@@ -54,8 +56,6 @@ export function createPaginatedResponse<T>(
   success: boolean = true,
   error?: string
 ): PaginatedResponse<T> {
-  const { generatePaginationMeta } = require('@/lib/utils/pagination')
-  
   return {
     success,
     data: {
