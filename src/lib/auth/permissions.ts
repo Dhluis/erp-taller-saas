@@ -58,9 +58,9 @@ export const PERMISSIONS: Record<UserRole, Record<Resource, Action[]>> = {
     vehicles: ['create', 'read', 'update', 'delete'],
     quotations: ['create', 'read', 'update'],
     work_orders: ['create', 'read', 'update', 'delete'],
-    invoices: ['read'],
-    payments: ['read'],
-    reports: ['read'],
+    invoices: [], // ✅ QUITADO: ASESOR no debe ver facturas/ingresos
+    payments: [], // ✅ QUITADO: ASESOR no debe ver pagos/cobros
+    reports: [], // ✅ QUITADO: ASESOR no debe ver reportes financieros
     suppliers: [],
     purchase_orders: [],
     inventory: ['read', 'update'],
