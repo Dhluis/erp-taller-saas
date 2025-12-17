@@ -25,7 +25,9 @@ export function QuotationFilters({ onFiltersChange, onClearFilters }: QuotationF
   });
 
   const handleFilterChange = (key: string, value: string) => {
-    const newFilters = { ...filters, [key]: value };
+    // ✅ FIX: Convertir "all" a "" para limpiar el filtro
+    const filterValue = value === 'all' ? '' : value;
+    const newFilters = { ...filters, [key]: filterValue };
     setFilters(newFilters);
     onFiltersChange(newFilters);
   };
@@ -71,12 +73,12 @@ export function QuotationFilters({ onFiltersChange, onClearFilters }: QuotationF
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Estado</label>
-            <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+            <Select value={filters.status || 'all'} onValueChange={(value) => handleFilterChange('status', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Todos los estados" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos los estados</SelectItem>
+                <SelectItem value="all">Todos los estados</SelectItem>
                 <SelectItem value="draft">Borrador</SelectItem>
                 <SelectItem value="sent">Enviada</SelectItem>
                 <SelectItem value="approved">Aprobada</SelectItem>

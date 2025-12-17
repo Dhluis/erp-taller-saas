@@ -74,7 +74,7 @@ export default function InventariosProductosPage() {
 
   // Sincronizar filtro de categoría
   useEffect(() => {
-    if (categoryFilter) {
+    if (categoryFilter && categoryFilter !== 'all') {
       setFilters({ category_id: categoryFilter });
     } else {
       setFilters({});
@@ -280,12 +280,12 @@ export default function InventariosProductosPage() {
                 />
               </div>
               <div className="w-48">
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <Select value={categoryFilter || 'all'} onValueChange={(value) => setCategoryFilter(value === 'all' ? '' : value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Todas las categorías" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas las categorías</SelectItem>
+                    <SelectItem value="all">Todas las categorías</SelectItem>
                     {categories.map((category) => (
                       <SelectItem key={category.id} value={category.id}>
                         {category.name}
