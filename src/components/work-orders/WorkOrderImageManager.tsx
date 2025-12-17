@@ -785,18 +785,6 @@ export function WorkOrderImageManager({
                     )
                   })}
                 </div>
-
-                {/* ✅ Botón "Ver más" para paginación */}
-                {hasMore && (
-                  <Button
-                    onClick={loadMore}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <ChevronDown className="mr-2 h-4 w-4" />
-                    Ver más ({total - showing} restantes)
-                  </Button>
-                )}
               </div>
             )
           })}
