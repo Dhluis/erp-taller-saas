@@ -711,57 +711,33 @@ export function WorkOrderImageManager({
       {images.length > 0 ? (
         <div className="space-y-6">
           {Object.entries(imagesByCategory).map(([category, categoryImages]) => {
-            // ✅ OPTIMIZACIÓN: Paginación por categoría
-            const {
-              paginatedItems,
-              hasMore,
-              showing,
-              total,
-              loadMore
-            } = useImagePagination(categoryImages, { itemsPerPage: 6 })
-
             return (
               <div key={category} className="space-y-3">
                 <div className="flex items-center gap-2">
                   <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[category as ImageCategory].color}`} />
                   <h4 className="font-semibold">
-                    {CATEGORY_LABELS[category as ImageCategory].label} ({total})
-                    {showing < total && (
-                      <span className="text-sm text-muted-foreground ml-2">
-                        (mostrando {showing})
-                      </span>
-                    )}
+                    {CATEGORY_LABELS[category as ImageCategory].label} ({categoryImages.length})
                   </h4>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                  {paginatedItems.map((image, index) => {
+                  {categoryImages.map((image, index) => {
                     const globalIndex = images.indexOf(image)
-                    // ✅ OPTIMIZACIÓN: Lazy loading por imagen
-                    const { ref, hasIntersected } = useIntersectionObserver()
                     
                     return (
                       <Card 
                         key={globalIndex} 
-                        ref={ref}
                         className="relative group overflow-hidden cursor-pointer"
                       >
                         <div className="aspect-square relative" onClick={() => openImageDetail(image)}>
-                          {hasIntersected ? (
-                            <Image
-                              src={image.thumbnailUrl || image.url} // ✅ Usar thumbnail si existe
-                              alt={image.description || image.name}
-                              fill
-                              className="object-cover transition-opacity duration-300"
-                              sizes="(max-width: 768px) 50vw, 20vw"
-                              loading="lazy"
-                            />
-                          ) : (
-                            // ✅ Skeleton loader mientras no es visible
-                            <div className="w-full h-full bg-muted animate-pulse">
-                              <div className="w-full h-full bg-gradient-to-r from-muted via-muted/50 to-muted" />
-                            </div>
-                          )}
+                          <Image
+                            src={image.url} // ✅ Usar URL completa (thumbnailUrl es opcional)
+                            alt={image.description || image.name}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 50vw, 20vw"
+                            loading="lazy"
+                          />
                         </div>
 
                         {/* Overlay con info */}
