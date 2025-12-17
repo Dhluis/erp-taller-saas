@@ -58,7 +58,8 @@ export async function GET(request: NextRequest) {
       query = query.eq('user_id', userId)
     } else {
       // Mostrar notificaciones del usuario o generales (user_id null)
-      query = query.or(`user_id.eq.${user.id},user_id.is.null`)
+      // ✅ FIX: Escapar el user.id para evitar problemas con UUIDs
+      query = query.or(`user_id.eq."${user.id}",user_id.is.null`)
     }
 
     // Filtros opcionales

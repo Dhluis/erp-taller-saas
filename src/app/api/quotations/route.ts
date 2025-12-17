@@ -13,25 +13,49 @@ import {
   markExpiredQuotations,
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
-import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { createClientFromRequest } from '@/lib/supabase/server';
+import { getSupabaseServiceClient } from '@/lib/supabase/server';
 
 // =====================================================
 // GET - Obtener todas las cotizaciones
 // =====================================================
 export async function GET(request: NextRequest) {
   try {
-    const tenantContext = await getTenantContext(request);
-    if (!tenantContext || !tenantContext.organizationId) {
+    // ✅ Obtener usuario autenticado usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('❌ [GET /api/quotations] Error de autenticación:', authError)
       return NextResponse.json(
         {
           success: false,
-          error: 'No autorizado: No se pudo obtener la organización',
+          error: 'No autorizado',
         },
-        { status: 403 }
-      );
+        { status: 401 }
+      )
     }
 
-    const organizationId = tenantContext.organizationId;
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [GET /api/quotations] Error obteniendo perfil:', profileError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se pudo obtener la organización del usuario',
+        },
+        { status: 403 }
+      )
+    }
+
+    const organizationId = userProfile.organization_id;
     const context = createLogContext(
       organizationId,
       undefined,
@@ -60,15 +84,15 @@ export async function GET(request: NextRequest) {
       logger.info(`Cotizaciones vencidas obtenidas: ${result.length}`, context);
     } else {
       // Obtener cotizaciones (con o sin búsqueda, siempre aplica filtro de estado)
-      const { createClient } = await import('@/lib/supabase/server');
-      const supabase = await createClient();
+      // ✅ Usar supabaseAdmin para bypass RLS
+      const supabaseAdmin = getSupabaseServiceClient();
 
       if (search) {
         // BÚSQUEDA: Buscar por número O por cliente, y aplicar filtro de estado
         console.log('[API Quotations] 🔍 Modo búsqueda:', search);
         
         // Buscar por número de cotización
-        let queryByNumber = supabase
+        let queryByNumber = supabaseAdmin
           .from('quotations')
           .select(`
             *,
@@ -88,7 +112,7 @@ export async function GET(request: NextRequest) {
         const { data: byNumber, error: error1 } = await queryByNumber;
 
         // Buscar por nombre de cliente
-        const { data: customers, error: error2 } = await supabase
+        const { data: customers, error: error2 } = await supabaseAdmin
           .from('customers')
           .select('id')
           .eq('organization_id', organizationId)
@@ -101,7 +125,7 @@ export async function GET(request: NextRequest) {
         const customerIds = customers?.map(c => c.id) || [];
         
         let queryByCustomer = customerIds.length > 0
-          ? supabase
+          ? supabaseAdmin
               .from('quotations')
               .select(`
                 *,
@@ -141,7 +165,7 @@ export async function GET(request: NextRequest) {
         // SIN BÚSQUEDA: Obtener todas las cotizaciones y aplicar filtro de estado
         console.log('[API Quotations] 📋 Modo lista completa (sin búsqueda)');
         
-        let query = supabase
+        let query = supabaseAdmin
           .from('quotations')
           .select(`
             *,
@@ -194,18 +218,41 @@ export async function GET(request: NextRequest) {
 // =====================================================
 export async function POST(request: NextRequest) {
   try {
-    const tenantContext = await getTenantContext(request);
-    if (!tenantContext || !tenantContext.organizationId) {
+    // ✅ Obtener usuario autenticado usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('❌ [POST /api/quotations] Error de autenticación:', authError)
       return NextResponse.json(
         {
           success: false,
-          error: 'No autorizado: No se pudo obtener la organización',
+          error: 'No autorizado',
         },
-        { status: 403 }
-      );
+        { status: 401 }
+      )
     }
 
-    const organizationId = tenantContext.organizationId;
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [POST /api/quotations] Error obteniendo perfil:', profileError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se pudo obtener la organización del usuario',
+        },
+        { status: 403 }
+      )
+    }
+
+    const organizationId = userProfile.organization_id;
     const context = createLogContext(
       organizationId,
       undefined,
@@ -255,9 +302,7 @@ export async function POST(request: NextRequest) {
     // Generar número de cotización único
     const quotationNumber = `COT-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
-    // Crear cotización usando Supabase directamente
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    // ✅ Usar supabaseAdmin para bypass RLS
 
     // Insertar cotización
     const quotationData = {
@@ -273,10 +318,10 @@ export async function POST(request: NextRequest) {
       tax_amount: body.tax_amount || 0,
       discount_amount: body.discount_amount || 0,
       total_amount: body.total_amount || 0,
-      created_by: tenantContext.userId,
+      created_by: user.id,
     };
 
-    const { data: quotation, error: quotationError } = await supabase
+    const { data: quotation, error: quotationError } = await supabaseAdmin
       .from('quotations')
       .insert(quotationData)
       .select(`
@@ -310,19 +355,19 @@ export async function POST(request: NextRequest) {
         inventory_id: item.inventory_id || null,
       }));
 
-      const { error: itemsError } = await supabase
+      const { error: itemsError } = await supabaseAdmin
         .from('quotation_items')
         .insert(items);
 
       if (itemsError) {
         logger.error('Error insertando items', context, itemsError as Error);
         // Eliminar cotización si falla la inserción de items
-        await supabase.from('quotations').delete().eq('id', quotation.id);
+        await supabaseAdmin.from('quotations').delete().eq('id', quotation.id);
         throw itemsError;
       }
 
       // Obtener cotización completa con items
-      const { data: quotationWithItems, error: fetchError } = await supabase
+      const { data: quotationWithItems, error: fetchError } = await supabaseAdmin
         .from('quotations')
         .select(`
           *,
@@ -369,18 +414,41 @@ export async function POST(request: NextRequest) {
 // =====================================================
 export async function PATCH(request: NextRequest) {
   try {
-    const tenantContext = await getTenantContext(request);
-    if (!tenantContext || !tenantContext.organizationId) {
+    // ✅ Obtener usuario autenticado usando patrón robusto
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('❌ [PATCH /api/quotations] Error de autenticación:', authError)
       return NextResponse.json(
         {
           success: false,
-          error: 'No autorizado: No se pudo obtener la organización',
+          error: 'No autorizado',
         },
-        { status: 403 }
-      );
+        { status: 401 }
+      )
     }
 
-    const organizationId = tenantContext.organizationId;
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [PATCH /api/quotations] Error obteniendo perfil:', profileError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se pudo obtener la organización del usuario',
+        },
+        { status: 403 }
+      )
+    }
+
+    const organizationId = userProfile.organization_id;
     const context = createLogContext(
       organizationId,
       undefined,
