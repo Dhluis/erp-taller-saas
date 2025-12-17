@@ -206,6 +206,7 @@ export function WorkOrderImageManager({
   maxImages = 20
 }: WorkOrderImageManagerProps) {
   const { user } = useAuth()
+  const { organizationId } = useSession() // ✅ Obtener organizationId del contexto
   const supabase = createClient()
   
   // 🔧 FIX: Obtener token de sesión directamente desde Supabase client
@@ -335,9 +336,14 @@ export function WorkOrderImageManager({
           
           if (thumbFile) {
             try {
+              if (!organizationId) {
+                throw new Error('Organization ID no disponible')
+              }
+              
               const thumbResult = await uploadWorkOrderImage(
                 thumbFile,
                 orderId,
+                organizationId, // ✅ MULTI-TENANT: Pasar organizationId
                 userId,
                 `${selectedCategory}_thumb`, // Categoría especial para thumbnails
                 uploadDescription || undefined,
@@ -359,9 +365,14 @@ export function WorkOrderImageManager({
           // ✅ Subir imagen completa
           console.log(`📊 [${index + 1}/${filesArray.length}] Subiendo imagen completa:`, (fullFile.size / 1024 / 1024).toFixed(2), 'MB')
           
+          if (!organizationId) {
+            throw new Error('Organization ID no disponible')
+          }
+          
           const uploadResult = await uploadWorkOrderImage(
             fullFile,
             orderId,
+            organizationId, // ✅ MULTI-TENANT: Pasar organizationId
             userId,
             selectedCategory,
             uploadDescription || undefined,

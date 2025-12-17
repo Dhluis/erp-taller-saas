@@ -72,16 +72,17 @@ async function uploadWithDirectFetch(
 
 /**
  * Subir imagen de orden de trabajo
- * ✅ MULTI-TENANT: Obtiene organization_id de la orden para aislamiento en Storage
+ * ✅ MULTI-TENANT: Requiere organization_id para aislamiento en Storage
  */
 export async function uploadWorkOrderImage(
   file: File,
   orderId: string,
+  organizationId: string, // ✅ REQUERIDO: organization_id para multi-tenant
   userId?: string,
   category?: string,
   description?: string,
   orderStatus?: string,
-  accessToken?: string  // NUEVO PARÁMETRO
+  accessToken?: string
 ): Promise<{ success: boolean; data?: WorkOrderImage; error?: string }> {
   try {
     console.log('🔄 [uploadWorkOrderImage] Iniciando subida...', {
@@ -89,6 +90,7 @@ export async function uploadWorkOrderImage(
       fileSize: file.size,
       fileType: file.type,
       orderId,
+      organizationId,
       category,
       userId
     })
@@ -110,24 +112,16 @@ export async function uploadWorkOrderImage(
       return { success: false, error: 'La imagen no debe superar 10MB' }
     }
 
-    // ✅ MULTI-TENANT: Obtener organization_id de la orden
-    console.log('🔍 [uploadWorkOrderImage] Obteniendo organization_id de la orden...')
-    const { data: order, error: orderError } = await supabase
-      .from('work_orders')
-      .select('organization_id')
-      .eq('id', orderId)
-      .single()
-
-    if (orderError || !order?.organization_id) {
-      console.error('❌ [uploadWorkOrderImage] Error obteniendo orden:', orderError)
+    // ✅ MULTI-TENANT: Validar que organizationId fue proporcionado
+    if (!organizationId) {
+      console.error('❌ [uploadWorkOrderImage] organizationId no proporcionado')
       return { 
         success: false, 
-        error: orderError?.message || 'Orden no encontrada. No se puede subir la imagen.' 
+        error: 'Organization ID es requerido para subir imágenes' 
       }
     }
 
-    const organizationId = order.organization_id
-    console.log('✅ [uploadWorkOrderImage] Organization ID obtenido:', organizationId)
+    console.log('✅ [uploadWorkOrderImage] Organization ID recibido:', organizationId)
 
     // ✅ MULTI-TENANT: Generar nombre único con carpeta por organización y orden
     const fileExt = file.name.split('.').pop()
