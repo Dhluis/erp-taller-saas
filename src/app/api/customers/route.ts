@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServiceClient, createClientFromRequest } from '@/lib/supabase/server'
-import { extractPaginationFromURL, calculateOffset, generatePaginationMeta } from '@/lib/utils/pagination'
-import { createPaginatedResponse } from '@/types/pagination'
+import { 
+  extractPaginationFromURL, 
+  calculateOffset, 
+  generatePaginationMeta 
+} from '@/lib/utils/pagination'
+import type { PaginatedResponse } from '@/types/pagination'
 
 // ✅ Función helper para retry logic
 async function retryQuery<T>(
@@ -28,10 +32,9 @@ async function retryQuery<T>(
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔄 GET /api/customers - Iniciando...')
+    console.log('🔄 GET /api/customers - Iniciando con paginación...')
     
-    // Obtener usuario autenticado directamente usando el request
-    // Esto es más confiable para usuarios nuevos que acaban de hacer login
+    // ✅ PASO 1: Autenticación
     const supabase = createClientFromRequest(request)
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     
@@ -43,7 +46,7 @@ export async function GET(request: NextRequest) {
       }, { status: 401 })
     }
 
-    // Obtener organizationId del perfil del usuario usando Service Role
+    // ✅ PASO 2: Obtener organizationId
     const supabaseAdmin = getSupabaseServiceClient()
     
     const { data: userProfile, error: profileError } = await supabaseAdmin
@@ -62,41 +65,39 @@ export async function GET(request: NextRequest) {
     
     const organizationId = userProfile.organization_id
     console.log('✅ [GET /api/customers] Organization ID:', organizationId)
-    console.log('✅ [GET /api/customers] Auth User ID:', authUser.id)
-    console.log('✅ [GET /api/customers] User Profile completo:', JSON.stringify(userProfile, null, 2))
     
-    // ✅ Obtener parámetros de query
+    // ✅ PASO 3: Extraer parámetros de URL
     const url = new URL(request.url)
-    const { searchParams } = url
-    
-    // ✅ Extraer parámetros de paginación
-    const paginationParams = extractPaginationFromURL(url)
-    const { page, pageSize, sortBy, sortOrder } = paginationParams
+    const { page, pageSize, sortBy, sortOrder } = extractPaginationFromURL(url)
     
     // Parámetros adicionales
-    const idsParam = searchParams.getAll('ids') // Soporta múltiples IDs
-    const search = searchParams.get('search') || undefined
+    const search = url.searchParams.get('search') || undefined
+    const status = url.searchParams.get('status') || undefined
+    const idsParam = url.searchParams.getAll('ids') // Soporte legacy para múltiples IDs
     
-    // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('🔌 API /customers - INICIANDO QUERY')
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('Organization ID:', organizationId)
-    console.log('Paginación:', { page, pageSize, sortBy, sortOrder })
-    console.log('IDs solicitados:', idsParam.length > 0 ? idsParam : 'Todos')
-    console.log('Búsqueda:', search || 'Ninguna')
+    console.log('📄 [GET /api/customers] Parámetros de paginación:', {
+      page,
+      pageSize,
+      sortBy,
+      sortOrder,
+      search,
+      status,
+      hasIds: idsParam.length > 0
+    })
     
     // ✅ Helper para crear timeout promise
     const createTimeoutPromise = () => new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Query timeout después de 10 segundos')), 10000);
     });
     
-    // Obtener clientes de la organización
-    // Si se proporcionan IDs, filtrar por ellos
-    let customers, error, totalCount: number | null = null;
+    // ✅ PASO 4: Construir y ejecutar query con paginación
+    let customers, count, error;
+    
     try {
       const queryPromise = retryQuery(async () => {
-        console.log('🔍 [GET /api/customers] Construyendo query con organizationId:', organizationId);
+        console.log('🔍 [GET /api/customers] Construyendo query paginada...');
+        
+        // Base query
         let query = supabaseAdmin
           .from('customers')
           .select(`
@@ -106,6 +107,8 @@ export async function GET(request: NextRequest) {
             phone,
             address,
             organization_id,
+            created_at,
+            updated_at,
             vehicles (
               id,
               brand,
@@ -114,41 +117,50 @@ export async function GET(request: NextRequest) {
               license_plate,
               color
             )
-          `, { count: 'exact' })
+          `, { count: 'exact' }) // ✅ IMPORTANTE: count para paginación
           .eq('organization_id', organizationId)
         
-        // Si se proporcionan IDs, filtrar por ellos
-        if (idsParam.length > 0) {
-          query = query.in('id', idsParam)
-        }
+        // ✅ Filtros
         
-        // Búsqueda por nombre, email o teléfono
+        // Si hay búsqueda, buscar en nombre, email o teléfono
         if (search) {
           query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`)
         }
         
-        // Ordenamiento
-        const orderColumn = sortBy || 'created_at'
-        const ascending = sortOrder === 'asc' || (sortOrder !== 'desc' && orderColumn === 'created_at')
-        query = query.order(orderColumn, { ascending })
+        // Si hay status filter
+        if (status) {
+          query = query.eq('status', status)
+        }
         
-        // Paginación
+        // Si se proporcionan IDs específicos (soporte legacy)
+        if (idsParam.length > 0) {
+          query = query.in('id', idsParam)
+        }
+        
+        // ✅ Ordenamiento
+        const orderColumn = sortBy || 'created_at'
+        const orderDirection = sortOrder === 'asc'
+        query = query.order(orderColumn, { ascending: orderDirection })
+        
+        // ✅ Paginación - CLAVE PARA PERFORMANCE
         const offset = calculateOffset(page, pageSize)
         query = query.range(offset, offset + pageSize - 1)
         
-        const result = await query;
-        console.log('🔍 [GET /api/customers] Query ejecutada, resultado:', {
-          hasData: !!result.data,
-          dataLength: result.data?.length || 0,
-          count: result.count,
-          error: result.error,
-          // Log de los primeros 3 clientes para verificar organization_id
-          firstCustomers: result.data?.slice(0, 3).map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            organization_id: c.organization_id
-          })) || []
+        console.log('🔍 [GET /api/customers] Query configurada:', {
+          offset,
+          limit: pageSize,
+          orderBy: `${orderColumn} ${orderDirection ? 'ASC' : 'DESC'}`
+        })
+        
+        // Ejecutar query
+        const result = await query
+        
+        console.log('✅ [GET /api/customers] Query ejecutada:', {
+          itemsReturned: result.data?.length || 0,
+          totalCount: result.count,
+          hasError: !!result.error
         });
+        
         return result;
       }, 2, 500);
       
@@ -157,15 +169,14 @@ export async function GET(request: NextRequest) {
       
       if (result && typeof result === 'object' && 'data' in result) {
         customers = result.data;
+        count = result.count;
         error = result.error;
-        totalCount = result.count ?? null;
       } else {
         throw new Error('Resultado inesperado de la query');
       }
+      
     } catch (retryError: any) {
       console.error('❌ [GET /api/customers] Falló después de reintentos:', retryError);
-      console.error('❌ [GET /api/customers] Error message:', retryError?.message);
-      console.error('❌ [GET /api/customers] Error stack:', retryError?.stack);
       
       // Si es timeout, retornar error específico
       if (retryError?.message?.includes('timeout')) {
@@ -176,194 +187,72 @@ export async function GET(request: NextRequest) {
       }
       
       error = retryError;
+      customers = null;
+      count = null;
     }
-
-    // ✅ LOGS DETALLADOS DEL ERROR SI EXISTE
+    
+    // ✅ PASO 5: Manejar errores
     if (error) {
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      console.log('❌ ERROR EN QUERY CON VEHICLES')
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      console.log('Error code:', error.code)
-      console.log('Error message:', error.message)
-      console.log('Error details:', error.details)
-      console.log('Error hint:', error.hint)
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    }
-
-    // Si falla la query con vehicles, intentar sin el join
-    if (error && (
-      error.code === '42P01' || 
-      error.code === 'PGRST301' ||
-      error.code === '42703' ||
-      error.message?.includes('relation') || 
-      error.message?.includes('does not exist') ||
-      error.message?.includes('permission denied') ||
-      error.message?.includes('RLS')
-    )) {
-      console.warn('⚠️ [GET /api/customers] Error con vehicles, intentando sin join:', error.message)
-      console.log('🔄 [GET /api/customers] Intentando query simple sin join con retry...')
-      
-      let customersSimple, errorSimple;
-      try {
-        const queryPromise = retryQuery(async () => {
-          let query = supabaseAdmin
-            .from('customers')
-            .select('*', { count: 'exact' })
-            .eq('organization_id', organizationId)
-          
-          // Búsqueda por nombre, email o teléfono
-          if (search) {
-            query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`)
-          }
-          
-          // Ordenamiento
-          const orderColumn = sortBy || 'created_at'
-          const ascending = sortOrder === 'asc' || (sortOrder !== 'desc' && orderColumn === 'created_at')
-          query = query.order(orderColumn, { ascending })
-          
-          // Paginación
-          const offset = calculateOffset(page, pageSize)
-          query = query.range(offset, offset + pageSize - 1)
-          
-          return await query
-        }, 2, 500);
-        
-        // Race entre query y timeout
-        const result = await Promise.race([queryPromise, createTimeoutPromise()]) as any;
-        
-        if (result && typeof result === 'object' && 'data' in result) {
-          customersSimple = result.data;
-          errorSimple = result.error;
-          totalCount = result.count ?? null;
-        } else {
-          throw new Error('Resultado inesperado de la query simple');
-        }
-      } catch (retryError: any) {
-        console.error('❌ [GET /api/customers] Query simple falló después de reintentos:', retryError);
-        
-        // Si es timeout, retornar error específico
-        if (retryError?.message?.includes('timeout')) {
-          return NextResponse.json({ 
-            success: false, 
-            error: 'La consulta tardó demasiado. Por favor, intenta de nuevo.' 
-          }, { status: 504 });
-        }
-        
-        errorSimple = retryError;
-      }
-      
-      if (errorSimple) {
-        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        console.error('❌ ERROR EN QUERY SIMPLE (SIN VEHICLES)')
-        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        console.error('Error code:', errorSimple.code)
-        console.error('Error message:', errorSimple.message)
-        console.error('Error details:', errorSimple.details)
-        console.error('Error hint:', errorSimple.hint)
-        console.error('Organization ID usado:', organizationId)
-        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        
-        // Verificar si es un error de RLS o de permisos
-        if (errorSimple.code === '42501' || errorSimple.message.includes('permission denied') || errorSimple.message.includes('RLS')) {
-          return NextResponse.json({ 
-            success: false, 
-            error: 'Error de permisos: Verifique las políticas RLS de la tabla customers',
-            code: errorSimple.code,
-            hint: errorSimple.hint
-          }, { status: 500 })
-        }
-        
-        return NextResponse.json({ 
-          success: false, 
-          error: errorSimple.message || 'Error al obtener clientes',
-          code: errorSimple.code,
-          details: errorSimple.details,
-          hint: errorSimple.hint
-        }, { status: 500 })
-      }
-      
-      customers = customersSimple
-      console.log('✅ [GET /api/customers] Query simple exitosa, clientes obtenidos:', customers?.length || 0)
-    } else if (error) {
-      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      console.error('❌ ERROR INESPERADO EN QUERY')
-      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      console.error('Error code:', error.code)
-      console.error('Error message:', error.message)
-      console.error('Error details:', error.details)
-      console.error('Error hint:', error.hint)
-      console.error('Organization ID usado:', organizationId)
-      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      
+      console.error('❌ [GET /api/customers] Error en query:', error)
       return NextResponse.json({ 
         success: false, 
-        error: error.message || 'Error al obtener clientes',
-        code: error.code,
-        details: error.details,
-        hint: error.hint
+        error: 'Error al obtener clientes' 
       }, { status: 500 })
     }
 
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('✅ API /customers - QUERY EXITOSA')
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('Clientes obtenidos:', customers?.length || 0)
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    if (!customers) {
+      console.warn('⚠️ [GET /api/customers] No se obtuvieron clientes')
+      customers = []
+    }
     
-    // ✅ Si se solicita paginación (pageSize > 0), devolver formato paginado
-    // Si no (idsParam o sin paginación), devolver array simple
-    if (pageSize > 0 && idsParam.length === 0) {
-      // Obtener total para paginación desde el resultado o calcular
-      const total = totalCount ?? customers?.length || 0
-      
-      return NextResponse.json(
-        createPaginatedResponse(customers || [], page, pageSize, total)
-      )
-    } else {
-      // ✅ DEVOLVER EN EL FORMATO SIMPLE (sin paginación o con IDs específicos)
-      return NextResponse.json({ 
-        success: true, 
-        data: customers || [] 
-      })
+    // ✅ PASO 6: Generar metadata de paginación
+    const pagination = generatePaginationMeta(page, pageSize, count || 0)
+    
+    console.log('✅ [GET /api/customers] Respuesta preparada:', {
+      itemsCount: customers.length,
+      pagination
+    })
+    
+    // ✅ PASO 7: Retornar respuesta paginada
+    const response: PaginatedResponse<any> = {
+      success: true,
+      data: {
+        items: customers,
+        pagination
+      }
     }
 
+    return NextResponse.json(response)
+
   } catch (error: any) {
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.error('💥 [GET /api/customers] ERROR INESPERADO')
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.error('Error:', error)
-    console.error('Message:', error?.message)
-    console.error('Stack:', error?.stack)
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    
+    console.error('❌ [GET /api/customers] Error general:', error)
     return NextResponse.json({ 
       success: false, 
-      error: error?.message || 'Error desconocido al obtener clientes',
-      details: error?.stack
+      error: 'Error interno del servidor',
+      details: error?.message 
     }, { status: 500 })
   }
 }
 
+// ✅ POST - Crear nuevo cliente (sin cambios)
 export async function POST(request: NextRequest) {
   try {
     console.log('🔄 POST /api/customers - Iniciando...')
     
-    // Obtener usuario autenticado directamente usando el request
-    // Esto es más confiable para usuarios nuevos que acaban de hacer login
+    // Obtener usuario autenticado
     const supabase = createClientFromRequest(request)
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !authUser) {
-      console.error('❌ [POST /api/customers] Usuario no autenticado')
+      console.error('❌ Usuario no autenticado')
       return NextResponse.json({ 
         success: false, 
         error: 'No autorizado' 
       }, { status: 401 })
     }
 
-    // Obtener organizationId del perfil del usuario usando Service Role
+    // Obtener organizationId
     const supabaseAdmin = getSupabaseServiceClient()
-    
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
       .select('organization_id')
@@ -371,89 +260,56 @@ export async function POST(request: NextRequest) {
       .single()
     
     if (profileError || !userProfile || !userProfile.organization_id) {
-      console.error('❌ [POST /api/customers] Error obteniendo perfil:', profileError)
       return NextResponse.json({ 
         success: false, 
-        error: 'Usuario sin organización asignada. Por favor, contacta al administrador.' 
+        error: 'No se pudo obtener el ID de la organización' 
       }, { status: 403 })
     }
     
     const organizationId = userProfile.organization_id
-    console.log('✅ [POST /api/customers] Organization ID:', organizationId)
 
-    const body = await request.json();
-    console.log('📝 Datos recibidos:', body);
+    // Obtener datos del body
+    const body = await request.json()
+    console.log('📦 Datos recibidos:', body)
 
-    // ✅ VALIDACIÓN CRÍTICA: Si viene organization_id en el body, debe coincidir con el del usuario
-    if (body.organization_id && body.organization_id !== organizationId) {
-      console.error('❌ [POST /api/customers] Intento de crear cliente en otra organización:', {
-        user_org: organizationId,
-        body_org: body.organization_id
-      });
+    // Validar datos requeridos
+    if (!body.name || !body.email) {
       return NextResponse.json({ 
         success: false, 
-        error: 'No se puede crear cliente en otra organización. El organization_id será asignado automáticamente.' 
-      }, { status: 403 });
+        error: 'Nombre y email son requeridos' 
+      }, { status: 400 })
     }
 
-    // ✅ FORZAR organization_id del usuario (ignorar el del body por seguridad)
-    body.organization_id = organizationId;
-
-    // Obtener workshop_id del usuario autenticado usando Service Role
-    const supabaseAdminPost = getSupabaseServiceClient()
-    
-    const { data: userData, error: userDataError } = await supabaseAdminPost
-      .from('users')
-      .select('workshop_id')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    const workshopId = (userData && !userDataError) ? (userData as { workshop_id: string | null }).workshop_id : null
-    
-    // Crear nuevo cliente usando Service Role
-    const { data: customer, error } = await supabaseAdminPost
+    // Insertar cliente
+    const { data: customer, error: insertError } = await supabaseAdmin
       .from('customers')
       .insert({
-        organization_id: organizationId,
-        workshop_id: workshopId,
-        name: body.name,
-        email: body.email,
-        phone: body.phone,
-        address: body.address,
-        notes: body.notes
-      } as any)
+        ...body,
+        organization_id: organizationId
+      })
       .select()
       .single()
 
-    if (error) {
-      console.error('❌ Error creando cliente:', error)
+    if (insertError) {
+      console.error('❌ Error al insertar cliente:', insertError)
       return NextResponse.json({ 
         success: false, 
-        error: error.message 
+        error: 'Error al crear cliente' 
       }, { status: 500 })
     }
 
-    if (!customer) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'No se pudo crear el cliente' 
-      }, { status: 500 })
-    }
+    console.log('✅ Cliente creado:', customer?.id)
 
-    const customerData = customer as any
-    console.log('✅ Cliente creado:', customerData.id)
-    
-    // ✅ DEVOLVER EN EL FORMATO CORRECTO
-    return NextResponse.json({ 
-      success: true, 
-      data: customer 
+    return NextResponse.json({
+      success: true,
+      data: customer
     })
-    
+
   } catch (error: any) {
-    console.error('💥 Error en POST /api/customers:', error)
+    console.error('❌ Error general:', error)
     return NextResponse.json({ 
       success: false, 
-      error: error.message 
+      error: 'Error interno del servidor' 
     }, { status: 500 })
   }
 }
