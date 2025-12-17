@@ -114,66 +114,51 @@ export async function GET(request: NextRequest) {
     const organizationId = userProfile.organization_id;
 
     const url = new URL(request.url);
-    const { searchParams } = url;
-    const search = searchParams.get('search');
-    const lowStock = searchParams.get('low_stock');
-    // ✅ Leer category_id de filter_category_id (del hook) o category_id (directo)
-    const categoryId = searchParams.get('filter_category_id') || searchParams.get('category_id');
-
-    // ✅ Extraer parámetros de paginación
     const { page, pageSize, sortBy, sortOrder } = extractPaginationFromURL(url);
-    
+    const search = url.searchParams.get('search') || undefined;
+    // ✅ Leer category_id de filter_category_id (del hook) o category_id (directo)
+    const categoryId = url.searchParams.get('filter_category_id') || url.searchParams.get('category_id') || undefined;
+    const lowStock = url.searchParams.get('low_stock') === 'true';
+
     console.log('📄 [GET /api/inventory] Parámetros:', {
       page,
       pageSize,
       sortBy,
       sortOrder,
       search,
-      lowStock,
-      categoryId
+      categoryId,
+      lowStock
     });
 
     // ✅ Usar Service Role Client directamente para queries (bypass RLS)
     let query = supabaseAdmin
       .from('inventory')
-      .select(`
-        *,
-        category:inventory_categories(
-          id,
-          name,
-          description
-        )
-      `, { count: 'exact' })
+      .select('*, category:inventory_categories(*)', { count: 'exact' })
       .eq('organization_id', organizationId);
 
     // Aplicar filtros
-    if (lowStock === 'true') {
-      // Filtrar por stock bajo: quantity <= minimum_stock
-      // Nota: Esto requiere filtrar en memoria o usar una función SQL
-      // Por ahora, obtenemos todos y filtramos después
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%,description.ilike.%${search}%`);
     }
     
     if (categoryId) {
       query = query.eq('category_id', categoryId);
     }
     
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%,description.ilike.%${search}%`);
-    }
-
+    // Nota: low_stock requiere comparar quantity con minimum_stock, lo cual no se puede hacer directamente en Supabase
+    // Se filtrará en memoria después si es necesario
+    
     // Ordenar
-    const orderBy = sortBy || 'name';
-    const ascending = sortOrder !== 'desc';
-    query = query.order(orderBy, { ascending });
+    query = query.order(sortBy || 'name', { ascending: sortOrder === 'asc' });
 
     // Paginación
     const offset = calculateOffset(page, pageSize);
     query = query.range(offset, offset + pageSize - 1);
 
-    const { data: items, error: itemsError, count } = await query;
+    const { data: items, count, error } = await query;
 
-    if (itemsError) {
-      console.error('[GET /api/inventory] Error en query:', itemsError);
+    if (error) {
+      console.error('[GET /api/inventory] Error en query:', error);
       return NextResponse.json(
         {
           success: false,
@@ -186,24 +171,19 @@ export async function GET(request: NextRequest) {
 
     // Filtrar stock bajo si es necesario (después de obtener datos paginados)
     let filteredItems = items || [];
-    if (lowStock === 'true') {
+    if (lowStock) {
       filteredItems = filteredItems.filter((item: any) => 
-        item.quantity <= item.minimum_stock
+        item.quantity <= (item.minimum_stock || item.min_quantity || 0)
       );
-      // Recalcular count para stock bajo
-      const { count: lowStockCount } = await supabaseAdmin
-        .from('inventory')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', organizationId);
-      
-      // Filtrar en memoria para obtener el count real
+      // Para low_stock, necesitamos recalcular el count total
+      // Por simplicidad, usamos el count filtrado
       const { data: allItems } = await supabaseAdmin
         .from('inventory')
-        .select('quantity, minimum_stock')
+        .select('quantity, minimum_stock, min_quantity')
         .eq('organization_id', organizationId);
       
       const actualLowStockCount = (allItems || []).filter((item: any) => 
-        item.quantity <= item.minimum_stock
+        item.quantity <= (item.minimum_stock || item.min_quantity || 0)
       ).length;
       
       const pagination = generatePaginationMeta(page, pageSize, actualLowStockCount);
@@ -226,15 +206,13 @@ export async function GET(request: NextRequest) {
     });
 
     // ✅ Retornar respuesta paginada
-    const response: PaginatedResponse<any> = {
+    return NextResponse.json({
       success: true,
       data: {
-        items: filteredItems,
+        items: filteredItems || [],
         pagination
       }
-    };
-
-    return NextResponse.json(response);
+    } as PaginatedResponse);
   } catch (error) {
     const apiError = handleAPIError(error, 'GET /api/inventory');
     return NextResponse.json(
