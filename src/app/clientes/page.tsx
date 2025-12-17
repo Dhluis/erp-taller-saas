@@ -5,6 +5,7 @@ import { PlusIcon } from '@heroicons/react/24/outline';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/navigation/page-header';
 import { Button } from '@/components/ui/button';
+import { Pagination } from '@/components/ui/pagination';
 import { 
   CustomersTable, 
   CustomersFilters, 
@@ -13,28 +14,41 @@ import {
   CustomerDetailsModal 
 } from '@/components/customers';
 import { useCustomers } from '@/hooks/useCustomers';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useToast } from '@/hooks/useToast';
 import { ToastContainer } from '@/components/ui/ToastContainer';
 import type { Customer } from '@/lib/database/queries/customers';
 
 export default function ClientesPage() {
-  // Hooks
+  // ✅ Hook con paginación
   const { 
     customers, 
     loading, 
-    error, 
+    error,
+    pagination,
+    goToPage,
+    changePageSize,
+    setSearch,
+    setFilters: setFiltersHook,
+    refresh,
     createCustomer, 
     updateCustomer, 
-    deleteCustomer, 
-    refreshCustomers 
-  } = useCustomers();
+    deleteCustomer,
+  } = useCustomers({
+    page: 1,
+    pageSize: 20,
+    autoLoad: true,
+    enableCache: false,
+  });
   
   const { toast, showToast, hideToast } = useToast();
 
   // Estados locales
-  const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<any>({});
+  
+  // ✅ Debounce para búsqueda
+  const debouncedSearch = useDebouncedValue(searchTerm, 500);
 
   // Estados de modales
   const [showCustomerForm, setShowCustomerForm] = useState(false);
@@ -44,29 +58,15 @@ export default function ClientesPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Filtrar clientes cuando cambie la búsqueda o filtros
+  // ✅ Sincronizar búsqueda debounced con hook
   useEffect(() => {
-    let filtered = customers;
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch]);
 
-    // Filtro por búsqueda
-    if (searchTerm) {
-      filtered = filtered.filter(customer => 
-        customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.phone?.includes(searchTerm)
-      );
-    }
-
-    // Filtros adicionales
-    if (filters.city) {
-      filtered = filtered.filter(customer => customer.address?.includes(filters.city));
-    }
-    if (filters.state) {
-      filtered = filtered.filter(customer => customer.address?.includes(filters.state));
-    }
-
-    setFilteredCustomers(filtered);
-  }, [customers, searchTerm, filters]);
+  // ✅ Sincronizar filtros con hook
+  useEffect(() => {
+    setFiltersHook(filters);
+  }, [filters, setFiltersHook]);
 
   // Mostrar error si hay uno
   useEffect(() => {
@@ -118,6 +118,7 @@ export default function ClientesPage() {
       }
       
       setShowCustomerForm(false);
+      await refresh(); // Recargar lista después de crear/actualizar
     } catch (error) {
       console.error('Error al guardar cliente:', error);
       showToast('Error al guardar el cliente', 'error');
@@ -136,6 +137,7 @@ export default function ClientesPage() {
       await deleteCustomer(selectedCustomer.id);
       showToast('Cliente eliminado correctamente', 'success');
       setShowDeleteModal(false);
+      await refresh(); // Recargar lista después de eliminar
     } catch (error) {
       console.error('Error al eliminar cliente:', error);
       showToast('Error al eliminar el cliente', 'error');
@@ -180,17 +182,32 @@ export default function ClientesPage() {
 
         {/* Tabla de clientes */}
         <CustomersTable
-          customers={filteredCustomers}
+          customers={customers}
           onEdit={handleEditCustomer}
           onDelete={handleDeleteCustomer}
           onView={handleViewCustomer}
           loading={loading}
         />
 
+        {/* ✅ Componente de Paginación */}
+        {!loading && pagination.totalPages > 1 && (
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            pageSize={pagination.pageSize}
+            total={pagination.total}
+            onPageChange={goToPage}
+            onPageSizeChange={changePageSize}
+            loading={loading}
+            pageSizeOptions={[10, 20, 50, 100]}
+          />
+        )}
+
         {/* Contador de resultados */}
         {!loading && (
           <div className="text-sm text-text-secondary">
-            Mostrando {filteredCustomers.length} de {customers.length} clientes
+            Mostrando {customers.length} de {pagination.total} clientes
+            {pagination.totalPages > 1 && ` | Página ${pagination.page} de ${pagination.totalPages}`}
           </div>
         )}
       </div>
