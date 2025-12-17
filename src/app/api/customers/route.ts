@@ -157,6 +157,10 @@ export async function GET(request: NextRequest) {
       if (result && typeof result === 'object' && 'data' in result) {
         customers = result.data;
         error = result.error;
+        // Guardar el count si está disponible
+        if ('count' in result) {
+          (customers as any)._totalCount = result.count;
+        }
       } else {
         throw new Error('Resultado inesperado de la query');
       }
@@ -232,6 +236,10 @@ export async function GET(request: NextRequest) {
         if (result && typeof result === 'object' && 'data' in result) {
           customersSimple = result.data;
           errorSimple = result.error;
+          // Guardar el count si está disponible
+          if ('count' in result) {
+            (customersSimple as any)._totalCount = result.count;
+          }
         } else {
           throw new Error('Resultado inesperado de la query simple');
         }
@@ -309,15 +317,15 @@ export async function GET(request: NextRequest) {
     
     // ✅ Si se solicita paginación (pageSize > 0), devolver formato paginado
     // Si no (idsParam o sin paginación), devolver array simple
-    if (pageSize > 0 && idsParam.length === 0) {
-      // Obtener total para paginación (si no viene en el resultado)
-      const total = (customers as any)?._count || customers?.length || 0
+    if (pageSize > 0 && idsParam.length === 0 && !search) {
+      // Obtener total para paginación desde el resultado o calcular
+      const total = (customers as any)?._totalCount || customers?.length || 0
       
       return NextResponse.json(
         createPaginatedResponse(customers || [], page, pageSize, total)
       )
     } else {
-      // ✅ DEVOLVER EN EL FORMATO SIMPLE (sin paginación)
+      // ✅ DEVOLVER EN EL FORMATO SIMPLE (sin paginación o con búsqueda/IDs)
       return NextResponse.json({ 
         success: true, 
         data: customers || [] 
