@@ -230,7 +230,28 @@ export default function QuotationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Array.isArray(safeQuotations) && safeQuotations.length > 0 ? safeQuotations.map((quotation) => (
+                {(() => {
+                  // ✅ Validación EXTRA antes de renderizar
+                  if (!Array.isArray(safeQuotations)) {
+                    console.error('❌ [QuotationsPage] RENDER: safeQuotations NO ES ARRAY en TableBody')
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-red-500">
+                          Error: datos inválidos
+                        </TableCell>
+                      </TableRow>
+                    )
+                  }
+                  if (safeQuotations.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          No hay cotizaciones para mostrar
+                        </TableCell>
+                      </TableRow>
+                    )
+                  }
+                  return safeQuotations.map((quotation) => (
                   <TableRow key={quotation.id}>
                     <TableCell className="font-medium">
                       {quotation.quotation_number}
@@ -260,13 +281,8 @@ export default function QuotationsPage() {
                         : 'N/A'}
                     </TableCell>
                   </TableRow>
-                )) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
-                      No hay cotizaciones para mostrar
-                    </TableCell>
-                  </TableRow>
-                )}
+                  ))
+                })()}
               </TableBody>
             </Table>
           )}

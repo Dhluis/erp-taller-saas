@@ -237,7 +237,24 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
         // Y result.data.data es: { items: [], pagination: {} }
         
         // ✅ Extraer datos (mismo patrón que useCustomers)
-        const responseData = result.data.data || result.data
+        // IMPORTANTE: safeFetch devuelve el JSON parseado completo
+        // Si la API devuelve: { success: true, data: { items: [], pagination: {} } }
+        // Entonces result.data es: { success: true, data: { items: [], pagination: {} } }
+        const responseData = result.data?.data || result.data
+        
+        // ✅ DEBUG: Log detallado de la estructura
+        console.log('🔍 [useQuotations] DEBUG estructura:', {
+          hasResultData: !!result.data,
+          resultDataType: typeof result.data,
+          resultDataKeys: result.data ? Object.keys(result.data) : [],
+          hasNestedData: !!result.data?.data,
+          nestedDataKeys: result.data?.data ? Object.keys(result.data.data) : [],
+          responseDataKeys: responseData ? Object.keys(responseData) : [],
+          hasItems: !!responseData?.items,
+          itemsIsArray: Array.isArray(responseData?.items),
+          itemsLength: responseData?.items?.length
+        })
+        
         const items = Array.isArray(responseData?.items) ? responseData.items : []
         const paginationData = responseData?.pagination || {
           page: page,
@@ -257,9 +274,7 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
           total: paginationData.total,
           totalPages: paginationData.totalPages,
           isArray: Array.isArray(finalItems),
-          itemsType: typeof finalItems,
-          responseDataKeys: Object.keys(responseData || {}),
-          resultDataKeys: Object.keys(result.data || {})
+          itemsType: typeof finalItems
         })
 
         // ✅ Validación adicional antes de establecer el estado
