@@ -110,18 +110,22 @@ export async function createCategory(categoryData: {
   organization_id: string
 }): Promise<InventoryCategory> {
   console.log('🔄 [createCategory] Iniciando creación:', categoryData.name)
-  console.log('📦 [createCategory] Datos completos:', categoryData)
+  console.log('📦 [createCategory] Datos completos:', JSON.stringify(categoryData, null, 2))
   
   // ✅ Usar Service Client en lugar de browser client
   const supabase = getSupabaseServiceClient()
   
+  const insertData = {
+    name: categoryData.name.trim(),
+    description: categoryData.description?.trim() || null,
+    organization_id: categoryData.organization_id
+  }
+  
+  console.log('📤 [createCategory] Datos que se insertarán:', JSON.stringify(insertData, null, 2))
+  
   const { data, error } = await (supabase
     .from('inventory_categories') as any)
-    .insert([{
-      name: categoryData.name,
-      description: categoryData.description || null,
-      organization_id: categoryData.organization_id
-    }])
+    .insert([insertData])
     .select()
     .single()
 
@@ -137,11 +141,14 @@ export async function createCategory(categoryData: {
   }
 
   if (!data) {
-    console.error('❌ [createCategory] No se retornó data')
+    console.error('❌ [createCategory] No se retornó data después del insert')
     throw new DatabaseError('Error: categoría no fue creada', error as any)
   }
 
   console.log('✅ [createCategory] Categoría creada exitosamente:', data.id)
+  console.log('✅ [createCategory] Datos retornados:', JSON.stringify(data, null, 2))
+  console.log('✅ [createCategory] Organization ID en la categoría creada:', data.organization_id)
+  
   return data as InventoryCategory
 }
 

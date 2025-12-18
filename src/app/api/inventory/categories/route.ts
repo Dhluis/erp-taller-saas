@@ -128,6 +128,8 @@ export async function GET(request: NextRequest) {
     // ✅ PASO 3: Query de categorías
     let categories, queryError
     try {
+      console.log('🔍 [GET /api/inventory/categories] Ejecutando query con organization_id:', organizationId)
+      
       const queryResult = await supabaseAdmin
         .from('inventory_categories')
         .select('*')
@@ -136,6 +138,18 @@ export async function GET(request: NextRequest) {
       
       categories = queryResult.data
       queryError = queryResult.error
+      
+      console.log('📊 [GET /api/inventory/categories] Resultado de query:', {
+        hasData: !!categories,
+        isArray: Array.isArray(categories),
+        count: categories?.length || 0,
+        hasError: !!queryError,
+        firstCategory: categories?.[0] ? {
+          id: categories[0].id,
+          name: categories[0].name,
+          organization_id: categories[0].organization_id
+        } : null
+      })
     } catch (queryErr) {
       console.error('❌ [GET /api/inventory/categories] Excepción en query:', queryErr)
       return NextResponse.json({
@@ -161,6 +175,13 @@ export async function GET(request: NextRequest) {
     }
     
     console.log('✅ [GET /api/inventory/categories] Categorías encontradas:', categories?.length || 0)
+    if (categories && categories.length > 0) {
+      console.log('📋 [GET /api/inventory/categories] Primeras categorías:', categories.slice(0, 3).map(c => ({
+        id: c.id,
+        name: c.name,
+        organization_id: c.organization_id
+      })))
+    }
     
     // ✅ RETORNAR estructura correcta
     return NextResponse.json({
@@ -241,12 +262,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const category = await createCategory({
+    const categoryData = {
       ...body,
       organization_id: userProfile.organization_id // Usar el organization_id del usuario autenticado
-    });
+    };
+    
+    console.log('📦 [POST] Datos para crear categoría:', categoryData)
+    console.log('📦 [POST] Organization ID que se usará:', userProfile.organization_id)
 
-    console.log('✅ Categoría creada:', category.id)
+    const category = await createCategory(categoryData);
+
+    console.log('✅ [POST] Categoría creada exitosamente:', category.id)
+    console.log('✅ [POST] Datos completos de la categoría creada:', JSON.stringify(category, null, 2))
 
     return NextResponse.json(
       {

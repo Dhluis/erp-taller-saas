@@ -459,8 +459,30 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
         `/api/inventory/categories`
       );
       
+      console.log('🔍 [useInventory] fetchCategories - Respuesta completa:', {
+        success: result.success,
+        hasData: !!result.data,
+        dataType: typeof result.data,
+        isArray: Array.isArray(result.data),
+        dataValue: result.data
+      });
+      
       if (result.success && result.data) {
-        const categoriesList = Array.isArray(result.data) ? result.data : [];
+        // La API devuelve { success: true, data: [...] }
+        // safeFetch parsea esto, entonces result.data es el objeto completo
+        // Necesitamos acceder a result.data.data si está anidado, o result.data si es directo
+        const responseData = (result.data as any)?.data || result.data;
+        const categoriesList = Array.isArray(responseData) ? responseData : [];
+        
+        console.log('📊 [useInventory] fetchCategories - Categorías extraídas:', {
+          count: categoriesList.length,
+          firstCategory: categoriesList[0] ? {
+            id: categoriesList[0].id,
+            name: categoriesList[0].name,
+            organization_id: categoriesList[0].organization_id
+          } : null
+        });
+        
         setCategories(categoriesList);
         console.log('✅ [useInventory] fetchCategories - Exitoso:', categoriesList.length, 'categorías');
         setError(null);
