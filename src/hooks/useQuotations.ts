@@ -1,551 +1,446 @@
-'use client';
+/**
+ * useQuotations Hook con Paginación
+ * Eagles ERP - Hook para gestión de cotizaciones con paginación completa
+ */
 
-import { useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner';
+'use client'
+
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { toast } from 'sonner'
+import { safeFetch, safePost, safePut, safeDelete } from '@/lib/api'
+import { useOrganization } from '@/lib/context/SessionContext'
+import type { PaginatedResponse, SearchParams } from '@/types/pagination'
+import { buildPaginationQueryString } from '@/lib/utils/pagination'
+
+// ==========================================
+// TYPES
+// ==========================================
 
 export interface QuotationItem {
-  id: string;
-  quotation_id: string;
-  item_type: 'service' | 'part';
-  item_name: string;
-  description: string | null;
-  quantity: number;
-  unit_price: number;
-  total_price: number;
-  created_at: string;
+  id: string
+  quotation_id: string
+  item_type: 'service' | 'part'
+  item_name: string
+  description: string | null
+  quantity: number
+  unit_price: number
+  total_price: number
+  created_at: string
 }
 
 export interface Quotation {
-  id: string;
-  organization_id: string;
-  work_order_id: string | null;
-  customer_id: string;
-  vehicle_id: string;
-  quotation_number: string;
-  status: 'pending' | 'approved' | 'rejected' | 'converted' | 'expired';
-  description: string;
-  notes: string | null;
-  subtotal: number;
-  tax: number;
-  discount: number;
-  total_amount: number;
-  valid_until: string | null;
-  converted_at: string | null;
-  created_at: string;
-  updated_at: string;
+  id: string
+  quotation_number: string
+  customer_id: string
+  vehicle_id?: string
+  status: 'draft' | 'pending' | 'approved' | 'rejected' | 'expired' | 'converted'
+  subtotal: number
+  tax: number
+  discount?: number
+  total_amount: number
+  valid_until: string | null
+  description?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+  organization_id: string
   customer?: {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-  };
+    id: string
+    name: string
+    email?: string
+    phone?: string
+  }
   vehicle?: {
-    id: string;
-    brand: string;
-    model: string;
-    year: number;
-    license_plate: string;
-  };
-  work_order?: {
-    id: string;
-    description: string;
-    status: string;
-  };
-  items?: QuotationItem[];
+    id: string
+    brand: string
+    model: string
+    license_plate: string
+    year?: number
+  }
+  items?: QuotationItem[]
 }
 
-export interface QuotationStats {
-  total: number;
-  pending: number;
-  approved: number;
-  rejected: number;
-  converted: number;
-  expired: number;
-  total_value: number;
-  average_value: number;
+interface UseQuotationsOptions extends Partial<SearchParams> {
+  autoLoad?: boolean
+  enableCache?: boolean
 }
 
-export interface CreateQuotationData {
-  work_order_id?: string;
-  customer_id: string;
-  vehicle_id: string;
-  description: string;
-  notes?: string;
-  valid_until?: string;
+interface UseQuotationsReturn {
+  // Data
+  quotations: Quotation[]
+  loading: boolean
+  error: string | null
+  
+  // Pagination
+  pagination: {
+    page: number
+    pageSize: number
+    total: number
+    totalPages: number
+    hasNextPage: boolean
+    hasPreviousPage: boolean
+  }
+  
+  // Navigation
+  goToPage: (page: number) => void
+  goToNextPage: () => void
+  goToPreviousPage: () => void
+  goToFirstPage: () => void
+  goToLastPage: () => void
+  changePageSize: (size: number) => void
+  
+  // Filters
+  setSearch: (search: string) => void
+  setFilters: (filters: Record<string, any>) => void
+  setSorting: (sortBy: string, sortOrder: 'asc' | 'desc') => void
+  clearFilters: () => void
+  
+  // CRUD
+  refresh: () => Promise<void>
+  createQuotation: (data: Partial<Quotation>) => Promise<Quotation>
+  updateQuotation: (id: string, data: Partial<Quotation>) => Promise<Quotation>
+  deleteQuotation: (id: string) => Promise<boolean>
+  
+  // Status actions
+  approveQuotation: (id: string) => Promise<boolean>
+  rejectQuotation: (id: string) => Promise<boolean>
+  convertToInvoice: (id: string) => Promise<any>
 }
 
-export interface UpdateQuotationData {
-  work_order_id?: string;
-  customer_id?: string;
-  vehicle_id?: string;
-  description?: string;
-  notes?: string;
-  valid_until?: string;
-  status?: 'pending' | 'approved' | 'rejected' | 'converted' | 'expired';
-}
+// ==========================================
+// HOOK
+// ==========================================
 
-export interface CreateQuotationItemData {
-  item_type: 'service' | 'part';
-  item_name: string;
-  description?: string;
-  quantity: number;
-  unit_price: number;
-}
+export function useQuotations(options: UseQuotationsOptions = {}): UseQuotationsReturn {
+  const {
+    page: initialPage = 1,
+    pageSize: initialPageSize = 10,
+    search: initialSearch = '',
+    filters: initialFilters = {},
+    sortBy: initialSortBy = 'created_at',
+    sortOrder: initialSortOrder = 'desc',
+    autoLoad = true,
+    enableCache = false
+  } = options
 
-export interface UpdateQuotationItemData {
-  item_type?: 'service' | 'part';
-  item_name?: string;
-  description?: string;
-  quantity?: number;
-  unit_price?: number;
-}
+  const { organizationId } = useOrganization()
+  
+  // State
+  const [quotations, setQuotations] = useState<Quotation[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
+  // Pagination state
+  const [page, setPage] = useState(initialPage)
+  const [pageSize, setPageSize] = useState(initialPageSize)
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: 10,
+    total: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPreviousPage: false
+  })
+  
+  // Filter state
+  const [search, setSearchState] = useState(initialSearch)
+  const [filters, setFiltersState] = useState(initialFilters)
+  const [sortBy, setSortByState] = useState(initialSortBy)
+  const [sortOrder, setSortOrderState] = useState<'asc' | 'desc'>(initialSortOrder)
+  
+  // Cache
+  const cacheRef = useRef<Map<string, any>>(new Map())
+  const abortControllerRef = useRef<AbortController | null>(null)
 
-export function useQuotations() {
-  const [quotations, setQuotations] = useState<Quotation[]>([]);
-  const [currentQuotation, setCurrentQuotation] = useState<Quotation | null>(null);
-  const [stats, setStats] = useState<QuotationStats | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // ==========================================
+  // FETCH FUNCTION
+  // ==========================================
+  
+  const fetchQuotations = useCallback(async () => {
+    if (!organizationId) {
+      console.log('⏳ [useQuotations] Esperando organizationId...')
+      return
+    }
 
-  // =====================================================
-  // FUNCIONES DE COTIZACIONES
-  // =====================================================
-
-  const fetchQuotations = useCallback(async (status?: string) => {
-    setLoading(true);
-    setError(null);
+    // Cancelar request anterior
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    abortControllerRef.current = new AbortController()
 
     try {
-      const url = new URL('/api/quotations', window.location.origin);
-      if (status && status !== 'all') {
-        url.searchParams.set('status', status);
+      setLoading(true)
+      setError(null)
+
+      // Construir query string
+      const queryString = buildPaginationQueryString({
+        page,
+        pageSize,
+        sortBy,
+        sortOrder,
+        search,
+        filters
+      })
+
+      const cacheKey = `quotations-${organizationId}-${queryString}`
+      
+      // Check cache
+      if (enableCache && cacheRef.current.has(cacheKey)) {
+        const cached = cacheRef.current.get(cacheKey)
+        console.log('📦 [useQuotations] Usando cache')
+        setQuotations(cached.items)
+        setPagination(cached.pagination)
+        setLoading(false)
+        return
       }
 
-      const response = await fetch(url.toString());
-      const result = await response.json();
+      console.log('🔄 [useQuotations] Fetching:', `/api/quotations?${queryString}`)
 
-      if (!result.success) {
-        throw new Error(result.error || 'Error al obtener cotizaciones');
+      const result = await safeFetch<PaginatedResponse<Quotation>>(
+        `/api/quotations?${queryString}`,
+        { signal: abortControllerRef.current.signal }
+      )
+
+      if (result.success && result.data) {
+        const items = result.data.items || []
+        const paginationData = result.data.pagination
+
+        setQuotations(items)
+        setPagination(paginationData)
+
+        // Guardar en cache
+        if (enableCache) {
+          cacheRef.current.set(cacheKey, { items, pagination: paginationData })
+        }
+
+        console.log('✅ [useQuotations] Loaded:', {
+          items: items.length,
+          page: paginationData.page,
+          total: paginationData.total
+        })
+      } else {
+        setError(result.error || 'Error al cargar cotizaciones')
+        toast.error('Error al cargar cotizaciones')
       }
-
-      setQuotations(result.data || []);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al cargar cotizaciones', {
-        description: errorMessage,
-      });
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.error('❌ [useQuotations] Error:', err)
+        setError(err.message)
+        toast.error('Error al cargar cotizaciones')
+      }
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, []);
+  }, [organizationId, page, pageSize, search, filters, sortBy, sortOrder, enableCache])
 
-  const searchQuotations = useCallback(async (searchTerm: string) => {
-    setLoading(true);
-    setError(null);
+  // Auto-load
+  useEffect(() => {
+    if (autoLoad) {
+      fetchQuotations()
+    }
+  }, [autoLoad, fetchQuotations])
 
+  // ==========================================
+  // NAVIGATION FUNCTIONS
+  // ==========================================
+
+  const goToPage = useCallback((newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setPage(newPage)
+    }
+  }, [pagination.totalPages])
+
+  const goToNextPage = useCallback(() => {
+    if (pagination.hasNextPage) {
+      setPage(prev => prev + 1)
+    }
+  }, [pagination.hasNextPage])
+
+  const goToPreviousPage = useCallback(() => {
+    if (pagination.hasPreviousPage) {
+      setPage(prev => prev - 1)
+    }
+  }, [pagination.hasPreviousPage])
+
+  const goToFirstPage = useCallback(() => {
+    setPage(1)
+  }, [])
+
+  const goToLastPage = useCallback(() => {
+    setPage(pagination.totalPages)
+  }, [pagination.totalPages])
+
+  const changePageSize = useCallback((newSize: number) => {
+    setPageSize(newSize)
+    setPage(1) // Reset a primera página
+  }, [])
+
+  // ==========================================
+  // FILTER FUNCTIONS
+  // ==========================================
+
+  const setSearch = useCallback((newSearch: string) => {
+    setSearchState(newSearch)
+    setPage(1) // Reset a primera página
+  }, [])
+
+  const setFilters = useCallback((newFilters: Record<string, any>) => {
+    setFiltersState(newFilters)
+    setPage(1)
+  }, [])
+
+  const setSorting = useCallback((newSortBy: string, newSortOrder: 'asc' | 'desc') => {
+    setSortByState(newSortBy)
+    setSortOrderState(newSortOrder)
+    setPage(1)
+  }, [])
+
+  const clearFilters = useCallback(() => {
+    setSearchState('')
+    setFiltersState({})
+    setPage(1)
+  }, [])
+
+  // ==========================================
+  // CRUD FUNCTIONS
+  // ==========================================
+
+  const refresh = useCallback(async () => {
+    cacheRef.current.clear()
+    await fetchQuotations()
+  }, [fetchQuotations])
+
+  const createQuotation = useCallback(async (data: Partial<Quotation>) => {
     try {
-      const url = new URL('/api/quotations', window.location.origin);
-      url.searchParams.set('search', searchTerm);
-
-      const response = await fetch(url.toString());
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al buscar cotizaciones');
+      const result = await safePost<Quotation>('/api/quotations', data)
+      
+      if (result.success && result.data) {
+        toast.success('Cotización creada exitosamente')
+        await refresh()
+        return result.data
+      } else {
+        throw new Error(result.error || 'Error al crear cotización')
       }
-
-      setQuotations(result.data || []);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al buscar cotizaciones', {
-        description: errorMessage,
-      });
-    } finally {
-      setLoading(false);
+    } catch (err: any) {
+      toast.error('Error al crear cotización')
+      throw err
     }
-  }, []);
+  }, [refresh])
 
-  const fetchStats = useCallback(async () => {
+  const updateQuotation = useCallback(async (id: string, data: Partial<Quotation>) => {
     try {
-      const response = await fetch('/api/quotations?stats=true');
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al obtener estadísticas');
+      const result = await safePut<Quotation>(`/api/quotations/${id}`, data)
+      
+      if (result.success && result.data) {
+        toast.success('Cotización actualizada')
+        await refresh()
+        return result.data
+      } else {
+        throw new Error(result.error || 'Error al actualizar')
       }
-
-      setStats(result.data);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      console.error('Error fetching quotation stats:', errorMessage);
+    } catch (err: any) {
+      toast.error('Error al actualizar cotización')
+      throw err
     }
-  }, []);
-
-  const fetchQuotationById = useCallback(async (id: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/quotations/${id}`);
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al obtener cotización');
-      }
-
-      setCurrentQuotation(result.data);
-      return result.data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al cargar cotización', {
-        description: errorMessage,
-      });
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const createQuotation = useCallback(async (data: CreateQuotationData) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch('/api/quotations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al crear cotización');
-      }
-
-      toast.success('Cotización creada exitosamente');
-      await fetchQuotations();
-      await fetchStats();
-      return result.data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al crear cotización', {
-        description: errorMessage,
-      });
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchQuotations, fetchStats]);
-
-  const updateQuotation = useCallback(async (id: string, data: UpdateQuotationData) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/quotations/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al actualizar cotización');
-      }
-
-      toast.success('Cotización actualizada exitosamente');
-      await fetchQuotations();
-      await fetchStats();
-      return result.data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al actualizar cotización', {
-        description: errorMessage,
-      });
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchQuotations, fetchStats]);
+  }, [refresh])
 
   const deleteQuotation = useCallback(async (id: string) => {
-    setLoading(true);
-    setError(null);
-
     try {
-      const response = await fetch(`/api/quotations/${id}`, {
-        method: 'DELETE',
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al eliminar cotización');
+      const result = await safeDelete(`/api/quotations/${id}`)
+      
+      if (result.success) {
+        toast.success('Cotización eliminada')
+        await refresh()
+        return true
+      } else {
+        throw new Error(result.error || 'Error al eliminar')
       }
-
-      toast.success('Cotización eliminada exitosamente');
-      await fetchQuotations();
-      await fetchStats();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al eliminar cotización', {
-        description: errorMessage,
-      });
-      throw err;
-    } finally {
-      setLoading(false);
+    } catch (err: any) {
+      toast.error('Error al eliminar cotización')
+      throw err
     }
-  }, [fetchQuotations, fetchStats]);
+  }, [refresh])
 
-  const updateQuotationStatus = useCallback(async (id: string, status: string) => {
-    setLoading(true);
-    setError(null);
+  // ==========================================
+  // STATUS ACTIONS
+  // ==========================================
 
+  const approveQuotation = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`/api/quotations/${id}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status }),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al actualizar estado');
+      const result = await safePost(`/api/quotations/${id}/approve`, {})
+      
+      if (result.success) {
+        toast.success('Cotización aprobada')
+        await refresh()
+        return true
+      } else {
+        throw new Error(result.error || 'Error al aprobar')
       }
-
-      toast.success(`Estado actualizado a: ${status}`);
-      await fetchQuotations();
-      await fetchStats();
-      return result.data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al actualizar estado', {
-        description: errorMessage,
-      });
-      throw err;
-    } finally {
-      setLoading(false);
+    } catch (err: any) {
+      toast.error('Error al aprobar cotización')
+      return false
     }
-  }, [fetchQuotations, fetchStats]);
+  }, [refresh])
 
-  // =====================================================
-  // FUNCIONES DE ITEMS DE COTIZACIÓN
-  // =====================================================
-
-  const fetchQuotationItems = useCallback(async (quotationId: string) => {
+  const rejectQuotation = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`/api/quotations/${quotationId}/items`);
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al obtener items');
+      const result = await safePost(`/api/quotations/${id}/reject`, {})
+      
+      if (result.success) {
+        toast.success('Cotización rechazada')
+        await refresh()
+        return true
+      } else {
+        throw new Error(result.error || 'Error al rechazar')
       }
-
-      return result.data || [];
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      toast.error('Error al cargar items', {
-        description: errorMessage,
-      });
-      return [];
+    } catch (err: any) {
+      toast.error('Error al rechazar cotización')
+      return false
     }
-  }, []);
+  }, [refresh])
 
-  const addQuotationItem = useCallback(async (quotationId: string, data: CreateQuotationItemData) => {
-    setLoading(true);
-    setError(null);
-
+  const convertToInvoice = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`/api/quotations/${quotationId}/items`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al agregar item');
+      const result = await safePost(`/api/quotations/${id}/convert`, {})
+      
+      if (result.success && result.data) {
+        toast.success('Cotización convertida a factura')
+        await refresh()
+        return result.data
+      } else {
+        throw new Error(result.error || 'Error al convertir')
       }
-
-      toast.success('Item agregado exitosamente');
-      await fetchQuotationById(quotationId);
-      return result.data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al agregar item', {
-        description: errorMessage,
-      });
-      throw err;
-    } finally {
-      setLoading(false);
+    } catch (err: any) {
+      toast.error('Error al convertir a factura')
+      throw err
     }
-  }, [fetchQuotationById]);
+  }, [refresh])
 
-  const updateQuotationItem = useCallback(async (quotationId: string, itemId: string, data: UpdateQuotationItemData) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/quotations/${quotationId}/items/${itemId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al actualizar item');
-      }
-
-      toast.success('Item actualizado exitosamente');
-      await fetchQuotationById(quotationId);
-      return result.data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al actualizar item', {
-        description: errorMessage,
-      });
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchQuotationById]);
-
-  const deleteQuotationItem = useCallback(async (quotationId: string, itemId: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/quotations/${quotationId}/items/${itemId}`, {
-        method: 'DELETE',
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al eliminar item');
-      }
-
-      toast.success('Item eliminado exitosamente');
-      await fetchQuotationById(quotationId);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al eliminar item', {
-        description: errorMessage,
-      });
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchQuotationById]);
-
-  // =====================================================
-  // FUNCIONES DE UTILIDAD
-  // =====================================================
-
-  const fetchQuotationsByCustomer = useCallback(async (customerId: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/quotations?customer_id=${customerId}`);
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al obtener cotizaciones del cliente');
-      }
-
-      setQuotations(result.data || []);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al cargar cotizaciones del cliente', {
-        description: errorMessage,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchQuotationsByWorkOrder = useCallback(async (workOrderId: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/quotations?work_order_id=${workOrderId}`);
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al obtener cotizaciones de la orden');
-      }
-
-      setQuotations(result.data || []);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al cargar cotizaciones de la orden', {
-        description: errorMessage,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // ==========================================
+  // RETURN
+  // ==========================================
 
   return {
-    // Estado
     quotations,
-    currentQuotation,
-    stats,
     loading,
     error,
-
-    // Operaciones de cotizaciones
-    fetchQuotations,
-    searchQuotations,
-    fetchStats,
-    fetchQuotationById,
+    pagination,
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    goToFirstPage,
+    goToLastPage,
+    changePageSize,
+    setSearch,
+    setFilters,
+    setSorting,
+    clearFilters,
+    refresh,
     createQuotation,
     updateQuotation,
     deleteQuotation,
-    updateQuotationStatus,
-
-    // Operaciones de items
-    fetchQuotationItems,
-    addQuotationItem,
-    updateQuotationItem,
-    deleteQuotationItem,
-
-    // Consultas especiales
-    fetchQuotationsByCustomer,
-    fetchQuotationsByWorkOrder,
-
-    // Utilidades
-    setCurrentQuotation,
-  };
+    approveQuotation,
+    rejectQuotation,
+    convertToInvoice
+  }
 }
-

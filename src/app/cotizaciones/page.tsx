@@ -20,41 +20,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Pagination } from '@/components/ui/pagination'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { Plus, Search, RefreshCw, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { useSession } from '@/lib/context/SessionContext'
+import { useQuotations } from '@/hooks/useQuotations'
 import { CreateQuotationModal } from '@/components/quotations/CreateQuotationModal'
 
 export const dynamic = 'force-dynamic'
-
-interface Quotation {
-  id: string
-  quotation_number: string
-  customer_id: string
-  vehicle_id: string
-  status: 'draft' | 'sent' | 'approved' | 'rejected' | 'expired' | 'converted'
-  valid_until: string
-  subtotal: number
-  tax_amount: number
-  discount_amount: number
-  total_amount: number
-  created_at: string
-  customers?: {
-    id: string
-    name: string
-    email?: string
-    phone?: string
-  }
-  vehicles?: {
-    id: string
-    brand: string
-    model: string
-    license_plate: string
-    year?: number
-  }
-}
 
 const STATUS_COLORS = {
   draft: 'bg-gray-500',
@@ -75,70 +50,53 @@ const STATUS_LABELS = {
 }
 
 export default function QuotationsPage() {
-  const session = useSession()
-  const organizationId = session?.organizationId || null
-  const [quotations, setQuotations] = useState<Quotation[]>([])
-  const [loading, setLoading] = useState(true)
+  // ✅ Hook con paginación
+  const {
+    quotations,
+    loading,
+    error,
+    pagination,
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    goToFirstPage,
+    goToLastPage,
+    changePageSize,
+    setSearch,
+    setFilters,
+    refresh,
+    createQuotation,
+    updateQuotation,
+    deleteQuotation,
+    approveQuotation,
+    rejectQuotation
+  } = useQuotations({
+    page: 1,
+    pageSize: 10,
+    sortBy: 'created_at',
+    sortOrder: 'desc',
+    autoLoad: true
+  })
+
+  // ✅ Debounce para búsqueda
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const debouncedSearch = useDebouncedValue(searchTerm, 500)
+  const [statusFilter, setStatusFilter] = useState<string>('')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
-  // Cargar cotizaciones
-  const loadQuotations = async () => {
-    if (!organizationId) {
-      setLoading(false)
-      return
-    }
-
-    setLoading(true)
-    try {
-      const params = new URLSearchParams()
-      if (statusFilter && statusFilter !== 'all') {
-        params.append('status', statusFilter)
-      }
-      if (searchTerm && searchTerm.trim()) {
-        params.append('search', searchTerm.trim())
-      }
-
-      const url = `/api/quotations?${params.toString()}`
-      console.log('[Cotizaciones] 🔍 Cargando con parámetros:', { statusFilter, searchTerm, url })
-
-      const response = await fetch(url, {
-        credentials: 'include',
-        cache: 'no-store',
-      })
-
-      if (!response.ok) {
-        throw new Error('Error al cargar cotizaciones')
-      }
-
-      const result = await response.json()
-      if (result.success) {
-        setQuotations(result.data || [])
-      } else {
-        throw new Error(result.error || 'Error al cargar cotizaciones')
-      }
-    } catch (error: any) {
-      console.error('Error cargando cotizaciones:', error)
-      toast.error(error.message || 'Error al cargar cotizaciones')
-      setQuotations([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // Sincronizar búsqueda con debounce
   useEffect(() => {
-    if (organizationId) {
-      console.log('[Cotizaciones] 🔄 useEffect ejecutado - Recargando cotizaciones', { organizationId, statusFilter, searchTerm });
-      loadQuotations()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organizationId, statusFilter])
+    setSearch(debouncedSearch)
+  }, [debouncedSearch, setSearch])
 
-  // Buscar cotizaciones
-  const handleSearch = () => {
-    loadQuotations()
-  }
+  // Sincronizar filtro de status
+  useEffect(() => {
+    if (statusFilter && statusFilter !== 'all') {
+      setFilters({ status: statusFilter })
+    } else {
+      setFilters({})
+    }
+  }, [statusFilter, setFilters])
 
   // Formatear moneda
   const formatCurrency = (amount: number) => {
@@ -165,16 +123,29 @@ export default function QuotationsPage() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-text-primary">Cotizaciones</h1>
-            <p className="text-text-secondary mt-1">
-              Administra cotizaciones y presupuestos
-            </p>
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-text-primary">Cotizaciones</h1>
+              <p className="text-text-secondary mt-1">
+                Administra cotizaciones y presupuestos
+              </p>
+            </div>
+            {!loading && pagination.total > 0 && (
+              <div className="text-sm text-muted-foreground">
+                Total: {pagination.total} | Página {pagination.page} de {pagination.totalPages}
+              </div>
+            )}
           </div>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nueva Cotización
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={refresh} variant="outline" size="sm" disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Actualizar
+            </Button>
+            <Button onClick={() => setIsCreateModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nueva Cotización
+            </Button>
+          </div>
         </div>
 
         {/* Filtros y búsqueda */}
@@ -182,23 +153,21 @@ export default function QuotationsPage() {
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por número o cliente..."
+              placeholder="Buscar por número, descripción o notas..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              disabled={loading}
               className="pl-10"
             />
           </div>
           <Select 
-            value={statusFilter} 
+            value={statusFilter || 'all'} 
             onValueChange={(value) => {
-              console.log('[Cotizaciones] 🎯 Select cambió a:', value);
-              setStatusFilter(value);
-              // El useEffect se ejecutará automáticamente cuando statusFilter cambie
+              setStatusFilter(value === 'all' ? '' : value)
             }}
           >
             <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="Filtrar por estado" />
+              <SelectValue placeholder="Todos los estados" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los estados</SelectItem>
@@ -210,14 +179,6 @@ export default function QuotationsPage() {
               <SelectItem value="converted">Convertida</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={handleSearch} disabled={loading}>
-            <Search className="h-4 w-4 mr-2" />
-            Buscar
-          </Button>
-          <Button variant="outline" onClick={loadQuotations} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refrescar
-          </Button>
         </div>
 
         {/* Tabla de cotizaciones */}
@@ -232,7 +193,7 @@ export default function QuotationsPage() {
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium mb-2">No hay cotizaciones</p>
               <p className="text-sm mb-4">
-                {searchTerm || statusFilter !== 'all'
+                {searchTerm || statusFilter
                   ? 'No se encontraron cotizaciones con los filtros aplicados'
                   : 'Crea tu primera cotización para comenzar'}
               </p>
@@ -257,19 +218,19 @@ export default function QuotationsPage() {
                       {quotation.quotation_number}
                     </TableCell>
                     <TableCell>
-                      {quotation.customers?.name || 'N/A'}
+                      {quotation.customer?.name || 'N/A'}
                     </TableCell>
                     <TableCell>
-                      {quotation.vehicles
-                        ? `${quotation.vehicles.brand} ${quotation.vehicles.model} - ${quotation.vehicles.license_plate}`
+                      {quotation.vehicle
+                        ? `${quotation.vehicle.brand} ${quotation.vehicle.model} - ${quotation.vehicle.license_plate}`
                         : 'N/A'}
                     </TableCell>
                     <TableCell className="font-semibold">
                       {formatCurrency(quotation.total_amount)}
                     </TableCell>
                     <TableCell>
-                      <Badge className={STATUS_COLORS[quotation.status]}>
-                        {STATUS_LABELS[quotation.status]}
+                      <Badge className={STATUS_COLORS[quotation.status] || 'bg-gray-500'}>
+                        {STATUS_LABELS[quotation.status] || quotation.status}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -287,6 +248,22 @@ export default function QuotationsPage() {
           )}
         </div>
 
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              pageSize={pagination.pageSize}
+              total={pagination.total}
+              onPageChange={goToPage}
+              onPageSizeChange={changePageSize}
+              loading={loading}
+              pageSizeOptions={[10, 20, 50]}
+            />
+          </div>
+        )}
+
         {/* Modal de crear cotización */}
         <CreateQuotationModal
           open={isCreateModalOpen}
@@ -294,7 +271,7 @@ export default function QuotationsPage() {
           quotation={null}
           onSuccess={() => {
             setIsCreateModalOpen(false)
-            loadQuotations()
+            refresh()
           }}
         />
       </div>

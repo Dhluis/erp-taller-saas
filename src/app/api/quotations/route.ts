@@ -15,6 +15,12 @@ import {
 import { logger, createLogContext } from '@/lib/core/logging';
 import { createClientFromRequest } from '@/lib/supabase/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
+import { 
+  extractPaginationFromURL, 
+  calculateOffset, 
+  generatePaginationMeta 
+} from '@/lib/utils/pagination';
+import type { PaginatedResponse } from '@/types/pagination';
 
 // =====================================================
 // GET - Obtener todas las cotizaciones
@@ -63,143 +69,105 @@ export async function GET(request: NextRequest) {
       'GET'
     );
     
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
-    const search = searchParams.get('search');
-    const expired = searchParams.get('expired') === 'true';
-    const stats = searchParams.get('stats') === 'true';
+    // ✅ NUEVO: Extraer parámetros de paginación
+    const url = new URL(request.url);
+    const { page, pageSize, sortBy, sortOrder } = extractPaginationFromURL(url);
+    
+    // Parámetros adicionales
+    const search = url.searchParams.get('search') || undefined;
+    const status = url.searchParams.get('status') || undefined;
+    const customerId = url.searchParams.get('customer_id') || undefined;
+    const expired = url.searchParams.get('expired') === 'true';
+    const stats = url.searchParams.get('stats') === 'true';
 
-    logger.info('Obteniendo cotizaciones', context, { status, search, expired, stats });
-    console.log('[API Quotations] 📋 Parámetros recibidos:', { status, search, expired, stats });
+    logger.info('Obteniendo cotizaciones', context, { page, pageSize, status, search, expired, stats });
+    console.log('[API Quotations] 📋 Parámetros recibidos:', { page, pageSize, status, search, expired, stats });
 
-    let result;
-
+    // ✅ Manejar casos especiales (stats, expired) sin paginación
     if (stats) {
-      // Obtener estadísticas
-      result = await getQuotationStats(organizationId);
+      const result = await getQuotationStats(organizationId);
       logger.info('Estadísticas de cotizaciones obtenidas', context);
-    } else if (expired) {
-      // Obtener cotizaciones vencidas
-      result = await getExpiredQuotations(organizationId);
-      logger.info(`Cotizaciones vencidas obtenidas: ${result.length}`, context);
-    } else {
-      // Obtener cotizaciones (con o sin búsqueda, siempre aplica filtro de estado)
-      // ✅ Usar supabaseAdmin para bypass RLS
-      const supabaseAdmin = getSupabaseServiceClient();
-
-      if (search) {
-        // BÚSQUEDA: Buscar por número O por cliente, y aplicar filtro de estado
-        console.log('[API Quotations] 🔍 Modo búsqueda:', search);
-        
-        // Buscar por número de cotización
-        let queryByNumber = supabaseAdmin
-          .from('quotations')
-          .select(`
-            *,
-            customers (*),
-            vehicles (*),
-            quotation_items (*)
-          `)
-          .eq('organization_id', organizationId)
-          .ilike('quotation_number', `%${search}%`);
-
-        // Aplicar filtro de estado si existe
-        if (status && status !== 'all') {
-          queryByNumber = queryByNumber.eq('status', status);
-          console.log('[API Quotations] ✅ Aplicando filtro de estado a búsqueda por número:', status);
-        }
-
-        const { data: byNumber, error: error1 } = await queryByNumber;
-
-        // Buscar por nombre de cliente
-        const { data: customers, error: error2 } = await supabaseAdmin
-          .from('customers')
-          .select('id')
-          .eq('organization_id', organizationId)
-          .ilike('name', `%${search}%`);
-
-        if (error2) {
-          logger.error('Error buscando clientes', context, error2 as Error);
-        }
-
-        const customerIds = customers?.map(c => c.id) || [];
-        
-        let queryByCustomer = customerIds.length > 0
-          ? supabaseAdmin
-              .from('quotations')
-              .select(`
-                *,
-                customers (*),
-                vehicles (*),
-                quotation_items (*)
-              `)
-              .eq('organization_id', organizationId)
-              .in('customer_id', customerIds)
-          : null;
-
-        // Aplicar filtro de estado si existe
-        if (queryByCustomer && status && status !== 'all') {
-          queryByCustomer = queryByCustomer.eq('status', status);
-          console.log('[API Quotations] ✅ Aplicando filtro de estado a búsqueda por cliente:', status);
-        }
-
-        const { data: byCustomer, error: error3 } = queryByCustomer
-          ? await queryByCustomer
-          : { data: null, error: null };
-
-        if (error1 || error3) {
-          logger.error('Error buscando cotizaciones', context, (error1 || error3) as Error);
-          throw error1 || error3;
-        }
-
-        // Combinar resultados y eliminar duplicados
-        const allResults = [...(byNumber || []), ...(byCustomer || [])];
-        const uniqueResults = allResults.filter((q, index, self) =>
-          index === self.findIndex((t) => t.id === q.id)
-        );
-
-        result = uniqueResults;
-        console.log(`[API Quotations] ✅ Resultados de búsqueda: ${result.length} cotizaciones (filtro estado: ${status || 'todos'})`);
-        logger.info(`Resultados de búsqueda: ${result.length} cotizaciones (filtro estado: ${status || 'todos'})`, context);
-      } else {
-        // SIN BÚSQUEDA: Obtener todas las cotizaciones y aplicar filtro de estado
-        console.log('[API Quotations] 📋 Modo lista completa (sin búsqueda)');
-        
-        let query = supabaseAdmin
-          .from('quotations')
-          .select(`
-            *,
-            customers (*),
-            vehicles (*),
-            quotation_items (*)
-          `)
-          .eq('organization_id', organizationId)
-          .order('created_at', { ascending: false });
-
-        if (status && status !== 'all') {
-          query = query.eq('status', status);
-          console.log('[API Quotations] ✅ Aplicando filtro de estado:', status);
-        } else {
-          console.log('[API Quotations] ℹ️ Sin filtro de estado (todos)');
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
-          logger.error('Error obteniendo cotizaciones', context, error as Error);
-          throw error;
-        }
-
-        result = data || [];
-        console.log(`[API Quotations] ✅ Cotizaciones obtenidas: ${result.length} (filtro estado: ${status || 'todos'})`);
-        logger.info(`Cotizaciones obtenidas: ${result.length}`, context);
-      }
+      return NextResponse.json({
+        success: true,
+        data: result,
+      });
     }
 
-    return NextResponse.json({
-      success: true,
-      data: result,
-    });
+    if (expired) {
+      const result = await getExpiredQuotations(organizationId);
+      logger.info(`Cotizaciones vencidas obtenidas: ${result.length}`, context);
+      return NextResponse.json({
+        success: true,
+        data: result,
+      });
+    }
+
+    // ✅ MODE PAGINADO: Obtener cotizaciones con paginación
+    const supabaseAdmin = getSupabaseServiceClient();
+    
+    try {
+      // ✅ Query con count para paginación
+      let query = supabaseAdmin
+        .from('quotations')
+        .select(`
+          *,
+          customer:customers(id, name, email, phone),
+          items:quotation_items(*)
+        `, { count: 'exact' })
+        .eq('organization_id', organizationId);
+
+      // Búsqueda multi-campo
+      if (search) {
+        query = query.or(`
+          quotation_number.ilike.%${search}%,
+          description.ilike.%${search}%,
+          notes.ilike.%${search}%
+        `);
+      }
+
+      // Filtro por status
+      if (status && status !== 'all') {
+        query = query.eq('status', status);
+      }
+
+      // Filtro por cliente
+      if (customerId) {
+        query = query.eq('customer_id', customerId);
+      }
+
+      // Ordenamiento (default: created_at DESC para ver más recientes primero)
+      const orderColumn = sortBy || 'created_at';
+      const orderDirection = sortOrder === 'asc';
+      query = query.order(orderColumn, { ascending: orderDirection });
+
+      // ✅ Paginación
+      const offset = calculateOffset(page, pageSize);
+      query = query.range(offset, offset + pageSize - 1);
+
+      const { data, error, count } = await query;
+
+      if (error) {
+        console.error('❌ Error fetching quotations:', error);
+        logger.error('Error obteniendo cotizaciones', context, error as Error);
+        return NextResponse.json({
+          success: false,
+          error: error.message
+        }, { status: 500 });
+      }
+
+      // ✅ Retornar estructura paginada
+      const pagination = generatePaginationMeta(page, pageSize, count || 0);
+      
+      console.log(`[API Quotations] ✅ Cotizaciones obtenidas: ${data?.length || 0} de ${count || 0} total`);
+      logger.info(`Cotizaciones obtenidas: ${data?.length || 0} de ${count || 0}`, context);
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          items: data || [],
+          pagination
+        }
+      } as PaginatedResponse);
   } catch (error) {
     console.error('❌ [GET /api/quotations] Error:', error);
     

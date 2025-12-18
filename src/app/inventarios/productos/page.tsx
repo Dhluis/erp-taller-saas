@@ -260,10 +260,11 @@ export default function InventariosProductosPage() {
 
         {/* Stats */}
         {!loading && pagination.total > 0 && (
-          <p className="text-sm text-muted-foreground mt-1">
-            Total: {pagination.total} items | 
-            Página {pagination.page} de {pagination.totalPages}
-          </p>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <span>Total: {pagination.total} productos</span>
+            <span>•</span>
+            <span>Página {pagination.page} de {pagination.totalPages}</span>
+          </div>
         )}
 
         {/* Filtros y búsqueda */}
@@ -273,10 +274,10 @@ export default function InventariosProductosPage() {
               <div className="flex-1 relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Buscar productos por nombre o SKU..."
+                  placeholder="Buscar por nombre, SKU o descripción..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 max-w-sm"
                 />
               </div>
               <div className="w-48">
@@ -392,7 +393,7 @@ export default function InventariosProductosPage() {
 
             {/* Pagination */}
             {pagination.totalPages > 1 && (
-              <div className="mt-6">
+              <div className="mt-4">
                 <Pagination
                   currentPage={pagination.page}
                   totalPages={pagination.totalPages}
@@ -401,6 +402,9 @@ export default function InventariosProductosPage() {
                   onPageChange={goToPage}
                   onPageSizeChange={changePageSize}
                   loading={loading}
+                  pageSizeOptions={[25, 50, 100]}
+                  showPageSizeSelector={true}
+                  showGoToButtons={true}
                 />
               </div>
             )}
