@@ -151,11 +151,11 @@ export async function GET(request: NextRequest) {
       // Si no tiene organización, redirigir a onboarding
       if (!organizationId) {
         console.log('🔄 [Callback] Usuario sin organización, redirigiendo a onboarding...')
-        return createRedirectResponse('/onboarding')
+        return createRedirectResponse('/onboarding', response)
       }
       
       console.log('✅ [Callback] Usuario con organización, redirigiendo a:', next)
-      return response
+      return createRedirectResponse(next, response)
     } else if (error) {
       console.error('❌ [Callback] Error en OAuth:', error)
     }
