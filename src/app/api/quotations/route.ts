@@ -105,69 +105,68 @@ export async function GET(request: NextRequest) {
     // ✅ MODE PAGINADO: Obtener cotizaciones con paginación
     const supabaseAdmin = getSupabaseServiceClient();
     
-    try {
-      // ✅ Query con count para paginación
-      let query = supabaseAdmin
-        .from('quotations')
-        .select(`
-          *,
-          customer:customers(id, name, email, phone),
-          items:quotation_items(*)
-        `, { count: 'exact' })
-        .eq('organization_id', organizationId);
+    // ✅ Query con count para paginación
+    let query = supabaseAdmin
+      .from('quotations')
+      .select(`
+        *,
+        customer:customers(id, name, email, phone),
+        items:quotation_items(*)
+      `, { count: 'exact' })
+      .eq('organization_id', organizationId);
 
-      // Búsqueda multi-campo
-      if (search) {
-        query = query.or(`
-          quotation_number.ilike.%${search}%,
-          description.ilike.%${search}%,
-          notes.ilike.%${search}%
-        `);
-      }
+    // Búsqueda multi-campo
+    if (search) {
+      query = query.or(`
+        quotation_number.ilike.%${search}%,
+        description.ilike.%${search}%,
+        notes.ilike.%${search}%
+      `);
+    }
 
-      // Filtro por status
-      if (status && status !== 'all') {
-        query = query.eq('status', status);
-      }
+    // Filtro por status
+    if (status && status !== 'all') {
+      query = query.eq('status', status);
+    }
 
-      // Filtro por cliente
-      if (customerId) {
-        query = query.eq('customer_id', customerId);
-      }
+    // Filtro por cliente
+    if (customerId) {
+      query = query.eq('customer_id', customerId);
+    }
 
-      // Ordenamiento (default: created_at DESC para ver más recientes primero)
-      const orderColumn = sortBy || 'created_at';
-      const orderDirection = sortOrder === 'asc';
-      query = query.order(orderColumn, { ascending: orderDirection });
+    // Ordenamiento (default: created_at DESC para ver más recientes primero)
+    const orderColumn = sortBy || 'created_at';
+    const orderDirection = sortOrder === 'asc';
+    query = query.order(orderColumn, { ascending: orderDirection });
 
-      // ✅ Paginación
-      const offset = calculateOffset(page, pageSize);
-      query = query.range(offset, offset + pageSize - 1);
+    // ✅ Paginación
+    const offset = calculateOffset(page, pageSize);
+    query = query.range(offset, offset + pageSize - 1);
 
-      const { data, error, count } = await query;
+    const { data, error, count } = await query;
 
-      if (error) {
-        console.error('❌ Error fetching quotations:', error);
-        logger.error('Error obteniendo cotizaciones', context, error as Error);
-        return NextResponse.json({
-          success: false,
-          error: error.message
-        }, { status: 500 });
-      }
-
-      // ✅ Retornar estructura paginada
-      const pagination = generatePaginationMeta(page, pageSize, count || 0);
-      
-      console.log(`[API Quotations] ✅ Cotizaciones obtenidas: ${data?.length || 0} de ${count || 0} total`);
-      logger.info(`Cotizaciones obtenidas: ${data?.length || 0} de ${count || 0}`, context);
-
+    if (error) {
+      console.error('❌ Error fetching quotations:', error);
+      logger.error('Error obteniendo cotizaciones', context, error as Error);
       return NextResponse.json({
-        success: true,
-        data: {
-          items: data || [],
-          pagination
-        }
-      } as PaginatedResponse);
+        success: false,
+        error: error.message
+      }, { status: 500 });
+    }
+
+    // ✅ Retornar estructura paginada
+    const pagination = generatePaginationMeta(page, pageSize, count || 0);
+    
+    console.log(`[API Quotations] ✅ Cotizaciones obtenidas: ${data?.length || 0} de ${count || 0} total`);
+    logger.info(`Cotizaciones obtenidas: ${data?.length || 0} de ${count || 0}`, context);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        items: data || [],
+        pagination
+      }
+    } as PaginatedResponse);
   } catch (error) {
     console.error('❌ [GET /api/quotations] Error:', error);
     
