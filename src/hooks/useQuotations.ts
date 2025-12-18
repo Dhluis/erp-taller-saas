@@ -5,7 +5,7 @@
 
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { toast } from 'sonner'
 import { safeFetch, safePost, safePut, safeDelete } from '@/lib/api'
 import { useOrganization } from '@/lib/context/SessionContext'
@@ -125,10 +125,20 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
 
   const { organizationId } = useOrganization()
   
-  // State
+  // State - FORZAR que siempre sea un array
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // ✅ Wrapper para setQuotations que SIEMPRE garantiza un array
+  const setQuotationsSafe = useCallback((value: Quotation[] | (() => Quotation[])) => {
+    if (typeof value === 'function') {
+      const newValue = value()
+      setQuotations(Array.isArray(newValue) ? newValue : [])
+    } else {
+      setQuotations(Array.isArray(value) ? value : [])
+    }
+  }, [])
   
   // Pagination state
   const [page, setPage] = useState(initialPage)
@@ -188,8 +198,17 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
       if (enableCache && cacheRef.current.has(cacheKey)) {
         const cached = cacheRef.current.get(cacheKey)
         console.log('📦 [useQuotations] Usando cache')
-        setQuotations(cached.items)
-        setPagination(cached.pagination)
+        // ✅ Validar que cached.items sea un array
+        const cachedItems = Array.isArray(cached?.items) ? cached.items : []
+        setQuotationsSafe(cachedItems)
+        setPagination(cached?.pagination || {
+          page: 1,
+          pageSize: pageSize,
+          total: 0,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false
+        })
         setLoading(false)
         return
       }
@@ -246,15 +265,15 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
         // ✅ Validación adicional antes de establecer el estado
         if (!Array.isArray(finalItems)) {
           console.error('❌ [useQuotations] CRITICAL: finalItems no es un array antes de setQuotations:', typeof finalItems, finalItems)
-          setQuotations([])
+          setQuotationsSafe([])
         } else {
-          setQuotations(finalItems)
+          setQuotationsSafe(finalItems)
         }
         setPagination(paginationData)
 
         // Guardar en cache
         if (enableCache) {
-          cacheRef.current.set(cacheKey, { items, pagination: paginationData })
+          cacheRef.current.set(cacheKey, { items: finalItems, pagination: paginationData })
         }
 
       } else {
@@ -263,7 +282,7 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
         setError(errorMsg)
         toast.error('Error al cargar cotizaciones')
         // Resetear a valores por defecto en caso de error
-        setQuotations([])
+        setQuotationsSafe([])
         setPagination({
           page: 1,
           pageSize: pageSize,
@@ -279,7 +298,7 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
         setError(err.message)
         toast.error('Error al cargar cotizaciones')
         // ✅ Resetear a valores por defecto en caso de error
-        setQuotations([])
+        setQuotationsSafe([])
         setPagination({
           page: 1,
           pageSize: pageSize,
@@ -483,11 +502,28 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
   // RETURN
   // ==========================================
 
-  // ✅ Asegurar que quotations siempre sea un array antes de retornar
-  const safeQuotations = Array.isArray(quotations) ? quotations : []
+  // ✅ FORZAR que quotations SIEMPRE sea un array antes de retornar
+  // Usar useMemo con validación estricta
+  const safeQuotations = useMemo(() => {
+    // Si no es un array, retornar array vacío SIEMPRE
+    if (!Array.isArray(quotations)) {
+      console.error('❌ [useQuotations] RETURN: quotations NO ES ARRAY, forzando []', {
+        type: typeof quotations,
+        value: quotations,
+        constructor: quotations?.constructor?.name
+      })
+      return []
+    }
+    // Validación final del método map
+    if (typeof quotations.map !== 'function') {
+      console.error('❌ [useQuotations] RETURN: quotations no tiene map(), forzando []')
+      return []
+    }
+    return quotations
+  }, [quotations])
 
   return {
-    quotations: safeQuotations,
+    quotations: safeQuotations, // Ya está garantizado que es array
     loading,
     error,
     pagination,

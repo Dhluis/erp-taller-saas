@@ -78,13 +78,22 @@ export default function QuotationsPage() {
     autoLoad: true
   })
 
-  // ✅ Asegurar que quotations siempre sea un array (con useMemo para evitar re-renders)
+  // ✅ FORZAR que quotations SIEMPRE sea un array (con useMemo)
   const safeQuotations = useMemo(() => {
-    const safe = Array.isArray(quotations) ? quotations : []
+    // Si no es array, retornar [] SIEMPRE
     if (!Array.isArray(quotations)) {
-      console.warn('⚠️ [QuotationsPage] quotations no es un array:', typeof quotations, quotations)
+      console.error('❌ [QuotationsPage] quotations NO ES ARRAY, forzando []', {
+        type: typeof quotations,
+        value: quotations
+      })
+      return []
     }
-    return safe
+    // Verificar que tenga método map
+    if (typeof quotations.map !== 'function') {
+      console.error('❌ [QuotationsPage] quotations no tiene map(), forzando []')
+      return []
+    }
+    return quotations
   }, [quotations])
 
   // ✅ Debounce para búsqueda
@@ -221,7 +230,7 @@ export default function QuotationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {safeQuotations.map((quotation) => (
+                {Array.isArray(safeQuotations) && safeQuotations.length > 0 ? safeQuotations.map((quotation) => (
                   <TableRow key={quotation.id}>
                     <TableCell className="font-medium">
                       {quotation.quotation_number}
@@ -251,7 +260,13 @@ export default function QuotationsPage() {
                         : 'N/A'}
                     </TableCell>
                   </TableRow>
-                ))}
+                )) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      No hay cotizaciones para mostrar
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           )}
