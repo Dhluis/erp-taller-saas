@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -78,48 +78,9 @@ export default function QuotationsPage() {
     autoLoad: true
   })
 
-  // ✅ FORZAR que quotations SIEMPRE sea un array (con useMemo)
-  const safeQuotations = useMemo(() => {
-    // Si no es array, retornar [] SIEMPRE
-    if (!Array.isArray(quotations)) {
-      console.error('❌ [QuotationsPage] quotations NO ES ARRAY, forzando []', {
-        type: typeof quotations,
-        value: quotations,
-        constructor: quotations?.constructor?.name,
-        stringified: JSON.stringify(quotations)
-      })
-      return []
-    }
-    // Verificar que tenga método map
-    if (typeof quotations.map !== 'function') {
-      console.error('❌ [QuotationsPage] quotations no tiene map(), forzando []', {
-        type: typeof quotations,
-        hasMap: typeof quotations?.map,
-        methods: Object.getOwnPropertyNames(quotations)
-      })
-      return []
-    }
-    return quotations
-  }, [quotations])
-
-  // ✅ GUARD: No renderizar tabla hasta que safeQuotations sea un array válido
-  const canRenderTable = Array.isArray(safeQuotations) && typeof safeQuotations.map === 'function'
-  
-  // ✅ LOG en cada render para ver qué está pasando
-  const renderCount = useRef(0)
-  renderCount.current++
-  useEffect(() => {
-    console.log(`🔍 [QuotationsPage] Render #${renderCount.current}:`, {
-      quotationsType: typeof quotations,
-      quotationsIsArray: Array.isArray(quotations),
-      quotationsValue: quotations,
-      safeQuotationsType: typeof safeQuotations,
-      safeQuotationsIsArray: Array.isArray(safeQuotations),
-      safeQuotationsLength: safeQuotations?.length,
-      canRenderTable,
-      loading
-    })
-  }, [quotations, safeQuotations, canRenderTable, loading])
+  // ✅ SOLUCIÓN DEFINITIVA: Usar quotations directamente del hook (ya está garantizado como array)
+  // El hook ya garantiza que quotations SIEMPRE es un array
+  const safeQuotations: typeof quotations = quotations
 
   // ✅ Debounce para búsqueda
   const [searchTerm, setSearchTerm] = useState('')
@@ -231,11 +192,6 @@ export default function QuotationsPage() {
               <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
               <p>Cargando cotizaciones...</p>
             </div>
-          ) : !canRenderTable ? (
-            <div className="p-8 text-center text-text-secondary">
-              <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
-              <p>Validando datos...</p>
-            </div>
           ) : safeQuotations.length === 0 ? (
             <div className="p-8 text-center text-text-secondary">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -260,7 +216,7 @@ export default function QuotationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {canRenderTable && safeQuotations.length > 0 ? safeQuotations.map((quotation) => (
+                {safeQuotations.map((quotation) => (
                   <TableRow key={quotation.id}>
                     <TableCell className="font-medium">
                       {quotation.quotation_number}
@@ -290,13 +246,7 @@ export default function QuotationsPage() {
                         : 'N/A'}
                     </TableCell>
                   </TableRow>
-                )) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
-                      {!canRenderTable ? 'Error: datos inválidos' : 'No hay cotizaciones para mostrar'}
-                    </TableCell>
-                  </TableRow>
-                )}
+                ))}
               </TableBody>
             </Table>
           )}

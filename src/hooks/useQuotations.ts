@@ -524,49 +524,11 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
   // RETURN
   // ==========================================
 
-  // ✅ FORZAR que quotations SIEMPRE sea un array antes de retornar
-  // Usar useMemo con validación estricta
-  const safeQuotations = useMemo(() => {
-    // Si no es un array, retornar array vacío SIEMPRE
-    if (!Array.isArray(quotations)) {
-      console.error('❌ [useQuotations] RETURN: quotations NO ES ARRAY, forzando []', {
-        type: typeof quotations,
-        value: quotations,
-        constructor: quotations?.constructor?.name,
-        stringified: JSON.stringify(quotations)
-      })
-      return []
-    }
-    // Validación final del método map
-    if (typeof quotations.map !== 'function') {
-      console.error('❌ [useQuotations] RETURN: quotations no tiene map(), forzando []', {
-        type: typeof quotations,
-        hasMap: typeof quotations?.map,
-        methods: Object.getOwnPropertyNames(quotations)
-      })
-      return []
-    }
-    return quotations
-  }, [quotations])
-
-  // ✅ LOG FINAL antes de retornar - VER QUÉ SE ESTÁ RETORNANDO
-  console.log('🔍 [useQuotations] RETURN FINAL:', {
-    quotationsType: typeof quotations,
-    quotationsIsArray: Array.isArray(quotations),
-    quotationsValue: quotations,
-    safeQuotationsType: typeof safeQuotations,
-    safeQuotationsIsArray: Array.isArray(safeQuotations),
-    safeQuotationsLength: safeQuotations?.length,
-    safeQuotationsHasMap: typeof safeQuotations?.map === 'function'
-  })
-
-  // ✅ FORZAR array vacío si no es válido
-  const finalReturn = Array.isArray(safeQuotations) && typeof safeQuotations.map === 'function' 
-    ? safeQuotations 
-    : []
+  // ✅ SOLUCIÓN DEFINITIVA: SIEMPRE retornar array, sin excepciones
+  const safeQuotations: Quotation[] = Array.isArray(quotations) ? quotations : []
 
   return {
-    quotations: finalReturn, // FORZADO a ser array
+    quotations: safeQuotations, // SIEMPRE es un array
     loading,
     error,
     pagination,
