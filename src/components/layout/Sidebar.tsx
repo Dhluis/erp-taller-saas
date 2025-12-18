@@ -243,6 +243,26 @@ export function Sidebar({ className }: SidebarProps) {
       return pathname === href
     }
     
+    // ✅ FIX ADICIONAL: Para rutas padre de secciones colapsables (como /compras, /ingresos)
+    // NO activar si hay un sub-item más específico activo
+    const isParentOfCollapsibleSection = collapsibleSections.some(section => {
+      const sectionRoutes: Record<string, string[]> = {
+        'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos'],
+        'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/reportes'],
+        'compras': ['/compras', '/compras/proveedores', '/compras/pagos'],
+        'reportes': ['/reportes', '/reportes/ventas', '/reportes/inventario', '/reportes/financieros'],
+        'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/perfil']
+      }
+      const sectionRoutesList = sectionRoutes[section.key] || []
+      return sectionRoutesList.includes(href) && sectionRoutesList.some(route => 
+        pathname === route && route !== href && route.startsWith(href)
+      )
+    })
+    
+    if (isParentOfCollapsibleSection) {
+      return false
+    }
+    
     // Para rutas que son prefijos (como /inventarios), verificar si hay un sub-item activo
     // Si hay un sub-item activo que es más específico, no activar el padre
     const hasMoreSpecificActive = collapsibleSections.some(section => 

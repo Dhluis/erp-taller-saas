@@ -228,78 +228,33 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
       )
 
       if (result.success && result.data) {
-        // ✅ FIX CRÍTICO: Extraer items de la estructura paginada
-        // La API devuelve: { success: true, data: { items: [], pagination: {} } }
-        // safeFetch parsea esto, entonces result.data es: { success: true, data: { items: [], pagination: {} } }
-        // Necesitamos acceder a result.data.data.items
-        
-        // Intentar múltiples estructuras posibles
-        let items: Quotation[] = []
-        let paginationData: any = {
-          page: page,
-          pageSize: pageSize,
+        // ✅ FIX: Extraer items del objeto paginado
+        const items = result.data?.items || result.data || []
+        const paginationData = result.data?.pagination || {
+          page: 1,
+          pageSize: 10,
           total: 0,
           totalPages: 0,
           hasNextPage: false,
           hasPreviousPage: false
         }
 
-        // Caso 1: result.data.data.items (estructura anidada - la correcta)
-        if (result.data?.data?.items && Array.isArray(result.data.data.items)) {
-          items = result.data.data.items
-          paginationData = result.data.data.pagination || paginationData
-        }
-        // Caso 2: result.data.items (estructura directa)
-        else if (result.data?.items && Array.isArray(result.data.items)) {
-          items = result.data.items
-          paginationData = result.data.pagination || paginationData
-        }
-        // Caso 3: result.data es un array directo
-        else if (Array.isArray(result.data)) {
-          items = result.data
-          paginationData = {
-            page: 1,
-            pageSize: items.length,
-            total: items.length,
-            totalPages: 1,
-            hasNextPage: false,
-            hasPreviousPage: false
-          }
-        }
-
-        // ✅ VALIDACIÓN FINAL: Garantizar que items SIEMPRE sea un array
-        const finalItems: Quotation[] = Array.isArray(items) ? items : []
-
-        // ✅ Establecer estado (SIEMPRE arrays)
-        setQuotationsSafe(finalItems)
+        setQuotations(items)
         setPagination(paginationData)
 
-        // Guardar en cache
+        // Cache
         if (enableCache) {
-          cacheRef.current.set(cacheKey, { items: finalItems, pagination: paginationData })
+          cacheRef.current.set(cacheKey, { items, pagination: paginationData })
         }
 
         console.log('✅ [useQuotations] Loaded:', {
-          items: finalItems.length,
+          items: items.length,
           page: paginationData.page,
           total: paginationData.total
         })
-
       } else {
-        const errorMsg = result.error || 'Error al cargar cotizaciones'
-        console.error('❌ [useQuotations] Error response:', errorMsg, result)
-        setError(errorMsg)
+        setError(result.error || 'Error al cargar cotizaciones')
         toast.error('Error al cargar cotizaciones')
-        // Resetear a valores por defecto en caso de error
-        setQuotationsSafe([])
-        setPagination({
-          page: 1,
-          pageSize: pageSize,
-          total: 0,
-          totalPages: 0,
-          hasNextPage: false,
-          hasPreviousPage: false
-        })
       }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
