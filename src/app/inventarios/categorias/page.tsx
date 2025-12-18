@@ -16,6 +16,16 @@ import {
 } from '@heroicons/react/24/outline';
 import { useInventory } from '@/hooks/useInventory';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function InventariosCategoriasPage() {
   const { categories, loading, fetchCategories, createCategory, updateCategory, deleteCategory } = useInventory();
@@ -28,6 +38,8 @@ export default function InventariosCategoriasPage() {
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
 
   // Cargar categorías al montar el componente
   useEffect(() => {
@@ -107,15 +119,22 @@ export default function InventariosCategoriasPage() {
     }
   };
 
-  const handleDeleteCategory = async (categoryId) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar esta categoría?')) {
-      return;
-    }
+  const handleDeleteClick = (categoryId: string) => {
+    setCategoryToDelete(categoryId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteCategory = async () => {
+    if (!categoryToDelete) return;
 
     setDeleting(true);
     try {
-      await deleteCategory(categoryId);
-      toast.success('Categoría eliminada exitosamente');
+      const success = await deleteCategory(categoryToDelete);
+      if (success) {
+        toast.success('Categoría eliminada exitosamente');
+        setDeleteDialogOpen(false);
+        setCategoryToDelete(null);
+      }
     } catch (error) {
       console.error('Error deleting category:', error);
       toast.error('Error al eliminar la categoría');
@@ -275,11 +294,11 @@ export default function InventariosCategoriasPage() {
                     size="sm" 
                     variant="outline" 
                     className="flex-1 text-red-600 hover:text-red-700"
-                    onClick={() => handleDeleteCategory(category.id)}
+                    onClick={() => handleDeleteClick(category.id)}
                     disabled={deleting}
                   >
                     <TrashIcon className="h-4 w-4 mr-1" />
-                    {deleting ? 'Eliminando...' : 'Eliminar'}
+                    Eliminar
                   </Button>
                 </div>
               </CardContent>
@@ -336,6 +355,39 @@ export default function InventariosCategoriasPage() {
           </div>
         </div>
       )}
+
+      {/* Dialog de confirmación para eliminar */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="bg-bg-primary border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-text-primary">
+              ¿Eliminar categoría?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-text-secondary">
+              Esta acción no se puede deshacer. La categoría será eliminada permanentemente.
+              {categoryToDelete && (
+                <>
+                  <br />
+                  <br />
+                  <strong className="text-text-primary">
+                    {categories.find(c => c.id === categoryToDelete)?.name}
+                  </strong>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCategory}
+              disabled={deleting}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              {deleting ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   </AppLayout>
   );

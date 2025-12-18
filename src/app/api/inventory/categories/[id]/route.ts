@@ -204,8 +204,11 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    console.log('🔄 [DELETE /api/inventory/categories/[id]] Iniciando eliminación:', params.id);
+    
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
+      console.error('❌ [DELETE] No se pudo obtener tenant context');
       return NextResponse.json(
         {
           success: false,
@@ -215,14 +218,23 @@ export async function DELETE(
       );
     }
 
+    console.log('✅ [DELETE] Organization ID:', tenantContext.organizationId);
+    console.log('✅ [DELETE] Category ID:', params.id);
+
     await deleteInventoryCategory(tenantContext.organizationId, params.id);
+
+    console.log('✅ [DELETE] Categoría eliminada exitosamente');
 
     return NextResponse.json({
       success: true,
       message: 'Categoría eliminada exitosamente',
     });
   } catch (error) {
-    console.error('Error deleting category:', error);
+    console.error('❌ [DELETE] Error deleting category:', error);
+    console.error('❌ [DELETE] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     
     // Error específico si la categoría tiene items asociados
     if (error instanceof Error && error.message.includes('foreign key')) {

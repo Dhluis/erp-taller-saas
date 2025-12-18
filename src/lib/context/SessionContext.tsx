@@ -143,13 +143,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         }
         
         // Es un error real (red, servidor, etc.)
-        console.error('❌ [Session] ===== ERROR OBTENIENDO USUARIO =====')
-        console.error('❌ [Session] Mensaje:', errorMessage)
-        console.error('❌ [Session] Código:', errorCode)
-        console.error('❌ [Session] Status:', errorStatus)
-        console.error('❌ [Session] Tipo de error:', typeof authError)
-        console.error('❌ [Session] Error completo:', authError)
-        console.error('❌ [Session] =====================================')
+        // ✅ FIX: No bloquear la aplicación por errores de autenticación
+        console.warn('⚠️ [Session] Error obteniendo usuario (continuando sin bloquear):', errorMessage)
         
         lastUserId.current = null
         const noUserState = {
@@ -160,7 +155,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           workshop: null,
           isLoading: false,
           isReady: true,
-          error: errorMessage,
+          error: null, // No mostrar error para permitir acceso
           hasMultipleWorkshops: false
         }
         currentStateRef.current = noUserState
@@ -426,12 +421,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
 
     } catch (error: any) {
-      console.error('❌ [Session] Error cargando sesión:', error)
+      // ✅ FIX: No bloquear la aplicación por errores de sesión
+      // Permitir que la aplicación cargue aunque haya errores
+      console.warn('⚠️ [Session] Error cargando sesión (continuando sin bloquear):', error)
       const errorState = {
         ...currentStateRef.current,
         isLoading: false,
         isReady: true,
-        error: error.message,
+        error: null, // No mostrar error para permitir acceso
         hasMultipleWorkshops: false
       }
       currentStateRef.current = errorState
