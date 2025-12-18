@@ -206,18 +206,56 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
         hasData: !!result.data,
         hasItems: !!result.data?.items,
         hasPagination: !!result.data?.pagination,
-        dataStructure: result.data ? Object.keys(result.data) : null
+        dataStructure: result.data ? Object.keys(result.data) : null,
+        dataType: result.data ? (Array.isArray(result.data) ? 'array' : typeof result.data) : null
       })
 
       if (result.success && result.data) {
-        const items = result.data.items || []
-        const paginationData = result.data.pagination || {
+        // ✅ Manejar diferentes estructuras de respuesta
+        let items: Quotation[] = []
+        let paginationData = {
           page: page,
           pageSize: pageSize,
-          total: items.length,
-          totalPages: Math.ceil((items.length || 0) / pageSize),
+          total: 0,
+          totalPages: 0,
           hasNextPage: false,
           hasPreviousPage: false
+        }
+
+        // Caso 1: Estructura paginada { items: [], pagination: {} }
+        if (result.data.items && Array.isArray(result.data.items)) {
+          items = result.data.items
+          paginationData = result.data.pagination || {
+            page: page,
+            pageSize: pageSize,
+            total: items.length,
+            totalPages: Math.ceil((items.length || 0) / pageSize),
+            hasNextPage: false,
+            hasPreviousPage: false
+          }
+        }
+        // Caso 2: Array directo
+        else if (Array.isArray(result.data)) {
+          items = result.data
+          paginationData = {
+            page: 1,
+            pageSize: items.length,
+            total: items.length,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPreviousPage: false
+          }
+        }
+        // Caso 3: Estructura inesperada, usar array vacío
+        else {
+          console.warn('⚠️ [useQuotations] Estructura de datos inesperada:', result.data)
+          items = []
+        }
+
+        // ✅ Asegurar que items siempre sea un array
+        if (!Array.isArray(items)) {
+          console.error('❌ [useQuotations] items no es un array:', typeof items, items)
+          items = []
         }
 
         setQuotations(items)
@@ -255,6 +293,16 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
         console.error('❌ [useQuotations] Error:', err)
         setError(err.message)
         toast.error('Error al cargar cotizaciones')
+        // ✅ Resetear a valores por defecto en caso de error
+        setQuotations([])
+        setPagination({
+          page: 1,
+          pageSize: pageSize,
+          total: 0,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false
+        })
       }
     } finally {
       setLoading(false)

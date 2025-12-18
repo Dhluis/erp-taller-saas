@@ -188,7 +188,7 @@ export default function QuotationsPage() {
               <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
               <p>Cargando cotizaciones...</p>
             </div>
-          ) : quotations.length === 0 ? (
+          ) : !Array.isArray(quotations) || quotations.length === 0 ? (
             <div className="p-8 text-center text-text-secondary">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium mb-2">No hay cotizaciones</p>
@@ -212,7 +212,7 @@ export default function QuotationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {quotations.map((quotation) => (
+                {Array.isArray(quotations) && quotations.map((quotation) => (
                   <TableRow key={quotation.id}>
                     <TableCell className="font-medium">
                       {quotation.quotation_number}
