@@ -78,17 +78,8 @@ export default function QuotationsPage() {
     autoLoad: true
   })
 
-  // ✅ SOLUCIÓN DEFINITIVA: Forzar array con validación estricta
-  const safeQuotations: Quotation[] = (() => {
-    try {
-      if (Array.isArray(quotations)) {
-        return quotations
-      }
-      return []
-    } catch {
-      return []
-    }
-  })()
+  // ✅ El hook garantiza que quotations siempre es un array
+  // No necesitamos safeQuotations, usamos quotations directamente
 
   // ✅ Debounce para búsqueda
   const [searchTerm, setSearchTerm] = useState('')
@@ -200,7 +191,7 @@ export default function QuotationsPage() {
               <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
               <p>Cargando cotizaciones...</p>
             </div>
-          ) : safeQuotations.length === 0 ? (
+          ) : quotations.length === 0 ? (
             <div className="p-8 text-center text-text-secondary">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium mb-2">No hay cotizaciones</p>
@@ -226,17 +217,21 @@ export default function QuotationsPage() {
               <TableBody>
                 {(() => {
                   try {
-                    // ✅ FORZAR array antes de map
-                    const items = Array.isArray(safeQuotations) ? safeQuotations : []
+                    // ✅ El hook garantiza que quotations siempre es un array
+                    const items: Quotation[] = Array.isArray(quotations) ? quotations : []
+                    
                     if (items.length === 0) {
                       return (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center text-muted-foreground">
-                            No hay cotizaciones para mostrar
+                            {searchTerm || statusFilter
+                              ? 'No se encontraron cotizaciones con los filtros aplicados'
+                              : 'Crea tu primera cotización para comenzar'}
                           </TableCell>
                         </TableRow>
                       )
                     }
+                    
                     return items.map((quotation) => (
                       <TableRow key={quotation.id}>
                         <TableCell className="font-medium">

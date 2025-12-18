@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: categories || [],
-      count: categories?.length || 0,
+      count: categories?.length || 0
     });
   } catch (error) {
     console.error('❌ Error en GET /api/inventory/categories:', error)

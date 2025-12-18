@@ -238,66 +238,87 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
       })
 
       if (result.success && result.data) {
-        // ✅ safeFetch devuelve el JSON parseado en result.data
+        // ✅ SOLUCIÓN DEFINITIVA: Manejar múltiples estructuras de respuesta
+        // safeFetch devuelve el JSON parseado completo
         // La API devuelve: { success: true, data: { items: [], pagination: {} } }
         // Entonces result.data es: { success: true, data: { items: [], pagination: {} } }
-        // Y result.data.data es: { items: [], pagination: {} }
         
-        // ✅ Extraer datos (mismo patrón que useCustomers)
-        // IMPORTANTE: safeFetch devuelve el JSON parseado completo
-        // Si la API devuelve: { success: true, data: { items: [], pagination: {} } }
-        // Entonces result.data es: { success: true, data: { items: [], pagination: {} } }
-        const responseData = result.data?.data || result.data
-        
-        // ✅ DEBUG: Log detallado de la estructura
-      // ✅ DEBUG COMPLETO: Expandir el objeto completo
-      console.log('🔍 [useQuotations] DEBUG estructura COMPLETA:', {
-        hasResultData: !!result.data,
-        resultDataType: typeof result.data,
-        resultDataIsArray: Array.isArray(result.data),
-        resultDataKeys: result.data ? Object.keys(result.data) : [],
-        resultDataFull: result.data, // ⚠️ EXPANDIR COMPLETO
-        hasNestedData: !!result.data?.data,
-        nestedDataKeys: result.data?.data ? Object.keys(result.data.data) : [],
-        nestedDataFull: result.data?.data, // ⚠️ EXPANDIR COMPLETO
-        responseDataKeys: responseData ? Object.keys(responseData) : [],
-        responseDataFull: responseData, // ⚠️ EXPANDIR COMPLETO
-        hasItems: !!responseData?.items,
-        itemsIsArray: Array.isArray(responseData?.items),
-        itemsType: typeof responseData?.items,
-        itemsLength: responseData?.items?.length,
-        itemsValue: responseData?.items // ⚠️ EXPANDIR COMPLETO
-      })
-        
-        const items = Array.isArray(responseData?.items) ? responseData.items : []
-        const paginationData = responseData?.pagination || {
+        let items: Quotation[] = []
+        let paginationData: any = {
           page: page,
           pageSize: pageSize,
-          total: items.length,
-          totalPages: Math.ceil((items.length || 0) / pageSize),
+          total: 0,
+          totalPages: 0,
           hasNextPage: false,
           hasPreviousPage: false
         }
 
-        // ✅ Validación final - asegurar que items siempre sea un array
-        const finalItems = Array.isArray(items) ? items : []
+        // ✅ Intentar extraer items de diferentes estructuras posibles
+        try {
+          // Caso 1: result.data.data.items (estructura anidada)
+          if (result.data?.data?.items && Array.isArray(result.data.data.items)) {
+            items = result.data.data.items
+            paginationData = result.data.data.pagination || paginationData
+          }
+          // Caso 2: result.data.items (estructura directa)
+          else if (result.data?.items && Array.isArray(result.data.items)) {
+            items = result.data.items
+            paginationData = result.data.pagination || paginationData
+          }
+          // Caso 3: result.data es un array directo (sin paginación)
+          else if (Array.isArray(result.data)) {
+            items = result.data
+            paginationData = {
+              page: 1,
+              pageSize: items.length,
+              total: items.length,
+              totalPages: 1,
+              hasNextPage: false,
+              hasPreviousPage: false
+            }
+          }
+          // Caso 4: result.data.data es un array directo
+          else if (Array.isArray(result.data?.data)) {
+            items = result.data.data
+            paginationData = {
+              page: 1,
+              pageSize: items.length,
+              total: items.length,
+              totalPages: 1,
+              hasNextPage: false,
+              hasPreviousPage: false
+            }
+          }
+        } catch (extractError) {
+          console.error('❌ [useQuotations] Error extrayendo datos:', extractError)
+          items = []
+        }
+
+        // ✅ VALIDACIÓN FINAL: Garantizar que items SIEMPRE sea un array
+        const finalItems: Quotation[] = Array.isArray(items) ? items : []
         
+        // ✅ Validar y normalizar paginationData
+        if (!paginationData || typeof paginationData !== 'object') {
+          paginationData = {
+            page: page,
+            pageSize: pageSize,
+            total: finalItems.length,
+            totalPages: Math.ceil(finalItems.length / pageSize),
+            hasNextPage: false,
+            hasPreviousPage: false
+          }
+        }
+
         console.log('✅ [useQuotations] Loaded:', {
           items: finalItems.length,
           page: paginationData.page,
           total: paginationData.total,
           totalPages: paginationData.totalPages,
-          isArray: Array.isArray(finalItems),
-          itemsType: typeof finalItems
+          isArray: Array.isArray(finalItems)
         })
 
-        // ✅ Validación adicional antes de establecer el estado
-        if (!Array.isArray(finalItems)) {
-          console.error('❌ [useQuotations] CRITICAL: finalItems no es un array antes de setQuotations:', typeof finalItems, finalItems)
-          setQuotationsSafe([])
-        } else {
-          setQuotationsSafe(finalItems)
-        }
+        // ✅ Establecer estado (SIEMPRE arrays)
+        setQuotationsSafe(finalItems)
         setPagination(paginationData)
 
         // Guardar en cache
