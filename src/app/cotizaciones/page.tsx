@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -85,7 +85,8 @@ export default function QuotationsPage() {
       console.error('❌ [QuotationsPage] quotations NO ES ARRAY, forzando []', {
         type: typeof quotations,
         value: quotations,
-        constructor: quotations?.constructor?.name
+        constructor: quotations?.constructor?.name,
+        stringified: JSON.stringify(quotations)
       })
       return []
     }
@@ -103,6 +104,22 @@ export default function QuotationsPage() {
 
   // ✅ GUARD: No renderizar tabla hasta que safeQuotations sea un array válido
   const canRenderTable = Array.isArray(safeQuotations) && typeof safeQuotations.map === 'function'
+  
+  // ✅ LOG en cada render para ver qué está pasando
+  const renderCount = useRef(0)
+  renderCount.current++
+  useEffect(() => {
+    console.log(`🔍 [QuotationsPage] Render #${renderCount.current}:`, {
+      quotationsType: typeof quotations,
+      quotationsIsArray: Array.isArray(quotations),
+      quotationsValue: quotations,
+      safeQuotationsType: typeof safeQuotations,
+      safeQuotationsIsArray: Array.isArray(safeQuotations),
+      safeQuotationsLength: safeQuotations?.length,
+      canRenderTable,
+      loading
+    })
+  }, [quotations, safeQuotations, canRenderTable, loading])
 
   // ✅ Debounce para búsqueda
   const [searchTerm, setSearchTerm] = useState('')
