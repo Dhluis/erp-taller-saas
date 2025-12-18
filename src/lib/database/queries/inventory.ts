@@ -460,20 +460,35 @@ export async function updateInventoryCategory(organizationId: string, id: string
 /**
  * Eliminar una categoría de inventario
  */
+/**
+ * Eliminar una categoría de inventario
+ * IMPORTANTE: Usa Service Client para bypasear RLS
+ */
 export async function deleteInventoryCategory(organizationId: string, id: string) {
-  const supabase = await createClient()
+  console.log('🔄 [deleteInventoryCategory] Iniciando eliminación:', id)
+  console.log('📦 [deleteInventoryCategory] Organization ID:', organizationId)
+  
+  // ✅ Usar Service Client en lugar de browser client
+  const supabase = getSupabaseServiceClient()
 
-  const { error } = await supabase
-    .from('inventory_categories')
+  const { error } = await (supabase
+    .from('inventory_categories') as any)
     .delete()
     .eq('id', id)
     .eq('organization_id', organizationId)
 
   if (error) {
-    console.error('Error deleting inventory category:', error)
-    throw new Error('Error al eliminar la categoría de inventario')
+    console.error('❌ [deleteInventoryCategory] Error al eliminar:', error)
+    console.error('❌ [deleteInventoryCategory] Detalles del error:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    })
+    throw new DatabaseError('Error al eliminar la categoría de inventario', error)
   }
 
+  console.log('✅ [deleteInventoryCategory] Categoría eliminada exitosamente:', id)
   return { success: true }
 }
 

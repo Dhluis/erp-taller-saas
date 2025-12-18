@@ -439,7 +439,7 @@ export default function InventariosProductosPage() {
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona una categoría" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#42d3f2]">
+                    <SelectContent className="bg-bg-secondary border-border">
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.name}
@@ -534,7 +534,7 @@ export default function InventariosProductosPage() {
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona una categoría" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#42d3f2]">
+                    <SelectContent className="bg-bg-secondary border-border">
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.name}

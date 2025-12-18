@@ -563,9 +563,20 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
 
   const deleteCategory = useCallback(async (id: string) => {
     try {
+      console.log('🔄 [useInventory] deleteCategory - Eliminando categoría:', id);
+      
       const response = await fetch(`/api/inventory/categories/${id}`, {
         method: 'DELETE',
+        credentials: 'include', // ✅ FIX: Incluir cookies para autenticación
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
 
       const data = await response.json();
 
@@ -573,12 +584,13 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
         throw new Error(data.error || 'Error al eliminar categoría');
       }
 
-      toast.success('Categoría eliminada');
+      toast.success('Categoría eliminada exitosamente');
       await fetchCategories();
 
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      console.error('❌ [useInventory] deleteCategory - Error:', errorMessage);
       setError(errorMessage);
       toast.error('Error al eliminar categoría', { description: errorMessage });
       return false;
