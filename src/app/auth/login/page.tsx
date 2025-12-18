@@ -75,11 +75,19 @@ function LoginContent() {
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.12),_transparent_55%)]" />
       <div className="w-full max-w-md">
         {/* Logo and Title */}
-        <div className="mb-8 flex flex-col items-center gap-3">
-          <AuthLogo size="lg" showText={true} />
-          <p className="text-sm text-slate-400 text-center">
-            Bienvenido de vuelta a tu sistema de gestión de taller
-          </p>
+        <div className="mb-10 flex flex-col items-center gap-4">
+          <div className="relative">
+            <AuthLogo size="lg" showText={false} />
+            <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-purple-500/20 rounded-2xl blur-xl opacity-50" />
+          </div>
+          <div className="text-center">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+              EAGLES GEAR SYSTEM
+            </h1>
+            <p className="text-sm text-slate-400">
+              Bienvenido de vuelta a tu sistema de gestión de taller
+            </p>
+          </div>
         </div>
 
         {/* Login Form */}
@@ -198,7 +206,7 @@ function LoginContent() {
 
         {/* Footer */}
         <p className="mt-8 text-center text-sm text-slate-500">
-          © 2024 EAGLES. Todos los derechos reservados.
+          © 2026 EAGLES. Todos los derechos reservados.
         </p>
       </div>
     </div>

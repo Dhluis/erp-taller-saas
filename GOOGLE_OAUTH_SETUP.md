@@ -81,6 +81,49 @@ Si quieres habilitarlas manualmente (opcional):
 
 ---
 
+## 🎨 PERSONALIZAR EL NOMBRE DE LA APLICACIÓN EN GOOGLE OAUTH
+
+### ¿Cómo cambiar "igshgleciwknpupbmvhn.supabase.co" por un nombre más profesional?
+
+Cuando los usuarios ven la pantalla de Google OAuth, ven el dominio de Supabase. Puedes personalizarlo de dos formas:
+
+### Opción 1: Actualizar Pantalla de Consentimiento OAuth (Recomendado - Más Fácil)
+
+1. Ve a [Google Cloud Console](https://console.cloud.google.com/)
+2. Selecciona tu proyecto
+3. Ve a **"APIs y servicios"** → **"Pantalla de consentimiento OAuth"**
+4. Haz clic en **"EDITAR APP"**
+5. En la sección **"Información de la aplicación"**, actualiza:
+   - **Nombre de la aplicación:** Cambia a algo más profesional como:
+     - `ERP Taller SaaS`
+     - `Sistema de Gestión de Talleres`
+     - `Eagles Gear System`
+   - **Logo de la aplicación:** (Opcional) Sube un logo de tu aplicación
+   - **Dominio autorizado:** Puedes agregar tu dominio personalizado si lo tienes
+6. Haz clic en **"GUARDAR Y CONTINUAR"**
+7. Revisa y publica los cambios
+
+**Nota:** Esto cambiará el nombre que aparece en la pantalla de consentimiento, pero el dominio seguirá siendo `igshgleciwknpupbmvhn.supabase.co` en la URL.
+
+### Opción 2: Configurar Dominio Personalizado en Supabase (Avanzado)
+
+Si quieres que aparezca tu propio dominio (ej: `auth.mi-taller.com`):
+
+1. Ve a [Supabase Dashboard](https://supabase.com/dashboard)
+2. Selecciona tu proyecto
+3. Ve a **"Settings"** → **"Custom Domains"**
+4. Configura un dominio personalizado para autenticación
+5. Actualiza las credenciales OAuth en Google Cloud Console con el nuevo dominio
+
+**⚠️ Requisitos:**
+- Debes tener un dominio propio
+- Debes configurar DNS correctamente
+- Puede tardar hasta 48 horas en propagarse
+
+**Recomendación:** Usa la Opción 1 si solo quieres cambiar el nombre. Usa la Opción 2 si necesitas un dominio completamente personalizado.
+
+---
+
 ## 🎯 PASO 2: Configurar en Supabase Dashboard
 
 ### 2.1 Acceder a Configuración de Proveedores
