@@ -206,22 +206,43 @@ export async function DELETE(
   try {
     console.log('🔄 [DELETE /api/inventory/categories/[id]] Iniciando eliminación:', params.id);
     
-    const tenantContext = await getTenantContext(request);
-    if (!tenantContext || !tenantContext.organizationId) {
-      console.error('❌ [DELETE] No se pudo obtener tenant context');
+    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto (igual que POST)
+    const { createClientFromRequest } = await import('@/lib/supabase/server')
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+    
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('❌ [DELETE] Error de autenticación:', authError)
       return NextResponse.json(
-        {
-          success: false,
-          error: 'No autorizado: No se pudo obtener la organización',
-        },
-        { status: 403 }
-      );
+        { success: false, error: 'No autorizado' },
+        { status: 401 }
+      )
     }
 
-    console.log('✅ [DELETE] Organization ID:', tenantContext.organizationId);
-    console.log('✅ [DELETE] Category ID:', params.id);
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single()
 
-    await deleteInventoryCategory(tenantContext.organizationId, params.id);
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [DELETE] Error obteniendo perfil:', profileError)
+      return NextResponse.json(
+        { success: false, error: 'Perfil de usuario no encontrado' },
+        { status: 404 }
+      )
+    }
+
+    const organizationId = userProfile.organization_id;
+    console.log('✅ [DELETE] Usuario autenticado:', user.email)
+    console.log('✅ [DELETE] Organization ID:', organizationId)
+    console.log('✅ [DELETE] Category ID:', params.id)
+
+    await deleteInventoryCategory(organizationId, params.id);
 
     console.log('✅ [DELETE] Categoría eliminada exitosamente');
 
