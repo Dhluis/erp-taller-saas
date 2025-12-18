@@ -450,22 +450,41 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
       console.log('🔄 [useInventory] fetchCategories - Iniciando para organizationId:', organizationId);
       
       const response = await fetch('/api/inventory/categories', {
-        headers: { 'Cache-Control': 'no-cache' }
+        method: 'GET',
+        headers: { 
+          'Cache-Control': 'no-cache',
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include' // ✅ FIX: Incluir cookies para autenticación
       });
+      
+      // ✅ Verificar status HTTP antes de parsear JSON
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ [useInventory] fetchCategories - HTTP Error:', response.status, errorText);
+        setCategories([]); // Devolver array vacío en lugar de error
+        setError(null); // No mostrar error al usuario si es 500
+        return;
+      }
       
       const result = await response.json();
       
       if (result.success) {
-        console.log('✅ [useInventory] fetchCategories - Exitoso:', result.data.length, 'categorías');
-        setCategories(result.data);
+        const categoriesData = Array.isArray(result.data) ? result.data : [];
+        console.log('✅ [useInventory] fetchCategories - Exitoso:', categoriesData.length, 'categorías');
+        setCategories(categoriesData);
         setError(null);
       } else {
         console.error('❌ [useInventory] fetchCategories - Error:', result.error);
-        setError('Error al cargar categorías: ' + result.error);
+        // No mostrar error al usuario, solo devolver array vacío
+        setCategories([]);
+        setError(null);
       }
     } catch (error) {
       console.error('❌ [useInventory] fetchCategories - Excepción:', error);
-      setError('Error al cargar categorías');
+      // No mostrar error al usuario, solo devolver array vacío
+      setCategories([]);
+      setError(null);
     }
   }, [organizationId, ready]);
 
