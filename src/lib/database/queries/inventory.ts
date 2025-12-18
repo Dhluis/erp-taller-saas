@@ -205,7 +205,12 @@ export async function getInventoryItemById(organizationId: string, id: string) {
  * Crear un nuevo artículo de inventario
  */
 export async function createInventoryItem(organizationId: string, itemData: CreateInventoryItemData) {
-  const supabase = await createClient()
+  console.log('🔄 [createInventoryItem] Iniciando creación:', itemData.name)
+  console.log('📦 [createInventoryItem] Datos completos:', { organizationId, ...itemData })
+  
+  // ✅ Usar Service Client
+  const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+  const supabase = getSupabaseServiceClient()
 
   const { data, error } = await supabase
     .from('inventory')
@@ -219,7 +224,7 @@ export async function createInventoryItem(organizationId: string, itemData: Crea
         quantity: itemData.quantity,
         min_quantity: itemData.min_quantity,
         unit_price: itemData.unit_price,
-        code: itemData.sku, // Usar SKU como código
+        code: itemData.sku,
         status: 'active',
       },
     ])
@@ -234,10 +239,22 @@ export async function createInventoryItem(organizationId: string, itemData: Crea
     .single()
 
   if (error) {
-    console.error('Error creating inventory item:', error)
+    console.error('❌ [createInventoryItem] Error al insertar:', error)
+    console.error('❌ [createInventoryItem] Detalles:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    })
     throw new Error(`Error al crear el artículo de inventario: ${error.message}`)
   }
 
+  if (!data) {
+    console.error('❌ [createInventoryItem] No se retornó data')
+    throw new Error('Error: item de inventario no fue creado')
+  }
+
+  console.log('✅ [createInventoryItem] Item creado exitosamente:', data.id)
   return data as InventoryItem
 }
 

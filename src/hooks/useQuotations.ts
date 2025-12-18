@@ -229,32 +229,56 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
 
       if (result.success && result.data) {
         // ✅ FIX: Extraer items del objeto paginado
-        const items = result.data?.items || result.data || []
-        const paginationData = result.data?.pagination || {
-          page: 1,
-          pageSize: 10,
-          total: 0,
-          totalPages: 0,
+        // safeFetch devuelve: { data: { success: true, data: { items: [], pagination: {} } } }
+        // O directamente: { data: { items: [], pagination: {} } }
+        const responseData = result.data?.data || result.data
+        const items = Array.isArray(responseData?.items) 
+          ? responseData.items 
+          : (Array.isArray(responseData) ? responseData : [])
+        
+        const paginationData = responseData?.pagination || {
+          page: page,
+          pageSize: pageSize,
+          total: items.length,
+          totalPages: Math.ceil((items.length || 0) / pageSize),
           hasNextPage: false,
           hasPreviousPage: false
         }
 
-        setQuotations(items)
+        // ✅ VALIDACIÓN FINAL: Garantizar que items SIEMPRE sea un array
+        const finalItems: Quotation[] = Array.isArray(items) ? items : []
+
+        setQuotationsSafe(finalItems)
         setPagination(paginationData)
 
         // Cache
         if (enableCache) {
-          cacheRef.current.set(cacheKey, { items, pagination: paginationData })
+          cacheRef.current.set(cacheKey, { items: finalItems, pagination: paginationData })
         }
 
         console.log('✅ [useQuotations] Loaded:', {
-          items: items.length,
+          items: finalItems.length,
           page: paginationData.page,
-          total: paginationData.total
+          total: paginationData.total,
+          responseStructure: {
+            hasData: !!result.data,
+            hasNestedData: !!result.data?.data,
+            hasItems: !!responseData?.items,
+            isArray: Array.isArray(responseData)
+          }
         })
       } else {
         setError(result.error || 'Error al cargar cotizaciones')
         toast.error('Error al cargar cotizaciones')
+        setQuotationsSafe([])
+        setPagination({
+          page: 1,
+          pageSize: pageSize,
+          total: 0,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false
+        })
       }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
