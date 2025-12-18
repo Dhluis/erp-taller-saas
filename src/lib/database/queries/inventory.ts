@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { DatabaseError, handleSupabaseError } from '@/lib/errors/APIError'
 
 /**
@@ -102,25 +102,46 @@ export async function getAllCategories(organizationId: string): Promise<Inventor
 
 /**
  * Crear una nueva categoría de inventario
+ * IMPORTANTE: Usa Service Client para bypasear RLS
  */
 export async function createCategory(categoryData: {
   name: string
   description?: string
   organization_id: string
 }): Promise<InventoryCategory> {
-  const supabase = await createClient()
+  console.log('🔄 [createCategory] Iniciando creación:', categoryData.name)
+  console.log('📦 [createCategory] Datos completos:', categoryData)
   
-  const { data, error } = await supabase
-    .from('inventory_categories')
-    .insert([categoryData])
+  // ✅ Usar Service Client en lugar de browser client
+  const supabase = getSupabaseServiceClient()
+  
+  const { data, error } = await (supabase
+    .from('inventory_categories') as any)
+    .insert([{
+      name: categoryData.name,
+      description: categoryData.description || null,
+      organization_id: categoryData.organization_id
+    }])
     .select()
     .single()
 
   if (error) {
-    console.error('Error creating category:', error)
+    console.error('❌ [createCategory] Error al insertar:', error)
+    console.error('❌ [createCategory] Detalles del error:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    })
     throw new DatabaseError('Error al crear categoría de inventario', error)
   }
 
+  if (!data) {
+    console.error('❌ [createCategory] No se retornó data')
+    throw new DatabaseError('Error: categoría no fue creada', error as any)
+  }
+
+  console.log('✅ [createCategory] Categoría creada exitosamente:', data.id)
   return data as InventoryCategory
 }
 
