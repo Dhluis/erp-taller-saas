@@ -3,6 +3,12 @@ import { createClientFromRequest } from '@/lib/supabase/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import { InventoryMovementInsert, InventoryMovement } from '@/types/supabase-simple'
 import { z } from 'zod'
+import { 
+  extractPaginationFromURL, 
+  calculateOffset, 
+  generatePaginationMeta 
+} from '@/lib/utils/pagination'
+import type { PaginatedResponse } from '@/types/pagination'
 
 // Schema de validación para crear movimiento
 const createMovementSchema = z.object({
@@ -51,16 +57,33 @@ export async function GET(request: NextRequest) {
     const organizationId = userProfile.organization_id;
     const { searchParams } = new URL(request.url)
     
-    // Obtener parámetros de consulta
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    // ✅ Extraer parámetros de paginación usando utilidad estándar
+    const { page, pageSize, sortBy, sortOrder } = extractPaginationFromURL(request.url)
+    const offset = calculateOffset(page, pageSize)
+    
+    // Obtener parámetros de filtro
     const product_id = searchParams.get('product_id')
     const movement_type = searchParams.get('movement_type')
     const start_date = searchParams.get('start_date')
     const end_date = searchParams.get('end_date')
 
-    // ✅ Construir consulta usando Service Role Client
-    let query = supabaseAdmin
+    console.log('🔄 [GET /api/inventory/movements] Parámetros:', {
+      organizationId,
+      page,
+      pageSize,
+      product_id,
+      movement_type,
+      start_date,
+      end_date
+    })
+
+    // ✅ Construir consulta base con count para paginación
+    let countQuery = supabaseAdmin
+      .from('inventory_movements')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId)
+
+    let dataQuery = supabaseAdmin
       .from('inventory_movements')
       .select(`
         *,
@@ -68,55 +91,80 @@ export async function GET(request: NextRequest) {
           id,
           name
         )
-      `)
+      `, { count: 'exact' })
       .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false })
 
-    // Aplicar filtros
+    // Aplicar filtros a ambas queries
     if (product_id) {
-      query = query.eq('product_id', product_id)
+      countQuery = countQuery.eq('product_id', product_id)
+      dataQuery = dataQuery.eq('product_id', product_id)
     }
     
-    if (movement_type) {
-      query = query.eq('movement_type', movement_type)
+    if (movement_type && movement_type !== 'all') {
+      countQuery = countQuery.eq('movement_type', movement_type)
+      dataQuery = dataQuery.eq('movement_type', movement_type)
     }
     
     if (start_date) {
-      query = query.gte('created_at', start_date)
+      countQuery = countQuery.gte('created_at', start_date)
+      dataQuery = dataQuery.gte('created_at', start_date)
     }
     
     if (end_date) {
-      query = query.lte('created_at', end_date)
+      countQuery = countQuery.lte('created_at', end_date)
+      dataQuery = dataQuery.lte('created_at', end_date)
     }
 
-    // Paginación
-    const from = (page - 1) * limit
-    const to = from + limit - 1
-    query = query.range(from, to)
+    // Aplicar ordenamiento
+    const sortColumn = sortBy || 'created_at'
+    const sortDirection = sortOrder || 'desc'
+    dataQuery = dataQuery.order(sortColumn, { ascending: sortDirection === 'asc' })
 
-    const { data: movements, error } = await query
+    // Aplicar paginación
+    dataQuery = dataQuery.range(offset, offset + pageSize - 1)
 
-    if (error) {
-      console.error('Error fetching inventory movements:', error)
-      return NextResponse.json({ error: 'Error al obtener movimientos' }, { status: 500 })
+    // Ejecutar queries en paralelo
+    const [countResult, dataResult] = await Promise.all([
+      countQuery,
+      dataQuery
+    ])
+
+    if (countResult.error) {
+      console.error('❌ [GET /api/inventory/movements] Error en count:', countResult.error)
+      return NextResponse.json({ 
+        success: false,
+        error: 'Error al obtener total de movimientos',
+        data: { items: [], pagination: generatePaginationMeta(page, pageSize, 0) }
+      }, { status: 500 })
     }
 
-    // Obtener total para paginación
-    const { count } = await supabaseAdmin
-      .from('inventory_movements')
-      .select('*', { count: 'exact', head: true })
-      .eq('organization_id', organizationId)
+    if (dataResult.error) {
+      console.error('❌ [GET /api/inventory/movements] Error en data:', dataResult.error)
+      return NextResponse.json({ 
+        success: false,
+        error: 'Error al obtener movimientos',
+        data: { items: [], pagination: generatePaginationMeta(page, pageSize, 0) }
+      }, { status: 500 })
+    }
 
+    const count = countResult.count || 0
+    const movements = dataResult.data || []
+
+    console.log('✅ [GET /api/inventory/movements] Movimientos obtenidos:', {
+      count: movements.length,
+      total: count,
+      page,
+      pageSize
+    })
+
+    // ✅ Retornar formato paginado consistente
     return NextResponse.json({
       success: true,
-      data: movements || [],
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        pages: Math.ceil((count || 0) / limit)
+      data: {
+        items: movements,
+        pagination: generatePaginationMeta(page, pageSize, count)
       }
-    })
+    } as PaginatedResponse<InventoryMovement>)
 
   } catch (error) {
     console.error('Error in GET /api/inventory/movements:', error)

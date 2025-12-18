@@ -23,6 +23,7 @@ import {
 
 interface InventoryMovement {
   id: string
+  product_id: string
   movement_type: 'entry' | 'exit' | 'adjustment' | 'transfer'
   quantity: number
   previous_stock: number
@@ -36,9 +37,6 @@ interface InventoryMovement {
   products: {
     id: string
     name: string
-  }
-  auth_users?: {
-    email: string
   } | null
 }
 
@@ -104,20 +102,51 @@ export default function MovimientosInventarioPage() {
       setLoading(true)
       const params = new URLSearchParams({
         page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
+        pageSize: pagination.limit.toString(),
+        sortBy: 'created_at',
+        sortOrder: 'desc',
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '' && v !== 'all'))
       })
 
+      console.log('🔄 [Movimientos] Cargando movimientos:', params.toString())
+
       const result = await safeFetch(`/api/inventory/movements?${params}`)
-      if (result.success && Array.isArray(result.data)) {
-        setMovements(result.data)
+      
+      console.log('🔍 [Movimientos] Respuesta completa:', {
+        success: result.success,
+        hasData: !!result.data,
+        dataType: typeof result.data,
+        isArray: Array.isArray(result.data)
+      })
+
+      if (result.success && result.data) {
+        // ✅ Manejar estructura paginada: { items: [], pagination: {} }
+        const responseData = result.data?.data || result.data
+        const items = Array.isArray(responseData?.items) 
+          ? responseData.items 
+          : (Array.isArray(responseData) ? responseData : [])
+        
+        const paginationData = responseData?.pagination || result.data?.pagination || {
+          page: pagination.page,
+          pageSize: pagination.limit,
+          total: items.length,
+          totalPages: Math.ceil((items.length || 0) / pagination.limit)
+        }
+
+        console.log('✅ [Movimientos] Movimientos extraídos:', {
+          count: items.length,
+          total: paginationData.total,
+          page: paginationData.page
+        })
+
+        setMovements(items)
         setPagination(prev => ({
           ...prev,
-          total: result.pagination?.total || 0,
-          pages: result.pagination?.pages || 0
+          total: paginationData.total || 0,
+          pages: paginationData.totalPages || 0
         }))
       } else {
-        // Si hay error, mostrar array vacío
+        console.error('❌ [Movimientos] Error en respuesta:', result.error)
         setMovements([])
         setPagination(prev => ({
           ...prev,
@@ -126,7 +155,13 @@ export default function MovimientosInventarioPage() {
         }))
       }
     } catch (error) {
-      console.error('Error loading movements:', error)
+      console.error('❌ [Movimientos] Error loading movements:', error)
+      setMovements([])
+      setPagination(prev => ({
+        ...prev,
+        total: 0,
+        pages: 0
+      }))
     } finally {
       setLoading(false)
     }
@@ -138,13 +173,24 @@ export default function MovimientosInventarioPage() {
         Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '' && v !== 'all'))
       )
 
+      console.log('🔄 [Movimientos] Cargando estadísticas:', params.toString())
+
       const result = await safeFetch(`/api/inventory/movements/stats?${params}`)
-      if (result.success && result.data && result.data.general) {
-        setStats(result.data)
+      
+      if (result.success && result.data) {
+        // ✅ Manejar estructura de respuesta
+        const statsData = result.data?.data || result.data
+        if (statsData && statsData.general) {
+          console.log('✅ [Movimientos] Estadísticas cargadas:', statsData.general)
+          setStats(statsData)
+        }
+      } else {
+        console.error('❌ [Movimientos] Error cargando estadísticas:', result.error)
+        // Mantener valores por defecto (ya inicializados)
       }
-      // Si hay error, mantener valores por defecto (ya inicializados)
     } catch (error) {
-      console.error('Error loading stats:', error)
+      console.error('❌ [Movimientos] Error loading stats:', error)
+      // Mantener valores por defecto (ya inicializados)
     }
   }
 
@@ -442,8 +488,12 @@ export default function MovimientosInventarioPage() {
                     <tr key={movement.id} className="border-b hover:bg-gray-50">
                       <td className="p-4">
                         <div>
-                          <div className="font-medium">{movement.products.name}</div>
-                          <div className="text-sm text-text-muted">ID: {movement.products.id.slice(0, 8)}...</div>
+                          <div className="font-medium">
+                            {movement.products?.name || 'Producto desconocido'}
+                          </div>
+                          <div className="text-sm text-text-muted">
+                            ID: {(movement.products?.id || movement.product_id || 'N/A').slice(0, 8)}...
+                          </div>
                         </div>
                       </td>
                       <td className="p-4">
@@ -485,8 +535,8 @@ export default function MovimientosInventarioPage() {
                         <div className="text-sm">{formatDate(movement.created_at)}</div>
                       </td>
                       <td className="p-4">
-                        <div className="text-sm">
-                          {movement.auth_users?.email || 'Sistema'}
+                        <div className="text-sm text-text-secondary">
+                          Sistema
                         </div>
                       </td>
                       <td className="p-4">

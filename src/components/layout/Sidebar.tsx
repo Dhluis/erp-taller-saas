@@ -226,13 +226,49 @@ export function Sidebar({ className }: SidebarProps) {
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/"
     
-    // Para rutas de inventario, usar coincidencia exacta
-    if (href.includes('/inventario/')) {
+    // ✅ FIX: Usar coincidencia exacta para evitar resaltar padre e hijo simultáneamente
+    // Si la ruta es exactamente igual, está activa
+    if (pathname === href) {
+      return true
+    }
+    
+    // ✅ FIX CRÍTICO: Para sub-items de secciones colapsables, SIEMPRE usar coincidencia exacta
+    // Esto evita que tanto la sección padre como el sub-item se resalten simultáneamente
+    const isCollapsibleSectionItem = collapsibleSections.some(section => 
+      section.items.some((item: any) => item.href === href)
+    )
+    
+    if (isCollapsibleSectionItem) {
+      // Para sub-items de secciones colapsables, solo activar si es exactamente igual
       return pathname === href
     }
     
-    // Para otras rutas, usar startsWith
+    // Para rutas que son prefijos (como /inventarios), verificar si hay un sub-item activo
+    // Si hay un sub-item activo que es más específico, no activar el padre
+    const hasMoreSpecificActive = collapsibleSections.some(section => 
+      section.items.some((item: any) => {
+        // Si hay un sub-item que está activo y es más específico que href
+        return pathname === item.href && item.href.startsWith(href) && item.href !== href
+      })
+    )
+    
+    // Si hay un hijo más específico activo, no activar el padre
+    if (hasMoreSpecificActive) {
+      return false
+    }
+    
+    // Para rutas de inventario, usar coincidencia exacta
+    if (href.includes('/inventario')) {
+      return pathname === href
+    }
+    
+    // Para otras rutas, usar startsWith solo si no hay hijos más específicos
     return pathname.startsWith(href)
+  }
+  
+  // ✅ Helper: Verificar si algún sub-item de una sección está activo
+  const hasActiveSubItem = (section: typeof collapsibleSections[0]) => {
+    return section.items.some((item: any) => isActive(item.href))
   }
 
   return (
@@ -334,13 +370,15 @@ export function Sidebar({ className }: SidebarProps) {
             <div key={section.key}>
               {isCollapsed ? (
                 // Versión colapsada: solo icono
-                <Link href={section.items[0]?.href || "#"}>
+                // ✅ FIX: En modo colapsado, resaltar solo si hay un sub-item activo (pero no la sección padre)
+                <Link href={section.items.find((item: any) => isActive(item.href))?.href || section.items[0]?.href || "#"}>
                   <Button
-                    variant={section.items.some(item => isActive(item.href)) ? "primary" : "ghost"}
+                    variant={section.items.some((item: any) => isActive(item.href)) ? "primary" : "ghost"}
                     className={cn(
                       "transition-all duration-200",
                       "w-12 h-12 mx-auto mb-3 flex items-center justify-center rounded-xl hover:bg-gray-800/60",
-                      section.items.some(item => isActive(item.href)) && "bg-primary text-white"
+                      // ✅ Solo resaltar si hay sub-item activo, pero NO resaltar la sección padre
+                      section.items.some((item: any) => isActive(item.href)) && "bg-primary text-white"
                     )}
                     title={section.label}
                   >
@@ -352,7 +390,12 @@ export function Sidebar({ className }: SidebarProps) {
                 <>
                   <Button
                     variant="ghost"
-                    className="w-full justify-between gap-3 h-10"
+                    className={cn(
+                      "w-full justify-between gap-3 h-10",
+                      // ✅ FIX: NO resaltar la sección padre si hay sub-items activos
+                      // Solo mostrar opacidad reducida para indicar que hay un hijo activo
+                      hasActiveSubItem(section) && "opacity-50"
+                    )}
                     onClick={() => toggleSection(section.key)}
                   >
                     <div className="flex items-center gap-3">
@@ -370,20 +413,24 @@ export function Sidebar({ className }: SidebarProps) {
                     <div className="ml-6 space-y-1 mt-1">
                       {section.items
                         .filter((item: any) => item.visible !== false)
-                        .map((item: any) => (
-                        <Link key={item.href} href={item.href}>
-                          <Button
-                            variant={isActive(item.href) ? "primary" : "ghost"}
-                            className={cn(
-                              "w-full justify-start gap-3 h-8 text-sm",
-                              isActive(item.href) && "bg-primary text-white"
-                            )}
-                          >
-                            {item.icon()}
-                            {item.label}
-                          </Button>
-                        </Link>
-                      ))}
+                        .map((item: any) => {
+                          const itemIsActive = isActive(item.href)
+                          return (
+                            <Link key={item.href} href={item.href}>
+                              <Button
+                                variant={itemIsActive ? "primary" : "ghost"}
+                                className={cn(
+                                  "w-full justify-start gap-3 h-8 text-sm",
+                                  // ✅ Solo resaltar el sub-item activo, NO la sección padre
+                                  itemIsActive && "bg-primary text-white shadow-lg shadow-primary/20"
+                                )}
+                              >
+                                {item.icon()}
+                                {item.label}
+                              </Button>
+                            </Link>
+                          )
+                        })}
                     </div>
                   )}
                 </>

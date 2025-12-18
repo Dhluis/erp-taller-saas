@@ -129,12 +129,11 @@ export default function InventariosCategoriasPage() {
 
     setDeleting(true);
     try {
-      const success = await deleteCategory(categoryToDelete);
-      if (success) {
-        toast.success('Categoría eliminada exitosamente');
-        setDeleteDialogOpen(false);
-        setCategoryToDelete(null);
-      }
+      await deleteCategory(categoryToDelete);
+      // ✅ Toast manejado aquí (único lugar)
+      toast.success('Categoría eliminada exitosamente');
+      setDeleteDialogOpen(false);
+      setCategoryToDelete(null);
     } catch (error) {
       console.error('Error deleting category:', error);
       toast.error('Error al eliminar la categoría');

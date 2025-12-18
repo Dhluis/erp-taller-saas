@@ -584,7 +584,7 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
         throw new Error(data.error || 'Error al eliminar categoría');
       }
 
-      toast.success('Categoría eliminada exitosamente');
+      // ✅ No mostrar toast aquí - la página lo maneja
       await fetchCategories();
 
       return true;
@@ -592,8 +592,8 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       console.error('❌ [useInventory] deleteCategory - Error:', errorMessage);
       setError(errorMessage);
-      toast.error('Error al eliminar categoría', { description: errorMessage });
-      return false;
+      // ✅ No mostrar toast de error aquí - la página lo maneja
+      throw err; // Re-lanzar para que la página pueda manejarlo
     }
   }, [fetchCategories]);
 
