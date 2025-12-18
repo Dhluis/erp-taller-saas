@@ -75,8 +75,9 @@ export async function GET(request: NextRequest) {
     
     // Parámetros adicionales
     const search = url.searchParams.get('search') || undefined;
-    const status = url.searchParams.get('status') || undefined;
-    const customerId = url.searchParams.get('customer_id') || undefined;
+    // ✅ Leer status desde filter_status (enviado por buildPaginationQueryString) o status directo
+    const status = url.searchParams.get('filter_status') || url.searchParams.get('status') || undefined;
+    const customerId = url.searchParams.get('filter_customer_id') || url.searchParams.get('customer_id') || undefined;
     const expired = url.searchParams.get('expired') === 'true';
     const stats = url.searchParams.get('stats') === 'true';
 

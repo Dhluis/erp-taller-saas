@@ -130,7 +130,7 @@ export default function QuotationsPage() {
                 Administra cotizaciones y presupuestos
               </p>
             </div>
-            {!loading && pagination.total > 0 && (
+            {!loading && pagination && pagination.total > 0 && (
               <div className="text-sm text-muted-foreground">
                 Total: {pagination.total} | Página {pagination.page} de {pagination.totalPages}
               </div>
@@ -249,7 +249,7 @@ export default function QuotationsPage() {
         </div>
 
         {/* Pagination */}
-        {pagination.totalPages > 1 && (
+        {pagination && pagination.totalPages > 1 && (
           <div className="mt-4">
             <Pagination
               currentPage={pagination.page}

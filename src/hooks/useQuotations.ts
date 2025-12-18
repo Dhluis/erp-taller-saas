@@ -201,9 +201,24 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
         { signal: abortControllerRef.current.signal }
       )
 
+      console.log('🔍 [useQuotations] API Response:', {
+        success: result.success,
+        hasData: !!result.data,
+        hasItems: !!result.data?.items,
+        hasPagination: !!result.data?.pagination,
+        dataStructure: result.data ? Object.keys(result.data) : null
+      })
+
       if (result.success && result.data) {
         const items = result.data.items || []
-        const paginationData = result.data.pagination
+        const paginationData = result.data.pagination || {
+          page: page,
+          pageSize: pageSize,
+          total: items.length,
+          totalPages: Math.ceil((items.length || 0) / pageSize),
+          hasNextPage: false,
+          hasPreviousPage: false
+        }
 
         setQuotations(items)
         setPagination(paginationData)
@@ -216,11 +231,24 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
         console.log('✅ [useQuotations] Loaded:', {
           items: items.length,
           page: paginationData.page,
-          total: paginationData.total
+          total: paginationData.total,
+          totalPages: paginationData.totalPages
         })
       } else {
-        setError(result.error || 'Error al cargar cotizaciones')
+        const errorMsg = result.error || 'Error al cargar cotizaciones'
+        console.error('❌ [useQuotations] Error response:', errorMsg, result)
+        setError(errorMsg)
         toast.error('Error al cargar cotizaciones')
+        // Resetear a valores por defecto en caso de error
+        setQuotations([])
+        setPagination({
+          page: 1,
+          pageSize: pageSize,
+          total: 0,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false
+        })
       }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
@@ -245,30 +273,32 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
   // ==========================================
 
   const goToPage = useCallback((newPage: number) => {
-    if (newPage >= 1 && newPage <= pagination.totalPages) {
+    if (pagination && newPage >= 1 && newPage <= pagination.totalPages) {
       setPage(newPage)
     }
-  }, [pagination.totalPages])
+  }, [pagination])
 
   const goToNextPage = useCallback(() => {
-    if (pagination.hasNextPage) {
+    if (pagination?.hasNextPage) {
       setPage(prev => prev + 1)
     }
-  }, [pagination.hasNextPage])
+  }, [pagination])
 
   const goToPreviousPage = useCallback(() => {
-    if (pagination.hasPreviousPage) {
+    if (pagination?.hasPreviousPage) {
       setPage(prev => prev - 1)
     }
-  }, [pagination.hasPreviousPage])
+  }, [pagination])
 
   const goToFirstPage = useCallback(() => {
     setPage(1)
   }, [])
 
   const goToLastPage = useCallback(() => {
-    setPage(pagination.totalPages)
-  }, [pagination.totalPages])
+    if (pagination?.totalPages) {
+      setPage(pagination.totalPages)
+    }
+  }, [pagination])
 
   const changePageSize = useCallback((newSize: number) => {
     setPageSize(newSize)
