@@ -412,7 +412,16 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
     try {
       const response = await fetch(`/api/inventory/${id}`, {
         method: 'DELETE',
+        credentials: 'include', // ✅ Incluir cookies para autenticación
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
 
       const data = await response.json();
 
@@ -420,7 +429,7 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
         throw new Error(data.error || 'Error al eliminar producto');
       }
 
-      toast.success('Producto eliminado');
+      toast.success('Producto eliminado exitosamente');
       
       if (enableCache) cacheRef.current.clear();
       await fetchItems();

@@ -13,10 +13,21 @@ import {
   MagnifyingGlassIcon,
   PlusIcon,
   FunnelIcon,
-  AdjustmentsHorizontalIcon
+  AdjustmentsHorizontalIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import { RefreshCw } from 'lucide-react';
 import { useInventory, type CreateInventoryItemData, type UpdateInventoryItemData, type InventoryItem } from '@/hooks/useInventory';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function InventariosProductosPage() {
   const {
@@ -31,6 +42,7 @@ export default function InventariosProductosPage() {
     refresh,
     createItem,
     updateItem,
+    deleteItem,
     fetchCategories
   } = useInventory({
     page: 1,
@@ -66,6 +78,9 @@ export default function InventariosProductosPage() {
     description: ''
   });
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<InventoryItem | null>(null);
 
   // Sincronizar búsqueda con debounce
   useEffect(() => {
@@ -112,6 +127,28 @@ export default function InventariosProductosPage() {
   const handleViewDetails = (product: InventoryItem) => {
     setSelectedProduct(product);
     setShowDetailsModal(true);
+  };
+
+  const handleDeleteClick = (product: InventoryItem) => {
+    setProductToDelete(product);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete) return;
+
+    setDeleting(true);
+    try {
+      const success = await deleteItem(productToDelete.id);
+      if (success) {
+        setDeleteDialogOpen(false);
+        setProductToDelete(null);
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleUpdateProduct = async () => {
@@ -385,6 +422,14 @@ export default function InventariosProductosPage() {
                     >
                       Ver Detalles
                     </Button>
+                    <Button 
+                      size="sm" 
+                      variant="destructive" 
+                      onClick={() => handleDeleteClick(product)}
+                      className="px-3"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -603,6 +648,35 @@ export default function InventariosProductosPage() {
             </div>
           </div>
         )}
+
+        {/* AlertDialog para Confirmar Eliminación */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent className="bg-bg-primary border-border">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-text-primary">
+                ¿Eliminar producto "{productToDelete?.name}"?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-text-secondary">
+                Esta acción no se puede deshacer. El producto será eliminado permanentemente del inventario.
+                Si el producto tiene movimientos asociados, no podrá ser eliminado.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel asChild>
+                <Button variant="outline" disabled={deleting}>Cancelar</Button>
+              </AlertDialogCancel>
+              <AlertDialogAction asChild>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteConfirm}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Eliminando...' : 'Eliminar'}
+                </Button>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Modal para Ver Detalles */}
         {showDetailsModal && selectedProduct && (
