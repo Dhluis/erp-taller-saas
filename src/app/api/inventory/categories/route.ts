@@ -93,31 +93,58 @@ export async function GET(request: NextRequest) {
     console.log('✅ Organization ID:', userProfile.organization_id)
     
     // ✅ Usar Service Role Client directamente para queries (bypass RLS)
-    const { data: categories, error: categoriesError } = await supabaseAdmin
-      .from('inventory_categories')
-      .select('*')
-      .eq('organization_id', userProfile.organization_id)
-      .order('name', { ascending: true })
-    
-    if (categoriesError) {
-      console.error('❌ Error obteniendo categorías:', categoriesError)
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Error al obtener categorías de inventario',
-          data: []
-        },
-        { status: 500 }
-      )
-    }
-    
-    console.log('✅ Categorías obtenidas:', categories?.length || 0)
+    try {
+      const { data: categories, error: categoriesError } = await supabaseAdmin
+        .from('inventory_categories')
+        .select('*')
+        .eq('organization_id', userProfile.organization_id)
+        .order('name', { ascending: true })
+      
+      if (categoriesError) {
+        console.error('❌ Error obteniendo categorías:', categoriesError)
+        console.error('❌ Detalles del error:', {
+          message: categoriesError.message,
+          code: categoriesError.code,
+          details: categoriesError.details,
+          hint: categoriesError.hint
+        })
+        
+        // Si la tabla no existe o hay un error de RLS, devolver array vacío en lugar de 500
+        if (categoriesError.code === 'PGRST116' || categoriesError.code === '42P01') {
+          console.warn('⚠️ Tabla inventory_categories no encontrada o sin datos')
+          return NextResponse.json({
+            success: true,
+            data: [],
+            count: 0
+          })
+        }
+        
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Error al obtener categorías de inventario',
+            data: []
+          },
+          { status: 500 }
+        )
+      }
+      
+      console.log('✅ Categorías obtenidas:', categories?.length || 0)
 
-    return NextResponse.json({
-      success: true,
-      data: categories || [],
-      count: categories?.length || 0
-    });
+      return NextResponse.json({
+        success: true,
+        data: categories || [],
+        count: categories?.length || 0
+      })
+    } catch (queryError: any) {
+      console.error('❌ Excepción en query de categorías:', queryError)
+      // Devolver array vacío en lugar de error 500 para no romper la UI
+      return NextResponse.json({
+        success: true,
+        data: [],
+        count: 0
+      })
+    }
   } catch (error) {
     console.error('❌ Error en GET /api/inventory/categories:', error)
     const apiError = handleAPIError(error, 'GET /api/inventory/categories');

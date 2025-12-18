@@ -227,87 +227,25 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
         { signal: abortControllerRef.current.signal }
       )
 
-      console.log('🔍 [useQuotations] API Response:', {
-        success: result.success,
-        hasData: !!result.data,
-        dataKeys: result.data ? Object.keys(result.data) : null,
-        dataType: result.data ? (Array.isArray(result.data) ? 'array' : typeof result.data) : null,
-        hasNestedData: !!result.data?.data,
-        hasItems: !!result.data?.data?.items,
-        hasPagination: !!result.data?.data?.pagination
-      })
-
       if (result.success && result.data) {
-        // ✅ SOLUCIÓN DEFINITIVA: Manejar múltiples estructuras de respuesta
-        // safeFetch devuelve el JSON parseado completo
+        // ✅ FIX CRÍTICO: Extraer items de la estructura paginada
         // La API devuelve: { success: true, data: { items: [], pagination: {} } }
-        // Entonces result.data es: { success: true, data: { items: [], pagination: {} } }
+        // safeFetch parsea esto, entonces result.data es: { success: true, data: { items: [], pagination: {} } }
+        // Necesitamos acceder a result.data.data.items
         
-        let items: Quotation[] = []
-        let paginationData: any = {
+        const responseData = result.data?.data || result.data
+        const items = Array.isArray(responseData?.items) ? responseData.items : []
+        const paginationData = responseData?.pagination || {
           page: page,
           pageSize: pageSize,
-          total: 0,
-          totalPages: 0,
+          total: items.length,
+          totalPages: Math.ceil((items.length || 0) / pageSize),
           hasNextPage: false,
           hasPreviousPage: false
         }
 
-        // ✅ Intentar extraer items de diferentes estructuras posibles
-        try {
-          // Caso 1: result.data.data.items (estructura anidada)
-          if (result.data?.data?.items && Array.isArray(result.data.data.items)) {
-            items = result.data.data.items
-            paginationData = result.data.data.pagination || paginationData
-          }
-          // Caso 2: result.data.items (estructura directa)
-          else if (result.data?.items && Array.isArray(result.data.items)) {
-            items = result.data.items
-            paginationData = result.data.pagination || paginationData
-          }
-          // Caso 3: result.data es un array directo (sin paginación)
-          else if (Array.isArray(result.data)) {
-            items = result.data
-            paginationData = {
-              page: 1,
-              pageSize: items.length,
-              total: items.length,
-              totalPages: 1,
-              hasNextPage: false,
-              hasPreviousPage: false
-            }
-          }
-          // Caso 4: result.data.data es un array directo
-          else if (Array.isArray(result.data?.data)) {
-            items = result.data.data
-            paginationData = {
-              page: 1,
-              pageSize: items.length,
-              total: items.length,
-              totalPages: 1,
-              hasNextPage: false,
-              hasPreviousPage: false
-            }
-          }
-        } catch (extractError) {
-          console.error('❌ [useQuotations] Error extrayendo datos:', extractError)
-          items = []
-        }
-
         // ✅ VALIDACIÓN FINAL: Garantizar que items SIEMPRE sea un array
         const finalItems: Quotation[] = Array.isArray(items) ? items : []
-        
-        // ✅ Validar y normalizar paginationData
-        if (!paginationData || typeof paginationData !== 'object') {
-          paginationData = {
-            page: page,
-            pageSize: pageSize,
-            total: finalItems.length,
-            totalPages: Math.ceil(finalItems.length / pageSize),
-            hasNextPage: false,
-            hasPreviousPage: false
-          }
-        }
 
         console.log('✅ [useQuotations] Loaded:', {
           items: finalItems.length,
