@@ -237,10 +237,19 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
           page: paginationData.page,
           total: paginationData.total,
           totalPages: paginationData.totalPages,
-          isArray: Array.isArray(finalItems)
+          isArray: Array.isArray(finalItems),
+          itemsType: typeof finalItems,
+          responseDataKeys: Object.keys(responseData || {}),
+          resultDataKeys: Object.keys(result.data || {})
         })
 
-        setQuotations(finalItems)
+        // ✅ Validación adicional antes de establecer el estado
+        if (!Array.isArray(finalItems)) {
+          console.error('❌ [useQuotations] CRITICAL: finalItems no es un array antes de setQuotations:', typeof finalItems, finalItems)
+          setQuotations([])
+        } else {
+          setQuotations(finalItems)
+        }
         setPagination(paginationData)
 
         // Guardar en cache
@@ -474,8 +483,11 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
   // RETURN
   // ==========================================
 
+  // ✅ Asegurar que quotations siempre sea un array antes de retornar
+  const safeQuotations = Array.isArray(quotations) ? quotations : []
+
   return {
-    quotations,
+    quotations: safeQuotations,
     loading,
     error,
     pagination,

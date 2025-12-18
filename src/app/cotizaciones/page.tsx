@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -78,8 +78,14 @@ export default function QuotationsPage() {
     autoLoad: true
   })
 
-  // ✅ Asegurar que quotations siempre sea un array
-  const safeQuotations = Array.isArray(quotations) ? quotations : []
+  // ✅ Asegurar que quotations siempre sea un array (con useMemo para evitar re-renders)
+  const safeQuotations = useMemo(() => {
+    const safe = Array.isArray(quotations) ? quotations : []
+    if (!Array.isArray(quotations)) {
+      console.warn('⚠️ [QuotationsPage] quotations no es un array:', typeof quotations, quotations)
+    }
+    return safe
+  }, [quotations])
 
   // ✅ Debounce para búsqueda
   const [searchTerm, setSearchTerm] = useState('')
