@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { useOrganization } from '@/lib/context/SessionContext';
 import type { PaginatedResponse, SearchParams } from '@/types/pagination';
 import { buildPaginationQueryString } from '@/lib/utils/pagination';
+import { safeFetch, safePost } from '@/lib/api/fetch-utils';
 
 // ==========================================
 // TYPES
@@ -439,80 +440,78 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
   // CATEGORIES
   // ==========================================
 
+  /**
+   * Obtiene la lista de categorías existentes (GET)
+   * Se usa para poblar el dropdown al crear/editar productos
+   */
   const fetchCategories = useCallback(async (): Promise<void> => {
     if (!organizationId || !ready) {
-      console.log('⏳ [useInventory] Esperando organizationId para categorías...');
+      console.log('⏳ [useInventory] fetchCategories - Esperando organizationId...');
       setCategories([]);
       return;
     }
 
     try {
-      console.log('🔄 [useInventory] fetchCategories - Iniciando para organizationId:', organizationId);
+      console.log('🔄 [useInventory] fetchCategories - Iniciando (GET) para organizationId:', organizationId);
       
-      const response = await fetch('/api/inventory/categories', {
-        method: 'GET',
-        headers: { 
-          'Cache-Control': 'no-cache',
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include' // ✅ FIX: Incluir cookies para autenticación
-      });
+      // ✅ GET para LEER categorías existentes
+      const result = await safeFetch<{ success: boolean; data: any[] }>(
+        `/api/inventory/categories`
+      );
       
-      // ✅ Verificar status HTTP antes de parsear JSON
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ [useInventory] fetchCategories - HTTP Error:', response.status, errorText);
-        setCategories([]); // Devolver array vacío en lugar de error
-        setError(null); // No mostrar error al usuario si es 500
-        return;
-      }
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        const categoriesData = Array.isArray(result.data) ? result.data : [];
-        console.log('✅ [useInventory] fetchCategories - Exitoso:', categoriesData.length, 'categorías');
-        setCategories(categoriesData);
+      if (result.success && result.data) {
+        const categoriesList = Array.isArray(result.data) ? result.data : [];
+        setCategories(categoriesList);
+        console.log('✅ [useInventory] fetchCategories - Exitoso:', categoriesList.length, 'categorías');
         setError(null);
       } else {
         console.error('❌ [useInventory] fetchCategories - Error:', result.error);
-        // No mostrar error al usuario, solo devolver array vacío
         setCategories([]);
         setError(null);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [useInventory] fetchCategories - Excepción:', error);
-      // No mostrar error al usuario, solo devolver array vacío
       setCategories([]);
       setError(null);
     }
   }, [organizationId, ready]);
 
+  /**
+   * Crea una nueva categoría (POST)
+   * Se usa cuando el usuario agrega una categoría nueva desde el formulario
+   */
   const createCategory = useCallback(async (categoryData: CreateCategoryData) => {
-    try {
-      const response = await fetch('/api/inventory/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(categoryData),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Error al crear categoría');
-      }
-
-      toast.success('Categoría creada exitosamente');
-      await fetchCategories();
-
-      return data.data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-      toast.error('Error al crear categoría', { description: errorMessage });
+    if (!organizationId) {
+      toast.error('No se pudo obtener la organización');
       return null;
     }
-  }, [fetchCategories]);
+
+    try {
+      console.log('🔄 [useInventory] createCategory - Creando categoría:', categoryData.name);
+      
+      // ✅ POST para CREAR nueva categoría
+      const result = await safePost<any>('/api/inventory/categories', {
+        ...categoryData,
+        organization_id: organizationId
+      });
+      
+      if (result.success && result.data) {
+        toast.success(`Categoría "${categoryData.name}" creada exitosamente`);
+        console.log('✅ [useInventory] createCategory - Exitoso:', result.data);
+        
+        // Recargar lista de categorías
+        await fetchCategories();
+        
+        return result.data;
+      } else {
+        throw new Error(result.error || 'Error al crear categoría');
+      }
+    } catch (error: any) {
+      console.error('❌ [useInventory] createCategory - Error:', error);
+      toast.error('Error al crear categoría');
+      return null;
+    }
+  }, [organizationId, fetchCategories]);
 
   const updateCategory = useCallback(async (id: string, categoryData: UpdateCategoryData) => {
     try {

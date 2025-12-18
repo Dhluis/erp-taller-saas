@@ -228,23 +228,43 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
       )
 
       if (result.success && result.data) {
-        // ✅ FIX: Manejar estructura paginada correctamente
+        // ✅ FIX CRÍTICO: Extraer items de la estructura paginada
         // La API devuelve: { success: true, data: { items: [], pagination: {} } }
-        // safeFetch parsea esto, entonces result.data es el objeto completo
-        // Necesitamos acceder a result.data.data.items o result.data.items
+        // safeFetch parsea esto, entonces result.data es: { success: true, data: { items: [], pagination: {} } }
+        // Necesitamos acceder a result.data.data.items
         
-        const responseData = result.data?.data || result.data
-        const items = Array.isArray(responseData?.items) 
-          ? responseData.items 
-          : (Array.isArray(responseData) ? responseData : [])
-        
-        const paginationData = responseData?.pagination || {
+        // Intentar múltiples estructuras posibles
+        let items: Quotation[] = []
+        let paginationData: any = {
           page: page,
           pageSize: pageSize,
-          total: Array.isArray(items) ? items.length : 0,
-          totalPages: Math.ceil((Array.isArray(items) ? items.length : 0) / pageSize),
+          total: 0,
+          totalPages: 0,
           hasNextPage: false,
           hasPreviousPage: false
+        }
+
+        // Caso 1: result.data.data.items (estructura anidada - la correcta)
+        if (result.data?.data?.items && Array.isArray(result.data.data.items)) {
+          items = result.data.data.items
+          paginationData = result.data.data.pagination || paginationData
+        }
+        // Caso 2: result.data.items (estructura directa)
+        else if (result.data?.items && Array.isArray(result.data.items)) {
+          items = result.data.items
+          paginationData = result.data.pagination || paginationData
+        }
+        // Caso 3: result.data es un array directo
+        else if (Array.isArray(result.data)) {
+          items = result.data
+          paginationData = {
+            page: 1,
+            pageSize: items.length,
+            total: items.length,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPreviousPage: false
+          }
         }
 
         // ✅ VALIDACIÓN FINAL: Garantizar que items SIEMPRE sea un array
