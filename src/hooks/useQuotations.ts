@@ -228,32 +228,27 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
       )
 
       if (result.success && result.data) {
-        // ✅ FIX CRÍTICO: Extraer items de la estructura paginada
+        // ✅ FIX: Manejar estructura paginada correctamente
         // La API devuelve: { success: true, data: { items: [], pagination: {} } }
-        // safeFetch parsea esto, entonces result.data es: { success: true, data: { items: [], pagination: {} } }
-        // Necesitamos acceder a result.data.data.items
+        // safeFetch parsea esto, entonces result.data es el objeto completo
+        // Necesitamos acceder a result.data.data.items o result.data.items
         
         const responseData = result.data?.data || result.data
-        const items = Array.isArray(responseData?.items) ? responseData.items : []
+        const items = Array.isArray(responseData?.items) 
+          ? responseData.items 
+          : (Array.isArray(responseData) ? responseData : [])
+        
         const paginationData = responseData?.pagination || {
           page: page,
           pageSize: pageSize,
-          total: items.length,
-          totalPages: Math.ceil((items.length || 0) / pageSize),
+          total: Array.isArray(items) ? items.length : 0,
+          totalPages: Math.ceil((Array.isArray(items) ? items.length : 0) / pageSize),
           hasNextPage: false,
           hasPreviousPage: false
         }
 
         // ✅ VALIDACIÓN FINAL: Garantizar que items SIEMPRE sea un array
         const finalItems: Quotation[] = Array.isArray(items) ? items : []
-
-        console.log('✅ [useQuotations] Loaded:', {
-          items: finalItems.length,
-          page: paginationData.page,
-          total: paginationData.total,
-          totalPages: paginationData.totalPages,
-          isArray: Array.isArray(finalItems)
-        })
 
         // ✅ Establecer estado (SIEMPRE arrays)
         setQuotationsSafe(finalItems)
@@ -263,6 +258,12 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
         if (enableCache) {
           cacheRef.current.set(cacheKey, { items: finalItems, pagination: paginationData })
         }
+
+        console.log('✅ [useQuotations] Loaded:', {
+          items: finalItems.length,
+          page: paginationData.page,
+          total: paginationData.total
+        })
 
       } else {
         const errorMsg = result.error || 'Error al cargar cotizaciones'

@@ -56,102 +56,88 @@ import { handleAPIError, createErrorResponse } from '@/lib/errors/APIError';
 // GET: Obtener todas las categorías
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔄 GET /api/inventory/categories - Iniciando...')
+    console.log('🔄 [GET /api/inventory/categories] Iniciando...')
     
-    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
+    // ✅ PASO 1: Autenticación
     const { createClientFromRequest } = await import('@/lib/supabase/server')
     const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
     
-    const supabase = createClientFromRequest(request);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const supabase = createClientFromRequest(request)
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     
-    if (authError || !user) {
-      console.error('❌ Error de autenticación:', authError)
-      return NextResponse.json(
-        { success: false, error: 'No autorizado' },
-        { status: 401 }
-      )
+    if (authError || !authUser) {
+      console.error('❌ [GET /api/inventory/categories] No autenticado')
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No autorizado' 
+      }, { status: 401 })
     }
 
-    // Obtener organization_id del perfil del usuario usando Service Role Client
-    const supabaseAdmin = getSupabaseServiceClient();
+    // ✅ PASO 2: Obtener organizationId
+    const supabaseAdmin = getSupabaseServiceClient()
+    
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
       .select('organization_id')
-      .eq('auth_user_id', user.id)
+      .eq('auth_user_id', authUser.id)
       .single()
-
-    if (profileError || !userProfile?.organization_id) {
-      console.error('❌ Error obteniendo perfil:', profileError)
-      return NextResponse.json(
-        { success: false, error: 'Perfil de usuario no encontrado' },
-        { status: 404 }
-      )
-    }
-
-    console.log('✅ Usuario autenticado:', user.email)
-    console.log('✅ Organization ID:', userProfile.organization_id)
     
-    // ✅ Usar Service Role Client directamente para queries (bypass RLS)
-    try {
-      const { data: categories, error: categoriesError } = await supabaseAdmin
-        .from('inventory_categories')
-        .select('*')
-        .eq('organization_id', userProfile.organization_id)
-        .order('name', { ascending: true })
+    if (profileError || !userProfile || !userProfile.organization_id) {
+      console.error('❌ [GET /api/inventory/categories] Error obteniendo perfil:', profileError)
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No se pudo obtener el ID de la organización' 
+      }, { status: 403 })
+    }
+    
+    const organizationId = userProfile.organization_id
+    console.log('✅ [GET /api/inventory/categories] Organization ID:', organizationId)
+    
+    // ✅ PASO 3: Query de categorías
+    const { data: categories, error: queryError } = await supabaseAdmin
+      .from('inventory_categories')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .order('name', { ascending: true })
+    
+    if (queryError) {
+      console.error('❌ [GET /api/inventory/categories] Error en query:', queryError)
+      console.error('❌ [GET /api/inventory/categories] Detalles:', {
+        message: queryError.message,
+        code: queryError.code,
+        details: queryError.details,
+        hint: queryError.hint
+      })
       
-      if (categoriesError) {
-        console.error('❌ Error obteniendo categorías:', categoriesError)
-        console.error('❌ Detalles del error:', {
-          message: categoriesError.message,
-          code: categoriesError.code,
-          details: categoriesError.details,
-          hint: categoriesError.hint
+      // Si la tabla no existe o no hay datos, devolver array vacío
+      if (queryError.code === 'PGRST116' || queryError.code === '42P01') {
+        console.warn('⚠️ [GET /api/inventory/categories] Tabla no encontrada o sin datos')
+        return NextResponse.json({
+          success: true,
+          data: []
         })
-        
-        // Si la tabla no existe o hay un error de RLS, devolver array vacío en lugar de 500
-        if (categoriesError.code === 'PGRST116' || categoriesError.code === '42P01') {
-          console.warn('⚠️ Tabla inventory_categories no encontrada o sin datos')
-          return NextResponse.json({
-            success: true,
-            data: [],
-            count: 0
-          })
-        }
-        
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Error al obtener categorías de inventario',
-            data: []
-          },
-          { status: 500 }
-        )
       }
       
-      console.log('✅ Categorías obtenidas:', categories?.length || 0)
-
       return NextResponse.json({
-        success: true,
-        data: categories || [],
-        count: categories?.length || 0
-      })
-    } catch (queryError: any) {
-      console.error('❌ Excepción en query de categorías:', queryError)
-      // Devolver array vacío en lugar de error 500 para no romper la UI
-      return NextResponse.json({
-        success: true,
-        data: [],
-        count: 0
-      })
+        success: false,
+        error: queryError.message || 'Error al obtener categorías de inventario'
+      }, { status: 500 })
     }
-  } catch (error) {
-    console.error('❌ Error en GET /api/inventory/categories:', error)
-    const apiError = handleAPIError(error, 'GET /api/inventory/categories');
-    return NextResponse.json(
-      createErrorResponse(apiError),
-      { status: apiError.statusCode }
-    );
+    
+    console.log('✅ [GET /api/inventory/categories] Categorías encontradas:', categories?.length || 0)
+    
+    // ✅ RETORNAR estructura correcta
+    return NextResponse.json({
+      success: true,
+      data: categories || []
+    })
+    
+  } catch (error: any) {
+    console.error('❌ [GET /api/inventory/categories] Error inesperado:', error)
+    return NextResponse.json({
+      success: false,
+      error: error.message || 'Error interno del servidor'
+    }, { status: 500 })
   }
 }
 
