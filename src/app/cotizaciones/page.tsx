@@ -239,33 +239,34 @@ export default function QuotationsPage() {
                     }
                     return items.map((quotation) => (
                       <TableRow key={quotation.id}>
-                    <TableCell className="font-medium">
-                      {quotation.quotation_number}
-                    </TableCell>
-                    <TableCell>
-                      {quotation.customer?.name || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {quotation.vehicle
-                        ? `${quotation.vehicle.brand} ${quotation.vehicle.model} - ${quotation.vehicle.license_plate}`
-                        : 'N/A'}
-                    </TableCell>
-                    <TableCell className="font-semibold">
-                      {formatCurrency(quotation.total_amount)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={STATUS_COLORS[quotation.status] || 'bg-gray-500'}>
-                        {STATUS_LABELS[quotation.status] || quotation.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {formatDate(quotation.created_at)}
-                    </TableCell>
-                    <TableCell>
-                      {quotation.valid_until
-                        ? formatDate(quotation.valid_until)
-                        : 'N/A'}
-                    </TableRow>
+                        <TableCell className="font-medium">
+                          {quotation.quotation_number}
+                        </TableCell>
+                        <TableCell>
+                          {quotation.customer?.name || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {quotation.vehicle
+                            ? `${quotation.vehicle.brand} ${quotation.vehicle.model} - ${quotation.vehicle.license_plate}`
+                            : 'N/A'}
+                        </TableCell>
+                        <TableCell className="font-semibold">
+                          {formatCurrency(quotation.total_amount)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={STATUS_COLORS[quotation.status] || 'bg-gray-500'}>
+                            {STATUS_LABELS[quotation.status] || quotation.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {formatDate(quotation.created_at)}
+                        </TableCell>
+                        <TableCell>
+                          {quotation.valid_until
+                            ? formatDate(quotation.valid_until)
+                            : 'N/A'}
+                        </TableCell>
+                      </TableRow>
                     ))
                   } catch (error) {
                     console.error('❌ [QuotationsPage] Error en renderizado:', error)
