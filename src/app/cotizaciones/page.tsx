@@ -78,8 +78,14 @@ export default function QuotationsPage() {
     autoLoad: true
   })
 
-  // ✅ El hook garantiza que quotations siempre es un array
-  // No necesitamos safeQuotations, usamos quotations directamente
+  // ✅ VALIDACIÓN DEFENSIVA: Garantizar que quotations siempre sea un array
+  console.log('🔍 [QuotationsPage] quotations type:', typeof quotations)
+  console.log('🔍 [QuotationsPage] is array:', Array.isArray(quotations))
+  console.log('🔍 [QuotationsPage] quotations value:', quotations)
+  
+  const safeQuotations: Quotation[] = Array.isArray(quotations) ? quotations : []
+  
+  console.log('🔍 [QuotationsPage] safeQuotations length:', safeQuotations.length)
 
   // ✅ Debounce para búsqueda
   const [searchTerm, setSearchTerm] = useState('')
@@ -191,7 +197,7 @@ export default function QuotationsPage() {
               <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
               <p>Cargando cotizaciones...</p>
             </div>
-          ) : quotations.length === 0 ? (
+          ) : safeQuotations.length === 0 ? (
             <div className="p-8 text-center text-text-secondary">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium mb-2">No hay cotizaciones</p>
@@ -217,10 +223,8 @@ export default function QuotationsPage() {
               <TableBody>
                 {(() => {
                   try {
-                    // ✅ El hook garantiza que quotations siempre es un array
-                    const items: Quotation[] = Array.isArray(quotations) ? quotations : []
-                    
-                    if (items.length === 0) {
+                    // ✅ Usar safeQuotations que ya está validado como array
+                    if (safeQuotations.length === 0) {
                       return (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center text-muted-foreground">
@@ -232,7 +236,7 @@ export default function QuotationsPage() {
                       )
                     }
                     
-                    return items.map((quotation) => (
+                    return safeQuotations.map((quotation) => (
                       <TableRow key={quotation.id}>
                         <TableCell className="font-medium">
                           {quotation.quotation_number}
