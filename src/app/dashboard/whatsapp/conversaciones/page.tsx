@@ -294,7 +294,9 @@ export default function ConversacionesPage() {
             if (response.ok) {
               const result = await response.json()
               if (result.success && result.data) {
-                result.data.forEach((customer: any) => {
+                // ✅ FIX: Manejar estructura paginada { data: { items, pagination } }
+                const customers = result.data?.items || result.data || [];
+                customers.forEach((customer: any) => {
                   customersMap[customer.id] = {
                     name: customer.name,
                     email: customer.email,
@@ -510,7 +512,9 @@ export default function ConversacionesPage() {
             if (customersResponse.ok) {
               const customersResult = await customersResponse.json()
               if (customersResult.success && customersResult.data) {
-                customerData = customersResult.data.find((c: any) => {
+                // ✅ FIX: Manejar estructura paginada { data: { items, pagination } }
+                const customers = customersResult.data?.items || customersResult.data || [];
+                customerData = customers.find((c: any) => {
                   if (!c.phone) return false
                   const normalizedCustomerPhone = c.phone.replace(/[\s\+\-\(\)]/g, '')
                   return normalizedCustomerPhone === normalizedPhone || 

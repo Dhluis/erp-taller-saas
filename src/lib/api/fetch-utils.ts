@@ -108,6 +108,7 @@ export async function safeFetch<T = any>(
       const response = await fetch(url, {
         ...fetchOptions,
         signal: controller.signal,
+        credentials: 'include', // ✅ FIX: Incluir cookies para autenticación
         headers: {
           'Content-Type': 'application/json',
           ...fetchOptions.headers,

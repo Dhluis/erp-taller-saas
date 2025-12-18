@@ -432,7 +432,9 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
     setError(null)
 
     try {
-      const response = await fetch(`/api/work-orders/${id}`)
+      const response = await fetch(`/api/work-orders/${id}`, {
+        credentials: 'include'
+      })
       const data = await response.json()
 
       if (!data.success) {
@@ -459,6 +461,7 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
       const response = await fetch('/api/work-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(orderData),
       })
 
@@ -492,6 +495,7 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
       const response = await fetch(`/api/work-orders/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(orderData),
       })
 
@@ -524,6 +528,7 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
     try {
       const response = await fetch(`/api/work-orders/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       })
 
       const data = await response.json()
@@ -562,6 +567,7 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
       const response = await fetch(`/api/work-orders/${workOrderId}/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(itemData),
       })
       const data = await response.json()
@@ -583,6 +589,7 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
       const response = await fetch(`/api/work-orders/${workOrderId}/items/${itemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(itemData),
       })
       const data = await response.json()
@@ -603,6 +610,7 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
     try {
       const response = await fetch(`/api/work-orders/${workOrderId}/items/${itemId}`, {
         method: 'DELETE',
+        credentials: 'include',
       })
       const data = await response.json()
       if (!data.success) throw new Error(data.error)
@@ -623,7 +631,9 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
 
   const fetchWorkOrdersByCustomer = useCallback(async (customerId: string) => {
     try {
-      const response = await fetch(`/api/work-orders/customer/${customerId}`)
+      const response = await fetch(`/api/work-orders/customer/${customerId}`, {
+        credentials: 'include'
+      })
       const data = await response.json()
       return data.success ? data.data : []
     } catch (err) {
@@ -634,7 +644,9 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
 
   const fetchWorkOrdersByVehicle = useCallback(async (vehicleId: string) => {
     try {
-      const response = await fetch(`/api/work-orders/vehicle/${vehicleId}`)
+      const response = await fetch(`/api/work-orders/vehicle/${vehicleId}`, {
+        credentials: 'include'
+      })
       const data = await response.json()
       return data.success ? data.data : []
     } catch (err) {
@@ -645,7 +657,9 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await fetch('/api/work-orders?stats=true')
+      const response = await fetch('/api/work-orders?stats=true', {
+        credentials: 'include'
+      })
       const data = await response.json()
       if (data.success) {
         setStats(data.data)
@@ -683,18 +697,21 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
         fetch('/api/work-orders', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include', // ✅ FIX: Incluir cookies para autenticación
           cache: 'no-store',
         }),
         // Cargar clientes desde API
         fetch('/api/customers', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include', // ✅ FIX: Incluir cookies para autenticación
           cache: 'no-store',
         }),
         // Cargar vehículos desde API
         fetch('/api/vehicles', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include', // ✅ FIX: Incluir cookies para autenticación
           cache: 'no-store',
         }),
       ])

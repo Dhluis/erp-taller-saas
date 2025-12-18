@@ -161,7 +161,8 @@ export function useVehicles(options: UseVehiclesOptions = {}): UseVehiclesReturn
 
       // Fetch
       const response = await fetch(url, {
-        headers: { 'Cache-Control': 'no-cache' }
+        headers: { 'Cache-Control': 'no-cache' },
+        credentials: 'include' // ✅ FIX: Incluir cookies para autenticación
       });
       
       const result = await response.json();
@@ -281,6 +282,7 @@ export function useVehicles(options: UseVehiclesOptions = {}): UseVehiclesReturn
       const response = await fetch('/api/vehicles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(data),
       });
 
@@ -314,6 +316,7 @@ export function useVehicles(options: UseVehiclesOptions = {}): UseVehiclesReturn
       const response = await fetch(`/api/vehicles/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(data),
       });
 
@@ -346,6 +349,7 @@ export function useVehicles(options: UseVehiclesOptions = {}): UseVehiclesReturn
     try {
       const response = await fetch(`/api/vehicles/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       const result = await response.json();
@@ -376,7 +380,9 @@ export function useVehicles(options: UseVehiclesOptions = {}): UseVehiclesReturn
 
   const fetchVehiclesByCustomer = useCallback(async (customerId: string) => {
     try {
-      const response = await fetch(`/api/vehicles?filter_customer_id=${customerId}`);
+      const response = await fetch(`/api/vehicles?filter_customer_id=${customerId}`, {
+        credentials: 'include'
+      });
       const data = await response.json();
       
       if (data.success && data.data?.items) {

@@ -94,8 +94,17 @@ export default function ReportesPage() {
         }
 
         const ordersResult = await ordersResponse.json();
-        const orders = ordersResult.success ? ordersResult.data : [];
+        // ✅ FIX: Manejar estructura paginada { data: { items, pagination } }
+        const orders = ordersResult.success 
+          ? (ordersResult.data?.items || ordersResult.data || [])
+          : [];
         
+        console.log('🔍 [Reportes] Estructura recibida:', {
+          hasItems: !!ordersResult.data?.items,
+          isArray: Array.isArray(orders),
+          length: orders.length,
+          firstItem: orders[0]
+        });
         console.log('📊 [Reportes] Órdenes cargadas:', orders.length);
         
         // Calcular estadísticas usando los datos disponibles (customers y vehicles pueden venir después)
