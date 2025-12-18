@@ -132,11 +132,18 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
   
   // ✅ Wrapper para setQuotations que SIEMPRE garantiza un array
   const setQuotationsSafe = useCallback((value: Quotation[] | (() => Quotation[])) => {
-    if (typeof value === 'function') {
-      const newValue = value()
-      setQuotations(Array.isArray(newValue) ? newValue : [])
-    } else {
-      setQuotations(Array.isArray(value) ? value : [])
+    try {
+      if (typeof value === 'function') {
+        const newValue = value()
+        const safe = Array.isArray(newValue) ? newValue : []
+        setQuotations(safe)
+      } else {
+        const safe = Array.isArray(value) ? value : []
+        setQuotations(safe)
+      }
+    } catch (err) {
+      console.error('❌ [useQuotations] Error en setQuotationsSafe:', err)
+      setQuotations([])
     }
   }, [])
   
@@ -525,10 +532,21 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
   // ==========================================
 
   // ✅ SOLUCIÓN DEFINITIVA: SIEMPRE retornar array, sin excepciones
-  const safeQuotations: Quotation[] = Array.isArray(quotations) ? quotations : []
+  // Usar try-catch para garantizar que NUNCA falle
+  let safeQuotations: Quotation[] = []
+  try {
+    if (Array.isArray(quotations)) {
+      safeQuotations = quotations
+    } else {
+      safeQuotations = []
+    }
+  } catch (err) {
+    console.error('❌ [useQuotations] Error en return, forzando []:', err)
+    safeQuotations = []
+  }
 
   return {
-    quotations: safeQuotations, // SIEMPRE es un array
+    quotations: safeQuotations, // SIEMPRE es un array, NUNCA falla
     loading,
     error,
     pagination,

@@ -26,7 +26,7 @@ import { Plus, Search, RefreshCw, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { useQuotations } from '@/hooks/useQuotations'
+import { useQuotations, type Quotation } from '@/hooks/useQuotations'
 import { CreateQuotationModal } from '@/components/quotations/CreateQuotationModal'
 
 export const dynamic = 'force-dynamic'
@@ -78,9 +78,17 @@ export default function QuotationsPage() {
     autoLoad: true
   })
 
-  // ✅ SOLUCIÓN DEFINITIVA: Usar quotations directamente del hook (ya está garantizado como array)
-  // El hook ya garantiza que quotations SIEMPRE es un array
-  const safeQuotations: typeof quotations = quotations
+  // ✅ SOLUCIÓN DEFINITIVA: Forzar array con validación estricta
+  const safeQuotations: Quotation[] = (() => {
+    try {
+      if (Array.isArray(quotations)) {
+        return quotations
+      }
+      return []
+    } catch {
+      return []
+    }
+  })()
 
   // ✅ Debounce para búsqueda
   const [searchTerm, setSearchTerm] = useState('')
@@ -216,8 +224,21 @@ export default function QuotationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {safeQuotations.map((quotation) => (
-                  <TableRow key={quotation.id}>
+                {(() => {
+                  try {
+                    // ✅ FORZAR array antes de map
+                    const items = Array.isArray(safeQuotations) ? safeQuotations : []
+                    if (items.length === 0) {
+                      return (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center text-muted-foreground">
+                            No hay cotizaciones para mostrar
+                          </TableCell>
+                        </TableRow>
+                      )
+                    }
+                    return items.map((quotation) => (
+                      <TableRow key={quotation.id}>
                     <TableCell className="font-medium">
                       {quotation.quotation_number}
                     </TableCell>
@@ -244,9 +265,19 @@ export default function QuotationsPage() {
                       {quotation.valid_until
                         ? formatDate(quotation.valid_until)
                         : 'N/A'}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                    </TableRow>
+                    ))
+                  } catch (error) {
+                    console.error('❌ [QuotationsPage] Error en renderizado:', error)
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-red-500">
+                          Error al renderizar cotizaciones
+                        </TableCell>
+                      </TableRow>
+                    )
+                  }
+                })()}
               </TableBody>
             </Table>
           )}
