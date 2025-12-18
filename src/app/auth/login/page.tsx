@@ -82,7 +82,7 @@ function LoginContent() {
           </div>
           <div className="text-center">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-              EAGLES GEAR SYSTEM
+              EAGLES SYSTEM
             </h1>
             <p className="text-sm text-slate-400">
               Bienvenido de vuelta a tu sistema de gestión de taller

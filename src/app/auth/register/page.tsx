@@ -123,7 +123,7 @@ export default function RegisterPage() {
           <div className="mb-4 flex justify-center">
             <Image
               src="/eagles-logo-new.png"
-              alt="Logo Eagles ERP"
+              alt="Logo Eagles System"
               width={160}
               height={80}
               className="h-16 w-auto rounded-2xl object-contain"
@@ -131,7 +131,7 @@ export default function RegisterPage() {
             />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">
-            Crear Cuenta en Eagles ERP
+            Crear Cuenta en Eagles System
           </h1>
           <p className="text-slate-400">
             Registra tu taller y comienza a gestionar tu negocio
@@ -522,7 +522,7 @@ export default function RegisterPage() {
 
         {/* Footer */}
         <p className="text-center text-slate-500 text-sm mt-8">
-          © 2025 EAGLES ERP Taller SaaS. Todos los derechos reservados.
+          © 2026 EAGLES SYSTEM. Todos los derechos reservados.
         </p>
       </div>
     </div>

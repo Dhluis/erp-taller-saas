@@ -30,7 +30,7 @@ export function Sidebar({ className }: SidebarProps) {
   const { isCollapsed, toggleCollapse } = useSidebar()
   const permissions = usePermissions()
   const { isLoading: sessionLoading } = useSession()
-  // Logo actualizado - EAGLES GEAR SYSTEM
+  // Logo actualizado - EAGLES SYSTEM
   const logoUrl = "/eagles-logo-new.png"
 
   // Inicializar secciones expandidas solo si la ruta actual está dentro de una sección
@@ -280,7 +280,7 @@ export function Sidebar({ className }: SidebarProps) {
             <div className="flex items-center justify-center w-full">
               <img
                 src={logoUrl}
-                alt="EAGLES GEAR SYSTEM"
+                alt="EAGLES SYSTEM"
                 className={cn(
                   "rounded-md shadow-sm transition-all hover:scale-[1.02] focus:outline-none",
                   "object-contain object-center"
