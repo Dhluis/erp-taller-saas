@@ -103,8 +103,6 @@ export async function GET(request: NextRequest) {
     }
 
     // ✅ MODE PAGINADO: Obtener cotizaciones con paginación
-    const supabaseAdmin = getSupabaseServiceClient();
-    
     // ✅ Query con count para paginación
     let query = supabaseAdmin
       .from('quotations')
