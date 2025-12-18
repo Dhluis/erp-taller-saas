@@ -227,6 +227,14 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
         { signal: abortControllerRef.current.signal }
       )
 
+      // ═══ DEBUG TEMPORAL ═══
+      console.log('🔍 [DEBUG] result completo:', JSON.stringify(result, null, 2))
+      console.log('🔍 [DEBUG] result.data:', result.data)
+      console.log('🔍 [DEBUG] result.data?.data:', result.data?.data)
+      console.log('🔍 [DEBUG] result.data?.items:', result.data?.items)
+      console.log('🔍 [DEBUG] result.data?.data?.items:', result.data?.data?.items)
+      // ═══ FIN DEBUG ═══
+
       if (result.success && result.data) {
         // ✅ FIX: Extraer items del objeto paginado
         // safeFetch devuelve: { data: { success: true, data: { items: [], pagination: {} } } }

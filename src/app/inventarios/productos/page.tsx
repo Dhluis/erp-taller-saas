@@ -670,6 +670,7 @@ export default function InventariosProductosPage() {
                   variant="destructive"
                   onClick={handleDeleteConfirm}
                   disabled={deleting}
+                  className="bg-red-600 hover:bg-red-700 text-white border-red-600"
                 >
                   {deleting ? 'Eliminando...' : 'Eliminar'}
                 </Button>
