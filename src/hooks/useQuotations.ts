@@ -204,13 +204,19 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
       console.log('🔍 [useQuotations] API Response:', {
         success: result.success,
         hasData: !!result.data,
-        hasItems: !!result.data?.items,
-        hasPagination: !!result.data?.pagination,
-        dataStructure: result.data ? Object.keys(result.data) : null,
-        dataType: result.data ? (Array.isArray(result.data) ? 'array' : typeof result.data) : null
+        dataKeys: result.data ? Object.keys(result.data) : null,
+        dataType: result.data ? (Array.isArray(result.data) ? 'array' : typeof result.data) : null,
+        hasNestedData: !!result.data?.data,
+        hasItems: !!result.data?.data?.items,
+        hasPagination: !!result.data?.data?.pagination
       })
 
       if (result.success && result.data) {
+        // ✅ safeFetch devuelve el JSON parseado en result.data
+        // La API devuelve: { success: true, data: { items: [], pagination: {} } }
+        // Entonces result.data es: { success: true, data: { items: [], pagination: {} } }
+        // Y result.data.data es: { items: [], pagination: {} }
+        
         // ✅ Manejar diferentes estructuras de respuesta
         let items: Quotation[] = []
         let paginationData = {
@@ -222,10 +228,11 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
           hasPreviousPage: false
         }
 
-        // Caso 1: Estructura paginada { items: [], pagination: {} }
-        if (result.data.items && Array.isArray(result.data.items)) {
-          items = result.data.items
-          paginationData = result.data.pagination || {
+        // Caso 1: Estructura estándar de API { success: true, data: { items: [], pagination: {} } }
+        const apiData = result.data.data || result.data
+        if (apiData?.items && Array.isArray(apiData.items)) {
+          items = apiData.items
+          paginationData = apiData.pagination || {
             page: page,
             pageSize: pageSize,
             total: items.length,
@@ -234,7 +241,7 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
             hasPreviousPage: false
           }
         }
-        // Caso 2: Array directo
+        // Caso 2: Array directo en result.data
         else if (Array.isArray(result.data)) {
           items = result.data
           paginationData = {
