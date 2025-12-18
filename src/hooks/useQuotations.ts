@@ -243,17 +243,24 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
         const responseData = result.data?.data || result.data
         
         // ✅ DEBUG: Log detallado de la estructura
-        console.log('🔍 [useQuotations] DEBUG estructura:', {
-          hasResultData: !!result.data,
-          resultDataType: typeof result.data,
-          resultDataKeys: result.data ? Object.keys(result.data) : [],
-          hasNestedData: !!result.data?.data,
-          nestedDataKeys: result.data?.data ? Object.keys(result.data.data) : [],
-          responseDataKeys: responseData ? Object.keys(responseData) : [],
-          hasItems: !!responseData?.items,
-          itemsIsArray: Array.isArray(responseData?.items),
-          itemsLength: responseData?.items?.length
-        })
+      // ✅ DEBUG COMPLETO: Expandir el objeto completo
+      console.log('🔍 [useQuotations] DEBUG estructura COMPLETA:', {
+        hasResultData: !!result.data,
+        resultDataType: typeof result.data,
+        resultDataIsArray: Array.isArray(result.data),
+        resultDataKeys: result.data ? Object.keys(result.data) : [],
+        resultDataFull: result.data, // ⚠️ EXPANDIR COMPLETO
+        hasNestedData: !!result.data?.data,
+        nestedDataKeys: result.data?.data ? Object.keys(result.data.data) : [],
+        nestedDataFull: result.data?.data, // ⚠️ EXPANDIR COMPLETO
+        responseDataKeys: responseData ? Object.keys(responseData) : [],
+        responseDataFull: responseData, // ⚠️ EXPANDIR COMPLETO
+        hasItems: !!responseData?.items,
+        itemsIsArray: Array.isArray(responseData?.items),
+        itemsType: typeof responseData?.items,
+        itemsLength: responseData?.items?.length,
+        itemsValue: responseData?.items // ⚠️ EXPANDIR COMPLETO
+      })
         
         const items = Array.isArray(responseData?.items) ? responseData.items : []
         const paginationData = responseData?.pagination || {
