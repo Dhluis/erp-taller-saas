@@ -182,11 +182,14 @@ export function CreateQuotationModal({
 
       const result = await response.json()
       if (result.success) {
-        setCustomers(result.data || [])
+        // ✅ FIX: Manejar estructura paginada o directa
+        const customersData = result.data?.items || result.data || []
+        setCustomers(Array.isArray(customersData) ? customersData : [])
       }
     } catch (error: any) {
       console.error('Error cargando clientes:', error)
       toast.error('Error al cargar clientes')
+      setCustomers([]) // ✅ Asegurar que siempre sea array
     }
   }
 
@@ -201,11 +204,14 @@ export function CreateQuotationModal({
 
       const result = await response.json()
       if (result.success) {
-        setVehicles(result.data || [])
+        // ✅ FIX: Manejar estructura paginada o directa
+        const vehiclesData = result.data?.items || result.data || []
+        setVehicles(Array.isArray(vehiclesData) ? vehiclesData : [])
       }
     } catch (error: any) {
       console.error('Error cargando vehículos:', error)
       toast.error('Error al cargar vehículos')
+      setVehicles([]) // ✅ Asegurar que siempre sea array
     }
   }
 
@@ -400,7 +406,7 @@ export function CreateQuotationModal({
                   <SelectValue placeholder="Selecciona un cliente" />
                 </SelectTrigger>
                 <SelectContent className="bg-bg-secondary text-text-primary border-border dark:bg-bg-secondary dark:text-text-primary">
-                  {customers.map((customer) => (
+                  {(Array.isArray(customers) ? customers : []).map((customer) => (
                     <SelectItem 
                       key={customer.id} 
                       value={customer.id}
@@ -428,7 +434,7 @@ export function CreateQuotationModal({
                   <SelectValue placeholder="Selecciona un vehículo" />
                 </SelectTrigger>
                 <SelectContent className="bg-bg-secondary text-text-primary border-border dark:bg-bg-secondary dark:text-text-primary">
-                  {vehicles.map((vehicle) => (
+                  {(Array.isArray(vehicles) ? vehicles : []).map((vehicle) => (
                     <SelectItem 
                       key={vehicle.id} 
                       value={vehicle.id}
