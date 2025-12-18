@@ -262,7 +262,12 @@ export async function createInventoryItem(organizationId: string, itemData: Crea
  * Actualizar un artículo de inventario
  */
 export async function updateInventoryItem(organizationId: string, id: string, itemData: UpdateInventoryItemData) {
-  const supabase = await createClient()
+  console.log('🔄 [updateInventoryItem] Iniciando actualización:', id)
+  console.log('📦 [updateInventoryItem] Datos recibidos:', itemData)
+  
+  // ✅ Usar Service Client
+  const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+  const supabase = getSupabaseServiceClient()
 
   // Mapear los campos correctamente
   const updateData: any = {
@@ -275,7 +280,15 @@ export async function updateInventoryItem(organizationId: string, id: string, it
   if (itemData.category_id !== undefined) updateData.category_id = itemData.category_id;
   if (itemData.quantity !== undefined) updateData.quantity = itemData.quantity;
   if (itemData.unit_price !== undefined) updateData.unit_price = itemData.unit_price;
-  if (itemData.min_quantity !== undefined) updateData.min_quantity = itemData.min_quantity;
+  
+  // ✅ FIX: Mapear minimum_stock a min_quantity si viene
+  if (itemData.min_quantity !== undefined) {
+    updateData.min_quantity = itemData.min_quantity;
+  } else if ((itemData as any).minimum_stock !== undefined) {
+    updateData.min_quantity = (itemData as any).minimum_stock;
+  }
+
+  console.log('📤 [updateInventoryItem] Datos que se actualizarán:', updateData)
 
   const { data, error } = await supabase
     .from('inventory')
@@ -293,10 +306,23 @@ export async function updateInventoryItem(organizationId: string, id: string, it
     .single()
 
   if (error) {
-    console.error('Error updating inventory item:', error)
+    console.error('❌ [updateInventoryItem] Error al actualizar:', error)
+    console.error('❌ [updateInventoryItem] Detalles:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    })
     throw new Error(`Error al actualizar el artículo de inventario: ${error.message}`)
   }
 
+  if (!data) {
+    console.error('❌ [updateInventoryItem] No se retornó data')
+    throw new Error('Error: item de inventario no fue actualizado')
+  }
+
+  console.log('✅ [updateInventoryItem] Item actualizado exitosamente:', data.id)
+  console.log('✅ [updateInventoryItem] min_quantity guardado:', data.min_quantity)
   return data as InventoryItem
 }
 

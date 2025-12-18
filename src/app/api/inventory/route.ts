@@ -287,7 +287,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (body.quantity < 0 || body.minimum_stock < 0 || body.unit_price < 0) {
+    // ✅ Mapear minimum_stock a min_quantity si viene en el body
+    if (body.minimum_stock !== undefined && body.min_quantity === undefined) {
+      body.min_quantity = body.minimum_stock;
+    }
+
+    if (body.quantity < 0 || (body.min_quantity !== undefined && body.min_quantity < 0) || body.unit_price < 0) {
       return NextResponse.json(
         {
           success: false,

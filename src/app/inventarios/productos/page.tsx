@@ -165,7 +165,7 @@ export default function InventariosProductosPage() {
         sku: editProduct.sku,
         description: editProduct.description || undefined,
         quantity: parseInt(editProduct.stock) || 0,
-        minimum_stock: parseInt(editProduct.minimum_stock) || 0,
+        min_quantity: parseInt(editProduct.minimum_stock) || 0, // ✅ FIX: Usar min_quantity en lugar de minimum_stock
         unit_price: parseFloat(editProduct.unit_price),
       };
 
@@ -196,7 +196,7 @@ export default function InventariosProductosPage() {
         sku: newProduct.sku,
         description: newProduct.description || undefined,
         quantity: parseInt(newProduct.stock) || 0,
-        minimum_stock: parseInt(newProduct.minimum_stock) || 0,
+        min_quantity: parseInt(newProduct.minimum_stock) || 0, // ✅ FIX: Usar min_quantity en lugar de minimum_stock
         unit_price: parseFloat(newProduct.unit_price),
       };
 
@@ -426,7 +426,7 @@ export default function InventariosProductosPage() {
                       size="sm" 
                       variant="destructive" 
                       onClick={() => handleDeleteClick(product)}
-                      className="px-3"
+                      className="px-3 bg-red-600 hover:bg-red-700 text-white border-red-600"
                     >
                       <TrashIcon className="h-4 w-4" />
                     </Button>

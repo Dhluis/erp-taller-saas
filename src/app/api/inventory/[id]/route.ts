@@ -147,6 +147,12 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
+    // ✅ FIX: Mapear minimum_stock a min_quantity si viene en el body
+    if (body.minimum_stock !== undefined && body.min_quantity === undefined) {
+      body.min_quantity = body.minimum_stock;
+      delete body.minimum_stock; // Eliminar para evitar confusión
+    }
+
     // Validaciones básicas
     if (body.name !== undefined && body.name.trim() === '') {
       return NextResponse.json(
