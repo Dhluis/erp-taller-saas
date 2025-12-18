@@ -217,55 +217,30 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
         // Entonces result.data es: { success: true, data: { items: [], pagination: {} } }
         // Y result.data.data es: { items: [], pagination: {} }
         
-        // ✅ Manejar diferentes estructuras de respuesta
-        let items: Quotation[] = []
-        let paginationData = {
+        // ✅ Extraer datos (mismo patrón que useCustomers)
+        const responseData = result.data.data || result.data
+        const items = Array.isArray(responseData?.items) ? responseData.items : []
+        const paginationData = responseData?.pagination || {
           page: page,
           pageSize: pageSize,
-          total: 0,
-          totalPages: 0,
+          total: items.length,
+          totalPages: Math.ceil((items.length || 0) / pageSize),
           hasNextPage: false,
           hasPreviousPage: false
         }
 
-        // Caso 1: Estructura estándar de API { success: true, data: { items: [], pagination: {} } }
-        const apiData = result.data.data || result.data
-        if (apiData?.items && Array.isArray(apiData.items)) {
-          items = apiData.items
-          paginationData = apiData.pagination || {
-            page: page,
-            pageSize: pageSize,
-            total: items.length,
-            totalPages: Math.ceil((items.length || 0) / pageSize),
-            hasNextPage: false,
-            hasPreviousPage: false
-          }
-        }
-        // Caso 2: Array directo en result.data
-        else if (Array.isArray(result.data)) {
-          items = result.data
-          paginationData = {
-            page: 1,
-            pageSize: items.length,
-            total: items.length,
-            totalPages: 1,
-            hasNextPage: false,
-            hasPreviousPage: false
-          }
-        }
-        // Caso 3: Estructura inesperada, usar array vacío
-        else {
-          console.warn('⚠️ [useQuotations] Estructura de datos inesperada:', result.data)
-          items = []
-        }
+        // ✅ Validación final - asegurar que items siempre sea un array
+        const finalItems = Array.isArray(items) ? items : []
+        
+        console.log('✅ [useQuotations] Loaded:', {
+          items: finalItems.length,
+          page: paginationData.page,
+          total: paginationData.total,
+          totalPages: paginationData.totalPages,
+          isArray: Array.isArray(finalItems)
+        })
 
-        // ✅ Asegurar que items siempre sea un array
-        if (!Array.isArray(items)) {
-          console.error('❌ [useQuotations] items no es un array:', typeof items, items)
-          items = []
-        }
-
-        setQuotations(items)
+        setQuotations(finalItems)
         setPagination(paginationData)
 
         // Guardar en cache
@@ -273,12 +248,6 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
           cacheRef.current.set(cacheKey, { items, pagination: paginationData })
         }
 
-        console.log('✅ [useQuotations] Loaded:', {
-          items: items.length,
-          page: paginationData.page,
-          total: paginationData.total,
-          totalPages: paginationData.totalPages
-        })
       } else {
         const errorMsg = result.error || 'Error al cargar cotizaciones'
         console.error('❌ [useQuotations] Error response:', errorMsg, result)

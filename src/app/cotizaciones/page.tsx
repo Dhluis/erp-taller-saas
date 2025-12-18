@@ -78,6 +78,9 @@ export default function QuotationsPage() {
     autoLoad: true
   })
 
+  // ✅ Asegurar que quotations siempre sea un array
+  const safeQuotations = Array.isArray(quotations) ? quotations : []
+
   // ✅ Debounce para búsqueda
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedSearch = useDebouncedValue(searchTerm, 500)
@@ -188,7 +191,7 @@ export default function QuotationsPage() {
               <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
               <p>Cargando cotizaciones...</p>
             </div>
-          ) : !Array.isArray(quotations) || quotations.length === 0 ? (
+          ) : safeQuotations.length === 0 ? (
             <div className="p-8 text-center text-text-secondary">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium mb-2">No hay cotizaciones</p>
@@ -212,7 +215,7 @@ export default function QuotationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Array.isArray(quotations) && quotations.map((quotation) => (
+                {safeQuotations.map((quotation) => (
                   <TableRow key={quotation.id}>
                     <TableCell className="font-medium">
                       {quotation.quotation_number}
