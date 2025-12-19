@@ -1,4 +1,3 @@
-import { createClient } from '@/lib/supabase/server'
 import { executeWithErrorHandling } from '@/lib/core/errors'
 
 /**
@@ -44,7 +43,8 @@ export async function getAllSuppliers(
   }
 ) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+    const supabase = getSupabaseServiceClient()
     
     let query = supabase
       .from('suppliers')
@@ -103,7 +103,8 @@ export async function getAllSuppliers(
  */
 export async function getSupplierById(id: string) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+    const supabase = getSupabaseServiceClient()
     
     const { data, error } = await supabase
       .from('suppliers')
@@ -119,18 +120,19 @@ export async function getSupplierById(id: string) {
       .select('id, total, status, order_date')
       .eq('supplier_id', id)
 
-    const totalOrders = stats?.length || 0
-    const totalSpent = stats?.reduce((sum, order) => sum + (order.total || 0), 0) || 0
-    const pendingOrders = stats?.filter(order => order.status === 'pending').length || 0
+    const statsArray = (stats || []) as any[]
+    const totalOrders = statsArray.length
+    const totalSpent = statsArray.reduce((sum, order) => sum + ((order.total as number) || 0), 0)
+    const pendingOrders = statsArray.filter(order => (order.status as string) === 'pending').length
 
     return {
-      ...data,
+      ...(data as any),
       stats: {
         total_orders: totalOrders,
         total_spent: totalSpent,
         pending_orders: pendingOrders,
-        last_order_date: stats?.sort((a, b) => 
-          new Date(b.order_date).getTime() - new Date(a.order_date).getTime()
+        last_order_date: statsArray.sort((a, b) => 
+          new Date((b.order_date as string)).getTime() - new Date((a.order_date as string)).getTime()
         )[0]?.order_date || null
       }
     }
@@ -142,7 +144,8 @@ export async function getSupplierById(id: string) {
  */
 export async function getActiveSuppliers(organizationId: string) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+    const supabase = getSupabaseServiceClient()
     
     const { data, error } = await supabase
       .from('suppliers')
@@ -175,7 +178,8 @@ export async function createSupplier(data: {
   notes?: string
 }) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+    const supabase = getSupabaseServiceClient()
 
     // Validaciones
     if (!data.name.trim()) {
@@ -217,8 +221,8 @@ export async function createSupplier(data: {
     }
 
     // Crear proveedor
-    const { data: newSupplier, error } = await supabase
-      .from('suppliers')
+    const { data: newSupplier, error } = await (supabase
+      .from('suppliers') as any)
       .insert({
         ...data,
         name: data.name.trim(),
@@ -257,7 +261,8 @@ export async function updateSupplier(
   }
 ) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+    const supabase = getSupabaseServiceClient()
 
     // Validaciones
     if (data.email && !validateEmail(data.email)) {
@@ -276,11 +281,12 @@ export async function updateSupplier(
         .eq('id', id)
         .single()
 
-      if (current && current.name !== data.name.trim()) {
+      const currentData = current as any
+      if (currentData && currentData.name !== data.name.trim()) {
         const { data: existing } = await supabase
           .from('suppliers')
           .select('id')
-          .eq('organization_id', current.organization_id)
+          .eq('organization_id', currentData.organization_id)
           .eq('name', data.name.trim())
           .neq('id', id)
           .single()
@@ -293,22 +299,32 @@ export async function updateSupplier(
 
     // Verificar que el email no esté duplicado (si se está cambiando)
     if (data.email) {
-      const { data: existingEmail } = await supabase
+      const { data: currentSupplier } = await supabase
         .from('suppliers')
-        .select('id')
-        .eq('organization_id', (await supabase.from('suppliers').select('organization_id').eq('id', id).single()).data?.organization_id)
-        .eq('email', data.email)
-        .neq('id', id)
+        .select('organization_id')
+        .eq('id', id)
         .single()
+      
+      const currentOrgId = (currentSupplier as any)?.organization_id
+      
+      if (currentOrgId) {
+        const { data: existingEmail } = await supabase
+          .from('suppliers')
+          .select('id')
+          .eq('organization_id', currentOrgId)
+          .eq('email', data.email)
+          .neq('id', id)
+          .single()
 
-      if (existingEmail) {
-        throw new Error(`Ya existe un proveedor con el email "${data.email}"`)
+        if (existingEmail) {
+          throw new Error(`Ya existe un proveedor con el email "${data.email}"`)
+        }
       }
     }
 
     // Actualizar proveedor
-    const { data: updatedSupplier, error } = await supabase
-      .from('suppliers')
+    const { data: updatedSupplier, error } = await (supabase
+      .from('suppliers') as any)
       .update({
         ...data,
         name: data.name?.trim(),
@@ -328,7 +344,8 @@ export async function updateSupplier(
  */
 export async function deactivateSupplier(id: string) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+    const supabase = getSupabaseServiceClient()
 
     // Verificar que no tenga órdenes de compra pendientes
     const { data: pendingOrders } = await supabase
@@ -343,8 +360,8 @@ export async function deactivateSupplier(id: string) {
     }
 
     // Desactivar proveedor
-    const { data: deactivatedSupplier, error } = await supabase
-      .from('suppliers')
+    const { data: deactivatedSupplier, error } = await (supabase
+      .from('suppliers') as any)
       .update({
         is_active: false,
         updated_at: new Date().toISOString()
@@ -363,7 +380,8 @@ export async function deactivateSupplier(id: string) {
  */
 export async function searchSuppliers(organizationId: string, query: string) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+    const supabase = getSupabaseServiceClient()
 
     const { data, error } = await supabase
       .from('suppliers')
@@ -389,7 +407,8 @@ export async function searchSuppliers(organizationId: string, query: string) {
  */
 export async function getSupplierStats(supplierId: string) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+    const supabase = getSupabaseServiceClient()
 
     // Obtener órdenes de compra
     const { data: orders, error: ordersError } = await supabase
@@ -410,15 +429,18 @@ export async function getSupplierStats(supplierId: string) {
     if (paymentsError) throw paymentsError
 
     // Calcular estadísticas
-    const totalOrders = orders?.length || 0
-    const totalSpent = orders?.reduce((sum, order) => sum + (order.total || 0), 0) || 0
-    const totalPaid = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0
+    const ordersArray = (orders || []) as any[]
+    const paymentsArray = (payments || []) as any[]
+    const totalOrders = ordersArray.length
+    const totalSpent = ordersArray.reduce((sum, order) => sum + ((order.total as number) || 0), 0)
+    const totalPaid = paymentsArray.reduce((sum, payment) => sum + ((payment.amount as number) || 0), 0)
     const pendingAmount = totalSpent - totalPaid
 
-    const statusCounts = orders?.reduce((acc, order) => {
-      acc[order.status] = (acc[order.status] || 0) + 1
+    const statusCounts = ordersArray.reduce((acc, order) => {
+      const status = order.status as string
+      acc[status] = (acc[status] || 0) + 1
       return acc
-    }, {} as Record<string, number>) || {}
+    }, {} as Record<string, number>)
 
     return {
       total_orders: totalOrders,
@@ -426,8 +448,8 @@ export async function getSupplierStats(supplierId: string) {
       total_paid: totalPaid,
       pending_amount: pendingAmount,
       status_breakdown: statusCounts,
-      last_order_date: orders?.[0]?.order_date || null,
-      last_payment_date: payments?.[0]?.payment_date || null
+      last_order_date: ordersArray[0]?.order_date || null,
+      last_payment_date: paymentsArray[0]?.payment_date || null
     }
   }, { operation: 'getSupplierStats', table: 'suppliers' })
 }
@@ -437,7 +459,8 @@ export async function getSupplierStats(supplierId: string) {
  */
 export async function getPaymentHistory(supplierId: string) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+    const supabase = getSupabaseServiceClient()
 
     const { data, error } = await supabase
       .from('payments')

@@ -1,11 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
+import { Pagination } from '@/components/ui/pagination'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { RefreshCw } from 'lucide-react'
 import {
   Plus,
   Search,
@@ -38,10 +41,36 @@ import {
 } from "@/components/ui/select"
 
 export default function ProveedoresPage() {
-  // Hook para proveedores
-  const { suppliers, stats, loading, createSupplier } = useSuppliers()
+  // ✅ Hook con paginación
+  const {
+    suppliers,
+    loading,
+    error,
+    pagination,
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    changePageSize,
+    setSearch,
+    setFilters,
+    refresh,
+    createSupplier
+  } = useSuppliers({
+    page: 1,
+    pageSize: 20,
+    sortBy: 'name',
+    sortOrder: 'asc',
+    autoLoad: true
+  })
 
+  // ✅ Debounce para búsqueda
   const [searchTerm, setSearchTerm] = useState("")
+  const debouncedSearch = useDebouncedValue(searchTerm, 500)
+
+  // Sincronizar búsqueda con debounce
+  useEffect(() => {
+    setSearch(debouncedSearch)
+  }, [debouncedSearch, setSearch])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
@@ -88,12 +117,7 @@ export default function ProveedoresPage() {
     }
   }
 
-  const filteredSuppliers = suppliers.filter(
-    (supplier) =>
-      (supplier.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (supplier.contact_person || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (supplier.id || '').toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // ✅ Ya no necesitamos filtrado local, se hace en el servidor
 
   const getStatusBadge = (isActive: boolean) => {
     if (isActive) {
@@ -288,47 +312,19 @@ export default function ProveedoresPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Proveedores</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalSuppliers}</div>
-            <p className="text-xs text-muted-foreground">Registrados en el sistema</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Proveedores Activos</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.activeSuppliers}</div>
-            <p className="text-xs text-muted-foreground">Actualmente operando</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Órdenes Realizadas</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalOrders}</div>
-            <p className="text-xs text-muted-foreground">Total de órdenes de compra</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monto Comprado</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${(stats.totalAmount || 0).toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Valor total de compras</p>
-          </CardContent>
-        </Card>
+      {/* Header con stats y refresh */}
+      <div className="flex items-center justify-between">
+        <div>
+          {!loading && pagination && (
+            <div className="text-sm text-muted-foreground">
+              Total: {pagination.total} proveedores | Página {pagination.page} de {pagination.totalPages}
+            </div>
+          )}
+        </div>
+        <Button onClick={refresh} variant="outline" size="sm" disabled={loading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Actualizar
+        </Button>
       </div>
 
       <div className="space-y-4 mt-8">
@@ -358,7 +354,16 @@ export default function ProveedoresPage() {
                 </tr>
               </thead>
               <tbody className="[&_tr:last-child]:border-0">
-                {filteredSuppliers.map((supplier) => (
+                {suppliers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                      {searchTerm
+                        ? 'No se encontraron proveedores con los filtros aplicados'
+                        : 'No hay proveedores registrados'}
+                    </td>
+                  </tr>
+                ) : (
+                  suppliers.map((supplier) => (
                   <tr key={supplier.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{supplier.id}</td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{supplier.name}</td>
@@ -367,11 +372,28 @@ export default function ProveedoresPage() {
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" />{supplier.email}</td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{getStatusBadge(supplier.is_active)}</td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
+
+        {/* Pagination */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              pageSize={pagination.pageSize}
+              total={pagination.total}
+              onPageChange={goToPage}
+              onPageSizeChange={changePageSize}
+              loading={loading}
+              pageSizeOptions={[10, 20, 50]}
+            />
+          </div>
+        )}
       </div>
     </div>
   )
