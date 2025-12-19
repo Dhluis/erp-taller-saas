@@ -5,7 +5,8 @@ import { PageHeader } from '@/components/navigation/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo } from 'react';
+import { useInventory } from '@/hooks/useInventory';
 import { 
   Package, 
   Tag, 
@@ -14,13 +15,56 @@ import {
   ArrowRight,
   Plus,
   BarChart3,
-  Settings
+  Settings,
+  DollarSign
 } from 'lucide-react';
 
 export default function InventariosPage() {
   const breadcrumbs = [
     { label: 'Inventarios', href: '/inventarios' }
   ];
+
+  // ✅ Cargar datos del inventario
+  const { items, categories, loading } = useInventory({
+    page: 1,
+    pageSize: 1000, // Cargar todos los productos para estadísticas
+    autoLoad: true
+  });
+
+  // ✅ CALCULAR ESTADÍSTICAS DINÁMICAS
+  const stats = useMemo(() => {
+    console.log('📊 [Inventory] Calculando estadísticas...');
+    console.log('  Items:', items.length);
+    
+    // Stock bajo: productos donde quantity <= min_quantity
+    const lowStockItems = items.filter(item => {
+      const isLowStock = item.quantity <= (item.min_quantity || 0);
+      if (isLowStock) {
+        console.log('⚠️ Stock bajo detectado:', {
+          name: item.name,
+          quantity: item.quantity,
+          min_quantity: item.min_quantity
+        });
+      }
+      return isLowStock;
+    });
+    
+    // Valor total: suma de (quantity * unit_price)
+    const totalValue = items.reduce((sum, item) => 
+      sum + ((item.quantity || 0) * (item.unit_price || 0)), 0
+    );
+    
+    const result = {
+      totalProducts: items.length,
+      lowStock: lowStockItems.length,
+      lowStockItems: lowStockItems, // Para mostrar detalles
+      categories: categories.length,
+      totalValue: totalValue
+    };
+    
+    console.log('✅ [Inventory] Estadísticas calculadas:', result);
+    return result;
+  }, [items, categories]);
 
   const handleNewProduct = () => {
     // Redirigir a la página de productos donde sí funciona el modal
@@ -48,50 +92,130 @@ export default function InventariosPage() {
 
         {/* Estadísticas rápidas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Total Productos */}
           <Card className="bg-bg-secondary border border-border rounded-lg shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-text-primary">Total Productos</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">3</div>
-              <p className="text-xs text-muted-foreground">Productos en inventario</p>
+              {loading ? (
+                <div className="text-2xl font-bold animate-pulse">...</div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stats.totalProducts}</div>
+                  <p className="text-xs text-muted-foreground">Productos en inventario</p>
+                </>
+              )}
             </CardContent>
           </Card>
 
+          {/* Categorías */}
           <Card className="bg-bg-secondary border border-border rounded-lg shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-text-primary">Categorías</CardTitle>
               <Tag className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">6</div>
-              <p className="text-xs text-muted-foreground">Categorías activas</p>
+              {loading ? (
+                <div className="text-2xl font-bold animate-pulse">...</div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stats.categories}</div>
+                  <p className="text-xs text-muted-foreground">Categorías activas</p>
+                </>
+              )}
             </CardContent>
           </Card>
 
-          <Card className="bg-bg-secondary border border-border rounded-lg shadow-md">
+          {/* Stock Bajo - CON ALERTA */}
+          <Card className={`bg-bg-secondary border rounded-lg shadow-md ${
+            stats.lowStock > 0 
+              ? 'border-yellow-500 ring-2 ring-yellow-500 ring-opacity-50' 
+              : 'border-border'
+          }`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-text-primary">Stock Bajo</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-warning" />
+              <AlertTriangle className={`h-4 w-4 ${
+                stats.lowStock > 0 ? 'text-yellow-500' : 'text-muted-foreground'
+              }`} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Productos con stock bajo</p>
+              {loading ? (
+                <div className="text-2xl font-bold animate-pulse">...</div>
+              ) : (
+                <>
+                  <div className={`text-2xl font-bold ${
+                    stats.lowStock > 0 ? 'text-yellow-600' : ''
+                  }`}>
+                    {stats.lowStock}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {stats.lowStock > 0 
+                      ? 'Productos con stock bajo' 
+                      : 'Todo bien'}
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
+          {/* Valor Total */}
           <Card className="bg-bg-secondary border border-border rounded-lg shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-text-primary">Valor Total</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <DollarSign className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$8,250</div>
-              <p className="text-xs text-muted-foreground">Valor del inventario</p>
+              {loading ? (
+                <div className="text-2xl font-bold animate-pulse">...</div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">
+                    ${stats.totalValue.toLocaleString('es-MX', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Valor del inventario</p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
+
+        {/* Lista de productos con stock bajo (si hay) */}
+        {!loading && stats.lowStock > 0 && (
+          <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 rounded-lg shadow-md">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                Productos con stock bajo
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2">
+                {stats.lowStockItems.map(item => (
+                  <li key={item.id} className="text-sm text-yellow-700 dark:text-yellow-300 flex items-center justify-between p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded">
+                    <span className="font-medium">• {item.name}</span>
+                    <span className="text-xs">
+                      Stock: <span className="font-bold">{item.quantity}</span> / 
+                      Mínimo: <span className="font-bold">{item.min_quantity}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-4">
+                <Link href="/inventarios/productos?filter=lowStock">
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                    Ver todos los productos
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Secciones principales */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
