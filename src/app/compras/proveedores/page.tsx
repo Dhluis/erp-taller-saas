@@ -63,14 +63,17 @@ export default function ProveedoresPage() {
     autoLoad: true
   })
 
-  // ✅ Debounce para búsqueda
+  // ✅ Debounce para búsqueda (800ms para mejor UX)
   const [searchTerm, setSearchTerm] = useState("")
-  const debouncedSearch = useDebouncedValue(searchTerm, 500)
+  const debouncedSearch = useDebouncedValue(searchTerm, 800)
 
   // Sincronizar búsqueda con debounce
   useEffect(() => {
-    setSearch(debouncedSearch)
-  }, [debouncedSearch, setSearch])
+    // Solo actualizar si el valor debounced cambió
+    if (debouncedSearch !== undefined) {
+      setSearch(debouncedSearch)
+    }
+  }, [debouncedSearch]) // Remover setSearch de dependencias para evitar re-renders innecesarios
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
@@ -331,13 +334,19 @@ export default function ProveedoresPage() {
         <h3 className="text-xl font-semibold">Lista de Proveedores</h3>
         <div className="flex items-center py-4">
           <div className="relative w-full max-w-sm">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className={`absolute left-2 top-2.5 h-4 w-4 text-muted-foreground ${loading ? 'animate-pulse' : ''}`} />
             <Input
               placeholder="Buscar por nombre, contacto o ID..."
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               className="pl-8"
+              disabled={loading}
             />
+            {searchTerm && searchTerm !== debouncedSearch && (
+              <div className="absolute right-2 top-2.5">
+                <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
           </div>
         </div>
         <div className="rounded-md border">

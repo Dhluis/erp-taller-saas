@@ -259,7 +259,11 @@ export function useSuppliers(options: UseSuppliersOptions = {}): UseSuppliersRet
   // ==========================================
 
   const setSearch = useCallback((newSearch: string) => {
-    setSearchState(newSearch)
+    // Solo actualizar si el valor realmente cambió
+    setSearchState(prev => {
+      if (prev === newSearch) return prev
+      return newSearch
+    })
     setPage(1)
   }, [])
 
