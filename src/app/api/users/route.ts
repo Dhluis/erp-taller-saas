@@ -227,19 +227,47 @@ export async function POST(request: NextRequest) {
 
     console.log('[POST /api/users] Usuario creado exitosamente:', userData.id)
     
+    // Validar que userData existe
+    if (!userData) {
+      console.error('[POST /api/users] userData es null o undefined')
+      // Rollback: eliminar de auth
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      return NextResponse.json(
+        { error: 'Error: No se pudo obtener los datos del usuario creado' },
+        { status: 500 }
+      )
+    }
+    
     // Mapear full_name a name para compatibilidad
     const mappedUser = {
       ...userData,
       name: userData.full_name || ''
     }
     
-    return NextResponse.json({ user: mappedUser }, { status: 201 })
+    console.log('[POST /api/users] Retornando respuesta exitosa con usuario:', {
+      id: mappedUser.id,
+      email: mappedUser.email,
+      name: mappedUser.name
+    })
+    
+    // Asegurar que la respuesta se envíe correctamente
+    const response = NextResponse.json({ user: mappedUser }, { status: 201 })
+    response.headers.set('Content-Type', 'application/json')
+    
+    return response
 
   } catch (error: any) {
-    console.error('[POST /api/users] Error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error al crear usuario' },
+    console.error('[POST /api/users] Error catch:', error)
+    console.error('[POST /api/users] Error stack:', error.stack)
+    
+    const errorMessage = error instanceof Error ? error.message : 'Error al crear usuario'
+    
+    const errorResponse = NextResponse.json(
+      { error: errorMessage },
       { status: 500 }
     )
+    errorResponse.headers.set('Content-Type', 'application/json')
+    
+    return errorResponse
   }
 }

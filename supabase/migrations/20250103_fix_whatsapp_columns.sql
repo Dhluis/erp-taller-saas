@@ -60,3 +60,4 @@ RAISE NOTICE '✅ Migración de columnas WhatsApp completada exitosamente';
 
 
 
+

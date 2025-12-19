@@ -361,3 +361,4 @@ Usar colores de Tailwind para consistencia:
 
 
 
+

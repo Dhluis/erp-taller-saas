@@ -173,6 +173,27 @@ export default function UsuariosPage() {
     setFormData(prev => ({ ...prev, [id]: value as UserRole }))
   }
 
+  // Helper para fetch con timeout
+  const fetchWithTimeout = async (url: string, options: RequestInit, timeout = 30000): Promise<Response> => {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeout)
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      })
+      clearTimeout(timeoutId)
+      return response
+    } catch (error) {
+      clearTimeout(timeoutId)
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('La solicitud tardó demasiado tiempo. Por favor, intenta nuevamente.')
+      }
+      throw error
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -181,7 +202,7 @@ export default function UsuariosPage() {
     try {
       if (editingUser) {
         // Actualizar usuario
-        const response = await fetch(`/api/users/${editingUser.id}`, {
+        const response = await fetchWithTimeout(`/api/users/${editingUser.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -199,6 +220,23 @@ export default function UsuariosPage() {
         }
 
         toast.success('Usuario actualizado exitosamente')
+        
+        // Cerrar diálogo inmediatamente
+        setIsDialogOpen(false)
+        setEditingUser(null)
+        setFormData({
+          name: '',
+          email: '',
+          role: 'ASESOR',
+          phone: '',
+          password: ''
+        })
+        
+        // Recargar datos en segundo plano (sin bloquear UI)
+        loadData().catch((err) => {
+          console.error('Error recargando datos después de actualizar:', err)
+          // No mostrar error al usuario, ya se actualizó exitosamente
+        })
       } else {
         // Crear usuario
         if (!formData.password || formData.password.length < 8) {
@@ -207,7 +245,7 @@ export default function UsuariosPage() {
           return
         }
 
-        const response = await fetch('/api/users', {
+        const response = await fetchWithTimeout('/api/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -220,29 +258,46 @@ export default function UsuariosPage() {
           } as CreateUserRequest)
         })
 
+        // Leer la respuesta una sola vez
+        const responseData = await response.json()
+
         if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || 'Error al crear usuario')
+          throw new Error(responseData.error || 'Error al crear usuario')
+        }
+
+        // Verificar que la respuesta sea válida
+        if (!responseData.user) {
+          throw new Error('La respuesta del servidor no contiene datos del usuario')
         }
 
         toast.success('Usuario creado exitosamente')
+        
+        // Cerrar diálogo inmediatamente después de crear exitosamente
+        setIsDialogOpen(false)
+        setEditingUser(null)
+        setFormData({
+          name: '',
+          email: '',
+          role: 'ASESOR',
+          phone: '',
+          password: ''
+        })
+        
+        // Recargar datos en segundo plano (sin bloquear UI)
+        loadData().catch((err) => {
+          console.error('Error recargando datos después de crear:', err)
+          // No mostrar error al usuario, ya se creó exitosamente
+          toast.error('Usuario creado, pero hubo un error al actualizar la lista', {
+            description: 'Puedes recargar la página para ver el nuevo usuario.'
+          })
+        })
       }
-      
-      await loadData()
-      setIsDialogOpen(false)
-      setEditingUser(null)
-      setFormData({
-        name: '',
-        email: '',
-        role: 'ASESOR',
-        phone: '',
-        password: ''
-      })
     } catch (error) {
       console.error("❌ Error submitting user:", error)
       toast.error("Error al guardar el usuario", {
         description: error instanceof Error ? error.message : 'Inténtalo de nuevo.'
       })
+      // NO cerrar el diálogo si hay error, para que el usuario pueda corregir
     } finally {
       setIsSubmitting(false)
     }
