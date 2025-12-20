@@ -8,6 +8,7 @@ import { signInWithProfile } from '@/lib/auth/client-auth'
 import { OAuthButtons } from '@/components/auth/OAuthButtons'
 import { AuthLogo } from '@/components/auth/AuthLogo'
 import { Mail, Lock, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -206,21 +207,6 @@ function LoginContent() {
             </button>
           </form>
 
-          {/* Mensaje para usuarios OAuth sin cuenta */}
-          {showRegisterPrompt && (
-            <div className="mt-6 p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
-              <p className="text-sm text-cyan-300 mb-3 text-center">
-                Debes crear tu cuenta primero para usar Google. Por favor, regístrate gratis.
-              </p>
-              <Link
-                href={`/auth/register${registerEmail ? `?email=${encodeURIComponent(registerEmail)}` : ''}`}
-                className="w-full block bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-3 px-4 rounded-lg transition text-center"
-              >
-                Crear Cuenta Gratis
-              </Link>
-            </div>
-          )}
-
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
@@ -251,6 +237,43 @@ function LoginContent() {
           © 2026 EAGLES. Todos los derechos reservados.
         </p>
       </div>
+
+      {/* Dialog para usuarios OAuth sin cuenta */}
+      <Dialog open={showRegisterPrompt} onOpenChange={setShowRegisterPrompt}>
+        <DialogContent className="sm:max-w-md bg-slate-800 border-slate-700">
+          <DialogHeader>
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-cyan-500/10 flex items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-cyan-400" />
+              </div>
+            </div>
+            <DialogTitle className="text-2xl font-bold text-white text-center">
+              Crea tu cuenta primero
+            </DialogTitle>
+            <DialogDescription className="text-slate-300 text-center mt-2">
+              Para usar Google como método de inicio de sesión, primero debes crear tu cuenta en Eagles System.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-6 space-y-4">
+            <p className="text-slate-400 text-center text-sm">
+              El proceso es rápido y fácil. Una vez creada tu cuenta, podrás usar Google para iniciar sesión.
+            </p>
+            <Link
+              href={`/auth/register${registerEmail ? `?email=${encodeURIComponent(registerEmail)}` : ''}`}
+              className="w-full block bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-3 px-4 rounded-lg transition text-center shadow-lg shadow-cyan-500/25"
+              onClick={() => setShowRegisterPrompt(false)}
+            >
+              Crear Cuenta Gratis
+            </Link>
+            <button
+              onClick={() => setShowRegisterPrompt(false)}
+              className="w-full text-slate-400 hover:text-slate-300 text-sm font-medium py-2 transition"
+            >
+              Cancelar
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
