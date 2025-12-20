@@ -149,15 +149,14 @@ export async function GET(request: NextRequest) {
       )
       
       // Si el usuario OAuth no tiene organización, debe completar el registro primero
+      // Redirigir al formulario de registro normal (mismo que "Registrarse gratis")
+      // Mantener la sesión activa para poder vincular la organización al usuario existente
       if (!organizationId) {
-        console.warn('⚠️ [Callback] Usuario OAuth sin organización - debe completar registro')
-        // Redirigir a registro para completar la información necesaria
-        // Pasamos el email y userId como parámetros para facilitar el proceso
+        console.warn('⚠️ [Callback] Usuario OAuth sin organización - redirigiendo a registro')
+        // Redirigir a registro con email prellenado (mantenemos la sesión para vincular después)
         const registerUrl = new URL('/auth/register', origin)
         registerUrl.searchParams.set('email', data.session.user.email || '')
-        registerUrl.searchParams.set('userId', data.session.user.id) // Pasar userId para evitar búsquedas costosas
-        registerUrl.searchParams.set('oauth', 'true')
-        registerUrl.searchParams.set('message', 'Por favor completa tu registro para continuar')
+        registerUrl.searchParams.set('oauth', 'true') // Indicar que viene de OAuth pero usar mismo formulario
         return NextResponse.redirect(registerUrl)
       }
       

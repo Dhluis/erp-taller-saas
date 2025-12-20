@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { signUpWithProfile } from '@/lib/auth/client-auth'
 import { createBrowserClient } from '@supabase/ssr'
-import { Mail, Lock, User, Building2, Phone, MapPin, AlertCircle, Loader2, CheckCircle, MailCheck, RefreshCw, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, User, Building2, Phone, MapPin, AlertCircle, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -18,8 +18,6 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [registeredEmail, setRegisteredEmail] = useState('')
-  const [isOAuthUser, setIsOAuthUser] = useState(false)
-  const [oauthMessage, setOauthMessage] = useState('')
   
   // Datos del taller
   const [workshopName, setWorkshopName] = useState('')
@@ -42,30 +40,22 @@ export default function RegisterPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  // Estado para userId de OAuth
-  const [oauthUserId, setOauthUserId] = useState<string | null>(null)
-
-  // Verificar si es usuario OAuth y pre-llenar datos
+  // Pre-llenar email si viene como parámetro (útil cuando vienen desde otras páginas)
+  // También detectar si viene de OAuth (usuario ya autenticado pero sin organización)
   useEffect(() => {
-    const checkOAuthUser = async () => {
-      const oauthParam = searchParams?.get('oauth')
-      const emailParam = searchParams?.get('email')
-      const userIdParam = searchParams?.get('userId')
-      const messageParam = searchParams?.get('message')
-      
-      if (oauthParam === 'true') {
-        setIsOAuthUser(true)
-        if (userIdParam) {
-          setOauthUserId(userIdParam)
-        }
-        if (messageParam) {
-          setOauthMessage(decodeURIComponent(messageParam))
-        }
-        
-        // Verificar si hay usuario autenticado
+    const emailParam = searchParams?.get('email')
+    const oauthParam = searchParams?.get('oauth')
+    
+    if (emailParam) {
+      setEmail(emailParam)
+    }
+    
+    // Si viene de OAuth, verificar si hay sesión activa
+    if (oauthParam === 'true') {
+      const checkSession = async () => {
         const { data: { session } } = await supabase.auth.getSession()
         if (session?.user) {
-          // Pre-llenar email si viene como parámetro o usar el del usuario autenticado
+          // Usuario ya autenticado, pre-llenar datos de OAuth
           const userEmail = emailParam || session.user.email || ''
           setEmail(userEmail)
           
@@ -74,13 +64,10 @@ export default function RegisterPage() {
           if (userMetadata.full_name || userMetadata.name) {
             setFullName(userMetadata.full_name || userMetadata.name || '')
           }
-        } else if (emailParam) {
-          setEmail(emailParam)
         }
       }
+      checkSession()
     }
-    
-    checkOAuthUser()
   }, [searchParams, supabase])
 
   const handleNextStep = (e: React.FormEvent) => {
@@ -100,25 +87,18 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
     
-    // Validaciones (solo requerir contraseña si NO es usuario OAuth)
-    if (!isOAuthUser) {
-      if (password !== confirmPassword) {
-        setError('Las contraseñas no coinciden')
-        return
-      }
-
-      if (password.length < 6) {
-        setError('La contraseña debe tener al menos 6 caracteres')
-        return
-      }
-    }
-        
-    if (!fullName || !email) {
-      setError('Por favor completa todos los campos obligatorios')
+    // Validaciones
+    if (password !== confirmPassword) {
+      setError('Las contraseñas no coinciden')
       return
     }
 
-    if (!isOAuthUser && !password) {
+    if (password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres')
+      return
+    }
+        
+    if (!fullName || !email || !password) {
       setError('Por favor completa todos los campos obligatorios')
       return
     }
@@ -126,75 +106,47 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      // Manejar registro según si es OAuth o no
-      if (isOAuthUser) {
-        // Para usuarios OAuth, usar API route que maneja todo el proceso (organización + perfil)
-        const response = await fetch('/api/auth/complete-oauth-registration', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: email,
-            userId: oauthUserId, // Incluir userId si está disponible para evitar búsquedas costosas
-            fullName: fullName,
-            phone: phone || null,
-            workshopName: workshopName,
-            workshopEmail: workshopEmail,
-            workshopPhone: workshopPhone || null,
-            workshopAddress: workshopAddress || null,
-          }),
+      // Verificar si el usuario ya está autenticado (caso OAuth)
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      const isOAuthUser = currentSession?.user && searchParams?.get('oauth') === 'true'
+
+      // PASO 1: Crear la organización
+      const { data: organization, error: orgError } = await supabase
+        .from('organizations')
+        .insert({
+          name: workshopName,
+          email: workshopEmail,
+          phone: workshopPhone,
+          address: workshopAddress,
         })
+        .select()
+        .single()
 
-        const result = await response.json()
+      if (orgError) throw orgError
 
-        if (!response.ok) {
-          throw new Error(result.error || 'Error al completar el registro')
-        }
-
-        // Para usuarios OAuth, esperar a que la sesión esté disponible antes de redirigir
-        // Esto es necesario porque el perfil acaba de crearse
-        console.log('✅ Registro OAuth completado, esperando sesión...')
-        
-        // Esperar y verificar que la sesión esté disponible
-        let attempts = 0
-        const maxAttempts = 5
-        let sessionAvailable = false
-        
-        while (attempts < maxAttempts && !sessionAvailable) {
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          const { data: { session } } = await supabase.auth.getSession()
-          if (session?.user) {
-            sessionAvailable = true
-            console.log('✅ Sesión disponible, redirigiendo al dashboard')
-          }
-          attempts++
-        }
-        
-        // Refrescar el router y redirigir
-        router.refresh()
-        router.push('/dashboard')
-        return
-      } else {
-        // Para usuarios normales, crear organización primero
-        const { data: organization, error: orgError } = await supabase
-          .from('organizations')
-          .insert({
-            name: workshopName,
-            email: workshopEmail,
-            phone: workshopPhone,
-            address: workshopAddress,
+      // PASO 2: Manejar usuario según si ya está autenticado o no
+      if (isOAuthUser && currentSession?.user) {
+        // Usuario OAuth ya autenticado: solo actualizar perfil con la organización
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            organization_id: organization.id,
+            full_name: fullName,
+            phone: phone || null,
+            updated_at: new Date().toISOString()
           })
-          .select()
-          .single()
+          .eq('auth_user_id', currentSession.user.id)
 
-        if (orgError) throw orgError
-
-        // Registrar usuario con la organización
+        if (updateError) {
+          // Si falla, eliminar la organización creada
+          await supabase.from('organizations').delete().eq('id', organization.id)
+          throw updateError
+        }
+      } else {
+        // Usuario nuevo: crear cuenta con contraseña
         const { user, session, error: signUpError } = await signUpWithProfile({
           email,
-          password: password!,
+          password: password,
           fullName,
           organizationId: organization.id
         })
@@ -204,13 +156,18 @@ export default function RegisterPage() {
           await supabase.from('organizations').delete().eq('id', organization.id)
           throw signUpError
         }
-
-        // ✅ NO redirigir al dashboard
-        // Mostrar mensaje de confirmación de email
-        setRegisteredEmail(email)
-        setShowConfirmation(true)
-        setStep(3) // Mostrar paso de confirmación
       }
+
+      // Para usuarios OAuth ya autenticados, redirigir directamente al dashboard
+      if (isOAuthUser && currentSession?.user) {
+        router.push('/dashboard')
+        return
+      }
+
+      // Para usuarios nuevos, mostrar mensaje de bienvenida
+      setRegisteredEmail(email)
+      setShowConfirmation(true)
+      setStep(3) // Mostrar paso de bienvenida
       
     } catch (err: any) {
       console.error('Error en registro:', err)
@@ -366,14 +323,6 @@ export default function RegisterPage() {
               <div className="text-center mb-6">
                 <h2 className="text-xl font-bold text-white mb-2">Datos del Administrador</h2>
                 <p className="text-slate-400 text-sm">Tu información personal</p>
-                {isOAuthUser && oauthMessage && (
-                  <div className="mt-3 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
-                    <p className="text-sm text-cyan-300">{oauthMessage}</p>
-                  </div>
-                )}
-                {isOAuthUser && (
-                  <p className="text-sm text-slate-400 mt-2">Ya estás autenticado con Google, solo completa la información del taller</p>
-                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -410,12 +359,9 @@ export default function RegisterPage() {
                       className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="tu@email.com"
                       required
-                      disabled={loading || isOAuthUser}
+                      disabled={loading}
                     />
                   </div>
-                  {isOAuthUser && (
-                    <p className="mt-1 text-xs text-slate-400">Este email viene de tu cuenta de Google</p>
-                  )}
                 </div>
               </div>
 
@@ -437,13 +383,11 @@ export default function RegisterPage() {
                   </div>
               </div>
 
-              {/* Contraseña - Solo mostrar si NO es usuario OAuth */}
-              {!isOAuthUser && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Contraseña <span className="text-red-400">*</span>
-                    </label>
+              {/* Contraseña */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Contraseña <span className="text-red-400">*</span>
+                </label>
                   <div className="relative">
                       <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                       <input
@@ -546,109 +490,41 @@ export default function RegisterPage() {
             <div className="space-y-6 text-center">
               <div className="flex justify-center mb-4">
                 <div className="w-20 h-20 rounded-full bg-cyan-500/10 flex items-center justify-center">
-                  <MailCheck className="w-10 h-10 text-cyan-400" />
+                  <CheckCircle className="w-10 h-10 text-cyan-400" />
                 </div>
               </div>
               
               <div>
                 <h2 className="text-2xl font-bold text-white mb-3">
-                  ¡Revisa tu correo!
+                  ¡Bienvenido a Eagles System!
                 </h2>
-                <p className="text-slate-300 mb-2">
-                  Te enviamos un correo de confirmación a:
+                <p className="text-slate-300 mb-4">
+                  Tu cuenta ha sido creada exitosamente con el email:
                 </p>
                 <p className="text-cyan-400 font-medium mb-6">
                   {registeredEmail}
                 </p>
-                <p className="text-slate-400 text-sm mb-6">
-                  Haz clic en el enlace del correo para confirmar tu cuenta y comenzar a usar el ERP.
-                </p>
-              </div>
-
-              <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 mb-6">
-                <p className="text-slate-300 text-sm">
-                  <strong className="text-white">¿No recibiste el correo?</strong>
-                  <br />
-                  Revisa tu carpeta de spam o intenta reenviarlo.
-                </p>
-              </div>
-
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setLoading(true)
-                    setError('')
-                    try {
-                      // Reenviar correo de confirmación
-                      const baseUrl = typeof window !== 'undefined' 
-                        ? window.location.origin 
-                        : (await import('@/lib/config/env')).getAppUrl()
-                      
-                      const { error: resendError } = await supabase.auth.resend({
-                        type: 'signup',
-                        email: registeredEmail,
-                        options: {
-                          emailRedirectTo: `${baseUrl}/auth/callback`
-                        }
-                      })
-
-                      if (resendError) {
-                        throw resendError
-                      }
-
-                      setError('')
-                      // Mostrar mensaje de éxito temporal
-                      const successMsg = '✅ Correo reenviado. Revisa tu bandeja de entrada.'
-                      setError(successMsg)
-                      setTimeout(() => setError(''), 5000)
-                    } catch (err: any) {
-                      setError(err.message || 'Error al reenviar el correo')
-                    } finally {
-                      setLoading(false)
-                    }
-                  }}
-                  disabled={loading}
-                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Reenviando...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="w-5 h-5" />
-                      Reenviar correo
-                    </>
-                  )}
-                </button>
-                <Link
-                  href="/auth/login"
-                  className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-3 rounded-lg transition flex items-center justify-center"
-                >
-                  Ir a Iniciar Sesión
-                </Link>
-              </div>
-
-              {error && (
-                <div className={`flex items-center gap-2 p-4 rounded-lg ${
-                  error.startsWith('✅') 
-                    ? 'bg-green-500/10 border border-green-500/50' 
-                    : 'bg-red-500/10 border border-red-500/50'
-                }`}>
-                  {error.startsWith('✅') ? (
-                    <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-                  )}
-                  <p className={`text-sm ${
-                    error.startsWith('✅') ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {error}
+                <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 mb-6">
+                  <p className="text-cyan-300 text-sm font-medium mb-2">
+                    🎉 Estás en tu período de prueba gratuito de 7 días
+                  </p>
+                  <p className="text-slate-300 text-sm">
+                    Explora todas las funcionalidades del ERP sin compromiso. Podrás gestionar tu taller de manera completa.
                   </p>
                 </div>
-              )}
+              </div>
+
+              <div className="flex gap-4 justify-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    router.push('/dashboard')
+                  }}
+                  className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-3 rounded-lg transition"
+                >
+                  Comenzar a usar el sistema
+                </button>
+              </div>
             </div>
           )}
 
