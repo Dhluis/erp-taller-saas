@@ -148,12 +148,16 @@ export async function GET(request: NextRequest) {
         data.session.user.email
       )
       
-      // ⚠️ ONBOARDING DESACTIVADO: El registro ya crea la organización
-      // Si no tiene organización, es un error - redirigir al dashboard para ver error apropiado
+      // Si el usuario OAuth no tiene organización, debe completar el registro primero
       if (!organizationId) {
-        console.warn('⚠️ [Callback] Usuario sin organización - esto no debería pasar si el registro fue correcto')
-        // Redirigir al dashboard - mostrará error apropiado si es necesario
-        return createRedirectResponse('/dashboard', response)
+        console.warn('⚠️ [Callback] Usuario OAuth sin organización - debe completar registro')
+        // Redirigir a registro para completar la información necesaria
+        // Pasamos el email como parámetro para facilitar el proceso
+        const registerUrl = new URL('/auth/register', origin)
+        registerUrl.searchParams.set('email', data.session.user.email || '')
+        registerUrl.searchParams.set('oauth', 'true')
+        registerUrl.searchParams.set('message', 'Por favor completa tu registro para continuar')
+        return NextResponse.redirect(registerUrl)
       }
       
       console.log('✅ [Callback] Usuario con organización, redirigiendo a:', next)
@@ -216,12 +220,14 @@ export async function GET(request: NextRequest) {
           data.session.user.email
         )
         
-        // ⚠️ ONBOARDING DESACTIVADO: El registro ya crea la organización
-        // Si no tiene organización, es un error - redirigir al dashboard
+        // Si no tiene organización, debe completar el registro primero
         if (!organizationId) {
-          console.warn('⚠️ [Callback] Usuario sin organización - esto no debería pasar si el registro fue correcto')
-          // Redirigir al dashboard - mostrará error apropiado si es necesario
-          return createRedirectResponse('/dashboard')
+          console.warn('⚠️ [Callback] Usuario sin organización - debe completar registro')
+          // Redirigir a registro para completar la información necesaria
+          const registerUrl = new URL('/auth/register', origin)
+          registerUrl.searchParams.set('email', data.session.user.email || '')
+          registerUrl.searchParams.set('message', 'Por favor completa tu registro para continuar')
+          return NextResponse.redirect(registerUrl)
         }
         
         // ✅ Email confirmado exitosamente, redirigir al destino

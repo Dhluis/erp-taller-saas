@@ -1,8 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { signUpWithProfile } from '@/lib/auth/client-auth'
 import { createBrowserClient } from '@supabase/ssr'
@@ -10,6 +10,7 @@ import { Mail, Lock, User, Building2, Phone, MapPin, AlertCircle, Loader2, Check
 
 export default function RegisterPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   
   // Estados del formulario
   const [step, setStep] = useState(1) // 1: Datos del taller, 2: Datos del usuario
@@ -17,6 +18,8 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [registeredEmail, setRegisteredEmail] = useState('')
+  const [isOAuthUser, setIsOAuthUser] = useState(false)
+  const [oauthMessage, setOauthMessage] = useState('')
   
   // Datos del taller
   const [workshopName, setWorkshopName] = useState('')
@@ -39,6 +42,40 @@ export default function RegisterPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
+  // Verificar si es usuario OAuth y pre-llenar datos
+  useEffect(() => {
+    const checkOAuthUser = async () => {
+      const oauthParam = searchParams?.get('oauth')
+      const emailParam = searchParams?.get('email')
+      const messageParam = searchParams?.get('message')
+      
+      if (oauthParam === 'true') {
+        setIsOAuthUser(true)
+        if (messageParam) {
+          setOauthMessage(decodeURIComponent(messageParam))
+        }
+        
+        // Verificar si hay usuario autenticado
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          // Pre-llenar email si viene como parámetro o usar el del usuario autenticado
+          const userEmail = emailParam || session.user.email || ''
+          setEmail(userEmail)
+          
+          // Pre-llenar nombre si está en metadata
+          const userMetadata = session.user.user_metadata || {}
+          if (userMetadata.full_name || userMetadata.name) {
+            setFullName(userMetadata.full_name || userMetadata.name || '')
+          }
+        } else if (emailParam) {
+          setEmail(emailParam)
+        }
+      }
+    }
+    
+    checkOAuthUser()
+  }, [searchParams, supabase])
+
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -56,21 +93,28 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
     
-    // Validaciones
-    if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden')
+    // Validaciones (solo requerir contraseña si NO es usuario OAuth)
+    if (!isOAuthUser) {
+      if (password !== confirmPassword) {
+        setError('Las contraseñas no coinciden')
+        return
+      }
+
+      if (password.length < 6) {
+        setError('La contraseña debe tener al menos 6 caracteres')
+        return
+      }
+    }
+        
+    if (!fullName || !email) {
+      setError('Por favor completa todos los campos obligatorios')
       return
     }
 
-    if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres')
-          return
-        }
-        
-    if (!fullName || !email || !password) {
+    if (!isOAuthUser && !password) {
       setError('Por favor completa todos los campos obligatorios')
-        return
-      }
+      return
+    }
 
     setLoading(true)
 
@@ -89,25 +133,84 @@ export default function RegisterPage() {
 
       if (orgError) throw orgError
 
-      // PASO 2: Registrar usuario con la organización
-      const { user, session, error: signUpError } = await signUpWithProfile({
-        email,
-        password,
-        fullName,
-        organizationId: organization.id
-      })
+      // PASO 2: Manejar registro según si es OAuth o no
+      if (isOAuthUser) {
+        // Para usuarios OAuth, obtener usuario actual y vincular organización
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError || !currentSession?.user) {
+          throw new Error('No se encontró una sesión activa. Por favor, inicia sesión con Google nuevamente.')
+        }
 
-      if (signUpError) {
-        // Si falla el registro, eliminar la organización creada
-        await supabase.from('organizations').delete().eq('id', organization.id)
-        throw signUpError
+        // Crear o actualizar perfil del usuario OAuth con la organización
+        const { data: existingUser, error: checkError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('auth_user_id', currentSession.user.id)
+          .single()
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          throw checkError
+        }
+
+        if (existingUser) {
+          // Actualizar usuario existente con organización
+          const { error: updateError } = await supabase
+            .from('users')
+            .update({
+              organization_id: organization.id,
+              full_name: fullName,
+              phone: phone || null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('auth_user_id', currentSession.user.id)
+
+          if (updateError) throw updateError
+        } else {
+          // Crear nuevo perfil para usuario OAuth
+          const { error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: currentSession.user.id,
+              auth_user_id: currentSession.user.id,
+              email: email,
+              full_name: fullName,
+              organization_id: organization.id,
+              workshop_id: null,
+              role: 'ADMIN',
+              phone: phone || null,
+              is_active: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+
+          if (createError) throw createError
+        }
+
+        // Redirigir al dashboard directamente para usuarios OAuth
+        router.push('/dashboard')
+        return
+      } else {
+        // Para usuarios normales, usar el flujo de registro estándar
+        const { user, session, error: signUpError } = await signUpWithProfile({
+          email,
+          password: password!,
+          fullName,
+          organizationId: organization.id
+        })
+
+        if (signUpError) {
+          // Si falla el registro, eliminar la organización creada
+          await supabase.from('organizations').delete().eq('id', organization.id)
+          throw signUpError
+        }
+
+        // ✅ NO redirigir al dashboard
+        // Mostrar mensaje de confirmación de email
+        setRegisteredEmail(email)
+        setShowConfirmation(true)
+        setStep(3) // Mostrar paso de confirmación
       }
-
-      // ✅ NO redirigir al dashboard
-      // Mostrar mensaje de confirmación de email
-      setRegisteredEmail(email)
-      setShowConfirmation(true)
-      setStep(3) // Mostrar paso de confirmación
       
     } catch (err: any) {
       console.error('Error en registro:', err)
@@ -263,6 +366,14 @@ export default function RegisterPage() {
               <div className="text-center mb-6">
                 <h2 className="text-xl font-bold text-white mb-2">Datos del Administrador</h2>
                 <p className="text-slate-400 text-sm">Tu información personal</p>
+                {isOAuthUser && oauthMessage && (
+                  <div className="mt-3 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
+                    <p className="text-sm text-cyan-300">{oauthMessage}</p>
+                  </div>
+                )}
+                {isOAuthUser && (
+                  <p className="text-sm text-slate-400 mt-2">Ya estás autenticado con Google, solo completa la información del taller</p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -296,11 +407,15 @@ export default function RegisterPage() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+                      className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="tu@email.com"
                       required
-                    disabled={loading}
-                  />
+                      disabled={loading || isOAuthUser}
+                    />
+                  </div>
+                  {isOAuthUser && (
+                    <p className="mt-1 text-xs text-slate-400">Este email viene de tu cuenta de Google</p>
+                  )}
                 </div>
               </div>
 
@@ -322,71 +437,75 @@ export default function RegisterPage() {
                   </div>
               </div>
 
-              {/* Contraseña */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Contraseña <span className="text-red-400">*</span>
-                  </label>
-                <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-11 pr-12 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
-                    placeholder="••••••••"
-                    required
-                    disabled={loading}
-                      minLength={6}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
+              {/* Contraseña - Solo mostrar si NO es usuario OAuth */}
+              {!isOAuthUser && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Contraseña <span className="text-red-400">*</span>
+                    </label>
+                  <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full pl-11 pr-12 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+                      placeholder="••••••••"
+                      required
                       disabled={loading}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="w-5 h-5" />
-                      ) : (
-                        <Eye className="w-5 h-5" />
-                      )}
-                    </button>
-                </div>
-              </div>
-
-                {/* Confirmar Contraseña */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Confirmar Contraseña <span className="text-red-400">*</span>
-                  </label>
-                <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full pl-11 pr-12 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
-                    placeholder="••••••••"
-                    required
-                    disabled={loading}
-                      minLength={6}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      disabled={loading}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      aria-label={showConfirmPassword ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="w-5 h-5" />
-                      ) : (
-                        <Eye className="w-5 h-5" />
-                      )}
-                    </button>
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        disabled={loading}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
                   </div>
                 </div>
+
+                  {/* Confirmar Contraseña */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Confirmar Contraseña <span className="text-red-400">*</span>
+                    </label>
+                  <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full pl-11 pr-12 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+                      placeholder="••••••••"
+                      required
+                      disabled={loading}
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        disabled={loading}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label={showConfirmPassword ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
               </div>
 
               {error && (

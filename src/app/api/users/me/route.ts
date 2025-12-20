@@ -44,20 +44,21 @@ export async function GET(request: NextRequest) {
         hint: error.hint
       })
       
-      // Si el error es que no existe el registro, crear el perfil automáticamente
+      // Si el error es que no existe el registro, verificar si tiene organización en metadata
+      // Solo crear perfil si ya tiene organización (registro completo), NO para usuarios OAuth nuevos
       if (error.code === 'PGRST116' || error.message?.includes('No rows')) {
-        console.log('[GET /api/users/me] Usuario no encontrado, creando perfil automáticamente...')
+        console.log('[GET /api/users/me] Usuario no encontrado, verificando si tiene organización...')
         
         try {
           // Obtener metadata del usuario de auth para usar organization_id si existe
           const userMetadata = authUser.user_metadata || {}
           const organizationIdFromMetadata = userMetadata.organization_id || null
           
-          // Si no hay organization_id en metadata, buscar o crear una organización por defecto
+          // Buscar si hay alguna organización existente para este usuario (por email)
+          // Esto es para usuarios que se registraron con email/password y luego hacen login con OAuth
           let finalOrganizationId = organizationIdFromMetadata
           
           if (!finalOrganizationId) {
-            // Buscar si hay alguna organización existente para este usuario (por email)
             const { data: existingOrg } = await supabaseAdmin
               .from('organizations')
               .select('id')
@@ -65,35 +66,23 @@ export async function GET(request: NextRequest) {
               .limit(1)
               .single()
             
-            if (existingOrg) {
+            if (existingOrg && !existingOrg.error) {
               finalOrganizationId = existingOrg.id
               console.log('[GET /api/users/me] Organización encontrada por email:', finalOrganizationId)
-            } else {
-              // Crear organización por defecto para este usuario
-              const { data: newOrg, error: orgError } = await supabaseAdmin
-                .from('organizations')
-                .insert({
-                  name: userMetadata.workshop_name || userMetadata.full_name || authUser.email?.split('@')[0] || 'Mi Organización',
-                  email: authUser.email || '',
-                  phone: userMetadata.phone || null,
-                  address: null,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                })
-                .select()
-                .single()
-              
-              if (orgError) {
-                console.error('[GET /api/users/me] Error creando organización:', orgError)
-                // Continuar sin organización - el usuario puede completarla después
-              } else {
-                finalOrganizationId = newOrg.id
-                console.log('[GET /api/users/me] Organización creada automáticamente:', finalOrganizationId)
-              }
             }
           }
           
-          // Crear perfil del usuario
+          // ⚠️ IMPORTANTE: NO crear organización automáticamente para usuarios OAuth nuevos
+          // Si no tiene organización, el usuario debe completar el registro primero
+          if (!finalOrganizationId) {
+            console.warn('[GET /api/users/me] Usuario sin organización - debe completar registro')
+            return NextResponse.json(
+              { error: 'Usuario sin organización. Por favor completa tu registro primero.' },
+              { status: 404 }
+            )
+          }
+          
+          // Solo crear perfil si ya tiene organización válida
           const { data: newUser, error: createError } = await supabaseAdmin
             .from('users')
             .insert({
