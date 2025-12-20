@@ -144,7 +144,28 @@ export default function RegisterPage() {
           throw new Error(result.error || 'Error al completar el registro')
         }
 
-        // Redirigir al dashboard directamente para usuarios OAuth
+        // Para usuarios OAuth, esperar a que la sesión esté disponible antes de redirigir
+        // Esto es necesario porque el perfil acaba de crearse
+        console.log('✅ Registro OAuth completado, esperando sesión...')
+        
+        // Esperar y verificar que la sesión esté disponible
+        let attempts = 0
+        const maxAttempts = 5
+        let sessionAvailable = false
+        
+        while (attempts < maxAttempts && !sessionAvailable) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session?.user) {
+            sessionAvailable = true
+            console.log('✅ Sesión disponible, redirigiendo al dashboard')
+          }
+          attempts++
+        }
+        
+        // Refrescar el router y redirigir
+        router.refresh()
         router.push('/dashboard')
         return
       } else {
