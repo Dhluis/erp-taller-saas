@@ -148,16 +148,20 @@ export async function GET(request: NextRequest) {
         data.session.user.email
       )
       
-      // Si el usuario OAuth no tiene organización, debe completar el registro primero
-      // Redirigir al formulario de registro normal (mismo que "Registrarse gratis")
-      // Mantener la sesión activa para poder vincular la organización al usuario existente
+      // Si el usuario OAuth no tiene organización, debe crear su cuenta primero
+      // Cerrar sesión y redirigir al login con mensaje claro
       if (!organizationId) {
-        console.warn('⚠️ [Callback] Usuario OAuth sin organización - redirigiendo a registro')
-        // Redirigir a registro con email prellenado (mantenemos la sesión para vincular después)
-        const registerUrl = new URL('/auth/register', origin)
-        registerUrl.searchParams.set('email', data.session.user.email || '')
-        registerUrl.searchParams.set('oauth', 'true') // Indicar que viene de OAuth pero usar mismo formulario
-        return NextResponse.redirect(registerUrl)
+        console.warn('⚠️ [Callback] Usuario OAuth sin organización - debe crear cuenta primero')
+        
+        // Cerrar sesión para que use el flujo normal de registro
+        await supabaseAuth.auth.signOut()
+        
+        // Redirigir al login con mensaje claro
+        const loginUrl = new URL('/auth/login', origin)
+        loginUrl.searchParams.set('message', 'Debes crear tu cuenta primero para usar Google. Por favor, regístrate gratis.')
+        loginUrl.searchParams.set('email', data.session.user.email || '')
+        loginUrl.searchParams.set('action', 'register')
+        return NextResponse.redirect(loginUrl)
       }
       
       console.log('✅ [Callback] Usuario con organización, redirigiendo a:', next)

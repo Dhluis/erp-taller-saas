@@ -21,10 +21,15 @@ function LoginContent() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  // Verificar si hay errores del callback
+  const [showRegisterPrompt, setShowRegisterPrompt] = useState(false)
+  const [registerEmail, setRegisterEmail] = useState('')
+
+  // Verificar si hay errores del callback o mensajes
   React.useEffect(() => {
     const errorParam = searchParams?.get('error')
     const messageParam = searchParams?.get('message')
+    const actionParam = searchParams?.get('action')
+    const emailParam = searchParams?.get('email')
     
     if (errorParam && messageParam) {
       setError(messageParam)
@@ -32,6 +37,14 @@ function LoginContent() {
       setError('El enlace de confirmación es inválido o ha expirado. Por favor, solicita un nuevo enlace.')
     } else if (errorParam === 'auth_failed') {
       setError('No se pudo completar la autenticación. Por favor, intenta de nuevo.')
+    } else if (messageParam && actionParam === 'register') {
+      // Usuario OAuth sin cuenta: mostrar mensaje y botón de registro
+      setShowRegisterPrompt(true)
+      setError('')
+      if (emailParam) {
+        setRegisterEmail(emailParam)
+        setEmail(emailParam) // Pre-llenar email
+      }
     }
   }, [searchParams])
 
@@ -192,6 +205,21 @@ function LoginContent() {
               )}
             </button>
           </form>
+
+          {/* Mensaje para usuarios OAuth sin cuenta */}
+          {showRegisterPrompt && (
+            <div className="mt-6 p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
+              <p className="text-sm text-cyan-300 mb-3 text-center">
+                Debes crear tu cuenta primero para usar Google. Por favor, regístrate gratis.
+              </p>
+              <Link
+                href={`/auth/register${registerEmail ? `?email=${encodeURIComponent(registerEmail)}` : ''}`}
+                className="w-full block bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-3 px-4 rounded-lg transition text-center"
+              >
+                Crear Cuenta Gratis
+              </Link>
+            </div>
+          )}
 
           {/* Divider */}
           <div className="relative my-6">

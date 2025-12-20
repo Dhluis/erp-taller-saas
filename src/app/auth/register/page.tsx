@@ -41,34 +41,12 @@ export default function RegisterPage() {
   )
 
   // Pre-llenar email si viene como parámetro (útil cuando vienen desde otras páginas)
-  // También detectar si viene de OAuth (usuario ya autenticado pero sin organización)
   useEffect(() => {
     const emailParam = searchParams?.get('email')
-    const oauthParam = searchParams?.get('oauth')
-    
     if (emailParam) {
       setEmail(emailParam)
     }
-    
-    // Si viene de OAuth, verificar si hay sesión activa
-    if (oauthParam === 'true') {
-      const checkSession = async () => {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user) {
-          // Usuario ya autenticado, pre-llenar datos de OAuth
-          const userEmail = emailParam || session.user.email || ''
-          setEmail(userEmail)
-          
-          // Pre-llenar nombre si está en metadata
-          const userMetadata = session.user.user_metadata || {}
-          if (userMetadata.full_name || userMetadata.name) {
-            setFullName(userMetadata.full_name || userMetadata.name || '')
-          }
-        }
-      }
-      checkSession()
-    }
-  }, [searchParams, supabase])
+  }, [searchParams])
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault()
@@ -106,9 +84,6 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      // Verificar si el usuario ya está autenticado (caso OAuth)
-      const { data: { session: currentSession } } = await supabase.auth.getSession()
-      const isOAuthUser = currentSession?.user && searchParams?.get('oauth') === 'true'
 
       // PASO 1: Crear la organización
       const { data: organization, error: orgError } = await supabase
@@ -124,47 +99,21 @@ export default function RegisterPage() {
 
       if (orgError) throw orgError
 
-      // PASO 2: Manejar usuario según si ya está autenticado o no
-      if (isOAuthUser && currentSession?.user) {
-        // Usuario OAuth ya autenticado: solo actualizar perfil con la organización
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({
-            organization_id: organization.id,
-            full_name: fullName,
-            phone: phone || null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('auth_user_id', currentSession.user.id)
+      // PASO 2: Registrar usuario con la organización (flujo normal para todos)
+      const { user, session, error: signUpError } = await signUpWithProfile({
+        email,
+        password: password,
+        fullName,
+        organizationId: organization.id
+      })
 
-        if (updateError) {
-          // Si falla, eliminar la organización creada
-          await supabase.from('organizations').delete().eq('id', organization.id)
-          throw updateError
-        }
-      } else {
-        // Usuario nuevo: crear cuenta con contraseña
-        const { user, session, error: signUpError } = await signUpWithProfile({
-          email,
-          password: password,
-          fullName,
-          organizationId: organization.id
-        })
-
-        if (signUpError) {
-          // Si falla el registro, eliminar la organización creada
-          await supabase.from('organizations').delete().eq('id', organization.id)
-          throw signUpError
-        }
+      if (signUpError) {
+        // Si falla el registro, eliminar la organización creada
+        await supabase.from('organizations').delete().eq('id', organization.id)
+        throw signUpError
       }
 
-      // Para usuarios OAuth ya autenticados, redirigir directamente al dashboard
-      if (isOAuthUser && currentSession?.user) {
-        router.push('/dashboard')
-        return
-      }
-
-      // Para usuarios nuevos, mostrar mensaje de bienvenida
+      // Mostrar mensaje de bienvenida
       setRegisteredEmail(email)
       setShowConfirmation(true)
       setStep(3) // Mostrar paso de bienvenida
