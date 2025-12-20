@@ -245,27 +245,60 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           hint: profileError.hint
         })
         
-        // Si el error es que no existe el perfil (404), no intentar crearlo automáticamente
-        // La creación de perfiles debe hacerse desde el backend
+        // Si el error es que no existe el perfil (404), el endpoint /api/users/me lo creará automáticamente
+        // Intentar recargar el perfil después de un breve delay para dar tiempo a la creación
         if (profileError.code === '404' || profileError.code === 'PGRST116') {
-          console.warn('⚠️ [Session] PERFIL NO ENCONTRADO - El usuario necesita completar el onboarding')
-          console.log('🔍 [Session] No se puede crear perfil automáticamente desde el cliente')
+          console.warn('⚠️ [Session] PERFIL NO ENCONTRADO - El endpoint lo creará automáticamente')
+          console.log('🔄 [Session] Esperando creación automática del perfil...')
           
-          // Continuar sin perfil pero permitir onboarding
-          const errorState = {
+          // Esperar un momento y recargar (el endpoint /api/users/me creará el perfil automáticamente)
+          setTimeout(async () => {
+            if (!isMounted.current) return
+            
+            try {
+              const retryResponse = await fetch('/api/users/me', {
+                credentials: 'include',
+                cache: 'no-store'
+              })
+              
+              if (retryResponse.ok) {
+                const retryData = await retryResponse.json()
+                if (retryData.profile) {
+                  console.log('✅ [Session] Perfil creado automáticamente, recargando sesión...')
+                  // Recargar la sesión completa
+                  await loadSession(true)
+                  return
+                }
+              }
+            } catch (retryErr) {
+              console.error('❌ [Session] Error al recargar perfil:', retryErr)
+            }
+            
+            // Si después del retry aún no hay perfil, continuar sin él
+            const errorState = {
+              ...currentStateRef.current,
+              user,
+              organizationId: null,
+              workshopId: null,
+              profile: null,
+              isLoading: false,
+              isReady: true,
+              error: null,
+              hasMultipleWorkshops: false
+            }
+            currentStateRef.current = errorState
+            setState(errorState)
+          }, 1000) // Esperar 1 segundo para dar tiempo a la creación
+          
+          // Mientras tanto, establecer estado de carga
+          const loadingState = {
             ...currentStateRef.current,
             user,
-            organizationId: null,
-            workshopId: null,
-            profile: null,
-            isLoading: false,
-            isReady: true,
-            error: null, // No es un error fatal, el usuario puede completar onboarding
-            hasMultipleWorkshops: false
+            isLoading: true,
+            isReady: false
           }
-          currentStateRef.current = errorState
-          setState(errorState)
-          console.warn('⚠️ [Session] Usuario sin perfil - será redirigido a onboarding')
+          currentStateRef.current = loadingState
+          setState(loadingState)
           return
         } else {
           // Otro tipo de error (permisos, conexión, etc.)

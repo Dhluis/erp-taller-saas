@@ -44,12 +44,100 @@ export async function GET(request: NextRequest) {
         hint: error.hint
       })
       
-      // Si el error es que no existe el registro, devolver 404
+      // Si el error es que no existe el registro, crear el perfil automáticamente
       if (error.code === 'PGRST116' || error.message?.includes('No rows')) {
-        return NextResponse.json(
-          { error: 'Usuario no encontrado' },
-          { status: 404 }
-        )
+        console.log('[GET /api/users/me] Usuario no encontrado, creando perfil automáticamente...')
+        
+        try {
+          // Obtener metadata del usuario de auth para usar organization_id si existe
+          const userMetadata = authUser.user_metadata || {}
+          const organizationIdFromMetadata = userMetadata.organization_id || null
+          
+          // Si no hay organization_id en metadata, buscar o crear una organización por defecto
+          let finalOrganizationId = organizationIdFromMetadata
+          
+          if (!finalOrganizationId) {
+            // Buscar si hay alguna organización existente para este usuario (por email)
+            const { data: existingOrg } = await supabaseAdmin
+              .from('organizations')
+              .select('id')
+              .eq('email', authUser.email || '')
+              .limit(1)
+              .single()
+            
+            if (existingOrg) {
+              finalOrganizationId = existingOrg.id
+              console.log('[GET /api/users/me] Organización encontrada por email:', finalOrganizationId)
+            } else {
+              // Crear organización por defecto para este usuario
+              const { data: newOrg, error: orgError } = await supabaseAdmin
+                .from('organizations')
+                .insert({
+                  name: userMetadata.workshop_name || userMetadata.full_name || authUser.email?.split('@')[0] || 'Mi Organización',
+                  email: authUser.email || '',
+                  phone: userMetadata.phone || null,
+                  address: null,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                })
+                .select()
+                .single()
+              
+              if (orgError) {
+                console.error('[GET /api/users/me] Error creando organización:', orgError)
+                // Continuar sin organización - el usuario puede completarla después
+              } else {
+                finalOrganizationId = newOrg.id
+                console.log('[GET /api/users/me] Organización creada automáticamente:', finalOrganizationId)
+              }
+            }
+          }
+          
+          // Crear perfil del usuario
+          const { data: newUser, error: createError } = await supabaseAdmin
+            .from('users')
+            .insert({
+              id: authUser.id, // El id debe coincidir con auth.users.id
+              auth_user_id: authUser.id,
+              email: authUser.email || '',
+              full_name: userMetadata.full_name || authUser.email?.split('@')[0] || 'Usuario',
+              organization_id: finalOrganizationId,
+              workshop_id: null,
+              role: userMetadata.role || 'ADMIN', // Por defecto ADMIN para usuarios nuevos
+              phone: userMetadata.phone || null,
+              is_active: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .select()
+            .single()
+          
+          if (createError) {
+            console.error('[GET /api/users/me] Error creando perfil:', createError)
+            return NextResponse.json(
+              { error: `Error al crear perfil: ${createError.message}` },
+              { status: 500 }
+            )
+          }
+          
+          console.log('[GET /api/users/me] Perfil creado exitosamente:', newUser.email)
+          
+          // Mapear full_name a name para compatibilidad
+          const mappedUser = {
+            ...newUser,
+            name: newUser.full_name || ''
+          }
+          
+          return NextResponse.json({ 
+            profile: mappedUser
+          })
+        } catch (createErr: any) {
+          console.error('[GET /api/users/me] Error en proceso de creación:', createErr)
+          return NextResponse.json(
+            { error: `Error al crear perfil automáticamente: ${createErr.message}` },
+            { status: 500 }
+          )
+        }
       }
       
       // Para otros errores, devolver 500 con más detalles
