@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { signInWithProfile } from '@/lib/auth/client-auth'
 import { OAuthButtons } from '@/components/auth/OAuthButtons'
 import { AuthLogo } from '@/components/auth/AuthLogo'
-import { Mail, Lock, AlertCircle, Loader2 } from 'lucide-react'
+import { Mail, Lock, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -19,6 +19,7 @@ function LoginContent() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   // Verificar si hay errores del callback
   React.useEffect(() => {
@@ -134,14 +135,27 @@ function LoginContent() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                   id="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={loading}
-                  className="w-full pl-10 pr-4 py-3 border border-slate-700 bg-slate-800/80 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-slate-500"
+                  className="w-full pl-10 pr-12 py-3 border border-slate-700 bg-slate-800/80 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-slate-500"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
               </div>
             </div>
 

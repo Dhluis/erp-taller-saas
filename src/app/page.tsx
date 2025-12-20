@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowRight, CheckCircle, Star, Users, Wrench, BarChart3, Shield, Zap, Clock, Database } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import Image from 'next/image'
 
 const AnimatedCard = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => (
   <motion.div
@@ -23,11 +24,15 @@ export default function LandingPage() {
       {/* Header */}
       <header className="border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-cyan-500 rounded-lg flex items-center justify-center">
-              <Wrench className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-white">ERP Taller</span>
+          <div className="flex items-center space-x-3">
+            <Image
+              src="/eagles-logo-new.png"
+              alt="EAGLES SYSTEM"
+              width={120}
+              height={48}
+              className="h-10 w-auto object-contain"
+              priority
+            />
           </div>
           <div className="flex items-center space-x-4">
             <Link href="/auth/login">
@@ -278,12 +283,16 @@ export default function LandingPage() {
       <footer className="border-t border-slate-700/50 bg-slate-900/50">
         <div className="container mx-auto px-4 py-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-2 mb-4 md:mb-0">
-              <div className="w-8 h-8 bg-cyan-500 rounded-lg flex items-center justify-center">
-                <Wrench className="w-5 h-5 text-white" />
-                </div>
-              <span className="text-xl font-bold text-white">ERP Taller</span>
-              </div>
+            <div className="flex items-center mb-4 md:mb-0">
+              <Image
+                src="/eagles-logo-new.png"
+                alt="EAGLES SYSTEM"
+                width={120}
+                height={48}
+                className="h-10 w-auto object-contain"
+                priority
+              />
+            </div>
             <div className="text-slate-400 text-sm">
               © 2024 ERP Taller. Todos los derechos reservados.
             </div>
