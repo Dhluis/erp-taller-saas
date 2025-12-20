@@ -29,28 +29,43 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // PASO 1: Verificar que el usuario esté autenticado usando el cliente normal (respetando RLS)
-    const supabase = createClientFromRequest(request)
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !authUser) {
+    // PASO 1: Usar Service Role para buscar el usuario por email en auth.users
+    // Esto es necesario porque la sesión puede no estar establecida aún después del callback OAuth
+    const supabaseAdmin = getSupabaseAdmin()
+    
+    // Buscar usuario por email usando auth.admin (solo Service Role puede hacer esto)
+    // Usamos getUserByEmail equivalente: listUsers con filtro
+    const { data: authUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers()
+    
+    if (listError) {
+      console.error('Error listing users:', listError)
       return NextResponse.json(
-        { error: 'No autorizado. Por favor, inicia sesión con Google nuevamente.' },
-        { status: 401 }
+        { error: 'Error al verificar usuario' },
+        { status: 500 }
       )
     }
 
-    // PASO 2: Verificar que el email del usuario autenticado coincida con el email proporcionado
-    // Esto previene que un usuario pueda crear organizaciones para otros usuarios
-    if (authUser.email !== email) {
+    const authUser = authUsers.users.find(u => u.email?.toLowerCase() === email.toLowerCase())
+
+    if (!authUser) {
       return NextResponse.json(
-        { error: 'El email proporcionado no coincide con tu cuenta autenticada.' },
+        { error: 'Usuario no encontrado. Por favor, inicia sesión con Google nuevamente.' },
+        { status: 404 }
+      )
+    }
+
+    // PASO 2: Verificar que el usuario sea de OAuth (tiene provider 'google')
+    // Esto asegura que solo usuarios que vienen de OAuth puedan usar este endpoint
+    const isOAuthUser = authUser.app_metadata?.provider === 'google' || 
+                       authUser.app_metadata?.providers?.includes('google') ||
+                       authUser.identities?.some((id: any) => id.provider === 'google')
+
+    if (!isOAuthUser) {
+      return NextResponse.json(
+        { error: 'Este endpoint solo está disponible para usuarios que se registraron con Google.' },
         { status: 403 }
       )
     }
-
-    // PASO 3: Solo ahora usar Service Role para operaciones administrativas necesarias
-    const supabaseAdmin = getSupabaseAdmin()
 
     // PASO 4: Verificar que el usuario NO tenga ya una organización (evitar duplicados)
     const { data: existingUser, error: checkError } = await supabaseAdmin
@@ -75,7 +90,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // PASO 5: Crear la organización (usando Service Role solo para esta operación administrativa)
+    // PASO 4: Crear la organización (usando Service Role solo para esta operación administrativa)
     const { data: organization, error: orgError } = await supabaseAdmin
       .from('organizations')
       .insert({
@@ -97,7 +112,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // PASO 6: Crear o actualizar el perfil del usuario en la tabla users
+    // PASO 5: Crear o actualizar el perfil del usuario en la tabla users
     // Usamos Service Role solo para esta operación porque es parte del flujo de onboarding inicial
     if (existingUser) {
       // Actualizar usuario existente con organización
