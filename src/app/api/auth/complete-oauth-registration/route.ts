@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
+import { createClientFromRequest } from '@/lib/supabase/server'
+
+// Función para obtener el cliente admin de Supabase (solo para operaciones administrativas necesarias)
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  )
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,29 +29,53 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // PASO 1: Verificar que el usuario esté autenticado usando el cliente normal (respetando RLS)
+    const supabase = createClientFromRequest(request)
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !authUser) {
+      return NextResponse.json(
+        { error: 'No autorizado. Por favor, inicia sesión con Google nuevamente.' },
+        { status: 401 }
+      )
+    }
+
+    // PASO 2: Verificar que el email del usuario autenticado coincida con el email proporcionado
+    // Esto previene que un usuario pueda crear organizaciones para otros usuarios
+    if (authUser.email !== email) {
+      return NextResponse.json(
+        { error: 'El email proporcionado no coincide con tu cuenta autenticada.' },
+        { status: 403 }
+      )
+    }
+
+    // PASO 3: Solo ahora usar Service Role para operaciones administrativas necesarias
     const supabaseAdmin = getSupabaseAdmin()
 
-    // 1. Buscar el usuario en auth.users por email
-    const { data: authUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers()
-    
-    if (listError) {
-      console.error('Error listing users:', listError)
+    // PASO 4: Verificar que el usuario NO tenga ya una organización (evitar duplicados)
+    const { data: existingUser, error: checkError } = await supabaseAdmin
+      .from('users')
+      .select('id, organization_id')
+      .eq('auth_user_id', authUser.id)
+      .single()
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('Error checking user:', checkError)
       return NextResponse.json(
-        { error: 'Error al buscar usuario' },
+        { error: 'Error al verificar usuario' },
         { status: 500 }
       )
     }
 
-    const authUser = authUsers.users.find(u => u.email === email)
-
-    if (!authUser) {
+    // Si el usuario ya tiene una organización, rechazar la creación
+    if (existingUser && existingUser.organization_id) {
       return NextResponse.json(
-        { error: 'Usuario no encontrado. Por favor, inicia sesión con Google nuevamente.' },
-        { status: 404 }
+        { error: 'Ya tienes una organización asociada. No puedes crear otra.' },
+        { status: 409 }
       )
     }
 
-    // 2. Crear la organización
+    // PASO 5: Crear la organización (usando Service Role solo para esta operación administrativa)
     const { data: organization, error: orgError } = await supabaseAdmin
       .from('organizations')
       .insert({
@@ -58,21 +97,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 3. Crear o actualizar el perfil del usuario en la tabla users
-    const { data: existingUser, error: checkError } = await supabaseAdmin
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('Error checking user:', checkError)
-      return NextResponse.json(
-        { error: 'Error al verificar usuario' },
-        { status: 500 }
-      )
-    }
-
+    // PASO 6: Crear o actualizar el perfil del usuario en la tabla users
+    // Usamos Service Role solo para esta operación porque es parte del flujo de onboarding inicial
     if (existingUser) {
       // Actualizar usuario existente con organización
       const { error: updateError } = await supabaseAdmin
