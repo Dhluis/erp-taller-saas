@@ -18,7 +18,7 @@ function getSupabaseAdmin() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, fullName, phone, workshopName, workshopEmail, workshopPhone, workshopAddress } = body
+    const { email, userId, fullName, phone, workshopName, workshopEmail, workshopPhone, workshopAddress } = body
 
     // Validar datos requeridos
     if (!email || !fullName || !workshopName) {
@@ -28,71 +28,80 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // PASO 1: Usar Service Role para buscar el usuario por email en auth.users
-    // Esto es necesario porque la sesión puede no estar establecida aún después del callback OAuth
     const supabaseAdmin = getSupabaseAdmin()
-    
-    // Intentar buscar el usuario con retry (puede haber un pequeño delay en la creación del usuario)
     let authUser = null
-    const maxRetries = 3
-    const retryDelay = 1000 // 1 segundo
-    
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      if (attempt > 0) {
-        // Esperar antes de reintentar
-        await new Promise(resolve => setTimeout(resolve, retryDelay))
+
+    // PASO 1: Si tenemos userId, usarlo directamente (más eficiente y confiable)
+    if (userId) {
+      const { data: userData, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId)
+      
+      if (!getUserError && userData?.user) {
+        authUser = userData.user
+        
+        // Verificar que el email coincida
+        if (authUser.email?.toLowerCase() !== email.toLowerCase()) {
+          console.error('[complete-oauth-registration] Email no coincide con userId:', {
+            providedEmail: email,
+            userEmail: authUser.email
+          })
+          return NextResponse.json(
+            { error: 'El email proporcionado no coincide con el usuario.' },
+            { status: 400 }
+          )
+        }
       }
+    }
+
+    // PASO 2: Si no encontramos el usuario con userId, buscar por email (fallback)
+    if (!authUser) {
+      console.warn('[complete-oauth-registration] Usando búsqueda por email como fallback')
       
-      // Buscar usuario por email usando auth.admin.listUsers()
-      let page = 1
-      const perPage = 50
-      let found = false
+      // Intentar buscar el usuario con retry
+      const maxRetries = 2
+      const retryDelay = 1000
       
-      while (!found && !authUser) {
-        const { data: authUsersData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
-          page,
-          perPage
-        })
-        
-        if (listError) {
-          console.error('Error listing users (attempt', attempt + 1, '):', listError)
-          break // Salir del loop interno y reintentar
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, retryDelay))
         }
         
-        if (!authUsersData || !authUsersData.users || authUsersData.users.length === 0) {
-          // No hay más usuarios en esta página
-          found = true
-          break
+        let page = 1
+        const perPage = 50
+        
+        while (!authUser) {
+          const { data: authUsersData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+            page,
+            perPage
+          })
+          
+          if (listError) {
+            console.error('Error listing users (attempt', attempt + 1, '):', listError)
+            break
+          }
+          
+          if (!authUsersData || !authUsersData.users || authUsersData.users.length === 0) {
+            break
+          }
+          
+          authUser = authUsersData.users.find(u => 
+            u.email?.toLowerCase().trim() === email.toLowerCase().trim()
+          )
+          
+          if (authUser || authUsersData.users.length < perPage) {
+            break
+          }
+          
+          page++
         }
         
-        // Buscar el usuario por email (case-insensitive)
-        authUser = authUsersData.users.find(u => 
-          u.email?.toLowerCase().trim() === email.toLowerCase().trim()
-        )
-        
-        if (authUser) {
-          found = true
-          break
-        }
-        
-        // Si no encontramos y hay más páginas, continuar
-        if (authUsersData.users.length < perPage) {
-          found = true
-          break
-        }
-        
-        page++
-      }
-      
-      if (authUser) {
-        break // Usuario encontrado, salir del loop de retry
+        if (authUser) break
       }
     }
 
     if (!authUser) {
-      console.error('[complete-oauth-registration] Usuario no encontrado después de', maxRetries, 'intentos. Email:', email)
+      console.error('[complete-oauth-registration] Usuario no encontrado. Email:', email, 'UserId:', userId)
       return NextResponse.json(
-        { error: 'Usuario no encontrado. Por favor, inicia sesión con Google nuevamente y espera unos segundos antes de completar el registro.' },
+        { error: 'Usuario no encontrado. Por favor, inicia sesión con Google nuevamente.' },
         { status: 404 }
       )
     }

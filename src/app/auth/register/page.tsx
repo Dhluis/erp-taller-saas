@@ -42,15 +42,22 @@ export default function RegisterPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
+  // Estado para userId de OAuth
+  const [oauthUserId, setOauthUserId] = useState<string | null>(null)
+
   // Verificar si es usuario OAuth y pre-llenar datos
   useEffect(() => {
     const checkOAuthUser = async () => {
       const oauthParam = searchParams?.get('oauth')
       const emailParam = searchParams?.get('email')
+      const userIdParam = searchParams?.get('userId')
       const messageParam = searchParams?.get('message')
       
       if (oauthParam === 'true') {
         setIsOAuthUser(true)
+        if (userIdParam) {
+          setOauthUserId(userIdParam)
+        }
         if (messageParam) {
           setOauthMessage(decodeURIComponent(messageParam))
         }
@@ -129,6 +136,7 @@ export default function RegisterPage() {
           },
           body: JSON.stringify({
             email: email,
+            userId: oauthUserId, // Incluir userId si está disponible para evitar búsquedas costosas
             fullName: fullName,
             phone: phone || null,
             workshopName: workshopName,

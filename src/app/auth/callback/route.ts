@@ -152,9 +152,10 @@ export async function GET(request: NextRequest) {
       if (!organizationId) {
         console.warn('⚠️ [Callback] Usuario OAuth sin organización - debe completar registro')
         // Redirigir a registro para completar la información necesaria
-        // Pasamos el email como parámetro para facilitar el proceso
+        // Pasamos el email y userId como parámetros para facilitar el proceso
         const registerUrl = new URL('/auth/register', origin)
         registerUrl.searchParams.set('email', data.session.user.email || '')
+        registerUrl.searchParams.set('userId', data.session.user.id) // Pasar userId para evitar búsquedas costosas
         registerUrl.searchParams.set('oauth', 'true')
         registerUrl.searchParams.set('message', 'Por favor completa tu registro para continuar')
         return NextResponse.redirect(registerUrl)
