@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createClientFromRequest } from '@/lib/supabase/server'
 
 // Función para obtener el cliente admin de Supabase (solo para operaciones administrativas necesarias)
 function getSupabaseAdmin() {
@@ -33,32 +32,90 @@ export async function POST(request: NextRequest) {
     // Esto es necesario porque la sesión puede no estar establecida aún después del callback OAuth
     const supabaseAdmin = getSupabaseAdmin()
     
-    // Buscar usuario por email usando auth.admin (solo Service Role puede hacer esto)
-    // Usamos getUserByEmail equivalente: listUsers con filtro
-    const { data: authUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers()
+    // Intentar buscar el usuario con retry (puede haber un pequeño delay en la creación del usuario)
+    let authUser = null
+    const maxRetries = 3
+    const retryDelay = 1000 // 1 segundo
     
-    if (listError) {
-      console.error('Error listing users:', listError)
-      return NextResponse.json(
-        { error: 'Error al verificar usuario' },
-        { status: 500 }
-      )
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      if (attempt > 0) {
+        // Esperar antes de reintentar
+        await new Promise(resolve => setTimeout(resolve, retryDelay))
+      }
+      
+      // Buscar usuario por email usando auth.admin.listUsers()
+      let page = 1
+      const perPage = 50
+      let found = false
+      
+      while (!found && !authUser) {
+        const { data: authUsersData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+          page,
+          perPage
+        })
+        
+        if (listError) {
+          console.error('Error listing users (attempt', attempt + 1, '):', listError)
+          break // Salir del loop interno y reintentar
+        }
+        
+        if (!authUsersData || !authUsersData.users || authUsersData.users.length === 0) {
+          // No hay más usuarios en esta página
+          found = true
+          break
+        }
+        
+        // Buscar el usuario por email (case-insensitive)
+        authUser = authUsersData.users.find(u => 
+          u.email?.toLowerCase().trim() === email.toLowerCase().trim()
+        )
+        
+        if (authUser) {
+          found = true
+          break
+        }
+        
+        // Si no encontramos y hay más páginas, continuar
+        if (authUsersData.users.length < perPage) {
+          found = true
+          break
+        }
+        
+        page++
+      }
+      
+      if (authUser) {
+        break // Usuario encontrado, salir del loop de retry
+      }
     }
 
-    const authUser = authUsers.users.find(u => u.email?.toLowerCase() === email.toLowerCase())
-
     if (!authUser) {
+      console.error('[complete-oauth-registration] Usuario no encontrado después de', maxRetries, 'intentos. Email:', email)
       return NextResponse.json(
-        { error: 'Usuario no encontrado. Por favor, inicia sesión con Google nuevamente.' },
+        { error: 'Usuario no encontrado. Por favor, inicia sesión con Google nuevamente y espera unos segundos antes de completar el registro.' },
         { status: 404 }
       )
     }
+    
+    console.log('[complete-oauth-registration] Usuario encontrado:', authUser.id, authUser.email)
 
     // PASO 2: Verificar que el usuario sea de OAuth (tiene provider 'google')
     // Esto asegura que solo usuarios que vienen de OAuth puedan usar este endpoint
-    const isOAuthUser = authUser.app_metadata?.provider === 'google' || 
-                       authUser.app_metadata?.providers?.includes('google') ||
-                       authUser.identities?.some((id: any) => id.provider === 'google')
+    // La verificación es flexible porque la estructura puede variar
+    const identities = authUser.identities || []
+    const hasGoogleProvider = identities.some((id: any) => id.provider === 'google')
+    const hasGoogleInMetadata = authUser.app_metadata?.provider === 'google' || 
+                                authUser.app_metadata?.providers?.includes('google')
+    
+    const isOAuthUser = hasGoogleProvider || hasGoogleInMetadata
+
+    // Log para debugging (remover en producción si es necesario)
+    console.log('OAuth user check:', {
+      email: authUser.email,
+      identities: identities.map((id: any) => id.provider),
+      app_metadata: authUser.app_metadata,
+      isOAuthUser
+    })
 
     if (!isOAuthUser) {
       return NextResponse.json(
