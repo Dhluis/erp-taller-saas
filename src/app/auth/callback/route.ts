@@ -148,10 +148,12 @@ export async function GET(request: NextRequest) {
         data.session.user.email
       )
       
-      // Si no tiene organización, redirigir a onboarding
+      // ⚠️ ONBOARDING DESACTIVADO: El registro ya crea la organización
+      // Si no tiene organización, es un error - redirigir al dashboard para ver error apropiado
       if (!organizationId) {
-        console.log('🔄 [Callback] Usuario sin organización, redirigiendo a onboarding...')
-        return createRedirectResponse('/onboarding', response)
+        console.warn('⚠️ [Callback] Usuario sin organización - esto no debería pasar si el registro fue correcto')
+        // Redirigir al dashboard - mostrará error apropiado si es necesario
+        return createRedirectResponse('/dashboard', response)
       }
       
       console.log('✅ [Callback] Usuario con organización, redirigiendo a:', next)
@@ -214,10 +216,12 @@ export async function GET(request: NextRequest) {
           data.session.user.email
         )
         
-        // Si no tiene organización, redirigir a onboarding
+        // ⚠️ ONBOARDING DESACTIVADO: El registro ya crea la organización
+        // Si no tiene organización, es un error - redirigir al dashboard
         if (!organizationId) {
-          console.log('🔄 [Callback] Usuario sin organización, redirigiendo a onboarding...')
-          return createRedirectResponse('/onboarding')
+          console.warn('⚠️ [Callback] Usuario sin organización - esto no debería pasar si el registro fue correcto')
+          // Redirigir al dashboard - mostrará error apropiado si es necesario
+          return createRedirectResponse('/dashboard')
         }
         
         // ✅ Email confirmado exitosamente, redirigir al destino

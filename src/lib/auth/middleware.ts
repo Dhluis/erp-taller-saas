@@ -179,10 +179,12 @@ export async function middleware(request: NextRequest) {
           throw profileError
         }
         
-        // Si no tiene perfil y no está en una ruta de onboarding o auth, redirigir al onboarding
-        // ✅ Usar /onboarding que es la página funcional (no /auth/setup que usa tabla inexistente)
-        if (!profile && !pathname.startsWith('/onboarding') && !pathname.startsWith('/auth/')) {
-          return NextResponse.redirect(new URL('/onboarding', request.url))
+        // ⚠️ ONBOARDING DESACTIVADO: El registro ya crea perfil y organización
+        // Si no tiene perfil, es un error - no redirigir automáticamente
+        // Permitir acceso normal, el usuario verá el error apropiado
+        if (!profile && !pathname.startsWith('/auth/')) {
+          // Solo loguear el problema, no bloquear acceso
+          console.warn('[Middleware] Usuario autenticado sin perfil - esto no debería pasar si el registro fue correcto')
         }
 
         // Si el usuario está inactivo, redirigir a página de cuenta suspendida
