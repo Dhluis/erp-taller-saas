@@ -119,79 +119,50 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      // PASO 1: Crear la organización (en lugar de workshop)
-      const { data: organization, error: orgError } = await supabase
-        .from('organizations')
-        .insert({
-          name: workshopName,
-          email: workshopEmail,
-          phone: workshopPhone,
-          address: workshopAddress,
-        })
-        .select()
-        .single()
-
-      if (orgError) throw orgError
-
-      // PASO 2: Manejar registro según si es OAuth o no
+      // Manejar registro según si es OAuth o no
       if (isOAuthUser) {
-        // Para usuarios OAuth, obtener usuario actual y vincular organización
-        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
-        
-        if (sessionError || !currentSession?.user) {
-          throw new Error('No se encontró una sesión activa. Por favor, inicia sesión con Google nuevamente.')
-        }
+        // Para usuarios OAuth, usar API route que maneja todo el proceso (organización + perfil)
+        const response = await fetch('/api/auth/complete-oauth-registration', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: email,
+            fullName: fullName,
+            phone: phone || null,
+            workshopName: workshopName,
+            workshopEmail: workshopEmail,
+            workshopPhone: workshopPhone || null,
+            workshopAddress: workshopAddress || null,
+          }),
+        })
 
-        // Crear o actualizar perfil del usuario OAuth con la organización
-        const { data: existingUser, error: checkError } = await supabase
-          .from('users')
-          .select('id')
-          .eq('auth_user_id', currentSession.user.id)
-          .single()
+        const result = await response.json()
 
-        if (checkError && checkError.code !== 'PGRST116') {
-          throw checkError
-        }
-
-        if (existingUser) {
-          // Actualizar usuario existente con organización
-          const { error: updateError } = await supabase
-            .from('users')
-            .update({
-              organization_id: organization.id,
-              full_name: fullName,
-              phone: phone || null,
-              updated_at: new Date().toISOString()
-            })
-            .eq('auth_user_id', currentSession.user.id)
-
-          if (updateError) throw updateError
-        } else {
-          // Crear nuevo perfil para usuario OAuth
-          const { error: createError } = await supabase
-            .from('users')
-            .insert({
-              id: currentSession.user.id,
-              auth_user_id: currentSession.user.id,
-              email: email,
-              full_name: fullName,
-              organization_id: organization.id,
-              workshop_id: null,
-              role: 'ADMIN',
-              phone: phone || null,
-              is_active: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-
-          if (createError) throw createError
+        if (!response.ok) {
+          throw new Error(result.error || 'Error al completar el registro')
         }
 
         // Redirigir al dashboard directamente para usuarios OAuth
         router.push('/dashboard')
         return
       } else {
-        // Para usuarios normales, usar el flujo de registro estándar
+        // Para usuarios normales, crear organización primero
+        const { data: organization, error: orgError } = await supabase
+          .from('organizations')
+          .insert({
+            name: workshopName,
+            email: workshopEmail,
+            phone: workshopPhone,
+            address: workshopAddress,
+          })
+          .select()
+          .single()
+
+        if (orgError) throw orgError
+
+        // Registrar usuario con la organización
         const { user, session, error: signUpError } = await signUpWithProfile({
           email,
           password: password!,
