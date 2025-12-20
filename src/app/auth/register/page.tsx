@@ -397,8 +397,6 @@ export default function RegisterPage() {
                       </button>
                     </div>
                   </div>
-                </>
-              )}
 
               {error && (
                 <div className="flex items-center gap-2 p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
