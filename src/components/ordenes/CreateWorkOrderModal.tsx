@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, memo } from 'react'
+import { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react'
 
 import { 
 
@@ -47,7 +47,8 @@ import { useOrganization, useSession } from '@/lib/context/SessionContext'
 import { createClient } from '@/lib/supabase/client'
 import { useCustomers } from '@/hooks/useCustomers'
 
-import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown } from 'lucide-react'
+import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown, FileText, Upload, X, Check } from 'lucide-react'
+import SignatureCanvas from 'react-signature-canvas'
 
 interface CreateWorkOrderModalProps {
 
@@ -147,6 +148,18 @@ const INITIAL_FORM_DATA = {
 
   assigned_to: '',
 
+  // Términos y Condiciones
+
+  terms_type: 'text' as 'text' | 'file', // 'text' para escribir, 'file' para subir PDF
+
+  terms_text: '', // Texto de términos y condiciones
+
+  terms_file: null as File | null, // Archivo PDF de términos
+
+  terms_accepted: false, // Checkbox de aceptación
+
+  customer_signature: '', // Firma digital del cliente (base64)
+
   
 
   // ✅ NUEVO: Inspección
@@ -237,7 +250,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const [loadingSystemUsers, setLoadingSystemUsers] = useState(false)
   const [loadingEmployees, setLoadingEmployees] = useState(false)
 
-  
+  // Estados para términos y condiciones
+  const [termsFilePreview, setTermsFilePreview] = useState<string | null>(null) // URL del preview del PDF
+  const signatureRef = useRef<SignatureCanvas>(null) // Referencia para el canvas de firma
 
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
 
@@ -618,6 +633,52 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
   }
 
+  // Funciones para manejar términos y condiciones
+  const handleTermsFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        toast.error('Solo se permiten archivos PDF')
+        return
+      }
+      if (file.size > 5 * 1024 * 1024) { // 5MB
+        toast.error('El archivo es demasiado grande. Máximo 5MB')
+        return
+      }
+      setFormData(prev => ({ ...prev, terms_file: file, terms_type: 'file' }))
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setTermsFilePreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+      toast.success('Archivo PDF cargado correctamente')
+    }
+  }
+
+  const handleRemoveTermsFile = () => {
+    setFormData(prev => ({ ...prev, terms_file: null, terms_type: 'text' }))
+    setTermsFilePreview(null)
+  }
+
+  const handleSaveSignature = () => {
+    if (signatureRef.current) {
+      const signatureData = signatureRef.current.toDataURL()
+      setFormData(prev => ({ ...prev, customer_signature: signatureData }))
+      toast.success('✅ Firma guardada correctamente')
+    }
+  }
+
+  const handleClearSignature = () => {
+    if (signatureRef.current) {
+      signatureRef.current.clear()
+      setFormData(prev => ({ ...prev, customer_signature: '' }))
+    }
+  }
+
+  const handleSignatureEnd = () => {
+    handleSaveSignature()
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
 
     e.preventDefault()
@@ -646,11 +707,26 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
       'vehicleMileage',
 
-      'description',
-
       'estimated_cost'
 
     ]
+
+    // Validación de términos y condiciones
+    if (formData.terms_type === 'text' && !formData.terms_text.trim()) {
+      newErrors.terms_text = 'Los términos y condiciones son requeridos'
+    }
+
+    if (formData.terms_type === 'file' && !formData.terms_file) {
+      newErrors.terms_file = 'Debes subir un archivo PDF con los términos y condiciones'
+    }
+
+    if (!formData.terms_accepted) {
+      newErrors.terms_accepted = 'El cliente debe aceptar los términos y condiciones'
+    }
+
+    if (!formData.customer_signature) {
+      newErrors.customer_signature = 'El cliente debe firmar digitalmente'
+    }
 
     
 
@@ -804,6 +880,33 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
       }
 
+      // Subir archivo PDF de términos si existe
+      let termsFileUrl: string | null = null
+      if (formData.terms_type === 'file' && formData.terms_file) {
+        try {
+          const fileExt = formData.terms_file.name.split('.').pop()
+          const fileName = `terms/${organizationId}/${Date.now()}.${fileExt}`
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('documents')
+            .upload(fileName, formData.terms_file, {
+              contentType: 'application/pdf',
+              upsert: false
+            })
+          
+          if (uploadError) {
+            console.error('Error subiendo archivo PDF:', uploadError)
+            toast.error('Error al subir el archivo PDF')
+          } else {
+            const { data: { publicUrl } } = supabase.storage
+              .from('documents')
+              .getPublicUrl(fileName)
+            termsFileUrl = publicUrl
+          }
+        } catch (uploadErr) {
+          console.error('Error en upload de términos:', uploadErr)
+        }
+      }
+
       // ✅ Crear orderData con workshop_id opcional
       const orderData: any = {
         organization_id: organizationId,
@@ -812,7 +915,14 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         description: formData.description?.trim() || 'Sin descripción',
         estimated_cost: parseFloat(formData.estimated_cost) || 0,
         status: 'reception',  // ✅ Primera etapa del proceso
-        entry_date: new Date().toISOString()
+        entry_date: new Date().toISOString(),
+        // Términos y condiciones
+        terms_type: formData.terms_type,
+        terms_text: formData.terms_type === 'text' ? formData.terms_text : null,
+        terms_file_url: termsFileUrl,
+        terms_accepted: formData.terms_accepted,
+        terms_accepted_at: formData.terms_accepted ? new Date().toISOString() : null,
+        customer_signature: formData.customer_signature || null
       };
       
       // ✅ Solo agregar workshop_id si existe
@@ -1770,48 +1880,212 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           </div>
 
-          {/* Descripción del Trabajo (ORIGINAL) */}
+          {/* Términos y Condiciones */}
 
           <div className="space-y-4">
 
             <h3 className="font-semibold text-sm border-b pb-2">
 
-              Descripción del Trabajo
+              Términos y Condiciones
 
             </h3>
 
-            <div>
-
-              <Label htmlFor="description">Servicio requerido *</Label>
-
-              <Textarea
-
-                id="description"
-
-                name="description"
-
-                required
-
-                rows={4}
-
-                placeholder="Cambio de aceite, revisión de frenos..."
-
-                value={formData.description}
-
-                onChange={handleChange}
-
+            {/* Selección de tipo: Texto o Archivo */}
+            <div className="flex gap-4 mb-4">
+              <Button
+                type="button"
+                variant={formData.terms_type === 'text' ? 'default' : 'outline'}
+                onClick={() => setFormData(prev => ({ ...prev, terms_type: 'text', terms_file: null }))}
                 disabled={loading}
+                className="flex items-center gap-2"
+              >
+                <FileText className="h-4 w-4" />
+                Escribir Términos
+              </Button>
+              <Button
+                type="button"
+                variant={formData.terms_type === 'file' ? 'default' : 'outline'}
+                onClick={() => setFormData(prev => ({ ...prev, terms_type: 'file', terms_text: '' }))}
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                Subir PDF
+              </Button>
+            </div>
 
-                className={errors.description ? 'border-red-500' : ''}
+              {/* Textarea para escribir términos */}
+            {formData.terms_type === 'text' && (
+              <div>
+                <Label htmlFor="terms_text">Escribe los términos y condiciones *</Label>
+                <Textarea
+                  id="terms_text"
+                  name="terms_text"
+                  required={formData.terms_type === 'text'}
+                  rows={8}
+                  placeholder="Ej: El cliente acepta que el taller no se hace responsable de...&#10;&#10;1. Garantías sobre piezas usadas&#10;2. Daños causados por el mal uso del vehículo&#10;3. ..."
+                  value={formData.terms_text}
+                  onChange={(e) => setFormData(prev => ({ ...prev, terms_text: e.target.value }))}
+                  disabled={loading}
+                  className={`bg-slate-900 border-slate-600 text-white ${errors.terms_text ? 'border-red-500' : ''}`}
+                />
+                {errors.terms_text && (
+                  <p className="text-red-400 text-xs mt-1">{errors.terms_text}</p>
+                )}
+                <p className="text-xs text-slate-400 mt-1">
+                  Escribe los términos y condiciones que el cliente debe aceptar
+                </p>
+              </div>
+            )}
 
+            {/* Subida de archivo PDF */}
+            {formData.terms_type === 'file' && (
+              <div>
+                <Label htmlFor="terms_file">Subir documento PDF con términos y condiciones *</Label>
+                {errors.terms_file && (
+                  <p className="text-red-400 text-xs mt-1">{errors.terms_file}</p>
+                )}
+                <div className="mt-2">
+                  {!formData.terms_file ? (
+                    <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center hover:border-cyan-500 transition-colors">
+                      <input
+                        type="file"
+                        id="terms_file"
+                        name="terms_file"
+                        accept=".pdf,application/pdf"
+                        onChange={handleTermsFileChange}
+                        disabled={loading}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="terms_file"
+                        className="cursor-pointer flex flex-col items-center gap-2"
+                      >
+                        <Upload className="h-8 w-8 text-slate-400" />
+                        <span className="text-sm text-slate-300">
+                          Haz clic para subir un archivo PDF
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          Máximo 5MB
+                        </span>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="border border-slate-600 rounded-lg p-4 bg-slate-900/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-cyan-400" />
+                          <div>
+                            <p className="text-sm text-white font-medium">
+                              {formData.terms_file.name}
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              {(formData.terms_file.size / 1024).toFixed(2)} KB
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRemoveTermsFile}
+                          disabled={loading}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {termsFilePreview && (
+                        <div className="mt-3">
+                          <a
+                            href={termsFilePreview}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-cyan-400 hover:text-cyan-300 underline"
+                          >
+                            Ver preview del PDF
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Checkbox de aceptación */}
+            <div className="flex items-start gap-2 pt-2">
+              <input
+                type="checkbox"
+                id="terms_accepted"
+                name="terms_accepted"
+                checked={formData.terms_accepted}
+                onChange={(e) => setFormData(prev => ({ ...prev, terms_accepted: e.target.checked }))}
+                disabled={loading}
+                className={`mt-1 h-4 w-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 ${errors.terms_accepted ? 'border-red-500' : ''}`}
               />
+              <Label htmlFor="terms_accepted" className="text-sm text-slate-300 cursor-pointer">
+                El cliente acepta los términos y condiciones *
+              </Label>
+            </div>
+            {errors.terms_accepted && (
+              <p className="text-red-400 text-xs mt-1 ml-6">{errors.terms_accepted}</p>
+            )}
 
-              {errors.description && (
-
-                <p className="text-red-400 text-xs mt-1">{errors.description}</p>
-
+            {/* Firma digital del cliente */}
+            <div className="pt-4 border-t border-slate-700">
+              <Label className="text-sm font-medium mb-3 block">
+                Firma Digital del Cliente *
+              </Label>
+              <div className="bg-white rounded-lg p-4 border border-slate-600">
+                <SignatureCanvas
+                  ref={signatureRef}
+                  canvasProps={{
+                    width: 500,
+                    height: 150,
+                    className: 'signature-canvas w-full'
+                  }}
+                  onEnd={handleSignatureEnd}
+                  backgroundColor="white"
+                  penColor="black"
+                />
+              </div>
+              <div className="flex gap-2 mt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearSignature}
+                  disabled={loading || !formData.customer_signature}
+                  className="flex items-center gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Limpiar Firma
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveSignature}
+                  disabled={loading}
+                  className="flex items-center gap-2"
+                >
+                  <Check className="h-4 w-4" />
+                  Guardar Firma
+                </Button>
+              </div>
+              {formData.customer_signature && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-green-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Firma guardada correctamente</span>
+                </div>
               )}
-
+              {errors.customer_signature && (
+                <p className="text-red-400 text-xs mt-2">{errors.customer_signature}</p>
+              )}
+              <p className="text-xs text-slate-400 mt-2">
+                El cliente debe firmar digitalmente para autorizar el servicio
+              </p>
             </div>
 
             <div>
