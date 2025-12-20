@@ -42,7 +42,7 @@ const PUBLIC_ROUTES = [
   '/auth/register',
   '/auth/forgot-password',
   '/auth/reset-password',
-  '/auth/setup',
+  '/onboarding',
   '/auth/suspended',
   '/demo-setup',
   '/api/auth',
@@ -179,9 +179,10 @@ export async function middleware(request: NextRequest) {
           throw profileError
         }
         
-        // Si no tiene perfil y no está en una ruta de setup, redirigir al setup
-        if (!profile && !pathname.startsWith('/auth/setup')) {
-          return NextResponse.redirect(new URL('/auth/setup', request.url))
+        // Si no tiene perfil y no está en una ruta de onboarding o auth, redirigir al onboarding
+        // ✅ Usar /onboarding que es la página funcional (no /auth/setup que usa tabla inexistente)
+        if (!profile && !pathname.startsWith('/onboarding') && !pathname.startsWith('/auth/')) {
+          return NextResponse.redirect(new URL('/onboarding', request.url))
         }
 
         // Si el usuario está inactivo, redirigir a página de cuenta suspendida
