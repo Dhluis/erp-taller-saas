@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { signUpWithProfile } from '@/lib/auth/client-auth'
 import { createBrowserClient } from '@supabase/ssr'
 import { Mail, Lock, User, Building2, Phone, MapPin, AlertCircle, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react'
+import confetti from 'canvas-confetti'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -47,6 +48,56 @@ export default function RegisterPage() {
       setEmail(emailParam)
     }
   }, [searchParams])
+
+  // Efecto de confeti cuando se muestra la pantalla de bienvenida
+  useEffect(() => {
+    if (showConfirmation && step === 3) {
+      // Disparar confeti con una configuración bonita
+      const duration = 3000 // 3 segundos
+      const animationEnd = Date.now() + duration
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }
+
+      function randomInRange(min: number, max: number) {
+        return Math.random() * (max - min) + min
+      }
+
+      const interval: NodeJS.Timeout = setInterval(() => {
+        const timeLeft = animationEnd - Date.now()
+
+        if (timeLeft <= 0) {
+          return clearInterval(interval)
+        }
+
+        const particleCount = 50 * (timeLeft / duration)
+
+        // Confeti desde la izquierda
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+        })
+
+        // Confeti desde la derecha
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+        })
+      }, 250)
+
+      // También disparar un burst inicial desde el centro
+      setTimeout(() => {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981']
+        })
+      }, 100)
+
+      return () => clearInterval(interval)
+    }
+  }, [showConfirmation, step])
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault()
