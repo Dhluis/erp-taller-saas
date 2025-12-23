@@ -274,9 +274,9 @@ export default function OrdenesPage() {
           <p className="text-slate-400 mt-1">Gestiona todas las órdenes del taller</p>
           
           {/* ✅ Stats de paginación */}
-          {!loading && pagination.total > 0 && (
+          {!loading && pagination && pagination.total > 0 && (
             <p className="text-sm text-slate-500 mt-1">
-              Total: {pagination.total} órdenes | Página {pagination.page} de {pagination.totalPages}
+              Total: {pagination.total} órdenes | Página {pagination.page || 1} de {pagination.totalPages || 1}
             </p>
           )}
         </div>
@@ -632,12 +632,12 @@ export default function OrdenesPage() {
             </div>
             
             {/* ✅ Componente de Paginación */}
-            {pagination.totalPages > 1 && (
+            {pagination && pagination.totalPages && pagination.totalPages > 1 && (
               <Pagination
-                currentPage={pagination.page}
-                totalPages={pagination.totalPages}
-                pageSize={pagination.pageSize}
-                total={pagination.total}
+                currentPage={pagination.page || 1}
+                totalPages={pagination.totalPages || 1}
+                pageSize={pagination.pageSize || 10}
+                total={pagination.total || 0}
                 onPageChange={goToPage}
                 onPageSizeChange={changePageSize}
                 loading={loading}

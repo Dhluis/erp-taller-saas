@@ -305,8 +305,24 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
         if (cached && cacheAge < 30000) {
           console.log('💾 [useWorkOrders] Usando cache')
           const responseData = cached.data.data || cached.data
-          setWorkOrders(responseData.items || [])
-          setPagination(responseData.pagination)
+          const items = responseData.items || []
+          const paginationData = responseData.pagination || {
+            page: 1,
+            pageSize: pageSize,
+            total: 0,
+            totalPages: 0,
+            hasNextPage: false,
+            hasPreviousPage: false
+          }
+          setWorkOrders(items)
+          setPagination({
+            page: paginationData.page || 1,
+            pageSize: paginationData.pageSize || pageSize,
+            total: paginationData.total || 0,
+            totalPages: paginationData.totalPages || 0,
+            hasNextPage: paginationData.hasNextPage || false,
+            hasPreviousPage: paginationData.hasPreviousPage || false
+          })
           setLoading(false)
           isFetching.current = false
           return
@@ -327,11 +343,25 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
       // Extraer datos
       const responseData = result.data || result
       const items = responseData.items || []
-      const paginationData = responseData.pagination
+      const paginationData = responseData.pagination || {
+        page: 1,
+        pageSize: pageSize,
+        total: 0,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false
+      }
 
       // Actualizar state
       setWorkOrders(items)
-      setPagination(paginationData)
+      setPagination({
+        page: paginationData.page || 1,
+        pageSize: paginationData.pageSize || pageSize,
+        total: paginationData.total || 0,
+        totalPages: paginationData.totalPages || 0,
+        hasNextPage: paginationData.hasNextPage || false,
+        hasPreviousPage: paginationData.hasPreviousPage || false
+      })
 
       // Guardar en cache
       if (enableCache) {

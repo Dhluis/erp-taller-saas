@@ -1,48 +1,95 @@
-# EAGLES - ERP Taller Automotriz
+# ERP Taller SaaS
 
-Sistema de gestión integral para talleres automotrices desarrollado con [Next.js](https://nextjs.org).
+Sistema ERP para gestión de talleres mecánicos con integración de WhatsApp Business.
 
-## Características
+## 🚀 Inicio Rápido
 
-- 🚗 Gestión de órdenes de servicio
-- 👥 Administración de clientes y proveedores
-- 📦 Control de inventario
-- 📊 Reportes y métricas
-- 🔔 Sistema de notificaciones
-- 💰 Facturación y cobros
-- 📱 Interfaz responsive
+### Prerrequisitos
+- Node.js 18+ 
+- npm o yarn
+- Cuenta de Supabase
+- Servidor WAHA (opcional, para WhatsApp)
 
-## Getting Started
-
-Primero, ejecuta el servidor de desarrollo:
+### Instalación
 
 ```bash
+# Instalar dependencias
+npm install
+
+# Configurar variables de entorno
+cp .env.example .env.local
+# Editar .env.local con tus credenciales
+
+# Ejecutar migraciones de base de datos
+# (En Supabase SQL Editor, ejecutar archivos de supabase/migrations/)
+
+# Iniciar servidor de desarrollo
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Variables de Entorno Requeridas
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# WhatsApp (Opcional)
+WAHA_API_URL=
+WAHA_API_KEY=
 
-## Learn More
+# App
+NEXT_PUBLIC_APP_URL=
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 📚 Documentación
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- [Estado del Proyecto](./docs/PROJECT_STATUS.md) - Estado actual y funcionalidades
+- [Integración WhatsApp](./docs/WHATSAPP_INTEGRATION_STATUS.md) - Documentación de WhatsApp
+- [Arquitectura](./docs/) - Documentación técnica
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🏗️ Tecnologías
 
-## Deploy on Vercel
+- **Framework:** Next.js 15 (App Router)
+- **Lenguaje:** TypeScript
+- **Base de Datos:** Supabase (PostgreSQL)
+- **Estilos:** Tailwind CSS
+- **UI Components:** Radix UI
+- **Autenticación:** Supabase Auth
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📦 Estructura del Proyecto
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/              # Next.js App Router
+├── components/       # Componentes React
+├── lib/              # Utilidades y helpers
+├── hooks/            # Custom hooks
+├── contexts/         # React Context
+└── types/            # TypeScript types
+```
+
+## 🔐 Seguridad
+
+- Row Level Security (RLS) activado en Supabase
+- Autenticación mediante Supabase Auth
+- Validación de tenant en todas las queries
+- Variables de entorno para secretos
+
+## 🚢 Deployment
+
+El proyecto está configurado para deployment en Vercel:
+
+1. Conectar repositorio a Vercel
+2. Configurar variables de entorno
+3. Deploy automático desde branch `main`
+
+## 📝 Licencia
+
+Privado - Todos los derechos reservados
+
+---
+
+**Versión Estable:** Commit `773cb2a`  
+**Última actualización:** Enero 2025
