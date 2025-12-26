@@ -331,24 +331,26 @@ export async function createOrganizationSession(organizationId: string): Promise
 /**
  * Actualizar configuración del webhook de una sesión existente
  * Útil para agregar soporte multimedia sin recrear la sesión
+ * Siempre actualiza el webhook cuando se reconecta/inicia una sesión
  */
 export async function updateSessionWebhook(sessionName: string, organizationId?: string): Promise<void> {
-  const orgId = organizationId || await getOrganizationFromSession(sessionName);
-  const { url, key } = await getWahaConfig(orgId || undefined);
-  
-  const webhookUrl = process.env.NEXT_PUBLIC_APP_URL 
-    ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
-    : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
+  try {
+    const orgId = organizationId || await getOrganizationFromSession(sessionName);
+    if (!orgId) {
+      throw new Error('No se pudo obtener organizationId para actualizar webhook');
+    }
+    
+    const { url, key } = await getWahaConfig(orgId);
+    
+    const webhookUrl = process.env.NEXT_PUBLIC_APP_URL 
+      ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
+      : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
 
-  console.log(`[WAHA Sessions] 🔄 Actualizando webhook de sesión: ${sessionName}`);
+    console.log(`[WAHA Sessions] 🔧 Actualizando webhook para sesión: ${sessionName}`);
+    console.log(`[WAHA Sessions] 📍 Webhook URL: ${webhookUrl}`);
+    console.log(`[WAHA Sessions] 🏢 Organization ID: ${orgId}`);
 
-  const response = await fetch(`${url}/api/sessions/${sessionName}`, {
-    method: 'PUT',
-    headers: {
-      'X-Api-Key': key,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
+    const requestBody = {
       config: {
         webhooks: [{
           url: webhookUrl,
@@ -357,16 +359,39 @@ export async function updateSessionWebhook(sessionName: string, organizationId?:
           downloadMediaOnMessage: true // ✅ Descargar media cuando llega mensaje
         }]
       }
-    })
-  });
+    };
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Error desconocido');
-    console.error(`[WAHA Sessions] ❌ Error actualizando webhook: ${response.status}`, errorText);
-    throw new Error(`Error actualizando webhook: ${response.status} - ${errorText}`);
+    console.log(`[WAHA Sessions] 📤 Request body:`, JSON.stringify(requestBody, null, 2));
+
+    const response = await fetch(`${url}/api/sessions/${sessionName}`, {
+      method: 'PUT',
+      headers: {
+        'X-Api-Key': key,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Error desconocido');
+      console.error(`[WAHA Sessions] ❌ Error actualizando webhook: ${response.status}`, errorText);
+      throw new Error(`Error actualizando webhook: ${response.status} - ${errorText}`);
+    }
+
+    const responseData = await response.json().catch(() => ({}));
+    console.log(`[WAHA Sessions] ✅ Webhook actualizado exitosamente`);
+    if (Object.keys(responseData).length > 0) {
+      console.log(`[WAHA Sessions] 📥 Response:`, JSON.stringify(responseData, null, 2));
+    }
+  } catch (error: any) {
+    console.error(`[WAHA Sessions] ❌ Error en updateSessionWebhook:`, {
+      message: error.message,
+      stack: error.stack,
+      sessionName,
+      organizationId
+    });
+    throw error;
   }
-
-  console.log(`[WAHA Sessions] ✅ Webhook actualizado exitosamente`);
 }
 
 /**

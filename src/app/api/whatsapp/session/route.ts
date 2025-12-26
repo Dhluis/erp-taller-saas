@@ -181,6 +181,16 @@ export async function GET(request: NextRequest) {
       const phone = status.me?.id?.split('@')[0] || status.me?.phone || null;
       console.log(`[/api/whatsapp/session] ✅ Sesión conectada: ${phone || 'N/A'}`);
       
+      // 🔥 NUEVO: Si la sesión está activa, actualizar webhook silenciosamente
+      console.log('[/api/whatsapp/session] 🔧 Sesión activa detectada, actualizando webhook...');
+      try {
+        await updateSessionWebhook(sessionName, organizationId);
+        console.log('[/api/whatsapp/session] ✅ Webhook actualizado exitosamente');
+      } catch (webhookError: any) {
+        console.error('[/api/whatsapp/session] ⚠️ Error actualizando webhook (no crítico):', webhookError.message);
+        // No lanzar error, continuar normalmente
+      }
+      
       return NextResponse.json({
         success: true,
         status: 'WORKING',
@@ -819,6 +829,17 @@ export async function POST(request: NextRequest) {
     if (action === 'reconnect') {
       console.log(`[/api/whatsapp/session] 🔄 Reconnect solicitado`);
       try {
+        // 🔥 NUEVO: Siempre actualizar webhook antes de reconectar
+        console.log(`[/api/whatsapp/session] 📡 Actualizando webhook antes de reconectar...`);
+        try {
+          await updateSessionWebhook(sessionName, organizationId);
+          console.log(`[/api/whatsapp/session] ✅ Webhook actualizado exitosamente`);
+        } catch (webhookError: any) {
+          // Si falla la actualización del webhook, loguear pero continuar
+          // (puede que la sesión no exista aún, se configurará al crearla)
+          console.warn(`[/api/whatsapp/session] ⚠️ Error actualizando webhook (continuando):`, webhookError.message);
+        }
+        
         // ✅ FIX: Verificar si la sesión existe antes de intentar reconectar
         try {
           await startSession(sessionName, organizationId);
@@ -827,8 +848,9 @@ export async function POST(request: NextRequest) {
           // Si el error es 404 (Session not found), crear la sesión primero
           if (startError.message?.includes('404') || startError.message?.includes('Session not found') || startError.message?.includes('Not Found')) {
             console.log('[/api/whatsapp/session] ⚠️ Sesión no existe en WAHA (404), creando nueva sesión...');
+            // Al crear nueva sesión, el webhook se configura automáticamente
             await createOrganizationSession(organizationId);
-            console.log('[/api/whatsapp/session] ✅ Nueva sesión creada desde reconnect');
+            console.log('[/api/whatsapp/session] ✅ Nueva sesión creada desde reconnect (webhook configurado automáticamente)');
             await new Promise(resolve => setTimeout(resolve, 2000));
           } else {
             // Otro error, lanzarlo
@@ -851,6 +873,124 @@ export async function POST(request: NextRequest) {
           success: false,
           error: `Error al reconectar: ${reconnectError.message}`,
           details: process.env.NODE_ENV === 'development' ? reconnectError.stack : undefined
+        }, { status: 500 });
+      }
+    }
+
+    // CONNECT - Conectar/iniciar sesión por primera vez
+    if (action === 'connect') {
+      console.log(`[/api/whatsapp/session] 🔌 Connect solicitado`);
+      try {
+        // 🔥 Actualizar webhook antes de conectar
+        console.log('[/api/whatsapp/session] 📡 [Connect] Actualizando webhook...');
+        try {
+          await updateSessionWebhook(sessionName, organizationId);
+          console.log('[/api/whatsapp/session] ✅ [Connect] Webhook actualizado exitosamente');
+        } catch (webhookError: any) {
+          console.error('[/api/whatsapp/session] ⚠️ [Connect] Error actualizando webhook:', webhookError.message);
+          // Continuar de todas formas, puede que la sesión no exista aún
+        }
+
+        // Verificar si la sesión existe en WAHA
+        const currentStatus = await getSessionStatus(sessionName, organizationId);
+        
+        // Si la sesión no existe, crearla (el webhook se configurará automáticamente)
+        if (!currentStatus.exists) {
+          console.log('[/api/whatsapp/session] ⚠️ [Connect] Sesión no existe, creando nueva sesión...');
+          await createOrganizationSession(organizationId);
+          console.log('[/api/whatsapp/session] ✅ [Connect] Nueva sesión creada (webhook configurado automáticamente)');
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          
+          // Obtener QR después de crear
+          const newStatus = await getSessionStatus(sessionName, organizationId);
+          if (['SCAN_QR', 'SCAN_QR_CODE', 'STARTING'].includes(newStatus.status)) {
+            try {
+              const qrData = await getSessionQR(sessionName, organizationId);
+              const qrValue = qrData?.value || qrData?.data || null;
+              
+              if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
+                return NextResponse.json({
+                  success: true,
+                  status: 'SCAN_QR',
+                  connected: false,
+                  session: sessionName,
+                  qr: qrValue,
+                  expiresIn: 60,
+                  message: 'Sesión creada. Escanea el código QR.'
+                });
+              }
+            } catch (qrError: any) {
+              console.warn('[/api/whatsapp/session] ⚠️ [Connect] Error obteniendo QR:', qrError.message);
+            }
+          }
+          
+          return NextResponse.json({
+            success: true,
+            status: newStatus.status || 'STARTING',
+            connected: false,
+            session: sessionName,
+            message: 'Sesión creada. Recarga para obtener el QR.'
+          });
+        }
+        
+        // Si la sesión existe, iniciarla
+        console.log('[/api/whatsapp/session] 🔄 [Connect] Sesión existe, iniciando...');
+        await startSession(sessionName, organizationId);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Verificar estado después de iniciar
+        const finalStatus = await getSessionStatus(sessionName, organizationId);
+        
+        if (finalStatus.status === 'WORKING') {
+          const phone = finalStatus.me?.id?.split('@')[0] || finalStatus.me?.phone || null;
+          return NextResponse.json({
+            success: true,
+            status: 'WORKING',
+            connected: true,
+            session: sessionName,
+            phone
+          });
+        }
+        
+        // Si necesita QR
+        if (['SCAN_QR', 'SCAN_QR_CODE', 'STARTING'].includes(finalStatus.status)) {
+          try {
+            const qrData = await getSessionQR(sessionName, organizationId);
+            const qrValue = qrData?.value || qrData?.data || null;
+            
+            if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
+              return NextResponse.json({
+                success: true,
+                status: 'SCAN_QR',
+                connected: false,
+                session: sessionName,
+                qr: qrValue,
+                expiresIn: 60,
+                message: 'Escanea el código QR para conectar.'
+              });
+            }
+          } catch (qrError: any) {
+            console.warn('[/api/whatsapp/session] ⚠️ [Connect] Error obteniendo QR:', qrError.message);
+          }
+        }
+        
+        return NextResponse.json({
+          success: true,
+          status: finalStatus.status || 'STARTING',
+          connected: false,
+          session: sessionName,
+          message: 'Sesión iniciada. Recarga para obtener el QR.'
+        });
+        
+      } catch (connectError: any) {
+        console.error(`[/api/whatsapp/session] ❌ Error conectando:`, {
+          message: connectError.message,
+          stack: connectError.stack
+        });
+        return NextResponse.json({
+          success: false,
+          error: `Error al conectar: ${connectError.message}`,
+          details: process.env.NODE_ENV === 'development' ? connectError.stack : undefined
         }, { status: 500 });
       }
     }

@@ -225,6 +225,96 @@ export default function TrainAgentPage() {
     loadExistingConfig()
   }, [organizationId, sessionLoading])
 
+  // Verificar webhook
+  const handleVerifyWebhook = useCallback(async () => {
+    if (!organizationId) {
+      toast.error('No se encontró la organización')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch('/api/whatsapp/verify-webhook', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store'
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        console.log('🔍 Verificación del webhook:', data)
+
+        if (!data.webhookConfigured) {
+          toast.error('⚠️ Webhook no configurado', {
+            description: 'El webhook no está configurado. Haz clic en "Actualizar Webhook"',
+          })
+        } else {
+          toast.success('✅ Webhook configurado', {
+            description: 'El webhook está funcionando correctamente',
+          })
+        }
+
+        // Log detalles adicionales en consola
+        console.log('Detalles del webhook:', {
+          expectedUrl: data.expectedWebhookUrl,
+          currentWebhooks: data.currentWebhooks,
+          sessionStatus: data.sessionStatus,
+          advice: data.advice
+        })
+      } else {
+        toast.error('Error al verificar webhook', {
+          description: data.error || 'Error desconocido'
+        })
+      }
+    } catch (error: any) {
+      console.error('Error verificando webhook:', error)
+      toast.error('Error', {
+        description: 'No se pudo verificar el webhook'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [organizationId])
+
+  // Actualizar webhook
+  const handleUpdateWebhook = useCallback(async () => {
+    if (!organizationId) {
+      toast.error('No se encontró la organización')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch('/api/whatsapp/session?action=update_webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store'
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('✅ Webhook actualizado', {
+          description: data.message || 'El webhook ha sido actualizado exitosamente'
+        })
+      } else {
+        toast.error('Error al actualizar webhook', {
+          description: data.error || 'Error desconocido'
+        })
+      }
+    } catch (error: any) {
+      console.error('Error actualizando webhook:', error)
+      toast.error('Error', {
+        description: 'No se pudo actualizar el webhook'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [organizationId])
+
   // Manejar cambio de estado de WhatsApp
   const handleWhatsAppStatusChange = useCallback(async (status: 'loading' | 'connected' | 'pending' | 'error') => {
     if (status === 'connected') {
@@ -306,6 +396,28 @@ export default function TrainAgentPage() {
             darkMode={true}
             className="mb-6"
           />
+          
+          {/* Botones de verificación y actualización de webhook (solo en desarrollo o para debugging) */}
+          {(process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_ENABLE_WEBHOOK_DEBUG === 'true') && (
+            <div className="flex gap-2 mt-4">
+              <Button 
+                onClick={handleVerifyWebhook} 
+                variant="outline" 
+                size="sm"
+                disabled={loading}
+              >
+                🔍 Verificar Webhook
+              </Button>
+              <Button 
+                onClick={handleUpdateWebhook} 
+                variant="outline" 
+                size="sm"
+                disabled={loading}
+              >
+                🔧 Actualizar Webhook
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Separador */}
