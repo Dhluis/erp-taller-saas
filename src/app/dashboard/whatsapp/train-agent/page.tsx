@@ -3,6 +3,9 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { AlertCircle } from 'lucide-react'
 import { ProgressBar } from './components/ProgressBar'
 import { WhatsAppSetupStep } from './components/WhatsAppSetupStep'
 import { BusinessInfoStep } from './components/BusinessInfoStep'
@@ -315,6 +318,63 @@ export default function TrainAgentPage() {
     }
   }, [organizationId])
 
+  // Forzar actualización de webhook (con verificación detallada)
+  const forceUpdateWebhook = useCallback(async () => {
+    if (!organizationId) {
+      toast.error('No se encontró la organización')
+      return
+    }
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔧 [UI] Forzando actualización de webhook...');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🏢 Organization ID:', organizationId);
+
+    setLoading(true)
+    try {
+      const response = await fetch('/api/whatsapp/force-webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store'
+      })
+
+      const data = await response.json()
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('📊 [UI] Resultado del servidor:', data);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+      if (data.success) {
+        toast.success('✅ Webhook actualizado', {
+          description: `Webhook configurado correctamente. Webhooks activos: ${data.webhooksConfigured || 'N/A'}`
+        })
+        console.log('✅ [UI] Webhook actualizado exitosamente');
+        console.log('📍 [UI] URL del webhook:', data.webhookUrl);
+        console.log('📊 [UI] Estado de sesión:', data.sessionData?.status);
+        if (data.verification) {
+          console.log('🔍 [UI] Verificación:', {
+            passed: data.verification.passed,
+            expectedUrl: data.verification.expectedUrl,
+            foundUrl: data.verification.foundUrl
+          });
+        }
+      } else {
+        toast.error('❌ Error', {
+          description: data.error || 'No se pudo actualizar el webhook'
+        })
+        console.error('❌ [UI] Error:', data.error);
+        console.error('📋 [UI] Detalles:', data.details);
+      }
+    } catch (error: any) {
+      console.error('❌ [UI] Error al actualizar webhook:', error);
+      toast.error('❌ Error de red', {
+        description: 'No se pudo conectar con el servidor'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [organizationId])
+
   // Manejar cambio de estado de WhatsApp
   const handleWhatsAppStatusChange = useCallback(async (status: 'loading' | 'connected' | 'pending' | 'error') => {
     if (status === 'connected') {
@@ -419,6 +479,58 @@ export default function TrainAgentPage() {
             </div>
           )}
         </div>
+
+        {/* Separador */}
+        <div className="border-t border-border my-8"></div>
+
+        {/* Sección: Herramientas de Diagnóstico */}
+        <Card className="mb-8 border-yellow-200 bg-yellow-50/50">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              🔧 Herramientas de Diagnóstico
+            </CardTitle>
+            <CardDescription>
+              Si el agente no responde en WhatsApp, usa esta herramienta
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>¿Cuándo usar esto?</AlertTitle>
+                <AlertDescription className="text-sm">
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>El agente responde en "Entrenamiento" pero NO en WhatsApp real</li>
+                    <li>Acabas de reconectar tu número de WhatsApp</li>
+                    <li>Cambiaste la URL de tu aplicación</li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
+
+              <div className="flex flex-col gap-2">
+                <Button 
+                  onClick={forceUpdateWebhook} 
+                  variant="outline" 
+                  className="w-full"
+                  disabled={loading || !organizationId}
+                >
+                  🔧 Actualizar Webhook Ahora
+                </Button>
+                
+                <p className="text-xs text-gray-600 text-center">
+                  Esto configura el webhook en WAHA para que los mensajes de WhatsApp lleguen a tu sistema
+                </p>
+              </div>
+
+              <div className="bg-white p-3 rounded-md border text-xs">
+                <p className="font-semibold mb-1">📋 Información actual:</p>
+                <div className="space-y-1 text-gray-600">
+                  <p>• Org ID: <code className="bg-gray-100 px-1 rounded text-xs">{organizationId || 'Cargando...'}</code></p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Separador */}
         <div className="border-t border-border my-8"></div>
