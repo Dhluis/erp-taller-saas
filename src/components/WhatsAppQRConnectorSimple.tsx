@@ -56,8 +56,9 @@ export function WhatsAppQRConnectorSimple({
   const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null)
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastConnectionEventRef = useRef<string | null>(null) // Rastrear último teléfono que disparó evento
-  const previousStateRef = useRef<'loading' | 'connected' | 'pending' | 'error'>('loading') // Rastrear estado anterior
+  const previousStateRef = useRef<'loading' | 'connected' | 'pending' | 'error' | null>(null) // Rastrear estado anterior
   const isFirstLoadRef = useRef(true) // ✅ NUEVO: Rastrear primera carga
+  const savedQRRef = useRef<string | null>(null) // ✅ Guardar QR para no perderlo cuando el backend no lo retorna temporalmente
 
   // Limpiar timers de auto-refresh
   const clearAutoRefreshTimers = useCallback(() => {
@@ -160,7 +161,16 @@ export function WhatsAppQRConnectorSimple({
 
       // TIENE QR - después de mostrar el QR, verificar en WAHA directamente
       const qr = data.qr
-      if (qr && typeof qr === 'string' && qr.length > 20) {
+      // ✅ Si no hay QR en la respuesta pero tenemos uno guardado, usar el guardado
+      const effectiveQR = (qr && typeof qr === 'string' && qr.length > 20) ? qr : savedQRRef.current
+      
+      if (effectiveQR && typeof effectiveQR === 'string' && effectiveQR.length > 20) {
+        // ✅ Guardar QR si es nuevo o diferente
+        if (!savedQRRef.current || savedQRRef.current !== effectiveQR) {
+          savedQRRef.current = effectiveQR
+          console.log(`[WhatsApp Simple] 💾 QR guardado: ${effectiveQR.length} caracteres`)
+        }
+        
         // Si cambiamos de fase "esperando" a "tiene QR", resetear contador
         if (lastPhaseRef.current !== 'has_qr') {
           console.log(`[WhatsApp Simple] 🔄 Cambio de fase: esperando → tiene QR (resetear contador)`)
@@ -176,11 +186,12 @@ export function WhatsAppQRConnectorSimple({
         // Incrementar contador después de verificar fase
         retryCountRef.current += 1
         
-        console.log(`[WhatsApp Simple] 📱 QR recibido: ${qr.length} caracteres (intento ${retryCountRef.current})`)
+        console.log(`[WhatsApp Simple] 📱 QR ${qr ? 'recibido' : 'usando guardado'}: ${effectiveQR.length} caracteres (intento ${retryCountRef.current})`)
         const wasNotPending = previousStateRef.current !== 'pending'
         setState('pending')
         previousStateRef.current = 'pending'
-        setSessionData(data)
+        // ✅ Usar el QR efectivo (puede ser el guardado) en sessionData
+        setSessionData({ ...data, qr: effectiveQR })
         setErrorMessage(null)
         if (wasNotPending) {
         onStatusChange?.('pending')
@@ -264,11 +275,22 @@ export function WhatsAppQRConnectorSimple({
         return
       }
       
+      // ✅ IMPORTANTE: Si tenemos un QR guardado, NO cambiar a "esperando QR"
+      // El backend puede no retornar el QR temporalmente, pero el QR sigue siendo válido
+      if (savedQRRef.current && lastPhaseRef.current === 'has_qr') {
+        console.log(`[WhatsApp Simple] ⚠️ QR guardado disponible, manteniendo estado "tiene QR" aunque backend no lo retorne`)
+        // Usar el QR guardado y mantener el estado
+        setSessionData({ ...data, qr: savedQRRef.current })
+        return
+      }
+      
+      // ✅ Solo cambiar a "esperando QR" si realmente no tenemos QR guardado
       // Si cambiamos de fase "tiene QR" a "esperando", resetear contador
       if (lastPhaseRef.current !== 'waiting') {
         console.log(`[WhatsApp Simple] 🔄 Cambio de fase: tiene QR → esperando (resetear contador)`)
         retryCountRef.current = 0
         lastPhaseRef.current = 'waiting'
+        savedQRRef.current = null // Limpiar QR guardado solo cuando realmente cambiamos a "esperando"
       }
       
       // Incrementar contador después de verificar fase
@@ -410,6 +432,9 @@ export function WhatsAppQRConnectorSimple({
 
       // Marcar que realizamos una acción de desconexión
       setActionPerformed('disconnect')
+      
+      // ✅ Limpiar QR guardado al desconectar (necesitamos uno nuevo)
+      savedQRRef.current = null
 
       // Actualizar estado inmediatamente basado en la respuesta
       if (data.qr && typeof data.qr === 'string' && data.qr.length > 20) {
@@ -482,6 +507,9 @@ export function WhatsAppQRConnectorSimple({
 
       // Marcar que realizamos una acción de cambio de número
       setActionPerformed('change_number')
+      
+      // ✅ Limpiar QR guardado al cambiar número (necesitamos uno nuevo)
+      savedQRRef.current = null
 
       // Actualizar estado inmediatamente basado en la respuesta
       if (data.qr && typeof data.qr === 'string' && data.qr.length > 20) {

@@ -12,6 +12,59 @@ import {
 } from '@/lib/waha-sessions';
 
 /**
+ * Cache simple para QRs por sesión
+ * Evita obtener el QR repetidamente durante el polling
+ */
+const qrCache = new Map<string, { qr: string; timestamp: number }>();
+const QR_CACHE_TTL = 45000; // 45 segundos (los QRs de WhatsApp expiran en ~60s)
+
+/**
+ * Obtener QR con cache
+ */
+async function getCachedQR(sessionName: string, organizationId: string): Promise<string | null> {
+  const cacheKey = `${sessionName}_${organizationId}`;
+  const cached = qrCache.get(cacheKey);
+  
+  // Si tenemos un QR cacheado y no ha expirado, retornarlo
+  if (cached && (Date.now() - cached.timestamp) < QR_CACHE_TTL) {
+    console.log(`[/api/whatsapp/session] 💾 QR obtenido de cache (edad: ${Math.round((Date.now() - cached.timestamp) / 1000)}s)`);
+    return cached.qr;
+  }
+  
+  // Obtener nuevo QR
+  console.log(`[/api/whatsapp/session] 🔍 Obteniendo nuevo QR de WAHA...`);
+  try {
+    const qrData = await getSessionQR(sessionName, organizationId);
+    const qrValue = qrData?.value || qrData?.data || null;
+    
+    if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
+      // Guardar en cache
+      qrCache.set(cacheKey, { qr: qrValue, timestamp: Date.now() });
+      console.log(`[/api/whatsapp/session] ✅ QR obtenido y cacheado (${qrValue.length} caracteres)`);
+      return qrValue;
+    }
+  } catch (error: any) {
+    console.warn(`[/api/whatsapp/session] ⚠️ Error obteniendo QR:`, error.message);
+    // Si hay error pero tenemos cache antiguo, retornarlo (mejor que nada)
+    if (cached) {
+      console.log(`[/api/whatsapp/session] 💾 Usando QR cacheado aunque sea antiguo debido a error`);
+      return cached.qr;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Limpiar cache de QR para una sesión
+ */
+function clearQRCache(sessionName: string, organizationId: string): void {
+  const cacheKey = `${sessionName}_${organizationId}`;
+  qrCache.delete(cacheKey);
+  console.log(`[/api/whatsapp/session] 🗑️ Cache de QR limpiado para ${sessionName}`);
+}
+
+/**
  * Helper para agregar timeout a fetch requests
  */
 async function fetchWithTimeout(
@@ -178,6 +231,9 @@ export async function GET(request: NextRequest) {
       const phone = status.me?.id?.split('@')[0] || status.me?.phone || null;
       console.log(`[/api/whatsapp/session] ✅ Sesión conectada: ${phone || 'N/A'}`);
       
+      // ✅ Limpiar cache de QR cuando está conectado (ya no necesitamos el QR)
+      clearQRCache(sessionName, organizationId);
+      
       return NextResponse.json({
         success: true,
         status: 'WORKING',
@@ -194,57 +250,40 @@ export async function GET(request: NextRequest) {
     if (needsQR && status.exists) {
       console.log(`[/api/whatsapp/session] 📱 Estado requiere QR: ${status.status}`);
       
-      // Si es STARTING, esperar un poco
-      if (status.status === 'STARTING') {
-        console.log(`[/api/whatsapp/session] ⏳ Esperando inicialización (2s)...`);
+      // Si es STARTING, esperar un poco solo la primera vez (cuando no hay cache)
+      const cacheKey = `${sessionName}_${organizationId}`;
+      const cached = qrCache.get(cacheKey);
+      if (status.status === 'STARTING' && !cached) {
+        console.log(`[/api/whatsapp/session] ⏳ Estado STARTING sin cache, esperando inicialización (2s)...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
       
-      try {
-        console.log('[/api/whatsapp/session] 🔍 Obteniendo QR de sesión...');
-        // AGREGAR RETRY para obtener QR
-        const qrData = await withRetry(
-          () => getSessionQR(sessionName, organizationId),
-          3,
-          1500,
-          'getSessionQR'
-        );
-        const qrValue = qrData?.value || qrData?.data || null;
+      // ✅ Usar cache para evitar obtener QR repetidamente
+      const qrValue = await getCachedQR(sessionName, organizationId);
+      
+      if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
+        console.log(`[/api/whatsapp/session] ✅ QR disponible: ${qrValue.length} caracteres`);
         
-        if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
-          console.log(`[/api/whatsapp/session] ✅ QR obtenido: ${qrValue.length} caracteres`);
-          
-          return NextResponse.json({
-            success: true,
-            status: 'SCAN_QR',
-            connected: false,
-            session: sessionName,
-            qr: qrValue,
-            expiresIn: 60
-          });
-        } else {
-          console.warn(`[/api/whatsapp/session] ⚠️ QR vacío o inválido:`, {
-            hasValue: !!qrValue,
-            valueType: typeof qrValue,
-            valueLength: qrValue?.length || 0
-          });
-        }
-      } catch (qrError: any) {
-        console.warn(`[/api/whatsapp/session] ⚠️ Error obteniendo QR después de retries:`, {
-          message: qrError.message,
-          stack: qrError.stack
+        return NextResponse.json({
+          success: true,
+          status: 'SCAN_QR',
+          connected: false,
+          session: sessionName,
+          qr: qrValue,
+          expiresIn: 60
+        });
+      } else {
+        // Si no hay QR cacheado y no se pudo obtener, devolver estado sin QR
+        console.warn(`[/api/whatsapp/session] ⚠️ QR no disponible`);
+        return NextResponse.json({
+          success: true,
+          status: status.status || 'STARTING',
+          connected: false,
+          session: sessionName,
+          qr: null,
+          message: 'Sesión iniciando. Recarga en unos segundos para obtener el QR.'
         });
       }
-      
-      // Si no se pudo obtener QR, devolver estado sin QR
-      return NextResponse.json({
-        success: true,
-        status: 'STARTING',
-        connected: false,
-        session: sessionName,
-        qr: null,
-        message: 'Sesión iniciando. Recarga en unos segundos para obtener el QR.'
-      });
     }
 
     // 6. CASO: Sesión FAILED, STOPPED, ERROR - Reiniciar de inmediato
@@ -274,33 +313,22 @@ export async function GET(request: NextRequest) {
         
         // Si necesita QR después de reiniciar
         if (['SCAN_QR', 'SCAN_QR_CODE', 'STARTING'].includes(newStatus.status)) {
-          try {
-            console.log('[/api/whatsapp/session] 🔍 Obteniendo QR después de reinicio...');
-            // AGREGAR RETRY para obtener QR después de reinicio
-            const qrData = await withRetry(
-              () => getSessionQR(sessionName, organizationId),
-              3,
-              1500,
-              'getSessionQR (después de reinicio)'
-            );
-            const qrValue = qrData?.value || qrData?.data || null;
-            
-            if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
-              console.log(`[/api/whatsapp/session] ✅ QR obtenido después de reinicio: ${qrValue.length} caracteres`);
-              return NextResponse.json({
-                success: true,
-                status: 'SCAN_QR',
-                connected: false,
-                session: sessionName,
-                qr: qrValue,
-                expiresIn: 60,
-                message: 'Sesión reiniciada. Escanea el código QR.'
-              });
-            }
-          } catch (qrError: any) {
-            console.warn(`[/api/whatsapp/session] ⚠️ Error obteniendo QR después de reinicio (después de retries):`, {
-              message: qrError.message,
-              stack: qrError.stack
+          // ✅ Limpiar cache al reiniciar (necesitamos un QR nuevo)
+          clearQRCache(sessionName, organizationId);
+          
+          // ✅ Usar cache (pero acabamos de limpiarlo, así que obtendrá uno nuevo)
+          const qrValue = await getCachedQR(sessionName, organizationId);
+          
+          if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
+            console.log(`[/api/whatsapp/session] ✅ QR obtenido después de reinicio: ${qrValue.length} caracteres`);
+            return NextResponse.json({
+              success: true,
+              status: 'SCAN_QR',
+              connected: false,
+              session: sessionName,
+              qr: qrValue,
+              expiresIn: 60,
+              message: 'Sesión reiniciada. Escanea el código QR.'
             });
           }
           
@@ -424,33 +452,22 @@ export async function GET(request: NextRequest) {
       
       // Si necesita QR
       if (['SCAN_QR', 'SCAN_QR_CODE', 'STARTING'].includes(newStatus.status)) {
-        try {
-          console.log('[/api/whatsapp/session] 🔍 Obteniendo QR después de crear sesión...');
-          // AGREGAR RETRY para obtener QR después de crear sesión
-          const qrData = await withRetry(
-            () => getSessionQR(sessionName, organizationId),
-            3,
-            1500,
-            'getSessionQR (después de crear)'
-          );
-          const qrValue = qrData?.value || qrData?.data || null;
-          
-          if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
-            console.log(`[/api/whatsapp/session] ✅ QR obtenido después de crear: ${qrValue.length} caracteres`);
-            return NextResponse.json({
-              success: true,
-              status: 'SCAN_QR',
-              connected: false,
-              session: sessionName,
-              qr: qrValue,
-              expiresIn: 60,
-              message: 'Sesión iniciada. Escanea el código QR.'
-            });
-          }
-        } catch (qrError: any) {
-          console.warn(`[/api/whatsapp/session] ⚠️ Error obteniendo QR después de crear (después de retries):`, {
-            message: qrError.message,
-            stack: qrError.stack
+        // ✅ Limpiar cache al crear nueva sesión (necesitamos un QR nuevo)
+        clearQRCache(sessionName, organizationId);
+        
+        // ✅ Usar cache (pero acabamos de limpiarlo, así que obtendrá uno nuevo)
+        const qrValue = await getCachedQR(sessionName, organizationId);
+        
+        if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
+          console.log(`[/api/whatsapp/session] ✅ QR obtenido después de crear: ${qrValue.length} caracteres`);
+          return NextResponse.json({
+            success: true,
+            status: 'SCAN_QR',
+            connected: false,
+            session: sessionName,
+            qr: qrValue,
+            expiresIn: 60,
+            message: 'Sesión iniciada. Escanea el código QR.'
           });
         }
       }
@@ -626,45 +643,34 @@ export async function POST(request: NextRequest) {
         
         // 7. Obtener QR
         console.log('[WhatsApp Session POST] 6. Obteniendo QR...');
-        try {
-          const qrData = await getSessionQR(sessionName, organizationId);
-          const qrValue = qrData?.value || qrData?.data || null;
+        // ✅ Limpiar cache después de logout/change_number (necesitamos un QR nuevo)
+        clearQRCache(sessionName, organizationId);
+        
+        // ✅ Usar cache (pero acabamos de limpiarlo, así que obtendrá uno nuevo)
+        const qrValue = await getCachedQR(sessionName, organizationId);
+        
+        if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
+          console.log(`[WhatsApp Session POST] ✅ QR obtenido: ${qrValue.length} caracteres`);
           
-          if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
-            console.log(`[WhatsApp Session POST] ✅ QR obtenido: ${qrValue.length} caracteres`);
-            
-            // TODO: Actualizar whatsapp_connected en BD (requiere migración de tipos)
-            
-            return NextResponse.json({
-              success: true,
-              status: 'SCAN_QR',
-              connected: false,
-              session: sessionName,
-              qr: qrValue,
-              message: action === 'logout' 
-                ? 'Sesión cerrada correctamente. Escanea el QR para reconectar.' 
-                : 'Escanea el QR con el nuevo número.'
-            });
-          } else {
-            console.warn(`[WhatsApp Session POST] ⚠️ QR no disponible aún`);
-            return NextResponse.json({
-              success: true,
-              status: 'STARTING',
-              connected: false,
-              session: sessionName,
-              qr: null,
-              message: 'Sesión reiniciada. Recarga la página en unos segundos para obtener el QR.'
-            });
-          }
-        } catch (qrError: any) {
-          console.error('[WhatsApp Session POST] ❌ Error obteniendo QR:', qrError.message);
+          return NextResponse.json({
+            success: true,
+            status: 'SCAN_QR',
+            connected: false,
+            session: sessionName,
+            qr: qrValue,
+            message: action === 'logout' 
+              ? 'Sesión cerrada correctamente. Escanea el QR para reconectar.' 
+              : 'Escanea el QR con el nuevo número.'
+          });
+        } else {
+          console.warn(`[WhatsApp Session POST] ⚠️ QR no disponible aún`);
           return NextResponse.json({
             success: true,
             status: 'STARTING',
             connected: false,
             session: sessionName,
             qr: null,
-            message: 'Sesión reiniciada pero QR no disponible aún. Recarga la página en unos segundos.'
+            message: 'Sesión reiniciada. Recarga la página en unos segundos para obtener el QR.'
           });
         }
         
@@ -704,6 +710,9 @@ export async function POST(request: NextRequest) {
     if (action === 'reconnect') {
       console.log(`[/api/whatsapp/session] 🔄 Reconnect solicitado`);
       try {
+        // ✅ Limpiar cache al reconectar (necesitamos un QR nuevo)
+        clearQRCache(sessionName, organizationId);
+        
         await startSession(sessionName, organizationId);
         await new Promise(resolve => setTimeout(resolve, 3000));
         
