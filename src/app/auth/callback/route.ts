@@ -151,12 +151,34 @@ export async function GET(request: NextRequest) {
   function createRedirectResponse(url: string, sourceResponse?: NextResponse): NextResponse {
     const redirectResponse = NextResponse.redirect(new URL(url, origin))
     
-    // Copiar las cookies de sesión a la nueva respuesta
+    // ✅ CRÍTICO: Copiar TODAS las cookies de sesión con TODAS sus opciones
     if (sourceResponse) {
       sourceResponse.cookies.getAll().forEach(cookie => {
-        redirectResponse.cookies.set(cookie.name, cookie.value)
+        redirectResponse.cookies.set(cookie.name, cookie.value, {
+          path: cookie.path || '/',
+          domain: cookie.domain,
+          maxAge: cookie.maxAge,
+          httpOnly: cookie.httpOnly,
+          secure: cookie.secure ?? (process.env.NODE_ENV === 'production'),
+          sameSite: (cookie.sameSite as any) || 'lax'
+        })
       })
     }
+    
+    // ✅ También copiar cookies del request (si las hay)
+    request.cookies.getAll().forEach(cookie => {
+      // Solo copiar si no existe ya en la respuesta
+      if (!redirectResponse.cookies.get(cookie.name)) {
+        redirectResponse.cookies.set(cookie.name, cookie.value, {
+          path: cookie.path || '/',
+          domain: cookie.domain,
+          maxAge: cookie.maxAge,
+          httpOnly: cookie.httpOnly,
+          secure: cookie.secure ?? (process.env.NODE_ENV === 'production'),
+          sameSite: (cookie.sameSite as any) || 'lax'
+        })
+      }
+    })
     
     return redirectResponse
   }
@@ -167,9 +189,21 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabaseAuth.auth.exchangeCodeForSession(code)
 
     if (!error && data?.session) {
-      console.log('✅ [Callback] OAuth exitoso, sesión establecida:', {
-        userId: data.session.user.id,
-        email: data.session.user.email
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('✅ [Callback] OAuth exitoso, sesión establecida')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('User ID:', data.session.user.id)
+      console.log('Email:', data.session.user.email)
+      console.log('Session exists:', !!data.session)
+      console.log('Access token exists:', !!data.session.access_token)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      
+      // ✅ IMPORTANTE: Forzar refresco de cookies antes de continuar
+      // Asegurar que las cookies de sesión estén establecidas correctamente
+      const sessionCheck = await supabaseAuth.auth.getSession()
+      console.log('🍪 [Callback] Sesión verificada después de exchangeCode:', {
+        hasSession: !!sessionCheck.data.session,
+        userId: sessionCheck.data.session?.user.id
       })
       
       // Verificar si el usuario tiene organización
@@ -195,7 +229,13 @@ export async function GET(request: NextRequest) {
       }
       
       console.log('✅ [Callback] Usuario con organización, redirigiendo a:', next)
-      return createRedirectResponse(next, response)
+      
+      // ✅ CRÍTICO: Usar createRedirectResponse que copia las cookies correctamente
+      // Esto asegura que todas las cookies de sesión se transfieran al redirect
+      const redirectResponse = createRedirectResponse(next, response)
+      
+      console.log('🍪 [Callback] Redirigiendo con cookies de sesión a:', next)
+      return redirectResponse
     } else if (error) {
       console.error('❌ [Callback] Error en OAuth:', error)
     }

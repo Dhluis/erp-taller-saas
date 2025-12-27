@@ -49,6 +49,14 @@ const PUBLIC_ROUTES = [
 ]
 
 /**
+ * Verificar si una ruta requiere middleware
+ */
+function requiresMiddleware(pathname: string): boolean {
+  return MIDDLEWARE_ROUTES.some(route => pathname.startsWith(route)) ||
+         AUTH_ROUTES.some(route => pathname.startsWith(route))
+}
+
+/**
  * Verificar si una ruta es pública
  */
 function isPublicRoute(pathname: string): boolean {
