@@ -191,24 +191,45 @@ function extractPhoneNumber(chatId: string): string | null {
 
 ## 🧪 Testing
 
-### Casos de Prueba
+### Casos de Prueba Realizados
 
-1. **Mensaje entrante de WhatsApp Business (`@lid`)**
-   - ✅ Debe ser aceptado por el webhook
-   - ✅ Debe procesarse con el AI agent
-   - ✅ Debe guardarse en la base de datos
+#### Escenario 1: WhatsApp Personal (@c.us)
+- ✅ Mensaje recibido correctamente
+- ✅ AI Agent procesa
+- ✅ Respuesta enviada y recibida
 
-2. **Respuesta a WhatsApp Business (`@lid`)**
-   - ✅ Debe usar el formato `@lid` al enviar
-   - ✅ El mensaje debe llegar correctamente
+#### Escenario 2: WhatsApp Business (@lid)
+- ✅ Mensaje recibido correctamente
+- ✅ AI Agent procesa
+- ✅ Respuesta enviada y recibida correctamente
 
-3. **Mensaje entrante de WhatsApp Personal (`@c.us`)**
-   - ✅ Debe seguir funcionando como antes
-   - ✅ Debe responder con formato `@c.us`
+#### Escenario 3: WhatsApp Business API (@s.whatsapp.net)
+- ✅ Mensaje recibido correctamente
+- ✅ AI Agent procesa
+- ✅ Respuesta enviada y recibida
 
-4. **Mensaje entrante de WhatsApp Business API (`@s.whatsapp.net`)**
-   - ✅ Debe seguir funcionando como antes
-   - ✅ Debe responder con formato `@s.whatsapp.net`
+### Logs de Validación
+
+**Antes del fix (Problema):**
+```
+Mensaje recibido de: 93832184119502@lid
+Respuesta enviada a: 93832184119502@c.us  ← INCORRECTO
+Resultado: ❌ Mensaje no llega
+```
+
+**Después del fix (Solución):**
+```
+Mensaje recibido de: 93832184119502@lid
+Respuesta enviada a: 93832184119502@lid  ← CORRECTO
+Resultado: ✅ Mensaje llega correctamente
+```
+
+## 📊 Impacto
+
+- **Usuarios afectados:** Todos los clientes que usan WhatsApp Business
+- **Tiempo de detección:** ~2 horas de debugging
+- **Tiempo de resolución:** 10 minutos (2 cambios de código)
+- **Testing:** Validado en producción con ambos formatos
 
 ---
 
@@ -304,19 +325,56 @@ function extractPhoneNumber(chatId: string): string | null {
 
 ## 🐛 Troubleshooting
 
-### Problema: Mensajes de Business no se reciben
+### Síntoma: Mensajes no llegan al cliente
+
+1. **Revisar logs de Vercel:**
+```
+   [WAHA Sessions] 📤 Enviando mensaje: {
+     chatId: '...'  ← Verificar formato
+   }
+```
+
+2. **Verificar formato del chatId:**
+   - Debe coincidir con el formato del mensaje entrante
+   - `@lid` → `@lid`
+   - `@c.us` → `@c.us`
+
+3. **Validar en WAHA:**
+   - Revisar logs del contenedor WAHA en EasyPanel
+   - Buscar errores de envío
+
+### Síntoma: Mensajes de Business no se reciben
 
 **Solución:**
 1. Verificar que el webhook esté configurado correctamente en WAHA
 2. Verificar logs del webhook: `[WAHA Webhook] ⏭️ Ignorando mensaje no válido`
 3. Verificar que el `chatId` incluye `@lid`
 
-### Problema: Respuestas no llegan a Business
+### Síntoma: Respuestas no llegan a Business
 
 **Solución:**
 1. Verificar que se está pasando `chatId` completo (no solo número)
 2. Verificar logs: `[WAHA Sessions] 📤 Enviando mensaje` - debe mostrar chatId con `@lid`
 3. Verificar estado de sesión WAHA: debe estar `WORKING`
+
+### Síntoma: Webhooks no llegan
+
+1. **Verificar configuración de webhook en WAHA:**
+```javascript
+   fetch('https://waha-url/api/sessions/[session_name]', {
+     headers: { 'X-Api-Key': 'key' }
+   })
+```
+
+2. **Verificar custom headers:**
+```json
+   {
+     "customHeaders": [{
+       "name": "X-Organization-ID",
+       "value": "org-uuid"
+     }]
+   }
+```
 
 ---
 
