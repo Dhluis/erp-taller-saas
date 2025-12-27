@@ -407,8 +407,16 @@ export default function WhatsAppPage() {
                   </CardDescription>
                 </div>
                 {(() => {
-                  const isEnabled = config?.enabled
-                  console.log('[WhatsApp Page] 🎨 Renderizando badge, config?.enabled:', isEnabled, 'config existe:', !!config)
+                  // Determinar si está activo basándose en si tiene configuración real
+                  // Si tiene provider, model, o services, considerarlo activo aunque enabled sea false
+                  const hasConfig = !!(
+                    config?.provider || 
+                    config?.model || 
+                    (config?.services && config.services.length > 0) ||
+                    config?.enabled
+                  )
+                  const isEnabled = config?.enabled || hasConfig
+                  console.log('[WhatsApp Page] 🎨 Renderizando badge, config?.enabled:', config?.enabled, 'hasConfig:', hasConfig, 'isEnabled:', isEnabled, 'config existe:', !!config)
                   return (
                     <Badge variant={isEnabled ? "success" : "secondary"}>
                       {isEnabled ? (
