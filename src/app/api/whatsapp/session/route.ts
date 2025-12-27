@@ -16,7 +16,7 @@ import {
  * Evita obtener el QR repetidamente durante el polling
  */
 const qrCache = new Map<string, { qr: string; timestamp: number }>();
-const QR_CACHE_TTL = 45000; // 45 segundos (los QRs de WhatsApp expiran en ~60s)
+const QR_CACHE_TTL = 50000; // 50 segundos (los QRs de WhatsApp expiran en ~60s, dejamos margen)
 
 /**
  * Obtener QR con cache
