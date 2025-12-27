@@ -569,9 +569,10 @@ async function handleMessageEvent(body: any) {
       
       try {
         console.log('[Webhook] 📤 ENVIANDO respuesta - messageId:', finalMessageId);
+        // ✅ Usar chatId completo (incluye @lid, @c.us, etc.) en lugar de solo el número
         const sendResult = await sendWhatsAppMessage(
           sessionName,
-          customerPhone,
+          chatId,  // Usar chatId completo con @lid incluido
           aiResult.response,
           organizationId
         );

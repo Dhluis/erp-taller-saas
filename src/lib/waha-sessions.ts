@@ -709,8 +709,16 @@ export async function sendWhatsAppMessage(
     // Continuar de todas formas, puede que el estado se pueda verificar después
   }
 
-  // Formatear número si no tiene @
-  const chatId = to.includes('@') ? to : `${to}@c.us`;
+  // Construir chatId - mantener formato original si ya tiene @
+  // Si no tiene @, agregar @c.us por defecto
+  let chatId: string;
+  if (to.includes('@')) {
+    // Ya tiene formato (@lid, @c.us, @s.whatsapp.net)
+    chatId = to;
+  } else {
+    // Solo número, agregar @c.us por defecto
+    chatId = `${to}@c.us`;
+  }
 
   // WAHA Plus usa /api/sendText con session en el body (no en la URL)
   const endpointUrl = `${url}/api/sendText`;
