@@ -446,10 +446,31 @@ chore: tareas de mantenimiento
   - Formatos de chatId soportados
   - Guía de troubleshooting
 
+- **[WhatsApp Webhook Migration](WHATSAPP_WEBHOOK_MIGRATION.md)** - Migración a webhooks dinámicos multi-tenant
+  - **Commit principal**: `0461999` (implementación completa de webhooks dinámicos)
+  - Sistema de webhooks con Organization ID dinámico por sesión
+  - Variables de entorno a remover de EasyPanel
+  - Script de migración para organizaciones existentes
+  - UI de diagnóstico y verificación de webhooks
+  - Endpoint de migración masiva para administradores
+
 - **[WhatsApp Integration Status](WHATSAPP_INTEGRATION_STATUS.md)** - Estado general de la integración
 - **[WhatsApp Webhook Verification](WHATSAPP_WEBHOOK_VERIFICATION.md)** - Verificación de webhooks
 - **[WhatsApp Business API Setup](WHATSAPP_BUSINESS_API_SETUP.md)** - Configuración inicial
 - **[WAHA Setup](WAHA_SETUP.md)** - Guía de configuración de WAHA
+
+### Cambios Recientes
+
+- **Webhooks Dinámicos Multi-Tenant** (`0461999`)
+  - Cada organización ahora tiene su propio webhook configurado con su Organization ID
+  - Configuración automática al conectar/reconectar WhatsApp
+  - Acciones `force_update_webhook` y `verify_webhook` disponibles
+  - **IMPORTANTE**: Remover `WHATSAPP_HOOK_URL` y `WHATSAPP_HOOK_EVENTS` de variables globales en EasyPanel
+
+- **Estado Activo/Inactivo** (`c6cd22c`)
+  - El badge "Activo" se muestra correctamente cuando hay configuración (provider, model, services)
+  - Ya no depende únicamente del campo `enabled` en BD
+  - Muestra información de IA utilizada (provider, modelo) cuando está configurado
 
 ## 📄 Licencia
 
