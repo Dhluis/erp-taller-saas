@@ -204,13 +204,15 @@ async function handleMessageEvent(body: any) {
       return;
     }
     
-    // 5.1. Validar que sea un mensaje directo válido (debe tener @c.us o @s.whatsapp.net)
+    // 5.1. Validar que sea un mensaje directo válido (debe tener @c.us, @s.whatsapp.net o @lid)
     const isValidDirectMessage = 
       chatId && 
       (chatId.includes('@c.us') || 
        chatId.includes('@s.whatsapp.net') ||
+       chatId.includes('@lid') ||
        /^\d+@c\.us$/.test(chatId) ||
-       /^\d+@s\.whatsapp\.net$/.test(chatId));
+       /^\d+@s\.whatsapp\.net$/.test(chatId) ||
+       /^\d+@lid$/.test(chatId));
     
     if (!isValidDirectMessage && chatId) {
       console.log('[WAHA Webhook] ⏭️ Ignorando mensaje no válido (no es directo):', chatId);
@@ -691,12 +693,12 @@ async function handleReactionEvent(body: any) {
 
 /**
  * Extrae número de teléfono del chatId
- * Formato: 5214491234567@c.us -> +52 1 449 123 4567
+ * Formato: 5214491234567@c.us, @s.whatsapp.net o @lid -> 5214491234567
  */
 function extractPhoneNumber(chatId: string): string | null {
   if (!chatId) return null;
   
-  // Remover @c.us o @s.whatsapp.net
+  // Remover @c.us, @s.whatsapp.net o @lid
   const phoneDigits = chatId.replace(/@[^@]+$/, '');
   
   if (!phoneDigits || phoneDigits.length < 10) {
