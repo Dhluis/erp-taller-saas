@@ -340,13 +340,15 @@ export function WhatsAppQRConnectorSimple({
     stopPolling() // Detener cualquier polling anterior
     retryCountRef.current = 0
     
-    console.log(`[WhatsApp Simple] ▶️ Iniciando polling (${POLLING_INTERVAL}ms)`)
+    // ✅ Usar intervalo más largo si ya tenemos QR guardado (reduce regeneraciones)
+    const interval = savedQRRef.current ? POLLING_INTERVAL_WITH_QR : POLLING_INTERVAL
+    console.log(`[WhatsApp Simple] ▶️ Iniciando polling (${interval}ms${savedQRRef.current ? ' - con QR guardado' : ''})`)
     
     // Primera verificación inmediata
     checkStatus()
     
-    // Polling
-    pollingIntervalRef.current = setInterval(checkStatus, POLLING_INTERVAL)
+    // Polling con intervalo dinámico basado en si tenemos QR
+    pollingIntervalRef.current = setInterval(checkStatus, interval)
   }, [checkStatus, stopPolling])
 
   // Efecto inicial - SOLO verificar si está conectado, NO mostrar QR automáticamente
