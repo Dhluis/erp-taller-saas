@@ -435,6 +435,21 @@ test: tests
 chore: tareas de mantenimiento
 ```
 
+## 📱 Documentación de WhatsApp
+
+### Integración de WhatsApp Business
+
+- **[WhatsApp Business Support (@lid)](WHATSAPP_BUSINESS_SUPPORT.md)** - Documentación completa sobre soporte para WhatsApp Business con formato @lid
+  - Commit principal: `19af1ca`
+  - Problemas identificados y soluciones
+  - Formatos de chatId soportados
+  - Guía de troubleshooting
+
+- **[WhatsApp Integration Status](WHATSAPP_INTEGRATION_STATUS.md)** - Estado general de la integración
+- **[WhatsApp Webhook Verification](WHATSAPP_WEBHOOK_VERIFICATION.md)** - Verificación de webhooks
+- **[WhatsApp Business API Setup](WHATSAPP_BUSINESS_API_SETUP.md)** - Configuración inicial
+- **[WAHA Setup](WAHA_SETUP.md)** - Guía de configuración de WAHA
+
 ## 📄 Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver el archivo [LICENSE](LICENSE) para más detalles.
