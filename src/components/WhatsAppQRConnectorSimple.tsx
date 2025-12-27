@@ -159,12 +159,14 @@ export function WhatsAppQRConnectorSimple({
         return
       }
 
-      // TIENE QR - después de mostrar el QR, verificar en WAHA directamente
+      // TIENE QR - solo mostrar si el usuario presionó "Vincular WhatsApp"
+      // ✅ IMPORTANTE: No mostrar QR automáticamente - solo si actionPerformed === 'connect'
       const qr = data.qr
       // ✅ Si no hay QR en la respuesta pero tenemos uno guardado, usar el guardado
       const effectiveQR = (qr && typeof qr === 'string' && qr.length > 20) ? qr : savedQRRef.current
       
-      if (effectiveQR && typeof effectiveQR === 'string' && effectiveQR.length > 20) {
+      // ✅ Solo mostrar QR si el usuario inició la acción de conectar
+      if (effectiveQR && typeof effectiveQR === 'string' && effectiveQR.length > 20 && actionPerformed === 'connect') {
         // ✅ Guardar QR si es nuevo o diferente
         if (!savedQRRef.current || savedQRRef.current !== effectiveQR) {
           savedQRRef.current = effectiveQR
@@ -333,7 +335,7 @@ export function WhatsAppQRConnectorSimple({
     pollingIntervalRef.current = setInterval(checkStatus, POLLING_INTERVAL)
   }, [checkStatus, stopPolling])
 
-  // Efecto inicial - verificar estado y iniciar polling al montar
+  // Efecto inicial - SOLO verificar si está conectado, NO mostrar QR automáticamente
   useEffect(() => {
     // Prevenir múltiples inicializaciones
     if (hasInitializedRef.current) {
@@ -344,21 +346,49 @@ export function WhatsAppQRConnectorSimple({
     hasInitializedRef.current = true
     console.log(`[WhatsApp Simple] 🚀 Componente montado [ID: ${componentIdRef.current}]`)
     
-    // Verificar estado inicial inmediatamente
-    checkStatus()
+    // ✅ SOLO verificar si está conectado (sin mostrar QR automáticamente)
+    const checkIfConnected = async () => {
+      try {
+        const response = await fetch('/api/whatsapp/session', {
+          credentials: 'include',
+          cache: 'no-store'
+        })
+
+        if (response.ok) {
+          const data: SessionData = await response.json()
+          
+          // ✅ SOLO actualizar estado si está conectado
+          if (data.connected || data.status === 'WORKING') {
+            console.log(`[WhatsApp Simple] ✅ Ya conectado al montar: ${data.phone || 'N/A'}`)
+            setState('connected')
+            setSessionData(data)
+            previousStateRef.current = 'connected'
+            
+            // Iniciar polling solo para mantener estado actualizado cuando está conectado
+            const initTimeout = setTimeout(() => {
+              console.log(`[WhatsApp Simple] ▶️ Iniciando polling de mantenimiento (conectado)`)
+              startPolling()
+            }, 1000)
+            
+            return () => clearTimeout(initTimeout)
+          } else {
+            // ✅ NO está conectado - mostrar botón "Vincular WhatsApp" (NO QR automático)
+            console.log(`[WhatsApp Simple] ℹ️ No conectado al montar, mostrando botón "Vincular WhatsApp"`)
+            setState('loading') // Estado inicial para mostrar el botón
+            // NO iniciar polling - esperar a que el usuario presione el botón
+          }
+        }
+      } catch (error: any) {
+        console.warn(`[WhatsApp Simple] ⚠️ Error verificando estado inicial:`, error.message)
+        setState('error')
+        setErrorMessage('Error al verificar estado de WhatsApp')
+      }
+    }
     
-    // Iniciar polling después de un pequeño delay para que checkStatus termine
-    // Esto asegura que si ya está conectado, se muestre el número
-    const initTimeout = setTimeout(() => {
-      // Iniciar polling siempre - si está conectado, mantendrá el estado actualizado
-      // Si no está conectado, detectará cuando se conecte
-      console.log(`[WhatsApp Simple] ▶️ Iniciando polling de mantenimiento`)
-      startPolling()
-    }, 1000)
+    checkIfConnected()
     
     return () => {
       console.log(`[WhatsApp Simple] 👋 Componente desmontado [ID: ${componentIdRef.current}]`)
-      clearTimeout(initTimeout)
       stopPolling()
       clearAutoRefreshTimers()
       // NO resetear lastConnectionEventRef ni previousStateRef al desmontar
@@ -374,6 +404,10 @@ export function WhatsAppQRConnectorSimple({
     console.log(`[WhatsApp Simple] 🔄 Generando QR...`)
 
     try {
+      // ✅ IMPORTANTE: Marcar que el usuario inició la acción de conectar
+      // Esto permite que el QR se muestre cuando se obtenga
+      setActionPerformed('connect')
+
       // ✅ AGREGAR: Delay inicial solo en primera carga para evitar race condition
       if (isFirstLoadRef.current) {
         console.log(`[WhatsApp Simple] ⏳ Primera carga, esperando 500ms para inicialización...`)
@@ -397,13 +431,25 @@ export function WhatsAppQRConnectorSimple({
       const data = await response.json()
       console.log(`[WhatsApp Simple] ✅ Respuesta:`, data)
 
-      // Iniciar polling para obtener el QR
+      // ✅ Si la respuesta ya incluye un QR, mostrarlo inmediatamente
+      if (data.qr && typeof data.qr === 'string' && data.qr.length > 20) {
+        console.log(`[WhatsApp Simple] 📱 QR recibido inmediatamente: ${data.qr.length} caracteres`)
+        savedQRRef.current = data.qr
+        setState('pending')
+        setSessionData(data)
+        previousStateRef.current = 'pending'
+        lastPhaseRef.current = 'has_qr'
+        retryCountRef.current = 0
+      }
+
+      // Iniciar polling para obtener el QR (si no vino en la respuesta) o detectar conexión
       startPolling()
 
     } catch (error: any) {
       console.error(`[WhatsApp Simple] ❌ Error generando QR:`, error)
       setErrorMessage(error.message)
       setState('error')
+      setActionPerformed(null) // Limpiar acción si hay error
     } finally {
       setIsLoading(false)
     }
@@ -818,8 +864,8 @@ export function WhatsAppQRConnectorSimple({
           </div>
         )}
 
-        {/* NO CONECTADO / ERROR */}
-        {(state === 'loading' || state === 'error') && (
+        {/* NO CONECTADO / ERROR / PENDIENTE SIN QR (esperando que presione botón) */}
+        {(state === 'loading' || state === 'error' || (state === 'pending' && !sessionData?.qr)) && (
           <div className="space-y-4">
             {errorMessage && (
               <div className={cn(
