@@ -8,7 +8,9 @@ import {
   createOrganizationSession,
   startSession,
   logoutSession,
-  updateSessionWebhook
+  updateSessionWebhook,
+  updateWebhookForOrganization,
+  verifyWebhookConfiguration
 } from '@/lib/waha-sessions';
 
 /**
@@ -378,6 +380,16 @@ export async function GET(request: NextRequest) {
             // Crear nueva
             console.log('[/api/whatsapp/session] 🔄 Creando nueva sesión...');
             await createOrganizationSession(organizationId);
+            
+            // ✅ Configurar webhook con Organization ID dinámico después de recrear sesión
+            console.log(`[/api/whatsapp/session] 🔧 Configurando webhook para org: ${organizationId}`);
+            try {
+              await updateWebhookForOrganization(sessionName, organizationId);
+              console.log(`[/api/whatsapp/session] ✅ Webhook actualizado con X-Organization-ID: ${organizationId}`);
+            } catch (webhookError: any) {
+              console.warn(`[/api/whatsapp/session] ⚠️ Error actualizando webhook (continuando):`, webhookError.message);
+            }
+            
             await new Promise(resolve => setTimeout(resolve, 3000));
             
             return NextResponse.json({
@@ -430,6 +442,15 @@ export async function GET(request: NextRequest) {
     try {
       console.log(`[/api/whatsapp/session] 📝 Creando nueva sesión...`);
       await createOrganizationSession(organizationId);
+      
+      // ✅ Configurar webhook con Organization ID dinámico después de crear sesión
+      console.log(`[/api/whatsapp/session] 🔧 Configurando webhook para org: ${organizationId}`);
+      try {
+        await updateWebhookForOrganization(sessionName, organizationId);
+        console.log(`[/api/whatsapp/session] ✅ Webhook actualizado con X-Organization-ID: ${organizationId}`);
+      } catch (webhookError: any) {
+        console.warn(`[/api/whatsapp/session] ⚠️ Error actualizando webhook (continuando):`, webhookError.message);
+      }
       
       // Esperar y verificar
       await new Promise(resolve => setTimeout(resolve, 3000));
@@ -639,6 +660,15 @@ export async function POST(request: NextRequest) {
         await createOrganizationSession(organizationId);
         console.log('[WhatsApp Session POST] ✅ Sesión creada');
         
+        // ✅ Configurar webhook con Organization ID dinámico después de crear sesión
+        console.log(`[WhatsApp Session POST] 🔧 Configurando webhook para org: ${organizationId}`);
+        try {
+          await updateWebhookForOrganization(sessionName, organizationId);
+          console.log(`[WhatsApp Session POST] ✅ Webhook actualizado con X-Organization-ID: ${organizationId}`);
+        } catch (webhookError: any) {
+          console.warn(`[WhatsApp Session POST] ⚠️ Error actualizando webhook (continuando):`, webhookError.message);
+        }
+        
         await new Promise(resolve => setTimeout(resolve, 3000));
         
         // 7. Obtener QR
@@ -688,10 +718,11 @@ export async function POST(request: NextRequest) {
     if (action === 'update_webhook') {
       console.log(`[/api/whatsapp/session] 🔄 Actualizando webhook con soporte multimedia...`);
       try {
-        await updateSessionWebhook(sessionName, organizationId);
+        await updateWebhookForOrganization(sessionName, organizationId);
+        console.log(`[/api/whatsapp/session] ✅ Webhook actualizado con X-Organization-ID: ${organizationId}`);
         return NextResponse.json({
           success: true,
-          message: 'Webhook actualizado con soporte multimedia'
+          message: 'Webhook actualizado con soporte multimedia y Organization ID dinámico'
         });
       } catch (error: any) {
         console.error(`[/api/whatsapp/session] ❌ Error actualizando webhook:`, {
@@ -706,6 +737,70 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // FORCE_UPDATE_WEBHOOK - Forzar actualización del webhook (útil para migración)
+    if (action === 'force_update_webhook') {
+      console.log(`[/api/whatsapp/session] 🔧 Forzando actualización de webhook para org: ${organizationId}`);
+      try {
+        await updateWebhookForOrganization(sessionName, organizationId);
+        console.log(`[/api/whatsapp/session] ✅ Webhook actualizado con X-Organization-ID: ${organizationId}`);
+        
+        // Verificar después de actualizar
+        const verification = await verifyWebhookConfiguration(sessionName, organizationId);
+        
+        return NextResponse.json({
+          success: true,
+          message: 'Webhook actualizado exitosamente',
+          webhook: verification.webhook,
+          isCorrect: verification.isCorrect,
+          expectedOrgId: verification.expectedOrgId,
+          actualOrgId: verification.actualOrgId
+        });
+      } catch (error: any) {
+        console.error(`[/api/whatsapp/session] ❌ Error forzando actualización de webhook:`, {
+          message: error.message,
+          stack: error.stack
+        });
+        return NextResponse.json({
+          success: false,
+          error: `Error actualizando webhook: ${error.message}`,
+          details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        }, { status: 500 });
+      }
+    }
+
+    // VERIFY_WEBHOOK - Verificar configuración del webhook
+    if (action === 'verify_webhook') {
+      console.log(`[/api/whatsapp/session] 🔍 Verificando configuración de webhook para org: ${organizationId}`);
+      try {
+        const verification = await verifyWebhookConfiguration(sessionName, organizationId);
+        console.log(`[/api/whatsapp/session] 📊 Verificación completada:`, {
+          isConfigured: verification.isConfigured,
+          isCorrect: verification.isCorrect,
+          expectedOrgId: verification.expectedOrgId,
+          actualOrgId: verification.actualOrgId
+        });
+        
+        return NextResponse.json({
+          success: true,
+          webhook: verification.webhook,
+          isConfigured: verification.isConfigured,
+          isCorrect: verification.isCorrect,
+          expectedOrgId: verification.expectedOrgId,
+          actualOrgId: verification.actualOrgId
+        });
+      } catch (error: any) {
+        console.error(`[/api/whatsapp/session] ❌ Error verificando webhook:`, {
+          message: error.message,
+          stack: error.stack
+        });
+        return NextResponse.json({
+          success: false,
+          error: `Error verificando webhook: ${error.message}`,
+          details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        }, { status: 500 });
+      }
+    }
+
     // RECONNECT
     if (action === 'reconnect') {
       console.log(`[/api/whatsapp/session] 🔄 Reconnect solicitado`);
@@ -714,6 +809,16 @@ export async function POST(request: NextRequest) {
         clearQRCache(sessionName, organizationId);
         
         await startSession(sessionName, organizationId);
+        
+        // ✅ Actualizar webhook con Organization ID dinámico después de reconectar
+        console.log(`[/api/whatsapp/session] 🔧 Configurando webhook para org: ${organizationId}`);
+        try {
+          await updateWebhookForOrganization(sessionName, organizationId);
+          console.log(`[/api/whatsapp/session] ✅ Webhook actualizado con X-Organization-ID: ${organizationId}`);
+        } catch (webhookError: any) {
+          console.warn(`[/api/whatsapp/session] ⚠️ Error actualizando webhook (continuando):`, webhookError.message);
+        }
+        
         await new Promise(resolve => setTimeout(resolve, 3000));
         
         return NextResponse.json({
@@ -729,6 +834,43 @@ export async function POST(request: NextRequest) {
           success: false,
           error: `Error al reconectar: ${reconnectError.message}`,
           details: process.env.NODE_ENV === 'development' ? reconnectError.stack : undefined
+        }, { status: 500 });
+      }
+    }
+
+    // RESTART
+    if (action === 'restart') {
+      console.log(`[/api/whatsapp/session] 🔄 Restart solicitado`);
+      try {
+        // ✅ Limpiar cache al reiniciar
+        clearQRCache(sessionName, organizationId);
+        
+        await startSession(sessionName, organizationId);
+        
+        // ✅ Actualizar webhook con Organization ID dinámico después de reiniciar
+        console.log(`[/api/whatsapp/session] 🔧 Configurando webhook para org: ${organizationId}`);
+        try {
+          await updateWebhookForOrganization(sessionName, organizationId);
+          console.log(`[/api/whatsapp/session] ✅ Webhook actualizado con X-Organization-ID: ${organizationId}`);
+        } catch (webhookError: any) {
+          console.warn(`[/api/whatsapp/session] ⚠️ Error actualizando webhook (continuando):`, webhookError.message);
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        return NextResponse.json({
+          success: true,
+          message: 'Sesión reiniciada exitosamente'
+        });
+      } catch (restartError: any) {
+        console.error(`[/api/whatsapp/session] ❌ Error reiniciando:`, {
+          message: restartError.message,
+          stack: restartError.stack
+        });
+        return NextResponse.json({
+          success: false,
+          error: `Error al reiniciar: ${restartError.message}`,
+          details: process.env.NODE_ENV === 'development' ? restartError.stack : undefined
         }, { status: 500 });
       }
     }
