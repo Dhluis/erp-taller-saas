@@ -34,8 +34,7 @@ const AUTH_ROUTES = [
   '/login',
   '/register',
   '/forgot-password',
-  '/reset-password',
-  '/auth/callback'
+  '/reset-password'
 ]
 
 // Rutas públicas
@@ -45,16 +44,9 @@ const PUBLIC_ROUTES = [
   '/test-fase2',
   '/test-fase3',
   '/test-fase4',
-  '/test-fase5'
+  '/test-fase5',
+  '/auth/callback' // ✅ Callback debe ser manejado solo por el route handler
 ]
-
-/**
- * Verificar si una ruta requiere middleware
- */
-function requiresMiddleware(pathname: string): boolean {
-  return MIDDLEWARE_ROUTES.some(route => pathname.startsWith(route)) ||
-         AUTH_ROUTES.some(route => pathname.startsWith(route))
-}
 
 /**
  * Verificar si una ruta es pública
@@ -70,14 +62,14 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl
   
   try {
-    // Solo procesar rutas que requieren middleware
-    if (!requiresMiddleware(pathname) && !isPublicRoute(pathname)) {
+    // ✅ NO interceptar /auth/callback - dejar que el route handler lo maneje completamente
+    if (pathname.startsWith('/auth/callback')) {
       return NextResponse.next()
     }
 
-    // Manejar callbacks de autenticación
-    if (pathname.startsWith('/auth/callback')) {
-      return handleAuthCallback(request)
+    // Solo procesar rutas que requieren middleware
+    if (!requiresMiddleware(pathname) && !isPublicRoute(pathname)) {
+      return NextResponse.next()
     }
 
     // Manejar logout

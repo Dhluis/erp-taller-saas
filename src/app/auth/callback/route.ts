@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     console.warn('⚠️ [Callback] SUPABASE_SERVICE_ROLE_KEY no disponible, usando anon key')
   }
 
-  // Función helper para verificar si el usuario tiene organización
+  // Función helper para verificar si el usuario tiene organización (con retry)
   async function checkUserOrganization(userId: string, userEmail?: string): Promise<string | null> {
     console.log('🔍 [Callback] Verificando organización para usuario:', userId)
     
@@ -76,45 +76,75 @@ export async function GET(request: NextRequest) {
     
     console.log(`📋 [Callback] Usando cliente ${clientType} para verificar perfil`)
     
-    try {
-      // Intentar buscar por auth_user_id primero
-      let { data: profile, error } = await client
-        .from('users')
-        .select('organization_id')
-        .eq('auth_user_id', userId)
-        .single()
+    // ✅ Retry hasta 3 veces con delay de 500ms entre intentos
+    // Esto permite que el perfil se sincronice si hay un delay en la creación
+    const maxRetries = 3
+    const retryDelay = 500
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Intentar buscar por auth_user_id primero
+        let { data: profile, error } = await client
+          .from('users')
+          .select('organization_id')
+          .eq('auth_user_id', userId)
+          .single()
 
-      if (error && error.code === 'PGRST116') {
-        // No encontrado por auth_user_id, intentar por email
-        if (userEmail) {
-          console.log('🔍 [Callback] Buscando por email:', userEmail)
-          const { data: profileByEmail, error: emailError } = await client
-            .from('users')
-            .select('organization_id')
-            .eq('email', userEmail)
-            .single()
-          
-          if (!emailError && profileByEmail) {
-            profile = profileByEmail
-            error = null
+        if (error && error.code === 'PGRST116') {
+          // No encontrado por auth_user_id, intentar por email
+          if (userEmail) {
+            console.log(`🔍 [Callback] Intento ${attempt}/${maxRetries} - Buscando por email:`, userEmail)
+            const { data: profileByEmail, error: emailError } = await client
+              .from('users')
+              .select('organization_id')
+              .eq('email', userEmail)
+              .single()
+            
+            if (!emailError && profileByEmail) {
+              profile = profileByEmail
+              error = null
+            }
           }
         }
-      }
 
-      if (error) {
-        console.warn('⚠️ [Callback] Error buscando perfil:', error.message, error.code)
+        // Si encontramos el perfil y tiene organización, retornar
+        if (!error && profile?.organization_id) {
+          console.log(`✅ [Callback] Perfil encontrado en intento ${attempt}:`, { 
+            organization_id: profile.organization_id 
+          })
+          return profile.organization_id
+        }
+
+        // Si no encontramos el perfil pero aún hay intentos, esperar y reintentar
+        if (error && attempt < maxRetries) {
+          console.log(`⏳ [Callback] Perfil no encontrado en intento ${attempt}, reintentando en ${retryDelay}ms...`)
+          await new Promise(resolve => setTimeout(resolve, retryDelay))
+          continue
+        }
+
+        // Si llegamos aquí, no se encontró el perfil después de todos los intentos
+        if (error) {
+          console.warn(`⚠️ [Callback] Perfil no encontrado después de ${maxRetries} intentos:`, error.message, error.code)
+          return null
+        }
+
+        // Si el perfil existe pero no tiene organización
+        if (profile && !profile.organization_id) {
+          console.warn('⚠️ [Callback] Perfil encontrado pero sin organización')
+          return null
+        }
+
+      } catch (err: any) {
+        console.error(`❌ [Callback] Excepción en intento ${attempt}:`, err.message)
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, retryDelay))
+          continue
+        }
         return null
       }
-
-      console.log('✅ [Callback] Perfil encontrado:', { 
-        organization_id: profile?.organization_id 
-      })
-      
-      return profile?.organization_id || null
-    } catch (err: any) {
-      console.error('❌ [Callback] Excepción verificando perfil:', err.message)
-      return null
     }
+
+    return null
   }
 
   // Función helper para crear respuesta de redirección con cookies
