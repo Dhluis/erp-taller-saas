@@ -1,6 +1,7 @@
 # 📱 WhatsApp Business Support (@lid) - Documentación Completa
 
-**Commit Principal:** `19af1ca2ebb1194743f35d9032412e6aacdefcd0`  
+**Commit Soporte Inicial:** `6f0ac66` (validación de @lid en webhook)  
+**Commit Fix Completo:** `19af1ca` (preservar chatId completo en respuestas)  
 **Fecha:** 27 de diciembre de 2025  
 **Estado:** ✅ Implementado y funcionando
 
@@ -167,17 +168,19 @@ function extractPhoneNumber(chatId: string): string | null {
 
 ## 🔍 Commits Relacionados
 
-### Commit Principal
+### Commit Fix Completo (Principal)
 - **`19af1ca`** - `fix(whatsapp): pasar chatId completo con @lid al enviar mensajes`
   - Actualizar `sendWhatsAppMessage` para mantener formato original del chatId
   - Pasar chatId completo (con @lid) desde webhook en lugar de solo número
   - Soporta WhatsApp Business (@lid) correctamente al responder mensajes
+  - **Este es el fix crítico que resolvió el problema de mensajes que no llegaban**
 
-### Commit Anterior (Validación)
+### Commit Soporte Inicial (Validación)
 - **`6f0ac66`** - `fix(whatsapp): agregar soporte para WhatsApp Business (@lid)`
   - Agregar @lid a validación de mensajes directos
   - Actualizar extractPhoneNumber para soportar @lid
   - Permite recibir mensajes de WhatsApp Business accounts
+  - **Este commit permitió recibir mensajes, pero las respuestas aún fallaban**
 
 ### Otros Commits Relevantes
 - `eb05249` - `fix(whatsapp): usar polling más lento cuando ya hay QR`

@@ -440,7 +440,8 @@ chore: tareas de mantenimiento
 ### Integración de WhatsApp Business
 
 - **[WhatsApp Business Support (@lid)](WHATSAPP_BUSINESS_SUPPORT.md)** - Documentación completa sobre soporte para WhatsApp Business con formato @lid
-  - Commit principal: `19af1ca`
+  - **Commit soporte inicial**: `6f0ac66` (validación de @lid en webhook)
+  - **Commit fix completo**: `19af1ca` (preservar chatId completo en respuestas)
   - Problemas identificados y soluciones
   - Formatos de chatId soportados
   - Guía de troubleshooting
