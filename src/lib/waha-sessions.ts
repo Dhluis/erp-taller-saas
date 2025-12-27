@@ -235,7 +235,11 @@ export async function createOrganizationSession(organizationId: string): Promise
         url: webhookUrl,
         events: ['message', 'session.status'],
         downloadMedia: true, // ✅ Descargar media automáticamente
-        downloadMediaOnMessage: true // ✅ Descargar media cuando llega mensaje
+        downloadMediaOnMessage: true, // ✅ Descargar media cuando llega mensaje
+        customHeaders: [{
+          name: 'X-Organization-ID',
+          value: organizationId
+        }]
       }]
     }
   };
@@ -334,13 +338,19 @@ export async function createOrganizationSession(organizationId: string): Promise
  */
 export async function updateSessionWebhook(sessionName: string, organizationId?: string): Promise<void> {
   const orgId = organizationId || await getOrganizationFromSession(sessionName);
-  const { url, key } = await getWahaConfig(orgId || undefined);
+  if (!orgId) {
+    throw new Error('No se pudo obtener organizationId para actualizar webhook');
+  }
+  
+  const { url, key } = await getWahaConfig(orgId);
   
   const webhookUrl = process.env.NEXT_PUBLIC_APP_URL 
     ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
     : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
 
   console.log(`[WAHA Sessions] 🔄 Actualizando webhook de sesión: ${sessionName}`);
+  console.log(`[WAHA Sessions] 📍 Organization ID: ${orgId}`);
+  console.log(`[WAHA Sessions] 🔗 Webhook URL: ${webhookUrl}`);
 
   const response = await fetch(`${url}/api/sessions/${sessionName}`, {
     method: 'PUT',
@@ -354,7 +364,11 @@ export async function updateSessionWebhook(sessionName: string, organizationId?:
           url: webhookUrl,
           events: ['message', 'session.status'],
           downloadMedia: true, // ✅ Descargar media automáticamente
-          downloadMediaOnMessage: true // ✅ Descargar media cuando llega mensaje
+          downloadMediaOnMessage: true, // ✅ Descargar media cuando llega mensaje
+          customHeaders: [{
+            name: 'X-Organization-ID',
+            value: orgId
+          }]
         }]
       }
     })
@@ -366,7 +380,7 @@ export async function updateSessionWebhook(sessionName: string, organizationId?:
     throw new Error(`Error actualizando webhook: ${response.status} - ${errorText}`);
   }
 
-  console.log(`[WAHA Sessions] ✅ Webhook actualizado exitosamente`);
+  console.log(`[WAHA Sessions] ✅ Webhook actualizado exitosamente con customHeaders`);
 }
 
 /**
