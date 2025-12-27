@@ -33,6 +33,7 @@ interface SessionData {
 }
 
 const POLLING_INTERVAL = 8000 // 8 segundos - más relajado
+const POLLING_INTERVAL_WITH_QR = 20000 // 20 segundos cuando ya tenemos QR (reduce regeneraciones)
 const MAX_RETRIES = 40 // 8s * 40 = 5 minutos máximo
 
 export function WhatsAppQRConnectorSimple({
