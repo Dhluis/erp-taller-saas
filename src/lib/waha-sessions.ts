@@ -219,10 +219,20 @@ export async function createOrganizationSession(organizationId: string): Promise
   console.log(`[WAHA Sessions] 🌐 WAHA URL: ${url}`);
   console.log(`[WAHA Sessions] 🔑 WAHA Key length: ${key.length}`);
 
-  // URL del webhook
-  const webhookUrl = process.env.NEXT_PUBLIC_APP_URL 
-    ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
-    : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
+  // URL del webhook (fail-fast si no está configurada)
+  const webhookUrl = (() => {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    
+    if (!appUrl) {
+      console.error('[WhatsApp Config] ❌ NEXT_PUBLIC_APP_URL no está configurada');
+      throw new Error(
+        'NEXT_PUBLIC_APP_URL es requerida para configurar webhooks de WhatsApp. ' +
+        'Configúrala en .env.local o en Vercel'
+      );
+    }
+    
+    return `${appUrl}/api/webhooks/whatsapp`;
+  })();
 
   console.log(`[WAHA Sessions] 🔗 Webhook URL: ${webhookUrl}`);
 
@@ -344,9 +354,20 @@ export async function updateSessionWebhook(sessionName: string, organizationId?:
   
   const { url, key } = await getWahaConfig(orgId);
   
-  const webhookUrl = process.env.NEXT_PUBLIC_APP_URL 
-    ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
-    : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
+  // URL del webhook (fail-fast si no está configurada)
+  const webhookUrl = (() => {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    
+    if (!appUrl) {
+      console.error('[WhatsApp Config] ❌ NEXT_PUBLIC_APP_URL no está configurada');
+      throw new Error(
+        'NEXT_PUBLIC_APP_URL es requerida para configurar webhooks de WhatsApp. ' +
+        'Configúrala en .env.local o en Vercel'
+      );
+    }
+    
+    return `${appUrl}/api/webhooks/whatsapp`;
+  })();
 
   console.log(`[WAHA Sessions] 🔄 Actualizando webhook de sesión: ${sessionName}`);
   console.log(`[WAHA Sessions] 📍 Organization ID: ${orgId}`);

@@ -5,8 +5,14 @@
 -- Descripción: Crea configuración global para servidor compartido WAHA
 -- Esta configuración será usada por todas las organizaciones con tipo 'shared'
 
--- Crear configuración global para servidor compartido
--- ⚠️ IMPORTANTE: Reemplaza 'tu-api-key-real' con tu API Key real de WAHA antes de ejecutar
+-- ⚠️ IMPORTANTE: 
+-- Esta migración NO debe ejecutarse directamente en producción.
+-- La configuración de WAHA debe hacerse manualmente mediante:
+-- 1. Variables de entorno (WAHA_API_URL, WAHA_API_KEY)
+-- 2. O guardándola en ai_agent_config.policies usando el endpoint /api/whatsapp/config
+--
+-- Si necesitas crear esta configuración manualmente, reemplaza los valores placeholder
+-- antes de ejecutar.
 
 DO $$
 DECLARE
@@ -25,11 +31,11 @@ BEGIN
     SET
       enabled = true,
       policies = jsonb_build_object(
-        'waha_api_url', 'https://waha-erp-eagles-sistem.0rfifc.easypanel.host/api',
-        'waha_api_key', 'tu-api-key-real', -- ⚠️ REEMPLAZA ESTO con tu API Key real
+        'waha_api_url', 'YOUR_WAHA_URL_HERE',
+        'waha_api_key', 'YOUR_WAHA_API_KEY_HERE', -- ⚠️ REEMPLAZA con tu API Key real
         'waha_config_type', 'shared',
-        'WAHA_API_URL', 'https://waha-erp-eagles-sistem.0rfifc.easypanel.host/api',
-        'WAHA_API_KEY', 'tu-api-key-real' -- ⚠️ REEMPLAZA ESTO con tu API Key real
+        'WAHA_API_URL', 'YOUR_WAHA_URL_HERE',
+        'WAHA_API_KEY', 'YOUR_WAHA_API_KEY_HERE' -- ⚠️ REEMPLAZA con tu API Key real
       ),
       waha_config_type = 'shared',
       updated_at = NOW()
@@ -49,11 +55,11 @@ BEGIN
       global_org_id,
       true,
       jsonb_build_object(
-        'waha_api_url', 'https://waha-erp-eagles-sistem.0rfifc.easypanel.host/api',
-        'waha_api_key', 'tu-api-key-real', -- ⚠️ REEMPLAZA ESTO con tu API Key real
+        'waha_api_url', 'YOUR_WAHA_URL_HERE',
+        'waha_api_key', 'YOUR_WAHA_API_KEY_HERE', -- ⚠️ REEMPLAZA con tu API Key real
         'waha_config_type', 'shared',
-        'WAHA_API_URL', 'https://waha-erp-eagles-sistem.0rfifc.easypanel.host/api',
-        'WAHA_API_KEY', 'tu-api-key-real' -- ⚠️ REEMPLAZA ESTO con tu API Key real
+        'WAHA_API_URL', 'YOUR_WAHA_URL_HERE',
+        'WAHA_API_KEY', 'YOUR_WAHA_API_KEY_HERE' -- ⚠️ REEMPLAZA con tu API Key real
       ),
       'shared',
       NOW(),

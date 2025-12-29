@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import { getSuppliers, getSupplierStats, createSupplier } from "@/lib/supabase/suppliers"
 import { Supplier } from "@/types/supabase-simple"
+import { useSession } from '@/lib/context/SessionContext'
 
 interface PageStats {
   totalSuppliers: number
@@ -33,6 +34,9 @@ interface PageStats {
 }
 
 export default function ProveedoresPage() {
+  // Obtener organizationId del contexto de sesión
+  const { organizationId } = useSession()
+  
   const [searchTerm, setSearchTerm] = useState("")
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [stats, setStats] = useState<PageStats>({
@@ -82,10 +86,17 @@ export default function ProveedoresPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validar que organizationId esté disponible
+    if (!organizationId) {
+      alert('Error: No se pudo obtener la organización. Por favor, recarga la página.')
+      return
+    }
+    
     setIsSubmitting(true)
     
     try {
-      const newSupplier = await createSupplier(formData)
+      const newSupplier = await createSupplier(organizationId, formData)
       if (newSupplier) {
         setSuppliers([newSupplier, ...suppliers])
         setIsDialogOpen(false)

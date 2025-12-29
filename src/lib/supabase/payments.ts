@@ -143,14 +143,19 @@ export async function getPaymentStats(): Promise<PaymentStats> {
 /**
  * Crear pago
  */
-export async function createPayment(payment: CreatePayment): Promise<Payment> {
+export async function createPayment(organizationId: string, payment: CreatePayment): Promise<Payment> {
+  // Validar que organizationId no sea vacío
+  if (!organizationId || organizationId.trim() === '') {
+    throw new Error('organizationId es requerido para crear un pago')
+  }
+
   return executeWithErrorHandling(
     async () => {
       const client = getSupabaseClient()
       
       // Preparar datos para insertar (solo campos que existen en la tabla)
       const insertData = {
-        organization_id: '00000000-0000-0000-0000-000000000000', // Default organization
+        organization_id: organizationId,
         supplier_id: payment.supplier_id,
         amount: payment.amount,
         payment_date: payment.payment_date,
