@@ -479,6 +479,9 @@ export function WhatsAppQRConnectorSimple({
     console.log(`[WhatsApp Simple] 🔓 Desconectando...`)
 
     try {
+      // ✅ Detener polling antes de desconectar para evitar race conditions
+      stopPolling()
+      
       const response = await fetch('/api/whatsapp/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -493,62 +496,34 @@ export function WhatsAppQRConnectorSimple({
       const data = await response.json()
       console.log(`[WhatsApp Simple] ✅ Desconectado:`, data)
 
-      // Marcar que realizamos una acción de desconexión
-      setActionPerformed('disconnect')
-      
-      // ✅ Limpiar ref de conexión iniciada por usuario
+      // ✅ Limpiar refs y estado inmediatamente
       userInitiatedConnectRef.current = false
-      
-      // ✅ Limpiar QR guardado al desconectar (necesitamos uno nuevo)
       savedQRRef.current = null
+      lastPhaseRef.current = null
+      retryCountRef.current = 0
+      previousStateRef.current = null
+      lastConnectionEventRef.current = null
+      
+      // ✅ Limpiar acción después de desconectar
+      setActionPerformed(null)
 
-      // Actualizar estado inmediatamente basado en la respuesta
-      if (data.qr && typeof data.qr === 'string' && data.qr.length > 20) {
-        console.log(`[WhatsApp Simple] 📱 QR disponible después de desconectar`)
-        setState('pending')
-        setSessionData(data)
-        lastPhaseRef.current = 'has_qr'
-        retryCountRef.current = 0
-      } else if (data.status === 'STARTING' || data.status === 'SCAN_QR') {
-        console.log(`[WhatsApp Simple] ⏳ Esperando QR después de desconectar`)
-        setState('pending')
-        setSessionData(data)
-        lastPhaseRef.current = 'waiting'
-        retryCountRef.current = 0
-      } else {
-        console.log(`[WhatsApp Simple] 🔄 Estado desconocido, iniciando polling`)
-        setState('loading')
-        setSessionData(null)
-      }
-      
-      // Iniciar polling para mantener actualizado
-      startPolling()
-      
-      // Mostrar banner después de 3 segundos si el estado no cambió correctamente
-      setTimeout(() => {
-        console.log(`[WhatsApp Simple] 🔄 Verificando si mostrar banner... Acción: ${actionPerformed}, Estado: ${state}`)
-        // Si hicimos logout pero seguimos en connected, o si no cambió a pending
-        if (actionPerformed === 'disconnect' && state === 'connected') {
-          console.log(`[WhatsApp Simple] ⚠️ Desconexión no reflejada, mostrando banner`)
-          setShowRefreshBanner(true)
-          setActionPerformed(null)
-        }
-      }, 3000)
-      
-      // Forzar verificación inmediata después de 1 segundo para actualizar UI
-      setTimeout(() => {
-        console.log(`[WhatsApp Simple] 🔄 Verificación forzada después de desconectar`)
-        checkStatus()
-      }, 1000)
+      // ✅ Después de desconectar, siempre volver a estado inicial (loading) para mostrar botón
+      // NO iniciar polling automáticamente - esperar a que el usuario presione "Vincular WhatsApp"
+      console.log(`[WhatsApp Simple] 🔄 Desconexión completada, volviendo a estado inicial`)
+      setState('loading')
+      setSessionData(null)
+      setErrorMessage(null)
+      onStatusChange?.('loading')
 
     } catch (error: any) {
       console.error(`[WhatsApp Simple] ❌ Error desconectando:`, error)
       setErrorMessage(error.message)
       setState('error')
+      onStatusChange?.('error')
     } finally {
       setIsLoading(false)
     }
-  }, [startPolling, checkStatus])
+  }, [stopPolling, onStatusChange])
 
   // Cambiar número
   const handleChangeNumber = useCallback(async () => {

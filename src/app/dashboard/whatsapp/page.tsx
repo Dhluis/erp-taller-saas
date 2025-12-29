@@ -104,18 +104,47 @@ export default function WhatsAppPage() {
                             hasWahaConfig || 
                             (configData.services && configData.services.length > 0) ||
                             configData.provider ||
-                            configData.model
+                            configData.model ||
+                            configData.whatsapp_session_name
         
         console.log('[WhatsApp Page] 🔍 Análisis de configuración:', {
           enabled_original: configData.enabled,
           isConfigured,
+          hasWahaConfig,
+          hasProvider: !!configData.provider,
+          hasModel: !!configData.model,
+          hasServices: !!(configData.services && configData.services.length > 0),
+          hasSessionName: !!configData.whatsapp_session_name,
           will_set_enabled: isConfigured && !configData.enabled
         })
         
+        // Si tiene configuración pero enabled es false, actualizar en BD y en estado local
         if (isConfigured && !configData.enabled) {
-          // Si tiene configuración pero enabled es false, establecerlo como true
-          configData.enabled = true
-          console.log('[WhatsApp Page] 🔧 Configuración detectada, estableciendo enabled=true')
+          console.log('[WhatsApp Page] 🔧 Configuración detectada, actualizando enabled=true en BD...')
+          try {
+            // Actualizar enabled en la BD para que persista
+            const updateResponse = await fetch('/api/whatsapp/config', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              cache: 'no-store',
+              body: JSON.stringify({
+                enabled: true
+              })
+            })
+            
+            if (updateResponse.ok) {
+              console.log('[WhatsApp Page] ✅ enabled actualizado en BD')
+              configData.enabled = true
+            } else {
+              console.warn('[WhatsApp Page] ⚠️ No se pudo actualizar enabled en BD, usando valor local')
+              configData.enabled = true // Actualizar localmente de todas formas
+            }
+          } catch (updateError) {
+            console.error('[WhatsApp Page] ❌ Error actualizando enabled:', updateError)
+            // Continuar de todas formas con el valor local
+            configData.enabled = true
+          }
         }
         
         // Solo actualizar si los datos realmente cambiaron
@@ -408,15 +437,35 @@ export default function WhatsAppPage() {
                 </div>
                 {(() => {
                   // Determinar si está activo basándose en si tiene configuración real
-                  // Si tiene provider, model, o services, considerarlo activo aunque enabled sea false
+                  // Verificar si tiene configuración WAHA en policies
+                  const policies = config?.policies || {}
+                  const hasWahaConfig = !!(policies.waha_api_url || policies.WAHA_API_URL)
+                  
+                  // Si tiene provider, model, services, WAHA config, o enabled, considerarlo activo
                   const hasConfig = !!(
                     config?.provider || 
                     config?.model || 
-                    (config?.services && config.services.length > 0) ||
+                    (config?.services && config.services && config.services.length > 0) ||
+                    hasWahaConfig ||
+                    config?.whatsapp_session_name ||
                     config?.enabled
                   )
+                  
+                  // Está activo si tiene enabled=true O si tiene cualquier configuración
                   const isEnabled = config?.enabled || hasConfig
-                  console.log('[WhatsApp Page] 🎨 Renderizando badge, config?.enabled:', config?.enabled, 'hasConfig:', hasConfig, 'isEnabled:', isEnabled, 'config existe:', !!config)
+                  
+                  console.log('[WhatsApp Page] 🎨 Renderizando badge:', {
+                    'config?.enabled': config?.enabled,
+                    'hasWahaConfig': hasWahaConfig,
+                    'hasProvider': !!config?.provider,
+                    'hasModel': !!config?.model,
+                    'hasServices': !!(config?.services && config.services.length > 0),
+                    'hasSessionName': !!config?.whatsapp_session_name,
+                    'hasConfig': hasConfig,
+                    'isEnabled': isEnabled,
+                    'config existe': !!config
+                  })
+                  
                   return (
                     <Badge variant={isEnabled ? "success" : "secondary"}>
                       {isEnabled ? (
@@ -441,33 +490,64 @@ export default function WhatsAppPage() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                   <p className="text-text-secondary mt-2">Cargando configuración...</p>
                 </div>
-              ) : config ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-sm text-text-secondary mb-1">Provider</p>
-                    <p className="font-medium">{config.provider || 'No configurado'}</p>
+              ) : (() => {
+                // Verificar si realmente tiene configuración (misma lógica que el badge)
+                const policies = config?.policies || {}
+                const hasWahaConfig = !!(policies.waha_api_url || policies.WAHA_API_URL)
+                const hasConfig = !!(
+                  config?.provider || 
+                  config?.model || 
+                  (config?.services && config.services.length > 0) ||
+                  hasWahaConfig ||
+                  config?.whatsapp_session_name
+                )
+                
+                // Si tiene configuración, mostrar detalles
+                if (hasConfig) {
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-text-secondary mb-1">Provider</p>
+                        <p className="font-medium">{config.provider || 'No configurado'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-text-secondary mb-1">Modelo</p>
+                        <p className="font-medium">{config.model || 'No configurado'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-text-secondary mb-1">Servicios configurados</p>
+                        <p className="font-medium">{(config.services || []).length} servicios</p>
+                      </div>
+                      {hasWahaConfig && (
+                        <div>
+                          <p className="text-sm text-text-secondary mb-1">WAHA Config</p>
+                          <p className="font-medium text-green-600">✓ Configurado</p>
+                        </div>
+                      )}
+                      {config?.whatsapp_session_name && (
+                        <div>
+                          <p className="text-sm text-text-secondary mb-1">Sesión WhatsApp</p>
+                          <p className="font-medium">{config.whatsapp_session_name}</p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+                
+                // Si no tiene configuración, mostrar mensaje de entrenar
+                return (
+                  <div className="text-center py-8">
+                    <ModernIcons.Bot size={48} className="mx-auto mb-4" />
+                    <p className="text-text-secondary mb-4">
+                      No hay configuración del asistente. Entrénalo para comenzar.
+                    </p>
+                    <Button onClick={handleTrainAgent}>
+                      <ModernIcons.Entrenamiento size={16} className="mr-2" />
+                      Entrenar Asistente
+                    </Button>
                   </div>
-                  <div>
-                    <p className="text-sm text-text-secondary mb-1">Modelo</p>
-                    <p className="font-medium">{config.model || 'No configurado'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-text-secondary mb-1">Servicios configurados</p>
-                    <p className="font-medium">{(config.services || []).length} servicios</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <ModernIcons.Bot size={48} className="mx-auto mb-4" />
-                  <p className="text-text-secondary mb-4">
-                    No hay configuración del asistente. Entrénalo para comenzar.
-                  </p>
-                  <Button onClick={handleTrainAgent}>
-                    <ModernIcons.Entrenamiento size={16} className="mr-2" />
-                    Entrenar Asistente
-                  </Button>
-                </div>
-              )}
+                )
+              })()}
             </CardContent>
           </Card>
 
