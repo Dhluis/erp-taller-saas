@@ -78,9 +78,20 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    const webhookUrl = process.env.NEXT_PUBLIC_APP_URL 
-      ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
-      : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
+    // URL del webhook (fail-fast si no está configurada)
+    const webhookUrl = (() => {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+      
+      if (!appUrl) {
+        console.error('[WhatsApp Config] ❌ NEXT_PUBLIC_APP_URL no está configurada');
+        throw new Error(
+          'NEXT_PUBLIC_APP_URL es requerida para configurar webhooks de WhatsApp. ' +
+          'Configúrala en .env.local o en Vercel'
+        );
+      }
+      
+      return `${appUrl}/api/webhooks/whatsapp`;
+    })();
     
     console.log('📍 Webhook URL completa:', webhookUrl);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

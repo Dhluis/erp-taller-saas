@@ -170,7 +170,7 @@ export async function createPaymentWithLogging(request: NextRequest) {
     }
 
     // Usar la función original pero con logging
-    const payment = await createPayment(body);
+    const payment = await createPayment(organizationId, body);
 
     // Actualizar el monto pagado de la nota de venta
     if (body.invoice_id) {

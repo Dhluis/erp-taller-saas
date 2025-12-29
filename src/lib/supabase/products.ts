@@ -103,11 +103,16 @@ export async function getProduct(id: string): Promise<Product | null> {
 /**
  * Crear producto
  */
-export async function createProduct(product: CreateProduct): Promise<Product> {
+export async function createProduct(organizationId: string, product: CreateProduct): Promise<Product> {
+  // Validar que organizationId no sea vacío
+  if (!organizationId || organizationId.trim() === '') {
+    throw new Error('organizationId es requerido para crear un producto')
+  }
+
   const client = getSupabaseClient()
   
   const productData = {
-    organization_id: '00000000-0000-0000-0000-000000000000',
+    organization_id: organizationId,
     name: product.name,
     description: product.description,
     sku: product.sku,
