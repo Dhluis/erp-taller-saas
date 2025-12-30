@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { applyRateLimit, createRateLimitHeaders } from '@/lib/rate-limit/middleware';
-import { redisHealthCheck } from '@/lib/rate-limit/redis';
 import type { RateLimitConfig } from '@/lib/rate-limit/types';
 
 // Configuración de prueba: 10 requests por minuto
@@ -11,8 +9,35 @@ const testConfig: RateLimitConfig = {
   prefix: 'test'
 };
 
+// Lazy import para evitar ejecución durante el build
+async function getRateLimitModules() {
+  // Verificar si Redis está disponible antes de importar módulos
+  const { isRedisAvailable } = await import('@/lib/rate-limit/redis');
+  
+  if (!isRedisAvailable()) {
+    return null;
+  }
+
+  const { applyRateLimit, createRateLimitHeaders } = await import('@/lib/rate-limit/middleware');
+  const { redisHealthCheck } = await import('@/lib/rate-limit/redis');
+  return { applyRateLimit, createRateLimitHeaders, redisHealthCheck };
+}
+
 export async function GET(request: NextRequest) {
   try {
+    // Importar módulos solo si Redis está disponible
+    const modules = await getRateLimitModules();
+    
+    if (!modules) {
+      return NextResponse.json({
+        error: 'Redis not configured',
+        message: 'UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set in Vercel Dashboard',
+        config: testConfig
+      }, { status: 503 });
+    }
+
+    const { applyRateLimit, createRateLimitHeaders, redisHealthCheck } = modules;
+
     // Health check de Redis
     const health = await redisHealthCheck();
     
@@ -67,6 +92,16 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('[Test Rate Limit] ❌ Error:', error);
+    
+    // Si el error es sobre Redis no configurado, retornar 503
+    if (error instanceof Error && error.message.includes('Redis not configured')) {
+      return NextResponse.json({
+        error: 'Redis not configured',
+        message: 'UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set in Vercel Dashboard',
+        details: error.message
+      }, { status: 503 });
+    }
+
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

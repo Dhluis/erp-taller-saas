@@ -1,5 +1,4 @@
 import { Ratelimit } from '@upstash/ratelimit';
-import { redis } from './redis';
 import type { 
   RateLimitConfig, 
   RateLimitResult, 
@@ -16,10 +15,10 @@ const rateLimiterCache = new Map<string, Ratelimit>();
 /**
  * Crear o recuperar un rate limiter desde el caché
  */
-function getRateLimiter(
+async function getRateLimiter(
   config: RateLimitConfig,
   options: RateLimiterOptions = {}
-): Ratelimit {
+): Promise<Ratelimit> {
   const cacheKey = `${config.prefix || 'ratelimit'}-${config.limit}-${config.window}`;
 
   // Retornar desde caché si existe
@@ -31,6 +30,14 @@ function getRateLimiter(
   const algorithm = options.algorithm || 'sliding-window';
   
   let limiter: Ratelimit;
+
+  // Obtener cliente Redis (lazy initialization)
+  // Importar dinámicamente para evitar ejecución durante el build
+  const { getRedis } = await import('./redis');
+  
+  // Si Redis no está configurado, esto lanzará un error
+  // El código que llama a checkRateLimit debe manejar este error
+  const redis = getRedis();
 
   if (algorithm === 'sliding-window') {
     limiter = new Ratelimit({
@@ -75,7 +82,7 @@ export async function checkRateLimit(
   options: RateLimiterOptions = {}
 ): Promise<RateLimitResult> {
   try {
-    const limiter = getRateLimiter(config, options);
+    const limiter = await getRateLimiter(config, options);
 
     // Aplicar rate limit
     const result = await limiter.limit(identifier);
@@ -155,7 +162,7 @@ export async function resetRateLimit(
   config: RateLimitConfig
 ): Promise<boolean> {
   try {
-    const limiter = getRateLimiter(config);
+    const limiter = await getRateLimiter(config);
     await limiter.resetUsedTokens(identifier);
     
     console.log(`[Rate Limit] 🔄 Reset: ${identifier.substring(0, 20)}...`);
@@ -178,7 +185,7 @@ export async function getRateLimitStatus(
   config: RateLimitConfig
 ): Promise<RateLimitResult | null> {
   try {
-    const limiter = getRateLimiter(config);
+    const limiter = await getRateLimiter(config);
     const result = await limiter.getRemaining(identifier);
 
     return {

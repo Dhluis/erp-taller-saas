@@ -29,11 +29,15 @@ class RedisClient {
       if (!url) missingVars.push('UPSTASH_REDIS_REST_URL');
       if (!token) missingVars.push('UPSTASH_REDIS_REST_TOKEN');
 
-      throw new Error(
-        `[Redis] ❌ Missing environment variables: ${missingVars.join(', ')}\n` +
+      // Durante el build, Next.js puede ejecutar este código
+      // Necesitamos permitir que el build continúe sin Redis configurado
+      // El error se lanzará en runtime cuando realmente se necesite Redis
+      const errorMessage = `[Redis] ❌ Missing environment variables: ${missingVars.join(', ')}\n` +
         `Please configure Upstash Redis credentials in Vercel Dashboard or .env.local\n` +
-        `See: RATE_LIMITING_IMPLEMENTATION.md for setup instructions`
-      );
+        `See: RATE_LIMITING_IMPLEMENTATION.md for setup instructions`;
+
+      // Siempre lanzar error, pero el código que lo llama debe manejarlo
+      throw new Error(errorMessage);
     }
 
     console.log('[Redis] ✅ Connecting to Upstash Redis...');
@@ -84,9 +88,21 @@ class RedisClient {
 }
 
 /**
- * Exportar cliente singleton
+ * Obtener instancia del cliente Redis (lazy initialization)
+ * No se inicializa hasta que se use por primera vez
  */
-export const redis = RedisClient.getInstance();
+export function getRedis(): Redis {
+  return RedisClient.getInstance();
+}
+
+/**
+ * Verificar si Redis está disponible (sin inicializar)
+ */
+export function isRedisAvailable(): boolean {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  return !!(url && token);
+}
 
 /**
  * Funciones helper para operaciones comunes
