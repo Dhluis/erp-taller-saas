@@ -101,7 +101,20 @@ export function getRedis(): Redis {
 export function isRedisAvailable(): boolean {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  return !!(url && token);
+  
+  const isAvailable = !!(url && token);
+  
+  // Log solo si no está disponible (para no saturar logs)
+  if (!isAvailable) {
+    console.log('[Redis] ⚠️ Redis not available:', {
+      hasUrl: !!url,
+      hasToken: !!token,
+      urlLength: url?.length || 0,
+      tokenLength: token?.length || 0
+    });
+  }
+  
+  return isAvailable;
 }
 
 /**

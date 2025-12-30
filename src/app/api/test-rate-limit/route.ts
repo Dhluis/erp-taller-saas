@@ -25,6 +25,30 @@ async function getRateLimitModules() {
 
 export async function GET(request: NextRequest) {
   try {
+    // DEBUG: Verificar variables de entorno directamente
+    const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+    const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+    
+    console.log('\n' + '='.repeat(60));
+    console.log('[Test Rate Limit] 🔍 DIAGNÓSTICO DE VARIABLES DE ENTORNO');
+    console.log('='.repeat(60));
+    console.log('[Test Rate Limit] NODE_ENV:', process.env.NODE_ENV);
+    console.log('[Test Rate Limit] VERCEL_ENV:', process.env.VERCEL_ENV);
+    console.log('[Test Rate Limit] UPSTASH_REDIS_REST_URL presente:', !!redisUrl);
+    console.log('[Test Rate Limit] UPSTASH_REDIS_REST_URL length:', redisUrl?.length || 0);
+    console.log('[Test Rate Limit] UPSTASH_REDIS_REST_URL preview:', redisUrl ? `${redisUrl.substring(0, 30)}...` : 'NO ENCONTRADA');
+    console.log('[Test Rate Limit] UPSTASH_REDIS_REST_TOKEN presente:', !!redisToken);
+    console.log('[Test Rate Limit] UPSTASH_REDIS_REST_TOKEN length:', redisToken?.length || 0);
+    console.log('[Test Rate Limit] UPSTASH_REDIS_REST_TOKEN preview:', redisToken ? `${redisToken.substring(0, 10)}...` : 'NO ENCONTRADA');
+    
+    // Buscar todas las variables que contengan "UPSTASH" o "REDIS"
+    const allEnvKeys = Object.keys(process.env).filter(key => 
+      key.toUpperCase().includes('UPSTASH') || 
+      key.toUpperCase().includes('REDIS')
+    );
+    console.log('[Test Rate Limit] Variables relacionadas encontradas:', allEnvKeys);
+    console.log('='.repeat(60) + '\n');
+
     // Importar módulos solo si Redis está disponible
     const modules = await getRateLimitModules();
     
@@ -32,7 +56,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         error: 'Redis not configured',
         message: 'UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set in Vercel Dashboard',
-        config: testConfig
+        config: testConfig,
+        debug: {
+          hasUrl: !!redisUrl,
+          hasToken: !!redisToken,
+          urlLength: redisUrl?.length || 0,
+          tokenLength: redisToken?.length || 0,
+          relatedEnvKeys: allEnvKeys,
+          nodeEnv: process.env.NODE_ENV,
+          vercelEnv: process.env.VERCEL_ENV
+        }
       }, { status: 503 });
     }
 
