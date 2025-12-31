@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest } from '@/lib/supabase/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
+import { extractPaginationFromURL, calculateOffset, generatePaginationMeta } from '@/lib/utils/pagination';
+import type { PaginatedResponse } from '@/types/pagination';
 
 /**
- * GET /api/whatsapp/conversations - Obtener conversaciones de WhatsApp
+ * GET /api/whatsapp/conversations - Obtener conversaciones de WhatsApp con paginación
  */
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +19,7 @@ export async function GET(request: NextRequest) {
         {
           success: false,
           error: 'No autorizado',
-          data: []
+          data: { items: [], pagination: generatePaginationMeta(1, 20, 0) }
         },
         { status: 401 }
       );
@@ -37,7 +39,7 @@ export async function GET(request: NextRequest) {
         {
           success: false,
           error: 'No se pudo obtener la organización del usuario',
-          data: []
+          data: { items: [], pagination: generatePaginationMeta(1, 20, 0) }
         },
         { status: 403 }
       );
@@ -45,15 +47,27 @@ export async function GET(request: NextRequest) {
 
     const organizationId = userProfile.organization_id;
 
-    // Obtener parámetros de query
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
-    const limit = parseInt(searchParams.get('limit') || '100', 10);
+    // ✅ Extraer parámetros de paginación de la URL
+    const url = new URL(request.url);
+    const { page, pageSize } = extractPaginationFromURL(url);
+    
+    // Obtener parámetros adicionales
+    const status = url.searchParams.get('status');
 
-    // Construir query
+    console.log('📄 [GET /api/whatsapp/conversations] Parámetros:', {
+      page,
+      pageSize,
+      status,
+      organizationId
+    });
+
+    // Calcular offset para paginación
+    const offset = calculateOffset(page, pageSize);
+
+    // Construir query con paginación
     let query = supabaseAdmin
       .from('whatsapp_conversations')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('organization_id', organizationId);
 
     // Aplicar filtro de status si se proporciona
@@ -61,11 +75,12 @@ export async function GET(request: NextRequest) {
       query = query.eq('status', status);
     }
 
+    // Aplicar ordenamiento y paginación
     query = query
       .order('last_message_at', { ascending: false, nullsFirst: false })
-      .limit(limit);
+      .range(offset, offset + pageSize - 1);
 
-    const { data: conversations, error: conversationsError } = await query;
+    const { data: conversations, count, error: conversationsError } = await query;
 
     if (conversationsError) {
       console.error('❌ [GET /api/whatsapp/conversations] Error en query:', conversationsError);
@@ -73,24 +88,38 @@ export async function GET(request: NextRequest) {
         {
           success: false,
           error: conversationsError.message || 'Error al obtener conversaciones',
-          data: []
+          data: { items: [], pagination: generatePaginationMeta(page, pageSize, 0) }
         },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: conversations || [],
-      count: conversations?.length || 0
+    // ✅ Generar metadata de paginación
+    const pagination = generatePaginationMeta(page, pageSize, count || 0);
+
+    console.log('✅ [GET /api/whatsapp/conversations] Respuesta preparada:', {
+      itemsCount: conversations?.length || 0,
+      total: count || 0,
+      pagination
     });
+
+    // ✅ Retornar respuesta paginada
+    const response: PaginatedResponse<any> = {
+      success: true,
+      data: {
+        items: conversations || [],
+        pagination
+      }
+    };
+
+    return NextResponse.json(response);
   } catch (error: any) {
     console.error('❌ [GET /api/whatsapp/conversations] Error:', error);
     return NextResponse.json(
       {
         success: false,
         error: error.message || 'Error al obtener conversaciones',
-        data: []
+        data: { items: [], pagination: generatePaginationMeta(1, 20, 0) }
       },
       { status: 500 }
     );

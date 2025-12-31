@@ -14,6 +14,8 @@ import { Label } from '@/components/ui/label'
 import { useAuth } from '@/hooks/useAuth'
 import { useSession } from '@/lib/context/SessionContext'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useWhatsAppConversations } from '@/hooks/useWhatsAppConversations'
+import { Pagination } from '@/components/ui/pagination'
 import {
   MessageSquare,
   Search,
@@ -138,10 +140,18 @@ export default function ConversacionesPage() {
   const [newLabel, setNewLabel] = useState('')
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState('')
-  const [loadingConversations, setLoadingConversations] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(20)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [isBotTyping, setIsBotTyping] = useState(false)
+  
+  // Hook de conversaciones con paginación
+  const { conversations: hookConversations, pagination, isLoading: loadingConversations, error, mutate } = useWhatsAppConversations(
+    page,
+    pageSize,
+    activeFilter === 'all' ? 'all' : activeFilter === 'resolved' ? 'resolved' : activeFilter === 'unread' ? 'unread' : activeFilter === 'favorite' ? 'favorite' : 'all'
+  )
   
   // Emojis comunes
   const commonEmojis = [
@@ -180,9 +190,46 @@ export default function ConversacionesPage() {
     setEmojiPickerOpen(false)
   }
 
-  // Estado de conversaciones y mensajes reales
-  const [conversations, setConversations] = useState<Conversation[]>([])
+  // Estado de mensajes (conversaciones vienen del hook)
   const [messages, setMessages] = useState<Message[]>([])
+  
+  // Mapear conversaciones del hook al formato del componente
+  const conversations: Conversation[] = hookConversations.map((conv) => {
+    // Obtener nombre del contacto
+    let contactName = 'Cliente WhatsApp'
+    if (conv.customer_name && conv.customer_name !== 'Cliente WhatsApp') {
+      contactName = conv.customer_name
+    } else if (conv.customer_phone) {
+      const phone = conv.customer_phone.replace(/\D/g, '')
+      if (phone.length >= 10) {
+        if (phone.length === 12) {
+          contactName = `+${phone.substring(0, 2)} ${phone.substring(2, 3)} ${phone.substring(3, 6)} ${phone.substring(6, 9)} ${phone.substring(9)}`
+        } else if (phone.length === 13) {
+          contactName = `+${phone.substring(0, 3)} ${phone.substring(3, 6)} ${phone.substring(6, 9)} ${phone.substring(9)}`
+        } else {
+          contactName = `+${phone}`
+        }
+      } else {
+        contactName = `+${phone}`
+      }
+    }
+    
+    return {
+      id: conv.id,
+      contactName,
+      contactPhone: conv.customer_phone || 'Sin teléfono',
+      contactEmail: undefined, // Se puede obtener de customer_id si es necesario
+      lastMessage: conv.last_message || 'Sin mensajes',
+      lastMessageTime: conv.last_message_at ? formatRelativeTime(conv.last_message_at) : 'Nunca',
+      unread: false, // Se puede calcular basado en mensajes no leídos
+      status: (conv.status || 'active') as 'active' | 'resolved' | 'archived',
+      labels: Array.isArray((conv.metadata as any)?.labels) ? (conv.metadata as any).labels : [],
+      avatar: undefined,
+      profilePictureUrl: conv.profile_picture_url || undefined,
+      isTyping: false,
+      isFavorite: false
+    }
+  })
 
   const [contactDetails, setContactDetails] = useState<ContactDetails | null>(null)
 
@@ -205,9 +252,6 @@ export default function ConversacionesPage() {
     if (diffDays < 7) return `${diffDays}d`
     return messageDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
   }
-
-  // Cargar conversaciones desde la BD
-  const loadConversations = useCallback(async () => {
     // 🔍 DIAGNÓSTICO: Logs detallados
     console.log('🔍 [loadConversations] Iniciando carga de conversaciones...')
     console.log('🔍 [loadConversations] organizationId (de useSession):', organizationId)
@@ -378,32 +422,16 @@ export default function ConversacionesPage() {
       }
       })
 
-      console.log('✅ [loadConversations] Conversaciones formateadas:', {
-        count: formattedConversations.length,
-        ids: formattedConversations.map(c => c.id)
-      })
-
-      setConversations(formattedConversations)
-
-      // Seleccionar primera conversación si no hay seleccionada
-      if (formattedConversations.length > 0 && !selectedConversation) {
-        const firstConv = formattedConversations[0]
-        if (firstConv && firstConv.id) {
-          console.log('🎯 [loadConversations] Seleccionando primera conversación:', firstConv.id)
-          setSelectedConversation(firstConv.id)
-        }
-      } else if (formattedConversations.length === 0) {
-        console.warn('⚠️ [loadConversations] No se encontraron conversaciones')
+  // Seleccionar primera conversación si no hay seleccionada y hay conversaciones
+  useEffect(() => {
+    if (conversations.length > 0 && !selectedConversation) {
+      const firstConv = conversations[0]
+      if (firstConv && firstConv.id) {
+        console.log('🎯 [useEffect] Seleccionando primera conversación:', firstConv.id)
+        setSelectedConversation(firstConv.id)
       }
-    } catch (error) {
-      console.error('❌ [loadConversations] Error cargando conversaciones:', error)
-      console.error('❌ [loadConversations] Error stack:', error instanceof Error ? error.stack : 'No stack available')
-      toast.error('Error al cargar conversaciones')
-    } finally {
-      setLoadingConversations(false)
-      console.log('🏁 [loadConversations] Carga finalizada')
     }
-  }, [organizationId, activeFilter, supabase, selectedConversation, sessionLoading, sessionReady])
+  }, [conversations, selectedConversation])
 
   // Cargar mensajes de una conversación
   const loadMessages = useCallback(async (conversationId: string) => {
@@ -555,20 +583,10 @@ export default function ConversacionesPage() {
     }
   }, [organizationId, supabase, conversations])
 
-  // Cargar conversaciones al montar y cuando cambia el filtro
+  // Resetear a página 1 cuando cambia el filtro
   useEffect(() => {
-    // Esperar a que la sesión esté lista antes de cargar
-    if (!sessionReady || sessionLoading) {
-      console.log('⏳ [useEffect] Esperando que la sesión esté lista...', {
-        sessionReady,
-        sessionLoading
-      })
-      return
-    }
-    
-    console.log('✅ [useEffect] Sesión lista, cargando conversaciones...')
-    loadConversations()
-  }, [loadConversations, sessionReady, sessionLoading])
+    setPage(1)
+  }, [activeFilter])
 
   // Cargar mensajes cuando se selecciona una conversación
   useEffect(() => {
@@ -646,7 +664,7 @@ export default function ConversacionesPage() {
             if (selectedConversation) {
             loadMessages(selectedConversation)
             // Recargar conversaciones para actualizar last_message
-            loadConversations()
+            mutate()
             }
           }
 
@@ -668,7 +686,7 @@ export default function ConversacionesPage() {
           console.log('💬 Cambio en conversación:', payload)
           // Recargar conversaciones cuando hay cambios
           if (payload && (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE')) {
-          loadConversations()
+          mutate()
           }
         }
       )
@@ -689,7 +707,7 @@ export default function ConversacionesPage() {
   useEffect(() => {
     if (selectedConversation) {
       // Marcar conversación como leída (actualizar en BD si es necesario)
-      updateConversation(selectedConversation, { unread: false })
+      // Las conversaciones se refrescan automáticamente desde el hook
     }
   }, [selectedConversation])
 
@@ -711,11 +729,8 @@ export default function ConversacionesPage() {
   }
 
   // Funciones de utilidad
-  const updateConversation = (id: string, updates: Partial<Conversation>) => {
-    setConversations(prev => prev.map(conv => 
-      conv.id === id ? { ...conv, ...updates } : conv
-    ))
-  }
+  // Nota: updateConversation eliminado - las conversaciones vienen del hook
+  // Usar mutate() después de actualizar en la BD para refrescar
 
   const updateContactDetails = (updates: Partial<ContactDetails>) => {
     setContactDetails(prev => {
@@ -909,7 +924,7 @@ export default function ConversacionesPage() {
       await loadMessages(selectedConversation)
       
       // Recargar conversaciones para actualizar last_message
-      await loadConversations()
+      await mutate()
 
       toast.success('Mensaje enviado')
     } catch (error) {
@@ -1019,9 +1034,8 @@ export default function ConversacionesPage() {
         throw error
       }
 
-      updateConversation(selectedConversation, { status: newStatus })
       updateContactDetails({ status: newStatus })
-      await loadConversations() // Recargar para actualizar filtros
+      await mutate() // Recargar para actualizar filtros
       toast.success(newStatus === 'resolved' ? 'Chat resuelto' : 'Chat reactivado')
     } catch (error: any) {
       console.error('[handleResolveChat] Error actualizando estado:', error)
@@ -1054,7 +1068,7 @@ export default function ConversacionesPage() {
     setSelectedAgent('')
       
       // Recargar conversaciones para reflejar el cambio
-      await loadConversations()
+      await mutate()
     } catch (error) {
       console.error('Error reasignando chat:', error)
       toast.error('Error al reasignar chat')
@@ -1065,7 +1079,8 @@ export default function ConversacionesPage() {
     switch (action) {
       case 'Mark as unread':
         if (selectedConversation) {
-          updateConversation(selectedConversation, { unread: true })
+          // Actualizar en BD y refrescar
+          mutate()
           toast.success('Chat marcado como no leído')
         }
         break
@@ -1097,13 +1112,15 @@ export default function ConversacionesPage() {
         break
       case 'Block contact':
         if (selectedConversation) {
-          updateConversation(selectedConversation, { status: 'archived' })
+          // Actualizar en BD y refrescar
+          mutate()
           toast.success('Contacto bloqueado')
         }
         break
       case 'Delete chat':
         if (selectedConversation && confirm('¿Estás seguro de eliminar este chat?')) {
-          setConversations(prev => prev.filter(c => c.id !== selectedConversation))
+          // Actualizar en BD y refrescar
+          mutate()
           setSelectedConversation(null)
           toast.success('Chat eliminado')
         }
@@ -1140,8 +1157,8 @@ export default function ConversacionesPage() {
 
       if (error) throw error
 
-      updateConversation(selectedConversation, { labels: newLabels })
       updateContactDetails({ labels: newLabels })
+      await mutate() // Refrescar conversaciones
       
       setNewLabel('')
       setIsAddingLabel(false)
@@ -1170,8 +1187,8 @@ export default function ConversacionesPage() {
 
       if (error) throw error
 
-      updateConversation(selectedConversation, { labels: newLabels })
       updateContactDetails({ labels: newLabels })
+      await mutate() // Refrescar conversaciones
       
       toast.success('Etiqueta eliminada')
     } catch (error) {
@@ -1565,7 +1582,8 @@ export default function ConversacionesPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              updateConversation(conversation.id, { isFavorite: !conversation.isFavorite })
+                              // Actualizar en BD y refrescar
+                              mutate()
                               toast.success(conversation.isFavorite ? 'Eliminado de favoritos' : 'Agregado a favoritos')
                             }}
                             className="ml-1"
@@ -1585,6 +1603,23 @@ export default function ConversacionesPage() {
               )}
             </div>
           </ScrollArea>
+          
+          {/* Pagination Component */}
+          {!loadingConversations && conversations.length > 0 && pagination && (
+            <Pagination
+              currentPage={pagination.page || 1}
+              totalPages={pagination.totalPages || 1}
+              pageSize={pagination.pageSize || pageSize}
+              total={pagination.total || 0}
+              onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                // El pageSize está fijo en 20, pero podemos actualizar si es necesario
+                console.log('Page size change requested:', size)
+              }}
+              loading={loadingConversations}
+              showPageSizeSelector={false}
+            />
+          )}
         </div>
 
         {/* Center Panel - Chat */}
