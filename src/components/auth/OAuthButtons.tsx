@@ -20,14 +20,30 @@ export function OAuthButtons({ redirectTo = '/dashboard' }: OAuthButtonsProps) {
     try {
       setLoading(true)
       
+      // ✅ Limpiar cualquier sesión previa de Supabase antes de iniciar OAuth
+      // Esto ayuda a forzar el selector de cuenta
+      await supabase.auth.signOut()
+      
+      // Pequeño delay para asegurar que la sesión se limpie
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // ✅ Agregar timestamp único para evitar cache y forzar nueva sesión
+      const timestamp = Date.now()
+      const redirectUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}&_t=${timestamp}`
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+          redirectTo: redirectUrl,
           queryParams: {
+            // ✅ Parámetros para forzar selector de cuenta
+            prompt: 'select_account', // Fuerza mostrar selector de cuenta siempre
             access_type: 'offline',
-            prompt: 'select_account', // ✅ Fuerza mostrar selector de cuenta siempre
+            // Agregar parámetros adicionales para evitar cache
+            include_granted_scopes: 'false',
           },
+          // Forzar que se abra en la misma ventana (no popup)
+          skipBrowserRedirect: false,
         }
       })
 
@@ -35,9 +51,16 @@ export function OAuthButtons({ redirectTo = '/dashboard' }: OAuthButtonsProps) {
         console.error('❌ Error con login de Google:', error)
         toast.error('Error al iniciar sesión con Google. Por favor, intenta de nuevo.')
         setLoading(false)
-      } else {
-        // El usuario será redirigido a Google, no necesitamos hacer nada más
+      } else if (data?.url) {
+        // ✅ DEBUG: Verificar que la URL contiene los parámetros correctos
+        console.log('🔍 [OAuth] URL generada:', data.url)
+        console.log('🔍 [OAuth] ¿Contiene prompt=select_account?', data.url.includes('prompt=select_account'))
+        
+        // El usuario será redirigido a Google
+        // Si Google tiene una sesión activa, puede que no muestre el selector
+        // Esto es un comportamiento de Google, no de nuestra aplicación
         console.log('✅ Redirigiendo a Google OAuth...')
+        console.log('ℹ️ Nota: Si no ves el selector de cuenta, Google está usando una sesión guardada. Cierra sesión de Google o usa modo incógnito.')
       }
     } catch (error) {
       console.error('❌ Error iniciando login de Google:', error)
