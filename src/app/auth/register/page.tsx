@@ -209,19 +209,67 @@ export default function RegisterPage() {
           errorStatus
         })
         
-        // Si falla el registro, eliminar la organización creada
-        try {
-          await supabase.from('organizations').delete().eq('id', organization.id)
-        } catch (deleteError) {
-          console.warn('Error al eliminar organización:', deleteError)
-        }
-        
         if (isUserExistsError) {
-          // ✅ Mostrar mensaje amigable y ofrecer ir al login
-          setError(`El email ${email} ya está registrado. ¿Ya tienes una cuenta?`)
-          setUserExistsError(true) // Activar flag para mostrar botón de login
+          // ✅ CASO ESPECIAL: Usuario existe (probablemente de Google OAuth)
+          // Llamar a API para vincular cuenta existente con organización
+          console.log('🔄 [Register] Usuario ya existe, llamando a API para vincular cuenta...')
+          
+          try {
+            const linkResponse = await fetch('/api/auth/link-account', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email,
+                password,
+                organizationId: organization.id,
+                fullName
+              })
+            })
+            
+            const linkResult = await linkResponse.json()
+            
+            if (linkResponse.ok && linkResult.success) {
+              // ✅ Éxito: Usuario vinculado con organización
+              console.log('✅ [Register] Usuario vinculado exitosamente vía API')
+              setRegisteredEmail(email)
+              setShowConfirmation(true)
+              setStep(3)
+              setLoading(false)
+              return
+            } else {
+              // No se pudo vincular, mostrar mensaje
+              console.warn('⚠️ [Register] No se pudo vincular cuenta:', linkResult.error)
+              setError(linkResult.error || `El email ${email} ya está registrado. Por favor, inicia sesión en su lugar.`)
+              setUserExistsError(true)
+              // Eliminar organización creada
+              try {
+                await supabase.from('organizations').delete().eq('id', organization.id)
+              } catch (deleteError) {
+                console.warn('Error al eliminar organización:', deleteError)
+              }
+              setLoading(false)
+              return
+            }
+          } catch (linkError: any) {
+            console.error('❌ [Register] Error al vincular cuenta:', linkError)
+            // Si falla el vínculo, eliminar organización y mostrar error
+            try {
+              await supabase.from('organizations').delete().eq('id', organization.id)
+            } catch (deleteError) {
+              console.warn('Error al eliminar organización:', deleteError)
+            }
+            setError(`El email ${email} ya está registrado. Por favor, inicia sesión en su lugar.`)
+            setUserExistsError(true)
+            setLoading(false)
+            return
+          }
         } else {
-          // ✅ Si NO es error de usuario existente, mostrar el error real
+          // ✅ Si NO es error de usuario existente, eliminar organización y mostrar error
+          try {
+            await supabase.from('organizations').delete().eq('id', organization.id)
+          } catch (deleteError) {
+            console.warn('Error al eliminar organización:', deleteError)
+          }
           setUserExistsError(false)
           throw result.error
         }
