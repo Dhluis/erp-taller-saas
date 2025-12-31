@@ -1,8 +1,9 @@
 # Estado del Proyecto - Versión Estable
 
 **Fecha de Documentación:** Enero 2025  
-**Commit Estable:** `773cb2a` - "confeti"  
-**Versión:** Base estable con funcionalidades principales implementadas
+**Commit Estable Anterior:** `773cb2a` - "confeti"  
+**Commit Estable Actual:** `134d3f2` - "fix: Corregir bug de sesiones múltiples en WhatsApp y agregar diagnóstico de bot"  
+**Versión:** Base estable con funcionalidades principales implementadas + Fix crítico de sesiones WhatsApp
 
 ---
 
@@ -199,7 +200,8 @@ Para problemas conocidos o mejoras:
 ## 📄 Licencia y Créditos
 
 Proyecto privado - ERP Taller SaaS  
-Versión estable documentada: `773cb2a`
+Versión estable documentada anterior: `773cb2a` (confeti)  
+Versión estable actual: `134d3f2` (fix sesiones WhatsApp)
 
 ---
 
