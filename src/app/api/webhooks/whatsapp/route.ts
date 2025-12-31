@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { processMessage } from '@/integrations/whatsapp/services/ai-agent';
 import { getOrganizationFromSession, sendWhatsAppMessage, getProfilePicture } from '@/lib/waha-sessions';
+import { rateLimitMiddleware } from '@/lib/rate-limit/middleware';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,6 +39,13 @@ export async function GET(request: NextRequest) {
  * Recibe eventos de WAHA
  */
 export async function POST(request: NextRequest) {
+  // 🛡️ Rate limiting - DEBE SER LO PRIMERO
+  const rateLimitResponse = await rateLimitMiddleware.webhook(request);
+  if (rateLimitResponse) {
+    console.warn('[WAHA Webhook] 🚫 Rate limit exceeded');
+    return rateLimitResponse;
+  }
+
   const startTime = Date.now();
   
   try {
