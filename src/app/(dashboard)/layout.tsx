@@ -22,6 +22,7 @@ export default function DashboardLayout({
   const router = useRouter()
   const pathname = usePathname()
   const hasRedirected = useRef(false)
+  const oauthCallbackChecked = useRef(false)
 
   // Obtener sesión - DEBE estar fuera de cualquier bloque condicional
   const session = useSession()
@@ -46,11 +47,64 @@ export default function DashboardLayout({
     })
   }, [session, user, organizationId, isLoading, isReady, sessionError])
 
-  // Redirigir al login si no hay usuario y la sesión está lista
+  // ✅ FIX: Detectar si viene de callback de OAuth y esperar un poco más
   useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    // Verificar si venimos de un callback de OAuth
+    const urlParams = new URLSearchParams(window.location.search)
+    const hasOAuthCallbackParam = urlParams.has('oauth_callback')
+    const isFromOAuthCallback = 
+      document.referrer.includes('/auth/callback') ||
+      sessionStorage.getItem('oauth_callback') === 'true' ||
+      hasOAuthCallbackParam
+
+    if (isFromOAuthCallback && !oauthCallbackChecked.current) {
+      console.log('[DashboardLayout] 🔄 Detectado callback de OAuth, esperando sincronización de cookies...')
+      oauthCallbackChecked.current = true
+      
+      // Limpiar el flag de sessionStorage y parámetro de URL
+      sessionStorage.removeItem('oauth_callback')
+      if (hasOAuthCallbackParam) {
+        // Limpiar el parámetro de la URL sin recargar la página
+        urlParams.delete('oauth_callback')
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '')
+        window.history.replaceState({}, '', newUrl)
+      }
+      
+      // Forzar recarga de sesión después de un delay para dar tiempo a que las cookies se sincronicen
+      if (session?.refresh) {
+        setTimeout(() => {
+          console.log('[DashboardLayout] 🔄 Forzando recarga de sesión después de callback OAuth...')
+          session.refresh()
+        }, 500)
+      }
+    }
+  }, [session])
+
+  // Redirigir al login si no hay usuario y la sesión está lista
+  // ✅ FIX: Agregar delay adicional si viene de OAuth callback
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    // Si venimos de OAuth callback, esperar un poco más antes de redirigir
+    const urlParams = new URLSearchParams(window.location.search)
+    const isFromOAuthCallback = 
+      document.referrer.includes('/auth/callback') ||
+      sessionStorage.getItem('oauth_callback') === 'true' ||
+      urlParams.has('oauth_callback')
+
     if (isReady && !isLoading && !user && !pathname?.startsWith('/auth')) {
-      console.log('[DashboardLayout] 🔄 Usuario no autenticado, redirigiendo al login...')
-      router.push('/auth/login')
+      // Si viene de OAuth callback, esperar 1.2 segundos adicional antes de redirigir
+      // Esto da tiempo a que las cookies se sincronicen completamente
+      const delay = isFromOAuthCallback ? 1200 : 0
+      
+      const timeoutId = setTimeout(() => {
+        console.log('[DashboardLayout] 🔄 Usuario no autenticado, redirigiendo al login...')
+        router.push('/auth/login')
+      }, delay)
+
+      return () => clearTimeout(timeoutId)
     }
   }, [isReady, isLoading, user, pathname, router])
 

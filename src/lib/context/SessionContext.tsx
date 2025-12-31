@@ -513,7 +513,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           
           console.log(`🔄 [Session] Recargando sesión por: ${event}`)
           loadSession()
-        }, 300) // Debounce de 300ms para eventos SIGNED_IN
+        }, 800) // ✅ FIX: Debounce aumentado a 800ms para OAuth (dar tiempo a que cookies se sincronicen)
       } else {
         console.log(`⏭️ [Session] Ignorando evento: ${event}`)
       }

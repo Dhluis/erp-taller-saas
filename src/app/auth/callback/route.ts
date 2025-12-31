@@ -230,11 +230,15 @@ export async function GET(request: NextRequest) {
       
       console.log('✅ [Callback] Usuario con organización, redirigiendo a:', next)
       
+      // ✅ FIX: Agregar parámetro para indicar que viene de OAuth callback
+      const redirectUrl = new URL(next, origin)
+      redirectUrl.searchParams.set('oauth_callback', 'true')
+      
       // ✅ CRÍTICO: Usar createRedirectResponse que copia las cookies correctamente
       // Esto asegura que todas las cookies de sesión se transfieran al redirect
-      const redirectResponse = createRedirectResponse(next, response)
+      const redirectResponse = createRedirectResponse(redirectUrl.toString(), response)
       
-      console.log('🍪 [Callback] Redirigiendo con cookies de sesión a:', next)
+      console.log('🍪 [Callback] Redirigiendo con cookies de sesión a:', redirectUrl.toString())
       return redirectResponse
     } else if (error) {
       console.error('❌ [Callback] Error en OAuth:', error)
