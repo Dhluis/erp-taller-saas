@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   // Obtener todas las variables relacionadas
   const allEnvVars = Object.keys(process.env)
