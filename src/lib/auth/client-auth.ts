@@ -67,6 +67,8 @@ export async function signUpWithProfile(userData: {
       ? window.location.origin 
       : (await import('@/lib/config/env')).getAppUrl()
     
+    console.log('🔄 [signUpWithProfile] Iniciando registro para:', userData.email)
+    
     const { data, error } = await supabase.auth.signUp({
       email: userData.email,
       password: userData.password,
@@ -79,37 +81,34 @@ export async function signUpWithProfile(userData: {
       }
     })
 
-    if (error) {
-      throw error
-    }
-
-    // Si el usuario se creó exitosamente, crear el perfil en users
-    // IMPORTANTE: SessionContext busca en la tabla 'users' usando auth_user_id
-    if (data.user) {
+    // ✅ CRÍTICO: Si el usuario se creó (data.user existe), es ÉXITO
+    // Incluso si hay un error menor, si el usuario existe en auth, el registro fue exitoso
+    if (data?.user) {
+      console.log('✅ [signUpWithProfile] Usuario creado exitosamente en auth:', data.user.id)
+      
+      // Intentar crear el perfil en users (pero NO fallar si hay error)
       try {
-        // Primero, intentar crear el registro en la tabla users
         const { error: profileError } = await supabase
           .from('users')
           .insert({
-            id: data.user.id, // El id debe coincidir con auth.users.id
-            auth_user_id: data.user.id, // Vincular con auth.users
+            id: data.user.id,
+            auth_user_id: data.user.id,
             email: data.user.email!,
             full_name: userData.fullName || data.user.email?.split('@')[0] || '',
             organization_id: userData.organizationId || null,
-            workshop_id: null, // Se asignará en onboarding si es necesario
-            role: 'ADMIN', // Primer usuario siempre es admin
+            workshop_id: null,
+            role: 'ADMIN',
             is_active: true,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
 
         if (profileError) {
-          // Si falla porque ya existe (puede pasar con triggers), verificar
-          console.warn('Error creando perfil de usuario en users:', profileError)
+          console.warn('⚠️ [signUpWithProfile] Error creando perfil (no crítico):', profileError)
           
           // Si el error es de duplicado, intentar actualizar
-          if (profileError.code === '23505') { // Unique violation
-            console.log('Usuario ya existe, actualizando...')
+          if (profileError.code === '23505') {
+            console.log('🔄 [signUpWithProfile] Usuario ya existe en users, actualizando...')
             const { error: updateError } = await supabase
               .from('users')
               .update({
@@ -120,26 +119,41 @@ export async function signUpWithProfile(userData: {
               .eq('id', data.user.id)
             
             if (updateError) {
-              console.warn('Error actualizando perfil existente:', updateError)
+              console.warn('⚠️ [signUpWithProfile] Error actualizando perfil:', updateError)
+            } else {
+              console.log('✅ [signUpWithProfile] Perfil actualizado exitosamente')
             }
           }
         } else {
-          console.log('✅ Perfil de usuario creado exitosamente en users')
+          console.log('✅ [signUpWithProfile] Perfil de usuario creado exitosamente en users')
         }
       } catch (profileErr: any) {
-        console.warn('Error en proceso de creación de perfil:', profileErr)
-        // No lanzamos error aquí porque el usuario ya se creó en auth
-        // El onboarding puede completar la creación del perfil si es necesario
+        console.warn('⚠️ [signUpWithProfile] Error en proceso de creación de perfil (no crítico):', profileErr)
+        // NO lanzamos error aquí porque el usuario ya se creó en auth
+        // El perfil se puede crear después o mediante triggers
+      }
+
+      // ✅ SIEMPRE devolver éxito si el usuario se creó en auth
+      console.log('✅ [signUpWithProfile] Registro exitoso, retornando usuario')
+      return {
+        user: data.user,
+        session: data.session,
+        error: null
       }
     }
 
-    return {
-      user: data.user,
-      session: data.session,
-      error: null
+    // ✅ Solo si NO hay usuario Y hay error, devolver error
+    if (error) {
+      console.error('❌ [signUpWithProfile] Error al crear usuario en auth:', error)
+      throw error
     }
+
+    // ✅ Caso raro: no hay usuario ni error
+    console.error('❌ [signUpWithProfile] Caso inesperado: no hay usuario ni error')
+    throw new Error('No se pudo crear el usuario')
+    
   } catch (error: any) {
-    console.error('Error en signUpWithProfile:', error)
+    console.error('❌ [signUpWithProfile] Error capturado:', error)
     return {
       user: null,
       session: null,
