@@ -81,9 +81,22 @@ export async function signUpWithProfile(userData: {
       }
     })
 
+    console.log('🔍 [signUpWithProfile] Respuesta de signUp:', {
+      hasUser: !!data?.user,
+      hasSession: !!data?.session,
+      hasError: !!error,
+      userId: data?.user?.id,
+      userEmail: data?.user?.email,
+      errorMessage: error?.message,
+      errorStatus: error?.status
+    })
+
     // ✅ CRÍTICO: Si el usuario se creó (data.user existe), es ÉXITO
     // Incluso si hay un error menor, si el usuario existe en auth, el registro fue exitoso
+    // Esto es importante porque Supabase puede devolver error si requiere confirmación de email
+    // pero aún así crea el usuario
     if (data?.user) {
+      console.log('✅ [signUpWithProfile] Usuario creado exitosamente en auth:', data.user.id)
       console.log('✅ [signUpWithProfile] Usuario creado exitosamente en auth:', data.user.id)
       
       // Intentar crear el perfil en users (pero NO fallar si hay error)

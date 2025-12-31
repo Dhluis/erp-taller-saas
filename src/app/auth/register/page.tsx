@@ -151,17 +151,27 @@ export default function RegisterPage() {
       if (orgError) throw orgError
 
       // PASO 2: Registrar usuario con la organización (flujo normal para todos)
-      const { user, session, error: signUpError } = await signUpWithProfile({
+      console.log('🔄 [Register] Llamando a signUpWithProfile...')
+      const result = await signUpWithProfile({
         email,
         password: password,
         fullName,
         organizationId: organization.id
       })
 
+      console.log('🔍 [Register] Resultado de signUpWithProfile:', {
+        hasUser: !!result.user,
+        hasSession: !!result.session,
+        hasError: !!result.error,
+        userId: result.user?.id,
+        errorMessage: result.error?.message,
+        errorStatus: result.error?.status
+      })
+
       // ✅ CRÍTICO: Si el usuario se creó exitosamente (user existe), es ÉXITO
       // Incluso si hay un error menor, si el usuario existe en auth, el registro fue exitoso
-      if (user) {
-        console.log('✅ [Register] Usuario creado exitosamente:', user.id)
+      if (result.user) {
+        console.log('✅ [Register] Usuario creado exitosamente, mostrando popup de felicidades')
         
         // Mostrar mensaje de bienvenida
         setRegisteredEmail(email)
@@ -172,19 +182,19 @@ export default function RegisterPage() {
       }
 
       // ✅ Solo si NO hay usuario Y hay error, manejar el error
-      if (signUpError) {
+      if (result.error) {
         // ✅ DEBUG: Log del error completo para diagnosticar
-        console.error('🔍 [Register] Error completo de signUp (sin usuario creado):', {
-          message: signUpError.message,
-          status: signUpError.status,
-          name: signUpError.name,
-          error: signUpError
+        console.error('❌ [Register] Error completo de signUp (sin usuario creado):', {
+          message: result.error.message,
+          status: result.error.status,
+          name: result.error.name,
+          error: result.error
         })
         
         // ✅ Manejo específico del error "User already registered"
         // Verificar tanto el mensaje como el código de error de Supabase
-        const errorMessage = signUpError.message?.toLowerCase() || ''
-        const errorStatus = signUpError.status || 0
+        const errorMessage = result.error.message?.toLowerCase() || ''
+        const errorStatus = result.error.status || 0
         
         // Solo considerar "usuario ya existe" si el mensaje es muy específico
         const isUserExistsError = 
@@ -213,7 +223,7 @@ export default function RegisterPage() {
         } else {
           // ✅ Si NO es error de usuario existente, mostrar el error real
           setUserExistsError(false)
-          throw signUpError
+          throw result.error
         }
         setLoading(false)
         return
@@ -221,6 +231,7 @@ export default function RegisterPage() {
 
       // ✅ Si no hay usuario ni error (caso raro), mostrar error genérico
       console.error('❌ [Register] Caso inesperado: no hay usuario ni error')
+      console.error('❌ [Register] Resultado completo:', result)
       setError('Error inesperado al crear la cuenta. Por favor, intenta de nuevo.')
       setLoading(false)
       
