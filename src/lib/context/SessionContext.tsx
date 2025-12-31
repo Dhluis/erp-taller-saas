@@ -48,21 +48,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   
   const [state, setState] = useState<SessionState>(initialState)
   
-  // ✅ Listener para recargar sesión cuando se dispara el evento
-  useEffect(() => {
-    const handleSessionReload = () => {
-      console.log('🔄 [Session] Evento session:reload recibido, recargando sesión...')
-      loadSession(true) // Forzar recarga
-    }
-    
-    if (typeof window !== 'undefined') {
-      window.addEventListener('session:reload', handleSessionReload)
-      return () => {
-        window.removeEventListener('session:reload', handleSessionReload)
-      }
-    }
-  }, [loadSession])
-  
   const isInitializing = useRef(false)
   const lastLoadTimestamp = useRef<number>(0)
   const lastUserId = useRef<string | null>(null)
@@ -485,6 +470,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       isInitializing.current = false
     }
   }, [supabase])
+
+  // ✅ Listener para recargar sesión cuando se dispara el evento
+  // DEBE estar después de la definición de loadSession
+  useEffect(() => {
+    const handleSessionReload = () => {
+      console.log('🔄 [Session] Evento session:reload recibido, recargando sesión...')
+      loadSession(true) // Forzar recarga
+    }
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('session:reload', handleSessionReload)
+      return () => {
+        window.removeEventListener('session:reload', handleSessionReload)
+      }
+    }
+  }, [loadSession])
 
   // Cargar sesión al montar
   useEffect(() => {
