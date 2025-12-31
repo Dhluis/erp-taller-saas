@@ -1,257 +1,332 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getTenantContext } from '@/lib/core/multi-tenant-server';
-import { getSupabaseServiceClient } from '@/lib/supabase/server';
-import { getWahaConfig } from '@/lib/waha-sessions';
-
 /**
- * GET /api/whatsapp/diagnose
- * Endpoint de diagnóstico para identificar problemas con la conexión de WhatsApp
+ * DIAGNÓSTICO DE BOT DE WHATSAPP
+ * 
+ * Verifica todos los puntos críticos para que el bot responda:
+ * 1. AI Agent enabled en ai_agent_config
+ * 2. OPENAI_API_KEY configurada
+ * 3. Webhook llegando (últimos logs)
+ * 4. is_bot_active en conversación
+ * 
+ * Basado en: /mnt/skills/user/eagles-erp-developer/references/whatsapp.md líneas 651-671
  */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { getSupabaseServiceClient } from '@/lib/supabase/server';
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
-    const diagnostics: any = {
-      timestamp: new Date().toISOString(),
-      checks: {},
-      errors: [],
-      warnings: [],
-      recommendations: []
-    };
-
-    // 1. Verificar autenticación y tenant context
-    let tenantContext;
-    try {
-      tenantContext = await getTenantContext(request);
-      diagnostics.checks.tenantContext = {
-        success: true,
-        organizationId: tenantContext.organizationId,
-        workshopId: tenantContext.workshopId,
-        userId: tenantContext.userId
-      };
-    } catch (authError: any) {
-      // Si el error es de autenticación, devolver 401
-      if (authError.message?.includes('no autenticado') || 
-          authError.message?.includes('Usuario no autenticado') ||
-          authError.message?.includes('Perfil de usuario no encontrado')) {
-        diagnostics.checks.tenantContext = {
-          success: false,
-          error: 'Usuario no autenticado'
-        };
-        diagnostics.errors.push('No se pudo obtener el contexto del tenant: Usuario no autenticado');
-        diagnostics.recommendations.push('Por favor, inicia sesión para acceder al diagnóstico');
-        
-        return NextResponse.json({
-          success: false,
-          diagnostics
-        }, { status: 401 });
-      }
-      
-      // Otros errores
-      diagnostics.checks.tenantContext = {
-        success: false,
-        error: authError.message
-      };
-      diagnostics.errors.push('No se pudo obtener el contexto del tenant: ' + authError.message);
+    const { organizationId } = await getTenantContext(request);
+    
+    if (!organizationId) {
       return NextResponse.json({
         success: false,
-        diagnostics
-      }, { status: 500 });
+        error: 'No se pudo obtener organizationId'
+      }, { status: 401 });
     }
 
-    const organizationId = diagnostics.checks.tenantContext.organizationId;
-
-    // 2. Verificar variables de entorno
-    // NOTA: NO usar NEXT_PUBLIC_* para claves secretas
-    const envUrl = process.env.WAHA_API_URL;
-    const envKey = process.env.WAHA_API_KEY;
-    
-    // Obtener todas las variables de entorno relacionadas con WAHA para debugging
-    const allEnvKeys = Object.keys(process.env);
-    const wahaEnvKeys = allEnvKeys.filter(k => k.toUpperCase().includes('WAHA'));
-    const allEnvKeysPreview = allEnvKeys.slice(0, 50).join(', '); // Primeras 50 para no exponer todo
-    
-    diagnostics.checks.environmentVariables = {
-      hasUrl: !!envUrl,
-      hasKey: !!envKey,
-      urlPreview: envUrl ? `${envUrl.substring(0, 30)}...` : null,
-      keyLength: envKey ? envKey.length : 0,
-      allWAHAEnvKeys: wahaEnvKeys.join(', '),
-      totalEnvKeys: allEnvKeys.length,
-      envKeysPreview: allEnvKeysPreview,
-      nodeEnv: process.env.NODE_ENV,
-      vercelEnv: process.env.VERCEL_ENV,
-      vercelUrl: process.env.VERCEL_URL,
-      // Información adicional para debugging
-      urlIsEmpty: envUrl === '',
-      keyIsEmpty: envKey === '',
-      urlIsUndefined: envUrl === undefined,
-      keyIsUndefined: envKey === undefined
+    const supabase = getSupabaseServiceClient();
+    const diagnostics: any = {
+      organizationId,
+      timestamp: new Date().toISOString(),
+      checks: {}
     };
 
-    if (!envUrl || !envKey) {
-      // Mensaje más detallado
-      let reason = 'No encontradas';
-      if (envUrl === '' || envKey === '') {
-        reason = 'Están vacías (string vacío)';
-      } else if (envUrl === undefined || envKey === undefined) {
-        reason = 'No están definidas (undefined)';
-      }
-      
-      diagnostics.warnings.push(`Variables de entorno WAHA no configuradas (WAHA_API_URL y WAHA_API_KEY) - ${reason}`);
-      diagnostics.recommendations.push('Configura WAHA_API_URL y WAHA_API_KEY en Vercel (Settings → Environment Variables)');
-      diagnostics.recommendations.push('Si ya las configuraste, verifica que: 1) Estén en el proyecto correcto, 2) Estén en el ambiente correcto (Production/Preview/Development), 3) Haya hecho redeploy después de agregarlas');
-      diagnostics.recommendations.push('Las variables deben llamarse exactamente: WAHA_API_URL y WAHA_API_KEY (sin NEXT_PUBLIC_ ni otros prefijos)');
+    // 1️⃣ VERIFICAR AI AGENT ENABLED
+    console.log('[Diagnose] 🔍 Verificando AI Agent config...');
+    const { data: aiConfig, error: aiConfigError } = await supabase
+      .from('ai_agent_config')
+      .select('id, enabled, provider, model, organization_id')
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (aiConfigError) {
+      diagnostics.checks.aiAgentConfig = {
+        status: 'error',
+        error: aiConfigError.message,
+        code: aiConfigError.code,
+        enabled: false
+      };
+    } else if (!aiConfig) {
+      diagnostics.checks.aiAgentConfig = {
+        status: 'not_found',
+        enabled: false,
+        message: 'No se encontró configuración AI para esta organización'
+      };
     } else {
-      diagnostics.checks.environmentVariables.status = '✅ Configuradas correctamente';
+      diagnostics.checks.aiAgentConfig = {
+        status: 'ok',
+        enabled: aiConfig.enabled,
+        provider: aiConfig.provider,
+        model: aiConfig.model,
+        configId: aiConfig.id
+      };
     }
 
-    // 3. Verificar configuración en base de datos
-    try {
-      const supabase = getSupabaseServiceClient();
-      const { data: config, error: configError } = await supabase
-        .from('ai_agent_config')
-        .select('id, policies, whatsapp_session_name, enabled')
-        .eq('organization_id', organizationId)
-        .single();
+    // 2️⃣ VERIFICAR OPENAI_API_KEY
+    console.log('[Diagnose] 🔍 Verificando OPENAI_API_KEY...');
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    
+    diagnostics.checks.apiKeys = {
+      openai: {
+        configured: !!openaiKey,
+        length: openaiKey ? openaiKey.length : 0,
+        preview: openaiKey ? `${openaiKey.substring(0, 7)}...${openaiKey.substring(openaiKey.length - 4)}` : null
+      },
+      anthropic: {
+        configured: !!anthropicKey,
+        length: anthropicKey ? anthropicKey.length : 0,
+        preview: anthropicKey ? `${anthropicKey.substring(0, 7)}...${anthropicKey.substring(anthropicKey.length - 4)}` : null
+      },
+      status: (!!openaiKey || !!anthropicKey) ? 'ok' : 'missing',
+      message: (!!openaiKey || !!anthropicKey) 
+        ? 'API key configurada' 
+        : '❌ OPENAI_API_KEY o ANTHROPIC_API_KEY no configurada'
+    };
 
-      if (configError) {
-        if (configError.code === 'PGRST116') {
-          diagnostics.checks.databaseConfig = {
-            success: false,
-            found: false,
-            message: 'No se encontró configuración en la base de datos'
-          };
-          diagnostics.errors.push('No existe configuración de AI agent para esta organización');
-          diagnostics.recommendations.push('Crea una configuración en la tabla ai_agent_config para esta organización');
-        } else {
-          diagnostics.checks.databaseConfig = {
-            success: false,
-            error: configError.message,
-            code: configError.code
-          };
-          diagnostics.errors.push('Error al leer configuración de BD: ' + configError.message);
-        }
-      } else if (config) {
-        const policies = (config as any)?.policies;
-        const dbUrl = policies?.waha_api_url || policies?.WAHA_API_URL;
-        const dbKey = policies?.waha_api_key || policies?.WAHA_API_KEY;
+    // 3️⃣ VERIFICAR WEBHOOK (últimos mensajes recibidos)
+    console.log('[Diagnose] 🔍 Verificando webhook (últimos mensajes)...');
+    const { data: recentMessages, error: messagesError } = await supabase
+      .from('whatsapp_messages')
+      .select('id, direction, from_number, body, created_at, status')
+      .eq('organization_id', organizationId)
+      .eq('direction', 'inbound')
+      .order('created_at', { ascending: false })
+      .limit(5);
 
-        diagnostics.checks.databaseConfig = {
-          success: true,
-          found: true,
-          configId: config.id,
-          enabled: config.enabled,
-          hasPolicies: !!policies,
-          hasUrl: !!dbUrl,
-          hasKey: !!dbKey,
-          urlPreview: dbUrl ? `${dbUrl.substring(0, 30)}...` : null,
-          keyLength: dbKey ? dbKey.length : 0,
-          policiesKeys: policies ? Object.keys(policies) : []
-        };
-
-        if (!dbUrl || !dbKey) {
-          diagnostics.errors.push('Configuración de WAHA no encontrada en policies de la BD');
-          diagnostics.recommendations.push('Guarda waha_api_url y waha_api_key en policies de ai_agent_config');
-        }
-      }
-    } catch (dbError: any) {
-      diagnostics.checks.databaseConfig = {
-        success: false,
-        error: dbError.message
+    if (messagesError) {
+      diagnostics.checks.webhook = {
+        status: 'error',
+        error: messagesError.message
       };
-      diagnostics.errors.push('Error al acceder a la base de datos: ' + dbError.message);
-    }
-
-    // 4. Intentar obtener configuración WAHA (de env vars o BD)
-    let wahaConfig: { url: string; key: string } | null = null;
-    try {
-      wahaConfig = await getWahaConfig(organizationId);
-      diagnostics.checks.wahaConfig = {
-        success: true,
-        source: envUrl && envKey ? 'environment' : 'database',
-        urlPreview: wahaConfig.url.substring(0, 30) + '...',
-        keyLength: wahaConfig.key.length
-      };
-    } catch (configError: any) {
-      diagnostics.checks.wahaConfig = {
-        success: false,
-        error: configError.message
-      };
-      diagnostics.errors.push('No se pudo obtener configuración WAHA: ' + configError.message);
-    }
-
-    // 5. Intentar conectar con el servidor WAHA (si tenemos configuración)
-    if (wahaConfig) {
-      try {
-        console.log('[Diagnose] 🔍 Probando conexión con WAHA:', wahaConfig.url);
-        const testResponse = await fetch(`${wahaConfig.url}/api/sessions`, {
-          method: 'GET',
-          headers: {
-            'X-Api-Key': wahaConfig.key,
-            'Content-Type': 'application/json'
-          },
-          signal: AbortSignal.timeout(5000) // 5 segundos timeout
-        });
-
-        diagnostics.checks.wahaServerConnection = {
-          success: testResponse.ok,
-          status: testResponse.status,
-          statusText: testResponse.statusText,
-          source: diagnostics.checks.wahaConfig?.source || 'unknown'
-        };
-
-        if (!testResponse.ok) {
-          const errorText = await testResponse.text();
-          diagnostics.errors.push(`Error al conectar con servidor WAHA: ${testResponse.status} - ${errorText}`);
-        } else {
-          // Intentar parsear la respuesta para ver si hay sesiones
-          try {
-            const sessions = await testResponse.json();
-            diagnostics.checks.wahaServerConnection.sessionsCount = Array.isArray(sessions) ? sessions.length : 0;
-          } catch (e) {
-            // No es JSON, está bien
-          }
-        }
-      } catch (serverError: any) {
-        diagnostics.checks.wahaServerConnection = {
-          success: false,
-          error: serverError.message,
-          source: diagnostics.checks.wahaConfig?.source || 'unknown'
-        };
-        diagnostics.errors.push('No se pudo conectar con el servidor WAHA: ' + serverError.message);
-        diagnostics.recommendations.push('Verifica que el servidor WAHA esté funcionando y accesible');
-      }
     } else {
-      diagnostics.checks.wahaServerConnection = {
-        success: false,
-        skipped: true,
-        reason: 'No hay configuración de WAHA disponible para probar'
+      diagnostics.checks.webhook = {
+        status: 'ok',
+        recentMessagesCount: recentMessages?.length || 0,
+        lastMessage: recentMessages && recentMessages.length > 0 ? {
+          id: recentMessages[0].id,
+          from: recentMessages[0].from_number,
+          body: recentMessages[0].body?.substring(0, 100),
+          createdAt: recentMessages[0].created_at,
+          status: recentMessages[0].status
+        } : null,
+        recentMessages: recentMessages?.map(m => ({
+          id: m.id,
+          from: m.from_number,
+          createdAt: m.created_at
+        })) || []
       };
     }
 
-    // 5. Resumen y recomendaciones
-    const hasErrors = diagnostics.errors.length > 0;
-    const hasWarnings = diagnostics.warnings.length > 0;
+    // 4️⃣ VERIFICAR CONVERSACIONES CON BOT ACTIVO
+    console.log('[Diagnose] 🔍 Verificando conversaciones con bot activo...');
+    const { data: conversations, error: conversationsError } = await supabase
+      .from('whatsapp_conversations')
+      .select('id, customer_phone, is_bot_active, assigned_to, status, messages_count, last_message_at')
+      .eq('organization_id', organizationId)
+      .eq('status', 'active')
+      .order('last_message_at', { ascending: false })
+      .limit(10);
 
-    if (!hasErrors && !hasWarnings) {
-      diagnostics.summary = '✅ Todo parece estar configurado correctamente';
-    } else if (hasErrors) {
-      diagnostics.summary = '❌ Se encontraron errores que impiden la conexión';
+    if (conversationsError) {
+      diagnostics.checks.conversations = {
+        status: 'error',
+        error: conversationsError.message
+      };
     } else {
-      diagnostics.summary = '⚠️ Se encontraron advertencias, pero la conexión debería funcionar';
+      const activeBotConversations = conversations?.filter(c => c.is_bot_active && !c.assigned_to) || [];
+      const humanAssignedConversations = conversations?.filter(c => c.assigned_to) || [];
+      const botInactiveConversations = conversations?.filter(c => !c.is_bot_active) || [];
+
+      diagnostics.checks.conversations = {
+        status: 'ok',
+        totalActive: conversations?.length || 0,
+        botActive: activeBotConversations.length,
+        humanAssigned: humanAssignedConversations.length,
+        botInactive: botInactiveConversations.length,
+        botActiveConversations: activeBotConversations.map(c => ({
+          id: c.id,
+          phone: c.customer_phone,
+          messagesCount: c.messages_count,
+          lastMessageAt: c.last_message_at
+        })),
+        sampleConversations: conversations?.slice(0, 3).map(c => ({
+          id: c.id,
+          phone: c.customer_phone,
+          isBotActive: c.is_bot_active,
+          assignedTo: c.assigned_to,
+          messagesCount: c.messages_count
+        })) || []
+      };
     }
+
+    // 5️⃣ VERIFICAR SESIÓN WAHA
+    console.log('[Diagnose] 🔍 Verificando sesión WAHA...');
+    const { data: sessionConfig, error: sessionError } = await supabase
+      .from('ai_agent_config')
+      .select('whatsapp_session_name')
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (sessionError || !sessionConfig) {
+      diagnostics.checks.wahaSession = {
+        status: 'error',
+        error: sessionError?.message || 'No se encontró sesión'
+      };
+    } else {
+      diagnostics.checks.wahaSession = {
+        status: 'ok',
+        sessionName: sessionConfig.whatsapp_session_name
+      };
+    }
+
+    // 📊 RESUMEN GENERAL
+    const allChecks = [
+      diagnostics.checks.aiAgentConfig?.status === 'ok' && diagnostics.checks.aiAgentConfig?.enabled,
+      diagnostics.checks.apiKeys?.status === 'ok',
+      diagnostics.checks.webhook?.status === 'ok',
+      diagnostics.checks.conversations?.status === 'ok' && diagnostics.checks.conversations?.botActive > 0,
+      diagnostics.checks.wahaSession?.status === 'ok'
+    ];
+
+    const passedChecks = allChecks.filter(Boolean).length;
+    const totalChecks = allChecks.length;
+
+    diagnostics.summary = {
+      passedChecks,
+      totalChecks,
+      status: passedChecks === totalChecks ? 'ok' : 'issues',
+      issues: [
+        !(diagnostics.checks.aiAgentConfig?.enabled) && 'AI Agent no está habilitado',
+        diagnostics.checks.apiKeys?.status !== 'ok' && 'API key no configurada',
+        diagnostics.checks.webhook?.status !== 'ok' && 'Problema con webhook',
+        diagnostics.checks.conversations?.botActive === 0 && 'No hay conversaciones con bot activo',
+        diagnostics.checks.wahaSession?.status !== 'ok' && 'Sesión WAHA no configurada'
+      ].filter(Boolean)
+    };
 
     return NextResponse.json({
-      success: !hasErrors,
+      success: true,
       diagnostics
     });
+
   } catch (error: any) {
+    console.error('[Diagnose] ❌ Error:', error);
     return NextResponse.json({
       success: false,
       error: error.message,
-      diagnostics: {
-        timestamp: new Date().toISOString(),
-        error: 'Error inesperado durante el diagnóstico: ' + error.message
+      stack: error.stack
+    }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/whatsapp/diagnose
+ * Diagnóstico específico para un número de teléfono
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const { organizationId } = await getTenantContext(request);
+    
+    if (!organizationId) {
+      return NextResponse.json({
+        success: false,
+        error: 'No se pudo obtener organizationId'
+      }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { phoneNumber } = body;
+
+    if (!phoneNumber) {
+      return NextResponse.json({
+        success: false,
+        error: 'phoneNumber es requerido'
+      }, { status: 400 });
+    }
+
+    const supabase = getSupabaseServiceClient();
+    
+    // Normalizar número de teléfono (remover @c.us si existe)
+    const normalizedPhone = phoneNumber.replace('@c.us', '').replace('@s.whatsapp.net', '');
+
+    // Buscar conversación específica
+    const { data: conversation, error: convError } = await supabase
+      .from('whatsapp_conversations')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .eq('customer_phone', normalizedPhone)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (convError || !conversation) {
+      return NextResponse.json({
+        success: false,
+        error: 'No se encontró conversación activa para este número',
+        phoneNumber: normalizedPhone
+      }, { status: 404 });
+    }
+
+    // Buscar últimos mensajes de esta conversación
+    const { data: messages } = await supabase
+      .from('whatsapp_messages')
+      .select('*')
+      .eq('conversation_id', conversation.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    // Verificar configuración AI
+    const { data: aiConfig } = await supabase
+      .from('ai_agent_config')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .single();
+
+    return NextResponse.json({
+      success: true,
+      phoneNumber: normalizedPhone,
+      conversation: {
+        id: conversation.id,
+        isBotActive: conversation.is_bot_active,
+        assignedTo: conversation.assigned_to,
+        status: conversation.status,
+        messagesCount: conversation.messages_count,
+        lastMessageAt: conversation.last_message_at
+      },
+      aiConfig: aiConfig ? {
+        enabled: aiConfig.enabled,
+        provider: aiConfig.provider,
+        model: aiConfig.model
+      } : null,
+      recentMessages: messages?.map(m => ({
+        id: m.id,
+        direction: m.direction,
+        body: m.body?.substring(0, 100),
+        createdAt: m.created_at,
+        status: m.status
+      })) || [],
+      diagnosis: {
+        botShouldRespond: conversation.is_bot_active && !conversation.assigned_to && aiConfig?.enabled,
+        reasons: [
+          !conversation.is_bot_active && 'Bot inactivo en esta conversación',
+          conversation.assigned_to && 'Conversación asignada a humano',
+          !aiConfig?.enabled && 'AI Agent deshabilitado',
+          !process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY && 'API key no configurada'
+        ].filter(Boolean)
       }
+    });
+
+  } catch (error: any) {
+    console.error('[Diagnose POST] ❌ Error:', error);
+    return NextResponse.json({
+      success: false,
+      error: error.message
     }, { status: 500 });
   }
 }

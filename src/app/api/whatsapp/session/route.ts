@@ -624,43 +624,18 @@ export async function POST(request: NextRequest) {
         
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // 5. Eliminar la sesión
-        console.log('[WhatsApp Session POST] 4. Eliminando sesión...');
+        // ✅ SOLUCIÓN: Reutilizar sesión existente (NO eliminar, NO crear nueva)
+        console.log('[WhatsApp Session POST] 🔄 Reiniciando sesión existente (sin eliminar)...');
+        
+        // 3. Reiniciar la MISMA sesión (para nuevo QR)
         try {
-          const deleteResponse = await fetchWithTimeout(
-            `${url}/api/sessions/${sessionName}`,
-            {
-              method: 'DELETE',
-              headers: { 'X-Api-Key': key }
-            },
-            10000
-          );
-          
-          if (!deleteResponse.ok) {
-            const errorText = await deleteResponse.text().catch(() => 'Error desconocido');
-            console.error('[WhatsApp Session POST] ❌ WAHA error eliminando sesión:', {
-              status: deleteResponse.status,
-              statusText: deleteResponse.statusText,
-              body: errorText
-            });
-          } else {
-            console.log('[WhatsApp Session POST] ✅ Sesión eliminada');
-          }
-        } catch (deleteError: any) {
-          console.warn('[WhatsApp Session POST] ⚠️ Error eliminando (ignorando):', {
-            message: deleteError.message,
-            stack: deleteError.stack
-          });
+          await startSession(sessionName, organizationId);
+          console.log('[WhatsApp Session POST] ✅ Sesión reiniciada');
+        } catch (startError: any) {
+          console.warn('[WhatsApp Session POST] ⚠️ Error reiniciando sesión (ignorando):', startError.message);
         }
         
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // 6. Crear nueva sesión
-        console.log('[WhatsApp Session POST] 5. Creando nueva sesión...');
-        await createOrganizationSession(organizationId);
-        console.log('[WhatsApp Session POST] ✅ Sesión creada');
-        
-        // ✅ Configurar webhook con Organization ID dinámico después de crear sesión
+        // 4. Actualizar webhook
         console.log(`[WhatsApp Session POST] 🔧 Configurando webhook para org: ${organizationId}`);
         try {
           await updateWebhookForOrganization(sessionName, organizationId);
@@ -669,7 +644,9 @@ export async function POST(request: NextRequest) {
           console.warn(`[WhatsApp Session POST] ⚠️ Error actualizando webhook (continuando):`, webhookError.message);
         }
         
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        console.log('[WhatsApp Session POST] ✅ Sesión reutilizada:', sessionName);
+        
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
         // 7. Obtener QR
         console.log('[WhatsApp Session POST] 6. Obteniendo QR...');
