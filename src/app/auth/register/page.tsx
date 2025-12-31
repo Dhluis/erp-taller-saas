@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [registeredEmail, setRegisteredEmail] = useState('')
+  const [userExistsError, setUserExistsError] = useState(false) // Para mostrar botón de login
   
   // Datos del taller
   const [workshopName, setWorkshopName] = useState('')
@@ -135,7 +136,6 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-
       // PASO 1: Crear la organización
       const { data: organization, error: orgError } = await supabase
         .from('organizations')
@@ -159,9 +159,30 @@ export default function RegisterPage() {
       })
 
       if (signUpError) {
+        // ✅ Manejo específico del error "User already registered"
+        const isUserExistsError = 
+          signUpError.message?.includes('User already registered') ||
+          signUpError.message?.includes('already registered') ||
+          signUpError.message?.includes('already exists') ||
+          signUpError.message?.includes('email address is already registered')
+        
         // Si falla el registro, eliminar la organización creada
-        await supabase.from('organizations').delete().eq('id', organization.id)
-        throw signUpError
+        try {
+          await supabase.from('organizations').delete().eq('id', organization.id)
+        } catch (deleteError) {
+          console.warn('Error al eliminar organización:', deleteError)
+        }
+        
+        if (isUserExistsError) {
+          // ✅ Mostrar mensaje amigable y ofrecer ir al login
+          setError(`El email ${email} ya está registrado. ¿Ya tienes una cuenta?`)
+          setUserExistsError(true) // Activar flag para mostrar botón de login
+        } else {
+          setUserExistsError(false)
+          throw signUpError
+        }
+        setLoading(false)
+        return
       }
 
       // Mostrar mensaje de bienvenida
@@ -171,7 +192,21 @@ export default function RegisterPage() {
       
     } catch (err: any) {
       console.error('Error en registro:', err)
-      setError(err.message || 'Error al crear la cuenta. Intenta de nuevo.')
+      
+      // ✅ Mejorar mensajes de error específicos
+      const isUserExistsError = 
+        err.message?.includes('User already registered') || 
+        err.message?.includes('already registered') ||
+        err.message?.includes('already exists') ||
+        err.message?.includes('email address is already registered')
+      
+      if (isUserExistsError) {
+        setError(`El email ${email} ya está registrado. ¿Ya tienes una cuenta?`)
+        setUserExistsError(true) // Activar flag para mostrar botón de login
+      } else {
+        setUserExistsError(false)
+        setError(err.message || 'Error al crear la cuenta. Intenta de nuevo.')
+      }
     } finally {
       setLoading(false)
     }
@@ -450,9 +485,19 @@ export default function RegisterPage() {
                   </div>
 
               {error && (
-                <div className="flex items-center gap-2 p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-                  <p className="text-sm text-red-400">{error}</p>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
+                    <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <p className="text-sm text-red-400">{error}</p>
+                  </div>
+                  {userExistsError && (
+                    <Link
+                      href={`/auth/login?email=${encodeURIComponent(email)}`}
+                      className="block w-full text-center bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-3 rounded-lg transition"
+                    >
+                      Ir a Iniciar Sesión
+                    </Link>
+                  )}
                 </div>
               )}
 
