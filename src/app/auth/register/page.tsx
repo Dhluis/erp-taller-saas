@@ -159,12 +159,31 @@ export default function RegisterPage() {
       })
 
       if (signUpError) {
+        // ✅ DEBUG: Log del error completo para diagnosticar
+        console.error('🔍 [Register] Error completo de signUp:', {
+          message: signUpError.message,
+          status: signUpError.status,
+          name: signUpError.name,
+          error: signUpError
+        })
+        
         // ✅ Manejo específico del error "User already registered"
+        // Verificar tanto el mensaje como el código de error de Supabase
+        const errorMessage = signUpError.message?.toLowerCase() || ''
+        const errorStatus = signUpError.status || 0
+        
+        // Solo considerar "usuario ya existe" si el mensaje es muy específico
         const isUserExistsError = 
-          signUpError.message?.includes('User already registered') ||
-          signUpError.message?.includes('already registered') ||
-          signUpError.message?.includes('already exists') ||
-          signUpError.message?.includes('email address is already registered')
+          errorMessage.includes('user already registered') ||
+          errorMessage.includes('email address is already registered') ||
+          errorMessage === 'user already registered' ||
+          (errorStatus === 422 && errorMessage.includes('already registered'))
+        
+        console.log('🔍 [Register] ¿Es error de usuario existente?', {
+          isUserExistsError,
+          errorMessage,
+          errorStatus
+        })
         
         // Si falla el registro, eliminar la organización creada
         try {
@@ -178,6 +197,7 @@ export default function RegisterPage() {
           setError(`El email ${email} ya está registrado. ¿Ya tienes una cuenta?`)
           setUserExistsError(true) // Activar flag para mostrar botón de login
         } else {
+          // ✅ Si NO es error de usuario existente, mostrar el error real
           setUserExistsError(false)
           throw signUpError
         }
@@ -191,20 +211,37 @@ export default function RegisterPage() {
       setStep(3) // Mostrar paso de bienvenida
       
     } catch (err: any) {
-      console.error('Error en registro:', err)
+      console.error('❌ [Register] Error en registro:', err)
+      console.error('❌ [Register] Detalles del error:', {
+        message: err.message,
+        status: err.status,
+        name: err.name,
+        stack: err.stack
+      })
       
       // ✅ Mejorar mensajes de error específicos
+      // Solo considerar "usuario ya existe" si el mensaje es muy específico
+      const errorMessage = (err.message || '').toLowerCase()
+      const errorStatus = err.status || 0
+      
       const isUserExistsError = 
-        err.message?.includes('User already registered') || 
-        err.message?.includes('already registered') ||
-        err.message?.includes('already exists') ||
-        err.message?.includes('email address is already registered')
+        errorMessage.includes('user already registered') ||
+        errorMessage.includes('email address is already registered') ||
+        errorMessage === 'user already registered' ||
+        (errorStatus === 422 && errorMessage.includes('already registered'))
+      
+      console.log('🔍 [Register] ¿Es error de usuario existente en catch?', {
+        isUserExistsError,
+        errorMessage,
+        errorStatus
+      })
       
       if (isUserExistsError) {
         setError(`El email ${email} ya está registrado. ¿Ya tienes una cuenta?`)
         setUserExistsError(true) // Activar flag para mostrar botón de login
       } else {
         setUserExistsError(false)
+        // Mostrar el mensaje de error real
         setError(err.message || 'Error al crear la cuenta. Intenta de nuevo.')
       }
     } finally {
