@@ -15,20 +15,14 @@ function generateWhatsAppSessionName(organizationId: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  // 🛡️ Rate limiting - DEBE SER LO PRIMERO (incluso antes del check de test)
-  const rateLimitResponse = await rateLimitMiddleware.aiAgent(request);
-  if (rateLimitResponse) {
-    console.warn('[WhatsApp Config] 🚫 Rate limit exceeded');
-    return rateLimitResponse;
-  }
-
   // ⚠️ LOG ÚNICO PARA VERIFICAR VERSIÓN DEL CÓDIGO
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('🔥 [CONFIG API] VERSIÓN: 2025-12-10-FIX-BD-V2')
+  console.log('🔥 [CONFIG API] VERSIÓN: 2025-12-10-FIX-RATE-LIMIT')
   console.log('🔥 [CONFIG API] Timestamp deploy:', new Date().toISOString())
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   
   try {
+    // ✅ PRIMERO: Autenticación de Supabase (antes del rate limiting)
     // Obtener usuario autenticado directamente
     const { createClient } = await import('@/lib/supabase/server')
     const supabase = await createClient()
@@ -60,6 +54,27 @@ export async function POST(request: NextRequest) {
     }
     
     const organizationId = userProfile.organization_id
+
+    // ✅ AHORA: Rate limiting DESPUÉS de la autenticación
+    // Usar organizationId directamente en lugar de getTenantContext
+    const { applyRateLimit } = await import('@/lib/rate-limit/middleware')
+    const { rateLimitConfigs } = await import('@/lib/rate-limit/rate-limiter')
+    const { checkRateLimit } = await import('@/lib/rate-limit/rate-limiter')
+    const { createRateLimitErrorResponse } = await import('@/lib/rate-limit/middleware')
+    
+    // Aplicar rate limiting usando organizationId directamente
+    const rateLimitResult = await checkRateLimit(
+      `org:${organizationId}`,
+      rateLimitConfigs.aiAgent
+    )
+    
+    if (!rateLimitResult.success) {
+      console.warn('[WhatsApp Config] 🚫 Rate limit exceeded para organización:', organizationId)
+      return createRateLimitErrorResponse(
+        rateLimitResult,
+        'AI Agent rate limit exceeded. Please wait before sending more messages.'
+      )
+    }
 
     const data = await request.json()
 

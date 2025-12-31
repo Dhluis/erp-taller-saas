@@ -92,13 +92,6 @@ export async function GET() {
  * }
  */
 export async function POST(request: NextRequest) {
-  // 🛡️ Rate limiting - DEBE SER LO PRIMERO
-  const rateLimitResponse = await rateLimitMiddleware.aiAgent(request);
-  if (rateLimitResponse) {
-    console.warn('[Test Agent] 🚫 Rate limit exceeded');
-    return rateLimitResponse;
-  }
-
   try {
     // DEBUG: Verificar variables de entorno al inicio del POST
     console.log('\n' + '='.repeat(60));
@@ -110,6 +103,7 @@ export async function POST(request: NextRequest) {
     console.log('[TestAgent POST] Todas las variables OPENAI:', Object.keys(process.env).filter(k => k.includes('OPENAI')));
     console.log('='.repeat(60) + '\n');
     
+    // ✅ PRIMERO: Obtener contexto del tenant (autenticación)
     // 1️⃣ OBTENER CONTEXTO DEL TENANT
     const tenantContext = await getTenantContext(request);
     if (!tenantContext) {
@@ -137,6 +131,26 @@ export async function POST(request: NextRequest) {
 
     // Usar organizationId proporcionado o el del tenant
     const organizationId = providedOrgId || tenantContext.organizationId;
+
+    // ✅ AHORA: Rate limiting DESPUÉS de la autenticación
+    // Usar organizationId directamente en lugar de getTenantContext
+    const { checkRateLimit } = await import('@/lib/rate-limit/rate-limiter')
+    const { rateLimitConfigs } = await import('@/lib/rate-limit/rate-limiter')
+    const { createRateLimitErrorResponse } = await import('@/lib/rate-limit/middleware')
+    
+    // Aplicar rate limiting usando organizationId directamente
+    const rateLimitResult = await checkRateLimit(
+      `org:${organizationId}`,
+      rateLimitConfigs.aiAgent
+    )
+    
+    if (!rateLimitResult.success) {
+      console.warn('[Test Agent] 🚫 Rate limit exceeded para organización:', organizationId)
+      return createRateLimitErrorResponse(
+        rateLimitResult,
+        'AI Agent rate limit exceeded. Please wait before sending more messages.'
+      )
+    }
 
     console.log('\n' + '='.repeat(60));
     console.log('🧪 TEST AGENT - Procesando mensaje de prueba');
