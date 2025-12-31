@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUserByEmail, updateLastLogin } from '@/lib/database/queries/users'
+import { rateLimitMiddleware } from '@/lib/rate-limit/middleware'
 
 // POST /api/auth/login - Autenticar usuario
 export async function POST(request: NextRequest) {
+  // 🛡️ Rate limiting - DEBE SER LO PRIMERO
+  const rateLimitResponse = await rateLimitMiddleware.auth(request);
+  if (rateLimitResponse) {
+    console.warn('[Auth Login] 🚫 Rate limit exceeded');
+    return rateLimitResponse;
+  }
+
   try {
     const { email, password } = await request.json()
 

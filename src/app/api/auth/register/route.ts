@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { rateLimitMiddleware } from '@/lib/rate-limit/middleware'
 
 interface RegisterData {
   email: string
@@ -36,6 +37,13 @@ function generateSlug(name: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  // 🛡️ Rate limiting - DEBE SER LO PRIMERO
+  const rateLimitResponse = await rateLimitMiddleware.auth(request);
+  if (rateLimitResponse) {
+    console.warn('[Auth Register] 🚫 Rate limit exceeded');
+    return rateLimitResponse;
+  }
+
   try {
     const supabaseAdmin = getSupabaseAdmin()
     const body: RegisterData = await request.json()
