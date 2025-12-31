@@ -1,6 +1,6 @@
 /**
- * Middleware de Next.js para Autenticación y Rutas
- * Maneja autenticación, redirecciones y protección de rutas
+ * Middleware de Next.js para Autenticación, Rate Limiting y Rutas
+ * Maneja autenticación, redirecciones, protección de rutas y rate limiting para APIs
  */
 
 import { NextResponse, type NextRequest } from 'next/server'
@@ -70,6 +70,53 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl
   
   try {
+    // 🛡️ RATE LIMITING para rutas /api/*
+    if (pathname.startsWith('/api/')) {
+      // Excluir rutas ya protegidas o especiales
+      const excludedPaths = [
+        '/api/auth/',           // Ya protegido
+        '/api/webhooks/',       // Ya protegido
+        '/api/whatsapp/test-agent',  // Ya protegido
+        '/api/whatsapp/config',      // Ya protegido
+        '/api/test-',           // Endpoints de prueba
+        '/api/health',          // Health check
+        '/api/swagger.json',    // Documentación
+      ];
+
+      const isExcluded = excludedPaths.some(path => pathname.startsWith(path));
+      
+      if (!isExcluded) {
+        try {
+          // Importar dinámicamente rate limiting (necesario para edge runtime)
+          const { applyRateLimit } = await import('@/lib/rate-limit/middleware');
+          const { rateLimitConfigs } = await import('@/lib/rate-limit/rate-limiter');
+
+          // Determinar configuración según método HTTP
+          const method = request.method;
+          const isReadOperation = method === 'GET' || method === 'HEAD';
+          
+          const config = isReadOperation 
+            ? rateLimitConfigs.apiRead   // 60 req/min para lectura
+            : rateLimitConfigs.apiWrite;  // 30 req/min para escritura
+
+          // Aplicar rate limiting
+          const result = await applyRateLimit(request, config);
+
+          if (!result.success) {
+            const { createRateLimitErrorResponse } = await import('@/lib/rate-limit/middleware');
+            return createRateLimitErrorResponse(result);
+          }
+        } catch (rateLimitError) {
+          // Si hay error en rate limiting, loguear pero permitir continuar (fail-open)
+          console.error('❌ Error en rate limiting middleware:', rateLimitError);
+          // Continuar con la request para no bloquear la aplicación
+        }
+      }
+      
+      // Continuar con la request (rate limiting pasado o excluido)
+      return NextResponse.next();
+    }
+
     // ✅ NO interceptar /auth/callback - dejar que el route handler lo maneje completamente
     if (pathname.startsWith('/auth/callback')) {
       return NextResponse.next()
@@ -120,18 +167,20 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
 /**
  * Configuración de middleware
+ * Ahora incluye rutas /api/* para rate limiting
  */
 export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public (public files)
+     * 
+     * NOTA: Ahora SÍ incluimos /api/* para aplicar rate limiting
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public).*)',
   ],
 }
 

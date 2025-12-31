@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { rateLimitMiddleware } from '@/lib/rate-limit/middleware'
 
 /**
  * ✅ Genera un nombre de sesión único para WAHA por organización
@@ -14,6 +15,13 @@ function generateWhatsAppSessionName(organizationId: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  // 🛡️ Rate limiting - DEBE SER LO PRIMERO (incluso antes del check de test)
+  const rateLimitResponse = await rateLimitMiddleware.aiAgent(request);
+  if (rateLimitResponse) {
+    console.warn('[WhatsApp Config] 🚫 Rate limit exceeded');
+    return rateLimitResponse;
+  }
+
   // ⚠️ LOG ÚNICO PARA VERIFICAR VERSIÓN DEL CÓDIGO
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('🔥 [CONFIG API] VERSIÓN: 2025-12-10-FIX-BD-V2')

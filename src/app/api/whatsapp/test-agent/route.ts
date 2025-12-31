@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/integrations/whatsapp/utils/supabase-server-helpers';
 import { processMessage } from '@/integrations/whatsapp/services/ai-agent';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { rateLimitMiddleware } from '@/lib/rate-limit/middleware';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -91,6 +92,13 @@ export async function GET() {
  * }
  */
 export async function POST(request: NextRequest) {
+  // 🛡️ Rate limiting - DEBE SER LO PRIMERO
+  const rateLimitResponse = await rateLimitMiddleware.aiAgent(request);
+  if (rateLimitResponse) {
+    console.warn('[Test Agent] 🚫 Rate limit exceeded');
+    return rateLimitResponse;
+  }
+
   try {
     // DEBUG: Verificar variables de entorno al inicio del POST
     console.log('\n' + '='.repeat(60));
