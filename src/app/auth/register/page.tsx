@@ -158,9 +158,23 @@ export default function RegisterPage() {
         organizationId: organization.id
       })
 
+      // ✅ CRÍTICO: Si el usuario se creó exitosamente (user existe), es ÉXITO
+      // Incluso si hay un error menor, si el usuario existe en auth, el registro fue exitoso
+      if (user) {
+        console.log('✅ [Register] Usuario creado exitosamente:', user.id)
+        
+        // Mostrar mensaje de bienvenida
+        setRegisteredEmail(email)
+        setShowConfirmation(true)
+        setStep(3) // Mostrar paso de bienvenida
+        setLoading(false)
+        return
+      }
+
+      // ✅ Solo si NO hay usuario Y hay error, manejar el error
       if (signUpError) {
         // ✅ DEBUG: Log del error completo para diagnosticar
-        console.error('🔍 [Register] Error completo de signUp:', {
+        console.error('🔍 [Register] Error completo de signUp (sin usuario creado):', {
           message: signUpError.message,
           status: signUpError.status,
           name: signUpError.name,
@@ -205,10 +219,10 @@ export default function RegisterPage() {
         return
       }
 
-      // Mostrar mensaje de bienvenida
-      setRegisteredEmail(email)
-      setShowConfirmation(true)
-      setStep(3) // Mostrar paso de bienvenida
+      // ✅ Si no hay usuario ni error (caso raro), mostrar error genérico
+      console.error('❌ [Register] Caso inesperado: no hay usuario ni error')
+      setError('Error inesperado al crear la cuenta. Por favor, intenta de nuevo.')
+      setLoading(false)
       
     } catch (err: any) {
       console.error('❌ [Register] Error en registro:', err)
