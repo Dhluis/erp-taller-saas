@@ -99,3 +99,12 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
+/**
+ * GET /api/whatsapp/force-webhook
+ * Permite llamar el endpoint desde el navegador (que SÍ tiene la sesión autenticada)
+ * Ejecuta la misma lógica que POST
+ */
+export async function GET(request: NextRequest) {
+  return POST(request);
+}
