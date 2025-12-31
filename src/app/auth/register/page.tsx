@@ -20,6 +20,7 @@ export default function RegisterPage() {
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [registeredEmail, setRegisteredEmail] = useState('')
   const [userExistsError, setUserExistsError] = useState(false) // Para mostrar botón de login
+  const [registeredPassword, setRegisteredPassword] = useState('') // Guardar contraseña para uso posterior
   
   // Datos del taller
   const [workshopName, setWorkshopName] = useState('')
@@ -231,7 +232,26 @@ export default function RegisterPage() {
             if (linkResponse.ok && linkResult.success) {
               // ✅ Éxito: Usuario vinculado con organización
               console.log('✅ [Register] Usuario vinculado exitosamente vía API')
+              
+              // ✅ CRÍTICO: Iniciar sesión en el cliente para establecer cookies
+              console.log('🔄 [Register] Iniciando sesión en el cliente...')
+              const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                email,
+                password
+              })
+              
+              if (signInError) {
+                console.warn('⚠️ [Register] Error al iniciar sesión después de vincular:', signInError)
+                // Aún así mostrar el popup, el usuario puede iniciar sesión manualmente
+              } else {
+                console.log('✅ [Register] Sesión iniciada exitosamente en el cliente')
+                // Esperar un momento para que la sesión se establezca
+                await new Promise(resolve => setTimeout(resolve, 500))
+              }
+              
+              // Guardar email y contraseña para uso posterior
               setRegisteredEmail(email)
+              setRegisteredPassword(password)
               setShowConfirmation(true)
               setStep(3)
               setLoading(false)
@@ -670,8 +690,42 @@ export default function RegisterPage() {
               <div className="flex gap-4 justify-center">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
+                    // ✅ Forzar recarga de sesión antes de redirigir
+                    console.log('🔄 [Register] Redirigiendo al dashboard, recargando sesión...')
+                    
+                    // Recargar la sesión para asegurar que esté actualizada
+                    if (typeof window !== 'undefined') {
+                      // Disparar evento de recarga de sesión
+                      window.dispatchEvent(new Event('session:reload'))
+                      
+                      // También verificar que el usuario esté autenticado
+                      const { data: { user } } = await supabase.auth.getUser()
+                      if (!user && registeredPassword) {
+                        console.warn('⚠️ [Register] Usuario no autenticado, intentando iniciar sesión...')
+                        // Si no está autenticado, intentar iniciar sesión de nuevo
+                        const { error: signInError } = await supabase.auth.signInWithPassword({
+                          email: registeredEmail,
+                          password: registeredPassword
+                        })
+                        if (signInError) {
+                          console.error('❌ [Register] Error al iniciar sesión:', signInError)
+                          // No mostrar error, solo redirigir al login
+                          router.push(`/auth/login?email=${encodeURIComponent(registeredEmail)}`)
+                          return
+                        } else {
+                          console.log('✅ [Register] Sesión iniciada exitosamente')
+                        }
+                      }
+                    }
+                    
+                    // Delay más largo para que la sesión se establezca completamente
+                    await new Promise(resolve => setTimeout(resolve, 800))
+                    
+                    // Redirigir al dashboard
+                    console.log('🔄 [Register] Redirigiendo al dashboard...')
                     router.push('/dashboard')
+                    router.refresh() // Forzar recarga de la página
                   }}
                   className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-3 rounded-lg transition"
                 >
