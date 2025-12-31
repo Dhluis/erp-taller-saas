@@ -26,7 +26,7 @@ export function OAuthButtons({ redirectTo = '/dashboard' }: OAuthButtonsProps) {
           redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
           queryParams: {
             access_type: 'offline',
-            prompt: 'consent',
+            prompt: 'select_account', // ✅ Fuerza mostrar selector de cuenta siempre
           },
         }
       })
