@@ -2,8 +2,8 @@
 
 **Fecha de Documentación:** Enero 2025  
 **Commit Estable Anterior:** `773cb2a` - "confeti"  
-**Commit Estable Actual:** `134d3f2` - "fix: Corregir bug de sesiones múltiples en WhatsApp y agregar diagnóstico de bot"  
-**Versión:** Base estable con funcionalidades principales implementadas + Fix crítico de sesiones WhatsApp
+**Commit Estable Actual:** `c6cd22c` - "fix(whatsapp): mostrar 'Activo' cuando hay configuración aunque enabled sea false"  
+**Versión:** Base estable con funcionalidades principales implementadas + Fix de visualización WhatsApp
 
 ---
 
@@ -201,7 +201,7 @@ Para problemas conocidos o mejoras:
 
 Proyecto privado - ERP Taller SaaS  
 Versión estable documentada anterior: `773cb2a` (confeti)  
-Versión estable actual: `134d3f2` (fix sesiones WhatsApp)
+Versión estable actual: `c6cd22c` (fix visualización WhatsApp)
 
 ---
 

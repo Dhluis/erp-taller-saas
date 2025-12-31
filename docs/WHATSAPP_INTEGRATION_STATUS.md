@@ -176,5 +176,5 @@ FROM ai_agent_config;
 
 **Última actualización:** Enero 2025  
 **Versión Estable Anterior:** Commit `773cb2a` (confeti)  
-**Versión Estable Actual:** Commit `134d3f2` (fix: Corregir bug de sesiones múltiples en WhatsApp y agregar diagnóstico de bot)
+**Versión Estable Actual:** Commit `c6cd22c` (fix(whatsapp): mostrar 'Activo' cuando hay configuración aunque enabled sea false)
 
