@@ -53,25 +53,51 @@ export async function POST(request: NextRequest) {
 
     const webhookUrl = `${APP_URL}/api/webhooks/whatsapp`;
     
-    const response = await fetch(
-      `${WAHA_API_URL}/api/sessions/${sessionName}`,
+    // Intentar primero con el endpoint de configuración directo
+    let response = await fetch(
+      `${WAHA_API_URL}/api/${sessionName}/config`,
       {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'X-Api-Key': WAHA_API_KEY
         },
         body: JSON.stringify({
-          config: {
-            webhooks: [{
-              url: webhookUrl,
-              events: ['message', 'session.status'],
-              downloadMedia: false
-            }]
-          }
+          webhooks: [{
+            url: webhookUrl,
+            events: ['message', 'session.status'],
+            downloadMedia: false
+          }]
         })
       }
     );
+
+    let endpointUsed = 'config';
+
+    // Si falla, intentar con el endpoint de sesiones
+    if (!response.ok) {
+      console.log('[Force Webhook] PUT a /config falló, intentando PATCH a /sessions...');
+      response = await fetch(
+        `${WAHA_API_URL}/api/sessions/${sessionName}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Api-Key': WAHA_API_KEY
+          },
+          body: JSON.stringify({
+            config: {
+              webhooks: [{
+                url: webhookUrl,
+                events: ['message', 'session.status'],
+                downloadMedia: false
+              }]
+            }
+          })
+        }
+      );
+      endpointUsed = 'sessions';
+    }
 
     const result = await response.json();
 
@@ -80,7 +106,11 @@ export async function POST(request: NextRequest) {
         success: false,
         error: 'Failed to update webhook',
         status: response.status,
-        wahaResponse: result
+        wahaResponse: result,
+        attemptedEndpoints: [
+          `PUT ${WAHA_API_URL}/api/${sessionName}/config`,
+          `PATCH ${WAHA_API_URL}/api/sessions/${sessionName}`
+        ]
       }, { status: response.status });
     }
 
@@ -89,7 +119,8 @@ export async function POST(request: NextRequest) {
       sessionName,
       oldWebhookUrl: 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp',
       newWebhookUrl: webhookUrl,
-      wahaResponse: result
+      wahaResponse: result,
+      endpointUsed
     });
 
   } catch (error) {
