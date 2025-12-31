@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { signInWithProfile } from '@/lib/auth/client-auth'
 import { OAuthButtons } from '@/components/auth/OAuthButtons'
 import { AuthLogo } from '@/components/auth/AuthLogo'
+import { useSession } from '@/lib/context/SessionContext'
 import { Mail, Lock, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
@@ -16,6 +17,7 @@ export const dynamic = 'force-dynamic';
 function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const session = useSession()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -24,6 +26,43 @@ function LoginContent() {
 
   const [showRegisterPrompt, setShowRegisterPrompt] = useState(false)
   const [registerEmail, setRegisterEmail] = useState('')
+  const [checkingAuth, setCheckingAuth] = useState(true)
+
+  // ✅ FIX: Verificar si el usuario ya está autenticado y redirigir al dashboard
+  React.useEffect(() => {
+    // Verificar si viene de callback de OAuth (dar más tiempo para sincronizar cookies)
+    const urlParams = new URLSearchParams(window.location.search)
+    const isFromOAuthCallback = 
+      typeof window !== 'undefined' && (
+        document.referrer.includes('/auth/callback') ||
+        sessionStorage.getItem('oauth_callback') === 'true' ||
+        urlParams.has('oauth_callback')
+      )
+    
+    // Delay adicional si viene de OAuth callback
+    const checkDelay = isFromOAuthCallback ? 1500 : 500
+    
+    const checkAuth = setTimeout(() => {
+      const user = session?.user
+      const isReady = session?.isReady
+      const isLoading = session?.isLoading
+      
+      // Si la sesión está lista y hay usuario, redirigir al dashboard
+      if (isReady && !isLoading && user) {
+        console.log('[Login] ✅ Usuario ya autenticado, redirigiendo al dashboard...')
+        const redirectTo = searchParams?.get('redirectTo') || '/dashboard'
+        router.replace(redirectTo)
+        return
+      }
+      
+      // Si la sesión está lista pero no hay usuario, mostrar formulario
+      if (isReady && !isLoading) {
+        setCheckingAuth(false)
+      }
+    }, checkDelay)
+    
+    return () => clearTimeout(checkAuth)
+  }, [session, router, searchParams])
 
   // Verificar si hay errores del callback o mensajes
   React.useEffect(() => {
@@ -83,6 +122,18 @@ function LoginContent() {
       setError('Error al iniciar sesión. Por favor, intenta de nuevo.')
       setLoading(false)
     }
+  }
+
+  // Mostrar loading mientras se verifica la sesión
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin text-cyan-500 mx-auto" />
+          <p className="text-slate-400">Verificando sesión...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
