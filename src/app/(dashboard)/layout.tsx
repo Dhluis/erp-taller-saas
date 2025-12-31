@@ -100,8 +100,8 @@ export default function DashboardLayout({
       const delay = isFromOAuthCallback ? 1200 : 0
       
       const timeoutId = setTimeout(() => {
-        console.log('[DashboardLayout] 🔄 Usuario no autenticado, redirigiendo al login...')
-        router.push('/auth/login')
+      console.log('[DashboardLayout] 🔄 Usuario no autenticado, redirigiendo al login...')
+      router.push('/auth/login')
       }, delay)
 
       return () => clearTimeout(timeoutId)

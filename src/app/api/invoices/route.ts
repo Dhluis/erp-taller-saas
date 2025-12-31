@@ -65,11 +65,11 @@ export async function GET(request: NextRequest) {
       // Buscar notas de venta (no necesita paginación)
       result = await searchInvoices(organizationId, search);
       logger.info(`Resultados de búsqueda: ${result.length} notas de venta`, context);
-      
-      return NextResponse.json({
-        success: true,
-        data: result,
-      });
+
+    return NextResponse.json({
+      success: true,
+      data: result,
+    });
     } else {
       // ✅ Obtener todas las notas de venta CON PAGINACIÓN
       const { page, pageSize } = extractPaginationFromURL(url);
