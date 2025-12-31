@@ -216,16 +216,21 @@ export async function GET(request: NextRequest) {
       // Cerrar sesión y redirigir al login con mensaje claro
       if (!organizationId) {
         console.warn('⚠️ [Callback] Usuario OAuth sin organización - debe crear cuenta primero')
+        console.warn('⚠️ [Callback] Email del usuario:', data.session.user.email)
+        console.warn('⚠️ [Callback] User ID:', data.session.user.id)
         
-        // Cerrar sesión para que use el flujo normal de registro
-        await supabaseAuth.auth.signOut()
+        // NO cerrar sesión inmediatamente - mantener la sesión para que el usuario pueda registrarse
+        // Solo redirigir al registro con el email pre-llenado
         
-        // Redirigir al login con mensaje claro
-        const loginUrl = new URL('/auth/login', origin)
-        loginUrl.searchParams.set('message', 'Debes crear tu cuenta primero para usar Google. Por favor, regístrate gratis.')
-        loginUrl.searchParams.set('email', data.session.user.email || '')
-        loginUrl.searchParams.set('action', 'register')
-        return NextResponse.redirect(loginUrl)
+        // Redirigir al registro con mensaje claro
+        const registerUrl = new URL('/auth/register', origin)
+        registerUrl.searchParams.set('email', data.session.user.email || '')
+        registerUrl.searchParams.set('message', 'Para usar Google como método de inicio de sesión, primero debes crear tu cuenta. Completa el registro con tu email.')
+        registerUrl.searchParams.set('from', 'oauth')
+        
+        const redirectResponse = NextResponse.redirect(registerUrl)
+        console.log('🔄 [Callback] Redirigiendo al registro porque usuario no tiene organización')
+        return redirectResponse
       }
       
       console.log('✅ [Callback] Usuario con organización, redirigiendo a:', next)
