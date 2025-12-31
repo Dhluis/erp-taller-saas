@@ -8,6 +8,15 @@
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 
 /**
+ * Función helper para limpiar saltos de línea de variables de entorno
+ * Esto corrige el problema cuando las variables se agregan con echo o tienen \r\n
+ */
+function cleanEnvVar(value: string | undefined): string | undefined {
+  if (!value) return value;
+  return value.replace(/\r\n/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
+}
+
+/**
  * Generar nombre de sesión único por organización
  * Formato: eagles_<orgId sin guiones, primeros 20 caracteres>
  */
@@ -221,7 +230,8 @@ export async function createOrganizationSession(organizationId: string): Promise
 
   // URL del webhook (fail-fast si no está configurada)
   const webhookUrl = (() => {
-    let appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    // ✅ Limpiar saltos de línea de la variable de entorno
+    let appUrl = cleanEnvVar(process.env.NEXT_PUBLIC_APP_URL);
     
     // ✅ FIX: Si la URL no incluye "erp-taller-saas-correct", usar VERCEL_PROJECT_PRODUCTION_URL como fallback
     if (!appUrl || !appUrl.includes('erp-taller-saas-correct')) {
@@ -377,7 +387,8 @@ export async function updateWebhookForOrganization(sessionName: string, organiza
   
   // URL del webhook (fail-fast si no está configurada)
   const webhookUrl = (() => {
-    let appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    // ✅ Limpiar saltos de línea de la variable de entorno
+    let appUrl = cleanEnvVar(process.env.NEXT_PUBLIC_APP_URL);
     
     // ✅ FIX: Si la URL no incluye "erp-taller-saas-correct", usar VERCEL_PROJECT_PRODUCTION_URL como fallback
     if (!appUrl || !appUrl.includes('erp-taller-saas-correct')) {

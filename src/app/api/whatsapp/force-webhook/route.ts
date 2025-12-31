@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
+// Función helper para limpiar saltos de línea de variables de entorno
+function cleanEnvVar(value: string | undefined): string | undefined {
+  if (!value) return value;
+  return value.replace(/\r\n/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
+}
+
 export async function POST(request: NextRequest) {
   try {
     const tenantContext = await getTenantContext(request);
@@ -17,7 +23,8 @@ export async function POST(request: NextRequest) {
     const WAHA_API_KEY = process.env.NEXT_PUBLIC_WAHA_API_KEY || process.env.WAHA_API_KEY;
     
     // ✅ FIX: Usar VERCEL_PROJECT_PRODUCTION_URL como fallback si NEXT_PUBLIC_APP_URL no es correcta
-    let APP_URL = process.env.NEXT_PUBLIC_APP_URL;
+    // Limpiar saltos de línea de la variable de entorno
+    let APP_URL = cleanEnvVar(process.env.NEXT_PUBLIC_APP_URL);
     
     // Si la URL no incluye "erp-taller-saas-correct", usar el fallback de Vercel
     if (!APP_URL || !APP_URL.includes('erp-taller-saas-correct')) {
