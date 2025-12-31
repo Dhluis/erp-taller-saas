@@ -221,10 +221,19 @@ export async function createOrganizationSession(organizationId: string): Promise
 
   // URL del webhook (fail-fast si no está configurada)
   const webhookUrl = (() => {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    let appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    
+    // ✅ FIX: Si la URL no incluye "erp-taller-saas-correct", usar VERCEL_PROJECT_PRODUCTION_URL como fallback
+    if (!appUrl || !appUrl.includes('erp-taller-saas-correct')) {
+      const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+      if (vercelProductionUrl) {
+        appUrl = `https://${vercelProductionUrl}`;
+        console.log(`[WAHA Sessions] ⚠️ NEXT_PUBLIC_APP_URL incorrecta o no configurada, usando VERCEL_PROJECT_PRODUCTION_URL: ${appUrl}`);
+      }
+    }
     
     if (!appUrl) {
-      console.error('[WhatsApp Config] ❌ NEXT_PUBLIC_APP_URL no está configurada');
+      console.error('[WhatsApp Config] ❌ NEXT_PUBLIC_APP_URL no está configurada y VERCEL_PROJECT_PRODUCTION_URL no disponible');
       throw new Error(
         'NEXT_PUBLIC_APP_URL es requerida para configurar webhooks de WhatsApp. ' +
         'Configúrala en .env.local o en Vercel'
@@ -368,10 +377,19 @@ export async function updateWebhookForOrganization(sessionName: string, organiza
   
   // URL del webhook (fail-fast si no está configurada)
   const webhookUrl = (() => {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    let appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    
+    // ✅ FIX: Si la URL no incluye "erp-taller-saas-correct", usar VERCEL_PROJECT_PRODUCTION_URL como fallback
+    if (!appUrl || !appUrl.includes('erp-taller-saas-correct')) {
+      const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+      if (vercelProductionUrl) {
+        appUrl = `https://${vercelProductionUrl}`;
+        console.log(`[WAHA Sessions] ⚠️ NEXT_PUBLIC_APP_URL incorrecta o no configurada, usando VERCEL_PROJECT_PRODUCTION_URL: ${appUrl}`);
+      }
+    }
     
     if (!appUrl) {
-      console.error('[WhatsApp Config] ❌ NEXT_PUBLIC_APP_URL no está configurada');
+      console.error('[WhatsApp Config] ❌ NEXT_PUBLIC_APP_URL no está configurada y VERCEL_PROJECT_PRODUCTION_URL no disponible');
       throw new Error(
         'NEXT_PUBLIC_APP_URL es requerida para configurar webhooks de WhatsApp. ' +
         'Configúrala en .env.local o en Vercel'

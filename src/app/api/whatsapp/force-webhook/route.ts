@@ -15,7 +15,18 @@ export async function POST(request: NextRequest) {
 
     const WAHA_API_URL = process.env.NEXT_PUBLIC_WAHA_API_URL || process.env.WAHA_API_URL;
     const WAHA_API_KEY = process.env.NEXT_PUBLIC_WAHA_API_KEY || process.env.WAHA_API_KEY;
-    const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
+    
+    // ✅ FIX: Usar VERCEL_PROJECT_PRODUCTION_URL como fallback si NEXT_PUBLIC_APP_URL no es correcta
+    let APP_URL = process.env.NEXT_PUBLIC_APP_URL;
+    
+    // Si la URL no incluye "erp-taller-saas-correct", usar el fallback de Vercel
+    if (!APP_URL || !APP_URL.includes('erp-taller-saas-correct')) {
+      const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+      if (vercelProductionUrl) {
+        APP_URL = `https://${vercelProductionUrl}`;
+        console.log(`[Force Webhook] ⚠️ NEXT_PUBLIC_APP_URL incorrecta, usando VERCEL_PROJECT_PRODUCTION_URL: ${APP_URL}`);
+      }
+    }
 
     if (!WAHA_API_URL || !WAHA_API_KEY || !APP_URL) {
       return NextResponse.json({ 
@@ -24,6 +35,11 @@ export async function POST(request: NextRequest) {
           WAHA_API_URL: !WAHA_API_URL,
           WAHA_API_KEY: !WAHA_API_KEY,
           APP_URL: !APP_URL
+        },
+        debug: {
+          NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+          VERCEL_PROJECT_PRODUCTION_URL: process.env.VERCEL_PROJECT_PRODUCTION_URL,
+          finalAppUrl: APP_URL
         }
       }, { status: 500 });
     }
