@@ -33,11 +33,24 @@ async function getRateLimiter(
 
   // Obtener cliente Redis (lazy initialization)
   // Importar dinámicamente para evitar ejecución durante el build
-  const { getRedis } = await import('./redis');
+  const { getRedis, isRedisAvailable } = await import('./redis');
+  
+  // ⚠️ CRÍTICO: Si Redis no está disponible, retornar null y hacer fail-open
+  // Esto evita que Upstash bloquee toda la aplicación
+  if (!isRedisAvailable()) {
+    console.warn('[Rate Limiter] ⚠️ Redis no disponible, rate limiting deshabilitado (fail-open)');
+    throw new Error('REDIS_NOT_AVAILABLE');
+  }
   
   // Si Redis no está configurado, esto lanzará un error
   // El código que llama a checkRateLimit debe manejar este error
-  const redis = getRedis();
+  let redis;
+  try {
+    redis = getRedis();
+  } catch (error) {
+    console.warn('[Rate Limiter] ⚠️ Error obteniendo Redis, rate limiting deshabilitado (fail-open)', error);
+    throw new Error('REDIS_NOT_AVAILABLE');
+  }
 
   if (algorithm === 'sliding-window') {
     limiter = new Ratelimit({
@@ -117,11 +130,16 @@ export async function checkRateLimit(
     return rateLimitResult;
 
   } catch (error) {
-    console.error('[Rate Limit] ❌ Error checking rate limit:', error);
+    // ⚠️ CRÍTICO: Si Redis no está disponible o hay cualquier error, PERMITIR el request (fail-open)
+    // Esto evita que problemas con Upstash Redis bloqueen toda la aplicación
+    const errorMessage = error instanceof Error ? error.message : String(error);
     
-    // En caso de error, PERMITIR el request (fail-open)
-    // Esto evita que problemas con Redis bloqueen toda la aplicación
-    console.warn('[Rate Limit] ⚠️ Failing open due to error');
+    if (errorMessage === 'REDIS_NOT_AVAILABLE' || errorMessage.includes('Missing environment variables')) {
+      console.warn('[Rate Limit] ⚠️ Redis no disponible, permitiendo request (fail-open)');
+    } else {
+      console.error('[Rate Limit] ❌ Error checking rate limit:', error);
+      console.warn('[Rate Limit] ⚠️ Failing open due to error');
+    }
     
     return {
       success: true,

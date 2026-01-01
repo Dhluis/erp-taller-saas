@@ -5,11 +5,22 @@ import { rateLimitMiddleware } from '@/lib/rate-limit/middleware'
 
 // POST /api/auth/login - Autenticar usuario
 export async function POST(request: NextRequest) {
-  // 🛡️ Rate limiting - DEBE SER LO PRIMERO
-  const rateLimitResponse = await rateLimitMiddleware.auth(request);
-  if (rateLimitResponse) {
-    console.warn('[Auth Login] 🚫 Rate limit exceeded');
-    return rateLimitResponse;
+  // 🛡️ Rate limiting - OPCIONAL (fail-open si Redis no disponible)
+  try {
+    const rateLimitResponse = await rateLimitMiddleware.auth(request);
+    if (rateLimitResponse) {
+      console.warn('[Auth Login] 🚫 Rate limit exceeded');
+      return rateLimitResponse;
+    }
+  } catch (rateLimitError: any) {
+    // ⚠️ Si rate limiting falla (Redis no disponible, etc.), continuar sin limitar
+    const errorMsg = rateLimitError?.message || 'Unknown error';
+    if (errorMsg.includes('REDIS_NOT_AVAILABLE') || errorMsg.includes('Missing')) {
+      console.warn('[Auth Login] ⚠️ Rate limiting no disponible, continuando sin límites (fail-open)');
+    } else {
+      console.warn('[Auth Login] ⚠️ Error en rate limiting, continuando sin límites:', errorMsg);
+    }
+    // Continuar sin bloquear el request
   }
 
   try {

@@ -19,6 +19,7 @@ class RedisClient {
 
   /**
    * Crear cliente de Redis
+   * ⚠️ CRÍTICO: Si Redis no está configurado, lanza error que será capturado por fail-open
    */
   private static createClient(): Redis {
     const url = process.env.UPSTASH_REDIS_REST_URL;
@@ -29,14 +30,9 @@ class RedisClient {
       if (!url) missingVars.push('UPSTASH_REDIS_REST_URL');
       if (!token) missingVars.push('UPSTASH_REDIS_REST_TOKEN');
 
-      // Durante el build, Next.js puede ejecutar este código
-      // Necesitamos permitir que el build continúe sin Redis configurado
-      // El error se lanzará en runtime cuando realmente se necesite Redis
-      const errorMessage = `[Redis] ❌ Missing environment variables: ${missingVars.join(', ')}\n` +
-        `Please configure Upstash Redis credentials in Vercel Dashboard or .env.local\n` +
-        `See: RATE_LIMITING_IMPLEMENTATION.md for setup instructions`;
-
-      // Siempre lanzar error, pero el código que lo llama debe manejarlo
+      // ⚠️ Lanzar error que será capturado por fail-open en rate-limiter.ts
+      // NO loguear como error crítico porque queremos fail-open silencioso
+      const errorMessage = `REDIS_NOT_AVAILABLE: Missing ${missingVars.join(', ')}`;
       throw new Error(errorMessage);
     }
 

@@ -37,11 +37,22 @@ function generateSlug(name: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  // 🛡️ Rate limiting - DEBE SER LO PRIMERO
-  const rateLimitResponse = await rateLimitMiddleware.auth(request);
-  if (rateLimitResponse) {
-    console.warn('[Auth Register] 🚫 Rate limit exceeded');
-    return rateLimitResponse;
+  // 🛡️ Rate limiting - OPCIONAL (fail-open si Redis no disponible)
+  try {
+    const rateLimitResponse = await rateLimitMiddleware.auth(request);
+    if (rateLimitResponse) {
+      console.warn('[Auth Register] 🚫 Rate limit exceeded');
+      return rateLimitResponse;
+    }
+  } catch (rateLimitError: any) {
+    // ⚠️ Si rate limiting falla (Redis no disponible, etc.), continuar sin limitar
+    const errorMsg = rateLimitError?.message || 'Unknown error';
+    if (errorMsg.includes('REDIS_NOT_AVAILABLE') || errorMsg.includes('Missing')) {
+      console.warn('[Auth Register] ⚠️ Rate limiting no disponible, continuando sin límites (fail-open)');
+    } else {
+      console.warn('[Auth Register] ⚠️ Error en rate limiting, continuando sin límites:', errorMsg);
+    }
+    // Continuar sin bloquear el request
   }
 
   try {

@@ -133,23 +133,34 @@ export async function POST(request: NextRequest) {
     const organizationId = providedOrgId || tenantContext.organizationId;
 
     // ✅ AHORA: Rate limiting DESPUÉS de la autenticación
-    // Usar organizationId directamente en lugar de getTenantContext
-    const { checkRateLimit } = await import('@/lib/rate-limit/rate-limiter')
-    const { rateLimitConfigs } = await import('@/lib/rate-limit/rate-limiter')
-    const { createRateLimitErrorResponse } = await import('@/lib/rate-limit/middleware')
-    
-    // Aplicar rate limiting usando organizationId directamente
-    const rateLimitResult = await checkRateLimit(
-      `org:${organizationId}`,
-      rateLimitConfigs.aiAgent
-    )
-    
-    if (!rateLimitResult.success) {
-      console.warn('[Test Agent] 🚫 Rate limit exceeded para organización:', organizationId)
-      return createRateLimitErrorResponse(
-        rateLimitResult,
-        'AI Agent rate limit exceeded. Please wait before sending more messages.'
+    // ⚠️ Rate limiting es opcional - si Upstash no está disponible, se omite (fail-open)
+    try {
+      const { rateLimitConfigs } = await import('@/lib/rate-limit/rate-limiter')
+      const { checkRateLimit } = await import('@/lib/rate-limit/rate-limiter')
+      const { createRateLimitErrorResponse } = await import('@/lib/rate-limit/middleware')
+      
+      // Aplicar rate limiting usando organizationId directamente
+      const rateLimitResult = await checkRateLimit(
+        `org:${organizationId}`,
+        rateLimitConfigs.aiAgent
       )
+      
+      if (!rateLimitResult.success) {
+        console.warn('[Test Agent] 🚫 Rate limit exceeded para organización:', organizationId)
+        return createRateLimitErrorResponse(
+          rateLimitResult,
+          'AI Agent rate limit exceeded. Please wait before sending more messages.'
+        )
+      }
+    } catch (rateLimitError: any) {
+      // ⚠️ Si rate limiting falla (Redis no disponible, etc.), continuar sin limitar
+      const errorMsg = rateLimitError?.message || 'Unknown error';
+      if (errorMsg.includes('REDIS_NOT_AVAILABLE') || errorMsg.includes('Missing')) {
+        console.warn('[Test Agent] ⚠️ Rate limiting no disponible, continuando sin límites (fail-open)');
+      } else {
+        console.warn('[Test Agent] ⚠️ Error en rate limiting, continuando sin límites:', errorMsg);
+      }
+      // Continuar sin bloquear el request
     }
 
     console.log('\n' + '='.repeat(60));
