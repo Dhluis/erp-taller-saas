@@ -70,50 +70,22 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl
   
   try {
-    // 🛡️ RATE LIMITING para rutas /api/*
+    // ⚠️ RATE LIMITING GLOBAL DESHABILITADO TEMPORALMENTE
+    // El rate limiting global estaba bloqueando requests legítimos porque:
+    // 1. Se ejecuta ANTES de autenticación, causando que getTenantContext falle
+    // 2. El fallback a IP bloquea todos los requests desde la misma IP
+    // 3. Esto rompe funcionalidad crítica (productos, citas, WhatsApp)
+    //
+    // SOLUCIÓN: Rate limiting se aplica solo en endpoints específicos
+    // después de autenticación (ver src/app/api/whatsapp/config, etc.)
+    //
+    // TODO: Re-implementar rate limiting global de forma más inteligente:
+    // - Solo aplicar después de autenticación exitosa
+    // - Usar organizationId en lugar de IP cuando sea posible
+    // - Hacer fallback más permisivo cuando getTenantContext falla
+    
     if (pathname.startsWith('/api/')) {
-      // Excluir rutas ya protegidas o especiales
-      const excludedPaths = [
-        '/api/auth/',           // Ya protegido
-        '/api/webhooks/',       // Ya protegido
-        '/api/whatsapp/test-agent',  // Ya protegido
-        '/api/whatsapp/config',      // Ya protegido
-        '/api/test-',           // Endpoints de prueba
-        '/api/health',          // Health check
-        '/api/swagger.json',    // Documentación
-      ];
-
-      const isExcluded = excludedPaths.some(path => pathname.startsWith(path));
-      
-      if (!isExcluded) {
-        try {
-          // Importar dinámicamente rate limiting (necesario para edge runtime)
-          const { applyRateLimit } = await import('@/lib/rate-limit/middleware');
-          const { rateLimitConfigs } = await import('@/lib/rate-limit/rate-limiter');
-
-          // Determinar configuración según método HTTP
-          const method = request.method;
-          const isReadOperation = method === 'GET' || method === 'HEAD';
-          
-          const config = isReadOperation 
-            ? rateLimitConfigs.apiRead   // 60 req/min para lectura
-            : rateLimitConfigs.apiWrite;  // 30 req/min para escritura
-
-          // Aplicar rate limiting
-          const result = await applyRateLimit(request, config);
-
-          if (!result.success) {
-            const { createRateLimitErrorResponse } = await import('@/lib/rate-limit/middleware');
-            return createRateLimitErrorResponse(result);
-          }
-        } catch (rateLimitError) {
-          // Si hay error en rate limiting, loguear pero permitir continuar (fail-open)
-          console.error('❌ Error en rate limiting middleware:', rateLimitError);
-          // Continuar con la request para no bloquear la aplicación
-        }
-      }
-      
-      // Continuar con la request (rate limiting pasado o excluido)
+      // Continuar con la request sin rate limiting global
       return NextResponse.next();
     }
 

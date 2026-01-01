@@ -126,6 +126,7 @@ export function isRedisAvailable(): boolean {
  */
 export async function getRedisValue<T>(key: string): Promise<T | null> {
   try {
+    const redis = getRedis();
     const value = await redis.get<T>(key);
     return value;
   } catch (error) {
@@ -143,6 +144,7 @@ export async function setRedisValue<T>(
   expirationSeconds?: number
 ): Promise<boolean> {
   try {
+    const redis = getRedis();
     if (expirationSeconds) {
       await redis.setex(key, expirationSeconds, JSON.stringify(value));
     } else {
@@ -160,6 +162,7 @@ export async function setRedisValue<T>(
  */
 export async function deleteRedisKey(key: string): Promise<boolean> {
   try {
+    const redis = getRedis();
     await redis.del(key);
     return true;
   } catch (error) {
@@ -176,6 +179,7 @@ export async function incrementCounter(
   expirationSeconds: number
 ): Promise<number> {
   try {
+    const redis = getRedis();
     const pipeline = redis.pipeline();
     pipeline.incr(key);
     pipeline.expire(key, expirationSeconds);
@@ -195,6 +199,7 @@ export async function incrementCounter(
  */
 export async function keyExists(key: string): Promise<boolean> {
   try {
+    const redis = getRedis();
     const exists = await redis.exists(key);
     return exists === 1;
   } catch (error) {
@@ -208,6 +213,7 @@ export async function keyExists(key: string): Promise<boolean> {
  */
 export async function getKeyTTL(key: string): Promise<number> {
   try {
+    const redis = getRedis();
     const ttl = await redis.ttl(key);
     return ttl;
   } catch (error) {
