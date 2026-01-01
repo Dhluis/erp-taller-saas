@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { getOrganizationSession, getWahaConfig, getSessionStatus } from '@/lib/waha-sessions';
+import { getAppUrl } from '@/lib/utils/env';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -108,19 +109,8 @@ export async function GET(request: NextRequest) {
 
     // Verificar webhooks configurados (fail-fast si no está configurada)
     const webhooks = sessionData.config?.webhooks || [];
-    const expectedUrl = (() => {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-      
-      if (!appUrl) {
-        console.error('[WhatsApp Config] ❌ NEXT_PUBLIC_APP_URL no está configurada');
-        throw new Error(
-          'NEXT_PUBLIC_APP_URL es requerida para configurar webhooks de WhatsApp. ' +
-          'Configúrala en .env.local o en Vercel'
-        );
-      }
-      
-      return `${appUrl}/api/webhooks/whatsapp`;
-    })();
+    // ✅ Usar getAppUrl() que maneja automáticamente la limpieza y fallbacks
+    const expectedUrl = `${getAppUrl()}/api/webhooks/whatsapp`;
     
     const webhookConfigured = webhooks.some((wh: any) => {
       const whUrl = wh.url || '';

@@ -6,15 +6,7 @@
  */
 
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
-
-/**
- * Función helper para limpiar saltos de línea de variables de entorno
- * Esto corrige el problema cuando las variables se agregan con echo o tienen \r\n
- */
-function cleanEnvVar(value: string | undefined): string | undefined {
-  if (!value) return value;
-  return value.replace(/\r\n/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
-}
+import { getAppUrl } from '@/lib/utils/env';
 
 /**
  * Generar nombre de sesión único por organización
@@ -229,29 +221,8 @@ export async function createOrganizationSession(organizationId: string): Promise
   console.log(`[WAHA Sessions] 🔑 WAHA Key length: ${key.length}`);
 
   // URL del webhook (fail-fast si no está configurada)
-  const webhookUrl = (() => {
-    // ✅ Limpiar saltos de línea de la variable de entorno
-    let appUrl = cleanEnvVar(process.env.NEXT_PUBLIC_APP_URL);
-    
-    // ✅ FIX: Si la URL no incluye "erp-taller-saas-correct", usar VERCEL_PROJECT_PRODUCTION_URL como fallback
-    if (!appUrl || !appUrl.includes('erp-taller-saas-correct')) {
-      const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-      if (vercelProductionUrl) {
-        appUrl = `https://${vercelProductionUrl}`;
-        console.log(`[WAHA Sessions] ⚠️ NEXT_PUBLIC_APP_URL incorrecta o no configurada, usando VERCEL_PROJECT_PRODUCTION_URL: ${appUrl}`);
-      }
-    }
-    
-    if (!appUrl) {
-      console.error('[WhatsApp Config] ❌ NEXT_PUBLIC_APP_URL no está configurada y VERCEL_PROJECT_PRODUCTION_URL no disponible');
-      throw new Error(
-        'NEXT_PUBLIC_APP_URL es requerida para configurar webhooks de WhatsApp. ' +
-        'Configúrala en .env.local o en Vercel'
-      );
-    }
-    
-    return `${appUrl}/api/webhooks/whatsapp`;
-  })();
+  // ✅ Usar getAppUrl() que maneja automáticamente la limpieza y fallbacks
+  const webhookUrl = `${getAppUrl()}/api/webhooks/whatsapp`;
 
   console.log(`[WAHA Sessions] 🔗 Webhook URL: ${webhookUrl}`);
 
@@ -386,29 +357,8 @@ export async function updateWebhookForOrganization(sessionName: string, organiza
   const { url, key } = await getWahaConfig(orgId);
   
   // URL del webhook (fail-fast si no está configurada)
-  const webhookUrl = (() => {
-    // ✅ Limpiar saltos de línea de la variable de entorno
-    let appUrl = cleanEnvVar(process.env.NEXT_PUBLIC_APP_URL);
-    
-    // ✅ FIX: Si la URL no incluye "erp-taller-saas-correct", usar VERCEL_PROJECT_PRODUCTION_URL como fallback
-    if (!appUrl || !appUrl.includes('erp-taller-saas-correct')) {
-      const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-      if (vercelProductionUrl) {
-        appUrl = `https://${vercelProductionUrl}`;
-        console.log(`[WAHA Sessions] ⚠️ NEXT_PUBLIC_APP_URL incorrecta o no configurada, usando VERCEL_PROJECT_PRODUCTION_URL: ${appUrl}`);
-      }
-    }
-    
-    if (!appUrl) {
-      console.error('[WhatsApp Config] ❌ NEXT_PUBLIC_APP_URL no está configurada y VERCEL_PROJECT_PRODUCTION_URL no disponible');
-      throw new Error(
-        'NEXT_PUBLIC_APP_URL es requerida para configurar webhooks de WhatsApp. ' +
-        'Configúrala en .env.local o en Vercel'
-      );
-    }
-    
-    return `${appUrl}/api/webhooks/whatsapp`;
-  })();
+  // ✅ Usar getAppUrl() que maneja automáticamente la limpieza y fallbacks
+  const webhookUrl = `${getAppUrl()}/api/webhooks/whatsapp`;
 
   console.log(`[WAHA Sessions] 🔄 Actualizando webhook para organización: ${orgId}`);
   console.log(`[WAHA Sessions] 📍 Session Name: ${sessionName}`);

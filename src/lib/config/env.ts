@@ -18,44 +18,9 @@ export const SUPABASE_CONFIG = {
 // CONFIGURACIÓN DE LA APLICACIÓN
 // =====================================================
 
-/**
- * Función helper para limpiar saltos de línea de variables de entorno
- * Esto corrige el problema cuando las variables se agregan con echo o tienen \r\n
- */
-function cleanEnvVar(value: string | undefined): string | undefined {
-  if (!value) return value;
-  return value.replace(/\r\n/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
-}
-
-/**
- * Obtener URL base de la aplicación
- * Detecta automáticamente en producción (Vercel) o usa variable de entorno
- * ✅ LIMPIA saltos de línea de las variables de entorno
- */
-export function getAppUrl(): string {
-  // 1. Usar variable de entorno si está definida (limpiando saltos de línea)
-  const appUrl = cleanEnvVar(process.env.NEXT_PUBLIC_APP_URL);
-  if (appUrl) {
-    return appUrl.replace(/\/$/, '') // Remover trailing slash
-  }
-  
-  // 2. En producción (Vercel), detectar automáticamente
-  const vercelUrl = cleanEnvVar(process.env.NEXT_PUBLIC_VERCEL_URL);
-  if (vercelUrl) {
-    return `https://${vercelUrl}`
-  }
-  
-  // 3. Fallback solo para desarrollo local
-  if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:3000'
-  }
-  
-  // 4. Si no hay ninguna opción, lanzar error
-  throw new Error(
-    'NEXT_PUBLIC_APP_URL no está definida y no se puede detectar automáticamente. ' +
-    'Por favor, define NEXT_PUBLIC_APP_URL en tus variables de entorno.'
-  )
-}
+// Re-exportar getAppUrl desde el helper centralizado
+// Esto mantiene compatibilidad con código existente que importa desde aquí
+export { getAppUrl } from '@/lib/utils/env';
 
 export const APP_CONFIG = {
   // url se obtiene dinámicamente con getAppUrl() para evitar problemas de inicialización

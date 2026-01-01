@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
-
-// Función helper para limpiar saltos de línea de variables de entorno
-function cleanEnvVar(value: string | undefined): string | undefined {
-  if (!value) return value;
-  return value.replace(/\r\n/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
-}
+import { getAppUrl } from '@/lib/utils/env';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,31 +17,15 @@ export async function POST(request: NextRequest) {
     const WAHA_API_URL = process.env.NEXT_PUBLIC_WAHA_API_URL || process.env.WAHA_API_URL;
     const WAHA_API_KEY = process.env.NEXT_PUBLIC_WAHA_API_KEY || process.env.WAHA_API_KEY;
     
-    // ✅ FIX: Usar VERCEL_PROJECT_PRODUCTION_URL como fallback si NEXT_PUBLIC_APP_URL no es correcta
-    // Limpiar saltos de línea de la variable de entorno
-    let APP_URL = cleanEnvVar(process.env.NEXT_PUBLIC_APP_URL);
-    
-    // Si la URL no incluye "erp-taller-saas-correct", usar el fallback de Vercel
-    if (!APP_URL || !APP_URL.includes('erp-taller-saas-correct')) {
-      const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-      if (vercelProductionUrl) {
-        APP_URL = `https://${vercelProductionUrl}`;
-        console.log(`[Force Webhook] ⚠️ NEXT_PUBLIC_APP_URL incorrecta, usando VERCEL_PROJECT_PRODUCTION_URL: ${APP_URL}`);
-      }
-    }
+    // ✅ Usar getAppUrl() que maneja automáticamente la limpieza y fallbacks
+    const APP_URL = getAppUrl();
 
-    if (!WAHA_API_URL || !WAHA_API_KEY || !APP_URL) {
+    if (!WAHA_API_URL || !WAHA_API_KEY) {
       return NextResponse.json({ 
         error: 'Missing configuration',
         missing: {
           WAHA_API_URL: !WAHA_API_URL,
           WAHA_API_KEY: !WAHA_API_KEY,
-          APP_URL: !APP_URL
-        },
-        debug: {
-          NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-          VERCEL_PROJECT_PRODUCTION_URL: process.env.VERCEL_PROJECT_PRODUCTION_URL,
-          finalAppUrl: APP_URL
         }
       }, { status: 500 });
     }

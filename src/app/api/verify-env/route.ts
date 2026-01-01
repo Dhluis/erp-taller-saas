@@ -1,13 +1,5 @@
 import { NextResponse } from 'next/server';
-
-/**
- * Función helper para limpiar saltos de línea de variables de entorno
- * Esto corrige el problema cuando las variables se agregan con echo o tienen \r\n
- */
-function cleanEnvVar(value: string | undefined): string | undefined {
-  if (!value) return value;
-  return value.replace(/\r\n/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
-}
+import { getAppUrl, cleanEnvVar } from '@/lib/utils/env';
 
 export async function GET() {
   // Limpiar TODAS las variables de entorno antes de usarlas
@@ -15,8 +7,9 @@ export async function GET() {
   const wahaUrl = cleanEnvVar(process.env.WAHA_API_URL || process.env.NEXT_PUBLIC_WAHA_API_URL);
   const openaiKey = cleanEnvVar(process.env.OPENAI_API_KEY);
   const upstashUrl = cleanEnvVar(process.env.UPSTASH_REDIS_REST_URL);
-  const appUrl = cleanEnvVar(process.env.NEXT_PUBLIC_APP_URL);
+  const cleanedAppUrl = cleanEnvVar(process.env.NEXT_PUBLIC_APP_URL);
   const vercelUrl = cleanEnvVar(process.env.VERCEL_URL);
+  const finalAppUrl = getAppUrl(); // URL final usando getAppUrl()
 
   return NextResponse.json({
     supabase: {
@@ -37,11 +30,13 @@ export async function GET() {
       hasToken: !!process.env.UPSTASH_REDIS_REST_TOKEN,
     },
     app: {
-      url: appUrl,
+      url: cleanedAppUrl,
+      finalUrl: finalAppUrl, // URL final usando getAppUrl()
       vercelUrl: vercelUrl,
       // Información adicional para diagnóstico
       originalLength: process.env.NEXT_PUBLIC_APP_URL?.length,
-      cleanedLength: appUrl?.length,
+      cleanedLength: cleanedAppUrl?.length,
+      finalLength: finalAppUrl?.length,
       hasNewline: process.env.NEXT_PUBLIC_APP_URL?.includes('\r') || process.env.NEXT_PUBLIC_APP_URL?.includes('\n'),
     }
   });
