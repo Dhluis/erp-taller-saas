@@ -494,7 +494,14 @@ export function WhatsAppQRConnectorSimple({
       }
 
       const data = await response.json()
-      console.log(`[WhatsApp Simple] ✅ Desconectado:`, data)
+      console.log(`[WhatsApp Simple] 📥 Respuesta de logout:`, data)
+
+      // ✅ Verificar que la respuesta sea exitosa
+      if (!data.success) {
+        throw new Error(data.error || 'Error al desconectar')
+      }
+
+      console.log(`[WhatsApp Simple] ✅ Desconectado exitosamente`)
 
       // ✅ Limpiar refs y estado inmediatamente
       userInitiatedConnectRef.current = false
