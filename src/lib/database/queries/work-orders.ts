@@ -305,18 +305,31 @@ export async function createWorkOrder(orderData: CreateWorkOrderData) {
   const supabase = getClient();
   const organizationId = orderData.organization_id || await getOrganizationId();
 
+  // ✅ FILTRAR campos que NO existen en la tabla work_orders
+  // Estos campos vienen del frontend pero no están en el schema
+  const {
+    customer_signature,
+    terms_accepted,
+    terms_accepted_at,
+    terms_file_url,
+    terms_type,
+    terms_text,
+    diagnosis,  // ✅ diagnosis no existe en work_orders (usar notes si es necesario)
+    ...validOrderData
+  } = orderData as any;
+
   const { data, error } = await supabase
     .from('work_orders')
     .insert([
       {
-        ...orderData,
+        ...validOrderData,
         organization_id: organizationId,
-        workshop_id: orderData.workshop_id || null,  // ✅ Incluir workshop_id si viene
-        status: orderData.status || 'pending',
+        workshop_id: validOrderData.workshop_id || null,  // ✅ Incluir workshop_id si viene
+        status: validOrderData.status || 'pending',
         subtotal: 0,
-        tax: 0,
-        discount: 0,
-        total_amount: orderData.total_amount || 0,
+        tax_amount: 0,  // ✅ Campo correcto según schema
+        discount_amount: 0,  // ✅ Campo correcto según schema
+        total_amount: validOrderData.total_amount || 0,
       },
     ])
     .select(`
@@ -737,11 +750,11 @@ async function recalculateWorkOrderTotals(workOrderId: string) {
   // Obtener descuento actual
   const { data: order } = await supabase
     .from('work_orders')
-    .select('discount')
+    .select('discount_amount')
     .eq('id', workOrderId)
     .single();
 
-  const discount = order?.discount || 0;
+  const discount = order?.discount_amount || 0;
 
   // Calcular total
   const total_amount = subtotal + tax - discount;
@@ -751,7 +764,8 @@ async function recalculateWorkOrderTotals(workOrderId: string) {
     .from('work_orders')
     .update({
       subtotal,
-      tax,
+      tax_amount: tax,  // ✅ Campo correcto según schema
+      discount_amount: discount,  // ✅ Campo correcto según schema
       total_amount,
       updated_at: new Date().toISOString(),
     })
@@ -764,7 +778,7 @@ export async function updateWorkOrderDiscount(workOrderId: string, discount: num
   // Actualizar descuento
   await supabase
     .from('work_orders')
-    .update({ discount })
+    .update({ discount_amount: discount })  // ✅ Campo correcto según schema
     .eq('id', workOrderId);
 
   // Recalcular totales
