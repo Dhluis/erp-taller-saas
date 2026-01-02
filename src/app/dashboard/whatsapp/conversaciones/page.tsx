@@ -193,6 +193,22 @@ export default function ConversacionesPage() {
   // Estado de mensajes (conversaciones vienen del hook)
   const [messages, setMessages] = useState<Message[]>([])
   
+  // Función para formatear tiempo relativo (debe estar antes de usarse)
+  const formatRelativeTime = (date: Date | string): string => {
+    const now = new Date()
+    const messageDate = typeof date === 'string' ? new Date(date) : date
+    const diffMs = now.getTime() - messageDate.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Ahora'
+    if (diffMins < 60) return `${diffMins}m`
+    if (diffHours < 24) return `${diffHours}h`
+    if (diffDays < 7) return `${diffDays}d`
+    return messageDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+  }
+  
   // Mapear conversaciones del hook al formato del componente
   const conversations: Conversation[] = hookConversations.map((conv) => {
     // Obtener nombre del contacto
@@ -236,22 +252,6 @@ export default function ConversacionesPage() {
   const selectedConv = conversations.find(c => c.id === selectedConversation)
   const isResolved = selectedConv?.status === 'resolved'
   const isSessionLoadingUI = sessionLoading || !sessionReady || !organizationId
-
-  // Función para formatear tiempo relativo
-  const formatRelativeTime = (date: Date | string): string => {
-    const now = new Date()
-    const messageDate = typeof date === 'string' ? new Date(date) : date
-    const diffMs = now.getTime() - messageDate.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMs / 3600000)
-    const diffDays = Math.floor(diffMs / 86400000)
-
-    if (diffMins < 1) return 'Ahora'
-    if (diffMins < 60) return `${diffMins}m`
-    if (diffHours < 24) return `${diffHours}h`
-    if (diffDays < 7) return `${diffDays}d`
-    return messageDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
-  }
 
   // Seleccionar primera conversación si no hay seleccionada y hay conversaciones
   useEffect(() => {
