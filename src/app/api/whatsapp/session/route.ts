@@ -624,19 +624,56 @@ export async function POST(request: NextRequest) {
         
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // ✅ SOLUCIÓN: Reutilizar sesión existente (NO eliminar, NO crear nueva)
-        console.log('[WhatsApp Session POST] 🔄 Reiniciando sesión existente (sin eliminar)...');
-        
-        // 3. Reiniciar la MISMA sesión (para nuevo QR)
+        // ✅ FIX DEFINITIVO: ELIMINAR sesión y crear nueva para garantizar SCAN_QR_CODE
+        // Esto evita que la sesión se reconecte automáticamente (WORKING)
+        console.log('[WhatsApp Session POST] 4. ELIMINANDO sesión existente...');
         try {
-          await startSession(sessionName, organizationId);
-          console.log('[WhatsApp Session POST] ✅ Sesión reiniciada');
-        } catch (startError: any) {
-          console.warn('[WhatsApp Session POST] ⚠️ Error reiniciando sesión (ignorando):', startError.message);
+          const deleteResponse = await fetchWithTimeout(
+            `${url}/api/sessions/${sessionName}`,
+            {
+              method: 'DELETE',
+              headers: { 'X-Api-Key': key }
+            },
+            10000
+          );
+          
+          if (!deleteResponse.ok && deleteResponse.status !== 404) {
+            const errorText = await deleteResponse.text().catch(() => 'Error desconocido');
+            console.warn('[WhatsApp Session POST] ⚠️ Error eliminando sesión (continuando):', {
+              status: deleteResponse.status,
+              statusText: deleteResponse.statusText,
+              body: errorText
+            });
+          } else {
+            console.log('[WhatsApp Session POST] ✅ Sesión eliminada');
+          }
+        } catch (deleteError: any) {
+          console.warn('[WhatsApp Session POST] ⚠️ Error eliminando sesión (continuando):', {
+            message: deleteError.message,
+            stack: deleteError.stack
+          });
         }
         
-        // 4. Actualizar webhook
-        console.log(`[WhatsApp Session POST] 🔧 Configurando webhook para org: ${organizationId}`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // 5. Crear NUEVA sesión (esto garantiza que inicie en SCAN_QR_CODE)
+        console.log('[WhatsApp Session POST] 5. Creando NUEVA sesión...');
+        const { createOrganizationSession } = await import('@/lib/waha-sessions');
+        let newSessionName: string;
+        
+        try {
+          newSessionName = await createOrganizationSession(organizationId);
+          console.log('[WhatsApp Session POST] ✅ Nueva sesión creada:', newSessionName);
+          
+          // Actualizar sessionName para usar la nueva sesión
+          sessionName = newSessionName;
+        } catch (createError: any) {
+          console.error('[WhatsApp Session POST] ❌ Error creando nueva sesión:', createError.message);
+          throw new Error(`Error creando nueva sesión: ${createError.message}`);
+        }
+        
+        // 6. Actualizar webhook
+        console.log(`[WhatsApp Session POST] 6. Configurando webhook para org: ${organizationId}`);
         try {
           await updateWebhookForOrganization(sessionName, organizationId);
           console.log(`[WhatsApp Session POST] ✅ Webhook actualizado con X-Organization-ID: ${organizationId}`);
@@ -644,67 +681,12 @@ export async function POST(request: NextRequest) {
           console.warn(`[WhatsApp Session POST] ⚠️ Error actualizando webhook (continuando):`, webhookError.message);
         }
         
-        console.log('[WhatsApp Session POST] ✅ Sesión reutilizada:', sessionName);
+        // 7. Esperar un momento para que la sesión se inicialice
+        console.log('[WhatsApp Session POST] 7. Esperando inicialización de sesión...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
         
-        // ✅ CRÍTICO: Esperar a que la sesión entre en estado SCAN_QR_CODE antes de obtener QR
-        // La sesión puede estar en WORKING (reconectada automáticamente) inmediatamente después de reiniciar
-        console.log('[WhatsApp Session POST] 5. Esperando a que sesión entre en estado SCAN_QR_CODE...');
-        const { getSessionStatus } = await import('@/lib/waha-sessions');
-        
-        let sessionReady = false;
-        let attempts = 0;
-        const maxAttempts = 10; // Máximo 10 intentos (30 segundos)
-        const delayMs = 3000; // 3 segundos entre intentos
-        
-        while (!sessionReady && attempts < maxAttempts) {
-          attempts++;
-          console.log(`[WhatsApp Session POST] Intento ${attempts}/${maxAttempts}: Verificando estado de sesión...`);
-          
-          try {
-            const status = await getSessionStatus(sessionName, organizationId);
-            console.log(`[WhatsApp Session POST] Estado actual: ${status.status}`);
-            
-            // Verificar si la sesión está en un estado que permite obtener QR
-            if (status.status === 'SCAN_QR_CODE' || status.status === 'SCAN_QR' || status.status === 'STARTING') {
-              sessionReady = true;
-              console.log(`[WhatsApp Session POST] ✅ Sesión lista para QR (estado: ${status.status})`);
-              break;
-            } else if (status.status === 'WORKING') {
-              // Si está en WORKING, puede que se haya reconectado automáticamente
-              // Esperar un poco más y verificar de nuevo
-              console.log(`[WhatsApp Session POST] ⚠️ Sesión en estado WORKING (reconectada automáticamente). Esperando ${delayMs}ms...`);
-              await new Promise(resolve => setTimeout(resolve, delayMs));
-              continue;
-            } else if (status.status === 'FAILED' || status.status === 'STOPPED') {
-              // Si falló, intentar reiniciar una vez más
-              console.log(`[WhatsApp Session POST] ⚠️ Sesión en estado ${status.status}, intentando reiniciar...`);
-              try {
-                await startSession(sessionName, organizationId);
-                await new Promise(resolve => setTimeout(resolve, delayMs));
-              } catch (restartError: any) {
-                console.warn(`[WhatsApp Session POST] ⚠️ Error reiniciando:`, restartError.message);
-              }
-              continue;
-            } else {
-              // Otro estado, esperar y verificar de nuevo
-              console.log(`[WhatsApp Session POST] Estado inesperado: ${status.status}, esperando ${delayMs}ms...`);
-              await new Promise(resolve => setTimeout(resolve, delayMs));
-              continue;
-            }
-          } catch (statusError: any) {
-            console.warn(`[WhatsApp Session POST] ⚠️ Error verificando estado (intento ${attempts}):`, statusError.message);
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-            continue;
-          }
-        }
-        
-        if (!sessionReady) {
-          console.warn(`[WhatsApp Session POST] ⚠️ No se pudo obtener estado SCAN_QR_CODE después de ${maxAttempts} intentos`);
-          // Continuar de todas formas, puede que funcione
-        }
-        
-        // 7. Obtener QR
-        console.log('[WhatsApp Session POST] 6. Obteniendo QR...');
+        // 8. Obtener QR (la nueva sesión debería estar en SCAN_QR_CODE)
+        console.log('[WhatsApp Session POST] 8. Obteniendo QR...');
         // ✅ Limpiar cache después de logout/change_number (necesitamos un QR nuevo)
         clearQRCache(sessionName, organizationId);
         
