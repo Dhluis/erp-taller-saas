@@ -32,9 +32,9 @@ interface SessionData {
   message?: string
 }
 
-const POLLING_INTERVAL = 8000 // 8 segundos - más relajado
-const POLLING_INTERVAL_WITH_QR = 20000 // 20 segundos cuando ya tenemos QR (reduce regeneraciones)
-const MAX_RETRIES = 40 // 8s * 40 = 5 minutos máximo
+const POLLING_INTERVAL = 3000 // 3 segundos - más rápido para obtener QR inicial
+const POLLING_INTERVAL_WITH_QR = 30000 // 30 segundos cuando ya tenemos QR (solo para detectar conexión)
+const MAX_RETRIES = 20 // 3s * 20 = 60 segundos máximo esperando QR
 
 export function WhatsAppQRConnectorSimple({
   onStatusChange,
@@ -171,16 +171,34 @@ export function WhatsAppQRConnectorSimple({
       // ✅ Solo mostrar QR si el usuario inició la acción de conectar
       if (effectiveQR && typeof effectiveQR === 'string' && effectiveQR.length > 20 && userInitiatedConnectRef.current) {
         // ✅ Guardar QR si es nuevo o diferente
-        if (!savedQRRef.current || savedQRRef.current !== effectiveQR) {
+        const isNewQR = !savedQRRef.current || savedQRRef.current !== effectiveQR
+        if (isNewQR) {
           savedQRRef.current = effectiveQR
           console.log(`[WhatsApp Simple] 💾 QR guardado: ${effectiveQR.length} caracteres`)
         }
         
-        // Si cambiamos de fase "esperando" a "tiene QR", resetear contador
+        // Si cambiamos de fase "esperando" a "tiene QR", resetear contador y DETENER polling agresivo
         if (lastPhaseRef.current !== 'has_qr') {
-          console.log(`[WhatsApp Simple] 🔄 Cambio de fase: esperando → tiene QR (resetear contador)`)
+          console.log(`[WhatsApp Simple] 🔄 Cambio de fase: esperando → tiene QR (deteniendo polling agresivo)`)
           retryCountRef.current = 0
           lastPhaseRef.current = 'has_qr'
+          
+          // ✅ DETENER polling agresivo cuando recibimos QR por primera vez
+          // Solo mantener polling lento para detectar conexión
+          stopPolling()
+          
+          // Reiniciar polling con intervalo más largo (solo para detectar conexión)
+          // Usar función wrapper para evitar problemas de closure
+          const slowPollingCheck = () => {
+            if (previousStateRef.current === 'connected') {
+              stopPolling()
+              return
+            }
+            checkStatus()
+          }
+          
+          pollingIntervalRef.current = setInterval(slowPollingCheck, POLLING_INTERVAL_WITH_QR)
+          console.log(`[WhatsApp Simple] ✅ Polling lento iniciado (${POLLING_INTERVAL_WITH_QR}ms) para detectar conexión`)
         }
         
         // Marcar que estamos esperando conexión (para mostrar banner cuando se conecte)
@@ -188,10 +206,16 @@ export function WhatsAppQRConnectorSimple({
           setActionPerformed('connect')
         }
         
-        // Incrementar contador después de verificar fase
-        retryCountRef.current += 1
+        // NO incrementar contador cuando ya tenemos QR - el QR ya está visible
+        // Solo incrementar si es un QR nuevo
+        if (isNewQR) {
+          retryCountRef.current += 1
+          console.log(`[WhatsApp Simple] 📱 QR recibido: ${effectiveQR.length} caracteres (nuevo QR)`)
+        } else {
+          // QR ya estaba guardado, solo verificar conexión
+          console.log(`[WhatsApp Simple] 📱 QR ya visible, verificando conexión...`)
+        }
         
-        console.log(`[WhatsApp Simple] 📱 QR ${qr ? 'recibido' : 'usando guardado'}: ${effectiveQR.length} caracteres (intento ${retryCountRef.current})`)
         const wasNotPending = previousStateRef.current !== 'pending'
         setState('pending')
         previousStateRef.current = 'pending'
@@ -202,74 +226,67 @@ export function WhatsAppQRConnectorSimple({
         onStatusChange?.('pending')
         }
         
-        // Verificar directamente en WAHA si ya se conectó cada 3 intentos (~24 segundos)
+        // Verificar directamente en WAHA si ya se conectó (cada verificación cuando tenemos QR)
         // (útil cuando el webhook no llega pero la conexión sí funciona)
-        if (retryCountRef.current % 3 === 0) {
-          console.log(`[WhatsApp Simple] 🔍 Verificando conexión directa en WAHA... (intento ${retryCountRef.current})`)
-          try {
-            const checkResponse = await fetch('/api/whatsapp/check-connection', {
-              method: 'POST',
-              credentials: 'include',
-              cache: 'no-store'
-            })
+        try {
+          const checkResponse = await fetch('/api/whatsapp/check-connection', {
+            method: 'POST',
+            credentials: 'include',
+            cache: 'no-store'
+          })
+          
+          if (checkResponse.ok) {
+            const checkData = await checkResponse.json()
             
-            if (checkResponse.ok) {
-              const checkData = await checkResponse.json()
-              console.log(`[WhatsApp Simple] 📊 Check en WAHA:`, checkData)
+            if (checkData.connected) {
+              console.log(`[WhatsApp Simple] ✅ ¡Conectado en WAHA! (detectado durante verificación de QR)`)
+              const wasNotConnected = previousStateRef.current !== 'connected'
+              const phoneChanged = sessionData?.phone !== checkData.phone
+              const isNewConnection = wasNotConnected && checkData.phone && lastConnectionEventRef.current !== checkData.phone
               
-              if (checkData.connected) {
-                console.log(`[WhatsApp Simple] ✅ ¡Conectado en WAHA! (detectado manualmente)`)
-                const wasNotConnected = previousStateRef.current !== 'connected'
-                const phoneChanged = sessionData?.phone !== checkData.phone
-                const isNewConnection = wasNotConnected && checkData.phone && lastConnectionEventRef.current !== checkData.phone
+              // Solo actualizar estado si realmente cambió
+              if (wasNotConnected || phoneChanged) {
+                console.log(`[WhatsApp Simple] 🔄 Actualizando estado a conectado (detectado durante verificación)`)
+                stopPolling() // Detener polling cuando se conecta
+                setState('connected')
+                setSessionData({
+                  ...data,
+                  connected: true,
+                  phone: checkData.phone,
+                  status: 'WORKING'
+                })
+                previousStateRef.current = 'connected'
                 
-                // Solo actualizar estado si realmente cambió
-                if (wasNotConnected || phoneChanged) {
-                  console.log(`[WhatsApp Simple] 🔄 Actualizando estado a conectado (detectado manualmente)`)
-                  setState('connected')
-                  setSessionData({
-                    ...data,
-                    connected: true,
-                    phone: checkData.phone,
-                    status: 'WORKING'
-                  })
-                  previousStateRef.current = 'connected'
-                  
-                  // Solo llamar onStatusChange si realmente cambió el estado
-                  if (wasNotConnected) {
-                  onStatusChange?.('connected')
-                  }
-                  
-                  // ✅ Disparar evento personalizado solo si es una nueva conexión
-                  if (isNewConnection) {
-                    console.log(`[WhatsApp Simple] 🔔 Disparando evento de conexión (detectado manualmente, nueva conexión)`)
-                    lastConnectionEventRef.current = checkData.phone
-                    window.dispatchEvent(new CustomEvent('whatsapp:connected', {
-                      detail: { phone: checkData.phone, name: checkData.name }
-                    }))
-                  }
-                  
-                  // Limpiar acción si acabamos de vincular
-                  if (userInitiatedConnectRef.current) {
-                    console.log(`[WhatsApp Simple] 📱 Acabamos de vincular (detectado manualmente), estado actualizado`)
-                    userInitiatedConnectRef.current = false
-                    setActionPerformed(null)
-                  }
+                // Solo llamar onStatusChange si realmente cambió el estado
+                if (wasNotConnected) {
+                onStatusChange?.('connected')
                 }
                 
-                // NO detener polling - mantenerlo activo para detectar cambios
-                return
+                // ✅ Disparar evento personalizado solo si es una nueva conexión
+                if (isNewConnection) {
+                  console.log(`[WhatsApp Simple] 🔔 Disparando evento de conexión (nueva conexión)`)
+                  lastConnectionEventRef.current = checkData.phone
+                  window.dispatchEvent(new CustomEvent('whatsapp:connected', {
+                    detail: { phone: checkData.phone, name: checkData.name }
+                  }))
+                }
+                
+                // Limpiar acción si acabamos de vincular
+                if (userInitiatedConnectRef.current) {
+                  console.log(`[WhatsApp Simple] 📱 Acabamos de vincular, estado actualizado`)
+                  userInitiatedConnectRef.current = false
+                  setActionPerformed(null)
+                }
               }
+              
+              return
             }
-          } catch (checkError) {
-            console.warn(`[WhatsApp Simple] ⚠️ Error verificando en WAHA:`, checkError)
           }
+        } catch (checkError) {
+          console.warn(`[WhatsApp Simple] ⚠️ Error verificando en WAHA:`, checkError)
         }
         
-        // NO aplicar timeout cuando el QR está visible - seguir intentando hasta que se conecte
-        // El QR es válido hasta que expire en WhatsApp (no nosotros)
-        
-        // Seguir polling para detectar cuando se conecte
+        // QR visible - no hacer más polling agresivo, solo esperar conexión
         return
       }
 
@@ -447,7 +464,7 @@ export function WhatsAppQRConnectorSimple({
       const data = await response.json()
       console.log(`[WhatsApp Simple] ✅ Respuesta:`, data)
 
-      // ✅ Si la respuesta ya incluye un QR, mostrarlo inmediatamente
+      // ✅ Si la respuesta ya incluye un QR, mostrarlo inmediatamente y DETENER polling agresivo
       if (data.qr && typeof data.qr === 'string' && data.qr.length > 20) {
         console.log(`[WhatsApp Simple] 📱 QR recibido inmediatamente: ${data.qr.length} caracteres`)
         savedQRRef.current = data.qr
@@ -456,9 +473,27 @@ export function WhatsAppQRConnectorSimple({
         previousStateRef.current = 'pending'
         lastPhaseRef.current = 'has_qr'
         retryCountRef.current = 0
+        
+        // ✅ DETENER polling agresivo inmediatamente cuando recibimos QR
+        stopPolling()
+        
+        // ✅ Iniciar polling lento solo para detectar conexión (no para obtener QR)
+        // Usar función wrapper para evitar problemas de closure
+        const slowPollingCheck = () => {
+          if (previousStateRef.current === 'connected') {
+            stopPolling()
+            return
+          }
+          checkStatus()
+        }
+        
+        pollingIntervalRef.current = setInterval(slowPollingCheck, POLLING_INTERVAL_WITH_QR)
+        console.log(`[WhatsApp Simple] ✅ QR visible, polling lento iniciado (${POLLING_INTERVAL_WITH_QR}ms) para detectar conexión`)
+        return // ✅ NO iniciar polling agresivo - el QR ya está visible
       }
 
-      // Iniciar polling para obtener el QR (si no vino en la respuesta) o detectar conexión
+      // ✅ Solo iniciar polling agresivo si NO recibimos QR en la respuesta inicial
+      console.log(`[WhatsApp Simple] ⏳ QR no recibido inmediatamente, iniciando polling agresivo para obtenerlo`)
       startPolling()
 
     } catch (error: any) {
