@@ -522,12 +522,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ✅ VALIDACIÓN DE SEGURIDAD: Si el body incluye workshop_id, validar que pertenece a la organización
-    if (body.workshop_id) {
+    // ✅ NORMALIZAR workshop_id: convertir 'sin asignar', strings vacíos o inválidos a null
+    let workshopId: string | null = null;
+    if (body.workshop_id && 
+        body.workshop_id !== 'sin asignar' && 
+        body.workshop_id !== '' && 
+        body.workshop_id !== 'none' &&
+        typeof body.workshop_id === 'string' &&
+        body.workshop_id.length > 0) {
+      // Validar que es un UUID válido
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(body.workshop_id)) {
+        workshopId = body.workshop_id;
+      }
+    }
+
+    // ✅ VALIDACIÓN DE SEGURIDAD: Si workshop_id es válido, validar que pertenece a la organización
+    if (workshopId) {
       const { data: workshop, error: workshopError } = await supabaseAdmin
         .from('workshops')
         .select('id')
-        .eq('id', body.workshop_id)
+        .eq('id', workshopId)
         .eq('organization_id', organizationId)
         .single();
 
@@ -547,12 +562,12 @@ export async function POST(request: NextRequest) {
     const orderData = {
       ...body,
       organization_id: organizationId, // ✅ Forzar del usuario autenticado
-      // workshop_id se mantiene del body si existe y es válido, o se omite
+      workshop_id: workshopId, // ✅ Siempre null o UUID válido, nunca 'sin asignar'
     };
 
     console.log('[POST /api/work-orders] 📦 Creando orden:', {
       hasWorkshop: !!orderData.workshop_id,
-      workshopId: orderData.workshop_id || 'sin asignar',
+      workshopId: orderData.workshop_id || null, // ✅ null en lugar de 'sin asignar'
       organizationId: orderData.organization_id
     });
 
