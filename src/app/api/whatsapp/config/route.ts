@@ -23,9 +23,9 @@ export async function POST(request: NextRequest) {
   
   try {
     // ✅ PRIMERO: Autenticación de Supabase (antes del rate limiting)
-    // Obtener usuario autenticado directamente
-    const { createClient } = await import('@/lib/supabase/server')
-    const supabase = await createClient()
+    // Obtener usuario autenticado directamente usando createClientFromRequest
+    const { createClientFromRequest } = await import('@/lib/supabase/server')
+    const supabase = createClientFromRequest(request)
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !authUser) {
@@ -928,9 +928,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Obtener usuario autenticado directamente
-    const { createClient } = await import('@/lib/supabase/server')
-    const supabase = await createClient()
+    // Obtener usuario autenticado directamente usando createClientFromRequest
+    const { createClientFromRequest } = await import('@/lib/supabase/server')
+    const supabase = createClientFromRequest(request)
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !authUser) {
