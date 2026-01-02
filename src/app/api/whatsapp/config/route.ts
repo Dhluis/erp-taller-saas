@@ -15,26 +15,28 @@ function generateWhatsAppSessionName(organizationId: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  // ⚠️ LOG ÚNICO PARA VERIFICAR VERSIÓN DEL CÓDIGO
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('🔥 [CONFIG API] VERSIÓN: 2025-12-10-FIX-RATE-LIMIT')
-  console.log('🔥 [CONFIG API] Timestamp deploy:', new Date().toISOString())
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  
   try {
-    // ✅ PRIMERO: Autenticación de Supabase (antes del rate limiting)
+    // ✅ PRIMERO: Autenticación de Supabase (EXACTAMENTE igual que GET)
     // Obtener usuario autenticado directamente usando createClientFromRequest
     const { createClientFromRequest } = await import('@/lib/supabase/server')
     const supabase = createClientFromRequest(request)
+    
+    console.log('[Config POST] 🔍 Verificando autenticación...')
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !authUser) {
-      console.error('[Config POST] Usuario no autenticado')
+      console.error('[Config POST] ❌ Usuario no autenticado:', {
+        hasError: !!authError,
+        errorMessage: authError?.message,
+        hasUser: !!authUser
+      })
       return NextResponse.json({
         success: false,
         error: 'No autorizado'
       }, { status: 401 })
     }
+    
+    console.log('[Config POST] ✅ Usuario autenticado:', authUser.id)
 
     // Obtener organizationId del perfil del usuario usando Service Role
     const supabaseAdmin = getSupabaseServiceClient()
@@ -86,7 +88,15 @@ export async function POST(request: NextRequest) {
       // Continuar sin bloquear el request
     }
 
-    const data = await request.json()
+    // ✅ Parsear body DESPUÉS de autenticación (igual que otros endpoints)
+    let data: any = {}
+    try {
+      data = await request.json()
+    } catch (jsonError) {
+      // Si el body está vacío o no es JSON válido, usar objeto vacío
+      console.warn('[Config POST] ⚠️ Error parseando JSON, usando objeto vacío:', jsonError)
+      data = {}
+    }
 
     // ✅ NUEVO: Si es una petición de TEST, procesarla aquí
     if (data.test === true && data.message) {
