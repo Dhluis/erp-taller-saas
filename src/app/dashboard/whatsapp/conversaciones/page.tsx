@@ -532,7 +532,7 @@ export default function ConversacionesPage() {
         subscriptionRef.current = null
       }
     }
-  }, [organizationId, selectedConversation, supabase, loadMessages, loadConversations])
+  }, [organizationId, selectedConversation, supabase, loadMessages, mutate])
 
   // Marcar mensajes como leídos cuando se selecciona una conversación
   useEffect(() => {
