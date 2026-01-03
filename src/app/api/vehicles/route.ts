@@ -269,7 +269,9 @@ export async function POST(request: NextRequest) {
       organization_id: organizationId,
     };
 
-    const vehicle = await createVehicle(vehicleData);
+    // ✅ USAR CLIENTE AUTENTICADO para que RLS funcione correctamente
+    // El cliente autenticado tiene auth.uid() disponible para las políticas RLS
+    const vehicle = await createVehicle(vehicleData, supabase);
 
     return NextResponse.json(
       {

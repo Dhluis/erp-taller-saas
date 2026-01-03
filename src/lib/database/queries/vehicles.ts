@@ -1,4 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase-simple'
+import type { SupabaseServerClient } from '@/lib/supabase/server'
+
+// ✅ Tipo genérico que acepta tanto cliente del navegador como del servidor
+type GenericSupabaseClient = SupabaseClient<Database> | SupabaseServerClient
 
 /**
  * Tipo para el modelo Vehicle
@@ -115,11 +121,16 @@ export async function getVehiclesByCustomerId(customerId: string) {
 /**
  * Crear un nuevo vehículo
  */
-export async function createVehicle(data: CreateVehicleData) {
+export async function createVehicle(
+  data: CreateVehicleData,
+  supabaseClient?: GenericSupabaseClient
+) {
   console.log('🔧 createVehicle - Iniciando creación en base de datos');
   console.log('📊 Datos a insertar:', JSON.stringify(data, null, 2));
   
-  const supabase = await createClient()
+  // ✅ Si se proporciona un cliente (desde API route), usarlo
+  // Si no, usar el cliente del servidor (para compatibilidad)
+  const supabase = supabaseClient || await createClient()
 
   const { data: vehicle, error } = await supabase
     .from('vehicles')
