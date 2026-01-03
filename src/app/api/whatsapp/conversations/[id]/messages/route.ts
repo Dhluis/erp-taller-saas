@@ -15,6 +15,16 @@ export async function GET(
     const { id: conversationId } = await params;
     console.log('🔍 [GET /api/whatsapp/conversations/[id]/messages] Conversation ID:', conversationId);
 
+    // ✅ Verificar cookies antes de autenticación
+    const cookieNames = ['sb-access-token', 'sb-refresh-token', 'sb-auth-token'];
+    const cookiesPresent = cookieNames.map(name => ({
+      name,
+      present: !!request.cookies.get(name),
+      value: request.cookies.get(name)?.value?.substring(0, 20) + '...' || 'not found'
+    }));
+    console.log('🍪 [GET /api/whatsapp/conversations/[id]/messages] Cookies recibidas:', cookiesPresent);
+    console.log('🍪 [GET /api/whatsapp/conversations/[id]/messages] Todas las cookies:', Array.from(request.cookies.getAll()).map(c => ({ name: c.name, hasValue: !!c.value })));
+
     // ✅ Obtener usuario autenticado usando patrón robusto
     const supabase = createClientFromRequest(request);
     const { data: { user }, error: authError } = await supabase.auth.getUser();
