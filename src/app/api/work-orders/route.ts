@@ -565,11 +565,22 @@ export async function POST(request: NextRequest) {
       workshop_id: workshopId, // ✅ Siempre null o UUID válido, nunca 'sin asignar'
     };
 
-    console.log('[POST /api/work-orders] 📦 Creando orden:', {
-      hasWorkshop: !!orderData.workshop_id,
-      workshopId: orderData.workshop_id || null, // ✅ null en lugar de 'sin asignar'
-      organizationId: orderData.organization_id
-    });
+    // ✅ LOGGING DETALLADO: Mostrar TODOS los campos que se van a insertar
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('[POST /api/work-orders] 📦 DATOS PARA INSERTAR:');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('organization_id:', orderData.organization_id);
+    console.log('workshop_id:', orderData.workshop_id || 'NULL');
+    console.log('customer_id:', orderData.customer_id);
+    console.log('vehicle_id:', orderData.vehicle_id);
+    console.log('description:', orderData.description?.substring(0, 50) + '...');
+    console.log('status:', orderData.status || 'pending (default)');
+    console.log('assigned_to:', orderData.assigned_to || 'NULL');
+    console.log('estimated_completion:', orderData.estimated_completion || 'NULL');
+    console.log('total_amount:', orderData.total_amount || 0);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('[POST /api/work-orders] 📋 TODOS LOS CAMPOS (JSON):', JSON.stringify(orderData, null, 2));
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     const order = await createWorkOrder(orderData);
 

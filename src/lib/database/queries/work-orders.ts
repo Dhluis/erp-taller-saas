@@ -318,20 +318,33 @@ export async function createWorkOrder(orderData: CreateWorkOrderData) {
     ...validOrderData
   } = orderData as any;
 
+  // ✅ LOGGING DETALLADO: Mostrar datos exactos que se insertan
+  const insertData = {
+    ...validOrderData,
+    organization_id: organizationId,
+    workshop_id: validOrderData.workshop_id || null,  // ✅ Incluir workshop_id si viene
+    status: validOrderData.status || 'pending',
+    subtotal: 0,
+    tax_amount: 0,  // ✅ Campo correcto según schema
+    discount_amount: 0,  // ✅ Campo correcto según schema
+    total_amount: validOrderData.total_amount || 0,
+  };
+
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('[createWorkOrder] 📦 INSERT DATA (exacto):');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(JSON.stringify(insertData, null, 2));
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('[createWorkOrder] 🔍 Campos específicos:');
+  console.log('  - organization_id:', insertData.organization_id, typeof insertData.organization_id);
+  console.log('  - workshop_id:', insertData.workshop_id, typeof insertData.workshop_id);
+  console.log('  - customer_id:', insertData.customer_id, typeof insertData.customer_id);
+  console.log('  - vehicle_id:', insertData.vehicle_id, typeof insertData.vehicle_id);
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
   const { data, error } = await supabase
     .from('work_orders')
-    .insert([
-      {
-        ...validOrderData,
-        organization_id: organizationId,
-        workshop_id: validOrderData.workshop_id || null,  // ✅ Incluir workshop_id si viene
-        status: validOrderData.status || 'pending',
-        subtotal: 0,
-        tax_amount: 0,  // ✅ Campo correcto según schema
-        discount_amount: 0,  // ✅ Campo correcto según schema
-        total_amount: validOrderData.total_amount || 0,
-      },
-    ])
+    .insert([insertData])
     .select(`
       *,
       customer:customers(
