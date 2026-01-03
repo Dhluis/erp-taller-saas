@@ -266,6 +266,15 @@ export default function ConversacionesPage() {
 
   // Flag para evitar múltiples peticiones simultáneas
   const loadingRef = useRef<string | null>(null)
+  // Ref para rastrear la última conversación cargada y evitar loops
+  const lastLoadedConversationRef = useRef<string | null>(null)
+  // Ref para almacenar conversaciones actuales sin causar re-renders
+  const conversationsRef = useRef(conversations)
+  
+  // Actualizar ref cuando cambian las conversaciones
+  useEffect(() => {
+    conversationsRef.current = conversations
+  }, [conversations])
 
   // Cargar mensajes de una conversación
   const loadMessages = useCallback(async (conversationId: string) => {
@@ -312,6 +321,7 @@ export default function ConversacionesPage() {
           // Limpiar mensajes y deseleccionar conversación
           setMessages([])
           setSelectedConversation(null)
+          lastLoadedConversationRef.current = null // ✅ Limpiar ref para permitir recarga
           return
         }
         
@@ -321,6 +331,7 @@ export default function ConversacionesPage() {
           toast.error('No tienes permiso para ver esta conversación')
           setMessages([])
           setSelectedConversation(null)
+          lastLoadedConversationRef.current = null // ✅ Limpiar ref para permitir recarga
           return
         }
         
@@ -362,7 +373,8 @@ export default function ConversacionesPage() {
       setMessages(formattedMessages)
 
       // Cargar detalles del contacto
-      const conv = conversations.find(c => c.id === conversationId)
+      // ✅ Usar ref para acceder a conversaciones sin incluirlas en dependencias
+      const conv = conversationsRef.current.find(c => c.id === conversationId)
       if (conv && conv.contactPhone) {
         // ✅ Usar API route para obtener detalles de conversación
         let customerData: any = null
@@ -455,7 +467,7 @@ export default function ConversacionesPage() {
       setLoadingMessages(false)
       loadingRef.current = null
     }
-  }, [organizationId, sessionLoading, sessionReady, conversations])
+  }, [organizationId, sessionLoading, sessionReady]) // ✅ Remover conversations de dependencias
 
   // Resetear a página 1 cuando cambia el filtro
   useEffect(() => {
@@ -464,10 +476,11 @@ export default function ConversacionesPage() {
 
   // Cargar mensajes cuando se selecciona una conversación
   useEffect(() => {
-    if (selectedConversation) {
+    if (selectedConversation && selectedConversation !== lastLoadedConversationRef.current) {
+      lastLoadedConversationRef.current = selectedConversation
       loadMessages(selectedConversation)
     }
-  }, [selectedConversation, loadMessages])
+  }, [selectedConversation]) // ✅ Remover loadMessages de dependencias para evitar loops
 
   // Aplicar dark mode al body
   useEffect(() => {
