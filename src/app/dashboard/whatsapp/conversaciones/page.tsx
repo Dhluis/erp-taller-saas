@@ -264,12 +264,22 @@ export default function ConversacionesPage() {
     }
   }, [conversations, selectedConversation])
 
+  // Flag para evitar múltiples peticiones simultáneas
+  const loadingRef = useRef<string | null>(null)
+
   // Cargar mensajes de una conversación
   const loadMessages = useCallback(async (conversationId: string) => {
     if (!conversationId) {
       console.warn('⚠️ [loadMessages] No hay conversationId')
       return
     }
+    
+    // ✅ Prevenir múltiples peticiones simultáneas para la misma conversación
+    if (loadingRef.current === conversationId) {
+      console.log('⏳ [loadMessages] Ya hay una petición en curso para esta conversación')
+      return
+    }
+    
     if (!organizationId) {
       if (sessionLoading || !sessionReady) {
         console.log('⏳ [loadMessages] Esperando organizationId (sesión en carga)...')
@@ -281,6 +291,7 @@ export default function ConversacionesPage() {
     }
 
     try {
+      loadingRef.current = conversationId
       setLoadingMessages(true)
       
       // ✅ Usar API route en lugar de query directa
@@ -292,7 +303,28 @@ export default function ConversacionesPage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Error al cargar mensajes')
+        const errorMessage = errorData.error || 'Error al cargar mensajes'
+        
+        // ✅ Manejar error 404 específicamente: la conversación no existe
+        if (response.status === 404) {
+          console.warn('⚠️ [loadMessages] Conversación no encontrada:', conversationId)
+          toast.error('La conversación no existe o fue eliminada')
+          // Limpiar mensajes y deseleccionar conversación
+          setMessages([])
+          setSelectedConversation(null)
+          return
+        }
+        
+        // ✅ Manejar error 403: no autorizado
+        if (response.status === 403) {
+          console.warn('⚠️ [loadMessages] No autorizado para esta conversación:', conversationId)
+          toast.error('No tienes permiso para ver esta conversación')
+          setMessages([])
+          setSelectedConversation(null)
+          return
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const result = await response.json()
@@ -408,11 +440,22 @@ export default function ConversacionesPage() {
       }
     } catch (error) {
       console.error('Error cargando mensajes:', error)
-      toast.error('Error al cargar mensajes')
+      const errorMessage = error instanceof Error ? error.message : 'Error al cargar mensajes'
+      
+      // ✅ Solo mostrar toast si no es un error de red (ERR_INSUFFICIENT_RESOURCES)
+      if (!errorMessage.includes('Failed to fetch') && !errorMessage.includes('ERR_INSUFFICIENT_RESOURCES')) {
+        toast.error(errorMessage)
+      } else {
+        console.warn('⚠️ [loadMessages] Error de red, omitiendo toast para evitar spam')
+      }
+      
+      // Limpiar mensajes en caso de error
+      setMessages([])
     } finally {
       setLoadingMessages(false)
+      loadingRef.current = null
     }
-  }, [organizationId, supabase, conversations])
+  }, [organizationId, sessionLoading, sessionReady, conversations])
 
   // Resetear a página 1 cuando cambia el filtro
   useEffect(() => {
