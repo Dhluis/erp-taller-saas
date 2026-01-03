@@ -3,8 +3,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase-simple';
 // ✅ Usar versión CLIENTE (work-orders.ts se usa en componentes del cliente)
 import { getOrganizationId } from '@/lib/auth/organization-client';
+import type { SupabaseServerClient } from '@/lib/supabase/server';
 
-type GenericSupabaseClient = SupabaseClient<Database>;
+// ✅ Tipo genérico que acepta tanto cliente del navegador como del servidor
+type GenericSupabaseClient = SupabaseClient<Database> | SupabaseServerClient;
 
 function getClient(): GenericSupabaseClient {
   return getSupabaseClient();
@@ -301,8 +303,13 @@ export async function getWorkOrderById(id: string) {
   return data as WorkOrder;
 }
 
-export async function createWorkOrder(orderData: CreateWorkOrderData) {
-  const supabase = getClient();
+export async function createWorkOrder(
+  orderData: CreateWorkOrderData,
+  supabaseClient?: GenericSupabaseClient
+) {
+  // ✅ Si se proporciona un cliente (desde API route), usarlo
+  // Si no, usar el cliente del navegador (para compatibilidad con frontend)
+  const supabase = supabaseClient || getClient();
   const organizationId = orderData.organization_id || await getOrganizationId();
 
   // ✅ FILTRAR campos que NO existen en la tabla work_orders

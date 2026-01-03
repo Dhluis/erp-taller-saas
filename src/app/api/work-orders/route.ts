@@ -582,7 +582,10 @@ export async function POST(request: NextRequest) {
     console.log('[POST /api/work-orders] 📋 TODOS LOS CAMPOS (JSON):', JSON.stringify(orderData, null, 2));
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-    const order = await createWorkOrder(orderData);
+    // ✅ USAR CLIENTE AUTENTICADO para que RLS funcione correctamente
+    // El cliente autenticado tiene auth.uid() disponible para las políticas RLS
+    const authenticatedSupabase = createClientFromRequest(request);
+    const order = await createWorkOrder(orderData, authenticatedSupabase);
 
     return NextResponse.json(
       {
