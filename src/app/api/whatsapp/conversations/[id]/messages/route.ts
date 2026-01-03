@@ -71,34 +71,57 @@ export async function GET(
     const limit = parseInt(searchParams.get('limit') || '100', 10);
     console.log('🔍 [GET /api/whatsapp/conversations/[id]/messages] Limit:', limit);
 
-    // Primero validar que la conversación pertenezca a la organización
-    console.log('🔍 [GET /api/whatsapp/conversations/[id]/messages] Validando conversación...');
-    const { data: conversation, error: convError } = await supabaseAdmin
+    // Primero verificar si la conversación existe (sin filtrar por organización)
+    console.log('🔍 [GET /api/whatsapp/conversations/[id]/messages] Verificando si conversación existe...');
+    const { data: conversationExists, error: existsError } = await supabaseAdmin
       .from('whatsapp_conversations')
       .select('id, organization_id')
       .eq('id', conversationId)
-      .eq('organization_id', organizationId)
       .single();
 
-    if (convError || !conversation) {
-      console.error('❌ [GET /api/whatsapp/conversations/[id]/messages] Conversación no encontrada o no autorizada:', {
-        convError,
+    if (existsError || !conversationExists) {
+      console.error('❌ [GET /api/whatsapp/conversations/[id]/messages] Conversación no existe:', {
+        existsError,
         conversationId,
-        organizationId,
-        errorCode: convError?.code,
-        errorMessage: convError?.message,
-        errorDetails: convError?.details,
-        errorHint: convError?.hint
+        errorCode: existsError?.code,
+        errorMessage: existsError?.message,
+        errorDetails: existsError?.details,
+        errorHint: existsError?.hint
       });
       return NextResponse.json(
         {
           success: false,
-          error: 'Conversación no encontrada o no autorizada',
+          error: 'Conversación no encontrada',
           data: []
         },
         { status: 404 }
       );
     }
+
+    // Verificar que la conversación pertenezca a la organización del usuario
+    console.log('🔍 [GET /api/whatsapp/conversations/[id]/messages] Verificando organización...', {
+      conversationOrgId: conversationExists.organization_id,
+      userOrgId: organizationId,
+      match: conversationExists.organization_id === organizationId
+    });
+
+    if (conversationExists.organization_id !== organizationId) {
+      console.error('❌ [GET /api/whatsapp/conversations/[id]/messages] Conversación no pertenece a la organización:', {
+        conversationId,
+        conversationOrgId: conversationExists.organization_id,
+        userOrgId: organizationId
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado: La conversación no pertenece a tu organización',
+          data: []
+        },
+        { status: 403 }
+      );
+    }
+
+    const conversation = conversationExists;
 
     console.log('✅ [GET /api/whatsapp/conversations/[id]/messages] Conversación validada:', conversation.id);
 
