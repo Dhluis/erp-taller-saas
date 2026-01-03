@@ -11,7 +11,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log('🔍 [GET /api/whatsapp/conversations/[id]/messages] Iniciando...');
     const { id: conversationId } = await params;
+    console.log('🔍 [GET /api/whatsapp/conversations/[id]/messages] Conversation ID:', conversationId);
 
     // ✅ Obtener usuario autenticado usando patrón robusto
     const supabase = createClientFromRequest(request);
@@ -28,6 +30,8 @@ export async function GET(
         { status: 401 }
       );
     }
+
+    console.log('✅ [GET /api/whatsapp/conversations/[id]/messages] Usuario autenticado:', user.id);
 
     // Obtener organization_id del perfil del usuario usando Service Role Client
     const supabaseAdmin = getSupabaseServiceClient();
@@ -50,12 +54,15 @@ export async function GET(
     }
 
     const organizationId = userProfile.organization_id;
+    console.log('✅ [GET /api/whatsapp/conversations/[id]/messages] Organization ID:', organizationId);
 
     // Obtener parámetros de query
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '100', 10);
+    console.log('🔍 [GET /api/whatsapp/conversations/[id]/messages] Limit:', limit);
 
     // Primero validar que la conversación pertenezca a la organización
+    console.log('🔍 [GET /api/whatsapp/conversations/[id]/messages] Validando conversación...');
     const { data: conversation, error: convError } = await supabaseAdmin
       .from('whatsapp_conversations')
       .select('id, organization_id')
@@ -64,7 +71,15 @@ export async function GET(
       .single();
 
     if (convError || !conversation) {
-      console.error('❌ [GET /api/whatsapp/conversations/[id]/messages] Conversación no encontrada o no autorizada:', convError);
+      console.error('❌ [GET /api/whatsapp/conversations/[id]/messages] Conversación no encontrada o no autorizada:', {
+        convError,
+        conversationId,
+        organizationId,
+        errorCode: convError?.code,
+        errorMessage: convError?.message,
+        errorDetails: convError?.details,
+        errorHint: convError?.hint
+      });
       return NextResponse.json(
         {
           success: false,
@@ -75,7 +90,10 @@ export async function GET(
       );
     }
 
+    console.log('✅ [GET /api/whatsapp/conversations/[id]/messages] Conversación validada:', conversation.id);
+
     // Obtener mensajes de la conversación
+    console.log('🔍 [GET /api/whatsapp/conversations/[id]/messages] Obteniendo mensajes...');
     const { data: messages, error: messagesError } = await supabaseAdmin
       .from('whatsapp_messages')
       .select('*')
@@ -85,16 +103,28 @@ export async function GET(
       .limit(limit);
 
     if (messagesError) {
-      console.error('❌ [GET /api/whatsapp/conversations/[id]/messages] Error en query:', messagesError);
+      console.error('❌ [GET /api/whatsapp/conversations/[id]/messages] Error en query de mensajes:', {
+        error: messagesError,
+        errorCode: messagesError?.code,
+        errorMessage: messagesError?.message,
+        errorDetails: messagesError?.details,
+        errorHint: messagesError?.hint,
+        conversationId,
+        organizationId
+      });
       return NextResponse.json(
         {
           success: false,
           error: messagesError.message || 'Error al obtener mensajes',
-          data: []
+          data: [],
+          details: messagesError.details || null,
+          hint: messagesError.hint || null
         },
         { status: 500 }
       );
     }
+
+    console.log('✅ [GET /api/whatsapp/conversations/[id]/messages] Mensajes obtenidos:', messages?.length || 0);
 
     return NextResponse.json({
       success: true,
@@ -102,12 +132,18 @@ export async function GET(
       count: messages?.length || 0
     });
   } catch (error: any) {
-    console.error('❌ [GET /api/whatsapp/conversations/[id]/messages] Error:', error);
+    console.error('❌ [GET /api/whatsapp/conversations/[id]/messages] Error catch:', {
+      error,
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name
+    });
     return NextResponse.json(
       {
         success: false,
         error: error.message || 'Error al obtener mensajes',
-        data: []
+        data: [],
+        details: error.stack || null
       },
       { status: 500 }
     );
