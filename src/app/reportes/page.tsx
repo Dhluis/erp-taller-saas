@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/navigation/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,6 +47,9 @@ export default function ReportesPage() {
     averageOrderValue: 0,
   });
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  // ✅ FIX: Ref para prevenir ejecución múltiple del useEffect
+  const hasLoadedRef = useRef(false);
+  const isLoadingRef = useRef(false);
 
   // Usar hooks para obtener datos reales
   const { customers, loading: customersLoading } = useCustomers();
@@ -54,20 +57,33 @@ export default function ReportesPage() {
   const { organizationId, loading: orgLoading, ready } = useOrganization();
 
   useEffect(() => {
-    const loadReportData = async () => {
-      // ✅ FIX: Solo cargar cuando organizationId esté listo y ESTABLE (ready)
-      if (!organizationId || orgLoading || !ready) {
-        // Si está cargando organizationId o no está ready, mantener loading state
-        if (orgLoading || !ready) {
-          setLoading(true);
-          console.log('⏳ [Reportes] Esperando a que organizationId esté ready...', { orgLoading, ready, organizationId: !!organizationId });
-        } else if (!organizationId) {
-          console.log('⚠️ [Reportes] organizationId no disponible todavía');
-        }
-        return;
-      }
+    // ✅ FIX: Prevenir ejecución múltiple usando ref
+    if (hasLoadedRef.current) {
+      console.log('⏸️ [Reportes] Ya se cargó una vez, omitiendo ejecución duplicada');
+      return;
+    }
 
+    // ✅ FIX: Solo cargar cuando organizationId esté listo y ESTABLE (ready)
+    if (!organizationId || orgLoading || !ready) {
+      // Si está cargando organizationId o no está ready, mantener loading state
+      if (orgLoading || !ready) {
+        setLoading(true);
+        console.log('⏳ [Reportes] Esperando a que organizationId esté ready...', { orgLoading, ready, organizationId: !!organizationId });
+      } else if (!organizationId) {
+        console.log('⚠️ [Reportes] organizationId no disponible todavía');
+      }
+      return;
+    }
+
+    // ✅ FIX: Prevenir múltiples llamadas simultáneas
+    if (isLoadingRef.current) {
+      console.log('⏸️ [Reportes] Ya hay una carga en curso, omitiendo...');
+      return;
+    }
+
+    const loadReportData = async () => {
       try {
+        isLoadingRef.current = true;
         setLoading(true);
         
         console.log('🔄 [Reportes] useEffect triggered - organizationId READY y disponible:', organizationId);
@@ -107,9 +123,14 @@ export default function ReportesPage() {
         });
         console.log('📊 [Reportes] Órdenes cargadas:', orders.length);
         
-        // Calcular estadísticas usando los datos disponibles (customers y vehicles pueden venir después)
-        const totalCustomers = customers?.length || 0;
-        const totalVehicles = vehicles?.length || 0;
+        // ✅ FIX: Usar valores actuales de customers y vehicles sin incluirlos en dependencias
+        // Estos valores se actualizarán en un efecto separado si es necesario
+        const currentCustomers = customers?.length || 0;
+        const currentVehicles = vehicles?.length || 0;
+        
+        // Calcular estadísticas usando los datos disponibles
+        const totalCustomers = currentCustomers;
+        const totalVehicles = currentVehicles;
         const totalOrders = orders.length || 0;
         const pendingOrders = orders.filter((order: any) => 
           order.status === 'pending' || order.status === 'diagnosis' || order.status === 'reception'
@@ -133,6 +154,7 @@ export default function ReportesPage() {
           averageOrderValue
         });
         
+        // ✅ FIX: Actualizar estado una sola vez con todos los datos
         setReportData({
           totalCustomers,
           totalVehicles,
@@ -143,6 +165,9 @@ export default function ReportesPage() {
           monthlyRevenue,
           averageOrderValue,
         });
+
+        // ✅ FIX: Marcar como cargado después de actualizar datos
+        hasLoadedRef.current = true;
       } catch (error) {
         console.error('❌ [Reportes] Error loading report data:', error);
         toast.error('Error al cargar datos del reporte', {
@@ -150,11 +175,13 @@ export default function ReportesPage() {
         });
       } finally {
         setLoading(false);
+        isLoadingRef.current = false;
       }
     };
 
     loadReportData();
-  }, [organizationId, orgLoading, ready, customers, vehicles, hasLoadedOnce]); // ✅ FIX: Agregado 'ready' como dependencia
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, orgLoading, ready]); // ✅ FIX: Removidas dependencias de customers, vehicles, hasLoadedOnce para evitar re-ejecuciones
 
   const breadcrumbs = [
     { label: 'Reportes', href: '/reportes' }
@@ -478,18 +505,55 @@ RECOMENDACIONES
     }
   };
 
-  // ✅ FIX: Mostrar loading si organizationId no está listo o está cargando datos
+  // ✅ FIX: Mostrar loading skeleton si organizationId no está listo o está cargando datos
+  // Usar skeleton en lugar de spinner para evitar parpadeo
   if (!organizationId || orgLoading || loading) {
     return (
       <AppLayout title="Reportes" breadcrumbs={breadcrumbs}>
         <div className="space-y-6">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
-              <p className="text-slate-400">
-                {!organizationId || orgLoading ? 'Cargando organización...' : 'Cargando reportes...'}
-              </p>
+          {/* Skeleton para header */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <div className="h-8 w-64 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+              <div className="h-4 w-96 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
             </div>
+            <div className="h-10 w-40 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+          </div>
+
+          {/* Skeleton para cards de estadísticas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                      <div className="h-8 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                      <div className="h-3 w-32 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                    </div>
+                    <div className="h-12 w-12 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Skeleton para cards adicionales */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                      <div className="h-8 w-20 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                      <div className="h-3 w-28 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                    </div>
+                    <div className="h-12 w-12 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </AppLayout>
