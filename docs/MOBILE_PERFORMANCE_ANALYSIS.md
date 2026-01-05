@@ -351,3 +351,4 @@ const POLLING_INTERVAL_WITH_QR = 30000 // 30 segundos
 
 **Nota:** Este análisis se realizó sin hacer cambios al código. Todos los problemas identificados son basados en análisis estático del código y patrones conocidos de rendimiento en mobile.
 
+
