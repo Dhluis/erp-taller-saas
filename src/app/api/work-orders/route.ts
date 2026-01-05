@@ -234,29 +234,17 @@ export async function GET(request: NextRequest) {
           console.log(`[GET /api/work-orders] 🔍 Employees en la organización:`, allEmployees);
           console.log(`[GET /api/work-orders] 🔍 Error al buscar todos:`, allEmployeesError);
           
-          // Si no tiene employee_id, retornar array vacío (no puede ver órdenes)
-          return NextResponse.json({
-            success: true,
-            data: [],
-            count: 0,
-            message: 'No se encontró empleado asociado a este usuario',
-            debug: {
-              userEmail: user.email,
-              organizationId,
-              employeeError: employeeError?.message,
-              availableEmployees: allEmployees?.length || 0
-            }
-          });
+          // ✅ OPCIÓN 1: Si no tiene employee_id, NO filtrar por assigned_to
+          // Devolver TODAS las órdenes de la organización (consistencia con /api/orders/stats)
+          console.log(`[GET /api/work-orders] ℹ️ Mecánico sin employee_id - mostrando TODAS las órdenes de la organización`);
+          assignedEmployeeId = null; // Asegurar que es null para no aplicar filtro
         }
       } catch (error) {
         console.error('[GET /api/work-orders] ❌ Error buscando employee:', error);
-        // En caso de error, retornar array vacío para no romper la aplicación
-        return NextResponse.json({
-          success: true,
-          data: [],
-          count: 0,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
+        // ✅ OPCIÓN 1: En caso de error, continuar sin filtrar por assigned_to
+        // Mostrar TODAS las órdenes de la organización (consistencia con /api/orders/stats)
+        console.log(`[GET /api/work-orders] ℹ️ Error buscando employee - mostrando TODAS las órdenes de la organización`);
+        assignedEmployeeId = null; // Asegurar que es null para no aplicar filtro
       }
     }
     
@@ -293,12 +281,14 @@ export async function GET(request: NextRequest) {
           `, { count: 'exact' }) // ✅ IMPORTANTE: count para paginación
           .eq('organization_id', organizationId);
         
-        // ✅ Si es mecánico, filtrar solo órdenes asignadas a él
+        // ✅ Si es mecánico Y tiene employee_id, filtrar solo órdenes asignadas a él
+        // Si NO tiene employee_id, mostrar TODAS las órdenes de la organización (Opción 1)
         if (userRole === 'MECANICO' && assignedEmployeeId) {
           console.log(`[GET /api/work-orders] 🔍 Filtrando órdenes por assigned_to: ${assignedEmployeeId}`);
           query = query.eq('assigned_to', assignedEmployeeId);
         } else if (userRole === 'MECANICO' && !assignedEmployeeId) {
-          console.log(`[GET /api/work-orders] ⚠️ Mecánico sin assignedEmployeeId, no se pueden mostrar órdenes`);
+          console.log(`[GET /api/work-orders] ℹ️ Mecánico sin employee_id - mostrando TODAS las órdenes de la organización (sin filtro assigned_to)`);
+          // NO aplicar filtro - mostrar todas las órdenes de la organización
         }
 
         // ✅ Filtros
@@ -389,6 +379,7 @@ export async function GET(request: NextRequest) {
     // ✅ DEBUG: Log para mecánicos
     if (userRole === 'MECANICO') {
       console.log(`[GET /api/work-orders] 📊 Órdenes encontradas para mecánico: ${orders?.length || 0}`);
+      console.log(`[GET /api/work-orders] 🔍 Filtro aplicado: ${assignedEmployeeId ? `assigned_to = ${assignedEmployeeId}` : 'NINGUNO (todas las órdenes de la organización)'}`);
       if (orders && orders.length > 0) {
         console.log(`[GET /api/work-orders] 📋 Primeras órdenes:`, orders.slice(0, 3).map((o: any) => ({
           id: o.id,
