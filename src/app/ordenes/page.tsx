@@ -684,7 +684,7 @@ export default function OrdenesPage() {
             <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-red-600 hover:bg-red-700 text-white"
               disabled={isDeleting}
             >
               {isDeleting ? 'Eliminando...' : 'Eliminar'}

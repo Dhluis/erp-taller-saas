@@ -434,7 +434,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     }
   }, [organizationId])
 
-  // ✅ Cargar empleados usando API route
+  // ✅ Cargar mecánicos desde tabla users con rol MECANICO
   const loadEmployees = useCallback(async () => {
     if (!organizationId) {
       console.warn('⚠️ [loadEmployees] No hay organizationId disponible')
@@ -446,40 +446,47 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     try {
       setLoadingEmployees(true)
 
-      // ✅ Usar API route en lugar de query directa
-      const response = await fetch('/api/employees?active=true', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-      });
+      // ✅ Buscar mecánicos en la tabla users con rol MECANICO
+      const { data: mechanics, error } = await supabase
+        .from('users')
+        .select('id, full_name, email, role')
+        .eq('organization_id', organizationId)
+        .eq('role', 'MECANICO')
+        .eq('is_active', true)
+        .order('full_name', { ascending: true });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al cargar empleados');
+      if (error) {
+        console.error('❌ [loadEmployees] Error cargando mecánicos:', error)
+        throw error
       }
 
-      const result = await response.json();
-      const allEmployees = result.employees || result.data || [];
-      
-      // Filtrar por workshop_id si es necesario (el filtrado por organization_id ya lo hace la API)
-      let filteredEmployees = allEmployees;
+      // Filtrar por workshop_id si es necesario
+      let filteredMechanics = mechanics || [];
       if (sessionWorkshopId && !hasMultipleWorkshops) {
-        filteredEmployees = allEmployees.filter((emp: any) => emp.workshop_id === sessionWorkshopId);
+        filteredMechanics = (mechanics || []).filter((mech: any) => mech.workshop_id === sessionWorkshopId);
       }
 
-      setEmployees(filteredEmployees);
-      console.log('✅ [loadEmployees] Empleados cargados:', {
-        count: filteredEmployees?.length || 0,
+      // Mapear a formato compatible con el dropdown
+      const mappedMechanics = filteredMechanics.map((mech: any) => ({
+        id: mech.id,
+        name: mech.full_name || mech.email || 'Sin nombre',
+        email: mech.email,
+        role: mech.role || 'MECANICO'
+      }));
+
+      setEmployees(mappedMechanics);
+      console.log('✅ [loadEmployees] Mecánicos cargados desde users:', {
+        count: mappedMechanics?.length || 0,
         organizationId: organizationId,
         workshopId: sessionWorkshopId || 'sin asignar'
       })
     } catch (error) {
-      console.error('❌ [loadEmployees] Error cargando empleados:', error)
+      console.error('❌ [loadEmployees] Error cargando mecánicos:', error)
       setEmployees([])
     } finally {
       setLoadingEmployees(false)
     }
-  }, [organizationId, sessionWorkshopId, hasMultipleWorkshops])
+  }, [organizationId, sessionWorkshopId, hasMultipleWorkshops, supabase])
 
   useEffect(() => {
 
@@ -2140,7 +2147,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             <div>
 
-              <Label htmlFor="assigned_to">Asignar Empleado (opcional)</Label>
+              <Label htmlFor="assigned_to">Asignar Mecánico (opcional)</Label>
 
               <Select
 
@@ -2170,11 +2177,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                       loadingEmployees 
 
-                        ? "Cargando empleados..." 
+                        ? "Cargando mecánicos..." 
 
                         : employees.length === 0 
 
-                          ? "No hay empleados disponibles" 
+                          ? "No hay mecánicos disponibles" 
 
                           : "Sin asignar"
 
@@ -2202,11 +2209,21 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                         <SelectItem key={employee.id} value={employee.id} className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col gap-1">
 
-                            <User className="h-4 w-4" />
+                            <div className="flex items-center gap-2">
 
-                            {employee.name} ({employee.role})
+                              <User className="h-4 w-4" />
+
+                              <span className="font-medium">{employee.name}</span>
+
+                            </div>
+
+                            {employee.email && (
+
+                              <span className="text-xs text-muted-foreground ml-6">{employee.email}</span>
+
+                            )}
 
                           </div>
 
@@ -2220,7 +2237,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                       <div className="px-2 py-1.5 text-sm text-muted-foreground">
 
-                        No hay empleados disponibles
+                        No hay mecánicos disponibles
 
                       </div>
 
@@ -2236,7 +2253,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 <p className="text-xs text-gray-500 mt-1">
 
-                  No hay empleados disponibles. Ve a la sección Empleados para agregar algunos.
+                  No hay mecánicos disponibles. Los mecánicos deben tener rol MECANICO en la tabla users.
 
                 </p>
 

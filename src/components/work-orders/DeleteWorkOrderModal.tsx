@@ -43,7 +43,7 @@ export function DeleteWorkOrderModal({
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isDeleting}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="bg-red-600 hover:bg-red-700 text-white"
           >
             {isDeleting ? 'Eliminando...' : 'Eliminar'}
           </AlertDialogAction>

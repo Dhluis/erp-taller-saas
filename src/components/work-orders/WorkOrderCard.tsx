@@ -150,7 +150,7 @@ export function WorkOrderCard({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-red-600 hover:bg-red-700 text-white"
               onClick={() => {
                 onDelete(workOrder);
                 setShowDeleteDialog(false);
