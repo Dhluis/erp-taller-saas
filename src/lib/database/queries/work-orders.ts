@@ -776,7 +776,8 @@ export async function getWorkOrderStats() {
   const { data: orders, error } = await supabase
     .from('work_orders')
     .select('status, total_amount')
-    .eq('organization_id', organizationId);
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null); // ✅ excluir órdenes soft-deleted
 
   if (error) throw error;
 

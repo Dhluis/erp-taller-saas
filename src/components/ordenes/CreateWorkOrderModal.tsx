@@ -434,7 +434,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     }
   }, [organizationId])
 
-  // ✅ Cargar mecánicos desde tabla users con rol MECANICO
+  // ✅ Cargar empleados asignables (MECANICO y ASESOR) desde tabla users
   const loadEmployees = useCallback(async () => {
     if (!organizationId) {
       console.warn('⚠️ [loadEmployees] No hay organizationId disponible')
@@ -446,25 +446,69 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     try {
       setLoadingEmployees(true)
 
-      // ✅ Buscar mecánicos en la tabla users con rol MECANICO
+      // ✅ Buscar empleados asignables (MECANICO y ASESOR) en la tabla users
+      const assignableRoles = ['MECANICO', 'ASESOR']
+      console.log('🔍 [loadEmployees] Buscando empleados asignables con:', {
+        organizationId,
+        roles: assignableRoles,
+        is_active: true
+      })
+      
       const { data: mechanics, error } = await supabase
         .from('users')
-        .select('id, full_name, email, role, workshop_id, organization_id')
+        .select('id, full_name, email, role, workshop_id, organization_id, is_active')
         .eq('organization_id', organizationId)
-        .eq('role', 'MECANICO')
+        .in('role', assignableRoles) // ✅ Incluir MECANICO y ASESOR
         .eq('is_active', true)
         .order('full_name', { ascending: true });
 
       if (error) {
-        console.error('❌ [loadEmployees] Error cargando mecánicos:', error)
+        console.error('❌ [loadEmployees] Error cargando empleados:', error)
+        console.error('   Error code:', error.code)
+        console.error('   Error message:', error.message)
+        console.error('   Error details:', error.details)
+        console.error('   Error hint:', error.hint)
         throw error
       }
 
+      console.log('📊 [loadEmployees] Resultado raw de Supabase:', {
+        mechanicsCount: mechanics?.length || 0,
+        mechanics: mechanics,
+        error: error
+      })
+
+      // ✅ DEBUG: Si no hay resultados, verificar sin filtro is_active
+      if (!mechanics || mechanics.length === 0) {
+        console.warn('⚠️ [loadEmployees] No se encontraron empleados activos. Verificando todos los empleados...')
+        const { data: allMechanics, error: allError } = await supabase
+          .from('users')
+          .select('id, full_name, email, role, is_active, organization_id')
+          .eq('organization_id', organizationId)
+          .in('role', assignableRoles) // ✅ Incluir MECANICO y ASESOR
+        
+        if (!allError && allMechanics) {
+          console.log('📋 [loadEmployees] Todos los empleados (sin filtro is_active):', {
+            total: allMechanics.length,
+            active: allMechanics.filter(m => m.is_active).length,
+            inactive: allMechanics.filter(m => !m.is_active).length,
+            byRole: {
+              MECANICO: allMechanics.filter(m => m.role === 'MECANICO').length,
+              ASESOR: allMechanics.filter(m => m.role === 'ASESOR').length
+            },
+            employees: allMechanics.map(m => ({
+              name: m.full_name || m.email,
+              is_active: m.is_active,
+              role: m.role
+            }))
+          })
+        }
+      }
+
       // ✅ Filtrar por workshop_id si hay múltiples workshops Y el usuario tiene workshop asignado
-      // ✅ IMPORTANTE: Incluir mecánicos sin workshop asignado (workshop_id: null) para todos los workshops
+      // ✅ IMPORTANTE: Incluir empleados sin workshop asignado (workshop_id: null) para todos los workshops
       let filteredMechanics = mechanics || [];
       if (sessionWorkshopId && hasMultipleWorkshops) {
-        // Incluir mecánicos del workshop específico O sin workshop asignado (flotantes)
+        // Incluir empleados del workshop específico O sin workshop asignado (flotantes)
         filteredMechanics = (mechanics || []).filter((mech: any) => 
           mech.workshop_id === sessionWorkshopId || mech.workshop_id === null
         );
@@ -479,8 +523,12 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       }));
 
       setEmployees(mappedMechanics);
-      console.log('✅ [loadEmployees] Mecánicos cargados:', {
+      console.log('✅ [loadEmployees] Empleados asignables cargados:', {
         total: mappedMechanics?.length || 0,
+        byRole: {
+          MECANICO: mappedMechanics.filter(m => m.role === 'MECANICO').length,
+          ASESOR: mappedMechanics.filter(m => m.role === 'ASESOR').length
+        },
         organizationId: organizationId,
         workshopId: sessionWorkshopId || 'sin filtro workshop',
         hasMultipleWorkshops
@@ -2152,7 +2200,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             <div>
 
-              <Label htmlFor="assigned_to">Asignar Mecánico (opcional)</Label>
+              <Label htmlFor="assigned_to">Asignar Empleado (opcional)</Label>
 
               <Select
 
@@ -2182,11 +2230,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                       loadingEmployees 
 
-                        ? "Cargando mecánicos..." 
+                        ? "Cargando empleados..." 
 
                         : employees.length === 0 
 
-                          ? "No hay mecánicos disponibles" 
+                          ? "No hay empleados disponibles" 
 
                           : "Sin asignar"
 
@@ -2222,6 +2270,16 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                               <span className="font-medium">{employee.name}</span>
 
+                              {employee.role && (
+
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
+
+                                  {employee.role}
+
+                                </span>
+
+                              )}
+
                             </div>
 
                             {employee.email && (
@@ -2242,7 +2300,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                       <div className="px-2 py-1.5 text-sm text-muted-foreground">
 
-                        No hay mecánicos disponibles
+                        No hay empleados disponibles
 
                       </div>
 
@@ -2258,7 +2316,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 <p className="text-xs text-gray-500 mt-1">
 
-                  No hay mecánicos disponibles. Los mecánicos deben tener rol MECANICO en la tabla users.
+                  No hay empleados disponibles. Los empleados deben tener rol MECANICO o ASESOR en la tabla users.
 
                 </p>
 
