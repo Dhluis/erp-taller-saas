@@ -118,11 +118,15 @@ export default function LandingPage() {
             <div className="relative">
               <div className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20 backdrop-blur-sm bg-white/10">
                 {/* 
-                  IMPORTANTE: Coloca tu imagen del dashboard en public/dashboard-hero.png
-                  O actualiza la ruta src="/dashboard-hero.png" con la ruta correcta de tu imagen
+                  URL de la imagen desde ImgBB: https://ibb.co/23C3ff0b
+                  Para obtener la URL directa:
+                  1. Ve a https://ibb.co/23C3ff0b
+                  2. Haz clic derecho en la imagen > "Copiar dirección de imagen"
+                  3. O busca "Direct links" en la página y copia la URL
+                  4. Reemplaza la URL de abajo con la URL directa
                 */}
                 <Image
-                  src="/dashboard-hero.png"
+                  src="https://i.ibb.co/23C3ff0b/Captura-de-pantalla-2026-01-05-223640.png"
                   alt="EAGLES ERP Taller Dashboard - Sistema de gestión completo para talleres mecánicos"
                   width={1200}
                   height={800}
