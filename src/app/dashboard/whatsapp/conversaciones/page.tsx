@@ -1177,23 +1177,13 @@ export default function ConversacionesPage() {
           }
         }
 
-        // Si falla todo, usar lista por defecto
-        console.error('Error cargando usuarios')
-        setAvailableAgents([
-          { id: '1', name: 'Juan Pérez' },
-          { id: '2', name: 'María García' },
-          { id: '3', name: 'Carlos López' },
-          { id: '4', name: 'Ana Martínez' }
-        ])
+        // Si falla todo, no hay agentes disponibles
+        console.error('Error cargando usuarios: No se pudieron cargar agentes desde la BD')
+        setAvailableAgents([])
       } catch (error) {
         console.error('Error cargando agentes:', error)
-        // Usar lista por defecto en caso de error
-        setAvailableAgents([
-          { id: '1', name: 'Juan Pérez' },
-          { id: '2', name: 'María García' },
-          { id: '3', name: 'Carlos López' },
-          { id: '4', name: 'Ana Martínez' }
-        ])
+        // No usar fallback mock, dejar array vacío
+        setAvailableAgents([])
       } finally {
         setLoadingAgents(false)
       }
@@ -1570,29 +1560,47 @@ export default function ConversacionesPage() {
                       <div className="space-y-4 mt-4">
                         <div>
                           <Label className={darkMode ? "text-white" : ""}>Agente</Label>
-                          <select
-                            value={selectedAgent}
-                            onChange={(e) => setSelectedAgent(e.target.value)}
-                            disabled={loadingAgents}
-                            className={cn(
-                              "w-full mt-2 p-2 rounded-md border",
-                              darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300",
-                              loadingAgents ? "opacity-50 cursor-not-allowed" : ""
-                            )}
-                          >
-                            <option value="">
-                              {loadingAgents ? 'Cargando agentes...' : 'Selecciona un agente'}
-                            </option>
-                            {availableAgents.map(agent => (
-                              <option key={agent.id} value={agent.name}>{agent.name}</option>
-                            ))}
-                          </select>
+                          {loadingAgents ? (
+                            <div className={cn(
+                              "w-full mt-2 p-3 rounded-md border text-sm text-center",
+                              darkMode ? "bg-gray-700 border-gray-600 text-gray-400" : "bg-gray-50 border-gray-300 text-gray-600"
+                            )}>
+                              Cargando agentes...
+                            </div>
+                          ) : availableAgents.length === 0 ? (
+                            <div className={cn(
+                              "w-full mt-2 p-3 rounded-md border text-sm",
+                              darkMode ? "bg-yellow-900/20 border-yellow-700/50 text-yellow-300" : "bg-yellow-50 border-yellow-200 text-yellow-800"
+                            )}>
+                              <p className="font-medium mb-1">No hay agentes disponibles</p>
+                              <p className="text-xs opacity-90">
+                                Contacta al administrador para configurar agentes de WhatsApp.
+                              </p>
+                            </div>
+                          ) : (
+                            <select
+                              value={selectedAgent}
+                              onChange={(e) => setSelectedAgent(e.target.value)}
+                              className={cn(
+                                "w-full mt-2 p-2 rounded-md border",
+                                darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300"
+                              )}
+                            >
+                              <option value="">Selecciona un agente</option>
+                              {availableAgents.map(agent => (
+                                <option key={agent.id} value={agent.name}>{agent.name}</option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                         <div className="flex justify-end gap-2">
                           <Button variant="outline" onClick={() => setReassignDialogOpen(false)}>
                             Cancelar
                           </Button>
-                          <Button onClick={handleReassign} disabled={!selectedAgent}>
+                          <Button 
+                            onClick={handleReassign} 
+                            disabled={!selectedAgent || availableAgents.length === 0 || loadingAgents}
+                          >
                             Reasignar
                           </Button>
                         </div>
