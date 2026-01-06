@@ -461,9 +461,13 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       }
 
       // ✅ Filtrar por workshop_id si hay múltiples workshops Y el usuario tiene workshop asignado
+      // ✅ IMPORTANTE: Incluir mecánicos sin workshop asignado (workshop_id: null) para todos los workshops
       let filteredMechanics = mechanics || [];
       if (sessionWorkshopId && hasMultipleWorkshops) {
-        filteredMechanics = (mechanics || []).filter((mech: any) => mech.workshop_id === sessionWorkshopId);
+        // Incluir mecánicos del workshop específico O sin workshop asignado (flotantes)
+        filteredMechanics = (mechanics || []).filter((mech: any) => 
+          mech.workshop_id === sessionWorkshopId || mech.workshop_id === null
+        );
       }
 
       // Mapear a formato compatible con el dropdown
