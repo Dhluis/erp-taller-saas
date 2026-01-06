@@ -115,8 +115,8 @@ export default function LandingPage() {
             </div>
 
             {/* Right content - Dashboard mockup */}
-            <div className="relative">
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20 backdrop-blur-sm bg-white/10">
+            <div className="relative w-full">
+              <div className="relative rounded-2xl overflow-visible shadow-2xl border-4 border-white/20 backdrop-blur-sm bg-white/10 p-2">
                 {/* 
                   URL de la imagen desde ImgBB: https://ibb.co/23C3ff0b
                   Para obtener la URL directa:
@@ -125,15 +125,23 @@ export default function LandingPage() {
                   3. O busca "Direct links" en la página y copia la URL
                   4. Reemplaza la URL de abajo con la URL directa
                 */}
-                <Image
-                  src="https://i.ibb.co/23C3ff0b/Captura-de-pantalla-2026-01-05-223640.png"
-                  alt="EAGLES ERP Taller Dashboard - Sistema de gestión completo para talleres mecánicos"
-                  width={1200}
-                  height={800}
-                  className="w-full h-auto rounded-lg object-cover"
-                  priority
-                  quality={95}
-                />
+                <div className="relative w-full flex items-center justify-center">
+                  <Image
+                    src="https://i.ibb.co/ZzFzkkRZ/Captura-de-pantalla-2026-01-05-223640.png"
+                    alt="EAGLES ERP Taller Dashboard - Sistema de gestión completo para talleres mecánicos"
+                    width={1920}
+                    height={1080}
+                    className="w-full h-auto rounded-lg object-contain"
+                    priority
+                    quality={100}
+                    unoptimized={true}
+                    style={{
+                      maxWidth: '100%',
+                      height: 'auto',
+                      display: 'block',
+                    }}
+                  />
+                </div>
               </div>
               {/* Floating elements */}
               <div className="absolute -top-4 -right-4 bg-emerald-500 text-white px-4 py-2 rounded-full font-semibold shadow-lg z-10">
