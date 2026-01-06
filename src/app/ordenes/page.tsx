@@ -675,20 +675,16 @@ export default function OrdenesPage() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="bg-[#0F172A] border-slate-700">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar orden?</AlertDialogTitle>
+            <AlertDialogTitle>¿Eliminar orden de trabajo?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción eliminará la orden{' '}
-              <span className="font-semibold text-white">
-                {orderPendingDelete?.customer?.name ?? 'Sin cliente'}
-              </span>{' '}
-              y todos sus datos. No se puede deshacer.
+              Esta acción no se puede deshacer. La orden y todos sus datos asociados serán eliminados permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
-              className="bg-red-500 hover:bg-red-600 text-white"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={isDeleting}
             >
               {isDeleting ? 'Eliminando...' : 'Eliminar'}
