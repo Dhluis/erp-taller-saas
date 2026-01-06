@@ -449,7 +449,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       // ✅ Buscar mecánicos en la tabla users con rol MECANICO
       const { data: mechanics, error } = await supabase
         .from('users')
-        .select('id, full_name, email, role')
+        .select('id, full_name, email, role, workshop_id, organization_id')
         .eq('organization_id', organizationId)
         .eq('role', 'MECANICO')
         .eq('is_active', true)
@@ -460,9 +460,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         throw error
       }
 
-      // Filtrar por workshop_id si es necesario
+      // ✅ Filtrar por workshop_id si hay múltiples workshops Y el usuario tiene workshop asignado
       let filteredMechanics = mechanics || [];
-      if (sessionWorkshopId && !hasMultipleWorkshops) {
+      if (sessionWorkshopId && hasMultipleWorkshops) {
         filteredMechanics = (mechanics || []).filter((mech: any) => mech.workshop_id === sessionWorkshopId);
       }
 
@@ -475,10 +475,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       }));
 
       setEmployees(mappedMechanics);
-      console.log('✅ [loadEmployees] Mecánicos cargados desde users:', {
-        count: mappedMechanics?.length || 0,
+      console.log('✅ [loadEmployees] Mecánicos cargados:', {
+        total: mappedMechanics?.length || 0,
         organizationId: organizationId,
-        workshopId: sessionWorkshopId || 'sin asignar'
+        workshopId: sessionWorkshopId || 'sin filtro workshop',
+        hasMultipleWorkshops
       })
     } catch (error) {
       console.error('❌ [loadEmployees] Error cargando mecánicos:', error)
