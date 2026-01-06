@@ -701,8 +701,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         toast.error('Solo se permiten archivos PDF')
         return
       }
-      if (file.size > 5 * 1024 * 1024) { // 5MB
-        toast.error('El archivo es demasiado grande. Máximo 5MB')
+      if (file.size > 50 * 1024 * 1024) { // 50MB - coincidir con límite del bucket
+        toast.error('El archivo es demasiado grande. Máximo 50MB')
         return
       }
       setFormData(prev => ({ ...prev, terms_file: file, terms_type: 'file' }))
@@ -944,26 +944,93 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       let termsFileUrl: string | null = null
       if (formData.terms_type === 'file' && formData.terms_file) {
         try {
-          const fileExt = formData.terms_file.name.split('.').pop()
-          const fileName = `terms/${organizationId}/${Date.now()}.${fileExt}`
+          // Validar que el archivo es PDF
+          if (formData.terms_file.type !== 'application/pdf') {
+            throw new Error('El archivo debe ser un PDF válido')
+          }
+          
+          // Validar tamaño (50MB máximo)
+          const MAX_SIZE = 50 * 1024 * 1024
+          if (formData.terms_file.size > MAX_SIZE) {
+            throw new Error('El archivo es demasiado grande. Máximo 50MB')
+          }
+          
+          // Generar nombre de archivo seguro
+          const fileExt = formData.terms_file.name.split('.').pop()?.toLowerCase() || 'pdf'
+          const sanitizedOrgId = organizationId?.replace(/[^a-zA-Z0-9-]/g, '') || 'unknown'
+          const timestamp = Date.now()
+          const fileName = `terms/${sanitizedOrgId}/${timestamp}.${fileExt}`
+          
+          console.log('📤 [CreateWorkOrderModal] Subiendo PDF de términos:', {
+            fileName,
+            fileSize: formData.terms_file.size,
+            fileType: formData.terms_file.type,
+            bucket: 'work-order-documents',
+            organizationId: sanitizedOrgId
+          })
+          
           const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('documents')
+            .from('work-order-documents') // ✅ Cambiado de 'documents' a 'work-order-documents'
             .upload(fileName, formData.terms_file, {
-              contentType: 'application/pdf',
-              upsert: false
+              contentType: formData.terms_file.type || 'application/pdf', // ✅ Usar tipo real del archivo
+              upsert: false,
+              cacheControl: '3600'
             })
           
           if (uploadError) {
-            console.error('Error subiendo archivo PDF:', uploadError)
-            toast.error('Error al subir el archivo PDF')
+            console.error('❌ [CreateWorkOrderModal] Error subiendo archivo PDF:', {
+              error: uploadError,
+              message: uploadError.message,
+              statusCode: uploadError.statusCode,
+              statusText: uploadError.statusText,
+              errorContext: uploadError.errorContext,
+              fileName,
+              bucket: 'work-order-documents'
+            })
+            
+            // Mensaje de error más descriptivo
+            let errorMessage = uploadError.message || 'Error desconocido'
+            if (uploadError.statusCode === '400') {
+              errorMessage = 'El bucket no existe o el formato del archivo no es válido. Verifica la configuración del bucket.'
+            } else if (uploadError.statusCode === '403') {
+              errorMessage = 'No tienes permisos para subir archivos. Verifica las políticas RLS.'
+            } else if (uploadError.statusCode === '413') {
+              errorMessage = 'El archivo es demasiado grande. Máximo 50MB.'
+            }
+            
+            toast.error('Error al subir el archivo PDF', {
+              description: errorMessage
+            })
+            throw new Error(`Error al subir PDF: ${errorMessage}`)
+          } else if (!uploadData) {
+            console.error('❌ [CreateWorkOrderModal] Upload exitoso pero sin data:', uploadData)
+            toast.error('Error al subir el archivo PDF', {
+              description: 'El archivo se subió pero no se obtuvo información de respuesta'
+            })
+            throw new Error('Error: No se recibió información del archivo subido')
           } else {
+            console.log('✅ [CreateWorkOrderModal] PDF subido exitosamente:', uploadData.path)
             const { data: { publicUrl } } = supabase.storage
-              .from('documents')
+              .from('work-order-documents') // ✅ Cambiado de 'documents' a 'work-order-documents'
               .getPublicUrl(fileName)
+            
+            if (!publicUrl) {
+              console.error('❌ [CreateWorkOrderModal] No se pudo generar URL pública')
+              toast.error('Error al generar URL del archivo', {
+                description: 'El archivo se subió pero no se pudo obtener la URL pública'
+              })
+              throw new Error('Error: No se pudo generar URL pública del archivo')
+            }
+            
             termsFileUrl = publicUrl
+            console.log('🔗 [CreateWorkOrderModal] URL pública generada:', publicUrl)
           }
-        } catch (uploadErr) {
-          console.error('Error en upload de términos:', uploadErr)
+        } catch (uploadErr: any) {
+          console.error('❌ [CreateWorkOrderModal] Error en upload de términos:', uploadErr)
+          toast.error('Error al subir el archivo PDF', {
+            description: uploadErr?.message || 'Error desconocido al subir el archivo'
+          })
+          throw uploadErr // Re-lanzar para detener el proceso de creación
         }
       }
 

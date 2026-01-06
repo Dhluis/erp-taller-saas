@@ -141,20 +141,33 @@ export default function OrdenesPage() {
       try {
         const { createClient } = await import('@/lib/supabase/client');
         const supabase = createClient();
+        
+        // ✅ Buscar en la tabla users (no system_users) y usar full_name
         const { data: users, error } = await supabase
-          .from('system_users')
-          .select('id, first_name, last_name, role, email')
-          .in('id', assignedUserIds);
+          .from('users')
+          .select('id, full_name, role, email, organization_id')
+          .in('id', assignedUserIds)
+          .eq('organization_id', organizationId || ''); // ✅ Filtrar por organización para seguridad
         
         if (!error && users) {
           const usersMap = users.reduce((acc: Record<string, any>, user: any) => {
-            acc[user.id] = user;
+            acc[user.id] = {
+              id: user.id,
+              full_name: user.full_name,
+              first_name: user.full_name?.split(' ')[0] || '', // Para compatibilidad con el render
+              last_name: user.full_name?.split(' ').slice(1).join(' ') || '', // Para compatibilidad con el render
+              role: user.role,
+              email: user.email
+            };
             return acc;
           }, {});
           setAssignedUsersMap(usersMap);
+          console.log('✅ [Ordenes] Usuarios asignados cargados:', Object.keys(usersMap).length);
+        } else if (error) {
+          console.error('❌ [Ordenes] Error cargando usuarios asignados:', error);
         }
       } catch (error) {
-        console.error('Error cargando usuarios:', error);
+        console.error('❌ [Ordenes] Error cargando usuarios:', error);
       }
     };
 
@@ -554,13 +567,13 @@ export default function OrdenesPage() {
                               <User className="w-4 h-4 text-slate-400" />
                               <div>
                                 <div className="text-sm text-white">
-                                  {assignedUser.first_name} {assignedUser.last_name}
+                                  {assignedUser.full_name || `${assignedUser.first_name || ''} ${assignedUser.last_name || ''}`.trim() || 'Sin nombre'}
                                 </div>
                                 <div className="text-xs text-slate-400">
                                   {assignedUser.role === 'ADMIN' ? 'Administrador' :
                                     assignedUser.role === 'ASESOR' ? 'Asesor' :
                                     assignedUser.role === 'MECANICO' ? 'Mecánico' :
-                                    assignedUser.role}
+                                    assignedUser.role || 'Sin rol'}
                                 </div>
                               </div>
                             </div>
