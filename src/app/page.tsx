@@ -117,33 +117,22 @@ export default function LandingPage() {
             {/* Right content - Dashboard mockup */}
             <div className="relative">
               <div className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20 backdrop-blur-sm bg-white/10">
-                <div className="bg-slate-900 p-6 rounded-lg">
-                  <div className="bg-slate-800 rounded p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-white font-semibold">EAGLES - ERP Taller SaaS</h3>
-                      <Badge className="bg-emerald-500 text-white">
-                        <Check className="w-3 h-3 mr-1" />
-                        Fácil de usar
-                      </Badge>
-                    </div>
-                    <div className="text-slate-400 text-sm mb-4">
-                      Dashboard en tiempo real con métricas y órdenes de trabajo
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-slate-700/50 rounded p-3">
-                        <div className="h-20 bg-slate-600/50 rounded mb-2"></div>
-                        <div className="h-3 bg-slate-600/50 rounded w-3/4"></div>
-                      </div>
-                      <div className="bg-slate-700/50 rounded p-3">
-                        <div className="h-20 bg-slate-600/50 rounded mb-2"></div>
-                        <div className="h-3 bg-slate-600/50 rounded w-3/4"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                {/* 
+                  IMPORTANTE: Coloca tu imagen del dashboard en public/dashboard-hero.png
+                  O actualiza la ruta src="/dashboard-hero.png" con la ruta correcta de tu imagen
+                */}
+                <Image
+                  src="/dashboard-hero.png"
+                  alt="EAGLES ERP Taller Dashboard - Sistema de gestión completo para talleres mecánicos"
+                  width={1200}
+                  height={800}
+                  className="w-full h-auto rounded-lg object-cover"
+                  priority
+                  quality={95}
+                />
               </div>
               {/* Floating elements */}
-              <div className="absolute -top-4 -right-4 bg-emerald-500 text-white px-4 py-2 rounded-full font-semibold shadow-lg">
+              <div className="absolute -top-4 -right-4 bg-emerald-500 text-white px-4 py-2 rounded-full font-semibold shadow-lg z-10">
                 ✓ Fácil de usar
               </div>
             </div>
