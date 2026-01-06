@@ -819,9 +819,29 @@ export async function POST(request: NextRequest) {
     if (action === 'reconnect') {
       console.log(`[/api/whatsapp/session] 🔄 Reconnect solicitado`);
       try {
+        // ✅ FIX: Verificar si la sesión existe en WAHA antes de intentar reconectar
+        console.log(`[/api/whatsapp/session] 🔍 Verificando si sesión existe en WAHA...`);
+        const { getSessionStatus } = await import('@/lib/waha-sessions');
+        const sessionStatus = await getSessionStatus(sessionName, organizationId);
+        
+        // Si la sesión no existe (404), retornar success sin lanzar error
+        if (!sessionStatus.exists || sessionStatus.status === 'NOT_FOUND') {
+          console.log(`[/api/whatsapp/session] ℹ️ Sesión no existe en WAHA (404), retornando status=false sin error`);
+          return NextResponse.json({
+            success: true,
+            status: false,
+            connected: false,
+            session: sessionName,
+            qr: null,
+            message: 'Sesión no encontrada. El frontend generará un nuevo QR.'
+          });
+        }
+        
         // ✅ Limpiar cache al reconectar (necesitamos un QR nuevo)
         clearQRCache(sessionName, organizationId);
         
+        // Intentar reconectar solo si la sesión existe
+        console.log(`[/api/whatsapp/session] ✅ Sesión existe, intentando reconectar...`);
         await startSession(sessionName, organizationId);
         
         // ✅ Actualizar webhook con Organization ID dinámico después de reconectar
@@ -840,6 +860,24 @@ export async function POST(request: NextRequest) {
           message: 'Sesión reiniciada. Recarga para obtener el QR.'
         });
       } catch (reconnectError: any) {
+        // ✅ FIX: Verificar si el error es un 404 de WAHA
+        const is404Error = reconnectError.message?.includes('404') || 
+                          reconnectError.message?.includes('not found') ||
+                          reconnectError.message?.includes('Session not found');
+        
+        if (is404Error) {
+          console.log(`[/api/whatsapp/session] ℹ️ Error 404 detectado, sesión no existe en WAHA`);
+          return NextResponse.json({
+            success: true,
+            status: false,
+            connected: false,
+            session: sessionName,
+            qr: null,
+            message: 'Sesión no encontrada. El frontend generará un nuevo QR.'
+          });
+        }
+        
+        // Solo lanzar error 500 para errores reales (network, timeout, etc)
         console.error(`[/api/whatsapp/session] ❌ Error reconectando:`, {
           message: reconnectError.message,
           stack: reconnectError.stack

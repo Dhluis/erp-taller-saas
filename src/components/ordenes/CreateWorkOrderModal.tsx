@@ -215,10 +215,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 }: CreateWorkOrderModalProps) {
   // ✅ Usar context si no se proporciona como prop
   const { organizationId: contextOrganizationId } = useOrganization();
-  const { workshopId: sessionWorkshopId, hasMultipleWorkshops } = useSession();
+  const { workshopId: sessionWorkshopId, hasMultipleWorkshops, user, isReady } = useSession();
   const organizationId = propOrganizationId ?? contextOrganizationId;
 
-  const { user, profile } = useAuth()
+  const { profile } = useAuth()
 
   const supabase = createClient()
   
@@ -446,12 +446,33 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     try {
       setLoadingEmployees(true)
 
+      // ✅ FIX #1: Verificar que el usuario esté autenticado antes de ejecutar la query
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (!session || sessionError) {
+        console.error('❌ [loadEmployees] Usuario no autenticado:', {
+          sessionError,
+          hasSession: !!session,
+          userId: session?.user?.id,
+          organizationId
+        })
+        setEmployees([])
+        setLoadingEmployees(false)
+        return
+      }
+
+      console.log('✅ [loadEmployees] Usuario autenticado:', {
+        userId: session.user.id,
+        email: session.user.email,
+        organizationId
+      })
+
       // ✅ Buscar empleados asignables (MECANICO y ASESOR) en la tabla users
       const assignableRoles = ['MECANICO', 'ASESOR']
       console.log('🔍 [loadEmployees] Buscando empleados asignables con:', {
         organizationId,
         roles: assignableRoles,
-        is_active: true
+        is_active: true,
+        userId: session.user.id // ✅ Agregar userId al log
       })
       
       const { data: mechanics, error } = await supabase
@@ -463,18 +484,23 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         .order('full_name', { ascending: true });
 
       if (error) {
-        console.error('❌ [loadEmployees] Error cargando empleados:', error)
-        console.error('   Error code:', error.code)
-        console.error('   Error message:', error.message)
-        console.error('   Error details:', error.details)
-        console.error('   Error hint:', error.hint)
+        console.error('❌ [loadEmployees] Error cargando empleados:', {
+          error,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          userId: session.user.id, // ✅ Agregar userId al log
+          organizationId
+        })
         throw error
       }
 
       console.log('📊 [loadEmployees] Resultado raw de Supabase:', {
         mechanicsCount: mechanics?.length || 0,
         mechanics: mechanics,
-        error: error
+        error: error,
+        userId: session.user.id // ✅ Agregar userId al log
       })
 
       // ✅ DEBUG: Si no hay resultados, verificar sin filtro is_active
@@ -531,7 +557,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         },
         organizationId: organizationId,
         workshopId: sessionWorkshopId || 'sin filtro workshop',
-        hasMultipleWorkshops
+        hasMultipleWorkshops,
+        userId: session.user.id // ✅ Agregar userId al log
       })
     } catch (error) {
       console.error('❌ [loadEmployees] Error cargando mecánicos:', error)
@@ -541,16 +568,27 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     }
   }, [organizationId, sessionWorkshopId, hasMultipleWorkshops, supabase])
 
+  // ✅ FIX #2: Esperar a que la sesión esté lista antes de cargar empleados
   useEffect(() => {
-
-    if (open) {
-
+    if (open && isReady && user && organizationId) {
+      console.log('✅ [useEffect] Condiciones cumplidas para cargar empleados:', {
+        open,
+        isReady,
+        hasUser: !!user,
+        userId: user?.id,
+        organizationId
+      })
       loadSystemUsers()
       loadEmployees()
-
+    } else {
+      console.log('⏳ [useEffect] Esperando condiciones:', {
+        open,
+        isReady,
+        hasUser: !!user,
+        organizationId
+      })
     }
-
-  }, [open, loadSystemUsers, loadEmployees])
+  }, [open, isReady, user, organizationId, loadSystemUsers, loadEmployees])
 
   // ✅ Cargar datos de la cita cuando se proporciona appointmentId
   useEffect(() => {
