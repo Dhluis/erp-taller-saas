@@ -279,7 +279,8 @@ export async function GET(request: NextRequest) {
               license_plate
             )
           `, { count: 'exact' }) // ✅ IMPORTANTE: count para paginación
-          .eq('organization_id', organizationId);
+          .eq('organization_id', organizationId)
+          .is('deleted_at', null); // ✅ SOFT DELETE: Solo mostrar órdenes activas
         
         // ✅ Si es mecánico Y tiene employee_id, filtrar solo órdenes asignadas a él
         // Si NO tiene employee_id, mostrar TODAS las órdenes de la organización (Opción 1)

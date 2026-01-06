@@ -226,6 +226,9 @@ export async function getAllWorkOrders(organizationId?: string, filters?: WorkOr
     query = query.eq('organization_id', finalOrgId);
   }
   
+  // ✅ SOFT DELETE: Filtrar órdenes eliminadas (solo mostrar activas)
+  query = query.is('deleted_at', null);
+  
   // ✅ FILTRO OPCIONAL: Filtrar por workshop_id solo si se proporciona
   // Si workshopId es null o undefined, mostrar todas las órdenes de la organización
   if (filters?.workshopId) {
@@ -288,6 +291,7 @@ export async function getWorkOrderById(id: string) {
     `)
     .eq('id', id)
     .eq('organization_id', organizationId)
+    .is('deleted_at', null) // ✅ SOFT DELETE: Solo mostrar órdenes activas
     .gte('created_at', '1970-01-01')  // Forzar bypass de cache
     .single()
     // NO usar cache para obtener datos actualizados de notas
@@ -400,6 +404,7 @@ export async function updateWorkOrder(id: string, orderData: UpdateWorkOrderData
     })
     .eq('id', id)
     .eq('organization_id', organizationId) // ✅ Filtrar por organization_id para seguridad multi-tenant
+    .is('deleted_at', null) // ✅ SOFT DELETE: Solo actualizar órdenes activas
     .select(`
       *,
       customer:customers(
@@ -431,106 +436,55 @@ export async function updateWorkOrder(id: string, orderData: UpdateWorkOrderData
 
 export async function deleteWorkOrder(id: string) {
   const supabase = getClient();
-
   const organizationId = await getOrganizationId();
-  console.log('🔧 deleteWorkOrder (DB) - Iniciando eliminación para ID:', id)
-  console.log('🔧 deleteWorkOrder (DB) - Organization ID:', organizationId)
   
-  // Verificar si la tabla work_orders existe y tiene datos
-  console.log('🔍 Verificando tabla work_orders...')
-  const { data: allOrders, error: tableError } = await supabase
+  console.log('🔧 [deleteWorkOrder] Iniciando soft delete para ID:', id);
+  console.log('🔧 [deleteWorkOrder] Organization ID:', organizationId);
+  
+  // ✅ Verificar que la orden existe y pertenece a la organización
+  const { data: existingOrder, error: fetchError } = await supabase
     .from('work_orders')
-    .select('id, organization_id')
-    .limit(5)
+    .select('id, status, organization_id, deleted_at')
+    .eq('id', id)
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null) // Solo buscar órdenes activas
+    .single();
   
-  console.log('🔍 Verificación de tabla:', { allOrders, tableError })
-  
-  if (tableError) {
-    console.error('❌ Error al acceder a la tabla work_orders:', tableError)
-    throw new Error(`La tabla work_orders no existe o no es accesible: ${tableError.message}`)
+  if (fetchError) {
+    if (fetchError.code === 'PGRST116') {
+      throw new Error(`Orden no encontrada con ID: ${id}`);
+    }
+    throw new Error(`Error al buscar orden: ${fetchError.message}`);
   }
   
-  console.log('✅ Tabla work_orders accesible, órdenes encontradas:', allOrders?.length || 0)
-  
-  // Buscar la orden específica
-  console.log('🔍 Buscando orden específica...')
-  console.log('🔍 ID a buscar:', id)
-  console.log('🔍 Tipo de ID:', typeof id)
-  console.log('🔍 Longitud del ID:', id.length)
-  
-  type ExistingOrderRecord = { organization_id?: string } | null;
-  let existingOrder: ExistingOrderRecord = null;
-  
-  try {
-    console.log('🔍 Ejecutando consulta a Supabase...')
-    const query = supabase
-      .from('work_orders')
-      .select('id, status, organization_id')
-      .eq('id', id)
-      .single()
-    
-    console.log('🔍 Query construida, ejecutando...')
-    const result = await query
-    
-    console.log('🔍 Resultado completo:', result)
-    console.log('🔍 Data:', result.data)
-    console.log('🔍 Error:', result.error)
-    console.log('🔍 Status:', result.status)
-    console.log('🔍 StatusText:', result.statusText)
-    
-    const { data: orderData, error: fetchError } = result
-    
-    console.log('🔍 Resultado de búsqueda:', { orderData, fetchError })
-    console.log('🔍 Tipo de fetchError:', typeof fetchError)
-    console.log('🔍 fetchError es null?:', fetchError === null)
-    console.log('🔍 fetchError es undefined?:', fetchError === undefined)
-    console.log('🔍 fetchError es objeto vacío?:', JSON.stringify(fetchError) === '{}')
-    
-    if (fetchError) {
-      console.error('❌ Error al buscar orden:', fetchError)
-      console.error('❌ Código del error:', fetchError.code)
-      console.error('❌ Mensaje del error:', fetchError.message)
-      console.error('❌ Detalles del error:', fetchError.details)
-      console.error('❌ Hint del error:', fetchError.hint)
-      
-      // Si el error es que no se encontró la orden, es normal
-      if (fetchError.code === 'PGRST116') {
-        throw new Error(`Orden no encontrada con ID: ${id}`)
-      }
-      
-      throw new Error(`Error al buscar orden: ${fetchError.message}`)
-    }
-    
-    existingOrder = (orderData as ExistingOrderRecord) ?? null;
-    console.log('✅ Orden encontrada:', existingOrder)
-    
-    if ((existingOrder?.organization_id ?? null) !== organizationId) {
-      console.error('❌ La orden no pertenece a la organización correcta')
-      console.error('❌ Organization ID de la orden:', existingOrder?.organization_id)
-      console.error('❌ Organization ID esperado:', organizationId)
-      throw new Error(`La orden no pertenece a la organización correcta`)
-    }
-    
-  } catch (error) {
-    console.error('❌ Error en try-catch de búsqueda:', error)
-    console.error('❌ Tipo de error:', typeof error)
-    console.error('❌ Constructor del error:', error?.constructor?.name)
-    throw error
+  if (!existingOrder) {
+    throw new Error(`Orden no encontrada o ya eliminada`);
   }
   
+  if (existingOrder.organization_id !== organizationId) {
+    throw new Error(`La orden no pertenece a la organización correcta`);
+  }
+  
+  // ✅ SOFT DELETE: Marcar como eliminado en lugar de borrar físicamente
   const { error } = await supabase
     .from('work_orders')
-    .delete()
+    .update({
+      deleted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id)
-    .eq('organization_id', organizationId);
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null); // Solo actualizar si no está ya eliminada
 
   // ✅ OPTIMIZACIÓN: Limpiar cache al eliminar una orden
   clearOrdersCache(organizationId);
 
   if (error) {
-    console.error('❌ Error al eliminar orden en BD:', error)
-    throw new Error(`Failed to delete work order: ${error.message}`)
+    console.error('❌ [deleteWorkOrder] Error al hacer soft delete:', error);
+    throw new Error(`No se pudo eliminar la orden: ${error.message}`);
   }
+  
+  console.log('✅ [deleteWorkOrder] Orden marcada como eliminada exitosamente');
   return { success: true };
 }
 
@@ -566,6 +520,7 @@ export async function searchWorkOrders(searchTerm: string) {
       order_items(*)
     `)
     .eq('organization_id', organizationId)
+    .is('deleted_at', null) // ✅ SOFT DELETE: Solo buscar órdenes activas
     .or(`description.ilike.%${searchTerm}%,diagnosis.ilike.%${searchTerm}%`)
     .order('created_at', { ascending: false });
 
@@ -598,6 +553,7 @@ export async function getWorkOrdersByCustomer(customerId: string) {
     `)
     .eq('customer_id', customerId)
     .eq('organization_id', organizationId)
+    .is('deleted_at', null) // ✅ SOFT DELETE: Solo mostrar órdenes activas
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -629,6 +585,7 @@ export async function getWorkOrdersByVehicle(vehicleId: string) {
     `)
     .eq('vehicle_id', vehicleId)
     .eq('organization_id', organizationId)
+    .is('deleted_at', null) // ✅ SOFT DELETE: Solo mostrar órdenes activas
     .order('created_at', { ascending: false });
 
   if (error) throw error;
