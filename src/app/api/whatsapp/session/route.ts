@@ -572,8 +572,75 @@ export async function POST(request: NextRequest) {
     console.log(`[WhatsApp Session POST] 📝 Session: ${sessionName}`);
 
     // LOGOUT o CHANGE_NUMBER
-    if (action === 'logout' || action === 'change_number') {
-      console.log(`[WhatsApp Session POST] 🔓 Ejecutando ${action}...`);
+    // ✅ OPTIMIZACIÓN: Separar logout de change_number para mejor performance
+    if (action === 'logout') {
+      try {
+        console.log('[WhatsApp Session] 🔓 Procesando logout...');
+        console.log('[WhatsApp Session] 📋 Session:', sessionName);
+        console.log('[WhatsApp Session] 🏢 Organization:', organizationId);
+        
+        // Obtener configuración de WAHA
+        const { url, key } = await (await import('@/lib/waha-sessions')).getWahaConfig(organizationId);
+        
+        // ✅ PASO 1: Logout en WAHA (OBLIGATORIO)
+        console.log('[WhatsApp Session] 📤 Ejecutando logout en WAHA...');
+        await logoutSession(sessionName, organizationId);
+        console.log('[WhatsApp Session] ✅ Logout exitoso en WAHA');
+        
+        // ✅ PASO 2: Stop sesión (OPCIONAL - solo para asegurar)
+        // Si falla, no es crítico, el logout ya se completó
+        try {
+          console.log('[WhatsApp Session] ⏹️ Deteniendo sesión...');
+          const stopResponse = await fetchWithTimeout(
+            `${url}/api/sessions/${sessionName}/stop`,
+            { 
+              method: 'POST', 
+              headers: { 'X-Api-Key': key } 
+            },
+            5000 // ← Timeout reducido a 5s (antes 10s)
+          );
+          
+          if (stopResponse.ok) {
+            console.log('[WhatsApp Session] ✅ Sesión detenida');
+          } else {
+            console.warn('[WhatsApp Session] ⚠️ Stop retornó status:', stopResponse.status);
+          }
+        } catch (stopError) {
+          // Si falla el stop, no es crítico - el logout ya se hizo
+          console.warn('[WhatsApp Session] ⚠️ Error deteniendo sesión (no crítico):', stopError);
+        }
+        
+        // ✅ RETORNAR ÉXITO INMEDIATAMENTE
+        console.log('[WhatsApp Session] ✅ Logout completado exitosamente');
+        return NextResponse.json({
+          success: true,
+          message: 'Sesión desconectada exitosamente',
+          sessionName,
+          organizationId,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error: any) {
+        console.error('[WhatsApp Session] ❌ Error en logout:', error);
+        console.error('[WhatsApp Session] 📋 Error details:', {
+          message: error.message,
+          stack: error.stack,
+          sessionName,
+          organizationId
+        });
+        
+        return NextResponse.json({
+          success: false,
+          error: error.message || 'Error al desconectar',
+          sessionName,
+          organizationId
+        }, { status: 500 });
+      }
+    }
+    
+    // ✅ change_number mantiene la lógica completa (necesita crear nueva sesión + QR)
+    if (action === 'change_number') {
+      console.log(`[WhatsApp Session POST] 🔓 Ejecutando change_number...`);
       
       try {
         // 1. Obtener configuración de WAHA
@@ -702,9 +769,7 @@ export async function POST(request: NextRequest) {
             connected: false,
             session: sessionName,
             qr: qrValue,
-            message: action === 'logout' 
-              ? 'Sesión cerrada correctamente. Escanea el QR para reconectar.' 
-              : 'Escanea el QR con el nuevo número.'
+            message: 'Escanea el QR con el nuevo número.'
           });
         } else {
           console.warn(`[WhatsApp Session POST] ⚠️ QR no disponible aún`);
@@ -719,10 +784,10 @@ export async function POST(request: NextRequest) {
         }
         
       } catch (error: any) {
-        console.error(`[WhatsApp Session POST] ❌ Error crítico en ${action}:`, error.message, error.stack);
+        console.error(`[WhatsApp Session POST] ❌ Error crítico en change_number:`, error.message, error.stack);
         return NextResponse.json({
           success: false,
-          error: `Error en ${action}: ${error.message}`,
+          error: `Error en change_number: ${error.message}`,
           details: error.stack
         }, { status: 500 });
       }
