@@ -13,7 +13,7 @@ import {
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'appointment' | 'converted' | 'lost'
 
 interface LeadStatusBadgeProps {
-  status: LeadStatus
+  status: LeadStatus | undefined | null
   showIcon?: boolean
   size?: 'sm' | 'md' | 'lg'
 }
@@ -56,6 +56,11 @@ export function LeadStatusBadge({
   showIcon = true,
   size = 'md' 
 }: LeadStatusBadgeProps) {
+  // Validar que el status sea válido
+  if (!status || !statusConfig[status]) {
+    return null
+  }
+  
   const config = statusConfig[status]
   const Icon = config.icon
 

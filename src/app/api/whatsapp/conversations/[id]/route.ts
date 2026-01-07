@@ -50,10 +50,23 @@ export async function GET(
 
     const organizationId = userProfile.organization_id;
 
-    // Obtener conversación con customer_id y metadata
+    // Obtener conversación con customer_id, metadata y lead
     const { data: conversation, error: conversationError } = await supabaseAdmin
       .from('whatsapp_conversations')
-      .select('id, customer_id, metadata, created_at, organization_id')
+      .select(`
+        id,
+        customer_id,
+        metadata,
+        created_at,
+        organization_id,
+        lead:leads!leads_whatsapp_conversation_id_fkey(
+          id,
+          status,
+          lead_score,
+          estimated_value,
+          customer_id
+        )
+      `)
       .eq('id', conversationId)
       .eq('organization_id', organizationId)
       .single();
