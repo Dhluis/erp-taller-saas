@@ -74,7 +74,8 @@ export async function GET(request: NextRequest) {
           status,
           lead_score,
           estimated_value,
-          customer_id
+          customer_id,
+          notes
         )
       `, { count: 'exact' })
       .eq('organization_id', organizationId);
