@@ -114,7 +114,10 @@ export function LeadManagementPanel({
 
   // Actualizar estado del lead
   const handleUpdateStatus = async (newStatus: LeadStatus) => {
-    if (!lead) return
+    if (!lead || !lead.id) {
+      console.error('No se puede actualizar: lead o lead.id es undefined')
+      return
+    }
 
     setIsUpdating(true)
     try {
@@ -149,7 +152,10 @@ export function LeadManagementPanel({
 
   // Convertir lead a cliente
   const handleConvertToCustomer = async () => {
-    if (!lead) return
+    if (!lead || !lead.id) {
+      console.error('No se puede convertir: lead o lead.id es undefined')
+      return
+    }
 
     setIsConverting(true)
     try {

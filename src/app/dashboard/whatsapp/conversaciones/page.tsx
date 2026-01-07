@@ -2304,7 +2304,9 @@ export default function ConversacionesPage() {
                   </div>
 
                   {/* Lead Management Panel */}
-                  {selectedConversation && (
+                  {selectedConversation && 
+                   selectedConversation.trim() !== '' && 
+                   (selectedConv || contactDetails) && (
                     <LeadManagementPanel
                       conversationId={selectedConversation}
                       customerPhone={contactDetails?.phone || selectedConv?.contactPhone || ''}
