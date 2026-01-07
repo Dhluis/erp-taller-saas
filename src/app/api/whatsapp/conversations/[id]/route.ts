@@ -64,7 +64,8 @@ export async function GET(
           status,
           lead_score,
           estimated_value,
-          customer_id
+          customer_id,
+          notes
         )
       `)
       .eq('id', conversationId)

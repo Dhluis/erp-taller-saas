@@ -63,7 +63,17 @@ export async function POST(request: NextRequest) {
     // Obtener información de la conversación
     const { data: conversation, error: convError } = await supabase
       .from('whatsapp_conversations')
-      .select('*')
+      .select(`
+        *,
+        lead:leads!leads_whatsapp_conversation_id_fkey(
+          id,
+          status,
+          lead_score,
+          estimated_value,
+          customer_id,
+          notes
+        )
+      `)
       .eq('id', conversation_id)
       .eq('organization_id', organizationId)
       .single()
