@@ -362,11 +362,11 @@ export default function ConversacionesPage() {
         
         return {
           id: msg.id || Date.now().toString(),
-          text: msg.content || msg.body || msg.text || '',
+          text: msg.body || msg.content || msg.text || '',
         sender: msg.direction === 'inbound' ? 'customer' : 'agent',
           timestamp: date,
           read: msg.status === 'read' || msg.status === 'delivered' || false,
-        type: msg.is_internal_note ? 'internal' : (msg.type || 'text')
+        type: (msg.metadata?.is_internal_note || msg.is_internal_note) ? 'internal' : (msg.message_type || msg.type || 'text')
         }
       })
 
@@ -686,13 +686,13 @@ export default function ConversacionesPage() {
               conversation_id: selectedConversation,
               organization_id: organizationId,
               direction: 'outbound',
-              from_phone: '', // Nota interna, no tiene remitente externo
-              to_phone: conv.contactPhone || '',
-              content: messageToSend,
-              is_internal_note: true,
-              type: 'text',
-              status: 'sent'
-            } as any)
+              from_number: '', // Nota interna, no tiene remitente externo
+              to_number: conv.contactPhone || '',
+              body: messageToSend,
+              message_type: 'text',
+              status: 'sent',
+              metadata: { is_internal_note: true }
+            })
             .select()
             .single()
 
