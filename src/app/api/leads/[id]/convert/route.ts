@@ -161,7 +161,7 @@ export async function POST(
       .eq('id', leadId)
       .select(`
         *,
-        customer:customers(id, name, phone, email)
+        customer:customers!leads_customer_id_fkey(id, name, phone, email)
       `)
       .single()
 

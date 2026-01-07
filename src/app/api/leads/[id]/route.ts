@@ -45,10 +45,10 @@ export async function GET(
       .select(`
         *,
         assigned_user:users!leads_assigned_to_fkey(id, full_name, email),
-        customer:customers(id, name, phone, email),
-        whatsapp_conversation:whatsapp_conversations(
+        customer:customers!leads_customer_id_fkey(id, name, phone, email),
+        whatsapp_conversation:whatsapp_conversations!leads_whatsapp_conversation_id_fkey(
           id, 
-          contact_name, 
+          customer_name, 
           customer_phone,
           last_message_at
         )
@@ -210,8 +210,8 @@ export async function PATCH(
       .select(`
         *,
         assigned_user:users!leads_assigned_to_fkey(id, full_name, email),
-        customer:customers(id, name),
-        whatsapp_conversation:whatsapp_conversations(id, contact_name, customer_phone)
+        customer:customers!leads_customer_id_fkey(id, name),
+        whatsapp_conversation:whatsapp_conversations!leads_whatsapp_conversation_id_fkey(id, customer_name, customer_phone)
       `)
       .single()
 

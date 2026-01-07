@@ -62,8 +62,8 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         assigned_user:users!leads_assigned_to_fkey(id, full_name, email),
-        customer:customers(id, name),
-        whatsapp_conversation:whatsapp_conversations(id, contact_name, customer_phone)
+        customer:customers!leads_customer_id_fkey(id, name),
+        whatsapp_conversation:whatsapp_conversations!leads_whatsapp_conversation_id_fkey(id, customer_name, customer_phone)
       `, { count: 'exact' })
       .eq('organization_id', organizationId)
 
