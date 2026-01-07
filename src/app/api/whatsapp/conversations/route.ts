@@ -64,10 +64,19 @@ export async function GET(request: NextRequest) {
     // Calcular offset para paginación
     const offset = calculateOffset(page, pageSize);
 
-    // Construir query con paginación
+    // Construir query con paginación y relación con leads
     let query = supabaseAdmin
       .from('whatsapp_conversations')
-      .select('*', { count: 'exact' })
+      .select(`
+        *,
+        lead:leads!leads_whatsapp_conversation_id_fkey(
+          id,
+          status,
+          lead_score,
+          estimated_value,
+          customer_id
+        )
+      `, { count: 'exact' })
       .eq('organization_id', organizationId);
 
     // Aplicar filtro de status si se proporciona

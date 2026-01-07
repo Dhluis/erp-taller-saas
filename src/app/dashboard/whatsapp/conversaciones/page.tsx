@@ -74,6 +74,9 @@ import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { LeadManagementPanel } from '@/components/whatsapp/LeadManagementPanel'
+import { LeadIndicator } from '@/components/whatsapp/LeadIndicator'
+import type { LeadStatus } from '@/components/whatsapp/LeadStatusBadge'
 
 // Tipos
 interface Message {
@@ -99,6 +102,14 @@ interface Conversation {
   profilePictureUrl?: string
   isTyping?: boolean
   isFavorite?: boolean
+  // Lead fields
+  lead?: {
+    id: string
+    status: LeadStatus
+    lead_score?: number
+    estimated_value?: number
+    customer_id?: string
+  } | null
 }
 
 interface ContactDetails {
@@ -119,6 +130,14 @@ interface ContactDetails {
   address?: string
   notes?: string
   metadata?: any
+  // Lead fields
+  lead?: {
+    id: string
+    status: LeadStatus
+    lead_score?: number
+    estimated_value?: number
+    customer_id?: string
+  } | null
 }
 
 export default function ConversacionesPage() {
@@ -243,7 +262,15 @@ export default function ConversacionesPage() {
       avatar: undefined,
       profilePictureUrl: conv.profile_picture_url || undefined,
       isTyping: false,
-      isFavorite: false
+      isFavorite: false,
+      // Lead data from API
+      lead: (conv as any).lead ? {
+        id: (conv as any).lead.id,
+        status: (conv as any).lead.status as LeadStatus,
+        lead_score: (conv as any).lead.lead_score,
+        estimated_value: (conv as any).lead.estimated_value,
+        customer_id: (conv as any).lead.customer_id
+      } : null
     }
   })
 
@@ -447,7 +474,9 @@ export default function ConversacionesPage() {
           labels: Array.isArray(conv.labels) ? conv.labels.filter((l): l is string => Boolean(l)) : [],
           address: customerData?.address || undefined,
           notes: convData && (convData as any).metadata?.notes ? (convData as any).metadata.notes : undefined, // Notas están en metadata
-          metadata: convData && (convData as any).metadata ? (convData as any).metadata : undefined
+          metadata: convData && (convData as any).metadata ? (convData as any).metadata : undefined,
+          // Lead data from conversation
+          lead: conv.lead || null
         })
       }
     } catch (error) {
@@ -1388,8 +1417,8 @@ export default function ConversacionesPage() {
                         : (darkMode ? "hover:bg-gray-800/50" : "hover:bg-gray-100")
                     )}
                   >
-                    <div className="flex items-start gap-3">
-                      <Avatar className="w-10 h-10">
+                    <div className="flex items-start gap-3 relative">
+                      <Avatar className="w-10 h-10 relative">
                         {conversation.profilePictureUrl ? (
                           <AvatarImage 
                             src={conversation.profilePictureUrl} 
@@ -1414,15 +1443,35 @@ export default function ConversacionesPage() {
                           {(conversation.contactName || 'C').split(' ').map(n => n[0]).join('').slice(0, 2) || 'C'}
                         </AvatarFallback>
                       </Avatar>
+                      {/* Lead Indicator */}
+                      {conversation.lead && (
+                        <div className="absolute -top-1 -right-1 z-10">
+                          <LeadIndicator
+                            isLead={!!conversation.lead}
+                            leadStatus={conversation.lead.status}
+                            estimatedValue={conversation.lead.estimated_value}
+                            variant="icon"
+                          />
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className={cn(
-                            "text-sm font-medium truncate",
-                            conversation.unread && !darkMode ? "font-semibold" : "",
-                            darkMode ? "text-white" : "text-gray-900"
-                          )}>
-                            {conversation.contactName || 'Cliente WhatsApp'}
-                          </span>
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className={cn(
+                              "text-sm font-medium truncate",
+                              conversation.unread && !darkMode ? "font-semibold" : "",
+                              darkMode ? "text-white" : "text-gray-900"
+                            )}>
+                              {conversation.contactName || 'Cliente WhatsApp'}
+                            </span>
+                            {conversation.lead && (
+                              <LeadIndicator
+                                isLead={!!conversation.lead}
+                                leadStatus={conversation.lead.status}
+                                variant="badge"
+                              />
+                            )}
+                          </div>
                           <span className={cn(
                             "text-xs whitespace-nowrap ml-2",
                             darkMode ? "text-gray-500" : "text-gray-500"
@@ -2253,6 +2302,40 @@ export default function ConversacionesPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Lead Management Panel */}
+                  {selectedConversation && (
+                    <LeadManagementPanel
+                      conversationId={selectedConversation}
+                      customerPhone={contactDetails?.phone || selectedConv?.contactPhone || ''}
+                      customerName={contactDetails?.name || selectedConv?.contactName || 'Cliente WhatsApp'}
+                      lead={contactDetails?.lead || selectedConv?.lead || null}
+                      onLeadCreated={(lead) => {
+                        console.log('Lead creado:', lead)
+                        // Actualizar contactDetails con el nuevo lead
+                        updateContactDetails({ lead })
+                        // Recargar conversaciones para reflejar el cambio
+                        mutate()
+                        toast.success('Lead creado exitosamente')
+                      }}
+                      onLeadUpdated={(lead) => {
+                        console.log('Lead actualizado:', lead)
+                        // Actualizar contactDetails con el lead actualizado
+                        updateContactDetails({ lead })
+                        // Recargar conversaciones para reflejar el cambio
+                        mutate()
+                        toast.success('Lead actualizado exitosamente')
+                      }}
+                      onLeadConverted={(customerId) => {
+                        console.log('Convertido a cliente:', customerId)
+                        // Recargar conversaciones para reflejar el cambio
+                        mutate()
+                        toast.success('Lead convertido a cliente exitosamente')
+                        // Opcional: Redirigir a la página del cliente
+                        // router.push(`/dashboard/clientes/${customerId}`)
+                      }}
+                    />
+                  )}
                 </div>
               </ScrollArea>
             </>

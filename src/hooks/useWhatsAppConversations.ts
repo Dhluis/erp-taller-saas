@@ -40,6 +40,14 @@ export interface WhatsAppConversation {
   profile_picture_url?: string | null
   created_at: string
   updated_at: string
+  // Lead relationship
+  lead?: {
+    id: string
+    status: string
+    lead_score?: number
+    estimated_value?: number
+    customer_id?: string
+  } | null
 }
 
 interface UseWhatsAppConversationsOptions {
