@@ -107,8 +107,17 @@ export async function GET(request: NextRequest) {
     // ✅ Generar metadata de paginación
     const pagination = generatePaginationMeta(page, pageSize, count || 0);
 
+    // ✅ Transformar lead de array a objeto/null
+    // Supabase retorna lead como array [] cuando no hay relación o [obj] cuando hay
+    const conversationsWithLeads = (conversations || []).map(conv => ({
+      ...conv,
+      lead: Array.isArray(conv.lead) 
+        ? (conv.lead.length > 0 ? conv.lead[0] : null)
+        : conv.lead
+    }));
+
     console.log('✅ [GET /api/whatsapp/conversations] Respuesta preparada:', {
-      itemsCount: conversations?.length || 0,
+      itemsCount: conversationsWithLeads.length,
       total: count || 0,
       pagination
     });
@@ -117,7 +126,7 @@ export async function GET(request: NextRequest) {
     const response: PaginatedResponse<any> = {
       success: true,
       data: {
-        items: conversations || [],
+        items: conversationsWithLeads,
         pagination
       }
     };
