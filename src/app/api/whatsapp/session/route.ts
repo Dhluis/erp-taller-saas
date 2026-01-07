@@ -661,7 +661,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const sessionName = await getOrganizationSession(organizationId).catch((e) => {
+    let sessionName = await getOrganizationSession(organizationId).catch((e) => {
       console.error('[WhatsApp Session POST] ❌ Error obteniendo session name:', e);
       throw e;
     });
@@ -678,13 +678,17 @@ export async function POST(request: NextRequest) {
         // Obtener configuración de WAHA
         const { url, key } = await (await import('@/lib/waha-sessions')).getWahaConfig(organizationId);
         
-        // ✅ PASO 1: Logout en WAHA (OBLIGATORIO)
+        // ✅ PASO 1: Logout en WAHA
         console.log('[WhatsApp Session] 📤 Ejecutando logout en WAHA...');
-        await logoutSession(sessionName, organizationId);
-        console.log('[WhatsApp Session] ✅ Logout exitoso en WAHA');
+        try {
+          await logoutSession(sessionName, organizationId);
+          console.log('[WhatsApp Session] ✅ Logout exitoso en WAHA');
+        } catch (logoutError: any) {
+          // No bloquear: a veces WAHA responde 404/ya estaba cerrada
+          console.warn('[WhatsApp Session] ⚠️ Error en logout (continuando):', logoutError.message);
+        }
         
-        // ✅ PASO 2: Stop sesión (OPCIONAL - solo para asegurar)
-        // Si falla, no es crítico, el logout ya se completó
+        // ✅ PASO 2: Stop sesión (best-effort)
         try {
           console.log('[WhatsApp Session] ⏹️ Deteniendo sesión...');
           const stopResponse = await fetchWithTimeout(
@@ -702,12 +706,44 @@ export async function POST(request: NextRequest) {
             console.warn('[WhatsApp Session] ⚠️ Stop retornó status:', stopResponse.status);
           }
         } catch (stopError) {
-          // Si falla el stop, no es crítico - el logout ya se hizo
           console.warn('[WhatsApp Session] ⚠️ Error deteniendo sesión (no crítico):', stopError);
         }
+
+        // ✅ PASO 3: Eliminar sesión en WAHA para forzar desvinculación (SIN crear nueva aquí)
+        // Esto evita que WAHA vuelva a reportar WORKING inmediatamente con el mismo número.
+        try {
+          console.log('[WhatsApp Session] 🗑️ Eliminando sesión en WAHA para desvincular...');
+          const deleteResponse = await fetchWithTimeout(
+            `${url}/api/sessions/${sessionName}`,
+            {
+              method: 'DELETE',
+              headers: { 'X-Api-Key': key }
+            },
+            5000
+          );
+
+          if (deleteResponse.ok || deleteResponse.status === 404) {
+            console.log('[WhatsApp Session] ✅ Sesión eliminada (o ya no existía)');
+          } else {
+            const errorText = await deleteResponse.text().catch(() => 'Error desconocido');
+            console.warn('[WhatsApp Session] ⚠️ Error eliminando sesión (continuando):', {
+              status: deleteResponse.status,
+              statusText: deleteResponse.statusText,
+              body: errorText
+            });
+          }
+        } catch (deleteError: any) {
+          console.warn('[WhatsApp Session] ⚠️ Error eliminando sesión (continuando):', {
+            message: deleteError.message,
+            stack: deleteError.stack
+          });
+        }
+
+        // Limpiar cache de QR para esta sesión
+        clearQRCache(sessionName, organizationId);
         
-        // ✅ RETORNAR ÉXITO INMEDIATAMENTE
-        console.log('[WhatsApp Session] ✅ Logout completado exitosamente');
+        // ✅ RETORNAR ÉXITO (sin crear sesión/QR aquí)
+        console.log('[WhatsApp Session] ✅ Logout completado (sesión desvinculada)');
         return NextResponse.json({
           success: true,
           message: 'Sesión desconectada exitosamente',
