@@ -184,10 +184,12 @@
 #### **WhatsApp Integration**
 - ✅ Conexión de WhatsApp (QR)
 - ✅ Bot AI con configuración personalizada
-- ✅ Conversaciones en tiempo real
+- ✅ Conversaciones en tiempo real (análisis completo en `docs/ANALISIS_CONVERSACIONES_WHATSAPP.md`)
 - ✅ Etiquetas y notas
 - ✅ Respuestas automáticas
 - ✅ Polling optimizado para mobile
+- ⚠️ Adjuntos e IA pendientes de implementación completa
+- ❌ "Cliente de Prueba" requiere limpieza de BD (ver `docs/CLEANUP_WHATSAPP_TEST_DATA.sql`)
 
 #### **Reportes**
 - ✅ Reporte de órdenes
@@ -542,6 +544,8 @@ npm start
 - `docs/MOBILE_PERFORMANCE_ANALYSIS.md` - Análisis de performance mobile
 - `docs/PROJECT_STATUS.md` - Estado del proyecto
 - `docs/PLACEHOLDERS_CLEANUP_REPORT.md` - Reporte de placeholders
+- `docs/ANALISIS_CONVERSACIONES_WHATSAPP.md` - Análisis completo de conversaciones WhatsApp (2025-01-06)
+- `docs/CLEANUP_WHATSAPP_TEST_DATA.sql` - Scripts SQL para limpiar datos de prueba
 - `docs/EAGLES_ERP_DEVELOPER_SKILL.md` - Esta guía
 
 ### **APIs Documentadas:**
