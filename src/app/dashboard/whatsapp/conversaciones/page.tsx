@@ -158,6 +158,7 @@ export default function ConversacionesPage() {
   const [isAddingLabel, setIsAddingLabel] = useState(false)
   const [newLabel, setNewLabel] = useState('')
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
@@ -1034,8 +1035,8 @@ export default function ConversacionesPage() {
         }
         break
       case 'Delete chat':
-        if (selectedConversation && confirm('¿Estás seguro de eliminar este chat?')) {
-          handleDeleteConversation(selectedConversation)
+        if (selectedConversation) {
+          setDeleteDialogOpen(true)
         }
         break
     }
@@ -1684,6 +1685,38 @@ export default function ConversacionesPage() {
                             Reasignar
                           </Button>
                         </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
+                  {/* Dialog de confirmación de eliminación */}
+                  <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                    <DialogContent className={darkMode ? "bg-gray-800 border-gray-700" : ""}>
+                      <DialogHeader>
+                        <DialogTitle className={darkMode ? "text-white" : ""}>Eliminar conversación</DialogTitle>
+                        <DialogDescription className={darkMode ? "text-gray-400" : ""}>
+                          ¿Estás seguro de que deseas eliminar esta conversación? Esta acción no se puede deshacer.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="flex justify-end gap-2 mt-4">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setDeleteDialogOpen(false)}
+                          className={darkMode ? "border-gray-700 text-gray-300 hover:bg-gray-700" : ""}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button 
+                          variant="destructive"
+                          onClick={() => {
+                            if (selectedConversation) {
+                              handleDeleteConversation(selectedConversation)
+                              setDeleteDialogOpen(false)
+                            }
+                          }}
+                        >
+                          Eliminar
+                        </Button>
                       </div>
                     </DialogContent>
                   </Dialog>

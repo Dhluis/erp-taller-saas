@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔄 GET /api/vehicles/[id] - Iniciando...')
+    const { id: vehicleId } = await params
+    console.log('🔄 GET /api/vehicles/[id] - Iniciando...', vehicleId)
     
     // Obtener contexto del tenant
     const tenantContext = await getTenantContext(request)
@@ -15,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    const supabase = getSupabaseServiceClient()
     
     // Obtener vehículo específico
     const { data: vehicle, error } = await supabase
@@ -29,7 +30,7 @@ export async function GET(
           phone
         )
       `)
-      .eq('id', params.id)
+      .eq('id', vehicleId)
       .eq('workshop_id', tenantContext.workshopId)
       .single()
 
@@ -49,10 +50,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔄 PUT /api/vehicles/[id] - Iniciando...')
+    const { id: vehicleId } = await params
+    console.log('🔄 PUT /api/vehicles/[id] - Iniciando...', vehicleId)
     
     // Obtener contexto del tenant
     const tenantContext = await getTenantContext(request)
@@ -63,7 +65,7 @@ export async function PUT(
     const body = await request.json()
     console.log('📝 Datos recibidos:', body)
 
-    const supabase = await createClient()
+    const supabase = getSupabaseServiceClient()
     
     // Actualizar vehículo
     const { data: vehicle, error } = await supabase
@@ -78,7 +80,7 @@ export async function PUT(
         mileage: body.mileage,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', vehicleId)
       .eq('workshop_id', tenantContext.workshopId)
       .select(`
         *,
@@ -107,51 +109,85 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔄 DELETE /api/vehicles/[id] - Iniciando...')
+    const { id: vehicleId } = await params
+    console.log('[Delete Vehicle] 🗑️ Eliminando vehículo:', vehicleId)
     
     // Obtener contexto del tenant
     const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+      console.error('[Delete Vehicle] ❌ No autorizado')
+      return NextResponse.json({ 
+        success: false,
+        error: 'No autorizado' 
+      }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    console.log('[Delete Vehicle] 🏢 Workshop ID:', tenantContext.workshopId)
+
+    const supabase = getSupabaseServiceClient()
     
+    // Verificar que el vehículo existe y pertenece al workshop
+    const { data: vehicle, error: fetchError } = await supabase
+      .from('vehicles')
+      .select('id, workshop_id')
+      .eq('id', vehicleId)
+      .eq('workshop_id', tenantContext.workshopId)
+      .single()
+
+    if (fetchError || !vehicle) {
+      console.error('[Delete Vehicle] ❌ Vehículo no encontrado o no autorizado:', fetchError)
+      return NextResponse.json({ 
+        success: false,
+        error: 'Vehículo no encontrado o no autorizado' 
+      }, { status: 404 })
+    }
+
     // Verificar si el vehículo tiene órdenes de trabajo
     const { data: orders, error: ordersError } = await supabase
       .from('work_orders')
       .select('id')
-      .eq('vehicle_id', params.id)
+      .eq('vehicle_id', vehicleId)
       .limit(1)
 
     if (ordersError) {
-      console.error('❌ Error verificando órdenes:', ordersError)
-      return NextResponse.json({ error: ordersError.message }, { status: 500 })
+      console.error('[Delete Vehicle] ❌ Error verificando órdenes:', ordersError)
+      return NextResponse.json({ 
+        success: false,
+        error: ordersError.message 
+      }, { status: 500 })
     }
 
     if (orders && orders.length > 0) {
+      console.log('[Delete Vehicle] ⚠️ Vehículo tiene órdenes asociadas, no se puede eliminar')
       return NextResponse.json({ 
+        success: false,
         error: 'No se puede eliminar el vehículo porque tiene órdenes de trabajo asociadas' 
       }, { status: 400 })
     }
 
     // Eliminar vehículo
-    const { error } = await supabase
+    const { error: deleteError } = await supabase
       .from('vehicles')
       .delete()
-      .eq('id', params.id)
+      .eq('id', vehicleId)
       .eq('workshop_id', tenantContext.workshopId)
 
-    if (error) {
-      console.error('❌ Error eliminando vehículo:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (deleteError) {
+      console.error('[Delete Vehicle] ❌ Error eliminando vehículo:', deleteError)
+      return NextResponse.json({ 
+        success: false,
+        error: deleteError.message || 'Error al eliminar vehículo'
+      }, { status: 500 })
     }
 
-    console.log('✅ Vehículo eliminado:', params.id)
-    return NextResponse.json({ success: true })
+    console.log('[Delete Vehicle] ✅ Vehículo eliminado exitosamente:', vehicleId)
+    return NextResponse.json({ 
+      success: true,
+      message: 'Vehículo eliminado correctamente'
+    })
 
   } catch (error: any) {
     console.error('💥 Error en DELETE /api/vehicles/[id]:', error)
