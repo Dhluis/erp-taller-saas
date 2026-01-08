@@ -49,6 +49,8 @@ import { useCustomers } from '@/hooks/useCustomers'
 
 import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown, FileText, Upload, X, Check } from 'lucide-react'
 import SignatureCanvas from 'react-signature-canvas'
+import { OrderCreationImageCapture, TemporaryImage } from './OrderCreationImageCapture'
+import { uploadWorkOrderImage } from '@/lib/supabase/work-order-storage'
 
 interface CreateWorkOrderModalProps {
 
@@ -253,6 +255,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   // Estados para términos y condiciones
   const [termsFilePreview, setTermsFilePreview] = useState<string | null>(null) // URL del preview del PDF
   const signatureRef = useRef<SignatureCanvas>(null) // Referencia para el canvas de firma
+
+  // ✅ Estado para fotos temporales durante la creación
+  const [temporaryImages, setTemporaryImages] = useState<TemporaryImage[]>([])
 
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
 
@@ -1163,6 +1168,58 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         vehicle: `${formData.vehicleBrand} ${formData.vehicleModel}`
       });
 
+      // ✅ NUEVO: Subir fotos temporales después de crear la orden
+      const orderId = (newOrder as any).id
+      if (temporaryImages.length > 0 && orderId && organizationId && user?.id) {
+        console.log('📸 [CreateWorkOrderModal] Subiendo fotos temporales:', temporaryImages.length)
+        
+        try {
+          // Obtener token de sesión
+          const { data: { session } } = await supabase.auth.getSession()
+          const accessToken = session?.access_token
+
+          if (!accessToken) {
+            console.warn('⚠️ [CreateWorkOrderModal] No hay token de sesión para subir fotos')
+          } else {
+            // Subir cada foto
+            for (const tempImage of temporaryImages) {
+              try {
+                const uploadResult = await uploadWorkOrderImage(
+                  tempImage.file,
+                  orderId,
+                  organizationId,
+                  user.id,
+                  'reception', // Categoría: recepción
+                  tempImage.description || 'Foto de recepción',
+                  'reception', // Estado de la orden
+                  accessToken
+                )
+
+                if (!uploadResult.success) {
+                  console.error('❌ [CreateWorkOrderModal] Error subiendo foto:', uploadResult.error)
+                } else {
+                  console.log('✅ [CreateWorkOrderModal] Foto subida exitosamente')
+                }
+              } catch (photoError: any) {
+                console.error('❌ [CreateWorkOrderModal] Error subiendo foto individual:', photoError)
+              }
+            }
+
+            // Limpiar fotos temporales
+            temporaryImages.forEach(img => {
+              if (img.preview) {
+                URL.revokeObjectURL(img.preview)
+              }
+            })
+            setTemporaryImages([])
+          }
+        } catch (uploadError: any) {
+          console.error('❌ [CreateWorkOrderModal] Error general subiendo fotos:', uploadError)
+          // No fallar toda la creación por errores de fotos
+          toast.error('Orden creada, pero hubo un error al subir algunas fotos')
+        }
+      }
+
       // ✅ NUEVO: Guardar inspección
 
       const { error: inspectionError } = await supabase
@@ -1257,6 +1314,19 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     setErrors({})
 
     setTouched({})
+
+    // Limpiar fotos temporales
+    temporaryImages.forEach(img => {
+      if (img.preview) {
+        URL.revokeObjectURL(img.preview)
+      }
+    })
+    setTemporaryImages([])
+
+    // Limpiar firma
+    if (signatureRef.current) {
+      signatureRef.current.clear()
+    }
 
   }
 
@@ -2197,60 +2267,14 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
               <p className="text-red-400 text-xs mt-1 ml-6">{errors.terms_accepted}</p>
             )}
 
-            {/* Firma digital del cliente */}
+            {/* ✅ Fotos del Vehículo - ANTES de la firma */}
             <div className="pt-4 border-t border-slate-700">
-              <Label className="text-sm font-medium mb-3 block">
-                Firma Digital del Cliente *
-              </Label>
-              <div className="bg-white rounded-lg p-4 border border-slate-600">
-                <SignatureCanvas
-                  ref={signatureRef}
-                  canvasProps={{
-                    width: 500,
-                    height: 150,
-                    className: 'signature-canvas w-full'
-                  }}
-                  onEnd={handleSignatureEnd}
-                  backgroundColor="white"
-                  penColor="black"
-                />
-              </div>
-              <div className="flex gap-2 mt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleClearSignature}
-                  disabled={loading || !formData.customer_signature}
-                  className="flex items-center gap-2"
-                >
-                  <X className="h-4 w-4" />
-                  Limpiar Firma
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSaveSignature}
-                  disabled={loading}
-                  className="flex items-center gap-2"
-                >
-                  <Check className="h-4 w-4" />
-                  Guardar Firma
-                </Button>
-              </div>
-              {formData.customer_signature && (
-                <div className="mt-2 flex items-center gap-2 text-sm text-green-400">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Firma guardada correctamente</span>
-                </div>
-              )}
-              {errors.customer_signature && (
-                <p className="text-red-400 text-xs mt-2">{errors.customer_signature}</p>
-              )}
-              <p className="text-xs text-slate-400 mt-2">
-                El cliente debe firmar digitalmente para autorizar el servicio
-              </p>
+              <OrderCreationImageCapture
+                images={temporaryImages}
+                onImagesChange={setTemporaryImages}
+                maxImages={20}
+                disabled={loading}
+              />
             </div>
 
             <div>
@@ -2429,6 +2453,62 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             </div>
 
+          </div>
+
+          {/* ✅ Firma digital del cliente - AL FINAL, antes de los botones */}
+          <div className="pt-4 border-t border-slate-700">
+            <Label className="text-sm font-medium mb-3 block">
+              Firma Digital del Cliente *
+            </Label>
+            <div className="bg-white rounded-lg p-4 border border-slate-600">
+              <SignatureCanvas
+                ref={signatureRef}
+                canvasProps={{
+                  width: 500,
+                  height: 150,
+                  className: 'signature-canvas w-full'
+                }}
+                onEnd={handleSignatureEnd}
+                backgroundColor="white"
+                penColor="black"
+              />
+            </div>
+            <div className="flex gap-2 mt-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleClearSignature}
+                disabled={loading || !formData.customer_signature}
+                className="flex items-center gap-2"
+              >
+                <X className="h-4 w-4" />
+                Limpiar Firma
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSaveSignature}
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                <Check className="h-4 w-4" />
+                Guardar Firma
+              </Button>
+            </div>
+            {formData.customer_signature && (
+              <div className="mt-2 flex items-center gap-2 text-sm text-green-400">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Firma guardada correctamente</span>
+              </div>
+            )}
+            {errors.customer_signature && (
+              <p className="text-red-400 text-xs mt-2">{errors.customer_signature}</p>
+            )}
+            <p className="text-xs text-slate-400 mt-2">
+              El cliente debe firmar digitalmente para autorizar el servicio
+            </p>
           </div>
 
           {/* Botones */}
