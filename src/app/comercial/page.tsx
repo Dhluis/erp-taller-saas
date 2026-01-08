@@ -263,102 +263,108 @@ export default function TestComercialPage() {
           }
         }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
               <Plus className="h-4 w-4 mr-2" />
               Nuevo Lead
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl bg-slate-800 border-cyan-500/50 border-2 text-white">
             <DialogHeader>
-              <DialogTitle>{editingLead ? 'Editar Lead' : 'Nuevo Lead'}</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-white">{editingLead ? 'Editar Lead' : 'Nuevo Lead'}</DialogTitle>
+              <DialogDescription className="text-slate-400">
                 {editingLead ? 'Edita la información del lead' : 'Agrega un nuevo lead al sistema'}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="name">Nombre</Label>
+                  <Label htmlFor="name" className="text-slate-300">Nombre</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="company">Empresa</Label>
+                  <Label htmlFor="company" className="text-slate-300">Empresa</Label>
                   <Input
                     id="company"
                     value={formData.company}
                     onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="phone">Teléfono</Label>
+                  <Label htmlFor="phone" className="text-slate-300">Teléfono</Label>
                   <Input
                     id="phone"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-slate-300">Email</Label>
                   <Input
                     id="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="source">Fuente</Label>
+                  <Label htmlFor="source" className="text-slate-300">Fuente</Label>
                   <Select value={formData.source} onValueChange={(value) => setFormData({ ...formData, source: value })}>
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white focus:border-cyan-500">
                       <SelectValue placeholder="Seleccionar fuente" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="web">Web</SelectItem>
-                      <SelectItem value="referido">Referido</SelectItem>
-                      <SelectItem value="telefono">Teléfono</SelectItem>
-                      <SelectItem value="email">Email</SelectItem>
+                    <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                      <SelectItem value="web" className="hover:bg-gray-700 focus:bg-gray-700">Web</SelectItem>
+                      <SelectItem value="referido" className="hover:bg-gray-700 focus:bg-gray-700">Referido</SelectItem>
+                      <SelectItem value="telefono" className="hover:bg-gray-700 focus:bg-gray-700">Teléfono</SelectItem>
+                      <SelectItem value="email" className="hover:bg-gray-700 focus:bg-gray-700">Email</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="status">Estado</Label>
+                  <Label htmlFor="status" className="text-slate-300">Estado</Label>
                   <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as LeadStatus })}>
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white focus:border-cyan-500">
                       <SelectValue placeholder="Seleccionar estado" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="new">Nuevo</SelectItem>
-                      <SelectItem value="contacted">Contactado</SelectItem>
-                      <SelectItem value="qualified">Calificado</SelectItem>
-                      <SelectItem value="appointment">Cita Agendada</SelectItem>
-                      <SelectItem value="lost">Perdido</SelectItem>
+                    <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                      <SelectItem value="new" className="hover:bg-gray-700 focus:bg-gray-700">Nuevo</SelectItem>
+                      <SelectItem value="contacted" className="hover:bg-gray-700 focus:bg-gray-700">Contactado</SelectItem>
+                      <SelectItem value="qualified" className="hover:bg-gray-700 focus:bg-gray-700">Calificado</SelectItem>
+                      <SelectItem value="appointment" className="hover:bg-gray-700 focus:bg-gray-700">Cita Agendada</SelectItem>
+                      <SelectItem value="lost" className="hover:bg-gray-700 focus:bg-gray-700">Perdido</SelectItem>
                       {/* NO incluir "converted" - se hace con botón especial */}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div>
-                <Label htmlFor="value">Valor ($)</Label>
+                <Label htmlFor="value" className="text-slate-300">Valor ($)</Label>
                 <Input
                   id="value"
                   type="number"
                   value={formData.value}
                   onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
+                  className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
                 />
               </div>
               <div>
-                <Label htmlFor="notes">Notas</Label>
+                <Label htmlFor="notes" className="text-slate-300">Notas</Label>
                 <Textarea
                   id="notes"
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
                 />
               </div>
             </div>
@@ -386,9 +392,9 @@ export default function TestComercialPage() {
                     </div>
                   )}
                   {editingLead.customer_id && (
-                    <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg mb-4">
-                      <UserCheck className="h-4 w-4 text-green-600" />
-                      <span className="text-sm text-green-800 font-medium">
+                    <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/50 rounded-lg mb-4">
+                      <UserCheck className="h-4 w-4 text-green-400" />
+                      <span className="text-sm text-green-400 font-medium">
                         Ya es cliente
                       </span>
                     </div>
@@ -397,25 +403,32 @@ export default function TestComercialPage() {
               )
             })()}
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => {
-                setIsDialogOpen(false)
-                setEditingLead(null)
-                setFormData({
-                  name: "",
-                  company: "",
-                  phone: "",
-                  email: "",
-                  source: "",
-                  status: "new",
-                  value: 0,
-                  notes: "",
-                  last_contact: "",
-                  assigned_to: ""
-                })
-              }}>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsDialogOpen(false)
+                  setEditingLead(null)
+                  setFormData({
+                    name: "",
+                    company: "",
+                    phone: "",
+                    email: "",
+                    source: "",
+                    status: "new",
+                    value: 0,
+                    notes: "",
+                    last_contact: "",
+                    assigned_to: ""
+                  })
+                }}
+                className="border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white"
+              >
                 Cancelar
               </Button>
-              <Button onClick={handleSaveLead}>
+              <Button 
+                onClick={handleSaveLead}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
                 Guardar
               </Button>
             </div>
@@ -425,65 +438,83 @@ export default function TestComercialPage() {
 
       {/* Estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+        <Card className="bg-gray-800 border-gray-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Total Leads</CardTitle>
+            <div className="p-2 rounded-lg bg-blue-500/10">
+              <Users className="h-4 w-4 text-blue-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalLeads}</div>
+            <div className="text-2xl font-bold text-white">{stats.totalLeads}</div>
+            <p className="text-xs text-gray-400 mt-1">Total en el sistema</p>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="bg-gray-800 border-gray-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Valor Total</CardTitle>
+            <div className="p-2 rounded-lg bg-green-500/10">
+              <DollarSign className="h-4 w-4 text-green-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(stats.totalValue || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold text-white">${(stats.totalValue || 0).toLocaleString()}</div>
+            <p className="text-xs text-gray-400 mt-1">Valor estimado total</p>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="bg-gray-800 border-gray-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Nuevos</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Nuevos</CardTitle>
+            <div className="p-2 rounded-lg bg-purple-500/10">
+              <Target className="h-4 w-4 text-purple-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.byStatus.new}</div>
+            <div className="text-2xl font-bold text-white">{stats.byStatus.new}</div>
+            <p className="text-xs text-gray-400 mt-1">Leads nuevos</p>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="bg-gray-800 border-gray-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Calificados</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Calificados</CardTitle>
+            <div className="p-2 rounded-lg bg-yellow-500/10">
+              <TrendingUp className="h-4 w-4 text-yellow-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.byStatus.qualified}</div>
+            <div className="text-2xl font-bold text-white">{stats.byStatus.qualified}</div>
+            <p className="text-xs text-gray-400 mt-1">Leads calificados</p>
           </CardContent>
         </Card>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-        <Card>
+        <Card className="bg-gray-800 border-gray-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Citas Agendadas</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Citas Agendadas</CardTitle>
+            <div className="p-2 rounded-lg bg-orange-500/10">
+              <Calendar className="h-4 w-4 text-orange-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.byStatus.appointment}</div>
+            <div className="text-2xl font-bold text-white">{stats.byStatus.appointment}</div>
+            <p className="text-xs text-gray-400 mt-1">Con cita programada</p>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="bg-gray-800 border-gray-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Convertidos</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Convertidos</CardTitle>
+            <div className="p-2 rounded-lg bg-green-500/10">
+              <UserCheck className="h-4 w-4 text-green-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.byStatus.converted}</div>
+            <div className="text-2xl font-bold text-white">{stats.byStatus.converted}</div>
+            <p className="text-xs text-gray-400 mt-1">Convertidos a clientes</p>
           </CardContent>
         </Card>
       </div>
@@ -491,56 +522,86 @@ export default function TestComercialPage() {
       {/* Búsqueda y Filtros */}
       <div className="flex items-center space-x-2">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Buscar leads..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
+            className="pl-8 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-cyan-500"
           />
         </div>
         <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-          <TabsList>
-            <TabsTrigger value="all">Todos ({stats.totalLeads})</TabsTrigger>
-            <TabsTrigger value="new">Nuevos ({stats.byStatus.new})</TabsTrigger>
-            <TabsTrigger value="contacted">Contactados ({stats.byStatus.contacted})</TabsTrigger>
-            <TabsTrigger value="qualified">Calificados ({stats.byStatus.qualified})</TabsTrigger>
-            <TabsTrigger value="appointment">Citas ({stats.byStatus.appointment})</TabsTrigger>
-            <TabsTrigger value="converted">Convertidos ({stats.byStatus.converted})</TabsTrigger>
+          <TabsList className="bg-gray-800 border border-gray-700">
+            <TabsTrigger 
+              value="all"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-gray-300"
+            >
+              Todos ({stats.totalLeads})
+            </TabsTrigger>
+            <TabsTrigger 
+              value="new"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-gray-300"
+            >
+              Nuevos ({stats.byStatus.new})
+            </TabsTrigger>
+            <TabsTrigger 
+              value="contacted"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-gray-300"
+            >
+              Contactados ({stats.byStatus.contacted})
+            </TabsTrigger>
+            <TabsTrigger 
+              value="qualified"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-gray-300"
+            >
+              Calificados ({stats.byStatus.qualified})
+            </TabsTrigger>
+            <TabsTrigger 
+              value="appointment"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-gray-300"
+            >
+              Citas ({stats.byStatus.appointment})
+            </TabsTrigger>
+            <TabsTrigger 
+              value="converted"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-gray-300"
+            >
+              Convertidos ({stats.byStatus.converted})
+            </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
       {/* Tabla de Leads */}
-      <Card>
+      <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
-          <CardTitle>Leads</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-white">Leads</CardTitle>
+          <CardDescription className="text-gray-400">
             Lista de todos los leads del sistema
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Empresa</TableHead>
-                <TableHead>Contacto</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Asignado</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+              <TableRow className="border-gray-700 hover:bg-gray-750">
+                <TableHead className="text-gray-300">Nombre</TableHead>
+                <TableHead className="text-gray-300">Empresa</TableHead>
+                <TableHead className="text-gray-300">Contacto</TableHead>
+                <TableHead className="text-gray-300">Estado</TableHead>
+                <TableHead className="text-gray-300">Valor</TableHead>
+                <TableHead className="text-gray-300">Asignado</TableHead>
+                <TableHead className="text-right text-gray-300">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredLeads.map((lead) => (
-                <TableRow key={lead.id}>
-                  <TableCell className="font-medium">{lead.name}</TableCell>
-                  <TableCell>{lead.company}</TableCell>
+                <TableRow key={lead.id} className="border-gray-700 hover:bg-gray-750/50">
+                  <TableCell className="font-medium text-white">{lead.name}</TableCell>
+                  <TableCell className="text-gray-300">{lead.company || '-'}</TableCell>
                   <TableCell>
                     <div>
-                      <div className="text-sm">{lead.phone}</div>
-                      <div className="text-sm text-muted-foreground">{lead.email}</div>
+                      <div className="text-sm text-white">{lead.phone}</div>
+                      <div className="text-sm text-gray-400">{lead.email || '-'}</div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -558,15 +619,15 @@ export default function TestComercialPage() {
                           value={lead.status}
                           onValueChange={(newStatus) => handleUpdateStatus(lead.id, newStatus as LeadStatus)}
                         >
-                          <SelectTrigger className="w-[140px] h-7 text-xs">
+                          <SelectTrigger className="w-[140px] h-7 text-xs bg-gray-800 border-gray-700 text-white">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="new">Nuevo</SelectItem>
-                            <SelectItem value="contacted">Contactado</SelectItem>
-                            <SelectItem value="qualified">Calificado</SelectItem>
-                            <SelectItem value="appointment">Cita Agendada</SelectItem>
-                            <SelectItem value="lost">Perdido</SelectItem>
+                          <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                            <SelectItem value="new" className="hover:bg-gray-700">Nuevo</SelectItem>
+                            <SelectItem value="contacted" className="hover:bg-gray-700">Contactado</SelectItem>
+                            <SelectItem value="qualified" className="hover:bg-gray-700">Calificado</SelectItem>
+                            <SelectItem value="appointment" className="hover:bg-gray-700">Cita Agendada</SelectItem>
+                            <SelectItem value="lost" className="hover:bg-gray-700">Perdido</SelectItem>
                             {/* NO incluir converted - se hace con botón */}
                           </SelectContent>
                         </Select>
@@ -574,16 +635,17 @@ export default function TestComercialPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <span className="font-medium">${lead.value ? (lead.value || 0).toLocaleString() : '0'}</span>
+                    <span className="font-medium text-white">${lead.value ? (lead.value || 0).toLocaleString() : '0'}</span>
                   </TableCell>
                   <TableCell>
-                    <span className="text-sm">{lead.assigned_to}</span>
+                    <span className="text-sm text-gray-300">{lead.assigned_to || '-'}</span>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button 
                         variant="ghost" 
                         size="icon"
+                        className="hover:bg-gray-700 text-gray-300 hover:text-white"
                         onClick={() => {
                           setEditingLead(lead)
                           setFormData({
@@ -603,7 +665,11 @@ export default function TestComercialPage() {
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="hover:bg-gray-700 text-gray-300 hover:text-red-400"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
