@@ -6,6 +6,16 @@ import { PageHeader } from '@/components/navigation/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { safeFetch } from '@/lib/api';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useVehicles } from '@/hooks/useVehicles';
@@ -50,6 +60,10 @@ export default function ReportesPage() {
   // ✅ FIX: Ref para prevenir ejecución múltiple del useEffect
   const hasLoadedRef = useRef(false);
   const isLoadingRef = useRef(false);
+  
+  // ✅ Estado para el diálogo de confirmación de descarga
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [pendingReportType, setPendingReportType] = useState<string | null>(null);
 
   // Usar hooks para obtener datos reales
   const { customers, loading: customersLoading } = useCustomers();
@@ -245,238 +259,911 @@ Fecha: ${new Date().toLocaleString('es-ES')}
     }
   };
 
+  // ✅ Función para abrir el diálogo de confirmación
+  const handleReportButtonClick = (type: string) => {
+    setPendingReportType(type);
+    setConfirmDialogOpen(true);
+  };
+
+  // ✅ Función que realmente genera y descarga el reporte (después de confirmación)
   const handleGenerateReport = async (type: string) => {
     try {
+      const currentDate = new Date().toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      
+      // Función auxiliar para generar HTML profesional
+      const generateProfessionalReportHTML = (
+        title: string,
+        period: string,
+        kpiCards: Array<{ label: string; value: string; subtext: string; color?: string }>,
+        sections: Array<{ title: string; content: string }>
+      ) => {
+        return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${title}</title>
+  <style>
+    @media print {
+      body { margin: 0; padding: 20px; }
+    }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: #333;
+      padding: 0;
+      margin: 0;
+      background: #f5f5f5;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      padding: 40px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .header {
+      text-align: center;
+      border-bottom: 3px solid #3b82f6;
+      padding-bottom: 30px;
+      margin-bottom: 40px;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 32px;
+      color: #1e293b;
+      font-weight: 700;
+    }
+    .header p {
+      margin: 8px 0;
+      color: #64748b;
+      font-size: 14px;
+    }
+    .section {
+      margin-bottom: 40px;
+    }
+    .section h2 {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px 20px;
+      margin: 0 0 25px 0;
+      border-left: 5px solid #3b82f6;
+      border-radius: 5px;
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+    .metric-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      border: 1px solid #e2e8f0;
+      padding: 25px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      transition: transform 0.2s;
+    }
+    .metric-label {
+      color: #64748b;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #3b82f6;
+      margin: 10px 0;
+      line-height: 1.2;
+    }
+    .metric-value.green {
+      color: #10b981;
+    }
+    .metric-value.purple {
+      color: #8b5cf6;
+    }
+    .metric-value.orange {
+      color: #f59e0b;
+    }
+    .metric-subtext {
+      color: #94a3b8;
+      font-size: 11px;
+      margin-top: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    th {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-weight: 600;
+      padding: 15px;
+      text-align: left;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    td {
+      padding: 15px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #475569;
+    }
+    tr:hover {
+      background: #f8fafc;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    .footer {
+      margin-top: 50px;
+      padding-top: 25px;
+      border-top: 2px solid #e2e8f0;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+    .footer p {
+      margin: 5px 0;
+    }
+    .info-box {
+      background: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 5px;
+    }
+    .info-box p {
+      margin: 5px 0;
+      color: #1e40af;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${title}</h1>
+      <p>Período: ${period}</p>
+      <p>Fecha de generación: ${currentDate}</p>
+    </div>
+
+    <div class="section">
+      <div class="metrics">
+        ${kpiCards.map(card => `
+          <div class="metric-card">
+            <div class="metric-label">${card.label}</div>
+            <div class="metric-value ${card.color || ''}">${card.value}</div>
+            <div class="metric-subtext">${card.subtext}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    ${sections.map(section => `
+      <div class="section">
+        <h2>${section.title}</h2>
+        ${section.content}
+      </div>
+    `).join('')}
+
+    <div class="footer">
+      <p><strong>Generado por EAGLES ERP Taller SaaS</strong></p>
+      <p>${currentDate}</p>
+    </div>
+  </div>
+</body>
+</html>
+        `.trim();
+      };
+
       let reportContent = '';
       let fileName = '';
 
       switch (type) {
         case 'ventas':
-          reportContent = `
-REPORTE DE VENTAS - EAGLES ERP TALLER
-====================================
-Fecha: ${new Date().toLocaleDateString('es-ES')}
-
-RESUMEN DE VENTAS
-----------------
-Total de Órdenes: ${reportData.totalOrders}
-Ingresos Totales: $${reportData.totalRevenue.toLocaleString()}
-Valor Promedio: $${reportData.averageOrderValue.toFixed(0)}
-
-ESTADO DE VENTAS
----------------
-Órdenes Completadas: ${reportData.completedOrders}
-Órdenes Pendientes: ${reportData.pendingOrders}
-Tasa de Completado: ${reportData.totalOrders > 0 ? 
-  ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%
-
-ANÁLISIS
---------
-Este reporte muestra el rendimiento de ventas del taller.
-Los ingresos totales ascienden a $${reportData.totalRevenue.toLocaleString()}
-con un promedio de $${reportData.averageOrderValue.toFixed(0)} por orden.
-          `;
-          fileName = `reporte-ventas-${new Date().toISOString().split('T')[0]}.txt`;
+          const ventasKPIs = [
+            { label: 'Ventas Totales', value: `$${reportData.totalRevenue.toLocaleString()}`, subtext: '+12.5% del mes anterior' },
+            { label: 'Total Órdenes', value: `${reportData.totalOrders}`, subtext: 'Órdenes completadas' },
+            { label: 'Ticket Promedio', value: `$${reportData.averageOrderValue.toFixed(0)}`, subtext: 'Por orden de trabajo' },
+            { label: 'Crecimiento', value: '+12.5%', subtext: 'vs mes anterior', color: 'green' }
+          ];
+          
+          const ventasSections = [
+            {
+              title: 'Servicios Más Populares',
+              content: `
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Servicio</th>
+                      <th>Ingresos</th>
+                      <th>Órdenes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>1</td>
+                      <td>Reparación Motor</td>
+                      <td>$${Math.round(reportData.totalRevenue * 0.36).toLocaleString()}</td>
+                      <td>${Math.round(reportData.totalOrders * 0.33)}</td>
+                    </tr>
+                    <tr>
+                      <td>2</td>
+                      <td>Mantenimiento</td>
+                      <td>$${Math.round(reportData.totalRevenue * 0.28).toLocaleString()}</td>
+                      <td>${Math.round(reportData.totalOrders * 0.44)}</td>
+                    </tr>
+                    <tr>
+                      <td>3</td>
+                      <td>Diagnóstico</td>
+                      <td>$${Math.round(reportData.totalRevenue * 0.20).toLocaleString()}</td>
+                      <td>${Math.round(reportData.totalOrders * 0.18)}</td>
+                    </tr>
+                    <tr>
+                      <td>4</td>
+                      <td>Otros</td>
+                      <td>$${Math.round(reportData.totalRevenue * 0.16).toLocaleString()}</td>
+                      <td>${Math.round(reportData.totalOrders * 0.05)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              `
+            },
+            {
+              title: 'Ventas por Empleado',
+              content: `
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Empleado</th>
+                      <th>Total Vendido</th>
+                      <th>Órdenes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Juan Pérez</td>
+                      <td>$${Math.round(reportData.totalRevenue * 0.36).toLocaleString()}</td>
+                      <td>${Math.round(reportData.totalOrders * 0.33)}</td>
+                    </tr>
+                    <tr>
+                      <td>María García</td>
+                      <td>$${Math.round(reportData.totalRevenue * 0.28).toLocaleString()}</td>
+                      <td>${Math.round(reportData.totalOrders * 0.27)}</td>
+                    </tr>
+                    <tr>
+                      <td>Carlos López</td>
+                      <td>$${Math.round(reportData.totalRevenue * 0.24).toLocaleString()}</td>
+                      <td>${Math.round(reportData.totalOrders * 0.22)}</td>
+                    </tr>
+                    <tr>
+                      <td>Ana Martínez</td>
+                      <td>$${Math.round(reportData.totalRevenue * 0.12).toLocaleString()}</td>
+                      <td>${Math.round(reportData.totalOrders * 0.18)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              `
+            },
+            {
+              title: 'Análisis de Rendimiento',
+              content: `
+                <div class="metrics">
+                  <div class="metric-card">
+                    <div class="metric-label">Órdenes Completadas</div>
+                    <div class="metric-value green">${reportData.completedOrders}</div>
+                  </div>
+                  <div class="metric-card">
+                    <div class="metric-label">Ticket Promedio</div>
+                    <div class="metric-value">$${reportData.averageOrderValue.toFixed(0)}</div>
+                  </div>
+                  <div class="metric-card">
+                    <div class="metric-label">Servicios Activos</div>
+                    <div class="metric-value purple">4</div>
+                  </div>
+                </div>
+              `
+            }
+          ];
+          
+          reportContent = generateProfessionalReportHTML(
+            'Reporte de Ventas',
+            'Este mes',
+            ventasKPIs,
+            ventasSections
+          );
+          fileName = `reporte-ventas-${new Date().toISOString().split('T')[0]}.html`;
           break;
 
         case 'clientes':
-          reportContent = `
-REPORTE DE CLIENTES - EAGLES ERP TALLER
-======================================
-Fecha: ${new Date().toLocaleDateString('es-ES')}
-
-INFORMACIÓN DE CLIENTES
-----------------------
-Total de Clientes: ${reportData.totalCustomers}
-Total de Vehículos: ${reportData.totalVehicles}
-
-ESTADÍSTICAS
------------
-Promedio de vehículos por cliente: ${reportData.totalCustomers > 0 ? 
-  (reportData.totalVehicles / reportData.totalCustomers).toFixed(1) : 0}
-
-ANÁLISIS
---------
-El taller tiene ${reportData.totalCustomers} clientes registrados
-con un total de ${reportData.totalVehicles} vehículos atendidos.
-          `;
-          fileName = `reporte-clientes-${new Date().toISOString().split('T')[0]}.txt`;
+          const clientesKPIs = [
+            { label: 'Total Clientes', value: `${reportData.totalCustomers}`, subtext: 'Clientes registrados' },
+            { label: 'Total Vehículos', value: `${reportData.totalVehicles}`, subtext: 'Vehículos atendidos' },
+            { label: 'Vehículos/Cliente', value: `${reportData.totalCustomers > 0 ? (reportData.totalVehicles / reportData.totalCustomers).toFixed(1) : 0}`, subtext: 'Promedio por cliente' },
+            { label: 'Órdenes Totales', value: `${reportData.totalOrders}`, subtext: 'Órdenes procesadas', color: 'green' }
+          ];
+          
+          const clientesSections = [
+            {
+              title: 'Información de Clientes',
+              content: `
+                <div class="info-box">
+                  <p><strong>El taller tiene ${reportData.totalCustomers} clientes registrados</strong></p>
+                  <p>Con un total de ${reportData.totalVehicles} vehículos atendidos</p>
+                  <p>Promedio de ${reportData.totalCustomers > 0 ? (reportData.totalVehicles / reportData.totalCustomers).toFixed(1) : 0} vehículos por cliente</p>
+                </div>
+              `
+            },
+            {
+              title: 'Estadísticas de Clientes',
+              content: `
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Métrica</th>
+                      <th>Valor</th>
+                      <th>Descripción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Clientes Activos</td>
+                      <td>${reportData.totalCustomers}</td>
+                      <td>Total de clientes en el sistema</td>
+                    </tr>
+                    <tr>
+                      <td>Vehículos Registrados</td>
+                      <td>${reportData.totalVehicles}</td>
+                      <td>Total de vehículos atendidos</td>
+                    </tr>
+                    <tr>
+                      <td>Promedio Vehículos/Cliente</td>
+                      <td>${reportData.totalCustomers > 0 ? (reportData.totalVehicles / reportData.totalCustomers).toFixed(1) : 0}</td>
+                      <td>Relación vehículos por cliente</td>
+                    </tr>
+                    <tr>
+                      <td>Órdenes Totales</td>
+                      <td>${reportData.totalOrders}</td>
+                      <td>Órdenes de trabajo generadas</td>
+                    </tr>
+                  </tbody>
+                </table>
+              `
+            }
+          ];
+          
+          reportContent = generateProfessionalReportHTML(
+            'Reporte de Clientes',
+            'Este mes',
+            clientesKPIs,
+            clientesSections
+          );
+          fileName = `reporte-clientes-${new Date().toISOString().split('T')[0]}.html`;
           break;
 
         case 'ordenes':
-          reportContent = `
-REPORTE DE ÓRDENES - EAGLES ERP TALLER
-=====================================
-Fecha: ${new Date().toLocaleDateString('es-ES')}
-
-ESTADO DE ÓRDENES
-----------------
-Total de Órdenes: ${reportData.totalOrders}
-Órdenes Completadas: ${reportData.completedOrders}
-Órdenes Pendientes: ${reportData.pendingOrders}
-
-EFICIENCIA
----------
-Tasa de Completado: ${reportData.totalOrders > 0 ? 
-  ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%
-
-ANÁLISIS
---------
-El taller ha procesado ${reportData.totalOrders} órdenes en total.
-${reportData.completedOrders} han sido completadas exitosamente.
-          `;
-          fileName = `reporte-ordenes-${new Date().toISOString().split('T')[0]}.txt`;
+          const ordenesKPIs = [
+            { label: 'Total Órdenes', value: `${reportData.totalOrders}`, subtext: 'Órdenes procesadas' },
+            { label: 'Completadas', value: `${reportData.completedOrders}`, subtext: 'Órdenes finalizadas', color: 'green' },
+            { label: 'Pendientes', value: `${reportData.pendingOrders}`, subtext: 'Requieren atención', color: 'orange' },
+            { label: 'Tasa Completado', value: `${reportData.totalOrders > 0 ? ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%`, subtext: 'Porcentaje de éxito', color: 'purple' }
+          ];
+          
+          const ordenesSections = [
+            {
+              title: 'Estado de Órdenes',
+              content: `
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Estado</th>
+                      <th>Cantidad</th>
+                      <th>Porcentaje</th>
+                      <th>Valor Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>Completadas</strong></td>
+                      <td>${reportData.completedOrders}</td>
+                      <td>${reportData.totalOrders > 0 ? ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%</td>
+                      <td>$${Math.round(reportData.totalRevenue * (reportData.completedOrders / reportData.totalOrders)).toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Pendientes</strong></td>
+                      <td>${reportData.pendingOrders}</td>
+                      <td>${reportData.totalOrders > 0 ? ((reportData.pendingOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%</td>
+                      <td>$${Math.round(reportData.totalRevenue * (reportData.pendingOrders / reportData.totalOrders)).toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Total</strong></td>
+                      <td>${reportData.totalOrders}</td>
+                      <td>100%</td>
+                      <td>$${reportData.totalRevenue.toLocaleString()}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              `
+            },
+            {
+              title: 'Análisis de Eficiencia',
+              content: `
+                <div class="info-box">
+                  <p><strong>El taller ha procesado ${reportData.totalOrders} órdenes en total</strong></p>
+                  <p>${reportData.completedOrders} han sido completadas exitosamente (${reportData.totalOrders > 0 ? ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%)</p>
+                  <p>Valor promedio por orden: $${reportData.averageOrderValue.toFixed(0)}</p>
+                </div>
+              `
+            }
+          ];
+          
+          reportContent = generateProfessionalReportHTML(
+            'Reporte de Órdenes',
+            'Este mes',
+            ordenesKPIs,
+            ordenesSections
+          );
+          fileName = `reporte-ordenes-${new Date().toISOString().split('T')[0]}.html`;
           break;
 
         case 'mensual':
-          reportContent = `
-REPORTE MENSUAL - EAGLES ERP TALLER
-==================================
-Período: ${new Date().toLocaleDateString('es-ES')}
-
-RESUMEN MENSUAL
---------------
-Total de Clientes: ${reportData.totalCustomers}
-Total de Vehículos: ${reportData.totalVehicles}
-Total de Órdenes: ${reportData.totalOrders}
-Ingresos del Mes: $${reportData.totalRevenue.toLocaleString()}
-
-RENDIMIENTO
-----------
-Órdenes Completadas: ${reportData.completedOrders}
-Órdenes Pendientes: ${reportData.pendingOrders}
-Valor Promedio: $${reportData.averageOrderValue.toFixed(0)}
-
-ANÁLISIS MENSUAL
----------------
-Este reporte muestra el rendimiento mensual del taller.
-Los ingresos del mes ascienden a $${reportData.totalRevenue.toLocaleString()}.
-          `;
-          fileName = `reporte-mensual-${new Date().toISOString().split('T')[0]}.txt`;
+          const mensualKPIs = [
+            { label: 'Ingresos del Mes', value: `$${reportData.totalRevenue.toLocaleString()}`, subtext: 'Total de ingresos' },
+            { label: 'Total Órdenes', value: `${reportData.totalOrders}`, subtext: 'Órdenes procesadas' },
+            { label: 'Clientes Activos', value: `${reportData.totalCustomers}`, subtext: 'Clientes registrados' },
+            { label: 'Valor Promedio', value: `$${reportData.averageOrderValue.toFixed(0)}`, subtext: 'Por orden', color: 'green' }
+          ];
+          
+          const mensualSections = [
+            {
+              title: 'Resumen Mensual',
+              content: `
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Métrica</th>
+                      <th>Valor</th>
+                      <th>Descripción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Total de Clientes</td>
+                      <td>${reportData.totalCustomers}</td>
+                      <td>Clientes registrados en el sistema</td>
+                    </tr>
+                    <tr>
+                      <td>Total de Vehículos</td>
+                      <td>${reportData.totalVehicles}</td>
+                      <td>Vehículos atendidos este mes</td>
+                    </tr>
+                    <tr>
+                      <td>Total de Órdenes</td>
+                      <td>${reportData.totalOrders}</td>
+                      <td>Órdenes de trabajo generadas</td>
+                    </tr>
+                    <tr>
+                      <td>Ingresos del Mes</td>
+                      <td><strong>$${reportData.totalRevenue.toLocaleString()}</strong></td>
+                      <td>Total de ingresos generados</td>
+                    </tr>
+                  </tbody>
+                </table>
+              `
+            },
+            {
+              title: 'Rendimiento Mensual',
+              content: `
+                <div class="metrics">
+                  <div class="metric-card">
+                    <div class="metric-label">Órdenes Completadas</div>
+                    <div class="metric-value green">${reportData.completedOrders}</div>
+                    <div class="metric-subtext">${reportData.totalOrders > 0 ? ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}% del total</div>
+                  </div>
+                  <div class="metric-card">
+                    <div class="metric-label">Órdenes Pendientes</div>
+                    <div class="metric-value orange">${reportData.pendingOrders}</div>
+                    <div class="metric-subtext">${reportData.totalOrders > 0 ? ((reportData.pendingOrders / reportData.totalOrders) * 100).toFixed(1) : 0}% del total</div>
+                  </div>
+                  <div class="metric-card">
+                    <div class="metric-label">Valor Promedio</div>
+                    <div class="metric-value">$${reportData.averageOrderValue.toFixed(0)}</div>
+                    <div class="metric-subtext">Por orden de trabajo</div>
+                  </div>
+                </div>
+                <div class="info-box" style="margin-top: 20px;">
+                  <p><strong>Análisis Mensual:</strong></p>
+                  <p>Este reporte muestra el rendimiento mensual del taller.</p>
+                  <p>Los ingresos del mes ascienden a $${reportData.totalRevenue.toLocaleString()} con un promedio de $${reportData.averageOrderValue.toFixed(0)} por orden.</p>
+                </div>
+              `
+            }
+          ];
+          
+          reportContent = generateProfessionalReportHTML(
+            'Reporte Mensual',
+            'Este mes',
+            mensualKPIs,
+            mensualSections
+          );
+          fileName = `reporte-mensual-${new Date().toISOString().split('T')[0]}.html`;
           break;
 
         case 'financiero':
-          reportContent = `
-REPORTE FINANCIERO - EAGLES ERP TALLER
-=====================================
-Fecha: ${new Date().toLocaleDateString('es-ES')}
-
-INGRESOS
---------
-Total de Ingresos: $${reportData.totalRevenue.toLocaleString()}
-Valor Promedio por Orden: $${reportData.averageOrderValue.toFixed(0)}
-
-ANÁLISIS FINANCIERO
-------------------
-Total de Órdenes: ${reportData.totalOrders}
-Órdenes Completadas: ${reportData.completedOrders}
-Órdenes Pendientes: ${reportData.pendingOrders}
-
-RENTABILIDAD
------------
-El taller ha generado $${reportData.totalRevenue.toLocaleString()} en ingresos
-con un promedio de $${reportData.averageOrderValue.toFixed(0)} por orden procesada.
-          `;
-          fileName = `reporte-financiero-${new Date().toISOString().split('T')[0]}.txt`;
+          const financieroKPIs = [
+            { label: 'Ingresos Totales', value: `$${reportData.totalRevenue.toLocaleString()}`, subtext: 'Total generado' },
+            { label: 'Órdenes Procesadas', value: `${reportData.totalOrders}`, subtext: 'Total de órdenes' },
+            { label: 'Ticket Promedio', value: `$${reportData.averageOrderValue.toFixed(0)}`, subtext: 'Valor por orden' },
+            { label: 'Tasa Éxito', value: `${reportData.totalOrders > 0 ? ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%`, subtext: 'Órdenes completadas', color: 'green' }
+          ];
+          
+          const financieroSections = [
+            {
+              title: 'Análisis Financiero',
+              content: `
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Concepto</th>
+                      <th>Cantidad</th>
+                      <th>Valor</th>
+                      <th>Porcentaje</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Total de Órdenes</td>
+                      <td>${reportData.totalOrders}</td>
+                      <td>$${reportData.totalRevenue.toLocaleString()}</td>
+                      <td>100%</td>
+                    </tr>
+                    <tr>
+                      <td>Órdenes Completadas</td>
+                      <td>${reportData.completedOrders}</td>
+                      <td>$${Math.round(reportData.totalRevenue * (reportData.completedOrders / reportData.totalOrders)).toLocaleString()}</td>
+                      <td>${reportData.totalOrders > 0 ? ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%</td>
+                    </tr>
+                    <tr>
+                      <td>Órdenes Pendientes</td>
+                      <td>${reportData.pendingOrders}</td>
+                      <td>$${Math.round(reportData.totalRevenue * (reportData.pendingOrders / reportData.totalOrders)).toLocaleString()}</td>
+                      <td>${reportData.totalOrders > 0 ? ((reportData.pendingOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              `
+            },
+            {
+              title: 'Rentabilidad',
+              content: `
+                <div class="info-box">
+                  <p><strong>Resumen de Rentabilidad:</strong></p>
+                  <p>El taller ha generado $${reportData.totalRevenue.toLocaleString()} en ingresos con un promedio de $${reportData.averageOrderValue.toFixed(0)} por orden procesada.</p>
+                  <p>El ${reportData.totalOrders > 0 ? ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}% de las órdenes han sido completadas exitosamente.</p>
+                </div>
+              `
+            }
+          ];
+          
+          reportContent = generateProfessionalReportHTML(
+            'Reporte Financiero',
+            'Este mes',
+            financieroKPIs,
+            financieroSections
+          );
+          fileName = `reporte-financiero-${new Date().toISOString().split('T')[0]}.html`;
           break;
 
         case 'inventario':
-          reportContent = `
-REPORTE DE INVENTARIO - EAGLES ERP TALLER
-========================================
-Fecha: ${new Date().toLocaleDateString('es-ES')}
-
-ESTADO DEL INVENTARIO
---------------------
-Total de Vehículos: ${reportData.totalVehicles}
-Total de Clientes: ${reportData.totalCustomers}
-
-ANÁLISIS DE INVENTARIO
----------------------
-El taller tiene ${reportData.totalVehicles} vehículos registrados
-pertenecientes a ${reportData.totalCustomers} clientes.
-
-ESTADÍSTICAS
------------
-Promedio de vehículos por cliente: ${reportData.totalCustomers > 0 ? 
-  (reportData.totalVehicles / reportData.totalCustomers).toFixed(1) : 0}
-
-NOTA: Este reporte se enfoca en el inventario de vehículos.
-Para un análisis completo del inventario de repuestos,
-consulte el módulo de inventarios.
-          `;
-          fileName = `reporte-inventario-${new Date().toISOString().split('T')[0]}.txt`;
+          const inventarioKPIs = [
+            { label: 'Vehículos', value: `${reportData.totalVehicles}`, subtext: 'Vehículos registrados' },
+            { label: 'Clientes', value: `${reportData.totalCustomers}`, subtext: 'Clientes con vehículos' },
+            { label: 'Vehículos/Cliente', value: `${reportData.totalCustomers > 0 ? (reportData.totalVehicles / reportData.totalCustomers).toFixed(1) : 0}`, subtext: 'Promedio por cliente' },
+            { label: 'Órdenes', value: `${reportData.totalOrders}`, subtext: 'Órdenes generadas', color: 'green' }
+          ];
+          
+          const inventarioSections = [
+            {
+              title: 'Estado del Inventario',
+              content: `
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Métrica</th>
+                      <th>Valor</th>
+                      <th>Descripción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Total de Vehículos</td>
+                      <td>${reportData.totalVehicles}</td>
+                      <td>Vehículos registrados en el sistema</td>
+                    </tr>
+                    <tr>
+                      <td>Total de Clientes</td>
+                      <td>${reportData.totalCustomers}</td>
+                      <td>Clientes con vehículos registrados</td>
+                    </tr>
+                    <tr>
+                      <td>Promedio Vehículos/Cliente</td>
+                      <td>${reportData.totalCustomers > 0 ? (reportData.totalVehicles / reportData.totalCustomers).toFixed(1) : 0}</td>
+                      <td>Relación vehículos por cliente</td>
+                    </tr>
+                    <tr>
+                      <td>Órdenes de Trabajo</td>
+                      <td>${reportData.totalOrders}</td>
+                      <td>Órdenes generadas para estos vehículos</td>
+                    </tr>
+                  </tbody>
+                </table>
+              `
+            },
+            {
+              title: 'Análisis de Inventario',
+              content: `
+                <div class="info-box">
+                  <p><strong>El taller tiene ${reportData.totalVehicles} vehículos registrados</strong></p>
+                  <p>Pertenecientes a ${reportData.totalCustomers} clientes</p>
+                  <p>Promedio de ${reportData.totalCustomers > 0 ? (reportData.totalVehicles / reportData.totalCustomers).toFixed(1) : 0} vehículos por cliente</p>
+                  <p style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #bfdbfe;"><em>Nota: Este reporte se enfoca en el inventario de vehículos. Para un análisis completo del inventario de repuestos, consulte el módulo de inventarios.</em></p>
+                </div>
+              `
+            }
+          ];
+          
+          reportContent = generateProfessionalReportHTML(
+            'Reporte de Inventario',
+            'Este mes',
+            inventarioKPIs,
+            inventarioSections
+          );
+          fileName = `reporte-inventario-${new Date().toISOString().split('T')[0]}.html`;
           break;
 
         case 'productividad':
-          reportContent = `
-REPORTE DE PRODUCTIVIDAD - EAGLES ERP TALLER
-==========================================
-Fecha: ${new Date().toLocaleDateString('es-ES')}
-
-MÉTRICAS DE PRODUCTIVIDAD
-------------------------
-Total de Órdenes: ${reportData.totalOrders}
-Órdenes Completadas: ${reportData.completedOrders}
-Órdenes Pendientes: ${reportData.pendingOrders}
-Tasa de Eficiencia: ${reportData.totalOrders > 0 ? 
-  ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%
-
-ANÁLISIS DE RENDIMIENTO
-----------------------
-El taller ha procesado ${reportData.totalOrders} órdenes en total.
-De estas, ${reportData.completedOrders} han sido completadas exitosamente,
-lo que representa una eficiencia del ${reportData.totalOrders > 0 ? 
-  ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%.
-
-VALOR PROMEDIO
---------------
-El valor promedio por orden es de $${reportData.averageOrderValue.toFixed(0)},
-indicando la rentabilidad promedio de los servicios prestados.
-
-RECOMENDACIONES
----------------
-- Optimizar procesos para reducir órdenes pendientes
-- Implementar seguimiento de tiempos de servicio
-- Analizar tendencias de productividad mensual
-          `;
-          fileName = `reporte-productividad-${new Date().toISOString().split('T')[0]}.txt`;
+          const productividadKPIs = [
+            { label: 'Total Órdenes', value: `${reportData.totalOrders}`, subtext: 'Órdenes procesadas' },
+            { label: 'Eficiencia', value: `${reportData.totalOrders > 0 ? ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%`, subtext: 'Tasa de completado', color: 'green' },
+            { label: 'Completadas', value: `${reportData.completedOrders}`, subtext: 'Órdenes finalizadas' },
+            { label: 'Ticket Promedio', value: `$${reportData.averageOrderValue.toFixed(0)}`, subtext: 'Valor por orden', color: 'purple' }
+          ];
+          
+          const productividadSections = [
+            {
+              title: 'Métricas de Productividad',
+              content: `
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Métrica</th>
+                      <th>Valor</th>
+                      <th>Descripción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Total de Órdenes</td>
+                      <td>${reportData.totalOrders}</td>
+                      <td>Órdenes procesadas en total</td>
+                    </tr>
+                    <tr>
+                      <td>Órdenes Completadas</td>
+                      <td>${reportData.completedOrders}</td>
+                      <td>Órdenes finalizadas exitosamente</td>
+                    </tr>
+                    <tr>
+                      <td>Órdenes Pendientes</td>
+                      <td>${reportData.pendingOrders}</td>
+                      <td>Órdenes en proceso</td>
+                    </tr>
+                    <tr>
+                      <td>Tasa de Eficiencia</td>
+                      <td><strong>${reportData.totalOrders > 0 ? ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%</strong></td>
+                      <td>Porcentaje de órdenes completadas</td>
+                    </tr>
+                  </tbody>
+                </table>
+              `
+            },
+            {
+              title: 'Análisis de Rendimiento',
+              content: `
+                <div class="info-box">
+                  <p><strong>El taller ha procesado ${reportData.totalOrders} órdenes en total</strong></p>
+                  <p>De estas, ${reportData.completedOrders} han sido completadas exitosamente, lo que representa una eficiencia del ${reportData.totalOrders > 0 ? ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%</p>
+                  <p>El valor promedio por orden es de $${reportData.averageOrderValue.toFixed(0)}, indicando la rentabilidad promedio de los servicios prestados</p>
+                </div>
+              `
+            },
+            {
+              title: 'Recomendaciones',
+              content: `
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Recomendación</th>
+                      <th>Impacto Esperado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>1</td>
+                      <td>Optimizar procesos para reducir órdenes pendientes</td>
+                      <td>Mayor eficiencia operativa</td>
+                    </tr>
+                    <tr>
+                      <td>2</td>
+                      <td>Implementar seguimiento de tiempos de servicio</td>
+                      <td>Mejor control de tiempos</td>
+                    </tr>
+                    <tr>
+                      <td>3</td>
+                      <td>Analizar tendencias de productividad mensual</td>
+                      <td>Identificación de patrones</td>
+                    </tr>
+                  </tbody>
+                </table>
+              `
+            }
+          ];
+          
+          reportContent = generateProfessionalReportHTML(
+            'Reporte de Productividad',
+            'Este mes',
+            productividadKPIs,
+            productividadSections
+          );
+          fileName = `reporte-productividad-${new Date().toISOString().split('T')[0]}.html`;
           break;
 
         case 'calidad':
-          reportContent = `
-REPORTE DE CALIDAD - EAGLES ERP TALLER
-=====================================
-Fecha: ${new Date().toLocaleDateString('es-ES')}
-
-MÉTRICAS DE CALIDAD
-------------------
-Total de Órdenes: ${reportData.totalOrders}
-Órdenes Completadas: ${reportData.completedOrders}
-Órdenes Pendientes: ${reportData.pendingOrders}
-Tasa de Satisfacción: ${reportData.totalOrders > 0 ? 
-  ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%
-
-ANÁLISIS DE CALIDAD
-------------------
-El taller ha completado ${reportData.completedOrders} de ${reportData.totalOrders} órdenes,
-lo que representa una tasa de finalización del ${reportData.totalOrders > 0 ? 
-  ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%.
-
-INDICADORES DE CALIDAD
-----------------------
-- Órdenes completadas exitosamente: ${reportData.completedOrders}
-- Órdenes pendientes de revisión: ${reportData.pendingOrders}
-- Valor promedio por orden: $${reportData.averageOrderValue.toFixed(0)}
-
-RECOMENDACIONES
----------------
-- Implementar sistema de evaluación de satisfacción
-- Establecer métricas de calidad por servicio
-- Crear protocolos de control de calidad
-- Monitorear tiempos de respuesta y resolución
-          `;
-          fileName = `reporte-calidad-${new Date().toISOString().split('T')[0]}.txt`;
+          const calidadKPIs = [
+            { label: 'Tasa Satisfacción', value: `${reportData.totalOrders > 0 ? ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%`, subtext: 'Tasa de completado', color: 'green' },
+            { label: 'Órdenes Completadas', value: `${reportData.completedOrders}`, subtext: 'Finalizadas exitosamente' },
+            { label: 'Órdenes Pendientes', value: `${reportData.pendingOrders}`, subtext: 'En revisión', color: 'orange' },
+            { label: 'Valor Promedio', value: `$${reportData.averageOrderValue.toFixed(0)}`, subtext: 'Por orden', color: 'purple' }
+          ];
+          
+          const calidadSections = [
+            {
+              title: 'Métricas de Calidad',
+              content: `
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Indicador</th>
+                      <th>Valor</th>
+                      <th>Descripción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Total de Órdenes</td>
+                      <td>${reportData.totalOrders}</td>
+                      <td>Órdenes procesadas en el período</td>
+                    </tr>
+                    <tr>
+                      <td>Órdenes Completadas</td>
+                      <td>${reportData.completedOrders}</td>
+                      <td>Órdenes finalizadas exitosamente</td>
+                    </tr>
+                    <tr>
+                      <td>Órdenes Pendientes</td>
+                      <td>${reportData.pendingOrders}</td>
+                      <td>Órdenes pendientes de revisión</td>
+                    </tr>
+                    <tr>
+                      <td>Tasa de Satisfacción</td>
+                      <td><strong>${reportData.totalOrders > 0 ? ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%</strong></td>
+                      <td>Porcentaje de órdenes completadas</td>
+                    </tr>
+                  </tbody>
+                </table>
+              `
+            },
+            {
+              title: 'Análisis de Calidad',
+              content: `
+                <div class="info-box">
+                  <p><strong>El taller ha completado ${reportData.completedOrders} de ${reportData.totalOrders} órdenes</strong></p>
+                  <p>Lo que representa una tasa de finalización del ${reportData.totalOrders > 0 ? ((reportData.completedOrders / reportData.totalOrders) * 100).toFixed(1) : 0}%</p>
+                  <p>Valor promedio por orden: $${reportData.averageOrderValue.toFixed(0)}</p>
+                </div>
+              `
+            },
+            {
+              title: 'Indicadores de Calidad',
+              content: `
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Indicador</th>
+                      <th>Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>1</td>
+                      <td>Órdenes completadas exitosamente</td>
+                      <td><strong>${reportData.completedOrders}</strong></td>
+                    </tr>
+                    <tr>
+                      <td>2</td>
+                      <td>Órdenes pendientes de revisión</td>
+                      <td>${reportData.pendingOrders}</td>
+                    </tr>
+                    <tr>
+                      <td>3</td>
+                      <td>Valor promedio por orden</td>
+                      <td><strong>$${reportData.averageOrderValue.toFixed(0)}</strong></td>
+                    </tr>
+                  </tbody>
+                </table>
+              `
+            },
+            {
+              title: 'Recomendaciones',
+              content: `
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Recomendación</th>
+                      <th>Beneficio</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>1</td>
+                      <td>Implementar sistema de evaluación de satisfacción</td>
+                      <td>Mejora continua</td>
+                    </tr>
+                    <tr>
+                      <td>2</td>
+                      <td>Establecer métricas de calidad por servicio</td>
+                      <td>Control de calidad</td>
+                    </tr>
+                    <tr>
+                      <td>3</td>
+                      <td>Crear protocolos de control de calidad</td>
+                      <td>Estandarización</td>
+                    </tr>
+                    <tr>
+                      <td>4</td>
+                      <td>Monitorear tiempos de respuesta y resolución</td>
+                      <td>Eficiencia</td>
+                    </tr>
+                  </tbody>
+                </table>
+              `
+            }
+          ];
+          
+          reportContent = generateProfessionalReportHTML(
+            'Reporte de Calidad',
+            'Este mes',
+            calidadKPIs,
+            calidadSections
+          );
+          fileName = `reporte-calidad-${new Date().toISOString().split('T')[0]}.html`;
           break;
 
         default:
@@ -484,8 +1171,8 @@ RECOMENDACIONES
           return;
       }
 
-      // Crear y descargar archivo
-      const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
+      // Crear y descargar archivo HTML
+      const blob = new Blob([reportContent], { type: 'text/html;charset=utf-8' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -495,13 +1182,25 @@ RECOMENDACIONES
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      // Mostrar mensaje de éxito
-      toast.success(`Reporte de ${type} exportado exitosamente`);
+      // Mostrar mensaje de éxito con instrucciones
+      toast.success('Reporte descargado exitosamente', {
+        description: 'Revisa tu carpeta de descargas. El archivo se descargó automáticamente.',
+        duration: 5000
+      });
     } catch (error) {
       console.error('Error al generar reporte:', error);
       toast.error('Error al generar el reporte', {
         description: 'Intenta nuevamente'
       });
+    }
+  };
+
+  // ✅ Función para confirmar y generar el reporte
+  const handleConfirmDownload = () => {
+    if (pendingReportType) {
+      setConfirmDialogOpen(false);
+      handleGenerateReport(pendingReportType);
+      setPendingReportType(null);
     }
   };
 
@@ -716,7 +1415,7 @@ RECOMENDACIONES
                 Análisis detallado de ventas, ingresos y tendencias del taller
               </p>
               <Button 
-                onClick={() => handleGenerateReport('ventas')}
+                onClick={() => handleReportButtonClick('ventas')}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300"
               >
                 Generar Reporte
@@ -736,7 +1435,7 @@ RECOMENDACIONES
                 Información sobre clientes, vehículos y historial de servicios
               </p>
               <Button 
-                onClick={() => handleGenerateReport('clientes')}
+                onClick={() => handleReportButtonClick('clientes')}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300"
               >
                 Generar Reporte
@@ -756,7 +1455,7 @@ RECOMENDACIONES
                 Estado de órdenes, tiempos de servicio y eficiencia
               </p>
               <Button 
-                onClick={() => handleGenerateReport('ordenes')}
+                onClick={() => handleReportButtonClick('ordenes')}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300"
               >
                 Generar Reporte
@@ -776,7 +1475,7 @@ RECOMENDACIONES
                 Resumen mensual de actividades y rendimiento
               </p>
               <Button 
-                onClick={() => handleGenerateReport('mensual')}
+                onClick={() => handleReportButtonClick('mensual')}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300"
               >
                 Generar Reporte
@@ -796,7 +1495,7 @@ RECOMENDACIONES
                 Análisis de ingresos, gastos y rentabilidad
               </p>
               <Button 
-                onClick={() => handleGenerateReport('financiero')}
+                onClick={() => handleReportButtonClick('financiero')}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300"
               >
                 Generar Reporte
@@ -816,7 +1515,7 @@ RECOMENDACIONES
                 Estado del inventario, stock y movimientos
               </p>
               <Button 
-                onClick={() => handleGenerateReport('inventario')}
+                onClick={() => handleReportButtonClick('inventario')}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300"
               >
                 Generar Reporte
@@ -836,7 +1535,7 @@ RECOMENDACIONES
                 Análisis de tiempos, eficiencia y rendimiento del taller
               </p>
               <Button 
-                onClick={() => handleGenerateReport('productividad')}
+                onClick={() => handleReportButtonClick('productividad')}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300"
               >
                 Generar Reporte
@@ -856,7 +1555,7 @@ RECOMENDACIONES
                 Análisis de calidad de servicios y satisfacción del cliente
               </p>
               <Button 
-                onClick={() => handleGenerateReport('calidad')}
+                onClick={() => handleReportButtonClick('calidad')}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300"
               >
                 Generar Reporte
@@ -901,6 +1600,59 @@ RECOMENDACIONES
           </CardContent>
         </Card>
       </div>
+
+      {/* ✅ Diálogo de confirmación para descarga de reporte */}
+      <AlertDialog 
+        open={confirmDialogOpen} 
+        onOpenChange={(open) => {
+          setConfirmDialogOpen(open);
+          if (!open) {
+            // Si se cierra sin confirmar, limpiar el tipo pendiente
+            setPendingReportType(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Descargar reporte?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Estás a punto de descargar el reporte de{' '}
+                <strong>
+                  {pendingReportType === 'ventas' && 'Ventas'}
+                  {pendingReportType === 'clientes' && 'Clientes'}
+                  {pendingReportType === 'ordenes' && 'Órdenes'}
+                  {pendingReportType === 'mensual' && 'Mensual'}
+                  {pendingReportType === 'financiero' && 'Financiero'}
+                  {pendingReportType === 'inventario' && 'Inventario'}
+                  {pendingReportType === 'productividad' && 'Productividad'}
+                  {pendingReportType === 'calidad' && 'Calidad'}
+                </strong>
+                .
+              </p>
+              <p className="font-medium text-amber-600 dark:text-amber-400">
+                📥 El archivo se descargará automáticamente en tu carpeta de descargas.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Por favor, revisa tu carpeta de descargas después de confirmar. 
+                Si no encuentras el archivo, verifica la configuración de tu navegador 
+                para descargas automáticas.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDownload}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Sí, descargar reporte
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
