@@ -1,7 +1,7 @@
 // src/components/whatsapp/LeadManagementPanel.tsx
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -79,34 +79,107 @@ export function LeadManagementPanel({
   const [selectedStatus, setSelectedStatus] = useState<LeadStatus>(lead?.status || 'new')
   const [leadScore, setLeadScore] = useState(lead?.lead_score || 0)
 
+  // ✅ Ref para rastrear el último lead procesado y evitar loops
+  const lastProcessedLeadIdRef = useRef<string | null>(null)
+  
+  // ✅ Sincronizar estado cuando initialLead cambia desde el componente padre
+  useEffect(() => {
+    const newLeadId = initialLead?.id || null
+    const currentLeadId = lastProcessedLeadIdRef.current
+    
+    // Solo actualizar si el ID cambió
+    if (newLeadId !== currentLeadId) {
+      console.log('[LeadManagementPanel] 🔄 Sincronizando lead desde props:', {
+        previousId: currentLeadId,
+        newId: newLeadId,
+        hadLead: !!lead,
+        hasNewLead: !!initialLead
+      })
+      
+      if (initialLead) {
+        setLead(initialLead)
+        setEstimatedValue(initialLead.estimated_value || 0)
+        setNotes(initialLead.notes || '')
+        setSelectedStatus(initialLead.status || 'new')
+        setLeadScore(initialLead.lead_score || 0)
+        lastProcessedLeadIdRef.current = initialLead.id
+      } else {
+        // Si initialLead es null, resetear el estado
+        setLead(null)
+        setEstimatedValue(0)
+        setNotes('')
+        setSelectedStatus('new')
+        setLeadScore(0)
+        lastProcessedLeadIdRef.current = null
+      }
+    }
+  }, [initialLead]) // ✅ Solo depende de initialLead para evitar loops
+
   // Crear lead desde conversación
   const handleCreateLead = async () => {
     setIsCreating(true)
     try {
+      console.log('[LeadManagementPanel] Creando lead desde conversación:', {
+        conversationId,
+        estimatedValue,
+        notes
+      })
+
       const response = await fetch('/api/leads/from-conversation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conversation_id: conversationId,
-          estimated_value: estimatedValue,
-          notes,
+          estimated_value: estimatedValue || 0,
+          notes: notes || '',
           lead_source: 'whatsapp'
         })
       })
 
       const data = await response.json()
 
-      if (data.success) {
+      console.log('[LeadManagementPanel] Respuesta del API:', data)
+
+      if (!response.ok) {
+        // Si hay un error HTTP, mostrar el mensaje de error
+        const errorMessage = data.error || `Error ${response.status}: ${response.statusText}`
+        console.error('[LeadManagementPanel] Error en respuesta:', errorMessage, data)
+        
+        // Si es un 409 (conflicto), puede ser que ya existe el lead
+        if (response.status === 409) {
+          toast.warning('Esta conversación ya tiene un lead asociado')
+          // Si viene el lead en la respuesta, actualizar el estado
+          if (data.lead) {
+            setLead(data.lead)
+            setShowCreateDialog(false)
+          }
+          return
+        }
+        
+        toast.error(errorMessage)
+        return
+      }
+
+      // ✅ Manejar éxito (tanto creación nueva como lead existente)
+      if (data.success && data.data) {
         setLead(data.data)
         setShowCreateDialog(false)
-        toast.success('Lead creado exitosamente')
+        setEstimatedValue(0) // Reset form
+        setNotes('')
+        
+        if (data.already_exists) {
+          toast.info('Esta conversación ya tenía un lead asociado')
+        } else {
+          toast.success('Lead creado exitosamente')
+        }
+        
         onLeadCreated?.(data.data)
       } else {
         toast.error(data.error || 'Error al crear lead')
       }
-    } catch (error) {
-      console.error('Error creating lead:', error)
-      toast.error('Error al crear lead')
+    } catch (error: any) {
+      console.error('[LeadManagementPanel] Error creando lead:', error)
+      toast.error(error.message || 'Error al crear lead. Verifica tu conexión.')
     } finally {
       setIsCreating(false)
     }
@@ -190,12 +263,12 @@ export function LeadManagementPanel({
     return (
       <>
         <Card className="p-4 border-dashed border-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                 <Sparkles className="h-5 w-5 text-blue-600" />
               </div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <h3 className="font-semibold text-sm">Convertir en Lead</h3>
                 <p className="text-xs text-muted-foreground">
                   Gestiona esta oportunidad en tu pipeline de ventas
@@ -204,10 +277,10 @@ export function LeadManagementPanel({
             </div>
             <Button 
               onClick={() => setShowCreateDialog(true)}
-              size="sm"
+              className="px-4 py-2 text-sm flex-shrink-0 h-auto"
             >
-              <Sparkles className="h-4 w-4 mr-2" />
-              Marcar como Lead
+              <Sparkles className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="whitespace-nowrap">Marcar como Lead</span>
             </Button>
           </div>
         </Card>
@@ -334,15 +407,25 @@ export function LeadManagementPanel({
                 value={selectedStatus}
                 onValueChange={(value) => setSelectedStatus(value as LeadStatus)}
               >
-                <SelectTrigger id="lead-status">
+                <SelectTrigger id="lead-status" className="bg-gray-800 border-gray-700 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">Nuevo</SelectItem>
-                  <SelectItem value="contacted">Contactado</SelectItem>
-                  <SelectItem value="qualified">Calificado</SelectItem>
-                  <SelectItem value="appointment">Cita Agendada</SelectItem>
-                  <SelectItem value="lost">Perdido</SelectItem>
+                <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                  <SelectItem value="new" className="text-white hover:bg-gray-700 focus:bg-gray-700">
+                    Nuevo
+                  </SelectItem>
+                  <SelectItem value="contacted" className="text-white hover:bg-gray-700 focus:bg-gray-700">
+                    Contactado
+                  </SelectItem>
+                  <SelectItem value="qualified" className="text-white hover:bg-gray-700 focus:bg-gray-700">
+                    Calificado
+                  </SelectItem>
+                  <SelectItem value="appointment" className="text-white hover:bg-gray-700 focus:bg-gray-700">
+                    Cita Agendada
+                  </SelectItem>
+                  <SelectItem value="lost" className="text-white hover:bg-gray-700 focus:bg-gray-700">
+                    Perdido
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <Button

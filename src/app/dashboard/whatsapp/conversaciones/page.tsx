@@ -2376,20 +2376,28 @@ export default function ConversacionesPage() {
                       customerPhone={contactDetails?.phone || selectedConv?.contactPhone || ''}
                       customerName={contactDetails?.name || selectedConv?.contactName || 'Cliente WhatsApp'}
                       lead={contactDetails?.lead || selectedConv?.lead || null}
-                      onLeadCreated={(lead) => {
+                      onLeadCreated={async (lead) => {
                         console.log('Lead creado:', lead)
                         // Actualizar contactDetails con el nuevo lead
                         updateContactDetails({ lead })
                         // Recargar conversaciones para reflejar el cambio
-                        mutate()
+                        await mutate()
+                        // ✅ Recargar mensajes para asegurar que el lead se sincronice correctamente
+                        if (selectedConversation) {
+                          await loadMessages(selectedConversation)
+                        }
                         toast.success('Lead creado exitosamente')
                       }}
-                      onLeadUpdated={(lead) => {
+                      onLeadUpdated={async (lead) => {
                         console.log('Lead actualizado:', lead)
                         // Actualizar contactDetails con el lead actualizado
                         updateContactDetails({ lead })
                         // Recargar conversaciones para reflejar el cambio
-                        mutate()
+                        await mutate()
+                        // ✅ Recargar mensajes para asegurar que el lead se sincronice correctamente
+                        if (selectedConversation) {
+                          await loadMessages(selectedConversation)
+                        }
                         toast.success('Lead actualizado exitosamente')
                       }}
                       onLeadConverted={(customerId) => {
