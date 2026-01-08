@@ -2450,8 +2450,6 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             </div>
 
-          </div>
-
           {/* ✅ Firma digital del cliente - AL FINAL, antes de los botones */}
           <div className="pt-4 border-t border-slate-700">
             <Label className="text-sm font-medium mb-3 block">
