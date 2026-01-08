@@ -32,15 +32,29 @@ export async function GET(
       `)
       .eq('id', vehicleId)
       .eq('workshop_id', tenantContext.workshopId)
-      .single()
+      .maybeSingle()
 
     if (error) {
-      console.error('❌ Error obteniendo vehículo:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('[Get Vehicle] ❌ Error obteniendo vehículo:', error)
+      return NextResponse.json({ 
+        success: false,
+        error: error.message 
+      }, { status: 500 })
     }
 
-    console.log('✅ Vehículo obtenido:', vehicle.id)
-    return NextResponse.json(vehicle)
+    if (!vehicle) {
+      console.log('[Get Vehicle] ⚠️ Vehículo no encontrado:', vehicleId)
+      return NextResponse.json({ 
+        success: false,
+        error: 'Vehículo no encontrado' 
+      }, { status: 404 })
+    }
+
+    console.log('[Get Vehicle] ✅ Vehículo obtenido:', vehicle.id)
+    return NextResponse.json({ 
+      success: true,
+      data: vehicle 
+    })
 
   } catch (error: any) {
     console.error('💥 Error en GET /api/vehicles/[id]:', error)

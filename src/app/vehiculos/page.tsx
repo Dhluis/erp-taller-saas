@@ -146,7 +146,13 @@ export default function VehiculosPage() {
       
       await deleteVehicle(selectedVehicle.id);
       showToast('Vehículo eliminado correctamente', 'success');
+      
+      // Cerrar todos los modales y limpiar selección
       setShowDeleteModal(false);
+      setShowDetailsModal(false);
+      setSelectedVehicle(null);
+      
+      // Refrescar la lista (esto ya lo hace deleteVehicle internamente)
     } catch (error) {
       console.error('Error al eliminar vehículo:', error);
       showToast('Error al eliminar el vehículo', 'error');
