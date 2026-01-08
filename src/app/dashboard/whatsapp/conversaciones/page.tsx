@@ -1035,12 +1035,43 @@ export default function ConversacionesPage() {
         break
       case 'Delete chat':
         if (selectedConversation && confirm('¿Estás seguro de eliminar este chat?')) {
-          // Actualizar en BD y refrescar
-          mutate()
-          setSelectedConversation(null)
-          toast.success('Chat eliminado')
+          handleDeleteConversation(selectedConversation)
         }
         break
+    }
+  }
+
+  // Función para eliminar conversación
+  const handleDeleteConversation = async (conversationId: string) => {
+    try {
+      console.log('[Delete Conversation] 🗑️ Eliminando conversación:', conversationId)
+      
+      const response = await fetch(`/api/whatsapp/conversations/${conversationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Error al eliminar conversación')
+      }
+
+      console.log('[Delete Conversation] ✅ Conversación eliminada:', data)
+      
+      // Cerrar conversación seleccionada
+      setSelectedConversation(null)
+      
+      // Refrescar lista de conversaciones
+      await mutate()
+      
+      toast.success('Conversación eliminada')
+    } catch (error: any) {
+      console.error('[Delete Conversation] ❌ Error:', error)
+      toast.error(error.message || 'Error al eliminar conversación')
     }
   }
 

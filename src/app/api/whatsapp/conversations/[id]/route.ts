@@ -119,3 +119,122 @@ export async function GET(
   }
 }
 
+/**
+ * DELETE /api/whatsapp/conversations/[id] - Eliminar una conversación y sus mensajes
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: conversationId } = await params;
+
+    // ✅ Obtener usuario autenticado
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('❌ [DELETE /api/whatsapp/conversations/[id]] Error de autenticación:', authError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado'
+        },
+        { status: 401 }
+      );
+    }
+
+    // Obtener organization_id del perfil del usuario usando Service Role Client
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [DELETE /api/whatsapp/conversations/[id]] Error obteniendo perfil:', profileError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se pudo obtener la organización del usuario'
+        },
+        { status: 403 }
+      );
+    }
+
+    const organizationId = userProfile.organization_id;
+
+    console.log('[Delete Conversation] 🗑️ Eliminando conversación:', conversationId, 'para organización:', organizationId);
+
+    // Verificar que la conversación existe y pertenece a la organización
+    const { data: conversation, error: fetchError } = await supabaseAdmin
+      .from('whatsapp_conversations')
+      .select('id, organization_id')
+      .eq('id', conversationId)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (fetchError || !conversation) {
+      console.error('[Delete Conversation] ❌ Conversación no encontrada o no autorizada:', fetchError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Conversación no encontrada o no autorizada'
+        },
+        { status: 404 }
+      );
+    }
+
+    // Eliminar mensajes primero (si no hay CASCADE DELETE configurado)
+    // Esto es seguro incluso si hay CASCADE, simplemente no eliminará nada
+    const { error: messagesError } = await supabaseAdmin
+      .from('whatsapp_messages')
+      .delete()
+      .eq('conversation_id', conversationId)
+      .eq('organization_id', organizationId);
+
+    if (messagesError) {
+      console.warn('[Delete Conversation] ⚠️ Error eliminando mensajes (puede ser CASCADE):', messagesError);
+      // Continuar de todas formas - si hay CASCADE DELETE, la conversación los eliminará
+    } else {
+      console.log('[Delete Conversation] ✅ Mensajes eliminados o CASCADE DELETE activo');
+    }
+
+    // Eliminar conversación
+    const { error: deleteError } = await supabaseAdmin
+      .from('whatsapp_conversations')
+      .delete()
+      .eq('id', conversationId)
+      .eq('organization_id', organizationId);
+
+    if (deleteError) {
+      console.error('[Delete Conversation] ❌ Error eliminando conversación:', deleteError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: deleteError.message || 'Error al eliminar conversación'
+        },
+        { status: 500 }
+      );
+    }
+
+    console.log('[Delete Conversation] ✅ Conversación eliminada exitosamente');
+
+    return NextResponse.json({
+      success: true,
+      message: 'Conversation deleted'
+    });
+
+  } catch (error: any) {
+    console.error('[Delete Conversation] ❌ Error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || 'Error al eliminar conversación'
+      },
+      { status: 500 }
+    );
+  }
+}
+
