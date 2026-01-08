@@ -129,7 +129,7 @@ export function OrderCreationImageCapture({
         <CardContent className="space-y-4">
           {/* Botones de acción */}
           <div className="grid grid-cols-2 gap-3">
-            {/* Botón: Tomar Foto */}
+            {/* Botón: Tomar Foto - Estilo azul como KANBAN */}
             <Button
               type="button"
               onClick={() => {
@@ -137,8 +137,7 @@ export function OrderCreationImageCapture({
                 cameraInputRef.current?.click()
               }}
               disabled={uploading || images.length >= maxImages || disabled}
-              className="w-full"
-              variant="default"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md transition-all duration-300"
             >
               {uploading ? (
                 <>
@@ -181,6 +180,12 @@ export function OrderCreationImageCapture({
           {/* Contador de imágenes */}
           <div className="text-xs text-muted-foreground text-center">
             {images.length}/{maxImages} fotos
+          </div>
+
+          {/* Mensaje informativo sobre la cámara */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="text-yellow-500">💡</span>
+            <span><strong>Tomar Foto:</strong> Abre cámara directa del dispositivo</span>
           </div>
 
           {/* Input oculto para CÁMARA */}

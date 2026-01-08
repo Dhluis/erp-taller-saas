@@ -2115,159 +2115,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           </div>
 
-          {/* Términos y Condiciones */}
-
-          <div className="space-y-4">
-
-            <h3 className="font-semibold text-sm border-b pb-2">
-
-              Términos y Condiciones
-
-            </h3>
-
-            {/* Selección de tipo: Texto o Archivo */}
-            <div className="flex gap-4 mb-4">
-              <Button
-                type="button"
-                variant={formData.terms_type === 'text' ? 'default' : 'outline'}
-                onClick={() => setFormData(prev => ({ ...prev, terms_type: 'text', terms_file: null }))}
-                disabled={loading}
-                className="flex items-center gap-2"
-              >
-                <FileText className="h-4 w-4" />
-                Escribir Términos
-              </Button>
-              <Button
-                type="button"
-                variant={formData.terms_type === 'file' ? 'default' : 'outline'}
-                onClick={() => setFormData(prev => ({ ...prev, terms_type: 'file', terms_text: '' }))}
-                disabled={loading}
-                className="flex items-center gap-2"
-              >
-                <Upload className="h-4 w-4" />
-                Subir PDF
-              </Button>
-            </div>
-
-              {/* Textarea para escribir términos */}
-            {formData.terms_type === 'text' && (
-              <div>
-                <Label htmlFor="terms_text">Escribe los términos y condiciones *</Label>
-                <Textarea
-                  id="terms_text"
-                  name="terms_text"
-                  required={formData.terms_type === 'text'}
-                  rows={8}
-                  placeholder="Ej: El cliente acepta que el taller no se hace responsable de...&#10;&#10;1. Garantías sobre piezas usadas&#10;2. Daños causados por el mal uso del vehículo&#10;3. ..."
-                  value={formData.terms_text}
-                  onChange={(e) => setFormData(prev => ({ ...prev, terms_text: e.target.value }))}
-                  disabled={loading}
-                  className={`bg-slate-900 border-slate-600 text-white ${errors.terms_text ? 'border-red-500' : ''}`}
-                />
-                {errors.terms_text && (
-                  <p className="text-red-400 text-xs mt-1">{errors.terms_text}</p>
-                )}
-                <p className="text-xs text-slate-400 mt-1">
-                  Escribe los términos y condiciones que el cliente debe aceptar
-                </p>
-              </div>
-            )}
-
-            {/* Subida de archivo PDF */}
-            {formData.terms_type === 'file' && (
-              <div>
-                <Label htmlFor="terms_file">Subir documento PDF con términos y condiciones *</Label>
-                {errors.terms_file && (
-                  <p className="text-red-400 text-xs mt-1">{errors.terms_file}</p>
-                )}
-                <div className="mt-2">
-                  {!formData.terms_file ? (
-                    <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center hover:border-cyan-500 transition-colors">
-                      <input
-                        type="file"
-                        id="terms_file"
-                        name="terms_file"
-                        accept=".pdf,application/pdf"
-                        onChange={handleTermsFileChange}
-                        disabled={loading}
-                        className="hidden"
-                      />
-                      <label
-                        htmlFor="terms_file"
-                        className="cursor-pointer flex flex-col items-center gap-2"
-                      >
-                        <Upload className="h-8 w-8 text-slate-400" />
-                        <span className="text-sm text-slate-300">
-                          Haz clic para subir un archivo PDF
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          Máximo 5MB
-                        </span>
-                      </label>
-                    </div>
-                  ) : (
-                    <div className="border border-slate-600 rounded-lg p-4 bg-slate-900/50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-5 w-5 text-cyan-400" />
-                          <div>
-                            <p className="text-sm text-white font-medium">
-                              {formData.terms_file.name}
-                            </p>
-                            <p className="text-xs text-slate-400">
-                              {(formData.terms_file.size / 1024).toFixed(2)} KB
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleRemoveTermsFile}
-                          disabled={loading}
-                          className="text-red-400 hover:text-red-300"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      {termsFilePreview && (
-                        <div className="mt-3">
-                          <a
-                            href={termsFilePreview}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-cyan-400 hover:text-cyan-300 underline"
-                          >
-                            Ver preview del PDF
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Checkbox de aceptación */}
-            <div className="flex items-start gap-2 pt-2">
-              <input
-                type="checkbox"
-                id="terms_accepted"
-                name="terms_accepted"
-                checked={formData.terms_accepted}
-                onChange={(e) => setFormData(prev => ({ ...prev, terms_accepted: e.target.checked }))}
-                disabled={loading}
-                className={`mt-1 h-4 w-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 ${errors.terms_accepted ? 'border-red-500' : ''}`}
-              />
-              <Label htmlFor="terms_accepted" className="text-sm text-slate-300 cursor-pointer">
-                El cliente acepta los términos y condiciones *
-              </Label>
-            </div>
-            {errors.terms_accepted && (
-              <p className="text-red-400 text-xs mt-1 ml-6">{errors.terms_accepted}</p>
-            )}
-
-            {/* ✅ Fotos del Vehículo - ANTES de la firma */}
+            {/* ✅ Fotos del Vehículo */}
             <div className="pt-4 border-t border-slate-700">
               <OrderCreationImageCapture
                 images={temporaryImages}
@@ -2275,6 +2123,155 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 maxImages={20}
                 disabled={loading}
               />
+            </div>
+
+            {/* ✅ Términos y Condiciones - DESPUÉS de las fotos */}
+            <div className="space-y-4 pt-4 border-t border-slate-700">
+              <h3 className="font-semibold text-sm border-b pb-2">
+                Términos y Condiciones
+              </h3>
+
+              {/* Selección de tipo: Texto o Archivo */}
+              <div className="flex gap-4 mb-4">
+                <Button
+                  type="button"
+                  variant={formData.terms_type === 'text' ? 'default' : 'outline'}
+                  onClick={() => setFormData(prev => ({ ...prev, terms_type: 'text', terms_file: null }))}
+                  disabled={loading}
+                  className="flex items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Escribir Términos
+                </Button>
+                <Button
+                  type="button"
+                  variant={formData.terms_type === 'file' ? 'default' : 'outline'}
+                  onClick={() => setFormData(prev => ({ ...prev, terms_type: 'file', terms_text: '' }))}
+                  disabled={loading}
+                  className="flex items-center gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  Subir PDF
+                </Button>
+              </div>
+
+              {/* Textarea para escribir términos */}
+              {formData.terms_type === 'text' && (
+                <div>
+                  <Label htmlFor="terms_text">Escribe los términos y condiciones *</Label>
+                  <Textarea
+                    id="terms_text"
+                    name="terms_text"
+                    required={formData.terms_type === 'text'}
+                    rows={8}
+                    placeholder="Ej: El cliente acepta que el taller no se hace responsable de...&#10;&#10;1. Garantías sobre piezas usadas&#10;2. Daños causados por el mal uso del vehículo&#10;3. ..."
+                    value={formData.terms_text}
+                    onChange={(e) => setFormData(prev => ({ ...prev, terms_text: e.target.value }))}
+                    disabled={loading}
+                    className={`bg-slate-900 border-slate-600 text-white ${errors.terms_text ? 'border-red-500' : ''}`}
+                  />
+                  {errors.terms_text && (
+                    <p className="text-red-400 text-xs mt-1">{errors.terms_text}</p>
+                  )}
+                  <p className="text-xs text-slate-400 mt-1">
+                    Escribe los términos y condiciones que el cliente debe aceptar
+                  </p>
+                </div>
+              )}
+
+              {/* Subida de archivo PDF */}
+              {formData.terms_type === 'file' && (
+                <div>
+                  <Label htmlFor="terms_file">Subir documento PDF con términos y condiciones *</Label>
+                  {errors.terms_file && (
+                    <p className="text-red-400 text-xs mt-1">{errors.terms_file}</p>
+                  )}
+                  <div className="mt-2">
+                    {!formData.terms_file ? (
+                      <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center hover:border-cyan-500 transition-colors">
+                        <input
+                          type="file"
+                          id="terms_file"
+                          name="terms_file"
+                          accept=".pdf,application/pdf"
+                          onChange={handleTermsFileChange}
+                          disabled={loading}
+                          className="hidden"
+                        />
+                        <label
+                          htmlFor="terms_file"
+                          className="cursor-pointer flex flex-col items-center gap-2"
+                        >
+                          <Upload className="h-8 w-8 text-slate-400" />
+                          <span className="text-sm text-slate-300">
+                            Haz clic para subir un archivo PDF
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            Máximo 5MB
+                          </span>
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="border border-slate-600 rounded-lg p-4 bg-slate-900/50">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-cyan-400" />
+                            <div>
+                              <p className="text-sm text-white font-medium">
+                                {formData.terms_file.name}
+                              </p>
+                              <p className="text-xs text-slate-400">
+                                {(formData.terms_file.size / 1024).toFixed(2)} KB
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleRemoveTermsFile}
+                            disabled={loading}
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {termsFilePreview && (
+                          <div className="mt-3">
+                            <a
+                              href={termsFilePreview}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-cyan-400 hover:text-cyan-300 underline"
+                            >
+                              Ver preview del PDF
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Checkbox de aceptación */}
+              <div className="flex items-start gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="terms_accepted"
+                  name="terms_accepted"
+                  checked={formData.terms_accepted}
+                  onChange={(e) => setFormData(prev => ({ ...prev, terms_accepted: e.target.checked }))}
+                  disabled={loading}
+                  className={`mt-1 h-4 w-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 ${errors.terms_accepted ? 'border-red-500' : ''}`}
+                />
+                <Label htmlFor="terms_accepted" className="text-sm text-slate-300 cursor-pointer">
+                  El cliente acepta los términos y condiciones *
+                </Label>
+              </div>
+              {errors.terms_accepted && (
+                <p className="text-red-400 text-xs mt-1 ml-6">{errors.terms_accepted}</p>
+              )}
             </div>
 
             <div>
