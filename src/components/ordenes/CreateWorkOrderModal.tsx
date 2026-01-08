@@ -1180,29 +1180,92 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           if (!accessToken) {
             console.warn('⚠️ [CreateWorkOrderModal] No hay token de sesión para subir fotos')
+            toast.warning('Orden creada, pero no se pudieron subir las fotos (sin sesión)')
           } else {
-            // Subir cada foto
-            for (const tempImage of temporaryImages) {
-              try {
-                const uploadResult = await uploadWorkOrderImage(
-                  tempImage.file,
-                  orderId,
-                  organizationId,
-                  user.id,
-                  'reception', // Categoría: recepción
-                  tempImage.description || 'Foto de recepción',
-                  'reception', // Estado de la orden
-                  accessToken
-                )
+            // ✅ OPTIMIZACIÓN MÓVIL: Mostrar progreso y subir eficientemente
+            const totalImages = temporaryImages.length
+            let uploadedCount = 0
+            let failedCount = 0
+            
+            // Detectar si es móvil para feedback y límites
+            const isMobile = typeof window !== 'undefined' && 
+              (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+               window.innerWidth < 768)
+            
+            // ✅ MÓVIL: Subir una por una para no saturar conexión
+            // Desktop: Puede subir 2 a la vez
+            const concurrentLimit = isMobile ? 1 : 2
+            
+            // Subir en lotes para evitar saturar
+            for (let i = 0; i < temporaryImages.length; i += concurrentLimit) {
+              const batch = temporaryImages.slice(i, i + concurrentLimit)
+              
+              await Promise.all(batch.map(async (tempImage, batchIndex) => {
+                try {
+                  const currentIndex = i + batchIndex + 1
+                  
+                  // ✅ Feedback visual durante subida (cada foto en móvil, cada 2 en desktop)
+                  if (isMobile || currentIndex % 2 === 0 || currentIndex === 1) {
+                    toast.loading(`Subiendo foto ${currentIndex}/${totalImages}...`, {
+                      id: `upload-img-${currentIndex}`
+                    })
+                  }
+                  
+                  // ✅ El archivo ya está comprimido por OrderCreationImageCapture
+                  // No necesitamos comprimir nuevamente aquí
+                  const uploadResult = await uploadWorkOrderImage(
+                    tempImage.file, // Ya está comprimido a ~800px y 50% calidad en móvil
+                    orderId,
+                    organizationId,
+                    user.id,
+                    'reception',
+                    tempImage.description || 'Foto de recepción',
+                    'reception',
+                    accessToken
+                  )
 
-                if (!uploadResult.success) {
-                  console.error('❌ [CreateWorkOrderModal] Error subiendo foto:', uploadResult.error)
-                } else {
-                  console.log('✅ [CreateWorkOrderModal] Foto subida exitosamente')
+                  if (!uploadResult.success) {
+                    console.error('❌ [CreateWorkOrderModal] Error subiendo foto:', uploadResult.error)
+                    failedCount++
+                    toast.error(`Error subiendo foto ${currentIndex}`, {
+                      id: `upload-img-${currentIndex}`,
+                      duration: 2000
+                    })
+                  } else {
+                    uploadedCount++
+                    // Solo mostrar toast de éxito en móvil para no saturar
+                    if (isMobile || currentIndex === totalImages) {
+                      toast.success(`Foto ${currentIndex}/${totalImages} subida`, {
+                        id: `upload-img-${currentIndex}`,
+                        duration: 1500
+                      })
+                    } else {
+                      toast.dismiss(`upload-img-${currentIndex}`)
+                    }
+                  }
+                } catch (photoError: any) {
+                  console.error('❌ [CreateWorkOrderModal] Error subiendo foto individual:', photoError)
+                  failedCount++
+                  toast.error(`Error subiendo foto ${i + batchIndex + 1}`, {
+                    id: `upload-img-${i + batchIndex + 1}`,
+                    duration: 2000
+                  })
                 }
-              } catch (photoError: any) {
-                console.error('❌ [CreateWorkOrderModal] Error subiendo foto individual:', photoError)
+              }))
+              
+              // ✅ MÓVIL: Pequeña pausa entre lotes para no saturar conexión
+              if (isMobile && i + concurrentLimit < temporaryImages.length) {
+                await new Promise(resolve => setTimeout(resolve, 300))
               }
+            }
+
+            // ✅ Resumen final
+            if (uploadedCount === totalImages) {
+              toast.success(`✅ Todas las fotos subidas (${uploadedCount}/${totalImages})`, { duration: 3000 })
+            } else if (uploadedCount > 0) {
+              toast.warning(`⚠️ ${uploadedCount}/${totalImages} fotos subidas. ${failedCount} fallaron.`, { duration: 4000 })
+            } else {
+              toast.error(`❌ No se pudieron subir las fotos`, { duration: 4000 })
             }
 
             // Limpiar fotos temporales

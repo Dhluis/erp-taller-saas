@@ -73,12 +73,16 @@ export function OrderCreationImageCapture({
     e.target.value = ''
   }
 
-  // ✅ OPTIMIZACIÓN MÓVIL: Comprimir imágenes antes de crear preview
+  // ✅ OPTIMIZACIÓN MÓVIL ULTRA-AGRESIVA: Comprimir imágenes antes de crear preview
   const compressImageForPreview = (file: File): Promise<{ compressed: File; preview: string }> => {
     return new Promise((resolve, reject) => {
       const isMobile = typeof window !== 'undefined' && 
         (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
          window.innerWidth < 768)
+      
+      // ✅ OPTIMIZACIÓN ULTRA-AGRESIVA MÓVIL: Reducir aún más para subida rápida
+      const MAX_SIZE = isMobile ? 800 : 1600  // Móvil: 800px (reducido de 1200px), Desktop: 1600px
+      const QUALITY = isMobile ? 0.5 : 0.85  // Móvil: 50% calidad (reducido de 70%), Desktop: 85%
       
       const reader = new FileReader()
       reader.readAsDataURL(file)
@@ -88,9 +92,6 @@ export function OrderCreationImageCapture({
         img.src = e.target?.result as string
         
         img.onload = () => {
-          const MAX_SIZE = isMobile ? 1200 : 1600  // Móvil: 1200px, Desktop: 1600px
-          const QUALITY = isMobile ? 0.7 : 0.85  // Móvil: 70%, Desktop: 85%
-          
           let width = img.width
           let height = img.height
           
@@ -108,6 +109,10 @@ export function OrderCreationImageCapture({
           canvas.width = width
           canvas.height = height
           const ctx = canvas.getContext('2d')
+          
+          // ✅ Optimización: Mejor calidad de renderizado
+          ctx?.imageSmoothingEnabled && (ctx.imageSmoothingEnabled = true)
+          ctx?.imageSmoothingQuality && (ctx.imageSmoothingQuality = 'high')
           ctx?.drawImage(img, 0, 0, width, height)
           
           canvas.toBlob(
@@ -118,6 +123,14 @@ export function OrderCreationImageCapture({
                   lastModified: Date.now()
                 })
                 const preview = URL.createObjectURL(compressedFile)
+                
+                // ✅ Log para debugging (solo en desarrollo)
+                if (process.env.NODE_ENV === 'development') {
+                  const originalSize = (file.size / 1024 / 1024).toFixed(2)
+                  const compressedSize = (blob.size / 1024 / 1024).toFixed(2)
+                  console.log(`📸 Imagen comprimida: ${originalSize}MB → ${compressedSize}MB (${((1 - blob.size / file.size) * 100).toFixed(0)}% reducción)`)
+                }
+                
                 resolve({ compressed: compressedFile, preview })
               } else {
                 reject(new Error('Error al comprimir imagen'))
