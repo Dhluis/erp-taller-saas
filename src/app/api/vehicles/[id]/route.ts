@@ -18,7 +18,7 @@ export async function GET(
 
     const supabase = getSupabaseServiceClient()
     
-    // Obtener vehículo específico
+    // Obtener vehículo específico (usar organization_id como en route.ts)
     const { data: vehicle, error } = await supabase
       .from('vehicles')
       .select(`
@@ -31,7 +31,7 @@ export async function GET(
         )
       `)
       .eq('id', vehicleId)
-      .eq('workshop_id', tenantContext.workshopId)
+      .eq('organization_id', tenantContext.organizationId)
       .maybeSingle()
 
     if (error) {
@@ -81,7 +81,7 @@ export async function PUT(
 
     const supabase = getSupabaseServiceClient()
     
-    // Actualizar vehículo
+    // Actualizar vehículo (usar organization_id como en route.ts)
     const { data: vehicle, error } = await supabase
       .from('vehicles')
       .update({
@@ -95,7 +95,7 @@ export async function PUT(
         updated_at: new Date().toISOString()
       })
       .eq('id', vehicleId)
-      .eq('workshop_id', tenantContext.workshopId)
+      .eq('organization_id', tenantContext.organizationId)
       .select(`
         *,
         customer:customers!customer_id (
@@ -131,25 +131,25 @@ export async function DELETE(
     
     // Obtener contexto del tenant
     const tenantContext = await getTenantContext(request)
-    if (!tenantContext) {
-      console.error('[Delete Vehicle] ❌ No autorizado')
+    if (!tenantContext || !tenantContext.organizationId) {
+      console.error('[Delete Vehicle] ❌ No autorizado o sin organizationId')
       return NextResponse.json({ 
         success: false,
         error: 'No autorizado' 
       }, { status: 401 })
     }
 
-    console.log('[Delete Vehicle] 🏢 Workshop ID:', tenantContext.workshopId)
+    console.log('[Delete Vehicle] 🏢 Organization ID:', tenantContext.organizationId)
 
     const supabase = getSupabaseServiceClient()
     
-    // Verificar que el vehículo existe y pertenece al workshop
+    // Verificar que el vehículo existe y pertenece a la organización (usar organization_id como en route.ts)
     const { data: vehicle, error: fetchError } = await supabase
       .from('vehicles')
-      .select('id, workshop_id')
+      .select('id, organization_id')
       .eq('id', vehicleId)
-      .eq('workshop_id', tenantContext.workshopId)
-      .single()
+      .eq('organization_id', tenantContext.organizationId)
+      .maybeSingle()
 
     if (fetchError || !vehicle) {
       console.error('[Delete Vehicle] ❌ Vehículo no encontrado o no autorizado:', fetchError)
@@ -182,12 +182,12 @@ export async function DELETE(
       }, { status: 400 })
     }
 
-    // Eliminar vehículo
+    // Eliminar vehículo (usar organization_id como en route.ts)
     const { error: deleteError } = await supabase
       .from('vehicles')
       .delete()
       .eq('id', vehicleId)
-      .eq('workshop_id', tenantContext.workshopId)
+      .eq('organization_id', tenantContext.organizationId)
 
     if (deleteError) {
       console.error('[Delete Vehicle] ❌ Error eliminando vehículo:', deleteError)
