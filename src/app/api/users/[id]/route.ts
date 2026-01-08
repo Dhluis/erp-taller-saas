@@ -23,16 +23,17 @@ function getSupabaseAdmin() {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: userId } = await params
     const { organizationId } = await getTenantContext(request)
     const supabase = await createClient()
     
     const { data: user, error } = await (supabase as any)
       .from('users')
       .select('id, email, full_name, role, phone, is_active, created_at, updated_at')
-      .eq('id', params.id)
+      .eq('id', userId)
       .eq('organization_id', organizationId)
       .single()
     
@@ -59,12 +60,23 @@ export async function GET(
   }
 }
 
-export async function PUT(
+// Función compartida para actualizar usuario (usada por PUT y PATCH)
+async function updateUserHandler(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  params: Promise<{ id: string }>,
+  isPartial: boolean = false
 ) {
   try {
+    const { id: targetUserId } = await params
     const { userId, organizationId } = await getTenantContext(request)
+    
+    if (!organizationId) {
+      return NextResponse.json(
+        { success: false, error: 'No autorizado' },
+        { status: 401 }
+      )
+    }
+
     const supabase = await createClient()
     
     // Obtener rol del usuario actual
@@ -76,7 +88,7 @@ export async function PUT(
     
     if (userError || !currentUser || !currentUser.role) {
       return NextResponse.json(
-        { error: 'Usuario no encontrado' },
+        { success: false, error: 'Usuario no encontrado' },
         { status: 404 }
       )
     }
@@ -85,7 +97,7 @@ export async function PUT(
     const currentUserRole = currentUser.role as UserRole
     if (!hasPermission(currentUserRole, 'users', 'update')) {
       return NextResponse.json(
-        { error: 'No tienes permisos para editar usuarios' },
+        { success: false, error: 'No tienes permisos para editar usuarios' },
         { status: 403 }
       )
     }
@@ -97,19 +109,19 @@ export async function PUT(
     const { data: targetUser, error: existingError } = await (supabase as any)
       .from('users')
       .select('id, email, auth_user_id, role')
-      .eq('id', params.id)
+      .eq('id', targetUserId)
       .eq('organization_id', organizationId)
       .single()
     
     if (existingError || !targetUser) {
       return NextResponse.json(
-        { error: 'Usuario no encontrado' },
+        { success: false, error: 'Usuario no encontrado' },
         { status: 404 }
       )
     }
     
-    // Validar: No permitir cambiar el rol del último admin
-    if (targetUser.role === 'ADMIN' && role !== 'ADMIN') {
+    // Validar: No permitir cambiar el rol del último admin (solo si se está cambiando el rol)
+    if (role !== undefined && targetUser.role === 'ADMIN' && role !== 'ADMIN') {
       // Contar cuántos admins hay en la organización
       const { count, error: countError } = await (supabase as any)
         .from('users')
@@ -121,16 +133,16 @@ export async function PUT(
       console.log('[PUT /api/users/[id]] Contando admins activos:', count)
       
       if (countError) {
-        console.error('[PUT /api/users/[id]] Error contando admins:', countError)
+        console.error('[Update User] Error contando admins:', countError)
         return NextResponse.json(
-          { error: 'Error al validar permisos' },
+          { success: false, error: 'Error al validar permisos' },
           { status: 500 }
         )
       }
       
       if (count === 1) {
         return NextResponse.json(
-          { error: 'No puedes cambiar el rol del último administrador activo de la organización' },
+          { success: false, error: 'No puedes cambiar el rol del último administrador activo de la organización' },
           { status: 400 }
         )
       }
@@ -147,7 +159,7 @@ export async function PUT(
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(email)) {
         return NextResponse.json(
-          { error: 'Email inválido' },
+          { success: false, error: 'Email inválido' },
           { status: 400 }
         )
       }
@@ -157,7 +169,7 @@ export async function PUT(
       const validRoles: UserRole[] = ['ADMIN', 'ASESOR', 'MECANICO']
       if (!validRoles.includes(role)) {
         return NextResponse.json(
-          { error: `Rol inválido. Debe ser: ${validRoles.join(', ')}` },
+          { success: false, error: `Rol inválido. Debe ser: ${validRoles.join(', ')}` },
           { status: 400 }
         )
       }
@@ -170,14 +182,14 @@ export async function PUT(
     const { data: updatedUser, error: updateError } = await (supabase as any)
       .from('users')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', targetUserId)
       .select()
       .single()
     
     if (updateError) {
-      console.error('Error updating user:', updateError)
+      console.error('[Update User] Error actualizando usuario:', updateError)
       return NextResponse.json(
-        { error: `Error al actualizar usuario: ${updateError.message}` },
+        { success: false, error: `Error al actualizar usuario: ${updateError.message}` },
         { status: 500 }
       )
     }
@@ -192,29 +204,51 @@ export async function PUT(
       )
       
       if (passwordError) {
-        console.error('Error updating password:', passwordError)
+        console.error('[Update User] Error actualizando contraseña:', passwordError)
         // No fallar todo, solo loguear el error
       }
     }
     
+    // Mapear full_name a name para compatibilidad
+    const mappedUser = {
+      ...updatedUser,
+      name: updatedUser.full_name || ''
+    }
+    
     return NextResponse.json({
-      user: updatedUser,
+      success: true,
+      user: mappedUser,
       message: 'Usuario actualizado exitosamente'
     })
   } catch (error: any) {
-    console.error('Error in PUT /api/users/[id]:', error)
+    console.error('[Update User] Error:', error)
     return NextResponse.json(
-      { error: error.message || 'Error interno del servidor' },
+      { success: false, error: error.message || 'Error interno del servidor' },
       { status: 500 }
     )
   }
 }
 
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return updateUserHandler(request, params, false)
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return updateUserHandler(request, params, true)
+}
+
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: targetUserId } = await params
     const { userId, organizationId } = await getTenantContext(request)
     const supabase = await createClient()
     
@@ -227,7 +261,7 @@ export async function DELETE(
     
     if (userError || !currentUser || !currentUser.role) {
       return NextResponse.json(
-        { error: 'Usuario no encontrado' },
+        { success: false, error: 'Usuario no encontrado' },
         { status: 404 }
       )
     }
@@ -236,7 +270,7 @@ export async function DELETE(
     const currentUserRole = currentUser.role as UserRole
     if (!hasPermission(currentUserRole, 'users', 'delete')) {
       return NextResponse.json(
-        { error: 'No tienes permisos para eliminar usuarios' },
+        { success: false, error: 'No tienes permisos para eliminar usuarios' },
         { status: 403 }
       )
     }
@@ -245,13 +279,13 @@ export async function DELETE(
     const { data: targetUser, error: existingError } = await (supabase as any)
       .from('users')
       .select('id, auth_user_id, role')
-      .eq('id', params.id)
+      .eq('id', targetUserId)
       .eq('organization_id', organizationId)
       .single()
     
     if (existingError || !targetUser) {
       return NextResponse.json(
-        { error: 'Usuario no encontrado' },
+        { success: false, error: 'Usuario no encontrado' },
         { status: 404 }
       )
     }
@@ -259,7 +293,7 @@ export async function DELETE(
     // No permitir auto-eliminación
     if (targetUser.auth_user_id === userId) {
       return NextResponse.json(
-        { error: 'No puedes eliminarte a ti mismo' },
+        { success: false, error: 'No puedes eliminarte a ti mismo' },
         { status: 400 }
       )
     }
@@ -273,19 +307,19 @@ export async function DELETE(
         .eq('role', 'ADMIN')
         .eq('is_active', true)
       
-      console.log('[DELETE /api/users/[id]] Contando admins activos:', count)
+      console.log('[Delete User] Contando admins activos:', count)
       
       if (countError) {
-        console.error('[DELETE /api/users/[id]] Error contando admins:', countError)
+        console.error('[Delete User] Error contando admins:', countError)
         return NextResponse.json(
-          { error: 'Error al validar permisos' },
+          { success: false, error: 'Error al validar permisos' },
           { status: 500 }
         )
       }
       
       if (count === 1) {
         return NextResponse.json(
-          { error: 'No puedes eliminar el último administrador activo de la organización' },
+          { success: false, error: 'No puedes eliminar el último administrador activo de la organización' },
           { status: 400 }
         )
       }
@@ -299,7 +333,7 @@ export async function DELETE(
     )
     
     if (deleteAuthError) {
-      console.error('Error deleting auth user:', deleteAuthError)
+      console.error('[Delete User] Error eliminando usuario de auth:', deleteAuthError)
       // Intentar eliminar de todos modos el registro de users
     }
     
@@ -307,23 +341,25 @@ export async function DELETE(
     const { error: deleteError } = await (supabase as any)
       .from('users')
       .delete()
-      .eq('id', params.id)
+      .eq('id', targetUserId)
     
     if (deleteError) {
-      console.error('Error deleting user:', deleteError)
+      console.error('[Delete User] Error eliminando usuario:', deleteError)
       return NextResponse.json(
-        { error: `Error al eliminar usuario: ${deleteError.message}` },
+        { success: false, error: `Error al eliminar usuario: ${deleteError.message}` },
         { status: 500 }
       )
     }
     
+    console.log('[Delete User] ✅ Usuario eliminado exitosamente:', targetUserId)
     return NextResponse.json({
+      success: true,
       message: 'Usuario eliminado exitosamente'
     })
   } catch (error: any) {
-    console.error('Error in DELETE /api/users/[id]:', error)
+    console.error('[Delete User] Error:', error)
     return NextResponse.json(
-      { error: error.message || 'Error interno del servidor' },
+      { success: false, error: error.message || 'Error interno del servidor' },
       { status: 500 }
     )
   }

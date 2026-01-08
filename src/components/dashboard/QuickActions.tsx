@@ -25,8 +25,9 @@ export function QuickActions({ onOrderCreated }: QuickActionsProps) {
 
   // Funciones para navegación
   const handleConversaciones = () => {
-    console.log('🔥 [QuickActions] Navegar a Conversaciones')
-    router.push('/dashboard/whatsapp/conversaciones')
+    console.log('🔥 [QuickActions] Navegar a Conversaciones en nueva pestaña')
+    const url = window.location.origin + '/dashboard/whatsapp/conversaciones'
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   const handleCliente = () => {
