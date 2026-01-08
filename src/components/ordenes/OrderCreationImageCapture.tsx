@@ -73,6 +73,68 @@ export function OrderCreationImageCapture({
     e.target.value = ''
   }
 
+  // ✅ OPTIMIZACIÓN MÓVIL: Comprimir imágenes antes de crear preview
+  const compressImageForPreview = (file: File): Promise<{ compressed: File; preview: string }> => {
+    return new Promise((resolve, reject) => {
+      const isMobile = typeof window !== 'undefined' && 
+        (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+         window.innerWidth < 768)
+      
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      
+      reader.onload = (e) => {
+        const img = document.createElement('img')
+        img.src = e.target?.result as string
+        
+        img.onload = () => {
+          const MAX_SIZE = isMobile ? 1200 : 1600  // Móvil: 1200px, Desktop: 1600px
+          const QUALITY = isMobile ? 0.7 : 0.85  // Móvil: 70%, Desktop: 85%
+          
+          let width = img.width
+          let height = img.height
+          
+          if (width > MAX_SIZE || height > MAX_SIZE) {
+            if (width > height) {
+              height = Math.round((height * MAX_SIZE) / width)
+              width = MAX_SIZE
+            } else {
+              width = Math.round((width * MAX_SIZE) / height)
+              height = MAX_SIZE
+            }
+          }
+          
+          const canvas = document.createElement('canvas')
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+          ctx?.drawImage(img, 0, 0, width, height)
+          
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now()
+                })
+                const preview = URL.createObjectURL(compressedFile)
+                resolve({ compressed: compressedFile, preview })
+              } else {
+                reject(new Error('Error al comprimir imagen'))
+              }
+            },
+            'image/jpeg',
+            QUALITY
+          )
+        }
+        
+        img.onerror = () => reject(new Error('Error al cargar imagen'))
+      }
+      
+      reader.onerror = () => reject(new Error('Error al leer archivo'))
+    })
+  }
+
   const processFiles = async (files: File[]) => {
     setUploading(true)
     try {
@@ -85,18 +147,29 @@ export function OrderCreationImageCapture({
           continue
         }
 
-        // Validar tamaño (10MB máximo)
-        if (file.size > 10 * 1024 * 1024) {
-          toast.error(`${file.name} es muy grande (máximo 10MB)`)
+        // ✅ OPTIMIZACIÓN MÓVIL: Límite más estricto en móvil
+        const maxSize = isMobile ? 5 * 1024 * 1024 : 10 * 1024 * 1024  // Móvil: 5MB, Desktop: 10MB
+        if (file.size > maxSize) {
+          toast.error(`${file.name} es muy grande (máximo ${isMobile ? '5MB' : '10MB'})`)
           continue
         }
 
-        // Crear preview
-        const preview = URL.createObjectURL(file)
-        newImages.push({
-          file,
-          preview
-        })
+        try {
+          // ✅ OPTIMIZACIÓN: Comprimir imagen antes de crear preview
+          const { compressed, preview } = await compressImageForPreview(file)
+          newImages.push({
+            file: compressed,  // Usar archivo comprimido
+            preview
+          })
+        } catch (error) {
+          console.error('Error comprimiendo imagen:', error)
+          // Fallback: usar archivo original si falla compresión
+          const preview = URL.createObjectURL(file)
+          newImages.push({
+            file,
+            preview
+          })
+        }
       }
 
       onImagesChange([...images, ...newImages])
@@ -227,6 +300,9 @@ export function OrderCreationImageCapture({
                   fill
                   className="object-cover"
                   sizes="(max-width: 768px) 50vw, 25vw"
+                  loading="lazy"  // ✅ OPTIMIZACIÓN: Lazy loading
+                  placeholder="blur"
+                  blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
                 />
               </div>
               

@@ -223,7 +223,8 @@ export function Sidebar({ className }: SidebarProps) {
     }
   ]
 
-  const isActive = (href: string) => {
+  // ✅ OPTIMIZACIÓN: useCallback para memoizar función isActive
+  const isActive = useCallback((href: string) => {
     if (href === "/") return pathname === "/"
     
     // ✅ FIX: Usar coincidencia exacta para evitar resaltar padre e hijo simultáneamente
@@ -284,7 +285,7 @@ export function Sidebar({ className }: SidebarProps) {
     
     // Para otras rutas, usar startsWith solo si no hay hijos más específicos
     return pathname.startsWith(href)
-  }
+  }, [pathname])
   
   // ✅ Helper: Verificar si algún sub-item de una sección está activo
   const hasActiveSubItem = (section: typeof collapsibleSections[0]) => {
