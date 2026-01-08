@@ -2,6 +2,49 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
 /**
+ * Función para limpiar y formatear número de teléfono
+ * Convierte formatos de WAHA a formato estándar de 10 dígitos
+ */
+function cleanPhoneNumber(rawNumber: string): string {
+  if (!rawNumber) return ''
+  
+  // Remover @c.us, @s.whatsapp.net y otros sufijos
+  let cleaned = rawNumber
+    .replace('@c.us', '')
+    .replace('@s.whatsapp.net', '')
+    .replace('@g.us', '')
+  
+  // Si empieza con 521 (México con carrier), remover '52' y dejar '1' + número
+  if (cleaned.startsWith('521')) {
+    return cleaned.substring(2) // Remover '52' país, dejar '1' carrier + número
+  }
+  
+  // Si empieza con 52 (México sin carrier)
+  if (cleaned.startsWith('52')) {
+    return cleaned.substring(2) // Remover código de país
+  }
+  
+  // Si es número de 10 dígitos (México), ya está correcto
+  if (cleaned.length === 10 && /^\d{10}$/.test(cleaned)) {
+    return cleaned
+  }
+  
+  // Si es número de 13+ dígitos, probablemente tiene código país
+  if (cleaned.length >= 13) {
+    // Intentar extraer últimos 10 dígitos
+    return cleaned.slice(-10)
+  }
+  
+  // Si tiene 11-12 dígitos, podría ser 1 + 10 dígitos (EEUU/México con carrier)
+  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    return cleaned.substring(1) // Remover '1' carrier, dejar 10 dígitos
+  }
+  
+  // Retornar limpio sin modificar
+  return cleaned
+}
+
+/**
  * POST /api/whatsapp/webhook
  * Recibe mensajes de WAHA y los procesa
  */
@@ -9,11 +52,16 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    console.log('[WAHA Webhook] 📨 Mensaje recibido:', {
+    // Log detallado del payload completo para debugging
+    console.log('[WAHA Webhook] 📨 Raw payload:', {
       event: body.event,
       session: body.session,
       from: body.payload?.from,
-      hasPayload: !!body.payload
+      chatId: body.payload?.chatId,
+      author: body.payload?.author,
+      to: body.payload?.to,
+      hasPayload: !!body.payload,
+      payloadKeys: body.payload ? Object.keys(body.payload) : []
     })
 
     // Validar que sea un mensaje
@@ -36,21 +84,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'Own message ignored' })
     }
 
-    // Extraer información del mensaje
-    const fromNumber = payload.from?.replace('@c.us', '') || payload.chatId?.replace('@c.us', '')
-    const toNumber = payload.to?.replace('@c.us', '') || ''
+    // Extraer número de origen usando múltiples fuentes
+    const rawFrom = payload.from || payload.chatId || payload.author || ''
+    const fromNumber = cleanPhoneNumber(rawFrom)
+    
+    // Extraer número de destino (puede ser vacío para mensajes entrantes)
+    const rawTo = payload.to || ''
+    const toNumber = cleanPhoneNumber(rawTo)
+    
     const messageBody = payload.body || payload.text || ''
     const messageType = payload.type || 'text'
     
-    if (!fromNumber) {
-      console.log('[WAHA Webhook] ❌ No se pudo extraer número de origen')
+    // Log para debugging del formato de números
+    console.log('[WAHA Webhook] 📞 Raw number:', rawFrom, '→ Cleaned:', fromNumber)
+    if (rawTo) {
+      console.log('[WAHA Webhook] 📞 Raw to:', rawTo, '→ Cleaned:', toNumber)
+    }
+    
+    if (!fromNumber || fromNumber.length < 10) {
+      console.log('[WAHA Webhook] ❌ No se pudo extraer número de origen válido', {
+        rawFrom,
+        cleaned: fromNumber,
+        length: fromNumber?.length
+      })
       return NextResponse.json({ 
         success: false, 
-        error: 'Missing from number' 
+        error: 'Missing or invalid from number',
+        details: { rawFrom, cleaned: fromNumber }
       }, { status: 400 })
     }
 
-    console.log('[WAHA Webhook] 📞 De:', fromNumber, 'Mensaje:', messageBody.substring(0, 50))
+    console.log('[WAHA Webhook] ✅ Número validado:', fromNumber, '| Mensaje:', messageBody.substring(0, 50))
 
     // Obtener organization_id desde la sesión de WAHA
     const sessionName = body.session
@@ -129,14 +193,15 @@ export async function POST(request: NextRequest) {
         .eq('id', conversation.id)
     }
 
-    // Guardar mensaje
+    // Guardar mensaje (usar fromNumber limpio para to_number si está vacío)
+    const cleanToNumber = toNumber || fromNumber
     const { error: messageError } = await supabase
       .from('whatsapp_messages')
       .insert({
         conversation_id: conversation.id,
         organization_id: organizationId,
-        from_number: fromNumber,
-        to_number: toNumber || fromNumber,
+        from_number: fromNumber, // Ya limpio
+        to_number: cleanToNumber, // Ya limpio
         direction: 'inbound',
         body: messageBody,
         message_type: messageType,
@@ -144,7 +209,9 @@ export async function POST(request: NextRequest) {
         provider_message_id: payload.id || payload.messageId,
         sent_at: payload.timestamp ? new Date(payload.timestamp * 1000).toISOString() : new Date().toISOString(),
         metadata: {
-          waha_payload: payload
+          waha_payload: payload,
+          raw_from: rawFrom, // Guardar número original para referencia
+          raw_to: rawTo || null
         }
       })
 
