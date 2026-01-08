@@ -11,7 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
-import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Users, Target } from "lucide-react"
+import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Users, Target, UserPlus, UserCheck, Calendar } from "lucide-react"
+import { LeadStatusBadge, type LeadStatus } from '@/components/whatsapp/LeadStatusBadge'
+import { toast } from 'sonner'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface Lead {
   id: string
@@ -20,93 +23,202 @@ interface Lead {
   phone: string
   email: string
   source: string
-  status: string
+  status: LeadStatus
   value: number | null
   notes: string
   last_contact: string
   assigned_to: string
   created_at: string
+  customer_id?: string | null
+  lead_score?: number
 }
 
 export default function TestComercialPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingLead, setEditingLead] = useState<Lead | null>(null)
+  const [isConverting, setIsConverting] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     company: "",
     phone: "",
     email: "",
     source: "",
-    status: "",
+    status: "new" as LeadStatus,
     value: 0,
     notes: "",
     last_contact: "",
     assigned_to: ""
   })
 
-  // Datos de ejemplo seguros
+  // Cargar leads desde API
   useEffect(() => {
-    const mockLeads: Lead[] = [
-      {
-        id: "1",
-        name: "Juan Pérez",
-        company: "AutoServicios SA",
-        phone: "555-0123",
-        email: "juan@autoservicios.com",
-        source: "Referido",
-        status: "nuevo",
-        value: 15000,
-        notes: "Interesado en servicio completo",
-        last_contact: "2024-01-15",
-        assigned_to: "María García",
-        created_at: "2024-01-15"
-      },
-      {
-        id: "2",
-        name: "Ana López",
-        company: "Transportes López",
-        phone: "555-0456",
-        email: "ana@transportes.com",
-        source: "Web",
-        status: "contactado",
-        value: 25000,
-        notes: "Necesita cotización urgente",
-        last_contact: "2024-01-14",
-        assigned_to: "Carlos Ruiz",
-        created_at: "2024-01-14"
+    const loadLeads = async () => {
+      try {
+        setIsLoading(true)
+        const response = await fetch('/api/leads')
+        const data = await response.json()
+        
+        if (data.success && data.data) {
+          // Adaptar datos de API al formato local si es necesario
+          const leadsData = data.data.items || data.data || []
+          setLeads(leadsData.map((lead: any) => ({
+            ...lead,
+            company: lead.company || '',
+            last_contact: lead.last_contact || lead.created_at || '',
+            assigned_to: lead.assigned_to || lead.assigned_user?.full_name || ''
+          })))
+        }
+      } catch (error) {
+        console.error('Error cargando leads:', error)
+        toast.error('Error al cargar leads')
+      } finally {
+        setIsLoading(false)
       }
-    ]
-    
-    setLeads(mockLeads)
-    setIsLoading(false)
-  }, [])
-
-  const filteredLeads = leads.filter(lead =>
-    (lead.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (lead.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (lead.email || '').toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const getStatusBadge = (status: string) => {
-    const statusMap = {
-      nuevo: { label: "Nuevo", className: "bg-blue-500" },
-      contactado: { label: "Contactado", className: "bg-yellow-500" },
-      calificado: { label: "Calificado", className: "bg-green-500" },
-      propuesta: { label: "Propuesta", className: "bg-purple-500" },
-      cerrado: { label: "Cerrado", className: "bg-gray-500" }
     }
     
-    const statusInfo = statusMap[status as keyof typeof statusMap] || { label: status, className: "bg-gray-500" }
-    return <Badge className={statusInfo.className}>{statusInfo.label}</Badge>
-  }
+    loadLeads()
+  }, [])
+
+  const filteredLeads = leads.filter(lead => {
+    const matchesSearch = (lead.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (lead.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (lead.email || '').toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesStatus = statusFilter === 'all' || lead.status === statusFilter
+    
+    return matchesSearch && matchesStatus
+  })
 
   const stats = {
     totalLeads: leads.length,
-    totalValue: leads.reduce((sum, lead) => sum + (lead.value || 0), 0),
-    newLeads: leads.filter(lead => lead.status === 'nuevo').length,
-    qualifiedLeads: leads.filter(lead => lead.status === 'calificado').length
+    totalValue: leads.reduce((sum, lead) => sum + ((lead.value as number) || 0), 0),
+    byStatus: {
+      new: leads.filter(lead => lead.status === 'new').length,
+      contacted: leads.filter(lead => lead.status === 'contacted').length,
+      qualified: leads.filter(lead => lead.status === 'qualified').length,
+      appointment: leads.filter(lead => lead.status === 'appointment').length,
+      converted: leads.filter(lead => lead.status === 'converted').length,
+      lost: leads.filter(lead => lead.status === 'lost').length
+    }
+  }
+
+  const handleUpdateStatus = async (leadId: string, newStatus: LeadStatus) => {
+    try {
+      const response = await fetch(`/api/leads/${leadId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setLeads(leads.map(lead => 
+          lead.id === leadId ? { ...lead, status: newStatus } : lead
+        ))
+        toast.success('Estado actualizado')
+      } else {
+        toast.error(data.error || 'Error al actualizar estado')
+      }
+    } catch (error) {
+      console.error('Error updating status:', error)
+      toast.error('Error al actualizar estado')
+    }
+  }
+
+  const handleConvertToCustomer = async (lead: Lead) => {
+    if (!lead || !lead.id) {
+      toast.error('No se puede convertir: lead inválido')
+      return
+    }
+
+    setIsConverting(true)
+    try {
+      const response = await fetch(`/api/leads/${lead.id}/convert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          additional_notes: 'Convertido desde página Comercial'
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Actualizar lead en la lista
+        setLeads(leads.map(l => 
+          l.id === lead.id 
+            ? { ...l, status: 'converted' as LeadStatus, customer_id: data.data.customer_id }
+            : l
+        ))
+        setIsDialogOpen(false)
+        setEditingLead(null)
+        toast.success('Lead convertido a cliente exitosamente')
+      } else {
+        toast.error(data.error || 'Error al convertir lead')
+      }
+    } catch (error) {
+      console.error('Error converting lead:', error)
+      toast.error('Error al convertir lead')
+    } finally {
+      setIsConverting(false)
+    }
+  }
+
+  const handleSaveLead = async () => {
+    try {
+      const url = editingLead ? `/api/leads/${editingLead.id}` : '/api/leads'
+      const method = editingLead ? 'PATCH' : 'POST'
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email,
+          company: formData.company,
+          status: formData.status,
+          estimated_value: formData.value,
+          notes: formData.notes,
+          lead_source: formData.source
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        if (editingLead) {
+          setLeads(leads.map(l => l.id === editingLead.id ? data.data : l))
+        } else {
+          setLeads([...leads, data.data])
+        }
+        setIsDialogOpen(false)
+        setEditingLead(null)
+        setFormData({
+          name: "",
+          company: "",
+          phone: "",
+          email: "",
+          source: "",
+          status: "new",
+          value: 0,
+          notes: "",
+          last_contact: "",
+          assigned_to: ""
+        })
+        toast.success(editingLead ? 'Lead actualizado' : 'Lead creado')
+      } else {
+        toast.error(data.error || 'Error al guardar lead')
+      }
+    } catch (error) {
+      console.error('Error saving lead:', error)
+      toast.error('Error al guardar lead')
+    }
   }
 
   if (isLoading) {
@@ -132,7 +244,24 @@ export default function TestComercialPage() {
 
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Comercial</h2>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          setIsDialogOpen(open)
+          if (!open) {
+            setEditingLead(null)
+            setFormData({
+              name: "",
+              company: "",
+              phone: "",
+              email: "",
+              source: "",
+              status: "new",
+              value: 0,
+              notes: "",
+              last_contact: "",
+              assigned_to: ""
+            })
+          }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -141,9 +270,9 @@ export default function TestComercialPage() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Nuevo Lead</DialogTitle>
+              <DialogTitle>{editingLead ? 'Editar Lead' : 'Nuevo Lead'}</DialogTitle>
               <DialogDescription>
-                Agrega un nuevo lead al sistema
+                {editingLead ? 'Edita la información del lead' : 'Agrega un nuevo lead al sistema'}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -200,16 +329,17 @@ export default function TestComercialPage() {
                 </div>
                 <div>
                   <Label htmlFor="status">Estado</Label>
-                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as LeadStatus })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar estado" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="nuevo">Nuevo</SelectItem>
-                      <SelectItem value="contactado">Contactado</SelectItem>
-                      <SelectItem value="calificado">Calificado</SelectItem>
-                      <SelectItem value="propuesta">Propuesta</SelectItem>
-                      <SelectItem value="cerrado">Cerrado</SelectItem>
+                      <SelectItem value="new">Nuevo</SelectItem>
+                      <SelectItem value="contacted">Contactado</SelectItem>
+                      <SelectItem value="qualified">Calificado</SelectItem>
+                      <SelectItem value="appointment">Cita Agendada</SelectItem>
+                      <SelectItem value="lost">Perdido</SelectItem>
+                      {/* NO incluir "converted" - se hace con botón especial */}
                     </SelectContent>
                   </Select>
                 </div>
@@ -232,14 +362,60 @@ export default function TestComercialPage() {
                 />
               </div>
             </div>
+            {editingLead && (() => {
+              const canConvert = ['qualified', 'appointment'].includes(editingLead.status) && !editingLead.customer_id
+              return (
+                <>
+                  {canConvert && (
+                    <div className="py-4 border-t">
+                      <Button
+                        onClick={() => handleConvertToCustomer(editingLead)}
+                        className="w-full"
+                        variant="default"
+                        disabled={isConverting}
+                      >
+                        {isConverting ? (
+                          <>Cargando...</>
+                        ) : (
+                          <>
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Convertir a Cliente
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                  {editingLead.customer_id && (
+                    <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg mb-4">
+                      <UserCheck className="h-4 w-4 text-green-600" />
+                      <span className="text-sm text-green-800 font-medium">
+                        Ya es cliente
+                      </span>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button variant="outline" onClick={() => {
+                setIsDialogOpen(false)
+                setEditingLead(null)
+                setFormData({
+                  name: "",
+                  company: "",
+                  phone: "",
+                  email: "",
+                  source: "",
+                  status: "new",
+                  value: 0,
+                  notes: "",
+                  last_contact: "",
+                  assigned_to: ""
+                })
+              }}>
                 Cancelar
               </Button>
-              <Button onClick={() => {
-                // Aquí iría la lógica para guardar
-                setIsDialogOpen(false)
-              }}>
+              <Button onClick={handleSaveLead}>
                 Guardar
               </Button>
             </div>
@@ -248,7 +424,7 @@ export default function TestComercialPage() {
       </div>
 
       {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
@@ -275,7 +451,7 @@ export default function TestComercialPage() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.newLeads}</div>
+            <div className="text-2xl font-bold">{stats.byStatus.new}</div>
           </CardContent>
         </Card>
         
@@ -285,12 +461,34 @@ export default function TestComercialPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.qualifiedLeads}</div>
+            <div className="text-2xl font-bold">{stats.byStatus.qualified}</div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Citas Agendadas</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.byStatus.appointment}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Convertidos</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.byStatus.converted}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Búsqueda */}
+      {/* Búsqueda y Filtros */}
       <div className="flex items-center space-x-2">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -301,6 +499,16 @@ export default function TestComercialPage() {
             className="pl-8"
           />
         </div>
+        <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+          <TabsList>
+            <TabsTrigger value="all">Todos ({stats.totalLeads})</TabsTrigger>
+            <TabsTrigger value="new">Nuevos ({stats.byStatus.new})</TabsTrigger>
+            <TabsTrigger value="contacted">Contactados ({stats.byStatus.contacted})</TabsTrigger>
+            <TabsTrigger value="qualified">Calificados ({stats.byStatus.qualified})</TabsTrigger>
+            <TabsTrigger value="appointment">Citas ({stats.byStatus.appointment})</TabsTrigger>
+            <TabsTrigger value="converted">Convertidos ({stats.byStatus.converted})</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Tabla de Leads */}
@@ -335,7 +543,36 @@ export default function TestComercialPage() {
                       <div className="text-sm text-muted-foreground">{lead.email}</div>
                     </div>
                   </TableCell>
-                  <TableCell>{getStatusBadge(lead.status)}</TableCell>
+                  <TableCell>
+                    {lead.status === 'converted' || lead.customer_id ? (
+                      <div className="flex items-center gap-2">
+                        <LeadStatusBadge status={lead.status} size="sm" />
+                        {lead.customer_id && (
+                          <span className="text-xs text-green-600">✓ Cliente</span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <LeadStatusBadge status={lead.status} size="sm" />
+                        <Select
+                          value={lead.status}
+                          onValueChange={(newStatus) => handleUpdateStatus(lead.id, newStatus as LeadStatus)}
+                        >
+                          <SelectTrigger className="w-[140px] h-7 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="new">Nuevo</SelectItem>
+                            <SelectItem value="contacted">Contactado</SelectItem>
+                            <SelectItem value="qualified">Calificado</SelectItem>
+                            <SelectItem value="appointment">Cita Agendada</SelectItem>
+                            <SelectItem value="lost">Perdido</SelectItem>
+                            {/* NO incluir converted - se hace con botón */}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <span className="font-medium">${lead.value ? (lead.value || 0).toLocaleString() : '0'}</span>
                   </TableCell>
@@ -344,7 +581,26 @@ export default function TestComercialPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => {
+                          setEditingLead(lead)
+                          setFormData({
+                            name: lead.name,
+                            company: lead.company,
+                            phone: lead.phone,
+                            email: lead.email,
+                            source: lead.source,
+                            status: lead.status,
+                            value: lead.value || 0,
+                            notes: lead.notes,
+                            last_contact: lead.last_contact,
+                            assigned_to: lead.assigned_to
+                          })
+                          setIsDialogOpen(true)
+                        }}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon">
