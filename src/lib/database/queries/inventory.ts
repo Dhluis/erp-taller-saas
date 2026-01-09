@@ -705,17 +705,30 @@ export async function deleteInventoryCategory(organizationId: string, id: string
   // ✅ Verificar si tiene productos asociados antes de eliminar
   const { data: itemsWithCategory, error: itemsError } = await supabase
     .from('inventory')
-    .select('id')
+    .select('id, name, code')
     .eq('category_id', id)
     .eq('organization_id', organizationId)
-    .limit(1)
 
   if (itemsError) {
     console.error('❌ [deleteInventoryCategory] Error verificando productos asociados:', itemsError)
     // Continuar con la eliminación de todas formas, la BD manejará la restricción si existe
   } else if (itemsWithCategory && itemsWithCategory.length > 0) {
-    console.error('❌ [deleteInventoryCategory] No se puede eliminar: tiene productos asociados')
-    throw new Error(`No se puede eliminar la categoría porque tiene ${itemsWithCategory.length} producto(s) asociado(s)`)
+    console.error('❌ [deleteInventoryCategory] No se puede eliminar: tiene productos asociados', {
+      count: itemsWithCategory.length,
+      products: itemsWithCategory.map(p => ({ id: p.id, name: p.name, code: p.code }))
+    })
+    
+    // Crear mensaje más descriptivo con los nombres de los productos
+    const productNames = itemsWithCategory
+      .slice(0, 3) // Mostrar solo los primeros 3
+      .map(p => p.name || p.code || 'Sin nombre')
+      .join(', ')
+    const moreProducts = itemsWithCategory.length > 3 ? ` y ${itemsWithCategory.length - 3} más` : ''
+    
+    throw new Error(
+      `No se puede eliminar la categoría "${categoryById.name}" porque tiene ${itemsWithCategory.length} producto(s) asociado(s): ${productNames}${moreProducts}. ` +
+      `Por favor, elimina o cambia la categoría de estos productos primero.`
+    )
   }
 
   // ✅ Eliminar la categoría

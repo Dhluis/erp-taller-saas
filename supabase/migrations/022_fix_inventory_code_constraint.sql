@@ -50,30 +50,34 @@ BEGIN
     END IF;
 END $$;
 
--- 2. Crear el constraint correcto multi-tenant
+-- 2. Eliminar el índice multi-tenant si ya existe (para recrearlo limpio)
 DO $$ 
 BEGIN
-    -- Verificar si ya existe el constraint correcto
-    IF NOT EXISTS (
+    IF EXISTS (
         SELECT 1 
-        FROM information_schema.table_constraints 
-        WHERE constraint_name = 'inventory_organization_code_unique' 
-        AND table_name = 'inventory'
-        AND table_schema = 'public'
+        FROM pg_indexes 
+        WHERE indexname = 'inventory_organization_code_unique' 
+        AND schemaname = 'public'
     ) THEN
-        -- Crear constraint UNIQUE(organization_id, code)
-        -- Solo aplicar a filas donde code NO es NULL
-        CREATE UNIQUE INDEX inventory_organization_code_unique 
-        ON public.inventory(organization_id, code) 
-        WHERE code IS NOT NULL;
-        
-        RAISE NOTICE '✅ Constraint multi-tenant creado: UNIQUE(organization_id, code)';
+        DROP INDEX public.inventory_organization_code_unique;
+        RAISE NOTICE 'ℹ️  Índice existente eliminado para recrearlo';
     ELSE
-        RAISE NOTICE 'ℹ️  Constraint multi-tenant ya existe';
+        RAISE NOTICE 'ℹ️  Índice no existe, será creado';
     END IF;
 END $$;
 
--- 3. Verificar que la columna code puede ser NULL (por si acaso)
+-- 3. Crear el constraint correcto multi-tenant
+-- Solo aplicar a filas donde code NO es NULL
+CREATE UNIQUE INDEX inventory_organization_code_unique 
+ON public.inventory(organization_id, code) 
+WHERE code IS NOT NULL;
+
+DO $$ 
+BEGIN
+    RAISE NOTICE '✅ Constraint multi-tenant creado: UNIQUE(organization_id, code)';
+END $$;
+
+-- 4. Verificar que la columna code puede ser NULL (por si acaso)
 DO $$ 
 BEGIN
     -- Si code tiene NOT NULL, cambiarlo a nullable
@@ -92,7 +96,7 @@ BEGIN
     END IF;
 END $$;
 
--- 4. Comentario de documentación
+-- 5. Comentario de documentación
 COMMENT ON INDEX inventory_organization_code_unique IS 
 'Constraint multi-tenant: permite que diferentes organizaciones tengan el mismo código, pero cada organización tiene códigos únicos internos';
 

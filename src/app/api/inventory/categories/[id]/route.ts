@@ -260,22 +260,51 @@ export async function DELETE(
       stack: error instanceof Error ? error.stack : undefined
     });
     
-    // Error específico si la categoría tiene items asociados
-    if (error instanceof Error && error.message.includes('foreign key')) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Error específico si la categoría tiene items asociados (409 Conflict)
+    if (errorMessage.includes('producto(s) asociado(s)') || 
+        errorMessage.includes('items asociados') ||
+        errorMessage.includes('foreign key')) {
       return NextResponse.json(
         {
           success: false,
-          error: 'No se puede eliminar la categoría porque tiene items asociados',
+          error: errorMessage,
         },
-        { status: 409 }
+        { status: 409 } // Conflict - La categoría tiene dependencias
       );
     }
 
+    // Error si la categoría no pertenece a la organización (403 Forbidden)
+    if (errorMessage.includes('no pertenece') || 
+        errorMessage.includes('permisos')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorMessage,
+        },
+        { status: 403 } // Forbidden
+      );
+    }
+
+    // Error si la categoría no existe (404 Not Found)
+    if (errorMessage.includes('no encontrada') || 
+        errorMessage.includes('not found')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorMessage,
+        },
+        { status: 404 } // Not Found
+      );
+    }
+
+    // Otros errores (500 Internal Server Error)
     return NextResponse.json(
       {
         success: false,
         error: 'Error al eliminar categoría',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        details: errorMessage,
       },
       { status: 500 }
     );
