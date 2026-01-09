@@ -54,6 +54,9 @@ export default function InventariosCategoriasPage() {
   };
 
   const handleCreateCategory = async () => {
+    console.log('🔄 [PAGE] handleCreateCategory - Iniciando');
+    console.log('📦 [PAGE] Datos:', newCategory);
+    
     if (!newCategory.name.trim()) {
       toast.error('Por favor ingresa el nombre de la categoría');
       return;
@@ -61,22 +64,23 @@ export default function InventariosCategoriasPage() {
 
     setSaving(true);
     try {
+      console.log('🔄 [PAGE] Llamando createCategory...');
       const result = await createCategory({
         name: newCategory.name.trim(),
         description: newCategory.description.trim() || null
       });
       
+      console.log('📦 [PAGE] Resultado:', result);
+      
       if (result) {
-        // Resetear formulario
-        setNewCategory({
-          name: '',
-          description: ''
-        });
+        console.log('✅ [PAGE] Categoría creada, cerrando modal');
+        setNewCategory({ name: '', description: '' });
         setShowNewCategoryModal(false);
-        // ✅ El toast ya se muestra en createCategory del hook
+      } else {
+        console.log('❌ [PAGE] createCategory retornó null');
       }
     } catch (error) {
-      console.error('Error creating category:', error);
+      console.error('❌ [PAGE] Error:', error);
       toast.error('Error al crear la categoría');
     } finally {
       setSaving(false);
