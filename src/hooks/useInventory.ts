@@ -489,18 +489,27 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
 
       const result = await response.json();
       console.log('📦 [useInventory] fetchCategories - Respuesta completa:', result);
-      console.log('📊 [useInventory] fetchCategories - data es array?', Array.isArray(result.data));
-      console.log('📊 [useInventory] fetchCategories - data length:', result.data?.length);
       
-      if (result.success && Array.isArray(result.data)) {
-        console.log('📋 [useInventory] fetchCategories - IDs recibidos:', result.data.map((c: any) => ({ id: c.id, name: c.name })));
-        setCategories(result.data);
-        console.log('✅ [useInventory] fetchCategories -', result.data.length, 'categorías guardadas en state');
-        setError(null);
-      } else {
-        console.error('❌ [useInventory] fetchCategories - Sin datos válidos. result:', result);
-        setCategories([]);
+      // ✅ Extraer el array correctamente
+      // La API devuelve: { success: true, data: [...] }
+      // Pero a veces viene anidado: { success: true, data: { success: true, data: [...] } }
+      let categoriesArray: any[] = [];
+      
+      if (result.success) {
+        if (Array.isArray(result.data)) {
+          categoriesArray = result.data;
+        } else if (result.data?.data && Array.isArray(result.data.data)) {
+          // Caso anidado
+          categoriesArray = result.data.data;
+        }
       }
+      
+      console.log('📊 [useInventory] fetchCategories - Array extraído:', categoriesArray.length, 'categorías');
+      console.log('📋 [useInventory] fetchCategories - IDs:', categoriesArray.map((c: any) => ({ id: c.id, name: c.name })));
+      
+      setCategories(categoriesArray);
+      console.log('✅ [useInventory] fetchCategories -', categoriesArray.length, 'categorías guardadas en state');
+      setError(null);
     } catch (error: any) {
       console.error('❌ [useInventory] fetchCategories - Error:', error);
       setCategories([]);
