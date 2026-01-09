@@ -302,7 +302,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('🔄 [POST /api/inventory] Llamando a createInventoryItem con:', {
+      organizationId,
+      name: body.name,
+      sku: body.sku,
+      category_id: body.category_id
+    });
+
     const item = await createInventoryItem(organizationId, body);
+
+    console.log('✅ [POST /api/inventory] Item creado exitosamente:', {
+      id: item?.id,
+      name: item?.name,
+      code: item?.code
+    });
 
     return NextResponse.json(
       {

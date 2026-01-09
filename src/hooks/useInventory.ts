@@ -209,13 +209,13 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
       const url = `/api/inventory?${queryString}`;
       console.log('🔄 [useInventory] Fetching:', url);
 
-      // Check cache
+      // Check cache - REDUCIDO a 5 segundos para evitar datos obsoletos
       if (enableCache) {
         const cached = cacheRef.current.get(url);
         const cacheAge = cached ? Date.now() - cached.timestamp : Infinity;
         
-        if (cached && cacheAge < 30000) {
-          console.log('💾 [useInventory] Usando cache');
+        if (cached && cacheAge < 5000) { // ✅ 5 segundos en lugar de 30
+          console.log('💾 [useInventory] Usando cache (edad:', cacheAge, 'ms)');
           const responseData = cached.data.data || cached.data;
           setItems(responseData.items || []);
           setPagination(responseData.pagination);
@@ -344,22 +344,39 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
     setError(null);
 
     try {
+      console.log('🔄 [useInventory] createItem - Enviando POST:', itemData);
+      
       const response = await fetch('/api/inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ✅ Incluir cookies para autenticación
         body: JSON.stringify(itemData),
       });
 
+      console.log('📡 [useInventory] createItem - Response status:', response.status);
+
       const data = await response.json();
+      
+      console.log('📦 [useInventory] createItem - Response data:', data);
 
       if (!data.success) {
+        console.error('❌ [useInventory] createItem - Error en respuesta:', data.error);
         throw new Error(data.error || 'Error al crear producto');
       }
 
+      console.log('✅ [useInventory] createItem - Producto creado:', data.data?.id);
       toast.success('Producto creado exitosamente');
       
-      if (enableCache) cacheRef.current.clear();
+      // ✅ SIEMPRE limpiar cache después de crear
+      cacheRef.current.clear();
+      console.log('🗑️ [useInventory] createItem - Cache limpiado');
+      
+      // ✅ Pequeño delay para asegurar que la DB se sincronice
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('🔄 [useInventory] createItem - Recargando lista...');
       await fetchItems();
+      console.log('✅ [useInventory] createItem - Lista recargada, items:', items.length);
 
       return data.data;
     } catch (err) {

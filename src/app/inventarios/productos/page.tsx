@@ -49,7 +49,8 @@ export default function InventariosProductosPage() {
     pageSize: 50,
     sortBy: 'name',
     sortOrder: 'asc',
-    autoLoad: true
+    autoLoad: true,
+    enableCache: false // ✅ Deshabilitar cache para siempre tener datos frescos
   });
 
   // ✅ Recargar categorías cuando cambian (para actualizar dropdown)
