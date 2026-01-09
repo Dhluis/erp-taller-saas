@@ -212,9 +212,53 @@ export async function createInventoryItem(organizationId: string, itemData: Crea
   const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
   const supabase = getSupabaseServiceClient()
 
-  // ✅ Generar código único si no se proporciona
-  // El campo 'code' debe ser único, así que usamos SKU o generamos uno único
-  const uniqueCode = itemData.sku || `PROD-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+  // ✅ Generar código único POR ORGANIZACIÓN (multi-tenant)
+  // Después de la migración 022, el constraint es UNIQUE(organization_id, code)
+  // Estrategia: Usar SKU directamente si está disponible, o generar uno único
+  // Si el SKU ya existe en esta organización, agregar sufijo numérico
+  let uniqueCode = itemData.sku || `PROD-${Date.now()}`
+  
+  // ✅ Si hay SKU, verificar si ya existe en esta organización
+  if (itemData.sku) {
+    const { data: existingWithCode } = await supabase
+      .from('inventory')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('code', itemData.sku)
+      .maybeSingle()
+    
+    // Si ya existe, agregar sufijo numérico
+    if (existingWithCode) {
+      let counter = 1
+      let candidateCode = `${itemData.sku}-${counter}`
+      let stillExists = true
+      
+      // Buscar un código disponible (máximo 1000 intentos)
+      while (stillExists && counter < 1000) {
+        const { data: check } = await supabase
+          .from('inventory')
+          .select('id')
+          .eq('organization_id', organizationId)
+          .eq('code', candidateCode)
+          .maybeSingle()
+        
+        if (!check) {
+          stillExists = false
+          uniqueCode = candidateCode
+        } else {
+          counter++
+          candidateCode = `${itemData.sku}-${counter}`
+        }
+      }
+      
+      if (counter >= 1000) {
+        // Si no encontramos uno disponible después de 1000 intentos, usar timestamp
+        uniqueCode = `${itemData.sku}-${Date.now()}`
+      }
+    } else {
+      uniqueCode = itemData.sku
+    }
+  }
   
   const insertData = {
     organization_id: organizationId,
@@ -225,7 +269,7 @@ export async function createInventoryItem(organizationId: string, itemData: Crea
     quantity: itemData.quantity || 0,
     min_quantity: itemData.min_quantity || 0,
     unit_price: itemData.unit_price || 0,
-    code: uniqueCode, // ✅ Código único
+    code: uniqueCode, // ✅ Código único por organización (multi-tenant)
     status: 'active',
   }
 
@@ -294,11 +338,8 @@ export async function updateInventoryItem(organizationId: string, id: string, it
   if (itemData.name !== undefined) updateData.name = itemData.name;
   if (itemData.sku !== undefined) {
     updateData.sku = itemData.sku;
-    // ✅ Si cambia el SKU, también actualizar el código único si es necesario
-    // Solo actualizar code si no hay conflictos de unicidad
-    if (itemData.sku) {
-      updateData.code = itemData.sku;
-    }
+    // ✅ No actualizar code automáticamente porque tiene constraint UNIQUE global
+    // El code se mantiene como está para evitar conflictos
   }
   if (itemData.description !== undefined) updateData.description = itemData.description;
   if (itemData.category_id !== undefined) updateData.category_id = itemData.category_id;
@@ -610,25 +651,56 @@ export async function deleteInventoryCategory(organizationId: string, id: string
   const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
   const supabase = getSupabaseServiceClient()
 
-  // ✅ Verificar que la categoría existe y pertenece a la organización
-  const { data: existingCategory, error: checkError } = await supabase
+  // ✅ Primero buscar sin filtro de organization_id para diagnosticar
+  const { data: categoryById, error: findError } = await supabase
     .from('inventory_categories')
     .select('id, name, organization_id')
     .eq('id', id)
-    .eq('organization_id', organizationId)
     .maybeSingle()
 
-  if (checkError) {
-    console.error('❌ [deleteInventoryCategory] Error al buscar categoría:', checkError)
-    throw new Error(`Error al buscar la categoría: ${checkError.message}`)
+  if (findError) {
+    console.error('❌ [deleteInventoryCategory] Error al buscar categoría:', findError)
+    throw new Error(`Error al buscar la categoría: ${findError.message}`)
   }
 
-  if (!existingCategory) {
-    console.error('❌ [deleteInventoryCategory] Categoría no encontrada o no pertenece a la organización:', { id, organizationId })
-    throw new Error(`Categoría no encontrada o no pertenece a tu organización`)
+  if (!categoryById) {
+    console.error('❌ [deleteInventoryCategory] Categoría no encontrada en la BD:', { id })
+    
+    // ✅ Intentar buscar todas las categorías de la organización para ver qué existe
+    const { data: allCategories } = await supabase
+      .from('inventory_categories')
+      .select('id, name, organization_id')
+      .eq('organization_id', organizationId)
+      .limit(10)
+    
+    console.log('🔍 [deleteInventoryCategory] Categorías de la organización:', allCategories?.length || 0)
+    if (allCategories && allCategories.length > 0) {
+      console.log('📋 [deleteInventoryCategory] IDs de categorías encontradas:', allCategories.map(c => c.id))
+    }
+    
+    throw new Error(`Categoría no encontrada con ID: ${id}`)
   }
 
-  console.log('✅ [deleteInventoryCategory] Categoría encontrada:', existingCategory.name)
+  console.log('🔍 [deleteInventoryCategory] Categoría encontrada en BD:', {
+    id: categoryById.id,
+    name: categoryById.name,
+    categoryOrganizationId: categoryById.organization_id,
+    requestedOrganizationId: organizationId,
+    match: categoryById.organization_id === organizationId
+  })
+
+  // ✅ Verificar que pertenece a la organización correcta
+  if (categoryById.organization_id !== organizationId) {
+    console.error('❌ [deleteInventoryCategory] La categoría pertenece a otra organización:', {
+      categoriaOrganizationId: categoryById.organization_id,
+      requestedOrganizationId: organizationId,
+      categoryName: categoryById.name,
+      match: categoryById.organization_id === organizationId
+    })
+    throw new Error(`Esta categoría pertenece a otra organización. No tienes permisos para eliminarla.`)
+  }
+
+  console.log('✅ [deleteInventoryCategory] Categoría encontrada y validada:', categoryById.name)
 
   // ✅ Verificar si tiene productos asociados antes de eliminar
   const { data: itemsWithCategory, error: itemsError } = await supabase
