@@ -212,53 +212,49 @@ export async function createInventoryItem(organizationId: string, itemData: Crea
   const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
   const supabase = getSupabaseServiceClient()
 
-  // ✅ Generar código único POR ORGANIZACIÓN (multi-tenant)
-  // Después de la migración 022, el constraint es UNIQUE(organization_id, code)
-  // Estrategia: Usar SKU directamente si está disponible, o generar uno único
-  // Si el SKU ya existe en esta organización, agregar sufijo numérico
-  let uniqueCode = itemData.sku || `PROD-${Date.now()}`
-  
-  // ✅ Si hay SKU, verificar si ya existe en esta organización
-  if (itemData.sku) {
-    const { data: existingWithCode } = await supabase
-      .from('inventory')
-      .select('id')
-      .eq('organization_id', organizationId)
-      .eq('code', itemData.sku)
+  // ✅ Verificar que la categoría existe y pertenece a la organización
+  if (itemData.category_id) {
+    const { data: category, error: categoryError } = await supabase
+      .from('inventory_categories')
+      .select('id, name, organization_id')
+      .eq('id', itemData.category_id)
       .maybeSingle()
-    
-    // Si ya existe, agregar sufijo numérico
-    if (existingWithCode) {
-      let counter = 1
-      let candidateCode = `${itemData.sku}-${counter}`
-      let stillExists = true
-      
-      // Buscar un código disponible (máximo 1000 intentos)
-      while (stillExists && counter < 1000) {
-        const { data: check } = await supabase
-          .from('inventory')
-          .select('id')
-          .eq('organization_id', organizationId)
-          .eq('code', candidateCode)
-          .maybeSingle()
-        
-        if (!check) {
-          stillExists = false
-          uniqueCode = candidateCode
-        } else {
-          counter++
-          candidateCode = `${itemData.sku}-${counter}`
-        }
-      }
-      
-      if (counter >= 1000) {
-        // Si no encontramos uno disponible después de 1000 intentos, usar timestamp
-        uniqueCode = `${itemData.sku}-${Date.now()}`
-      }
-    } else {
-      uniqueCode = itemData.sku
+
+    if (categoryError) {
+      console.error('❌ [createInventoryItem] Error al verificar categoría:', categoryError)
+      throw new Error(`Error al verificar la categoría: ${categoryError.message}`)
     }
+
+    if (!category) {
+      console.error('❌ [createInventoryItem] Categoría no encontrada:', itemData.category_id)
+      throw new Error(`La categoría seleccionada no existe. Por favor, recarga la página y selecciona una categoría válida.`)
+    }
+
+    if (category.organization_id !== organizationId) {
+      console.error('❌ [createInventoryItem] Categoría pertenece a otra organización:', {
+        categoryOrganizationId: category.organization_id,
+        requestedOrganizationId: organizationId
+      })
+      throw new Error(`La categoría "${category.name}" no pertenece a tu organización`)
+    }
+
+    console.log('✅ [createInventoryItem] Categoría validada:', category.name)
   }
+
+  // ✅ Generar código único POR ORGANIZACIÓN (multi-tenant)
+  // Si el usuario proporciona SKU, usarlo directamente como code
+  // Si no, generar uno automático con timestamp para garantizar unicidad
+  let uniqueCode: string
+  
+  if (itemData.sku && itemData.sku.trim() !== '') {
+    // Usar SKU directamente (el constraint multi-tenant permite duplicados entre organizaciones)
+    uniqueCode = itemData.sku.trim()
+  } else {
+    // Generar código automático con timestamp
+    uniqueCode = `PROD-${Date.now()}`
+  }
+  
+  console.log('🔑 [createInventoryItem] Código generado:', uniqueCode)
   
   const insertData = {
     organization_id: organizationId,
