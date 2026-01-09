@@ -207,106 +207,80 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    console.log('🔄 [DELETE /api/inventory/categories/[id]] Iniciando eliminación:', id);
+    console.log('🔄 [DELETE CAT] V2 - ID:', id);
     
-    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto (igual que POST)
-    const { createClientFromRequest } = await import('@/lib/supabase/server')
-    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+    const { createClientFromRequest, getSupabaseServiceClient } = await import('@/lib/supabase/server')
     
     const supabase = createClientFromRequest(request);
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      console.error('❌ [DELETE] Error de autenticación:', authError)
-      return NextResponse.json(
-        { success: false, error: 'No autorizado' },
-        { status: 401 }
-      )
+      console.error('❌ [DELETE CAT] No autenticado');
+      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
     }
 
-    // Obtener organization_id del perfil del usuario usando Service Role Client
     const supabaseAdmin = getSupabaseServiceClient();
-    const { data: userProfile, error: profileError } = await supabaseAdmin
+    const { data: userProfile } = await supabaseAdmin
       .from('users')
       .select('organization_id')
       .eq('auth_user_id', user.id)
-      .single()
+      .single();
 
-    if (profileError || !userProfile?.organization_id) {
-      console.error('❌ [DELETE] Error obteniendo perfil:', profileError)
-      return NextResponse.json(
-        { success: false, error: 'Perfil de usuario no encontrado' },
-        { status: 404 }
-      )
+    if (!userProfile?.organization_id) {
+      return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 404 });
     }
 
     const organizationId = userProfile.organization_id;
-    console.log('✅ [DELETE] Usuario autenticado:', user.email)
-    console.log('✅ [DELETE] Organization ID:', organizationId)
-    console.log('✅ [DELETE] Category ID:', id)
+    console.log('✅ [DELETE CAT] Org:', organizationId);
 
-    await deleteInventoryCategory(organizationId, id);
+    // Verificar que la categoría existe y pertenece a la organización
+    const { data: category } = await supabaseAdmin
+      .from('inventory_categories')
+      .select('id, name')
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .single();
 
-    console.log('✅ [DELETE] Categoría eliminada exitosamente');
+    if (!category) {
+      console.error('❌ [DELETE CAT] No encontrada');
+      return NextResponse.json({ success: false, error: 'Categoría no encontrada' }, { status: 404 });
+    }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Categoría eliminada exitosamente',
-    });
+    // Verificar si tiene productos
+    const { data: products } = await supabaseAdmin
+      .from('inventory')
+      .select('id')
+      .eq('category_id', id)
+      .limit(1);
+
+    if (products && products.length > 0) {
+      console.error('❌ [DELETE CAT] Tiene productos');
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No se puede eliminar: tiene productos asociados' 
+      }, { status: 409 });
+    }
+
+    // ELIMINAR DIRECTAMENTE
+    const { error: deleteError } = await supabaseAdmin
+      .from('inventory_categories')
+      .delete()
+      .eq('id', id)
+      .eq('organization_id', organizationId);
+
+    if (deleteError) {
+      console.error('❌ [DELETE CAT] Error:', deleteError);
+      return NextResponse.json({ success: false, error: deleteError.message }, { status: 500 });
+    }
+
+    console.log('✅ [DELETE CAT] Eliminada:', category.name);
+    return NextResponse.json({ success: true, message: 'Categoría eliminada' });
+    
   } catch (error) {
-    console.error('❌ [DELETE] Error deleting category:', error);
-    console.error('❌ [DELETE] Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    });
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
-    // Error específico si la categoría tiene items asociados (409 Conflict)
-    if (errorMessage.includes('producto(s) asociado(s)') || 
-        errorMessage.includes('items asociados') ||
-        errorMessage.includes('foreign key')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorMessage,
-        },
-        { status: 409 } // Conflict - La categoría tiene dependencias
-      );
-    }
-
-    // Error si la categoría no pertenece a la organización (403 Forbidden)
-    if (errorMessage.includes('no pertenece') || 
-        errorMessage.includes('permisos')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorMessage,
-        },
-        { status: 403 } // Forbidden
-      );
-    }
-
-    // Error si la categoría no existe (404 Not Found)
-    if (errorMessage.includes('no encontrada') || 
-        errorMessage.includes('not found')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorMessage,
-        },
-        { status: 404 } // Not Found
-      );
-    }
-
-    // Otros errores (500 Internal Server Error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Error al eliminar categoría',
-        details: errorMessage,
-      },
-      { status: 500 }
-    );
+    console.error('❌ [DELETE CAT] Error:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Error desconocido' 
+    }, { status: 500 });
   }
 }
