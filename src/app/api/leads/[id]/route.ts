@@ -223,16 +223,8 @@ export async function PATCH(
       )
     }
 
-    // Si cambió el status, actualizar conversación de WhatsApp
-    if (status && existingLead.whatsapp_conversation_id) {
-      await supabase
-        .from('whatsapp_conversations')
-        .update({
-          lead_status: status,
-          lead_updated_at: new Date().toISOString()
-        })
-        .eq('id', existingLead.whatsapp_conversation_id)
-    }
+    // ✅ Nota: No actualizamos whatsapp_conversations porque el lead se obtiene
+    // mediante la relación foreign key, así que se actualiza automáticamente
 
     console.log('[Leads API] Lead actualizado:', leadId)
 

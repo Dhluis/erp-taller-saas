@@ -85,9 +85,9 @@ interface UseWhatsAppConversationsReturn {
   // Filter Actions
   setStatus: (status: UseWhatsAppConversationsOptions['status']) => void
   
-  // Actions
-  refresh: () => Promise<void>
-  mutate: () => Promise<void> // Alias de refresh para compatibilidad con SWR
+    // Actions
+    refresh: () => Promise<void>
+    mutate: (force?: boolean) => Promise<void> // Alias de refresh para compatibilidad con SWR
 }
 
 // ==========================================
@@ -165,8 +165,10 @@ export function useWhatsAppConversations(
       const url = `/api/whatsapp/conversations?${params.toString()}`
       console.log('🔄 [useWhatsAppConversations] Fetching:', url)
 
-      // Check cache
-      if (enableCache) {
+      // Check cache (solo si enableCache está habilitado Y no es una recarga forzada)
+      // Las recargas forzadas (mutate) siempre deben ir al servidor
+      const isForcedRefresh = (window as any).__forceRefreshWhatsAppConversations === true
+      if (enableCache && !isForcedRefresh) {
         const cached = cacheRef.current.get(url)
         const cacheAge = cached ? Date.now() - cached.timestamp : Infinity
         
@@ -180,6 +182,11 @@ export function useWhatsAppConversations(
           isFetching.current = false
           return
         }
+      }
+      
+      // Limpiar flag de recarga forzada
+      if (isForcedRefresh) {
+        (window as any).__forceRefreshWhatsAppConversations = false
       }
 
       // Fetch
@@ -308,7 +315,15 @@ export function useWhatsAppConversations(
     
     // Actions
     refresh: fetchConversations,
-    mutate: fetchConversations // Alias para compatibilidad con SWR
+    mutate: async (force: boolean = true) => {
+      // Si es una recarga forzada, invalidar cache
+      if (force) {
+        console.log('🔄 [useWhatsAppConversations] Mutate forzado - invalidando cache')
+        cacheRef.current.clear()
+        ;(window as any).__forceRefreshWhatsAppConversations = true
+      }
+      await fetchConversations()
+    } // Alias para compatibilidad con SWR
   }
 }
 

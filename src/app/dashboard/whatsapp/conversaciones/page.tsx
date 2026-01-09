@@ -607,6 +607,33 @@ export default function ConversacionesPage() {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'leads'
+        },
+        (payload) => {
+          console.log('📊 [Conversaciones] Cambio detectado en lead:', {
+            leadId: payload.new?.id,
+            newStatus: payload.new?.status,
+            whatsappConversationId: payload.new?.whatsapp_conversation_id
+          })
+          
+          // Si el lead está relacionado con una conversación, recargar conversaciones
+          if (payload.new?.whatsapp_conversation_id) {
+            console.log('🔄 [Conversaciones] Recargando conversaciones por cambio en lead')
+            mutate()
+            
+            // Si la conversación relacionada está seleccionada, recargar mensajes también
+            if (selectedConversation === payload.new.whatsapp_conversation_id) {
+              console.log('🔄 [Conversaciones] Recargando mensajes de conversación seleccionada')
+              loadMessages(selectedConversation)
+            }
+          }
+        }
+      )
       .subscribe()
 
     subscriptionRef.current = channel
@@ -2389,15 +2416,34 @@ export default function ConversacionesPage() {
                         toast.success('Lead creado exitosamente')
                       }}
                       onLeadUpdated={async (lead) => {
-                        console.log('Lead actualizado:', lead)
-                        // Actualizar contactDetails con el lead actualizado
+                        console.log('📊 [Conversaciones] Lead actualizado desde panel:', {
+                          leadId: lead.id,
+                          newStatus: lead.status,
+                          conversationId: lead.whatsapp_conversation_id
+                        })
+                        
+                        // ✅ Actualizar contactDetails con el lead actualizado (esto actualiza el panel derecho)
                         updateContactDetails({ lead })
-                        // Recargar conversaciones para reflejar el cambio
-                        await mutate()
-                        // ✅ Recargar mensajes para asegurar que el lead se sincronice correctamente
-                        if (selectedConversation) {
-                          await loadMessages(selectedConversation)
-                        }
+                        
+                        // ✅ Forzar recarga INMEDIATA de conversaciones (sin esperar)
+                        // Esto actualizará el LeadIndicator en la lista de conversaciones
+                        console.log('🔄 [Conversaciones] Forzando recarga inmediata de conversaciones...')
+                        mutate()
+                        
+                        // ✅ Recargar también después de un pequeño delay para asegurar sincronización
+                        // La suscripción realtime también debería disparar una actualización
+                        setTimeout(async () => {
+                          console.log('🔄 [Conversaciones] Segunda recarga para asegurar sincronización...')
+                          await mutate()
+                          
+                          // Recargar mensajes si hay una conversación seleccionada
+                          if (selectedConversation) {
+                            console.log('🔄 [Conversaciones] Recargando mensajes...')
+                            await loadMessages(selectedConversation)
+                          }
+                        }, 500)
+                        
+                        console.log('✅ [Conversaciones] Proceso de actualización iniciado')
                         toast.success('Lead actualizado exitosamente')
                       }}
                       onLeadConverted={(customerId) => {
