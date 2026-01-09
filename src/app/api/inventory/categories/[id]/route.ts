@@ -93,7 +93,7 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server';
 // GET: Obtener una categoría por ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const tenantContext = await getTenantContext(request);
@@ -107,7 +107,8 @@ export async function GET(
       );
     }
 
-    const category = await getInventoryCategoryById(tenantContext.organizationId, params.id);
+    const { id } = await params;
+    const category = await getInventoryCategoryById(tenantContext.organizationId, id);
 
     if (!category) {
       return NextResponse.json(
@@ -139,7 +140,7 @@ export async function GET(
 // PUT: Actualizar una categoría
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const tenantContext = await getTenantContext(request);
@@ -153,6 +154,7 @@ export async function PUT(
       );
     }
 
+    const { id } = await params;
     const body = await request.json();
 
     // Validaciones
@@ -178,7 +180,7 @@ export async function PUT(
       }
     }
 
-    const category = await updateInventoryCategory(tenantContext.organizationId, params.id, body);
+    const category = await updateInventoryCategory(tenantContext.organizationId, id, body);
 
     return NextResponse.json({
       success: true,
@@ -201,10 +203,11 @@ export async function PUT(
 // DELETE: Eliminar una categoría
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔄 [DELETE /api/inventory/categories/[id]] Iniciando eliminación:', params.id);
+    const { id } = await params;
+    console.log('🔄 [DELETE /api/inventory/categories/[id]] Iniciando eliminación:', id);
     
     // ✅ Obtener usuario autenticado y organization_id usando patrón robusto (igual que POST)
     const { createClientFromRequest } = await import('@/lib/supabase/server')
@@ -240,9 +243,9 @@ export async function DELETE(
     const organizationId = userProfile.organization_id;
     console.log('✅ [DELETE] Usuario autenticado:', user.email)
     console.log('✅ [DELETE] Organization ID:', organizationId)
-    console.log('✅ [DELETE] Category ID:', params.id)
+    console.log('✅ [DELETE] Category ID:', id)
 
-    await deleteInventoryCategory(organizationId, params.id);
+    await deleteInventoryCategory(organizationId, id);
 
     console.log('✅ [DELETE] Categoría eliminada exitosamente');
 

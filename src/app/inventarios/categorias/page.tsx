@@ -61,18 +61,20 @@ export default function InventariosCategoriasPage() {
 
     setSaving(true);
     try {
-      await createCategory({
+      const result = await createCategory({
         name: newCategory.name.trim(),
         description: newCategory.description.trim() || null
       });
       
-      // Resetear formulario
-      setNewCategory({
-        name: '',
-        description: ''
-      });
-      setShowNewCategoryModal(false);
-      toast.success('Categoría creada exitosamente');
+      if (result) {
+        // Resetear formulario
+        setNewCategory({
+          name: '',
+          description: ''
+        });
+        setShowNewCategoryModal(false);
+        // ✅ El toast ya se muestra en createCategory del hook
+      }
     } catch (error) {
       console.error('Error creating category:', error);
       toast.error('Error al crear la categoría');
