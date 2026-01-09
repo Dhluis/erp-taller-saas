@@ -212,22 +212,28 @@ export async function createInventoryItem(organizationId: string, itemData: Crea
   const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
   const supabase = getSupabaseServiceClient()
 
+  // ✅ Generar código único si no se proporciona
+  // El campo 'code' debe ser único, así que usamos SKU o generamos uno único
+  const uniqueCode = itemData.sku || `PROD-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+  
+  const insertData = {
+    organization_id: organizationId,
+    category_id: itemData.category_id,
+    name: itemData.name,
+    description: itemData.description || null,
+    sku: itemData.sku || null,
+    quantity: itemData.quantity || 0,
+    min_quantity: itemData.min_quantity || 0,
+    unit_price: itemData.unit_price || 0,
+    code: uniqueCode, // ✅ Código único
+    status: 'active',
+  }
+
+  console.log('📦 [createInventoryItem] Datos a insertar:', insertData)
+
   const { data, error } = await supabase
     .from('inventory')
-    .insert([
-      {
-        organization_id: organizationId,
-        category_id: itemData.category_id,
-        name: itemData.name,
-        description: itemData.description,
-        sku: itemData.sku,
-        quantity: itemData.quantity,
-        min_quantity: itemData.min_quantity,
-        unit_price: itemData.unit_price,
-        code: itemData.sku,
-        status: 'active',
-      },
-    ])
+    .insert([insertData])
     .select(`
       *,
       category:inventory_categories(
@@ -246,15 +252,26 @@ export async function createInventoryItem(organizationId: string, itemData: Crea
       details: error.details,
       hint: error.hint
     })
+    
+    // Manejar error específico de constraint único (code duplicado)
+    if (error.code === '23505' || error.message.includes('unique') || error.message.includes('duplicate')) {
+      throw new Error(`Ya existe un producto con el código/SKU: ${uniqueCode}. Por favor usa un código diferente.`)
+    }
+    
     throw new Error(`Error al crear el artículo de inventario: ${error.message}`)
   }
 
   if (!data) {
-    console.error('❌ [createInventoryItem] No se retornó data')
-    throw new Error('Error: item de inventario no fue creado')
+    console.error('❌ [createInventoryItem] No se retornó data después de insertar')
+    throw new Error('Error: item de inventario no fue creado. Verifica los datos e intenta nuevamente.')
   }
 
-  console.log('✅ [createInventoryItem] Item creado exitosamente:', data.id)
+  console.log('✅ [createInventoryItem] Item creado exitosamente:', {
+    id: data.id,
+    name: data.name,
+    sku: data.sku,
+    organization_id: data.organization_id
+  })
   return data as InventoryItem
 }
 
@@ -275,7 +292,14 @@ export async function updateInventoryItem(organizationId: string, id: string, it
   };
 
   if (itemData.name !== undefined) updateData.name = itemData.name;
-  if (itemData.sku !== undefined) updateData.sku = itemData.sku;
+  if (itemData.sku !== undefined) {
+    updateData.sku = itemData.sku;
+    // ✅ Si cambia el SKU, también actualizar el código único si es necesario
+    // Solo actualizar code si no hay conflictos de unicidad
+    if (itemData.sku) {
+      updateData.code = itemData.sku;
+    }
+  }
   if (itemData.description !== undefined) updateData.description = itemData.description;
   if (itemData.category_id !== undefined) updateData.category_id = itemData.category_id;
   if (itemData.quantity !== undefined) updateData.quantity = itemData.quantity;
@@ -289,12 +313,59 @@ export async function updateInventoryItem(organizationId: string, id: string, it
   }
 
   console.log('📤 [updateInventoryItem] Datos que se actualizarán:', updateData)
+  console.log('🔍 [updateInventoryItem] Buscando producto con id:', id, 'y organization_id:', organizationId)
 
+  // ✅ Verificar que el producto existe y pertenece a la organización antes de actualizar
+  const { data: existingItem, error: checkError } = await supabase
+    .from('inventory')
+    .select('id, name, organization_id, category_id')
+    .eq('id', id)
+    .eq('organization_id', organizationId)
+    .maybeSingle()
+
+  if (checkError) {
+    console.error('❌ [updateInventoryItem] Error al buscar producto:', {
+      id,
+      organizationId,
+      checkError: checkError?.message,
+      code: checkError?.code,
+      details: checkError?.details
+    })
+    throw new Error(`Error al buscar el producto: ${checkError.message}`)
+  }
+
+  if (!existingItem) {
+    // ✅ Intentar buscar sin filtro de organization_id para diagnosticar
+    const { data: itemWithoutOrgCheck } = await supabase
+      .from('inventory')
+      .select('id, name, organization_id')
+      .eq('id', id)
+      .maybeSingle()
+    
+    if (itemWithoutOrgCheck) {
+      console.error('❌ [updateInventoryItem] Producto encontrado pero con diferente organization_id:', {
+        productId: id,
+        productOrganizationId: itemWithoutOrgCheck.organization_id,
+        requestedOrganizationId: organizationId
+      })
+      throw new Error(`El producto existe pero no pertenece a tu organización`)
+    } else {
+      console.error('❌ [updateInventoryItem] Producto no encontrado en la base de datos:', {
+        id,
+        organizationId
+      })
+      throw new Error(`Producto no encontrado con ID: ${id}`)
+    }
+  }
+
+  console.log('✅ [updateInventoryItem] Producto encontrado:', existingItem.name)
+  console.log('✅ [updateInventoryItem] organization_id del producto:', existingItem.organization_id)
+
+  // ✅ Actualizar el producto (usar solo id ya que verificamos organization_id arriba)
   const { data, error } = await supabase
     .from('inventory')
     .update(updateData)
     .eq('id', id)
-    .eq('organization_id', organizationId)
     .select(`
       *,
       category:inventory_categories(
@@ -317,8 +388,8 @@ export async function updateInventoryItem(organizationId: string, id: string, it
   }
 
   if (!data) {
-    console.error('❌ [updateInventoryItem] No se retornó data')
-    throw new Error('Error: item de inventario no fue actualizado')
+    console.error('❌ [updateInventoryItem] No se retornó data después de actualizar')
+    throw new Error('Error: item de inventario no fue actualizado. Verifica que el producto exista y pertenezca a tu organización.')
   }
 
   console.log('✅ [updateInventoryItem] Item actualizado exitosamente:', data.id)
@@ -330,19 +401,50 @@ export async function updateInventoryItem(organizationId: string, id: string, it
  * Eliminar un artículo de inventario
  */
 export async function deleteInventoryItem(organizationId: string, id: string) {
-  const supabase = await createClient()
+  console.log('🔄 [deleteInventoryItem] Iniciando eliminación:', { id, organizationId })
+  
+  // ✅ Usar Service Client
+  const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+  const supabase = getSupabaseServiceClient()
 
+  // ✅ Verificar que el producto existe y pertenece a la organización
+  const { data: existingItem, error: checkError } = await supabase
+    .from('inventory')
+    .select('id, name, organization_id')
+    .eq('id', id)
+    .eq('organization_id', organizationId)
+    .maybeSingle()
+
+  if (checkError) {
+    console.error('❌ [deleteInventoryItem] Error al buscar producto:', checkError)
+    throw new Error(`Error al buscar el producto: ${checkError.message}`)
+  }
+
+  if (!existingItem) {
+    console.error('❌ [deleteInventoryItem] Producto no encontrado o no pertenece a la organización:', { id, organizationId })
+    throw new Error(`Producto no encontrado o no pertenece a tu organización`)
+  }
+
+  console.log('✅ [deleteInventoryItem] Producto encontrado:', existingItem.name)
+
+  // ✅ Eliminar el producto
   const { error } = await supabase
     .from('inventory')
     .delete()
     .eq('id', id)
-    .eq('organization_id', organizationId)
 
   if (error) {
-    console.error('Error deleting inventory item:', error)
-    throw new Error('Error al eliminar el artículo de inventario')
+    console.error('❌ [deleteInventoryItem] Error al eliminar:', error)
+    console.error('❌ [deleteInventoryItem] Detalles:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    })
+    throw new Error(`Error al eliminar el artículo de inventario: ${error.message}`)
   }
 
+  console.log('✅ [deleteInventoryItem] Producto eliminado exitosamente')
   return { success: true }
 }
 
@@ -502,30 +604,72 @@ export async function updateInventoryCategory(organizationId: string, id: string
  * IMPORTANTE: Usa Service Client para bypasear RLS
  */
 export async function deleteInventoryCategory(organizationId: string, id: string) {
-  console.log('🔄 [deleteInventoryCategory] Iniciando eliminación:', id)
-  console.log('📦 [deleteInventoryCategory] Organization ID:', organizationId)
+  console.log('🔄 [deleteInventoryCategory] Iniciando eliminación:', { id, organizationId })
   
-  // ✅ Usar Service Client en lugar de browser client
+  // ✅ Usar Service Client
+  const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
   const supabase = getSupabaseServiceClient()
 
-  const { error } = await (supabase
-    .from('inventory_categories') as any)
-    .delete()
+  // ✅ Verificar que la categoría existe y pertenece a la organización
+  const { data: existingCategory, error: checkError } = await supabase
+    .from('inventory_categories')
+    .select('id, name, organization_id')
     .eq('id', id)
     .eq('organization_id', organizationId)
+    .maybeSingle()
+
+  if (checkError) {
+    console.error('❌ [deleteInventoryCategory] Error al buscar categoría:', checkError)
+    throw new Error(`Error al buscar la categoría: ${checkError.message}`)
+  }
+
+  if (!existingCategory) {
+    console.error('❌ [deleteInventoryCategory] Categoría no encontrada o no pertenece a la organización:', { id, organizationId })
+    throw new Error(`Categoría no encontrada o no pertenece a tu organización`)
+  }
+
+  console.log('✅ [deleteInventoryCategory] Categoría encontrada:', existingCategory.name)
+
+  // ✅ Verificar si tiene productos asociados antes de eliminar
+  const { data: itemsWithCategory, error: itemsError } = await supabase
+    .from('inventory')
+    .select('id')
+    .eq('category_id', id)
+    .eq('organization_id', organizationId)
+    .limit(1)
+
+  if (itemsError) {
+    console.error('❌ [deleteInventoryCategory] Error verificando productos asociados:', itemsError)
+    // Continuar con la eliminación de todas formas, la BD manejará la restricción si existe
+  } else if (itemsWithCategory && itemsWithCategory.length > 0) {
+    console.error('❌ [deleteInventoryCategory] No se puede eliminar: tiene productos asociados')
+    throw new Error(`No se puede eliminar la categoría porque tiene ${itemsWithCategory.length} producto(s) asociado(s)`)
+  }
+
+  // ✅ Eliminar la categoría
+  const { error } = await supabase
+    .from('inventory_categories')
+    .delete()
+    .eq('id', id)
 
   if (error) {
     console.error('❌ [deleteInventoryCategory] Error al eliminar:', error)
-    console.error('❌ [deleteInventoryCategory] Detalles del error:', {
+    console.error('❌ [deleteInventoryCategory] Detalles:', {
       message: error.message,
       code: error.code,
       details: error.details,
       hint: error.hint
     })
-    throw new DatabaseError('Error al eliminar la categoría de inventario', error)
+    
+    // Manejar error específico de foreign key constraint
+    if (error.code === '23503' || error.message.includes('foreign key')) {
+      throw new Error('No se puede eliminar la categoría porque tiene productos asociados')
+    }
+    
+    throw new Error(`Error al eliminar la categoría: ${error.message}`)
   }
 
-  console.log('✅ [deleteInventoryCategory] Categoría eliminada exitosamente:', id)
+  console.log('✅ [deleteInventoryCategory] Categoría eliminada exitosamente')
   return { success: true }
 }
 
