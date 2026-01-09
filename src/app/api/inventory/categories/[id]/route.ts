@@ -255,7 +255,7 @@ export async function DELETE(
 
     if (products && products.length > 0) {
       console.error('❌ [DELETE CAT] Tiene productos');
-      return NextResponse.json({ 
+    return NextResponse.json({
         success: false, 
         error: 'No se puede eliminar: tiene productos asociados' 
       }, { status: 409 });
@@ -279,7 +279,7 @@ export async function DELETE(
   } catch (error) {
     console.error('❌ [DELETE CAT] Error:', error);
     return NextResponse.json({ 
-      success: false, 
+        success: false,
       error: error instanceof Error ? error.message : 'Error desconocido' 
     }, { status: 500 });
   }

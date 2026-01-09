@@ -293,7 +293,7 @@ export default function UsuariosPage() {
         throw new Error(result.error || result.message || 'Error al actualizar usuario')
       }
 
-      const result = await response.json()
+        const result = await response.json()
       
       // Verificar si la respuesta tiene success: false
       if (result.success === false) {

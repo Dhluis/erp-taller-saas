@@ -168,8 +168,8 @@ export default function TestComercialPage() {
 
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = (lead.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (lead.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (lead.email || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (lead.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (lead.email || '').toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesStatus = statusFilter === 'all' || lead.status === statusFilter
     
@@ -573,7 +573,7 @@ export default function TestComercialPage() {
           </CardContent>
         </Card>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
         <Card className="bg-gray-800 border-gray-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

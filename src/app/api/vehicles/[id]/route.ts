@@ -158,7 +158,7 @@ export async function DELETE(
         error: 'Vehículo no encontrado o no autorizado' 
       }, { status: 404 })
     }
-
+    
     // Verificar si el vehículo tiene órdenes de trabajo
     const { data: orders, error: ordersError } = await supabase
       .from('work_orders')
