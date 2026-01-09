@@ -220,26 +220,51 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const tenantContext = await getTenantContext(request);
-    if (!tenantContext || !tenantContext.organizationId) {
+    const { id } = await params;
+    console.log('🔄 [DELETE /api/inventory/[id]] Iniciando eliminación:', id);
+    
+    // ✅ Obtener usuario autenticado usando patrón robusto
+    const { createClientFromRequest, getSupabaseServiceClient } = await import('@/lib/supabase/server');
+    
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('❌ [DELETE] Error de autenticación:', authError);
       return NextResponse.json(
-        {
-          success: false,
-          error: 'No autorizado: No se pudo obtener la organización',
-        },
-        { status: 403 }
+        { success: false, error: 'No autorizado' },
+        { status: 401 }
       );
     }
 
-    const { id } = await params;
-    await deleteInventoryItem(tenantContext.organizationId, id);
+    // Obtener organization_id del perfil del usuario
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
 
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [DELETE] Error obteniendo perfil:', profileError);
+      return NextResponse.json(
+        { success: false, error: 'Perfil de usuario no encontrado' },
+        { status: 404 }
+      );
+    }
+
+    const organizationId = userProfile.organization_id;
+    console.log('✅ [DELETE] Usuario:', user.email, 'Org:', organizationId);
+
+    await deleteInventoryItem(organizationId, id);
+
+    console.log('✅ [DELETE] Producto eliminado exitosamente');
     return NextResponse.json({
       success: true,
       message: 'Artículo eliminado exitosamente',
     });
   } catch (error) {
-    console.error('Error deleting inventory item:', error);
+    console.error('❌ [DELETE] Error:', error);
     return NextResponse.json(
       {
         success: false,
