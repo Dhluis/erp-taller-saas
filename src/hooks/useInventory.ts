@@ -526,10 +526,10 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
       return null;
     }
 
+    setLoading(true);
     try {
       console.log('🔄 [useInventory] createCategory - Creando:', categoryData.name);
       
-      // ✅ POST directo sin wrapper
       const response = await fetch('/api/inventory/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -545,11 +545,15 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
       
       if (result.success && result.data) {
         toast.success(`Categoría "${categoryData.name}" creada`);
-        console.log('✅ [useInventory] createCategory - Exitoso');
+        console.log('✅ [useInventory] createCategory - Creada, recargando lista...');
         
-        // Recargar lista
+        // ✅ Recargar y ESPERAR
         await fetchCategories();
         
+        // ✅ Delay para asegurar actualización de estado
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        console.log('✅ [useInventory] createCategory - Lista actualizada');
         return result.data;
       } else {
         throw new Error(result.error || 'Error al crear');
@@ -557,7 +561,11 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
     } catch (error: any) {
       console.error('❌ [useInventory] createCategory - Error:', error);
       toast.error(error.message || 'Error al crear categoría');
+      // Recargar de todas formas
+      await fetchCategories();
       return null;
+    } finally {
+      setLoading(false);
     }
   }, [organizationId, fetchCategories]);
 
@@ -588,8 +596,9 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
   }, [fetchCategories]);
 
   const deleteCategory = useCallback(async (id: string) => {
+    setLoading(true);
     try {
-      console.log('🔄 [useInventory] deleteCategory - Eliminando categoría:', id);
+      console.log('🔄 [useInventory] deleteCategory - Eliminando:', id);
       
       const response = await fetch(`/api/inventory/categories/${id}`, {
         method: 'DELETE',
@@ -599,29 +608,35 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
 
       const data = await response.json();
 
-      // ✅ SIEMPRE recargar categorías después de intentar eliminar
-      // Esto sincroniza el frontend con la base de datos
-      await fetchCategories();
-
       if (!response.ok || !data.success) {
-        const errorMsg = data.error || `Error ${response.status}`;
-        // Si es 404, la categoría ya no existe - no es error real
+        // Si es 404, la categoría ya no existe - solo recargar
         if (response.status === 404) {
-          console.log('ℹ️ [useInventory] Categoría ya no existe, lista actualizada');
-          return true; // No es error, solo sincronizamos
+          console.log('ℹ️ [useInventory] Categoría ya no existe, recargando...');
+          await fetchCategories();
+          return true;
         }
-        throw new Error(errorMsg);
+        throw new Error(data.error || `Error ${response.status}`);
       }
 
-      console.log('✅ [useInventory] deleteCategory - Exitoso');
+      console.log('✅ [useInventory] deleteCategory - Eliminada, recargando lista...');
+      
+      // ✅ Recargar y ESPERAR a que termine
+      await fetchCategories();
+      
+      // ✅ Pequeño delay para asegurar que el estado se actualice
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('✅ [useInventory] deleteCategory - Lista actualizada');
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       console.error('❌ [useInventory] deleteCategory - Error:', errorMessage);
-      // ✅ Recargar de todas formas para sincronizar
+      // Recargar de todas formas
       await fetchCategories();
       setError(errorMessage);
       throw err;
+    } finally {
+      setLoading(false);
     }
   }, [fetchCategories]);
 
