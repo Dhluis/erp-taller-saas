@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/navigation/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +45,11 @@ export default function InventariosCategoriasPage() {
   useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
+
+  // ✅ Forzar re-render cuando categories cambie
+  useEffect(() => {
+    console.log('🔄 [PAGE] categories cambió:', categories.length);
+  }, [categories]);
 
   const handleInputChange = (field: string, value: string) => {
     setNewCategory(prev => ({
@@ -157,15 +162,14 @@ export default function InventariosCategoriasPage() {
     });
   };
 
-  // Debug: Ver qué hay en categories
-  console.log('🔍 [PAGE] categories state:', categories);
-  console.log('🔍 [PAGE] categories length:', categories.length);
-  console.log('🔍 [PAGE] searchTerm:', searchTerm);
-
-  const filteredCategories = categories.filter(category =>
-    category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // ✅ Usar useMemo para recalcular cuando categories o searchTerm cambien
+  const filteredCategories = useMemo(() => {
+    console.log('🔄 [PAGE] Recalculando filteredCategories, categories:', categories.length);
+    return categories.filter(category =>
+      category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [categories, searchTerm]);
 
   console.log('🔍 [PAGE] filteredCategories length:', filteredCategories.length);
 

@@ -507,7 +507,8 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
       console.log('📊 [useInventory] fetchCategories - Array extraído:', categoriesArray.length, 'categorías');
       console.log('📋 [useInventory] fetchCategories - IDs:', categoriesArray.map((c: any) => ({ id: c.id, name: c.name })));
       
-      setCategories(categoriesArray);
+      // ✅ Crear nuevo array para que React detecte el cambio
+      setCategories([...categoriesArray]);
       console.log('✅ [useInventory] fetchCategories -', categoriesArray.length, 'categorías guardadas en state');
       setError(null);
     } catch (error: any) {
