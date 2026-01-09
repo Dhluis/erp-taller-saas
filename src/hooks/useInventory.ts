@@ -488,17 +488,17 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
       });
 
       const result = await response.json();
-      console.log('📦 [useInventory] fetchCategories - Respuesta:', {
-        success: result.success,
-        dataLength: result.data?.length
-      });
+      console.log('📦 [useInventory] fetchCategories - Respuesta completa:', result);
+      console.log('📊 [useInventory] fetchCategories - data es array?', Array.isArray(result.data));
+      console.log('📊 [useInventory] fetchCategories - data length:', result.data?.length);
       
       if (result.success && Array.isArray(result.data)) {
+        console.log('📋 [useInventory] fetchCategories - IDs recibidos:', result.data.map((c: any) => ({ id: c.id, name: c.name })));
         setCategories(result.data);
-        console.log('✅ [useInventory] fetchCategories -', result.data.length, 'categorías');
+        console.log('✅ [useInventory] fetchCategories -', result.data.length, 'categorías guardadas en state');
         setError(null);
       } else {
-        console.error('❌ [useInventory] fetchCategories - Sin datos');
+        console.error('❌ [useInventory] fetchCategories - Sin datos válidos. result:', result);
         setCategories([]);
       }
     } catch (error: any) {

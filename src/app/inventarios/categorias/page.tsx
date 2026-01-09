@@ -157,10 +157,17 @@ export default function InventariosCategoriasPage() {
     });
   };
 
+  // Debug: Ver qué hay en categories
+  console.log('🔍 [PAGE] categories state:', categories);
+  console.log('🔍 [PAGE] categories length:', categories.length);
+  console.log('🔍 [PAGE] searchTerm:', searchTerm);
+
   const filteredCategories = categories.filter(category =>
     category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  console.log('🔍 [PAGE] filteredCategories length:', filteredCategories.length);
 
   if (loading) {
     return (
