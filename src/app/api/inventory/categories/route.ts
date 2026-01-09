@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
       .from('inventory_categories')
       .select('id, name, description, status, organization_id, created_at, updated_at')
       .eq('organization_id', organizationId)
-      .order('name')
+      .order('name', { ascending: true })
 
     if (queryError) {
       console.error('❌ [GET] Error query:', queryError)
@@ -98,6 +98,9 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('✅ [GET] Categorías encontradas:', categories?.length || 0)
+    if (categories && categories.length > 0) {
+      console.log('📋 [GET] IDs de categorías:', categories.map(c => ({ id: c.id, name: c.name })))
+    }
     
     return NextResponse.json({
       success: true,
