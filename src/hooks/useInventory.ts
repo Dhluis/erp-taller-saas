@@ -593,33 +593,35 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
       
       const response = await fetch(`/api/inventory/categories/${id}`, {
         method: 'DELETE',
-        credentials: 'include', // ✅ FIX: Incluir cookies para autenticación
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
 
       const data = await response.json();
 
-      if (!data.success) {
-        throw new Error(data.error || 'Error al eliminar categoría');
-      }
-
-      // ✅ No mostrar toast aquí - la página lo maneja
+      // ✅ SIEMPRE recargar categorías después de intentar eliminar
+      // Esto sincroniza el frontend con la base de datos
       await fetchCategories();
 
+      if (!response.ok || !data.success) {
+        const errorMsg = data.error || `Error ${response.status}`;
+        // Si es 404, la categoría ya no existe - no es error real
+        if (response.status === 404) {
+          console.log('ℹ️ [useInventory] Categoría ya no existe, lista actualizada');
+          return true; // No es error, solo sincronizamos
+        }
+        throw new Error(errorMsg);
+      }
+
+      console.log('✅ [useInventory] deleteCategory - Exitoso');
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       console.error('❌ [useInventory] deleteCategory - Error:', errorMessage);
+      // ✅ Recargar de todas formas para sincronizar
+      await fetchCategories();
       setError(errorMessage);
-      // ✅ No mostrar toast de error aquí - la página lo maneja
-      throw err; // Re-lanzar para que la página pueda manejarlo
+      throw err;
     }
   }, [fetchCategories]);
 
