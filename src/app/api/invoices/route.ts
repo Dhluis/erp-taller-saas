@@ -14,6 +14,9 @@ import {
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { extractPaginationFromURL, calculateOffset, generatePaginationMeta } from '@/lib/utils/pagination';
+import type { PaginatedResponse } from '@/types/pagination';
+import { getSupabaseServiceClient } from '@/lib/supabase/server';
 
 // =====================================================
 // GET - Obtener todas las notas de venta
@@ -39,7 +42,8 @@ export async function GET(request: NextRequest) {
       'GET'
     );
     
-    const { searchParams } = new URL(request.url);
+    const url = new URL(request.url);
+    const { searchParams } = url;
     const status = searchParams.get('status');
     const search = searchParams.get('search');
     const stats = searchParams.get('stats') === 'true';
@@ -49,30 +53,106 @@ export async function GET(request: NextRequest) {
     let result;
 
     if (stats) {
-      // Obtener estadísticas
+      // Obtener estadísticas (no necesita paginación)
       result = await getInvoiceStats(organizationId);
       logger.info('Estadísticas de notas de venta obtenidas', context);
+      
+      return NextResponse.json({
+        success: true,
+        data: result,
+      });
     } else if (search) {
-      // Buscar notas de venta
+      // Buscar notas de venta (no necesita paginación)
       result = await searchInvoices(organizationId, search);
       logger.info(`Resultados de búsqueda: ${result.length} notas de venta`, context);
-    } else {
-      // Obtener todas las notas de venta
-      result = await getAllInvoices(organizationId, status || undefined);
-      logger.info(`Notas de venta obtenidas: ${result.length}`, context);
-    }
 
     return NextResponse.json({
       success: true,
       data: result,
     });
+    } else {
+      // ✅ Obtener todas las notas de venta CON PAGINACIÓN
+      const { page, pageSize } = extractPaginationFromURL(url);
+      const offset = calculateOffset(page, pageSize);
+
+      logger.info('Obteniendo notas de venta con paginación', context, {
+        page,
+        pageSize,
+        status: status || undefined
+      });
+
+      // Usar Service Client para consulta paginada
+      const supabaseAdmin = getSupabaseServiceClient();
+      
+      // Construir query con relaciones (igual que getAllInvoices)
+      let query = supabaseAdmin
+        .from('invoices')
+        .select(`
+          *,
+          customer:customers(*),
+          vehicle:vehicles(*)
+        `, { count: 'exact' })
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false });
+
+      // Aplicar filtro de status si se proporciona
+      if (status) {
+        query = query.eq('status', status);
+      }
+
+      // Aplicar paginación
+      query = query.range(offset, offset + pageSize - 1);
+
+      const { data: invoices, count, error: invoicesError } = await query;
+
+      if (invoicesError) {
+        logger.error('Error al obtener notas de venta', context, invoicesError as Error);
+        return NextResponse.json(
+          {
+            success: false,
+            error: invoicesError.message || 'Error al obtener notas de venta',
+            data: { items: [], pagination: generatePaginationMeta(page, pageSize, 0) }
+          },
+          { status: 500 }
+        );
+      }
+
+      // Generar metadata de paginación
+      const pagination = generatePaginationMeta(page, pageSize, count || 0);
+
+      logger.info(`Notas de venta obtenidas: ${invoices?.length || 0} de ${count || 0}`, context);
+
+      // Retornar estructura PaginatedResponse
+      const response: PaginatedResponse<any> = {
+        success: true,
+        data: {
+          items: invoices || [],
+          pagination
+        }
+      };
+
+      return NextResponse.json(response);
+    }
   } catch (error) {
     logger.error('Error al obtener notas de venta', context, error as Error);
+    
+    // Intentar extraer paginación para respuesta de error consistente
+    let page = 1;
+    let pageSize = 20;
+    try {
+      const url = new URL(request.url);
+      const paginationParams = extractPaginationFromURL(url);
+      page = paginationParams.page;
+      pageSize = paginationParams.pageSize;
+    } catch {
+      // Si falla, usar valores por defecto
+    }
     
     return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : 'Error al obtener notas de venta',
+        data: { items: [], pagination: generatePaginationMeta(page, pageSize, 0) }
       },
       { status: 500 }
     );

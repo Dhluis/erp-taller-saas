@@ -116,8 +116,9 @@ export async function GET(request: NextRequest) {
     // Luego filtrar en JavaScript para mayor flexibilidad
     const { data: orders, error: ordersError } = await supabaseAdmin
       .from('work_orders')
-      .select('status, created_at, entry_date')
+      .select('status, created_at, entry_date, deleted_at')
       .eq('organization_id', organizationId)
+      .is('deleted_at', null) // ✅ excluir soft-deleted
 
     // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

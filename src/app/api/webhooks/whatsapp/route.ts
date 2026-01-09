@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { processMessage } from '@/integrations/whatsapp/services/ai-agent';
 import { getOrganizationFromSession, sendWhatsAppMessage, getProfilePicture } from '@/lib/waha-sessions';
+import { rateLimitMiddleware } from '@/lib/rate-limit/middleware';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,6 +39,24 @@ export async function GET(request: NextRequest) {
  * Recibe eventos de WAHA
  */
 export async function POST(request: NextRequest) {
+  // 🛡️ Rate limiting - OPCIONAL (fail-open si Redis no disponible)
+  try {
+    const rateLimitResponse = await rateLimitMiddleware.webhook(request);
+    if (rateLimitResponse) {
+      console.warn('[WAHA Webhook] 🚫 Rate limit exceeded');
+      return rateLimitResponse;
+    }
+  } catch (rateLimitError: any) {
+    // ⚠️ Si rate limiting falla (Redis no disponible, etc.), continuar sin limitar
+    const errorMsg = rateLimitError?.message || 'Unknown error';
+    if (errorMsg.includes('REDIS_NOT_AVAILABLE') || errorMsg.includes('Missing')) {
+      console.warn('[WAHA Webhook] ⚠️ Rate limiting no disponible, continuando sin límites (fail-open)');
+    } else {
+      console.warn('[WAHA Webhook] ⚠️ Error en rate limiting, continuando sin límites:', errorMsg);
+    }
+    // Continuar sin bloquear el request
+  }
+
   const startTime = Date.now();
   
   try {
@@ -204,13 +223,15 @@ async function handleMessageEvent(body: any) {
       return;
     }
     
-    // 5.1. Validar que sea un mensaje directo válido (debe tener @c.us o @s.whatsapp.net)
+    // 5.1. Validar que sea un mensaje directo válido (debe tener @c.us, @s.whatsapp.net o @lid)
     const isValidDirectMessage = 
       chatId && 
       (chatId.includes('@c.us') || 
        chatId.includes('@s.whatsapp.net') ||
+       chatId.includes('@lid') ||
        /^\d+@c\.us$/.test(chatId) ||
-       /^\d+@s\.whatsapp\.net$/.test(chatId));
+       /^\d+@s\.whatsapp\.net$/.test(chatId) ||
+       /^\d+@lid$/.test(chatId));
     
     if (!isValidDirectMessage && chatId) {
       console.log('[WAHA Webhook] ⏭️ Ignorando mensaje no válido (no es directo):', chatId);
@@ -567,9 +588,10 @@ async function handleMessageEvent(body: any) {
       
       try {
         console.log('[Webhook] 📤 ENVIANDO respuesta - messageId:', finalMessageId);
+        // ✅ Usar chatId completo (incluye @lid, @c.us, etc.) en lugar de solo el número
         const sendResult = await sendWhatsAppMessage(
           sessionName,
-          customerPhone,
+          chatId,  // Usar chatId completo con @lid incluido
           aiResult.response,
           organizationId
         );
@@ -691,12 +713,12 @@ async function handleReactionEvent(body: any) {
 
 /**
  * Extrae número de teléfono del chatId
- * Formato: 5214491234567@c.us -> +52 1 449 123 4567
+ * Formato: 5214491234567@c.us, @s.whatsapp.net o @lid -> 5214491234567
  */
 function extractPhoneNumber(chatId: string): string | null {
   if (!chatId) return null;
   
-  // Remover @c.us o @s.whatsapp.net
+  // Remover @c.us, @s.whatsapp.net o @lid
   const phoneDigits = chatId.replace(/@[^@]+$/, '');
   
   if (!phoneDigits || phoneDigits.length < 10) {

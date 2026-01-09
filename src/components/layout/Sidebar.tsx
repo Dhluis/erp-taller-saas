@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -131,8 +131,11 @@ export function Sidebar({ className }: SidebarProps) {
     // WhatsApp movido al TopBar
   ].filter(item => item.visible)
 
-  // ✅ MECÁNICOS: No ven secciones colapsables
-  const collapsibleSections = isMechanic ? [] : [
+  // ✅ OPTIMIZACIÓN: Memoizar collapsibleSections para evitar recrear en cada render
+  const collapsibleSections = useMemo(() => {
+    if (isMechanic) return []
+    
+    return [
     {
       key: 'inventarios',
       label: 'Inventarios',
@@ -187,6 +190,7 @@ export function Sidebar({ className }: SidebarProps) {
       ].filter(item => item.visible)
     }
   ].filter(section => section.visible && section.items.length > 0)
+  }, [isMechanic, showAllForAdmin, permissions, sessionLoading])
 
   // ✅ MECÁNICOS: Solo ven Mi Perfil (Kanban ya está en mainNavItems)
   const additionalNavItems = isMechanic ? [
@@ -223,7 +227,8 @@ export function Sidebar({ className }: SidebarProps) {
     }
   ]
 
-  const isActive = (href: string) => {
+  // ✅ OPTIMIZACIÓN: useCallback para memoizar función isActive
+  const isActive = useCallback((href: string) => {
     if (href === "/") return pathname === "/"
     
     // ✅ FIX: Usar coincidencia exacta para evitar resaltar padre e hijo simultáneamente
@@ -284,7 +289,7 @@ export function Sidebar({ className }: SidebarProps) {
     
     // Para otras rutas, usar startsWith solo si no hay hijos más específicos
     return pathname.startsWith(href)
-  }
+  }, [pathname, collapsibleSections])
   
   // ✅ Helper: Verificar si algún sub-item de una sección está activo
   const hasActiveSubItem = (section: typeof collapsibleSections[0]) => {

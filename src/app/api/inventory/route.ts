@@ -302,7 +302,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('🔄 [POST /api/inventory] Llamando a createInventoryItem con:', {
+      organizationId,
+      name: body.name,
+      sku: body.sku,
+      category_id: body.category_id
+    });
+
     const item = await createInventoryItem(organizationId, body);
+
+    console.log('✅ [POST /api/inventory] Item creado exitosamente:', {
+      id: item?.id,
+      name: item?.name,
+      code: item?.code
+    });
 
     return NextResponse.json(
       {
@@ -314,13 +327,31 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Error creating inventory item:', error);
+    
+    // ✅ Mensajes de error más descriptivos
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+    
+    let statusCode = 500
+    let userMessage = 'Error al crear artículo de inventario'
+    
+    if (errorMessage.includes('categoría')) {
+      userMessage = errorMessage
+      statusCode = 400
+    } else if (errorMessage.includes('duplicado') || errorMessage.includes('duplicate')) {
+      userMessage = 'Ya existe un producto con ese código en tu organización'
+      statusCode = 409
+    } else if (errorMessage.includes('foreign key') || errorMessage.includes('fkey')) {
+      userMessage = 'La categoría seleccionada no es válida. Por favor, recarga la página y selecciona otra categoría.'
+      statusCode = 400
+    }
+    
     return NextResponse.json(
       {
         success: false,
-        error: 'Error al crear item de inventario',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error: userMessage,
+        details: errorMessage,
       },
-      { status: 500 }
+      { status: statusCode }
     );
   }
 }

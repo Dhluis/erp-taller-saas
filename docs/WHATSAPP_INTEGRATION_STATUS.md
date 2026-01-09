@@ -175,5 +175,6 @@ FROM ai_agent_config;
 ---
 
 **Última actualización:** Enero 2025  
-**Versión:** Estable - Commit 773cb2a
+**Versión Estable Anterior:** Commit `773cb2a` (confeti)  
+**Versión Estable Actual:** Commit `c6cd22c` (fix(whatsapp): mostrar 'Activo' cuando hay configuración aunque enabled sea false)
 

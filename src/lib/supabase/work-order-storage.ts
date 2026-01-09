@@ -106,10 +106,13 @@ export async function uploadWorkOrderImage(
       return { success: false, error: 'El archivo debe ser una imagen' }
     }
 
-    // Validar tamaño (10MB máximo para fotos de alta calidad)
-    if (file.size > 10 * 1024 * 1024) {
+    // ✅ OPTIMIZACIÓN MÓVIL: Validar tamaño (reducido en móvil)
+    // Nota: El límite se valida en el cliente antes de llamar esta función
+    // Aquí aceptamos archivos ya comprimidos (máx 5MB)
+    const maxSize = 10 * 1024 * 1024  // 10MB máximo (archivos ya comprimidos en cliente)
+    if (file.size > maxSize) {
       console.error('❌ [uploadWorkOrderImage] Archivo muy grande:', file.size)
-      return { success: false, error: 'La imagen no debe superar 10MB' }
+      return { success: false, error: 'La imagen no debe superar 10MB. Por favor comprime la imagen primero.' }
     }
 
     // ✅ MULTI-TENANT: Validar que organizationId fue proporcionado

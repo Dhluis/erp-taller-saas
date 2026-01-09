@@ -1,12 +1,16 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowRight, CheckCircle, Star, Users, Wrench, BarChart3, Shield, Zap, Clock, Database } from 'lucide-react'
+import { 
+  Cloud, Headphones, Shield, FileText, Package, Users, Receipt, 
+  BarChart3, Smartphone, Check, Star, TrendingUp, Zap, ChevronDown 
+} from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
+import { useState } from 'react'
 
 const AnimatedCard = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => (
   <motion.div
@@ -19,10 +23,16 @@ const AnimatedCard = ({ children, delay = 0 }: { children: React.ReactNode; dela
 )
 
 export default function LandingPage() {
+  const [openFAQ, setOpenFAQ] = useState<number | null>(null)
+
+  const toggleFAQ = (index: number) => {
+    setOpenFAQ(openFAQ === index ? null : index)
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <main className="min-h-screen bg-white">
       {/* Header */}
-      <header className="border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-sm">
+      <header className="border-b border-gray-200 bg-white/95 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <Image
@@ -36,12 +46,12 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center space-x-4">
             <Link href="/auth/login">
-              <Button variant="ghost" className="text-slate-300 hover:text-white">
+              <Button variant="ghost" className="text-gray-700 hover:text-gray-900">
                 Iniciar Sesión
               </Button>
             </Link>
             <Link href="/auth/register">
-              <Button className="bg-cyan-500 hover:bg-cyan-600 text-white">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                 Probar Gratis - 7 días
               </Button>
             </Link>
@@ -50,301 +60,565 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto text-center">
-        <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <Badge className="mb-4 bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
-              ✨ Nuevo: Sistema de Mecánicos
-            </Badge>
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-              Gestiona tu taller de manera
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
-                {' '}inteligente
-              </span>
-            </h1>
-            <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-              El ERP más completo para talleres automotrices. Controla órdenes, inventario, 
-              mecánicos y facturación desde una sola plataforma.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth/register">
-                <Button size="lg" className="bg-cyan-500 hover:bg-cyan-600 text-white px-8">
-                Probar Gratis - 7 días
-              </Button>
-            </Link>
-              <Button size="lg" variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-800">
-                Ver Demo
-              </Button>
+      <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-cyan-500 via-blue-500 to-blue-600">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }} />
+        </div>
+
+        <div className="container mx-auto px-4 py-20 relative z-10">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left content */}
+            <div className="text-white space-y-8">
+              <h1 className="text-5xl lg:text-6xl font-bold leading-tight text-balance">
+                Gestiona tu Taller Mecánico de manera Profesional
+              </h1>
+              <p className="text-xl lg:text-2xl text-cyan-50 leading-relaxed text-pretty">
+                Eagles Sistem es un software completo: órdenes de trabajo, inventario, clientes, facturación y más. Todo en la nube.
+              </p>
+
+              {/* CTAs */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link href="/auth/register">
+                  <Button
+                    size="lg"
+                    className="bg-white text-cyan-600 hover:bg-cyan-50 text-lg px-8 py-6 h-auto font-semibold shadow-xl"
+                  >
+                    Comenzar Gratis - 7 Días
+                  </Button>
+                </Link>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-2 border-white text-white hover:bg-white/10 text-lg px-8 py-6 h-auto font-semibold bg-transparent"
+                >
+                  Ver Demo
+                </Button>
+              </div>
+
+              {/* Trust badges */}
+              <div className="grid grid-cols-3 gap-4 pt-8">
+                <div className="flex flex-col items-center text-center gap-2">
+                  <Cloud className="w-8 h-8" />
+                  <span className="text-sm font-medium">100% en la nube</span>
+                </div>
+                <div className="flex flex-col items-center text-center gap-2">
+                  <Headphones className="w-8 h-8" />
+                  <span className="text-sm font-medium">Soporte 24/7</span>
+                </div>
+                <div className="flex flex-col items-center text-center gap-2">
+                  <Shield className="w-8 h-8" />
+                  <span className="text-sm font-medium">Datos seguros</span>
+                </div>
+              </div>
             </div>
-          </motion.div>
+
+            {/* Right content - Dashboard mockup */}
+            <div className="relative w-full">
+              <div className="relative rounded-2xl overflow-visible shadow-2xl border-4 border-white/20 backdrop-blur-sm bg-white/10 p-2">
+                {/* 
+                  URL de la imagen desde ImgBB: https://ibb.co/23C3ff0b
+                  Para obtener la URL directa:
+                  1. Ve a https://ibb.co/23C3ff0b
+                  2. Haz clic derecho en la imagen > "Copiar dirección de imagen"
+                  3. O busca "Direct links" en la página y copia la URL
+                  4. Reemplaza la URL de abajo con la URL directa
+                */}
+                <div className="relative w-full flex items-center justify-center">
+                  <Image
+                    src="https://i.ibb.co/ZzFzkkRZ/Captura-de-pantalla-2026-01-05-223640.png"
+                    alt="EAGLES ERP Taller Dashboard - Sistema de gestión completo para talleres mecánicos"
+                    width={1920}
+                    height={1080}
+                    className="w-full h-auto rounded-lg object-contain"
+                    priority
+                    quality={100}
+                    unoptimized={true}
+                    style={{
+                      maxWidth: '100%',
+                      height: 'auto',
+                      display: 'block',
+                    }}
+                  />
+                </div>
+              </div>
+              {/* Floating elements */}
+              <div className="absolute -top-4 -right-4 bg-emerald-500 text-white px-4 py-2 rounded-full font-semibold shadow-lg z-10">
+                ✓ Fácil de usar
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Social Proof Section */}
+      <section className="py-20 bg-slate-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <p className="text-2xl font-semibold text-slate-700">Confiado por más de 500 talleres en México</p>
+          </div>
+
+          {/* Logo placeholders */}
+          <div className="flex flex-wrap justify-center items-center gap-8 mb-16 opacity-60">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="text-slate-400 font-bold text-xl">
+                Taller Logo {i}
+              </div>
+            ))}
+          </div>
+
+          {/* Stats grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: TrendingUp, label: "10,000+ Órdenes procesadas", value: "10K+" },
+              { icon: Users, label: "500+ Talleres activos", value: "500+" },
+              { icon: Zap, label: "99.9% Uptime", value: "99.9%" },
+              { icon: Star, label: "4.9★ Satisfacción", value: "4.9★" },
+            ].map((stat, index) => (
+              <AnimatedCard key={index} delay={index * 0.1}>
+                <Card className="p-6 text-center hover:shadow-lg transition-shadow">
+                  <stat.icon className="w-10 h-10 mx-auto mb-4 text-cyan-600" />
+                  <div className="text-3xl font-bold text-slate-900 mb-2">{stat.value}</div>
+                  <div className="text-sm text-slate-600">{stat.label}</div>
+                </Card>
+              </AnimatedCard>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4 bg-slate-800/50">
-        <div className="container mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold text-white mb-4">
-              Todo lo que necesitas para tu taller
-            </h2>
-            <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-              Herramientas profesionales diseñadas específicamente para talleres automotrices
-            </p>
-          </motion.div>
-        
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <AnimatedCard delay={0.1}>
-              <Card className="bg-slate-900/50 border-slate-700 hover:border-cyan-500/50 transition-colors">
-                <CardHeader>
-                  <Wrench className="w-12 h-12 text-cyan-400 mb-4" />
-                  <CardTitle className="text-white">Gestión de Mecánicos</CardTitle>
-                  <CardDescription className="text-slate-400">
-                    Asigna órdenes, controla especialidades y monitorea rendimiento
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-sm text-slate-300">
-                    <li className="flex items-center">
-                      <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                      Dashboard individual por mecánico
-                    </li>
-                    <li className="flex items-center">
-                      <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                      Asignación automática de órdenes
-                    </li>
-                    <li className="flex items-center">
-                      <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                      Control de especialidades
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </AnimatedCard>
+      <section className="py-20 bg-slate-900 text-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl lg:text-5xl font-bold mb-4 text-balance">Todo lo que necesitas en un solo lugar</h2>
+          </div>
 
-            <AnimatedCard delay={0.2}>
-              <Card className="bg-slate-900/50 border-slate-700 hover:border-cyan-500/50 transition-colors">
-                <CardHeader>
-                  <BarChart3 className="w-12 h-12 text-cyan-400 mb-4" />
-                  <CardTitle className="text-white">Órdenes de Trabajo</CardTitle>
-                  <CardDescription className="text-slate-400">
-                    Control completo del flujo de trabajo desde recepción hasta entrega
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-sm text-slate-300">
-                    <li className="flex items-center">
-                      <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                      Vista Kanban interactiva
-                    </li>
-                    <li className="flex items-center">
-                      <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                      Seguimiento en tiempo real
-                    </li>
-                    <li className="flex items-center">
-                      <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                      Notificaciones automáticas
-                    </li>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                icon: FileText,
+                title: "Órdenes de Trabajo Digitales",
+                items: ["Control total del flujo de trabajo", "Desde recepción hasta entrega", "Estados en tiempo real"],
+              },
+              {
+                icon: Package,
+                title: "Inventario Inteligente",
+                items: ["Control de stock automático", "Alertas de bajo inventario", "Movimientos rastreados"],
+              },
+              {
+                icon: Users,
+                title: "Gestión de Clientes",
+                items: ["Base de datos completa", "Historial de servicios", "Vehículos vinculados"],
+              },
+              {
+                icon: Receipt,
+                title: "Facturación CFDI 4.0",
+                items: ["Timbrado automático", "Cumplimiento fiscal total", "Reportes financieros"],
+              },
+              {
+                icon: BarChart3,
+                title: "Dashboard en Tiempo Real",
+                items: ["Métricas instantáneas", "Reportes personalizados", "Análisis de rendimiento"],
+              },
+              {
+                icon: Smartphone,
+                title: "App Móvil Incluida",
+                items: ["Acceso desde cualquier lugar", "Notificaciones push", "100% responsive"],
+              },
+            ].map((feature, index) => (
+              <AnimatedCard key={index} delay={index * 0.1}>
+                <Card className="p-8 bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/10 transition-all duration-300 hover:scale-105">
+                  <div className="bg-gradient-to-br from-cyan-500 to-blue-500 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+                    <feature.icon className="w-7 h-7 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-4 text-teal-300">{feature.title}</h3>
+                  <ul className="space-y-2 text-slate-300">
+                    {feature.items.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-cyan-400 mt-1">•</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
                   </ul>
-                </CardContent>
-              </Card>
-            </AnimatedCard>
-
-            <AnimatedCard delay={0.3}>
-              <Card className="bg-slate-900/50 border-slate-700 hover:border-cyan-500/50 transition-colors">
-                <CardHeader>
-                  <Users className="w-12 h-12 text-cyan-400 mb-4" />
-                  <CardTitle className="text-white">Gestión de Clientes</CardTitle>
-                  <CardDescription className="text-slate-400">
-                    Base de datos completa de clientes y vehículos
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-sm text-slate-300">
-                    <li className="flex items-center">
-                      <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                      Historial completo de servicios
-                    </li>
-                    <li className="flex items-center">
-                      <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                      Gestión de vehículos
-                    </li>
-                    <li className="flex items-center">
-                      <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                      Comunicación integrada
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </AnimatedCard>
-              </div>
+                </Card>
+              </AnimatedCard>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Benefits Section */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-            >
-              <h2 className="text-4xl font-bold text-white mb-6">
-                Aumenta la eficiencia de tu taller
-              </h2>
-              <p className="text-xl text-slate-300 mb-8">
-                Con nuestro sistema, podrás gestionar todos los aspectos de tu taller 
-                desde una sola plataforma, aumentando la productividad y reduciendo errores.
-              </p>
-              <div className="space-y-4">
-                <div className="flex items-center">
-                  <Zap className="w-6 h-6 text-cyan-400 mr-3" />
-                  <span className="text-slate-300">Reducción del 40% en tiempo de gestión</span>
-                </div>
-                <div className="flex items-center">
-                  <Shield className="w-6 h-6 text-cyan-400 mr-3" />
-                  <span className="text-slate-300">Datos seguros y respaldados</span>
-                </div>
-                <div className="flex items-center">
-                  <BarChart3 className="w-6 h-6 text-cyan-400 mr-3" />
-                  <span className="text-slate-300">Reportes detallados y análisis</span>
-                </div>
-          </div>
-            </motion.div>
-              <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="bg-slate-800/50 rounded-xl p-8 border border-slate-700"
-            >
-              <h3 className="text-2xl font-bold text-white mb-4">¿Listo para empezar?</h3>
-              <p className="text-slate-300 mb-6">
-                Únete a cientos de talleres que ya confían en nuestro sistema
-              </p>
-              <div className="flex items-center mb-4">
-                <div className="flex -space-x-2">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="w-8 h-8 bg-cyan-500 rounded-full border-2 border-slate-800 flex items-center justify-center">
-                      <span className="text-xs text-white font-bold">{i}</span>
+      {/* Demo Section */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="max-w-6xl mx-auto">
+            <div className="relative">
+              {/* Main screenshot */}
+              <div className="rounded-2xl overflow-hidden shadow-2xl border border-slate-200">
+                <div className="bg-slate-900 p-6">
+                  <div className="bg-slate-800 rounded-lg p-4">
+                    <div className="flex gap-2 mb-4">
+                      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">Todas</Button>
+                      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">Últimos 7 días</Button>
+                      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">Últimos 30 días</Button>
                     </div>
-                  ))}
+                    <div className="grid grid-cols-5 gap-4">
+                      {['Métricas en vivo', 'Esperando Piezas', 'Armado', 'Pruebas', 'Listo'].map((col, idx) => (
+                        <div key={idx} className="bg-slate-700/50 rounded p-3">
+                          <div className="text-white text-sm font-semibold mb-2">{col}</div>
+                          <div className="space-y-2">
+                            <div className="bg-slate-600/50 rounded p-2 text-xs text-gray-300">
+                              <div className="h-16 bg-slate-500/50 rounded mb-1"></div>
+                              <div className="h-2 bg-slate-500/50 rounded w-3/4"></div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <span className="ml-3 text-slate-300">+500 talleres confían en nosotros</span>
               </div>
+
+              {/* Floating annotations */}
+              <div className="absolute top-8 left-8 bg-cyan-500 text-white px-4 py-2 rounded-lg shadow-lg font-medium">
+                📊 Métricas en vivo
+              </div>
+              <div className="absolute top-1/3 right-8 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg font-medium">
+                ⚡ Acceso rápido
+              </div>
+              <div className="absolute bottom-8 left-1/4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg font-medium">
+                ✓ Interfaz intuitiva
+              </div>
+            </div>
+
+            <p className="text-center text-xl text-slate-600 mt-8 font-medium">
+              Interfaz intuitiva diseñada para mecánicos
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="py-20 bg-slate-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-900 text-balance">Cómo funciona</h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {[
+              { number: "1", title: "Regístrate en 2 minutos", description: "Simple onboarding" },
+              { number: "2", title: "Configura tu taller", description: "Quick setup wizard" },
+              { number: "3", title: "Empieza a trabajar", description: "Immediate productivity" },
+            ].map((step, index) => (
+              <AnimatedCard key={index} delay={index * 0.1}>
+                <div className="relative">
+                  <Card className="p-8 text-center hover:shadow-lg transition-shadow h-full">
+                    <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-500 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6">
+                      {step.number}
+                    </div>
+                    <h3 className="text-xl font-bold mb-2 text-slate-900">{step.title}</h3>
+                    <p className="text-slate-600">{step.description}</p>
+                  </Card>
+                  {index < 2 && (
+                    <div className="hidden md:block absolute top-1/2 -right-4 w-8 h-0.5 bg-gradient-to-r from-cyan-500 to-blue-500" />
+                  )}
+                </div>
+              </AnimatedCard>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="py-20 bg-gradient-to-br from-cyan-500 via-blue-500 to-blue-600 text-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl lg:text-5xl font-bold mb-4 text-balance">Planes diseñados para tu negocio</h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {[
+              {
+                name: "Básico",
+                price: "$499",
+                period: "MXN/mes",
+                features: ["Hasta 3 usuarios", "100 órdenes/mes", "Inventario básico", "Soporte por email", "Dashboard básico"],
+                cta: "Probar Gratis",
+                popular: false,
+              },
+              {
+                name: "Profesional",
+                price: "$999",
+                period: "MXN/mes",
+                features: [
+                  "Usuarios ilimitados",
+                  "Órdenes ilimitadas",
+                  "Inventario completo",
+                  "Facturación CFDI 4.0",
+                  "Soporte prioritario 24/7",
+                  "Reportes avanzados",
+                  "App móvil",
+                  "API access",
+                ],
+                cta: "Comenzar Ahora",
+                popular: true,
+              },
+            ].map((plan, index) => (
+              <AnimatedCard key={index} delay={index * 0.1}>
+                <Card
+                  className={`p-8 relative ${
+                    plan.popular
+                      ? "bg-white text-slate-900 shadow-2xl scale-105"
+                      : "bg-white/10 backdrop-blur-sm border-white/20 text-white"
+                  }`}
+                >
+                  {plan.popular && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-4 py-1 rounded-full text-sm font-bold">
+                      POPULAR
+                    </div>
+                  )}
+
+                  <div className="text-center mb-8">
+                    <h3 className="text-2xl font-bold mb-4">{plan.name}</h3>
+                    <div className="flex items-baseline justify-center gap-2">
+                      <span className="text-5xl font-bold">{plan.price}</span>
+                      <span className={plan.popular ? "text-slate-600" : "text-white/80"}>{plan.period}</span>
+                    </div>
+                  </div>
+
+                  <ul className="space-y-4 mb-8">
+                    {plan.features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <Check
+                          className={`w-5 h-5 flex-shrink-0 mt-0.5 ${plan.popular ? "text-emerald-500" : "text-cyan-300"}`}
+                        />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Link href="/auth/register">
+                    <Button
+                      size="lg"
+                      className={`w-full ${
+                        plan.popular
+                          ? "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
+                          : "bg-white text-cyan-600 hover:bg-cyan-50"
+                      }`}
+                    >
+                      {plan.cta}
+                    </Button>
+                  </Link>
+                </Card>
+              </AnimatedCard>
+            ))}
+          </div>
+
+          <p className="text-center mt-8 text-cyan-50">
+            Todos los planes incluyen 7 días de prueba gratis. Sin tarjeta de crédito.
+          </p>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-900 text-balance">
+              Lo que dicen nuestros clientes
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                quote: "Desde que uso ERP Taller, he reducido el papeleo en 90%. Todo está organizado y mis clientes están más contentos.",
+                author: "Carlos Méndez",
+                business: "Taller Méndez",
+                location: "CDMX",
+              },
+              {
+                quote: "La facturación automática me ahorra horas cada semana. El sistema es muy fácil de usar y el soporte es excelente.",
+                author: "Ana Rodríguez",
+                business: "Auto Service Rodríguez",
+                location: "Guadalajara",
+              },
+              {
+                quote: "Mis mecánicos pueden ver las órdenes desde sus celulares. La productividad aumentó un 40% en el primer mes.",
+                author: "Miguel Torres",
+                business: "Taller Torres & Hijos",
+                location: "Monterrey",
+              },
+            ].map((testimonial, index) => (
+              <AnimatedCard key={index} delay={index * 0.1}>
+                <Card className="p-8 hover:shadow-lg transition-shadow">
+                  <div className="flex gap-1 mb-4">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                    ))}
+                  </div>
+                  <blockquote className="text-slate-700 mb-6 leading-relaxed">"{testimonial.quote}"</blockquote>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+                      {testimonial.author.charAt(0)}
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-900">{testimonial.author}</div>
+                      <div className="text-sm text-slate-600">
+                        {testimonial.business}, {testimonial.location}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </AnimatedCard>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 bg-slate-50">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl lg:text-5xl font-bold mb-4 text-slate-900 text-balance">Preguntas Frecuentes</h2>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                {
+                  question: "¿Necesito instalar software?",
+                  answer: "No, ERP Taller es 100% en la nube. Solo necesitas un navegador web y conexión a internet. Funciona en cualquier dispositivo: computadora, tablet o celular.",
+                },
+                {
+                  question: "¿Mis datos están seguros?",
+                  answer: "Absolutamente. Usamos encriptación de nivel bancario, respaldos automáticos diarios, y servidores certificados en México. Tus datos están protegidos 24/7.",
+                },
+                {
+                  question: "¿Puedo cancelar en cualquier momento?",
+                  answer: "Sí, no hay contratos ni penalizaciones. Puedes cancelar tu suscripción en cualquier momento desde tu panel de control. Mantendrás acceso hasta el final de tu período pagado.",
+                },
+                {
+                  question: "¿Ofrecen capacitación?",
+                  answer: "Sí, incluimos capacitación gratuita para tu equipo. Además, tenemos videos tutoriales, documentación completa y soporte en vivo para ayudarte en todo momento.",
+                },
+                {
+                  question: "¿Funciona sin internet?",
+                  answer: "ERP Taller requiere conexión a internet para funcionar. Sin embargo, la app móvil puede guardar datos temporalmente y sincronizarlos cuando recuperes la conexión.",
+                },
+                {
+                  question: "¿Incluye facturación electrónica?",
+                  answer: "Sí, el plan Profesional incluye facturación CFDI 4.0 totalmente integrada con timbrado automático. Cumple con todos los requisitos del SAT.",
+                },
+              ].map((faq, index) => (
+                <Card key={index} className="bg-white rounded-lg px-6 border border-slate-200">
+                  <CardContent className="p-4">
+                    <button
+                      onClick={() => toggleFAQ(index)}
+                      className="w-full flex items-center justify-between text-left"
+                    >
+                      <span className="font-semibold text-slate-900">{faq.question}</span>
+                      <ChevronDown
+                        className={`w-5 h-5 text-gray-500 transition-transform ${
+                          openFAQ === index ? 'transform rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                    {openFAQ === index && (
+                      <div className="mt-4 text-slate-600 leading-relaxed">{faq.answer}</div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA Section */}
+      <section className="py-20 bg-slate-900 text-white">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto text-center space-y-8">
+            <h2 className="text-4xl lg:text-5xl font-bold text-balance">¿Listo para modernizar tu taller?</h2>
+            <p className="text-xl text-slate-300 text-pretty">Únete a cientos de talleres que ya confían en nosotros</p>
+            <div>
               <Link href="/auth/register">
-                <Button className="w-full bg-cyan-500 hover:bg-cyan-600 text-white">
-                  Comenzar ahora
-                  <ArrowRight className="w-4 h-4 ml-2" />
+                <Button
+                  size="lg"
+                  className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white text-xl px-12 py-8 h-auto font-bold shadow-2xl"
+                >
+                  Comenzar Gratis - 7 Días
                 </Button>
               </Link>
-              </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 px-4 bg-gradient-to-r from-cyan-500/10 to-blue-500/10">
-        <div className="container mx-auto text-center">
-        <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <h2 className="text-4xl font-bold text-white mb-4">
-            ¿Listo para transformar tu taller?
-          </h2>
-            <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
-              Comienza tu prueba gratuita de 7 días. Sin compromisos, sin tarjeta de crédito.
-          </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link href="/auth/register">
-                <Button size="lg" className="bg-cyan-500 hover:bg-cyan-600 text-white px-8">
-              Probar Gratis - 7 días
-            </Button>
-          </Link>
-              <Button size="lg" variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-800">
-                Contactar Ventas
-              </Button>
+              <p className="text-sm text-slate-400 mt-4">No se requiere tarjeta de crédito</p>
             </div>
-        </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-700/50 bg-slate-900/50">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center mb-4 md:mb-0">
-              <Image
-                src="/eagles-logo-new.png"
-                alt="EAGLES SYSTEM"
-                width={120}
-                height={48}
-                className="h-10 w-auto object-contain"
-                priority
-              />
+      <footer className="bg-slate-950 text-slate-300 py-16">
+        <div className="container mx-auto px-4">
+          <div className="grid md:grid-cols-4 gap-8 mb-12">
+            {/* Brand */}
+            <div>
+              <h3 className="text-white font-bold text-xl mb-4">ERP Taller SaaS</h3>
+              <p className="text-sm leading-relaxed">
+                La solución completa para gestionar tu taller mecánico de manera profesional.
+              </p>
             </div>
-            <div className="text-slate-400 text-sm">
-              © 2024 ERP Taller. Todos los derechos reservados.
+
+            {/* Producto */}
+            <div>
+              <h4 className="text-white font-semibold mb-4">Producto</h4>
+              <ul className="space-y-2">
+                {['Características', 'Precios', 'Demo'].map((link, index) => (
+                  <li key={index}>
+                    <a href="#" className="hover:text-cyan-400 transition-colors text-sm">
+                      {link}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
+
+            {/* Empresa */}
+            <div>
+              <h4 className="text-white font-semibold mb-4">Empresa</h4>
+              <ul className="space-y-2">
+                {['Sobre nosotros', 'Blog', 'Contacto'].map((link, index) => (
+                  <li key={index}>
+                    <a href="#" className="hover:text-cyan-400 transition-colors text-sm">
+                      {link}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h4 className="text-white font-semibold mb-4">Legal</h4>
+              <ul className="space-y-2">
+                {['Privacidad', 'Términos', 'CFDI'].map((link, index) => (
+                  <li key={index}>
+                    <a href="#" className="hover:text-cyan-400 transition-colors text-sm">
+                      {link}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom section */}
+          <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-sm">© 2026 Eagles Sistems. Hecho en México.</p>
           </div>
         </div>
       </footer>
-    </div>
+    </main>
   )
 }
-
-const features = [
-  {
-    icon: Wrench,
-    title: "Gestión de Órdenes",
-    description: "Administra órdenes de trabajo de manera eficiente con seguimiento en tiempo real."
-  },
-  {
-    icon: Users,
-    title: "Control de Clientes",
-    description: "Mantén un registro completo de clientes, vehículos e historial de servicios."
-  },
-  {
-    icon: BarChart3,
-    title: "Reportes Avanzados",
-    description: "Analiza el rendimiento de tu taller con reportes detallados y métricas clave."
-  },
-  {
-    icon: Shield,
-    title: "Seguridad Garantizada",
-    description: "Tus datos están protegidos con encriptación de nivel empresarial."
-  },
-  {
-    icon: Clock,
-    title: "Tiempo Real",
-    description: "Actualizaciones instantáneas y sincronización en la nube."
-  },
-  {
-    icon: Database,
-    title: "Inventario Inteligente",
-    description: "Controla tu inventario con alertas automáticas de stock bajo."
-  }
-]
-
-const benefits = [
-  "Aumenta la productividad de tu taller hasta un 40%",
-  "Reduce errores administrativos y mejora la precisión",
-  "Acceso desde cualquier lugar, en cualquier momento",
-  "Soporte técnico dedicado incluido",
-  "Actualizaciones continuas sin costo adicional",
-  "Interfaz intuitiva, no se requiere capacitación extensa"
-]
-
-// Landing page complete
-// Last updated: 2025-10-25 20:40 - Deploy fix
-

@@ -18,32 +18,9 @@ export const SUPABASE_CONFIG = {
 // CONFIGURACIÓN DE LA APLICACIÓN
 // =====================================================
 
-/**
- * Obtener URL base de la aplicación
- * Detecta automáticamente en producción (Vercel) o usa variable de entorno
- */
-export function getAppUrl(): string {
-  // 1. Usar variable de entorno si está definida
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '') // Remover trailing slash
-  }
-  
-  // 2. En producción (Vercel), detectar automáticamente
-  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
-    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-  }
-  
-  // 3. Fallback solo para desarrollo local
-  if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:3000'
-  }
-  
-  // 4. Si no hay ninguna opción, lanzar error
-  throw new Error(
-    'NEXT_PUBLIC_APP_URL no está definida y no se puede detectar automáticamente. ' +
-    'Por favor, define NEXT_PUBLIC_APP_URL en tus variables de entorno.'
-  )
-}
+// Re-exportar getAppUrl desde el helper centralizado
+// Esto mantiene compatibilidad con código existente que importa desde aquí
+export { getAppUrl } from '@/lib/utils/env';
 
 export const APP_CONFIG = {
   // url se obtiene dinámicamente con getAppUrl() para evitar problemas de inicialización

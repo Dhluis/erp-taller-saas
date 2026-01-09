@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { getOrganizationSession, getWahaConfig, getSessionStatus } from '@/lib/waha-sessions';
+import { getAppUrl } from '@/lib/utils/env';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -106,11 +107,10 @@ export async function GET(request: NextRequest) {
     const sessionData = await sessionResponse.json();
     console.log('[Verify Webhook] ✅ Sesión encontrada en WAHA');
 
-    // Verificar webhooks configurados
+    // Verificar webhooks configurados (fail-fast si no está configurada)
     const webhooks = sessionData.config?.webhooks || [];
-    const expectedUrl = process.env.NEXT_PUBLIC_APP_URL 
-      ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
-      : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
+    // ✅ Usar getAppUrl() que maneja automáticamente la limpieza y fallbacks
+    const expectedUrl = `${getAppUrl()}/api/webhooks/whatsapp`;
     
     const webhookConfigured = webhooks.some((wh: any) => {
       const whUrl = wh.url || '';

@@ -49,6 +49,8 @@ import { useCustomers } from '@/hooks/useCustomers'
 
 import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown, FileText, Upload, X, Check } from 'lucide-react'
 import SignatureCanvas from 'react-signature-canvas'
+import { OrderCreationImageCapture, TemporaryImage } from './OrderCreationImageCapture'
+import { uploadWorkOrderImage } from '@/lib/supabase/work-order-storage'
 
 interface CreateWorkOrderModalProps {
 
@@ -215,10 +217,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 }: CreateWorkOrderModalProps) {
   // ✅ Usar context si no se proporciona como prop
   const { organizationId: contextOrganizationId } = useOrganization();
-  const { workshopId: sessionWorkshopId, hasMultipleWorkshops } = useSession();
+  const { workshopId: sessionWorkshopId, hasMultipleWorkshops, user, isReady } = useSession();
   const organizationId = propOrganizationId ?? contextOrganizationId;
 
-  const { user, profile } = useAuth()
+  const { profile } = useAuth()
 
   const supabase = createClient()
   
@@ -253,6 +255,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   // Estados para términos y condiciones
   const [termsFilePreview, setTermsFilePreview] = useState<string | null>(null) // URL del preview del PDF
   const signatureRef = useRef<SignatureCanvas>(null) // Referencia para el canvas de firma
+
+  // ✅ Estado para fotos temporales durante la creación
+  const [temporaryImages, setTemporaryImages] = useState<TemporaryImage[]>([])
 
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
 
@@ -434,7 +439,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     }
   }, [organizationId])
 
-  // ✅ Cargar empleados usando API route
+  // ✅ Cargar empleados asignables (MECANICO y ASESOR) desde tabla users
   const loadEmployees = useCallback(async () => {
     if (!organizationId) {
       console.warn('⚠️ [loadEmployees] No hay organizationId disponible')
@@ -446,51 +451,149 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     try {
       setLoadingEmployees(true)
 
-      // ✅ Usar API route en lugar de query directa
-      const response = await fetch('/api/employees?active=true', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al cargar empleados');
+      // ✅ FIX #1: Verificar que el usuario esté autenticado antes de ejecutar la query
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (!session || sessionError) {
+        console.error('❌ [loadEmployees] Usuario no autenticado:', {
+          sessionError,
+          hasSession: !!session,
+          userId: session?.user?.id,
+          organizationId
+        })
+        setEmployees([])
+        setLoadingEmployees(false)
+        return
       }
 
-      const result = await response.json();
-      const allEmployees = result.employees || result.data || [];
+      console.log('✅ [loadEmployees] Usuario autenticado:', {
+        userId: session.user.id,
+        email: session.user.email,
+        organizationId
+      })
+
+      // ✅ Buscar empleados asignables (MECANICO y ASESOR) en la tabla users
+      const assignableRoles = ['MECANICO', 'ASESOR']
+      console.log('🔍 [loadEmployees] Buscando empleados asignables con:', {
+        organizationId,
+        roles: assignableRoles,
+        is_active: true,
+        userId: session.user.id // ✅ Agregar userId al log
+      })
       
-      // Filtrar por workshop_id si es necesario (el filtrado por organization_id ya lo hace la API)
-      let filteredEmployees = allEmployees;
-      if (sessionWorkshopId && !hasMultipleWorkshops) {
-        filteredEmployees = allEmployees.filter((emp: any) => emp.workshop_id === sessionWorkshopId);
+      const { data: mechanics, error } = await supabase
+        .from('users')
+        .select('id, full_name, email, role, workshop_id, organization_id, is_active')
+        .eq('organization_id', organizationId)
+        .in('role', assignableRoles) // ✅ Incluir MECANICO y ASESOR
+        .eq('is_active', true)
+        .order('full_name', { ascending: true });
+
+      if (error) {
+        console.error('❌ [loadEmployees] Error cargando empleados:', {
+          error,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          userId: session.user.id, // ✅ Agregar userId al log
+          organizationId
+        })
+        throw error
       }
 
-      setEmployees(filteredEmployees);
-      console.log('✅ [loadEmployees] Empleados cargados:', {
-        count: filteredEmployees?.length || 0,
+      console.log('📊 [loadEmployees] Resultado raw de Supabase:', {
+        mechanicsCount: mechanics?.length || 0,
+        mechanics: mechanics,
+        error: error,
+        userId: session.user.id // ✅ Agregar userId al log
+      })
+
+      // ✅ DEBUG: Si no hay resultados, verificar sin filtro is_active
+      if (!mechanics || mechanics.length === 0) {
+        console.warn('⚠️ [loadEmployees] No se encontraron empleados activos. Verificando todos los empleados...')
+        const { data: allMechanics, error: allError } = await supabase
+          .from('users')
+          .select('id, full_name, email, role, is_active, organization_id')
+          .eq('organization_id', organizationId)
+          .in('role', assignableRoles) // ✅ Incluir MECANICO y ASESOR
+        
+        if (!allError && allMechanics) {
+          console.log('📋 [loadEmployees] Todos los empleados (sin filtro is_active):', {
+            total: allMechanics.length,
+            active: allMechanics.filter(m => m.is_active).length,
+            inactive: allMechanics.filter(m => !m.is_active).length,
+            byRole: {
+              MECANICO: allMechanics.filter(m => m.role === 'MECANICO').length,
+              ASESOR: allMechanics.filter(m => m.role === 'ASESOR').length
+            },
+            employees: allMechanics.map(m => ({
+              name: m.full_name || m.email,
+              is_active: m.is_active,
+              role: m.role
+            }))
+          })
+        }
+      }
+
+      // ✅ Filtrar por workshop_id si hay múltiples workshops Y el usuario tiene workshop asignado
+      // ✅ IMPORTANTE: Incluir empleados sin workshop asignado (workshop_id: null) para todos los workshops
+      let filteredMechanics = mechanics || [];
+      if (sessionWorkshopId && hasMultipleWorkshops) {
+        // Incluir empleados del workshop específico O sin workshop asignado (flotantes)
+        filteredMechanics = (mechanics || []).filter((mech: any) => 
+          mech.workshop_id === sessionWorkshopId || mech.workshop_id === null
+        );
+      }
+
+      // Mapear a formato compatible con el dropdown
+      const mappedMechanics = filteredMechanics.map((mech: any) => ({
+        id: mech.id,
+        name: mech.full_name || mech.email || 'Sin nombre',
+        email: mech.email,
+        role: mech.role || 'MECANICO'
+      }));
+
+      setEmployees(mappedMechanics);
+      console.log('✅ [loadEmployees] Empleados asignables cargados:', {
+        total: mappedMechanics?.length || 0,
+        byRole: {
+          MECANICO: mappedMechanics.filter(m => m.role === 'MECANICO').length,
+          ASESOR: mappedMechanics.filter(m => m.role === 'ASESOR').length
+        },
         organizationId: organizationId,
-        workshopId: sessionWorkshopId || 'sin asignar'
+        workshopId: sessionWorkshopId || 'sin filtro workshop',
+        hasMultipleWorkshops,
+        userId: session.user.id // ✅ Agregar userId al log
       })
     } catch (error) {
-      console.error('❌ [loadEmployees] Error cargando empleados:', error)
+      console.error('❌ [loadEmployees] Error cargando mecánicos:', error)
       setEmployees([])
     } finally {
       setLoadingEmployees(false)
     }
-  }, [organizationId, sessionWorkshopId, hasMultipleWorkshops])
+  }, [organizationId, sessionWorkshopId, hasMultipleWorkshops, supabase])
 
+  // ✅ FIX #2: Esperar a que la sesión esté lista antes de cargar empleados
   useEffect(() => {
-
-    if (open) {
-
+    if (open && isReady && user && organizationId) {
+      console.log('✅ [useEffect] Condiciones cumplidas para cargar empleados:', {
+        open,
+        isReady,
+        hasUser: !!user,
+        userId: user?.id,
+        organizationId
+      })
       loadSystemUsers()
       loadEmployees()
-
+    } else {
+      console.log('⏳ [useEffect] Esperando condiciones:', {
+        open,
+        isReady,
+        hasUser: !!user,
+        organizationId
+      })
     }
-
-  }, [open, loadSystemUsers, loadEmployees])
+  }, [open, isReady, user, organizationId, loadSystemUsers, loadEmployees])
 
   // ✅ Cargar datos de la cita cuando se proporciona appointmentId
   useEffect(() => {
@@ -641,8 +744,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         toast.error('Solo se permiten archivos PDF')
         return
       }
-      if (file.size > 5 * 1024 * 1024) { // 5MB
-        toast.error('El archivo es demasiado grande. Máximo 5MB')
+      if (file.size > 50 * 1024 * 1024) { // 50MB - coincidir con límite del bucket
+        toast.error('El archivo es demasiado grande. Máximo 50MB')
         return
       }
       setFormData(prev => ({ ...prev, terms_file: file, terms_type: 'file' }))
@@ -884,26 +987,93 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       let termsFileUrl: string | null = null
       if (formData.terms_type === 'file' && formData.terms_file) {
         try {
-          const fileExt = formData.terms_file.name.split('.').pop()
-          const fileName = `terms/${organizationId}/${Date.now()}.${fileExt}`
+          // Validar que el archivo es PDF
+          if (formData.terms_file.type !== 'application/pdf') {
+            throw new Error('El archivo debe ser un PDF válido')
+          }
+          
+          // Validar tamaño (50MB máximo)
+          const MAX_SIZE = 50 * 1024 * 1024
+          if (formData.terms_file.size > MAX_SIZE) {
+            throw new Error('El archivo es demasiado grande. Máximo 50MB')
+          }
+          
+          // Generar nombre de archivo seguro
+          const fileExt = formData.terms_file.name.split('.').pop()?.toLowerCase() || 'pdf'
+          const sanitizedOrgId = organizationId?.replace(/[^a-zA-Z0-9-]/g, '') || 'unknown'
+          const timestamp = Date.now()
+          const fileName = `terms/${sanitizedOrgId}/${timestamp}.${fileExt}`
+          
+          console.log('📤 [CreateWorkOrderModal] Subiendo PDF de términos:', {
+            fileName,
+            fileSize: formData.terms_file.size,
+            fileType: formData.terms_file.type,
+            bucket: 'work-order-documents',
+            organizationId: sanitizedOrgId
+          })
+          
           const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('documents')
+            .from('work-order-documents') // ✅ Cambiado de 'documents' a 'work-order-documents'
             .upload(fileName, formData.terms_file, {
-              contentType: 'application/pdf',
-              upsert: false
+              contentType: formData.terms_file.type || 'application/pdf', // ✅ Usar tipo real del archivo
+              upsert: false,
+              cacheControl: '3600'
             })
           
           if (uploadError) {
-            console.error('Error subiendo archivo PDF:', uploadError)
-            toast.error('Error al subir el archivo PDF')
+            console.error('❌ [CreateWorkOrderModal] Error subiendo archivo PDF:', {
+              error: uploadError,
+              message: uploadError.message,
+              statusCode: uploadError.statusCode,
+              statusText: uploadError.statusText,
+              errorContext: uploadError.errorContext,
+              fileName,
+              bucket: 'work-order-documents'
+            })
+            
+            // Mensaje de error más descriptivo
+            let errorMessage = uploadError.message || 'Error desconocido'
+            if (uploadError.statusCode === '400') {
+              errorMessage = 'El bucket no existe o el formato del archivo no es válido. Verifica la configuración del bucket.'
+            } else if (uploadError.statusCode === '403') {
+              errorMessage = 'No tienes permisos para subir archivos. Verifica las políticas RLS.'
+            } else if (uploadError.statusCode === '413') {
+              errorMessage = 'El archivo es demasiado grande. Máximo 50MB.'
+            }
+            
+            toast.error('Error al subir el archivo PDF', {
+              description: errorMessage
+            })
+            throw new Error(`Error al subir PDF: ${errorMessage}`)
+          } else if (!uploadData) {
+            console.error('❌ [CreateWorkOrderModal] Upload exitoso pero sin data:', uploadData)
+            toast.error('Error al subir el archivo PDF', {
+              description: 'El archivo se subió pero no se obtuvo información de respuesta'
+            })
+            throw new Error('Error: No se recibió información del archivo subido')
           } else {
+            console.log('✅ [CreateWorkOrderModal] PDF subido exitosamente:', uploadData.path)
             const { data: { publicUrl } } = supabase.storage
-              .from('documents')
+              .from('work-order-documents') // ✅ Cambiado de 'documents' a 'work-order-documents'
               .getPublicUrl(fileName)
+            
+            if (!publicUrl) {
+              console.error('❌ [CreateWorkOrderModal] No se pudo generar URL pública')
+              toast.error('Error al generar URL del archivo', {
+                description: 'El archivo se subió pero no se pudo obtener la URL pública'
+              })
+              throw new Error('Error: No se pudo generar URL pública del archivo')
+            }
+            
             termsFileUrl = publicUrl
+            console.log('🔗 [CreateWorkOrderModal] URL pública generada:', publicUrl)
           }
-        } catch (uploadErr) {
-          console.error('Error en upload de términos:', uploadErr)
+        } catch (uploadErr: any) {
+          console.error('❌ [CreateWorkOrderModal] Error en upload de términos:', uploadErr)
+          toast.error('Error al subir el archivo PDF', {
+            description: uploadErr?.message || 'Error desconocido al subir el archivo'
+          })
+          throw uploadErr // Re-lanzar para detener el proceso de creación
         }
       }
 
@@ -997,6 +1167,121 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         customer: formData.customerName,
         vehicle: `${formData.vehicleBrand} ${formData.vehicleModel}`
       });
+
+      // ✅ NUEVO: Subir fotos temporales después de crear la orden
+      const orderId = (newOrder as any).id
+      if (temporaryImages.length > 0 && orderId && organizationId && user?.id) {
+        console.log('📸 [CreateWorkOrderModal] Subiendo fotos temporales:', temporaryImages.length)
+        
+        try {
+          // Obtener token de sesión
+          const { data: { session } } = await supabase.auth.getSession()
+          const accessToken = session?.access_token
+
+          if (!accessToken) {
+            console.warn('⚠️ [CreateWorkOrderModal] No hay token de sesión para subir fotos')
+            toast.warning('Orden creada, pero no se pudieron subir las fotos (sin sesión)')
+          } else {
+            // ✅ OPTIMIZACIÓN MÓVIL: Mostrar progreso y subir eficientemente
+            const totalImages = temporaryImages.length
+            let uploadedCount = 0
+            let failedCount = 0
+            
+            // Detectar si es móvil para feedback y límites
+            const isMobile = typeof window !== 'undefined' && 
+              (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+               window.innerWidth < 768)
+            
+            // ✅ MÓVIL: Subir una por una para no saturar conexión
+            // Desktop: Puede subir 2 a la vez
+            const concurrentLimit = isMobile ? 1 : 2
+            
+            // Subir en lotes para evitar saturar
+            for (let i = 0; i < temporaryImages.length; i += concurrentLimit) {
+              const batch = temporaryImages.slice(i, i + concurrentLimit)
+              
+              await Promise.all(batch.map(async (tempImage, batchIndex) => {
+                try {
+                  const currentIndex = i + batchIndex + 1
+                  
+                  // ✅ Feedback visual durante subida (cada foto en móvil, cada 2 en desktop)
+                  if (isMobile || currentIndex % 2 === 0 || currentIndex === 1) {
+                    toast.loading(`Subiendo foto ${currentIndex}/${totalImages}...`, {
+                      id: `upload-img-${currentIndex}`
+                    })
+                  }
+                  
+                  // ✅ El archivo ya está comprimido por OrderCreationImageCapture
+                  // No necesitamos comprimir nuevamente aquí
+                  const uploadResult = await uploadWorkOrderImage(
+                    tempImage.file, // Ya está comprimido a ~800px y 50% calidad en móvil
+                    orderId,
+                    organizationId,
+                    user.id,
+                    'reception',
+                    tempImage.description || 'Foto de recepción',
+                    'reception',
+                    accessToken
+                  )
+
+                  if (!uploadResult.success) {
+                    console.error('❌ [CreateWorkOrderModal] Error subiendo foto:', uploadResult.error)
+                    failedCount++
+                    toast.error(`Error subiendo foto ${currentIndex}`, {
+                      id: `upload-img-${currentIndex}`,
+                      duration: 2000
+                    })
+                  } else {
+                    uploadedCount++
+                    // Solo mostrar toast de éxito en móvil para no saturar
+                    if (isMobile || currentIndex === totalImages) {
+                      toast.success(`Foto ${currentIndex}/${totalImages} subida`, {
+                        id: `upload-img-${currentIndex}`,
+                        duration: 1500
+                      })
+                    } else {
+                      toast.dismiss(`upload-img-${currentIndex}`)
+                    }
+                  }
+                } catch (photoError: any) {
+                  console.error('❌ [CreateWorkOrderModal] Error subiendo foto individual:', photoError)
+                  failedCount++
+                  toast.error(`Error subiendo foto ${i + batchIndex + 1}`, {
+                    id: `upload-img-${i + batchIndex + 1}`,
+                    duration: 2000
+                  })
+                }
+              }))
+              
+              // ✅ MÓVIL: Pequeña pausa entre lotes para no saturar conexión
+              if (isMobile && i + concurrentLimit < temporaryImages.length) {
+                await new Promise(resolve => setTimeout(resolve, 300))
+              }
+            }
+
+            // ✅ Resumen final
+            if (uploadedCount === totalImages) {
+              toast.success(`✅ Todas las fotos subidas (${uploadedCount}/${totalImages})`, { duration: 3000 })
+            } else if (uploadedCount > 0) {
+              toast.warning(`⚠️ ${uploadedCount}/${totalImages} fotos subidas. ${failedCount} fallaron.`, { duration: 4000 })
+            } else {
+              toast.error(`❌ No se pudieron subir las fotos`, { duration: 4000 })
+            }
+
+            // Limpiar fotos temporales
+            temporaryImages.forEach(img => {
+              if (img.preview) {
+                URL.revokeObjectURL(img.preview)
+              }
+            })
+            setTemporaryImages([])
+          }
+        } catch (uploadError: any) {
+          console.error('❌ [CreateWorkOrderModal] Error general subiendo fotos:', uploadError)
+          // No fallar toda la creación por errores de fotos
+          toast.error('Orden creada, pero hubo un error al subir algunas fotos')
+        }
+      }
 
       // ✅ NUEVO: Guardar inspección
 
@@ -1092,6 +1377,19 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     setErrors({})
 
     setTouched({})
+
+    // Limpiar fotos temporales
+    temporaryImages.forEach(img => {
+      if (img.preview) {
+        URL.revokeObjectURL(img.preview)
+      }
+    })
+    setTemporaryImages([])
+
+    // Limpiar firma
+    if (signatureRef.current) {
+      signatureRef.current.clear()
+    }
 
   }
 
@@ -1880,14 +2178,20 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           </div>
 
-          {/* Términos y Condiciones */}
+            {/* ✅ Fotos del Vehículo */}
+            <div className="pt-4 border-t border-slate-700">
+              <OrderCreationImageCapture
+                images={temporaryImages}
+                onImagesChange={setTemporaryImages}
+                maxImages={20}
+                disabled={loading}
+              />
+            </div>
 
-          <div className="space-y-4">
-
+            {/* ✅ Términos y Condiciones - DESPUÉS de las fotos */}
+            <div className="space-y-4 pt-4 border-t border-slate-700">
             <h3 className="font-semibold text-sm border-b pb-2">
-
               Términos y Condiciones
-
             </h3>
 
             {/* Selección de tipo: Texto o Archivo */}
@@ -2031,61 +2335,6 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             {errors.terms_accepted && (
               <p className="text-red-400 text-xs mt-1 ml-6">{errors.terms_accepted}</p>
             )}
-
-            {/* Firma digital del cliente */}
-            <div className="pt-4 border-t border-slate-700">
-              <Label className="text-sm font-medium mb-3 block">
-                Firma Digital del Cliente *
-              </Label>
-              <div className="bg-white rounded-lg p-4 border border-slate-600">
-                <SignatureCanvas
-                  ref={signatureRef}
-                  canvasProps={{
-                    width: 500,
-                    height: 150,
-                    className: 'signature-canvas w-full'
-                  }}
-                  onEnd={handleSignatureEnd}
-                  backgroundColor="white"
-                  penColor="black"
-                />
-              </div>
-              <div className="flex gap-2 mt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleClearSignature}
-                  disabled={loading || !formData.customer_signature}
-                  className="flex items-center gap-2"
-                >
-                  <X className="h-4 w-4" />
-                  Limpiar Firma
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSaveSignature}
-                  disabled={loading}
-                  className="flex items-center gap-2"
-                >
-                  <Check className="h-4 w-4" />
-                  Guardar Firma
-                </Button>
-              </div>
-              {formData.customer_signature && (
-                <div className="mt-2 flex items-center gap-2 text-sm text-green-400">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Firma guardada correctamente</span>
-                </div>
-              )}
-              {errors.customer_signature && (
-                <p className="text-red-400 text-xs mt-2">{errors.customer_signature}</p>
-              )}
-              <p className="text-xs text-slate-400 mt-2">
-                El cliente debe firmar digitalmente para autorizar el servicio
-              </p>
             </div>
 
             <div>
@@ -2202,11 +2451,31 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                         <SelectItem key={employee.id} value={employee.id} className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col gap-1">
 
-                            <User className="h-4 w-4" />
+                            <div className="flex items-center gap-2">
 
-                            {employee.name} ({employee.role})
+                              <User className="h-4 w-4" />
+
+                              <span className="font-medium">{employee.name}</span>
+
+                              {employee.role && (
+
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
+
+                                  {employee.role}
+
+                                </span>
+
+                              )}
+
+                            </div>
+
+                            {employee.email && (
+
+                              <span className="text-xs text-muted-foreground ml-6">{employee.email}</span>
+
+                            )}
 
                           </div>
 
@@ -2236,7 +2505,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 <p className="text-xs text-gray-500 mt-1">
 
-                  No hay empleados disponibles. Ve a la sección Empleados para agregar algunos.
+                  No hay empleados disponibles. Los empleados deben tener rol MECANICO o ASESOR en la tabla users.
 
                 </p>
 
@@ -2244,6 +2513,60 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             </div>
 
+          {/* ✅ Firma digital del cliente - AL FINAL, antes de los botones */}
+          <div className="pt-4 border-t border-slate-700">
+            <Label className="text-sm font-medium mb-3 block">
+              Firma Digital del Cliente *
+            </Label>
+            <div className="bg-white rounded-lg p-4 border border-slate-600">
+              <SignatureCanvas
+                ref={signatureRef}
+                canvasProps={{
+                  width: 500,
+                  height: 150,
+                  className: 'signature-canvas w-full'
+                }}
+                onEnd={handleSignatureEnd}
+                backgroundColor="white"
+                penColor="black"
+              />
+            </div>
+            <div className="flex gap-2 mt-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleClearSignature}
+                disabled={loading || !formData.customer_signature}
+                className="flex items-center gap-2"
+              >
+                <X className="h-4 w-4" />
+                Limpiar Firma
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSaveSignature}
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                <Check className="h-4 w-4" />
+                Guardar Firma
+              </Button>
+            </div>
+            {formData.customer_signature && (
+              <div className="mt-2 flex items-center gap-2 text-sm text-green-400">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Firma guardada correctamente</span>
+              </div>
+            )}
+            {errors.customer_signature && (
+              <p className="text-red-400 text-xs mt-2">{errors.customer_signature}</p>
+            )}
+            <p className="text-xs text-slate-400 mt-2">
+              El cliente debe firmar digitalmente para autorizar el servicio
+            </p>
           </div>
 
           {/* Botones */}

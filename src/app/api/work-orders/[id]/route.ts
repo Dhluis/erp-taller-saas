@@ -89,6 +89,7 @@ export async function GET(
       `)
       .eq('id', params.id)
       .eq('organization_id', organizationId)
+      .is('deleted_at', null) // ✅ SOFT DELETE: Solo mostrar órdenes activas
       .single();
 
     if (orderError || !order) {
@@ -222,6 +223,7 @@ export async function PUT(
       .select('id, organization_id')
       .eq('id', params.id)
       .eq('organization_id', organizationId)
+      .is('deleted_at', null) // ✅ SOFT DELETE: Solo actualizar órdenes activas
       .single();
 
     if (fetchError || !existingOrder) {
@@ -244,6 +246,7 @@ export async function PUT(
       })
       .eq('id', params.id)
       .eq('organization_id', organizationId) // ✅ Validar multi-tenancy
+      .is('deleted_at', null) // ✅ SOFT DELETE: Solo actualizar órdenes activas
       .select(`
         *,
         customer:customers(
@@ -340,33 +343,62 @@ export async function DELETE(
       );
     }
     
+    // ✅ VALIDACIÓN: Verificar que la orden existe y pertenece a la organización
+    const { data: existingOrder, error: orderError } = await supabaseAdmin
+      .from('work_orders')
+      .select('id, status, organization_id, deleted_at')
+      .eq('id', params.id)
+      .eq('organization_id', organizationId)
+      .is('deleted_at', null) // Solo verificar órdenes activas
+      .single();
+    
+    if (orderError || !existingOrder) {
+      console.error('❌ [API DELETE /work-orders/[id]] Orden no encontrada:', orderError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Orden de trabajo no encontrada o ya eliminada',
+        },
+        { status: 404 }
+      );
+    }
+    
     // ✅ VALIDACIÓN: Si es asesor, solo puede eliminar órdenes en 'reception' o 'cancelled'
     if (currentUserRole === 'ASESOR') {
-      const order = await getWorkOrderById(params.id);
-      
-      if (!order) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Orden de trabajo no encontrada',
-          },
-          { status: 404 }
-        );
-      }
-      
       const allowedStatuses = ['reception', 'cancelled'];
-      if (!allowedStatuses.includes(order.status)) {
+      if (!allowedStatuses.includes(existingOrder.status)) {
         return NextResponse.json(
           {
             success: false,
-            error: `No se puede eliminar una orden en estado "${order.status}". Solo se pueden eliminar órdenes en estado "reception" o "cancelled".`,
+            error: `No se puede eliminar una orden en estado "${existingOrder.status}". Solo se pueden eliminar órdenes en estado "reception" o "cancelled".`,
           },
           { status: 400 }
         );
       }
     }
     
-    await deleteWorkOrder(params.id);
+    // ✅ SOFT DELETE: Usar Service Role Client para hacer soft delete directamente
+    const { error: deleteError } = await supabaseAdmin
+      .from('work_orders')
+      .update({
+        deleted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', params.id)
+      .eq('organization_id', organizationId)
+      .is('deleted_at', null); // Solo eliminar si no está ya eliminada
+    
+    if (deleteError) {
+      console.error('❌ [API DELETE /work-orders/[id]] Error al eliminar orden:', deleteError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se pudo eliminar la orden',
+          details: deleteError.message,
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,

@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import ModernIcons from '@/components/icons/ModernIcons'
-import { ArrowRight, Loader2, AlertCircle } from 'lucide-react'
+import { ArrowRight, Loader2, AlertCircle, RefreshCw, CheckCircle } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 export default function WhatsAppPage() {
   const { organizationId, isLoading: sessionLoading } = useSession()
@@ -17,6 +18,14 @@ export default function WhatsAppPage() {
   const [loading, setLoading] = useState(true)
   const hasLoadedRef = useRef(false) // Ref para evitar recargas múltiples
   const configLoadedRef = useRef<string | null>(null) // Ref para trackear qué config se cargó
+  const [webhookStatus, setWebhookStatus] = useState<{
+    isConfigured: boolean;
+    isCorrect: boolean;
+    webhook?: any;
+    expectedOrgId?: string;
+    actualOrgId?: string;
+  } | null>(null)
+  const [verifyingWebhook, setVerifyingWebhook] = useState(false)
 
   console.log('[WhatsApp Page] 🔍 useSession hook:', {
     organizationId,
@@ -95,18 +104,47 @@ export default function WhatsAppPage() {
                             hasWahaConfig || 
                             (configData.services && configData.services.length > 0) ||
                             configData.provider ||
-                            configData.model
+                            configData.model ||
+                            configData.whatsapp_session_name
         
         console.log('[WhatsApp Page] 🔍 Análisis de configuración:', {
           enabled_original: configData.enabled,
           isConfigured,
+          hasWahaConfig,
+          hasProvider: !!configData.provider,
+          hasModel: !!configData.model,
+          hasServices: !!(configData.services && configData.services.length > 0),
+          hasSessionName: !!configData.whatsapp_session_name,
           will_set_enabled: isConfigured && !configData.enabled
         })
         
+        // Si tiene configuración pero enabled es false, actualizar en BD y en estado local
         if (isConfigured && !configData.enabled) {
-          // Si tiene configuración pero enabled es false, establecerlo como true
-          configData.enabled = true
-          console.log('[WhatsApp Page] 🔧 Configuración detectada, estableciendo enabled=true')
+          console.log('[WhatsApp Page] 🔧 Configuración detectada, actualizando enabled=true en BD...')
+          try {
+            // Actualizar enabled en la BD para que persista
+            const updateResponse = await fetch('/api/whatsapp/config', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              cache: 'no-store',
+              body: JSON.stringify({
+                enabled: true
+              })
+            })
+            
+            if (updateResponse.ok) {
+              console.log('[WhatsApp Page] ✅ enabled actualizado en BD')
+              configData.enabled = true
+            } else {
+              console.warn('[WhatsApp Page] ⚠️ No se pudo actualizar enabled en BD, usando valor local')
+              configData.enabled = true // Actualizar localmente de todas formas
+            }
+          } catch (updateError) {
+            console.error('[WhatsApp Page] ❌ Error actualizando enabled:', updateError)
+            // Continuar de todas formas con el valor local
+            configData.enabled = true
+          }
         }
         
         // Solo actualizar si los datos realmente cambiaron
@@ -280,6 +318,69 @@ export default function WhatsAppPage() {
     router.push('/dashboard/whatsapp/test')
   }
 
+  // Verificar webhook (solo desarrollo/admin)
+  const handleVerifyWebhook = useCallback(async () => {
+    if (!organizationId) return
+
+    setVerifyingWebhook(true)
+    try {
+      const response = await fetch('/api/whatsapp/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store',
+        body: JSON.stringify({ action: 'verify_webhook' })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setWebhookStatus({
+          isConfigured: data.isConfigured,
+          isCorrect: data.isCorrect,
+          webhook: data.webhook,
+          expectedOrgId: data.expectedOrgId,
+          actualOrgId: data.actualOrgId
+        })
+      } else {
+        console.error('Error verificando webhook:', data.error)
+      }
+    } catch (error: any) {
+      console.error('Error verificando webhook:', error)
+    } finally {
+      setVerifyingWebhook(false)
+    }
+  }, [organizationId])
+
+  // Actualizar webhook (solo si está incorrecto)
+  const handleUpdateWebhook = useCallback(async () => {
+    if (!organizationId) return
+
+    setVerifyingWebhook(true)
+    try {
+      const response = await fetch('/api/whatsapp/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store',
+        body: JSON.stringify({ action: 'force_update_webhook' })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Re-verificar después de actualizar
+        await handleVerifyWebhook()
+      } else {
+        console.error('Error actualizando webhook:', data.error)
+      }
+    } catch (error: any) {
+      console.error('Error actualizando webhook:', error)
+    } finally {
+      setVerifyingWebhook(false)
+    }
+  }, [organizationId, handleVerifyWebhook])
+
   // Mostrar loader mientras se carga la sesión
   if (sessionLoading) {
     return (
@@ -335,8 +436,36 @@ export default function WhatsAppPage() {
                   </CardDescription>
                 </div>
                 {(() => {
-                  const isEnabled = config?.enabled
-                  console.log('[WhatsApp Page] 🎨 Renderizando badge, config?.enabled:', isEnabled, 'config existe:', !!config)
+                  // Determinar si está activo basándose en si tiene configuración real
+                  // Verificar si tiene configuración WAHA en policies
+                  const policies = config?.policies || {}
+                  const hasWahaConfig = !!(policies.waha_api_url || policies.WAHA_API_URL)
+                  
+                  // Si tiene provider, model, services, WAHA config, o enabled, considerarlo activo
+                  const hasConfig = !!(
+                    config?.provider || 
+                    config?.model || 
+                    (config?.services && config.services && config.services.length > 0) ||
+                    hasWahaConfig ||
+                    config?.whatsapp_session_name ||
+                    config?.enabled
+                  )
+                  
+                  // Está activo si tiene enabled=true O si tiene cualquier configuración
+                  const isEnabled = config?.enabled || hasConfig
+                  
+                  console.log('[WhatsApp Page] 🎨 Renderizando badge:', {
+                    'config?.enabled': config?.enabled,
+                    'hasWahaConfig': hasWahaConfig,
+                    'hasProvider': !!config?.provider,
+                    'hasModel': !!config?.model,
+                    'hasServices': !!(config?.services && config.services.length > 0),
+                    'hasSessionName': !!config?.whatsapp_session_name,
+                    'hasConfig': hasConfig,
+                    'isEnabled': isEnabled,
+                    'config existe': !!config
+                  })
+                  
                   return (
                     <Badge variant={isEnabled ? "success" : "secondary"}>
                       {isEnabled ? (
@@ -361,33 +490,64 @@ export default function WhatsAppPage() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                   <p className="text-text-secondary mt-2">Cargando configuración...</p>
                 </div>
-              ) : config ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-sm text-text-secondary mb-1">Provider</p>
-                    <p className="font-medium">{config.provider || 'No configurado'}</p>
+              ) : (() => {
+                // Verificar si realmente tiene configuración (misma lógica que el badge)
+                const policies = config?.policies || {}
+                const hasWahaConfig = !!(policies.waha_api_url || policies.WAHA_API_URL)
+                const hasConfig = !!(
+                  config?.provider || 
+                  config?.model || 
+                  (config?.services && config.services.length > 0) ||
+                  hasWahaConfig ||
+                  config?.whatsapp_session_name
+                )
+                
+                // Si tiene configuración, mostrar detalles
+                if (hasConfig) {
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-text-secondary mb-1">Provider</p>
+                        <p className="font-medium">{config.provider || 'No configurado'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-text-secondary mb-1">Modelo</p>
+                        <p className="font-medium">{config.model || 'No configurado'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-text-secondary mb-1">Servicios configurados</p>
+                        <p className="font-medium">{(config.services || []).length} servicios</p>
+                      </div>
+                      {hasWahaConfig && (
+                        <div>
+                          <p className="text-sm text-text-secondary mb-1">WAHA Config</p>
+                          <p className="font-medium text-green-600">✓ Configurado</p>
+                        </div>
+                      )}
+                      {config?.whatsapp_session_name && (
+                        <div>
+                          <p className="text-sm text-text-secondary mb-1">Sesión WhatsApp</p>
+                          <p className="font-medium">{config.whatsapp_session_name}</p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+                
+                // Si no tiene configuración, mostrar mensaje de entrenar
+                return (
+                  <div className="text-center py-8">
+                    <ModernIcons.Bot size={48} className="mx-auto mb-4" />
+                    <p className="text-text-secondary mb-4">
+                      No hay configuración del asistente. Entrénalo para comenzar.
+                    </p>
+                    <Button onClick={handleTrainAgent}>
+                      <ModernIcons.Entrenamiento size={16} className="mr-2" />
+                      Entrenar Asistente
+                    </Button>
                   </div>
-                  <div>
-                    <p className="text-sm text-text-secondary mb-1">Modelo</p>
-                    <p className="font-medium">{config.model || 'No configurado'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-text-secondary mb-1">Servicios configurados</p>
-                    <p className="font-medium">{(config.services || []).length} servicios</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <ModernIcons.Bot size={48} className="mx-auto mb-4" />
-                  <p className="text-text-secondary mb-4">
-                    No hay configuración del asistente. Entrénalo para comenzar.
-                  </p>
-                  <Button onClick={handleTrainAgent}>
-                    <ModernIcons.Entrenamiento size={16} className="mr-2" />
-                    Entrenar Asistente
-                  </Button>
-                </div>
-              )}
+                )
+              })()}
             </CardContent>
           </Card>
 
@@ -495,6 +655,110 @@ export default function WhatsAppPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Sección: Diagnóstico de Configuración Multi-Tenant (solo desarrollo/admin) */}
+          {(process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_ENABLE_WEBHOOK_DEBUG === 'true') && (
+            <Card className="mt-6 border-blue-200 bg-blue-50/50">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  🔧 Configuración Multi-Tenant
+                </CardTitle>
+                <CardDescription>
+                  Diagnóstico y gestión de webhooks con Organization ID dinámico
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Indicador de estado */}
+                  {webhookStatus && (
+                    <div className="flex items-center gap-2">
+                      {webhookStatus.isCorrect ? (
+                        <Badge variant="success" className="flex items-center gap-1">
+                          <CheckCircle size={14} />
+                          Webhook configurado correctamente
+                        </Badge>
+                      ) : webhookStatus.isConfigured ? (
+                        <Badge variant="warning" className="flex items-center gap-1">
+                          <AlertCircle size={14} />
+                          Webhook con Organization ID incorrecto
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive" className="flex items-center gap-1">
+                          <AlertCircle size={14} />
+                          Sin webhook configurado
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Información del webhook */}
+                  {webhookStatus?.webhook && (
+                    <div className="bg-white p-4 rounded-md border space-y-2 text-sm">
+                      <p className="font-semibold mb-2">📋 Configuración del Webhook:</p>
+                      <div className="space-y-1 text-gray-600">
+                        <p><strong>URL:</strong> <code className="bg-gray-100 px-1 rounded text-xs">{webhookStatus.webhook.url}</code></p>
+                        <p><strong>Eventos:</strong> {webhookStatus.webhook.events?.join(', ') || 'N/A'}</p>
+                        {webhookStatus.webhook.customHeaders && webhookStatus.webhook.customHeaders.length > 0 && (
+                          <div>
+                            <strong>Custom Headers:</strong>
+                            <ul className="list-disc list-inside mt-1">
+                              {webhookStatus.webhook.customHeaders.map((header: any, idx: number) => (
+                                <li key={idx}>
+                                  <code className="bg-gray-100 px-1 rounded text-xs">{header.name}</code>: <code className="bg-gray-100 px-1 rounded text-xs">{header.value}</code>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                      {webhookStatus.expectedOrgId && (
+                        <div className="mt-3 pt-3 border-t">
+                          <p><strong>Organization ID esperado:</strong> <code className="bg-gray-100 px-1 rounded text-xs">{webhookStatus.expectedOrgId}</code></p>
+                          {webhookStatus.actualOrgId && (
+                            <p><strong>Organization ID actual:</strong> <code className="bg-gray-100 px-1 rounded text-xs">{webhookStatus.actualOrgId}</code></p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Botones de acción */}
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleVerifyWebhook}
+                      variant="outline"
+                      size="sm"
+                      disabled={verifyingWebhook || !organizationId}
+                    >
+                      <RefreshCw size={14} className={`mr-2 ${verifyingWebhook ? 'animate-spin' : ''}`} />
+                      Verificar Webhook
+                    </Button>
+                    {webhookStatus && !webhookStatus.isCorrect && (
+                      <Button
+                        onClick={handleUpdateWebhook}
+                        variant="outline"
+                        size="sm"
+                        disabled={verifyingWebhook || !organizationId}
+                      >
+                        <CheckCircle size={14} className="mr-2" />
+                        Actualizar Webhook
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Alert informativo */}
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Información</AlertTitle>
+                    <AlertDescription className="text-sm">
+                      Esta herramienta verifica que el webhook esté configurado correctamente con el Organization ID dinámico. 
+                      Cada organización debe tener su propio webhook configurado con su Organization ID específico.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

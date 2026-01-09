@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { API_CONSTANTS } from '@/lib/constants';
+import { getAppUrl } from '@/lib/utils/env';
 
 /**
  * Utilidades para middleware de autenticación
@@ -260,15 +261,13 @@ export const CorsUtils = {
   isOriginAllowed: (origin: string | null): boolean => {
     if (!origin) return true; // Permitir requests sin origen (ej: Postman)
     
-    // Obtener URL de la aplicación dinámicamente
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                   (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 'http://localhost:3000')
+    // ✅ Usar getAppUrl() que maneja automáticamente la limpieza y fallbacks
+    const appUrl = getAppUrl();
     
     const allowedOrigins = [
       appUrl,
       'http://localhost:3000', // Desarrollo local
       'http://localhost:3001', // Desarrollo alternativo
-      process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, ''), // Sin trailing slash
     ].filter(Boolean) as string[]; // Filtrar valores undefined/null
     
     return allowedOrigins.includes(origin);

@@ -24,13 +24,24 @@ import {
   CalendarDays
 } from "lucide-react"
 import { 
-  getAllInvoices, 
   getInvoiceStats, 
   createInvoice,
   updateInvoice,
   deleteInvoice,
-  Invoice
+  SalesInvoice
 } from "@/lib/supabase/quotations-invoices"
+import { useInvoices } from '@/hooks/useInvoices'
+import { Pagination } from '@/components/ui/pagination'
+
+// Alias para compatibilidad
+type Invoice = SalesInvoice & {
+  vehicle_info?: string
+  service_description?: string
+  total?: number
+  tax_amount?: number
+  paid_date?: string
+  payment_method?: string
+}
 
 // Interfaz para el formulario de factura
 interface CreateInvoiceFormData {
@@ -43,6 +54,8 @@ interface CreateInvoiceFormData {
   total: number;
   due_date: string;
   notes?: string;
+  service_description?: string;
+  payment_method?: string;
 }
 import { getCustomers } from "@/lib/supabase/customers"
 
@@ -68,7 +81,8 @@ export default function FacturacionPage() {
   }
   
   const [searchTerm, setSearchTerm] = useState("")
-  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(20)
   const [customers, setCustomers] = useState<any[]>([])
   const [stats, setStats] = useState({
     totalInvoices: 0,
@@ -79,10 +93,12 @@ export default function FacturacionPage() {
     totalPaid: 0,
     totalPending: 0
   })
-  const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Hook de invoices con paginación
+  const { invoices, pagination, isLoading, error, mutate } = useInvoices(page, pageSize)
   
   // Form data
   const [formData, setFormData] = useState<CreateInvoiceFormData>({
@@ -97,148 +113,36 @@ export default function FacturacionPage() {
     notes: ''
   })
 
+  // Cargar estadísticas y clientes al montar (no paginados)
   useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = async () => {
-    setIsLoading(true)
-    try {
-      const [invoicesData, statsData, customersData] = await Promise.all([
-        getAllInvoices(),
-        getInvoiceStats(),
-        getCustomers()
-      ])
-      
-      // Si no hay datos de Supabase, usar datos mock
-      if (invoicesData.length === 0) {
-        console.log('Using mock data for invoices')
-        const mockInvoices = [
-          {
-            id: '1',
-            invoice_number: 'INV-001',
-            customer_id: '1',
-            vehicle_id: '1',
-            notes: 'Cambio de aceite, filtro de aire y revisión general',
-            status: 'paid' as const,
-            total: 986,
-            subtotal: 850,
-            tax_amount: 136,
-            due_date: '2025-01-25',
-            paid_date: '2025-01-20',
-            payment_method: 'Efectivo',
-            created_at: '2025-01-15T10:00:00Z',
-            updated_at: '2025-01-20T14:30:00Z',
-            notes: 'Cliente satisfecho con el servicio'
-          },
-          {
-            id: '2',
-            invoice_number: 'INV-002',
-            customer_id: '2',
-            vehicle_id: '2',
-            notes: 'Reparación de frenos delanteros',
-            status: 'sent' as const,
-            total: 1392,
-            subtotal: 1200,
-            tax_amount: 192,
-            due_date: '2025-01-30',
-            paid_date: undefined,
-            payment_method: undefined,
-            created_at: '2025-01-16T09:00:00Z',
-            updated_at: '2025-01-16T09:00:00Z',
-            notes: 'Pendiente de pago'
-          },
-          {
-            id: '3',
-            invoice_number: 'INV-003',
-            customer_id: '3',
-            vehicle_id: '3',
-            notes: 'Alineación y balanceo',
-            status: 'overdue' as const,
-            total: 754,
-            subtotal: 650,
-            tax_amount: 104,
-            due_date: '2025-01-15',
-            paid_date: undefined,
-            payment_method: undefined,
-            created_at: '2025-01-10T11:00:00Z',
-            updated_at: '2025-01-10T11:00:00Z',
-            notes: 'Factura vencida'
-          }
-        ]
-        setInvoices(mockInvoices)
-      } else {
-        setInvoices(invoicesData)
-      }
-      
-      // Si no hay estadísticas, calcular desde los datos de facturas
-      if (statsData.totalInvoices === 0 && invoicesData.length > 0) {
-        const calculatedStats = {
-          totalInvoices: invoicesData.length,
-          pendingInvoices: invoicesData.filter(i => i.status === 'sent').length,
-          paidInvoices: invoicesData.filter(i => i.status === 'paid').length,
-          overdueInvoices: invoicesData.filter(i => i.status === 'overdue').length,
-          totalAmount: invoicesData.reduce((sum, i) => sum + i.total, 0),
-          totalPaid: invoicesData.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.total, 0),
-          totalPending: invoicesData.filter(i => i.status === 'sent').reduce((sum, i) => sum + i.total, 0)
-        }
-        setStats(calculatedStats)
-      } else {
+    const loadStatsAndCustomers = async () => {
+      try {
+        const [statsData, customersData] = await Promise.all([
+          getInvoiceStats(),
+          getCustomers()
+        ])
+        
         setStats(statsData)
-      }
-      
-      // Si no hay clientes, usar datos mock
-      if (customersData.length === 0) {
-        console.log('Using mock data for customers')
-        const mockCustomers = [
-          { id: '1', name: 'Juan Pérez', email: 'juan@email.com', phone: '+52 81 1111 2222' },
-          { id: '2', name: 'María García', email: 'maria@email.com', phone: '+52 55 3333 4444' },
-          { id: '3', name: 'Carlos Ruiz', email: 'carlos@email.com', phone: '+52 33 5555 6666' }
-        ]
-        setCustomers(mockCustomers)
-      } else {
-        setCustomers(customersData)
-      }
-    } catch (error) {
-      console.error('Error loading data:', error)
-      // En caso de error total, usar datos mock
-      const mockInvoices = [
-        {
-          id: '1',
-          invoice_number: 'INV-001',
-          customer_name: 'Juan Pérez',
-          customer_rfc: 'PEPJ800101ABC',
-          vehicle_info: 'Toyota Corolla 2020 - ABC123',
-          service_description: 'Cambio de aceite, filtro de aire y revisión general',
-          status: 'paid' as const,
-          total: 986,
-          subtotal: 850,
-          tax_amount: 136,
-          due_date: '2025-01-25',
-          paid_date: '2025-01-20',
-          payment_method: 'Efectivo',
-          created_at: '2025-01-15T10:00:00Z',
-          updated_at: '2025-01-20T14:30:00Z',
-          notes: 'Cliente satisfecho con el servicio'
+        
+        // Si no hay clientes, usar datos mock
+        if (customersData.length === 0) {
+          console.log('Using mock data for customers')
+          const mockCustomers = [
+            { id: '1', name: 'Juan Pérez', email: 'juan@email.com', phone: '+52 81 1111 2222' },
+            { id: '2', name: 'María García', email: 'maria@email.com', phone: '+52 55 3333 4444' },
+            { id: '3', name: 'Carlos Ruiz', email: 'carlos@email.com', phone: '+52 33 5555 6666' }
+          ]
+          setCustomers(mockCustomers)
+        } else {
+          setCustomers(customersData)
         }
-      ]
-      setInvoices(mockInvoices)
-      setStats({
-        totalInvoices: 1,
-        pendingInvoices: 0,
-        paidInvoices: 1,
-        overdueInvoices: 0,
-        totalAmount: 986,
-        totalPaid: 986,
-        totalPending: 0
-      })
-      setCustomers([
-        { id: '1', name: 'Juan Pérez', email: 'juan@email.com', phone: '+52 81 1111 2222' }
-      ])
-    } finally {
-      setIsLoading(false)
+      } catch (error) {
+        console.error('Error loading stats and customers:', error)
+      }
     }
-  }
+    
+    loadStatsAndCustomers()
+  }, [])
 
   const filteredInvoices = invoices.filter(
     (invoice) =>
@@ -293,12 +197,6 @@ export default function FacturacionPage() {
       let result
       if (editingInvoice) {
         result = await updateInvoice(editingInvoice.id, formData)
-        if (result) {
-          const updatedInvoices = invoices.map(inv => 
-            inv.id === editingInvoice.id ? { ...inv, ...formData } : inv
-          )
-          setInvoices(updatedInvoices)
-        }
       } else {
         result = await createInvoice({
           customer_id: formData.customer_id,
@@ -307,9 +205,6 @@ export default function FacturacionPage() {
           due_date: formData.due_date,
           notes: formData.notes
         })
-        if (result) {
-          setInvoices([result, ...invoices])
-        }
       }
       
       if (result) {
@@ -327,7 +222,8 @@ export default function FacturacionPage() {
           notes: ''
         })
         
-        // Recargar estadísticas
+        // Recargar invoices y estadísticas
+        await mutate()
         const statsData = await getInvoiceStats()
         setStats(statsData)
         
@@ -351,9 +247,9 @@ export default function FacturacionPage() {
       vehicle_id: invoice.vehicle_id,
       status: invoice.status,
       subtotal: invoice.subtotal || 0,
-      tax_amount: invoice.tax_amount || 0,
-      total: invoice.total || 0,
-      due_date: invoice.due_date.split('T')[0],
+      tax_amount: invoice.tax_amount || invoice.tax || 0,
+      total: invoice.total || invoice.total_amount || 0,
+      due_date: invoice.due_date ? (typeof invoice.due_date === 'string' ? invoice.due_date.split('T')[0] : invoice.due_date) : new Date().toISOString().split('T')[0],
       notes: invoice.notes || ''
     })
     setIsDialogOpen(true)
@@ -364,7 +260,8 @@ export default function FacturacionPage() {
       try {
         const success = await updateInvoice(invoice.id, { ...invoice, status: 'paid' })
         if (success) {
-          setInvoices(invoices.map(inv => inv.id === invoice.id ? { ...inv, status: 'paid' } : inv))
+          // Recargar invoices y estadísticas
+          await mutate()
           const statsData = await getInvoiceStats()
           setStats(statsData)
           alert('Factura marcada como pagada')
@@ -383,7 +280,8 @@ export default function FacturacionPage() {
       try {
         const success = await deleteInvoice(id)
         if (success) {
-          setInvoices(invoices.filter(inv => inv.id !== id))
+          // Recargar invoices y estadísticas
+          await mutate()
           const statsData = await getInvoiceStats()
           setStats(statsData)
           alert('Factura eliminada exitosamente')
@@ -543,12 +441,12 @@ export default function FacturacionPage() {
                     </td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
                       <div className="text-sm">
-                        <div className="font-medium">{invoice.vehicle_info}</div>
-                        <div className="text-muted-foreground">{invoice.service_description}</div>
+                        <div className="font-medium">{invoice.vehicle_info || invoice.vehicle?.brand || 'N/A'}</div>
+                        <div className="text-muted-foreground">{invoice.service_description || invoice.description || 'Sin descripción'}</div>
                       </div>
                     </td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
-                      <span className="font-medium">${(invoice.total || 0).toLocaleString()}</span>
+                      <span className="font-medium">${(invoice.total || invoice.total_amount || 0).toLocaleString()}</span>
                     </td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{getStatusBadge(invoice.status)}</td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
@@ -596,6 +494,23 @@ export default function FacturacionPage() {
             </table>
           </div>
         </div>
+        
+        {/* Pagination Component */}
+        {!isLoading && invoices.length > 0 && pagination && (
+          <Pagination
+            currentPage={pagination.page || 1}
+            totalPages={pagination.totalPages || 1}
+            pageSize={pagination.pageSize || pageSize}
+            total={pagination.total || 0}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              // El pageSize está fijo en 20, pero podemos actualizar si es necesario
+              console.log('Page size change requested:', size)
+            }}
+            loading={isLoading}
+            showPageSizeSelector={false}
+          />
+        )}
       </div>
 
       {/* Modal de Creación/Edición de Factura */}

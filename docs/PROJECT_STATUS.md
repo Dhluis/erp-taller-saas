@@ -1,8 +1,9 @@
 # Estado del Proyecto - Versión Estable
 
 **Fecha de Documentación:** Enero 2025  
-**Commit Estable:** `773cb2a` - "confeti"  
-**Versión:** Base estable con funcionalidades principales implementadas
+**Commit Estable Anterior:** `773cb2a` - "confeti"  
+**Commit Estable Actual:** `c6cd22c` - "fix(whatsapp): mostrar 'Activo' cuando hay configuración aunque enabled sea false"  
+**Versión:** Base estable con funcionalidades principales implementadas + Fix de visualización WhatsApp
 
 ---
 
@@ -199,7 +200,8 @@ Para problemas conocidos o mejoras:
 ## 📄 Licencia y Créditos
 
 Proyecto privado - ERP Taller SaaS  
-Versión estable documentada: `773cb2a`
+Versión estable documentada anterior: `773cb2a` (confeti)  
+Versión estable actual: `c6cd22c` (fix visualización WhatsApp)
 
 ---
 

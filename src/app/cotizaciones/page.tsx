@@ -79,30 +79,7 @@ export default function QuotationsPage() {
   })
 
   // ✅ VALIDACIÓN DEFENSIVA: Garantizar que quotations siempre sea un array
-  console.log('🔍 [QuotationsPage] PRE-RENDER - Verificando todos los datos:')
-  console.log('  quotations:', quotations)
-  console.log('  quotations type:', typeof quotations)
-  console.log('  is array:', Array.isArray(quotations))
-  console.log('  loading:', loading)
-  console.log('  error:', error)
-  console.log('  pagination:', pagination)
-  
-  // Verificar todas las propiedades del hook
-  const hookData = { quotations, loading, error, pagination }
-  Object.keys(hookData).forEach(key => {
-    const value = (hookData as any)[key]
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      console.log(`  ${key} (object):`, value)
-      if (value.items) {
-        console.log(`    ${key}.items:`, value.items, 'isArray:', Array.isArray(value.items))
-      }
-    }
-  })
-  
   const safeQuotations: Quotation[] = Array.isArray(quotations) ? quotations : []
-  
-  console.log('🔍 [QuotationsPage] safeQuotations length:', safeQuotations.length)
-  console.log('🔍 [QuotationsPage] safeQuotations:', safeQuotations)
 
   // ✅ Debounce para búsqueda
   const [searchTerm, setSearchTerm] = useState('')

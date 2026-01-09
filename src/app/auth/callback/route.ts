@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     console.warn('⚠️ [Callback] SUPABASE_SERVICE_ROLE_KEY no disponible, usando anon key')
   }
 
-  // Función helper para verificar si el usuario tiene organización
+  // Función helper para verificar si el usuario tiene organización (con retry)
   async function checkUserOrganization(userId: string, userEmail?: string): Promise<string | null> {
     console.log('🔍 [Callback] Verificando organización para usuario:', userId)
     
@@ -76,57 +76,109 @@ export async function GET(request: NextRequest) {
     
     console.log(`📋 [Callback] Usando cliente ${clientType} para verificar perfil`)
     
-    try {
-      // Intentar buscar por auth_user_id primero
-      let { data: profile, error } = await client
-        .from('users')
-        .select('organization_id')
-        .eq('auth_user_id', userId)
-        .single()
+    // ✅ Retry hasta 3 veces con delay de 500ms entre intentos
+    // Esto permite que el perfil se sincronice si hay un delay en la creación
+    const maxRetries = 3
+    const retryDelay = 500
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Intentar buscar por auth_user_id primero
+        let { data: profile, error } = await client
+          .from('users')
+          .select('organization_id')
+          .eq('auth_user_id', userId)
+          .single()
 
-      if (error && error.code === 'PGRST116') {
-        // No encontrado por auth_user_id, intentar por email
-        if (userEmail) {
-          console.log('🔍 [Callback] Buscando por email:', userEmail)
-          const { data: profileByEmail, error: emailError } = await client
-            .from('users')
-            .select('organization_id')
-            .eq('email', userEmail)
-            .single()
-          
-          if (!emailError && profileByEmail) {
-            profile = profileByEmail
-            error = null
+        if (error && error.code === 'PGRST116') {
+          // No encontrado por auth_user_id, intentar por email
+          if (userEmail) {
+            console.log(`🔍 [Callback] Intento ${attempt}/${maxRetries} - Buscando por email:`, userEmail)
+            const { data: profileByEmail, error: emailError } = await client
+              .from('users')
+              .select('organization_id')
+              .eq('email', userEmail)
+              .single()
+            
+            if (!emailError && profileByEmail) {
+              profile = profileByEmail
+              error = null
+            }
           }
         }
-      }
 
-      if (error) {
-        console.warn('⚠️ [Callback] Error buscando perfil:', error.message, error.code)
+        // Si encontramos el perfil y tiene organización, retornar
+        if (!error && profile?.organization_id) {
+          console.log(`✅ [Callback] Perfil encontrado en intento ${attempt}:`, { 
+            organization_id: profile.organization_id 
+          })
+          return profile.organization_id
+        }
+
+        // Si no encontramos el perfil pero aún hay intentos, esperar y reintentar
+        if (error && attempt < maxRetries) {
+          console.log(`⏳ [Callback] Perfil no encontrado en intento ${attempt}, reintentando en ${retryDelay}ms...`)
+          await new Promise(resolve => setTimeout(resolve, retryDelay))
+          continue
+        }
+
+        // Si llegamos aquí, no se encontró el perfil después de todos los intentos
+        if (error) {
+          console.warn(`⚠️ [Callback] Perfil no encontrado después de ${maxRetries} intentos:`, error.message, error.code)
+          return null
+        }
+
+        // Si el perfil existe pero no tiene organización
+        if (profile && !profile.organization_id) {
+          console.warn('⚠️ [Callback] Perfil encontrado pero sin organización')
+          return null
+        }
+
+      } catch (err: any) {
+        console.error(`❌ [Callback] Excepción en intento ${attempt}:`, err.message)
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, retryDelay))
+          continue
+        }
         return null
       }
-
-      console.log('✅ [Callback] Perfil encontrado:', { 
-        organization_id: profile?.organization_id 
-      })
-      
-      return profile?.organization_id || null
-    } catch (err: any) {
-      console.error('❌ [Callback] Excepción verificando perfil:', err.message)
-      return null
     }
+
+    return null
   }
 
   // Función helper para crear respuesta de redirección con cookies
   function createRedirectResponse(url: string, sourceResponse?: NextResponse): NextResponse {
     const redirectResponse = NextResponse.redirect(new URL(url, origin))
     
-    // Copiar las cookies de sesión a la nueva respuesta
+    // ✅ CRÍTICO: Copiar TODAS las cookies de sesión con TODAS sus opciones
     if (sourceResponse) {
       sourceResponse.cookies.getAll().forEach(cookie => {
-        redirectResponse.cookies.set(cookie.name, cookie.value)
+        redirectResponse.cookies.set(cookie.name, cookie.value, {
+          path: cookie.path || '/',
+          domain: cookie.domain,
+          maxAge: cookie.maxAge,
+          httpOnly: cookie.httpOnly,
+          secure: cookie.secure ?? (process.env.NODE_ENV === 'production'),
+          sameSite: (cookie.sameSite as any) || 'lax'
+        })
       })
     }
+    
+    // ✅ También copiar cookies del request (si las hay)
+    request.cookies.getAll().forEach(cookie => {
+      // Solo copiar si no existe ya en la respuesta
+      if (!redirectResponse.cookies.get(cookie.name)) {
+        redirectResponse.cookies.set(cookie.name, cookie.value, {
+          path: cookie.path || '/',
+          domain: cookie.domain,
+          maxAge: cookie.maxAge,
+          httpOnly: cookie.httpOnly,
+          secure: cookie.secure ?? (process.env.NODE_ENV === 'production'),
+          sameSite: (cookie.sameSite as any) || 'lax'
+        })
+      }
+    })
     
     return redirectResponse
   }
@@ -137,9 +189,21 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabaseAuth.auth.exchangeCodeForSession(code)
 
     if (!error && data?.session) {
-      console.log('✅ [Callback] OAuth exitoso, sesión establecida:', {
-        userId: data.session.user.id,
-        email: data.session.user.email
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('✅ [Callback] OAuth exitoso, sesión establecida')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('User ID:', data.session.user.id)
+      console.log('Email:', data.session.user.email)
+      console.log('Session exists:', !!data.session)
+      console.log('Access token exists:', !!data.session.access_token)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      
+      // ✅ IMPORTANTE: Forzar refresco de cookies antes de continuar
+      // Asegurar que las cookies de sesión estén establecidas correctamente
+      const sessionCheck = await supabaseAuth.auth.getSession()
+      console.log('🍪 [Callback] Sesión verificada después de exchangeCode:', {
+        hasSession: !!sessionCheck.data.session,
+        userId: sessionCheck.data.session?.user.id
       })
       
       // Verificar si el usuario tiene organización
@@ -152,20 +216,35 @@ export async function GET(request: NextRequest) {
       // Cerrar sesión y redirigir al login con mensaje claro
       if (!organizationId) {
         console.warn('⚠️ [Callback] Usuario OAuth sin organización - debe crear cuenta primero')
+        console.warn('⚠️ [Callback] Email del usuario:', data.session.user.email)
+        console.warn('⚠️ [Callback] User ID:', data.session.user.id)
         
-        // Cerrar sesión para que use el flujo normal de registro
-        await supabaseAuth.auth.signOut()
+        // NO cerrar sesión inmediatamente - mantener la sesión para que el usuario pueda registrarse
+        // Solo redirigir al registro con el email pre-llenado
         
-        // Redirigir al login con mensaje claro
-        const loginUrl = new URL('/auth/login', origin)
-        loginUrl.searchParams.set('message', 'Debes crear tu cuenta primero para usar Google. Por favor, regístrate gratis.')
-        loginUrl.searchParams.set('email', data.session.user.email || '')
-        loginUrl.searchParams.set('action', 'register')
-        return NextResponse.redirect(loginUrl)
+        // Redirigir al registro con mensaje claro
+        const registerUrl = new URL('/auth/register', origin)
+        registerUrl.searchParams.set('email', data.session.user.email || '')
+        registerUrl.searchParams.set('message', 'Para usar Google como método de inicio de sesión, primero debes crear tu cuenta. Completa el registro con tu email.')
+        registerUrl.searchParams.set('from', 'oauth')
+        
+        const redirectResponse = NextResponse.redirect(registerUrl)
+        console.log('🔄 [Callback] Redirigiendo al registro porque usuario no tiene organización')
+        return redirectResponse
       }
       
       console.log('✅ [Callback] Usuario con organización, redirigiendo a:', next)
-      return createRedirectResponse(next, response)
+      
+      // ✅ FIX: Agregar parámetro para indicar que viene de OAuth callback
+      const redirectUrl = new URL(next, origin)
+      redirectUrl.searchParams.set('oauth_callback', 'true')
+      
+      // ✅ CRÍTICO: Usar createRedirectResponse que copia las cookies correctamente
+      // Esto asegura que todas las cookies de sesión se transfieran al redirect
+      const redirectResponse = createRedirectResponse(redirectUrl.toString(), response)
+      
+      console.log('🍪 [Callback] Redirigiendo con cookies de sesión a:', redirectUrl.toString())
+      return redirectResponse
     } else if (error) {
       console.error('❌ [Callback] Error en OAuth:', error)
     }

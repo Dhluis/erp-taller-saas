@@ -234,29 +234,17 @@ export async function GET(request: NextRequest) {
           console.log(`[GET /api/work-orders] 🔍 Employees en la organización:`, allEmployees);
           console.log(`[GET /api/work-orders] 🔍 Error al buscar todos:`, allEmployeesError);
           
-          // Si no tiene employee_id, retornar array vacío (no puede ver órdenes)
-          return NextResponse.json({
-            success: true,
-            data: [],
-            count: 0,
-            message: 'No se encontró empleado asociado a este usuario',
-            debug: {
-              userEmail: user.email,
-              organizationId,
-              employeeError: employeeError?.message,
-              availableEmployees: allEmployees?.length || 0
-            }
-          });
+          // ✅ OPCIÓN 1: Si no tiene employee_id, NO filtrar por assigned_to
+          // Devolver TODAS las órdenes de la organización (consistencia con /api/orders/stats)
+          console.log(`[GET /api/work-orders] ℹ️ Mecánico sin employee_id - mostrando TODAS las órdenes de la organización`);
+          assignedEmployeeId = null; // Asegurar que es null para no aplicar filtro
         }
       } catch (error) {
         console.error('[GET /api/work-orders] ❌ Error buscando employee:', error);
-        // En caso de error, retornar array vacío para no romper la aplicación
-        return NextResponse.json({
-          success: true,
-          data: [],
-          count: 0,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
+        // ✅ OPCIÓN 1: En caso de error, continuar sin filtrar por assigned_to
+        // Mostrar TODAS las órdenes de la organización (consistencia con /api/orders/stats)
+        console.log(`[GET /api/work-orders] ℹ️ Error buscando employee - mostrando TODAS las órdenes de la organización`);
+        assignedEmployeeId = null; // Asegurar que es null para no aplicar filtro
       }
     }
     
@@ -291,14 +279,17 @@ export async function GET(request: NextRequest) {
               license_plate
             )
           `, { count: 'exact' }) // ✅ IMPORTANTE: count para paginación
-          .eq('organization_id', organizationId);
+          .eq('organization_id', organizationId)
+          .is('deleted_at', null); // ✅ SOFT DELETE: Solo mostrar órdenes activas
         
-        // ✅ Si es mecánico, filtrar solo órdenes asignadas a él
+        // ✅ Si es mecánico Y tiene employee_id, filtrar solo órdenes asignadas a él
+        // Si NO tiene employee_id, mostrar TODAS las órdenes de la organización (Opción 1)
         if (userRole === 'MECANICO' && assignedEmployeeId) {
           console.log(`[GET /api/work-orders] 🔍 Filtrando órdenes por assigned_to: ${assignedEmployeeId}`);
           query = query.eq('assigned_to', assignedEmployeeId);
         } else if (userRole === 'MECANICO' && !assignedEmployeeId) {
-          console.log(`[GET /api/work-orders] ⚠️ Mecánico sin assignedEmployeeId, no se pueden mostrar órdenes`);
+          console.log(`[GET /api/work-orders] ℹ️ Mecánico sin employee_id - mostrando TODAS las órdenes de la organización (sin filtro assigned_to)`);
+          // NO aplicar filtro - mostrar todas las órdenes de la organización
         }
 
         // ✅ Filtros
@@ -389,6 +380,7 @@ export async function GET(request: NextRequest) {
     // ✅ DEBUG: Log para mecánicos
     if (userRole === 'MECANICO') {
       console.log(`[GET /api/work-orders] 📊 Órdenes encontradas para mecánico: ${orders?.length || 0}`);
+      console.log(`[GET /api/work-orders] 🔍 Filtro aplicado: ${assignedEmployeeId ? `assigned_to = ${assignedEmployeeId}` : 'NINGUNO (todas las órdenes de la organización)'}`);
       if (orders && orders.length > 0) {
         console.log(`[GET /api/work-orders] 📋 Primeras órdenes:`, orders.slice(0, 3).map((o: any) => ({
           id: o.id,
@@ -522,12 +514,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ✅ VALIDACIÓN DE SEGURIDAD: Si el body incluye workshop_id, validar que pertenece a la organización
-    if (body.workshop_id) {
+    // ✅ NORMALIZAR workshop_id: convertir 'sin asignar', strings vacíos o inválidos a null
+    let workshopId: string | null = null;
+    if (body.workshop_id && 
+        body.workshop_id !== 'sin asignar' && 
+        body.workshop_id !== '' && 
+        body.workshop_id !== 'none' &&
+        typeof body.workshop_id === 'string' &&
+        body.workshop_id.length > 0) {
+      // Validar que es un UUID válido
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(body.workshop_id)) {
+        workshopId = body.workshop_id;
+      }
+    }
+
+    // ✅ VALIDACIÓN DE SEGURIDAD: Si workshop_id es válido, validar que pertenece a la organización
+    if (workshopId) {
       const { data: workshop, error: workshopError } = await supabaseAdmin
         .from('workshops')
         .select('id')
-        .eq('id', body.workshop_id)
+        .eq('id', workshopId)
         .eq('organization_id', organizationId)
         .single();
 
@@ -547,16 +554,30 @@ export async function POST(request: NextRequest) {
     const orderData = {
       ...body,
       organization_id: organizationId, // ✅ Forzar del usuario autenticado
-      // workshop_id se mantiene del body si existe y es válido, o se omite
+      workshop_id: workshopId, // ✅ Siempre null o UUID válido, nunca 'sin asignar'
     };
 
-    console.log('[POST /api/work-orders] 📦 Creando orden:', {
-      hasWorkshop: !!orderData.workshop_id,
-      workshopId: orderData.workshop_id || 'sin asignar',
-      organizationId: orderData.organization_id
-    });
+    // ✅ LOGGING DETALLADO: Mostrar TODOS los campos que se van a insertar
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('[POST /api/work-orders] 📦 DATOS PARA INSERTAR:');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('organization_id:', orderData.organization_id);
+    console.log('workshop_id:', orderData.workshop_id || 'NULL');
+    console.log('customer_id:', orderData.customer_id);
+    console.log('vehicle_id:', orderData.vehicle_id);
+    console.log('description:', orderData.description?.substring(0, 50) + '...');
+    console.log('status:', orderData.status || 'pending (default)');
+    console.log('assigned_to:', orderData.assigned_to || 'NULL');
+    console.log('estimated_completion:', orderData.estimated_completion || 'NULL');
+    console.log('total_amount:', orderData.total_amount || 0);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('[POST /api/work-orders] 📋 TODOS LOS CAMPOS (JSON):', JSON.stringify(orderData, null, 2));
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-    const order = await createWorkOrder(orderData);
+    // ✅ USAR CLIENTE AUTENTICADO para que RLS funcione correctamente
+    // El cliente autenticado tiene auth.uid() disponible para las políticas RLS
+    const authenticatedSupabase = createClientFromRequest(request);
+    const order = await createWorkOrder(orderData, authenticatedSupabase);
 
     return NextResponse.json(
       {

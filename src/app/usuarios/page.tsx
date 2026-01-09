@@ -282,7 +282,21 @@ export default function UsuariosPage() {
       })
 
       if (!response.ok) {
+        // Intentar parsear JSON, pero manejar el caso cuando no hay contenido
+        let result
+        try {
+          const text = await response.text()
+          result = text ? JSON.parse(text) : { error: `Error ${response.status}` }
+        } catch (parseError) {
+          result = { error: `Error ${response.status}: ${response.statusText}` }
+        }
+        throw new Error(result.error || result.message || 'Error al actualizar usuario')
+      }
+
         const result = await response.json()
+      
+      // Verificar si la respuesta tiene success: false
+      if (result.success === false) {
         throw new Error(result.error || 'Error al actualizar usuario')
       }
 
@@ -293,7 +307,7 @@ export default function UsuariosPage() {
     } catch (error: any) {
       console.error('Error actualizando usuario:', error)
       toast.error('Error al actualizar usuario', {
-        description: error.message,
+        description: error.message || 'Error desconocido',
       })
     }
   }

@@ -141,20 +141,33 @@ export default function OrdenesPage() {
       try {
         const { createClient } = await import('@/lib/supabase/client');
         const supabase = createClient();
+        
+        // ✅ Buscar en la tabla users (no system_users) y usar full_name
         const { data: users, error } = await supabase
-          .from('system_users')
-          .select('id, first_name, last_name, role, email')
-          .in('id', assignedUserIds);
+          .from('users')
+          .select('id, full_name, role, email, organization_id')
+          .in('id', assignedUserIds)
+          .eq('organization_id', organizationId || ''); // ✅ Filtrar por organización para seguridad
         
         if (!error && users) {
           const usersMap = users.reduce((acc: Record<string, any>, user: any) => {
-            acc[user.id] = user;
+            acc[user.id] = {
+              id: user.id,
+              full_name: user.full_name,
+              first_name: user.full_name?.split(' ')[0] || '', // Para compatibilidad con el render
+              last_name: user.full_name?.split(' ').slice(1).join(' ') || '', // Para compatibilidad con el render
+              role: user.role,
+              email: user.email
+            };
             return acc;
           }, {});
           setAssignedUsersMap(usersMap);
+          console.log('✅ [Ordenes] Usuarios asignados cargados:', Object.keys(usersMap).length);
+        } else if (error) {
+          console.error('❌ [Ordenes] Error cargando usuarios asignados:', error);
         }
       } catch (error) {
-        console.error('Error cargando usuarios:', error);
+        console.error('❌ [Ordenes] Error cargando usuarios:', error);
       }
     };
 
@@ -554,13 +567,13 @@ export default function OrdenesPage() {
                               <User className="w-4 h-4 text-slate-400" />
                               <div>
                                 <div className="text-sm text-white">
-                                  {assignedUser.first_name} {assignedUser.last_name}
+                                  {assignedUser.full_name || `${assignedUser.first_name || ''} ${assignedUser.last_name || ''}`.trim() || 'Sin nombre'}
                                 </div>
                                 <div className="text-xs text-slate-400">
                                   {assignedUser.role === 'ADMIN' ? 'Administrador' :
                                     assignedUser.role === 'ASESOR' ? 'Asesor' :
                                     assignedUser.role === 'MECANICO' ? 'Mecánico' :
-                                    assignedUser.role}
+                                    assignedUser.role || 'Sin rol'}
                                 </div>
                               </div>
                             </div>
@@ -675,20 +688,16 @@ export default function OrdenesPage() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="bg-[#0F172A] border-slate-700">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar orden?</AlertDialogTitle>
+            <AlertDialogTitle>¿Eliminar orden de trabajo?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción eliminará la orden{' '}
-              <span className="font-semibold text-white">
-                {orderPendingDelete?.customer?.name ?? 'Sin cliente'}
-              </span>{' '}
-              y todos sus datos. No se puede deshacer.
+              Esta acción no se puede deshacer. La orden y todos sus datos asociados serán eliminados permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
-              className="bg-red-500 hover:bg-red-600 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white"
               disabled={isDeleting}
             >
               {isDeleting ? 'Eliminando...' : 'Eliminar'}

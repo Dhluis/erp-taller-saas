@@ -129,7 +129,12 @@ export async function getSupplierStats(): Promise<SupplierStats> {
 /**
  * Crear proveedor
  */
-export async function createSupplier(supplier: CreateSupplier): Promise<Supplier> {
+export async function createSupplier(organizationId: string, supplier: CreateSupplier): Promise<Supplier> {
+  // Validar que organizationId no sea vacío
+  if (!organizationId || organizationId.trim() === '') {
+    throw new Error('organizationId es requerido para crear un proveedor')
+  }
+
   return executeWithErrorHandling(
     async () => {
       const client = getSupabaseClient()
@@ -138,7 +143,7 @@ export async function createSupplier(supplier: CreateSupplier): Promise<Supplier
         .from('suppliers')
         .insert({
           ...supplier,
-          organization_id: '00000000-0000-0000-0000-000000000000', // Default organization for now
+          organization_id: organizationId,
           is_active: supplier.is_active ?? true
         })
         .select()

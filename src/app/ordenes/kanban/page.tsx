@@ -1,13 +1,25 @@
 'use client';
 
-import { useState } from 'react';
-import { KanbanBoard } from '@/components/ordenes/KanbanBoard';
+import { useState, Suspense, lazy } from 'react';
 import { useOrganization } from '@/lib/context/SessionContext';
-import { Search, RefreshCw, Plus } from 'lucide-react';
+import { Search, RefreshCw, Plus, Loader2 } from 'lucide-react';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
-import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
 import { Button } from '@/components/ui/button';
+
+// ✅ OPTIMIZACIÓN: Lazy loading de componentes pesados para reducir bundle inicial
+const KanbanBoard = lazy(() => import('@/components/ordenes/KanbanBoard').then(module => ({ default: module.KanbanBoard })));
+const CreateWorkOrderModal = lazy(() => import('@/components/ordenes/CreateWorkOrderModal').then(module => ({ default: module.default })));
+
+// ✅ Componente de loading para lazy loaded components
+const KanbanLoading = () => (
+  <div className="flex items-center justify-center h-96">
+    <div className="text-center space-y-4">
+      <Loader2 className="w-8 h-8 animate-spin text-cyan-500 mx-auto" />
+      <p className="text-slate-400">Cargando Kanban...</p>
+    </div>
+  </div>
+);
 
 export default function KanbanPage() {
   const { organizationId, loading: orgLoading, ready } = useOrganization();
@@ -80,27 +92,33 @@ export default function KanbanPage() {
               </div>
             </div>
 
-      {/* ✅ Pasamos organizationId, searchQuery, refreshKey y onCreateOrder */}
-      <KanbanBoard 
-        organizationId={organizationId} 
-        searchQuery={searchQuery}
-        refreshKey={refreshKey}
-        onCreateOrder={() => setIsCreateModalOpen(true)}
-      />
+      {/* ✅ Pasamos organizationId, searchQuery, refreshKey y onCreateOrder - Lazy loaded */}
+      <Suspense fallback={<KanbanLoading />}>
+        <KanbanBoard 
+          organizationId={organizationId} 
+          searchQuery={searchQuery}
+          refreshKey={refreshKey}
+          onCreateOrder={() => setIsCreateModalOpen(true)}
+        />
+      </Suspense>
 
-      {/* Modal de crear orden */}
-      <CreateWorkOrderModal
-        open={isCreateModalOpen}
-        onOpenChange={setIsCreateModalOpen}
-        onSuccess={() => {
-          console.log('✅ [KanbanPage] Orden creada exitosamente, actualizando...');
-          setRefreshKey(prev => {
-            const newKey = prev + 1;
-            console.log('🔄 [KanbanPage] refreshKey actualizado después de crear orden:', newKey);
-            return newKey;
-          });
-        }}
-      />
+      {/* Modal de crear orden - Lazy loaded */}
+      {isCreateModalOpen && (
+        <Suspense fallback={null}>
+          <CreateWorkOrderModal
+            open={isCreateModalOpen}
+            onOpenChange={setIsCreateModalOpen}
+            onSuccess={() => {
+              console.log('✅ [KanbanPage] Orden creada exitosamente, actualizando...');
+              setRefreshKey(prev => {
+                const newKey = prev + 1;
+                console.log('🔄 [KanbanPage] refreshKey actualizado después de crear orden:', newKey);
+                return newKey;
+              });
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

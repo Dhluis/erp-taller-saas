@@ -1,211 +1,120 @@
-/**
- * POST /api/whatsapp/force-webhook
- * Fuerza la actualización del webhook de una sesión
- * Endpoint de debug/administración con logging detallado
- */
-
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseServiceClient } from '@/lib/supabase/server';
-import { getOrganizationSession, getWahaConfig, updateSessionWebhook } from '@/lib/waha-sessions';
-
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { getAppUrl } from '@/lib/utils/env';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🔧 [Force Webhook] INICIANDO ACTUALIZACIÓN');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    const tenantContext = await getTenantContext(request);
+    const organizationId = tenantContext?.organizationId;
 
-    // Obtener usuario autenticado
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !authUser) {
-      console.error('[Force Webhook] Usuario no autenticado');
-      return NextResponse.json({
-        success: false,
-        error: 'No autorizado'
-      }, { status: 401 });
+    if (!organizationId) {
+      return NextResponse.json({ error: 'No authorized' }, { status: 401 });
     }
 
-    // Obtener organizationId del perfil del usuario
-    const supabaseAdmin = getSupabaseServiceClient();
-    const { data: userProfile, error: profileError } = await supabaseAdmin
-      .from('users')
-      .select('organization_id')
-      .eq('auth_user_id', authUser.id)
-      .single();
-    
-    if (profileError || !userProfile || !userProfile.organization_id) {
-      console.error('[Force Webhook] Error obteniendo perfil:', profileError);
-      return NextResponse.json({
-        success: false,
-        error: 'No se pudo obtener la organización del usuario'
-      }, { status: 403 });
-    }
-    
-    const organizationId = userProfile.organization_id;
-    console.log('🏢 Organization ID:', organizationId);
+    const { getOrganizationSession } = await import('@/lib/waha-sessions');
+    const sessionName = await getOrganizationSession(organizationId);
 
-    // Obtener nombre de sesión
-    let sessionName: string;
-    try {
-      sessionName = await getOrganizationSession(organizationId);
-      console.log('📱 Session Name:', sessionName);
-    } catch (sessionError: any) {
-      console.error('[Force Webhook] ❌ Error obteniendo sesión:', sessionError);
-      return NextResponse.json({
-        success: false,
-        error: `Error obteniendo sesión: ${sessionError.message}`,
-        sessionName: null
+    const WAHA_API_URL = process.env.NEXT_PUBLIC_WAHA_API_URL || process.env.WAHA_API_URL;
+    const WAHA_API_KEY = process.env.NEXT_PUBLIC_WAHA_API_KEY || process.env.WAHA_API_KEY;
+    
+    // ✅ Usar getAppUrl() que maneja automáticamente la limpieza y fallbacks
+    const APP_URL = getAppUrl();
+
+    if (!WAHA_API_URL || !WAHA_API_KEY) {
+      return NextResponse.json({ 
+        error: 'Missing configuration',
+        missing: {
+          WAHA_API_URL: !WAHA_API_URL,
+          WAHA_API_KEY: !WAHA_API_KEY,
+        }
       }, { status: 500 });
     }
 
-    // Obtener configuración WAHA
-    let wahaConfig: { url: string; key: string };
-    try {
-      wahaConfig = await getWahaConfig(organizationId);
-      console.log('🌐 WAHA URL:', wahaConfig.url);
-      console.log('🔑 WAHA Key length:', wahaConfig.key.length);
-    } catch (configError: any) {
-      console.error('[Force Webhook] ❌ Error obteniendo configuración WAHA:', configError);
-      return NextResponse.json({
-        success: false,
-        error: `Error obteniendo configuración WAHA: ${configError.message}`,
-        sessionName
-      }, { status: 500 });
-    }
-
-    const webhookUrl = process.env.NEXT_PUBLIC_APP_URL 
-      ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
-      : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
+    const webhookUrl = `${APP_URL}/api/webhooks/whatsapp`;
     
-    console.log('📍 Webhook URL completa:', webhookUrl);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
-    // Actualizar webhook usando la función auxiliar
-    console.log('📤 Actualizando webhook en WAHA...');
-    try {
-      await updateSessionWebhook(sessionName, organizationId);
-      console.log('✅ Webhook actualizado exitosamente');
-    } catch (updateError: any) {
-      console.error('❌ Error actualizando webhook:', {
-        message: updateError.message,
-        stack: updateError.stack
-      });
-      return NextResponse.json({
-        success: false,
-        error: `Error actualizando webhook: ${updateError.message}`,
-        details: process.env.NODE_ENV === 'development' ? updateError.stack : undefined
-      }, { status: 500 });
-    }
-
-    // Verificar que se configuró correctamente
-    console.log('🔍 Verificando configuración actualizada...');
-    try {
-      const verifyResponse = await fetch(`${wahaConfig.url}/api/sessions/${sessionName}`, {
+    // Intentar primero con el endpoint de configuración directo
+    let response = await fetch(
+      `${WAHA_API_URL}/api/${sessionName}/config`,
+      {
+        method: 'PUT',
         headers: {
-          'X-Api-Key': wahaConfig.key,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!verifyResponse.ok) {
-        const errorText = await verifyResponse.text().catch(() => 'Error desconocido');
-        console.error('⚠️ No se pudo verificar la sesión:', {
-          status: verifyResponse.status,
-          error: errorText
-        });
-        
-        return NextResponse.json({
-          success: true,
-          message: 'Webhook actualizado pero no se pudo verificar',
-          webhookUrl,
-          warning: 'No se pudo verificar la configuración actualizada'
-        });
-      }
-
-      const sessionData = await verifyResponse.json();
-      const webhooks = sessionData.config?.webhooks || [];
-      
-      const webhookConfigured = webhooks.some((wh: any) => {
-        const whUrl = wh.url || '';
-        return whUrl === webhookUrl || whUrl.replace(/\/$/, '') === webhookUrl.replace(/\/$/, '');
-      });
-
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('✅ VERIFICACIÓN COMPLETADA');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('📊 Webhooks configurados:', webhooks.length);
-      console.log('✅ Webhook correcto:', webhookConfigured ? 'SÍ' : 'NO');
-      console.log('📋 Detalles:', JSON.stringify(webhooks, null, 2));
-      console.log('🔌 Estado de sesión:', sessionData.status || 'N/A');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
-      return NextResponse.json({
-        success: true,
-        message: 'Webhook actualizado correctamente',
-        webhookUrl,
-        webhookConfigured,
-        webhooksConfigured: webhooks.length,
-        sessionData: {
-          status: sessionData.status || 'N/A',
-          webhooks: webhooks.map((wh: any) => ({
-            url: wh.url,
-            events: wh.events || [],
-            downloadMedia: wh.downloadMedia || false,
-            downloadMediaOnMessage: wh.downloadMediaOnMessage || false
-          }))
+          'Content-Type': 'application/json',
+          'X-Api-Key': WAHA_API_KEY
         },
-        verification: {
-          passed: webhookConfigured,
-          expectedUrl: webhookUrl,
-          foundUrl: webhooks.find((wh: any) => wh.url)?.url || null
-        }
-      });
+        body: JSON.stringify({
+          webhooks: [{
+            url: webhookUrl,
+            events: ['message', 'session.status'],
+            downloadMedia: false
+          }]
+        })
+      }
+    );
 
-    } catch (verifyError: any) {
-      console.error('⚠️ Error durante verificación:', {
-        message: verifyError.message,
-        stack: verifyError.stack
-      });
-      
-      // Aun si falla la verificación, el webhook podría haberse actualizado correctamente
-      return NextResponse.json({
-        success: true,
-        message: 'Webhook actualizado (verificación falló)',
-        webhookUrl,
-        warning: `Error durante verificación: ${verifyError.message}`
-      });
+    let endpointUsed = 'config';
+
+    // Si falla, intentar con el endpoint de sesiones
+    if (!response.ok) {
+      console.log('[Force Webhook] PUT a /config falló, intentando PATCH a /sessions...');
+      response = await fetch(
+        `${WAHA_API_URL}/api/sessions/${sessionName}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Api-Key': WAHA_API_KEY
+          },
+          body: JSON.stringify({
+            config: {
+              webhooks: [{
+                url: webhookUrl,
+                events: ['message', 'session.status'],
+                downloadMedia: false
+              }]
+            }
+          })
+        }
+      );
+      endpointUsed = 'sessions';
     }
 
-  } catch (error: any) {
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.error('❌ ERROR EN FORCE WEBHOOK');
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.error('Error:', error);
-    console.error('Stack:', error.stack);
-    
+    const result = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to update webhook',
+        status: response.status,
+        wahaResponse: result,
+        attemptedEndpoints: [
+          `PUT ${WAHA_API_URL}/api/${sessionName}/config`,
+          `PATCH ${WAHA_API_URL}/api/sessions/${sessionName}`
+        ]
+      }, { status: response.status });
+    }
+
     return NextResponse.json({
-      success: false,
-      error: error.message || 'Error desconocido',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      success: true,
+      sessionName,
+      oldWebhookUrl: 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp',
+      newWebhookUrl: webhookUrl,
+      wahaResponse: result,
+      endpointUsed
+    });
+
+  } catch (error) {
+    console.error('[Force Webhook] Error:', error);
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }
 
 /**
  * GET /api/whatsapp/force-webhook
- * Verificar que el endpoint existe
+ * Permite llamar el endpoint desde el navegador (que SÍ tiene la sesión autenticada)
+ * Ejecuta la misma lógica que POST
  */
-export async function GET() {
-  return NextResponse.json({
-    status: 'ok',
-    message: 'Force webhook endpoint is active',
-    timestamp: new Date().toISOString(),
-    endpoint: '/api/whatsapp/force-webhook'
-  });
+export async function GET(request: NextRequest) {
+  return POST(request);
 }
-

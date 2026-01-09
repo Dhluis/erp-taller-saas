@@ -19,6 +19,8 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [registeredEmail, setRegisteredEmail] = useState('')
+  const [userExistsError, setUserExistsError] = useState(false) // Para mostrar botón de login
+  const [registeredPassword, setRegisteredPassword] = useState('') // Guardar contraseña para uso posterior
   
   // Datos del taller
   const [workshopName, setWorkshopName] = useState('')
@@ -135,7 +137,6 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-
       // PASO 1: Crear la organización
       const { data: organization, error: orgError } = await supabase
         .from('organizations')
@@ -151,27 +152,191 @@ export default function RegisterPage() {
       if (orgError) throw orgError
 
       // PASO 2: Registrar usuario con la organización (flujo normal para todos)
-      const { user, session, error: signUpError } = await signUpWithProfile({
+      console.log('🔄 [Register] Llamando a signUpWithProfile...')
+      const result = await signUpWithProfile({
         email,
         password: password,
         fullName,
         organizationId: organization.id
       })
 
-      if (signUpError) {
-        // Si falla el registro, eliminar la organización creada
-        await supabase.from('organizations').delete().eq('id', organization.id)
-        throw signUpError
+      console.log('🔍 [Register] Resultado de signUpWithProfile:', {
+        hasUser: !!result.user,
+        hasSession: !!result.session,
+        hasError: !!result.error,
+        userId: result.user?.id,
+        errorMessage: result.error?.message,
+        errorStatus: result.error?.status
+      })
+
+      // ✅ CRÍTICO: Si el usuario se creó exitosamente (user existe), es ÉXITO
+      // Incluso si hay un error menor, si el usuario existe en auth, el registro fue exitoso
+      if (result.user) {
+        console.log('✅ [Register] Usuario creado exitosamente, mostrando popup de felicidades')
+        
+        // Mostrar mensaje de bienvenida
+        setRegisteredEmail(email)
+        setShowConfirmation(true)
+        setStep(3) // Mostrar paso de bienvenida
+        setLoading(false)
+        return
       }
 
-      // Mostrar mensaje de bienvenida
-      setRegisteredEmail(email)
-      setShowConfirmation(true)
-      setStep(3) // Mostrar paso de bienvenida
+      // ✅ Solo si NO hay usuario Y hay error, manejar el error
+      if (result.error) {
+        // ✅ DEBUG: Log del error completo para diagnosticar
+        console.error('❌ [Register] Error completo de signUp (sin usuario creado):', {
+          message: result.error.message,
+          status: result.error.status,
+          name: result.error.name,
+          error: result.error
+        })
+        
+        // ✅ Manejo específico del error "User already registered"
+        // Verificar tanto el mensaje como el código de error de Supabase
+        const errorMessage = result.error.message?.toLowerCase() || ''
+        const errorStatus = result.error.status || 0
+        
+        // Solo considerar "usuario ya existe" si el mensaje es muy específico
+        const isUserExistsError = 
+          errorMessage.includes('user already registered') ||
+          errorMessage.includes('email address is already registered') ||
+          errorMessage === 'user already registered' ||
+          (errorStatus === 422 && errorMessage.includes('already registered'))
+        
+        console.log('🔍 [Register] ¿Es error de usuario existente?', {
+          isUserExistsError,
+          errorMessage,
+          errorStatus
+        })
+        
+        if (isUserExistsError) {
+          // ✅ CASO ESPECIAL: Usuario existe (probablemente de Google OAuth)
+          // Llamar a API para vincular cuenta existente con organización
+          console.log('🔄 [Register] Usuario ya existe, llamando a API para vincular cuenta...')
+          
+          try {
+            const linkResponse = await fetch('/api/auth/link-account', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email,
+                password,
+                organizationId: organization.id,
+                fullName
+              })
+            })
+            
+            const linkResult = await linkResponse.json()
+            
+            if (linkResponse.ok && linkResult.success) {
+              // ✅ Éxito: Usuario vinculado con organización
+              console.log('✅ [Register] Usuario vinculado exitosamente vía API')
+              
+              // ✅ CRÍTICO: Iniciar sesión en el cliente para establecer cookies
+              console.log('🔄 [Register] Iniciando sesión en el cliente...')
+              const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                email,
+                password
+              })
+              
+              if (signInError) {
+                console.warn('⚠️ [Register] Error al iniciar sesión después de vincular:', signInError)
+                // Aún así mostrar el popup, el usuario puede iniciar sesión manualmente
+              } else {
+                console.log('✅ [Register] Sesión iniciada exitosamente en el cliente')
+                // Esperar un momento para que la sesión se establezca
+                await new Promise(resolve => setTimeout(resolve, 500))
+              }
+              
+              // Guardar email y contraseña para uso posterior
+              setRegisteredEmail(email)
+              setRegisteredPassword(password)
+              setShowConfirmation(true)
+              setStep(3)
+              setLoading(false)
+              return
+            } else {
+              // No se pudo vincular, mostrar mensaje
+              console.warn('⚠️ [Register] No se pudo vincular cuenta:', linkResult.error)
+              setError(linkResult.error || `El email ${email} ya está registrado. Por favor, inicia sesión en su lugar.`)
+              setUserExistsError(true)
+              // Eliminar organización creada
+              try {
+                await supabase.from('organizations').delete().eq('id', organization.id)
+              } catch (deleteError) {
+                console.warn('Error al eliminar organización:', deleteError)
+              }
+              setLoading(false)
+              return
+            }
+          } catch (linkError: any) {
+            console.error('❌ [Register] Error al vincular cuenta:', linkError)
+            // Si falla el vínculo, eliminar organización y mostrar error
+            try {
+              await supabase.from('organizations').delete().eq('id', organization.id)
+            } catch (deleteError) {
+              console.warn('Error al eliminar organización:', deleteError)
+            }
+            setError(`El email ${email} ya está registrado. Por favor, inicia sesión en su lugar.`)
+            setUserExistsError(true)
+            setLoading(false)
+            return
+          }
+        } else {
+          // ✅ Si NO es error de usuario existente, eliminar organización y mostrar error
+          try {
+            await supabase.from('organizations').delete().eq('id', organization.id)
+          } catch (deleteError) {
+            console.warn('Error al eliminar organización:', deleteError)
+          }
+          setUserExistsError(false)
+          throw result.error
+        }
+        setLoading(false)
+        return
+      }
+
+      // ✅ Si no hay usuario ni error (caso raro), mostrar error genérico
+      console.error('❌ [Register] Caso inesperado: no hay usuario ni error')
+      console.error('❌ [Register] Resultado completo:', result)
+      setError('Error inesperado al crear la cuenta. Por favor, intenta de nuevo.')
+      setLoading(false)
       
     } catch (err: any) {
-      console.error('Error en registro:', err)
-      setError(err.message || 'Error al crear la cuenta. Intenta de nuevo.')
+      console.error('❌ [Register] Error en registro:', err)
+      console.error('❌ [Register] Detalles del error:', {
+        message: err.message,
+        status: err.status,
+        name: err.name,
+        stack: err.stack
+      })
+      
+      // ✅ Mejorar mensajes de error específicos
+      // Solo considerar "usuario ya existe" si el mensaje es muy específico
+      const errorMessage = (err.message || '').toLowerCase()
+      const errorStatus = err.status || 0
+      
+      const isUserExistsError = 
+        errorMessage.includes('user already registered') ||
+        errorMessage.includes('email address is already registered') ||
+        errorMessage === 'user already registered' ||
+        (errorStatus === 422 && errorMessage.includes('already registered'))
+      
+      console.log('🔍 [Register] ¿Es error de usuario existente en catch?', {
+        isUserExistsError,
+        errorMessage,
+        errorStatus
+      })
+      
+      if (isUserExistsError) {
+        setError(`El email ${email} ya está registrado. ¿Ya tienes una cuenta?`)
+        setUserExistsError(true) // Activar flag para mostrar botón de login
+      } else {
+        setUserExistsError(false)
+        // Mostrar el mensaje de error real
+        setError(err.message || 'Error al crear la cuenta. Intenta de nuevo.')
+      }
     } finally {
       setLoading(false)
     }
@@ -450,9 +615,19 @@ export default function RegisterPage() {
                   </div>
 
               {error && (
-                <div className="flex items-center gap-2 p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-                  <p className="text-sm text-red-400">{error}</p>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
+                    <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <p className="text-sm text-red-400">{error}</p>
+                  </div>
+                  {userExistsError && (
+                    <Link
+                      href={`/auth/login?email=${encodeURIComponent(email)}`}
+                      className="block w-full text-center bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-3 rounded-lg transition"
+                    >
+                      Ir a Iniciar Sesión
+                    </Link>
+                  )}
                 </div>
               )}
 
@@ -515,8 +690,42 @@ export default function RegisterPage() {
               <div className="flex gap-4 justify-center">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
+                    // ✅ Forzar recarga de sesión antes de redirigir
+                    console.log('🔄 [Register] Redirigiendo al dashboard, recargando sesión...')
+                    
+                    // Recargar la sesión para asegurar que esté actualizada
+                    if (typeof window !== 'undefined') {
+                      // Disparar evento de recarga de sesión
+                      window.dispatchEvent(new Event('session:reload'))
+                      
+                      // También verificar que el usuario esté autenticado
+                      const { data: { user } } = await supabase.auth.getUser()
+                      if (!user && registeredPassword) {
+                        console.warn('⚠️ [Register] Usuario no autenticado, intentando iniciar sesión...')
+                        // Si no está autenticado, intentar iniciar sesión de nuevo
+                        const { error: signInError } = await supabase.auth.signInWithPassword({
+                          email: registeredEmail,
+                          password: registeredPassword
+                        })
+                        if (signInError) {
+                          console.error('❌ [Register] Error al iniciar sesión:', signInError)
+                          // No mostrar error, solo redirigir al login
+                          router.push(`/auth/login?email=${encodeURIComponent(registeredEmail)}`)
+                          return
+                        } else {
+                          console.log('✅ [Register] Sesión iniciada exitosamente')
+                        }
+                      }
+                    }
+                    
+                    // Delay más largo para que la sesión se establezca completamente
+                    await new Promise(resolve => setTimeout(resolve, 800))
+                    
+                    // Redirigir al dashboard
+                    console.log('🔄 [Register] Redirigiendo al dashboard...')
                     router.push('/dashboard')
+                    router.refresh() // Forzar recarga de la página
                   }}
                   className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-3 rounded-lg transition"
                 >

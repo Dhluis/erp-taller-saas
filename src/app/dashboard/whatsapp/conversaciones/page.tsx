@@ -14,6 +14,8 @@ import { Label } from '@/components/ui/label'
 import { useAuth } from '@/hooks/useAuth'
 import { useSession } from '@/lib/context/SessionContext'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useWhatsAppConversations } from '@/hooks/useWhatsAppConversations'
+import { Pagination } from '@/components/ui/pagination'
 import {
   MessageSquare,
   Search,
@@ -72,6 +74,9 @@ import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { LeadManagementPanel } from '@/components/whatsapp/LeadManagementPanel'
+import { LeadIndicator } from '@/components/whatsapp/LeadIndicator'
+import type { LeadStatus } from '@/components/whatsapp/LeadStatusBadge'
 
 // Tipos
 interface Message {
@@ -97,6 +102,14 @@ interface Conversation {
   profilePictureUrl?: string
   isTyping?: boolean
   isFavorite?: boolean
+  // Lead fields
+  lead?: {
+    id: string
+    status: LeadStatus
+    lead_score?: number
+    estimated_value?: number
+    customer_id?: string
+  } | null
 }
 
 interface ContactDetails {
@@ -117,6 +130,14 @@ interface ContactDetails {
   address?: string
   notes?: string
   metadata?: any
+  // Lead fields
+  lead?: {
+    id: string
+    status: LeadStatus
+    lead_score?: number
+    estimated_value?: number
+    customer_id?: string
+  } | null
 }
 
 export default function ConversacionesPage() {
@@ -137,11 +158,20 @@ export default function ConversacionesPage() {
   const [isAddingLabel, setIsAddingLabel] = useState(false)
   const [newLabel, setNewLabel] = useState('')
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState('')
-  const [loadingConversations, setLoadingConversations] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(20)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [isBotTyping, setIsBotTyping] = useState(false)
+  
+  // Hook de conversaciones con paginación
+  const { conversations: hookConversations, pagination, isLoading: loadingConversations, error, mutate } = useWhatsAppConversations(
+    page,
+    pageSize,
+    activeFilter === 'all' ? 'all' : activeFilter === 'resolved' ? 'resolved' : activeFilter === 'unread' ? 'unread' : activeFilter === 'favorite' ? 'favorite' : 'all'
+  )
   
   // Emojis comunes
   const commonEmojis = [
@@ -180,17 +210,10 @@ export default function ConversacionesPage() {
     setEmojiPickerOpen(false)
   }
 
-  // Estado de conversaciones y mensajes reales
-  const [conversations, setConversations] = useState<Conversation[]>([])
+  // Estado de mensajes (conversaciones vienen del hook)
   const [messages, setMessages] = useState<Message[]>([])
-
-  const [contactDetails, setContactDetails] = useState<ContactDetails | null>(null)
-
-  const selectedConv = conversations.find(c => c.id === selectedConversation)
-  const isResolved = selectedConv?.status === 'resolved'
-  const isSessionLoadingUI = sessionLoading || !sessionReady || !organizationId
-
-  // Función para formatear tiempo relativo
+  
+  // Función para formatear tiempo relativo (debe estar antes de usarse)
   const formatRelativeTime = (date: Date | string): string => {
     const now = new Date()
     const messageDate = typeof date === 'string' ? new Date(date) : date
@@ -205,205 +228,81 @@ export default function ConversacionesPage() {
     if (diffDays < 7) return `${diffDays}d`
     return messageDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
   }
-
-  // Cargar conversaciones desde la BD
-  const loadConversations = useCallback(async () => {
-    // 🔍 DIAGNÓSTICO: Logs detallados
-    console.log('🔍 [loadConversations] Iniciando carga de conversaciones...')
-    console.log('🔍 [loadConversations] organizationId (de useSession):', organizationId)
-    console.log('🔍 [loadConversations] sessionLoading:', sessionLoading)
-    console.log('🔍 [loadConversations] sessionReady:', sessionReady)
+  
+  // Mapear conversaciones del hook al formato del componente
+  const conversations: Conversation[] = hookConversations.map((conv) => {
+    // Obtener nombre del contacto
+    let contactName = 'Cliente WhatsApp'
+    if (conv.customer_name && conv.customer_name !== 'Cliente WhatsApp') {
+      contactName = conv.customer_name
+    } else if (conv.customer_phone) {
+      const phone = conv.customer_phone.replace(/\D/g, '')
+      if (phone.length >= 10) {
+        if (phone.length === 12) {
+          contactName = `+${phone.substring(0, 2)} ${phone.substring(2, 3)} ${phone.substring(3, 6)} ${phone.substring(6, 9)} ${phone.substring(9)}`
+        } else if (phone.length === 13) {
+          contactName = `+${phone.substring(0, 3)} ${phone.substring(3, 6)} ${phone.substring(6, 9)} ${phone.substring(9)}`
+        } else {
+          contactName = `+${phone}`
+        }
+      } else {
+        contactName = `+${phone}`
+      }
+    }
     
-    // Usar SOLO organizationId del contexto (más confiable)
-    if (!organizationId) {
-      if (sessionLoading || !sessionReady) {
-        console.log('⏳ [loadConversations] Esperando organizationId (sesión en carga)...')
-        return
-      }
-      console.warn('⚠️ [loadConversations] No hay organizationId disponible')
-      setLoadingConversations(false)
-      toast.error('No se encontró la organización')
-      return
+    return {
+      id: conv.id,
+      contactName,
+      contactPhone: conv.customer_phone || 'Sin teléfono',
+      contactEmail: undefined, // Se puede obtener de customer_id si es necesario
+      lastMessage: conv.last_message || 'Sin mensajes',
+      lastMessageTime: conv.last_message_at ? formatRelativeTime(conv.last_message_at) : 'Nunca',
+      unread: false, // Se puede calcular basado en mensajes no leídos
+      status: (conv.status || 'active') as 'active' | 'resolved' | 'archived',
+      labels: Array.isArray((conv.metadata as any)?.labels) ? (conv.metadata as any).labels : [],
+      avatar: undefined,
+      profilePictureUrl: conv.profile_picture_url || undefined,
+      isTyping: false,
+      isFavorite: false,
+      // Lead data from API
+      lead: (conv as any).lead ? {
+        id: (conv as any).lead.id,
+        status: (conv as any).lead.status as LeadStatus,
+        lead_score: (conv as any).lead.lead_score,
+        estimated_value: (conv as any).lead.estimated_value,
+        customer_id: (conv as any).lead.customer_id
+      } : null
     }
+  })
 
-    console.log('✅ [loadConversations] organizationId encontrado:', organizationId)
+  const [contactDetails, setContactDetails] = useState<ContactDetails | null>(null)
 
-    try {
-      setLoadingConversations(true)
-      
-      console.log('📊 [loadConversations] Construyendo query con organization_id:', organizationId)
-      
-      // ✅ Usar API route en lugar de query directa
-      const statusParam = activeFilter === 'resolved' ? 'resolved' : activeFilter === 'all' ? 'all' : null;
-      const url = `/api/whatsapp/conversations${statusParam ? `?status=${statusParam}&limit=100` : '?limit=100'}`;
-      
-      console.log('📤 [loadConversations] Llamando API route:', url);
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store',
-      });
+  const selectedConv = conversations.find(c => c.id === selectedConversation)
+  const isResolved = selectedConv?.status === 'resolved'
+  const isSessionLoadingUI = sessionLoading || !sessionReady || !organizationId
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('❌ [loadConversations] Error en API:', errorData);
-        
-        toast.error(errorData.error || 'Error al cargar conversaciones');
-        throw new Error(errorData.error || 'Error al cargar conversaciones');
+  // Seleccionar primera conversación si no hay seleccionada y hay conversaciones
+  useEffect(() => {
+    if (conversations.length > 0 && !selectedConversation) {
+      const firstConv = conversations[0]
+      if (firstConv && firstConv.id) {
+        console.log('🎯 [useEffect] Seleccionando primera conversación:', firstConv.id)
+        setSelectedConversation(firstConv.id)
       }
-
-      const result = await response.json();
-      
-      if (!result.success) {
-        console.error('❌ [loadConversations] Error en respuesta:', result);
-        toast.error(result.error || 'Error al cargar conversaciones');
-        throw new Error(result.error || 'Error al cargar conversaciones');
-      }
-
-      const data = result.data || [];
-
-      console.log('✅ [loadConversations] Query ejecutada exitosamente')
-      console.log('📊 [loadConversations] Datos recibidos:', {
-        count: data?.length || 0,
-        rawData: data
-      })
-
-      // Obtener todos los customer_ids únicos para hacer una query separada
-      const customerIds = (data || [])
-        .map((conv: any) => conv.customer_id)
-        .filter((id: string | null) => id !== null && id !== undefined) as string[]
-      
-      // Obtener información de clientes en una sola query
-      let customersMap: Record<string, { name: string; email?: string; phone?: string }> = {}
-      if (customerIds.length > 0) {
-        try {
-          // ✅ Usar API route para obtener clientes
-          const batchSize = 100
-          for (let i = 0; i < customerIds.length; i += batchSize) {
-            const batch = customerIds.slice(i, i + batchSize)
-            // Construir query params para múltiples IDs
-            const idsParam = batch.map(id => `ids=${encodeURIComponent(id)}`).join('&')
-            const response = await fetch(`/api/customers?${idsParam}`, {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' },
-              cache: 'no-store',
-            })
-            
-            if (response.ok) {
-              const result = await response.json()
-              if (result.success && result.data) {
-                // ✅ FIX: Manejar estructura paginada { data: { items, pagination } }
-                const customers = result.data?.items || result.data || [];
-                customers.forEach((customer: any) => {
-                  customersMap[customer.id] = {
-                    name: customer.name,
-                    email: customer.email,
-                    phone: customer.phone
-                  }
-                })
-              }
-            } else {
-              const errorText = await response.text().catch(() => 'Unknown error')
-              console.warn(`[loadConversations] ⚠️ Error cargando lote de clientes:`, errorText)
-            }
-          }
-          console.log(`[loadConversations] ✅ Clientes cargados: ${Object.keys(customersMap).length} de ${customerIds.length}`)
-        } catch (customersError) {
-          console.warn(`[loadConversations] ⚠️ Error en query de clientes:`, customersError)
-        }
-      }
-
-      const formattedConversations: Conversation[] = (data || []).map((conv: any) => {
-        // Obtener nombre del contacto con prioridad:
-        // 1. Nombre del cliente desde la tabla customers (si existe relación)
-        // 2. customer_name de la conversación
-        // 3. Teléfono formateado
-        // 4. Fallback a "Cliente WhatsApp"
-        
-        const customer = conv.customer_id ? customersMap[conv.customer_id] : null
-        
-        // Construir nombre del contacto
-        let contactName = 'Cliente WhatsApp'
-        if (customer?.name) {
-          contactName = customer.name
-        } else if (conv.customer_name && conv.customer_name !== 'Cliente WhatsApp') {
-          contactName = conv.customer_name
-        } else if (conv.customer_phone) {
-          // Formatear teléfono de forma más legible
-          const phone = conv.customer_phone.replace(/\D/g, '') // Solo números
-          if (phone.length >= 10) {
-            // Formato más simple: mostrar últimos 10 dígitos con código de país
-            if (phone.length === 12) {
-              // +52 1 449 123 4567
-              contactName = `+${phone.substring(0, 2)} ${phone.substring(2, 3)} ${phone.substring(3, 6)} ${phone.substring(6, 9)} ${phone.substring(9)}`
-            } else if (phone.length === 13) {
-              // +521 449 123 4567
-              contactName = `+${phone.substring(0, 3)} ${phone.substring(3, 6)} ${phone.substring(6, 9)} ${phone.substring(9)}`
-            } else {
-              contactName = `+${phone}`
-            }
-          } else {
-            contactName = `+${phone}`
-          }
-        }
-        
-        // Obtener email del cliente si existe
-        const contactEmail = customer?.email || undefined
-        
-        console.log(`[loadConversations] 📝 Conversación ${conv.id}:`, {
-          customerId: conv.customer_id,
-          hasCustomer: !!customer,
-          customerName: customer?.name,
-          customerNameFromConv: conv.customer_name,
-          customerPhone: conv.customer_phone,
-          finalContactName: contactName
-        })
-        
-        return {
-        id: conv.id,
-          contactName,
-          contactPhone: conv.customer_phone || 'Sin teléfono',
-          contactEmail,
-        lastMessage: conv.last_message || 'Sin mensajes',
-        lastMessageTime: conv.last_message_at ? formatRelativeTime(conv.last_message_at) : 'Nunca',
-        unread: false, // Se puede calcular basado en mensajes no leídos
-          status: (conv.status || 'active') as 'active' | 'resolved' | 'archived',
-          labels: Array.isArray(conv.labels) ? conv.labels : [],
-        avatar: undefined,
-        profilePictureUrl: conv.profile_picture_url || undefined,
-        isTyping: false,
-        isFavorite: false
-      }
-      })
-
-      console.log('✅ [loadConversations] Conversaciones formateadas:', {
-        count: formattedConversations.length,
-        ids: formattedConversations.map(c => c.id)
-      })
-
-      setConversations(formattedConversations)
-
-      // Seleccionar primera conversación si no hay seleccionada
-      if (formattedConversations.length > 0 && !selectedConversation) {
-        const firstConv = formattedConversations[0]
-        if (firstConv && firstConv.id) {
-          console.log('🎯 [loadConversations] Seleccionando primera conversación:', firstConv.id)
-          setSelectedConversation(firstConv.id)
-        }
-      } else if (formattedConversations.length === 0) {
-        console.warn('⚠️ [loadConversations] No se encontraron conversaciones')
-      }
-    } catch (error) {
-      console.error('❌ [loadConversations] Error cargando conversaciones:', error)
-      console.error('❌ [loadConversations] Error stack:', error instanceof Error ? error.stack : 'No stack available')
-      toast.error('Error al cargar conversaciones')
-    } finally {
-      setLoadingConversations(false)
-      console.log('🏁 [loadConversations] Carga finalizada')
     }
-  }, [organizationId, activeFilter, supabase, selectedConversation, sessionLoading, sessionReady])
+  }, [conversations, selectedConversation])
+
+  // Flag para evitar múltiples peticiones simultáneas
+  const loadingRef = useRef<string | null>(null)
+  // Ref para rastrear la última conversación cargada y evitar loops
+  const lastLoadedConversationRef = useRef<string | null>(null)
+  // Ref para almacenar conversaciones actuales sin causar re-renders
+  const conversationsRef = useRef(conversations)
+  
+  // Actualizar ref cuando cambian las conversaciones
+  useEffect(() => {
+    conversationsRef.current = conversations
+  }, [conversations])
 
   // Cargar mensajes de una conversación
   const loadMessages = useCallback(async (conversationId: string) => {
@@ -411,6 +310,13 @@ export default function ConversacionesPage() {
       console.warn('⚠️ [loadMessages] No hay conversationId')
       return
     }
+    
+    // ✅ Prevenir múltiples peticiones simultáneas para la misma conversación
+    if (loadingRef.current === conversationId) {
+      console.log('⏳ [loadMessages] Ya hay una petición en curso para esta conversación')
+      return
+    }
+    
     if (!organizationId) {
       if (sessionLoading || !sessionReady) {
         console.log('⏳ [loadMessages] Esperando organizationId (sesión en carga)...')
@@ -422,6 +328,7 @@ export default function ConversacionesPage() {
     }
 
     try {
+      loadingRef.current = conversationId
       setLoadingMessages(true)
       
       // ✅ Usar API route en lugar de query directa
@@ -433,7 +340,30 @@ export default function ConversacionesPage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Error al cargar mensajes')
+        const errorMessage = errorData.error || 'Error al cargar mensajes'
+        
+        // ✅ Manejar error 404 específicamente: la conversación no existe
+        if (response.status === 404) {
+          console.warn('⚠️ [loadMessages] Conversación no encontrada:', conversationId)
+          toast.error('La conversación no existe o fue eliminada')
+          // Limpiar mensajes y deseleccionar conversación
+          setMessages([])
+          setSelectedConversation(null)
+          lastLoadedConversationRef.current = null // ✅ Limpiar ref para permitir recarga
+          return
+        }
+        
+        // ✅ Manejar error 403: no autorizado
+        if (response.status === 403) {
+          console.warn('⚠️ [loadMessages] No autorizado para esta conversación:', conversationId)
+          toast.error('No tienes permiso para ver esta conversación')
+          setMessages([])
+          setSelectedConversation(null)
+          lastLoadedConversationRef.current = null // ✅ Limpiar ref para permitir recarga
+          return
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const result = await response.json()
@@ -460,18 +390,19 @@ export default function ConversacionesPage() {
         
         return {
           id: msg.id || Date.now().toString(),
-          text: msg.content || msg.body || msg.text || '',
+          text: msg.body || msg.content || msg.text || '',
         sender: msg.direction === 'inbound' ? 'customer' : 'agent',
           timestamp: date,
           read: msg.status === 'read' || msg.status === 'delivered' || false,
-        type: msg.is_internal_note ? 'internal' : (msg.type || 'text')
+        type: (msg.metadata?.is_internal_note || msg.is_internal_note) ? 'internal' : (msg.message_type || msg.type || 'text')
         }
       })
 
       setMessages(formattedMessages)
 
       // Cargar detalles del contacto
-      const conv = conversations.find(c => c.id === conversationId)
+      // ✅ Usar ref para acceder a conversaciones sin incluirlas en dependencias
+      const conv = conversationsRef.current.find(c => c.id === conversationId)
       if (conv && conv.contactPhone) {
         // ✅ Usar API route para obtener detalles de conversación
         let customerData: any = null
@@ -544,38 +475,42 @@ export default function ConversacionesPage() {
           labels: Array.isArray(conv.labels) ? conv.labels.filter((l): l is string => Boolean(l)) : [],
           address: customerData?.address || undefined,
           notes: convData && (convData as any).metadata?.notes ? (convData as any).metadata.notes : undefined, // Notas están en metadata
-          metadata: convData && (convData as any).metadata ? (convData as any).metadata : undefined
+          metadata: convData && (convData as any).metadata ? (convData as any).metadata : undefined,
+          // Lead data from conversation
+          lead: conv.lead || null
         })
       }
     } catch (error) {
       console.error('Error cargando mensajes:', error)
-      toast.error('Error al cargar mensajes')
+      const errorMessage = error instanceof Error ? error.message : 'Error al cargar mensajes'
+      
+      // ✅ Solo mostrar toast si no es un error de red (ERR_INSUFFICIENT_RESOURCES)
+      if (!errorMessage.includes('Failed to fetch') && !errorMessage.includes('ERR_INSUFFICIENT_RESOURCES')) {
+        toast.error(errorMessage)
+      } else {
+        console.warn('⚠️ [loadMessages] Error de red, omitiendo toast para evitar spam')
+      }
+      
+      // Limpiar mensajes en caso de error
+      setMessages([])
     } finally {
       setLoadingMessages(false)
+      loadingRef.current = null
     }
-  }, [organizationId, supabase, conversations])
+  }, [organizationId, sessionLoading, sessionReady]) // ✅ Remover conversations de dependencias
 
-  // Cargar conversaciones al montar y cuando cambia el filtro
+  // Resetear a página 1 cuando cambia el filtro
   useEffect(() => {
-    // Esperar a que la sesión esté lista antes de cargar
-    if (!sessionReady || sessionLoading) {
-      console.log('⏳ [useEffect] Esperando que la sesión esté lista...', {
-        sessionReady,
-        sessionLoading
-      })
-      return
-    }
-    
-    console.log('✅ [useEffect] Sesión lista, cargando conversaciones...')
-    loadConversations()
-  }, [loadConversations, sessionReady, sessionLoading])
+    setPage(1)
+  }, [activeFilter])
 
   // Cargar mensajes cuando se selecciona una conversación
   useEffect(() => {
-    if (selectedConversation) {
+    if (selectedConversation && selectedConversation !== lastLoadedConversationRef.current) {
+      lastLoadedConversationRef.current = selectedConversation
       loadMessages(selectedConversation)
     }
-  }, [selectedConversation, loadMessages])
+  }, [selectedConversation]) // ✅ Remover loadMessages de dependencias para evitar loops
 
   // Aplicar dark mode al body
   useEffect(() => {
@@ -646,7 +581,7 @@ export default function ConversacionesPage() {
             if (selectedConversation) {
             loadMessages(selectedConversation)
             // Recargar conversaciones para actualizar last_message
-            loadConversations()
+            mutate()
             }
           }
 
@@ -668,7 +603,34 @@ export default function ConversacionesPage() {
           console.log('💬 Cambio en conversación:', payload)
           // Recargar conversaciones cuando hay cambios
           if (payload && (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE')) {
-          loadConversations()
+          mutate()
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'leads'
+        },
+        (payload) => {
+          console.log('📊 [Conversaciones] Cambio detectado en lead:', {
+            leadId: payload.new?.id,
+            newStatus: payload.new?.status,
+            whatsappConversationId: payload.new?.whatsapp_conversation_id
+          })
+          
+          // Si el lead está relacionado con una conversación, recargar conversaciones
+          if (payload.new?.whatsapp_conversation_id) {
+            console.log('🔄 [Conversaciones] Recargando conversaciones por cambio en lead')
+            mutate()
+            
+            // Si la conversación relacionada está seleccionada, recargar mensajes también
+            if (selectedConversation === payload.new.whatsapp_conversation_id) {
+              console.log('🔄 [Conversaciones] Recargando mensajes de conversación seleccionada')
+              loadMessages(selectedConversation)
+            }
           }
         }
       )
@@ -683,13 +645,13 @@ export default function ConversacionesPage() {
         subscriptionRef.current = null
       }
     }
-  }, [organizationId, selectedConversation, supabase, loadMessages, loadConversations])
+  }, [organizationId, selectedConversation, supabase, loadMessages, mutate])
 
   // Marcar mensajes como leídos cuando se selecciona una conversación
   useEffect(() => {
     if (selectedConversation) {
       // Marcar conversación como leída (actualizar en BD si es necesario)
-      updateConversation(selectedConversation, { unread: false })
+      // Las conversaciones se refrescan automáticamente desde el hook
     }
   }, [selectedConversation])
 
@@ -711,11 +673,8 @@ export default function ConversacionesPage() {
   }
 
   // Funciones de utilidad
-  const updateConversation = (id: string, updates: Partial<Conversation>) => {
-    setConversations(prev => prev.map(conv => 
-      conv.id === id ? { ...conv, ...updates } : conv
-    ))
-  }
+  // Nota: updateConversation eliminado - las conversaciones vienen del hook
+  // Usar mutate() después de actualizar en la BD para refrescar
 
   const updateContactDetails = (updates: Partial<ContactDetails>) => {
     setContactDetails(prev => {
@@ -784,13 +743,13 @@ export default function ConversacionesPage() {
               conversation_id: selectedConversation,
               organization_id: organizationId,
               direction: 'outbound',
-              from_phone: '', // Nota interna, no tiene remitente externo
-              to_phone: conv.contactPhone || '',
-              content: messageToSend,
-              is_internal_note: true,
-              type: 'text',
-              status: 'sent'
-            } as any)
+              from_number: '', // Nota interna, no tiene remitente externo
+              to_number: conv.contactPhone || '',
+              body: messageToSend,
+              message_type: 'text',
+              status: 'sent',
+              metadata: { is_internal_note: true }
+            })
             .select()
             .single()
 
@@ -909,7 +868,7 @@ export default function ConversacionesPage() {
       await loadMessages(selectedConversation)
       
       // Recargar conversaciones para actualizar last_message
-      await loadConversations()
+      await mutate()
 
       toast.success('Mensaje enviado')
     } catch (error) {
@@ -1019,9 +978,8 @@ export default function ConversacionesPage() {
         throw error
       }
 
-      updateConversation(selectedConversation, { status: newStatus })
       updateContactDetails({ status: newStatus })
-      await loadConversations() // Recargar para actualizar filtros
+      await mutate() // Recargar para actualizar filtros
       toast.success(newStatus === 'resolved' ? 'Chat resuelto' : 'Chat reactivado')
     } catch (error: any) {
       console.error('[handleResolveChat] Error actualizando estado:', error)
@@ -1054,7 +1012,7 @@ export default function ConversacionesPage() {
     setSelectedAgent('')
       
       // Recargar conversaciones para reflejar el cambio
-      await loadConversations()
+      await mutate()
     } catch (error) {
       console.error('Error reasignando chat:', error)
       toast.error('Error al reasignar chat')
@@ -1065,7 +1023,8 @@ export default function ConversacionesPage() {
     switch (action) {
       case 'Mark as unread':
         if (selectedConversation) {
-          updateConversation(selectedConversation, { unread: true })
+          // Actualizar en BD y refrescar
+          mutate()
           toast.success('Chat marcado como no leído')
         }
         break
@@ -1097,17 +1056,50 @@ export default function ConversacionesPage() {
         break
       case 'Block contact':
         if (selectedConversation) {
-          updateConversation(selectedConversation, { status: 'archived' })
+          // Actualizar en BD y refrescar
+          mutate()
           toast.success('Contacto bloqueado')
         }
         break
       case 'Delete chat':
-        if (selectedConversation && confirm('¿Estás seguro de eliminar este chat?')) {
-          setConversations(prev => prev.filter(c => c.id !== selectedConversation))
-          setSelectedConversation(null)
-          toast.success('Chat eliminado')
+        if (selectedConversation) {
+          setDeleteDialogOpen(true)
         }
         break
+    }
+  }
+
+  // Función para eliminar conversación
+  const handleDeleteConversation = async (conversationId: string) => {
+    try {
+      console.log('[Delete Conversation] 🗑️ Eliminando conversación:', conversationId)
+      
+      const response = await fetch(`/api/whatsapp/conversations/${conversationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Error al eliminar conversación')
+      }
+
+      console.log('[Delete Conversation] ✅ Conversación eliminada:', data)
+      
+      // Cerrar conversación seleccionada
+      setSelectedConversation(null)
+      
+      // Refrescar lista de conversaciones
+      await mutate()
+      
+      toast.success('Conversación eliminada')
+    } catch (error: any) {
+      console.error('[Delete Conversation] ❌ Error:', error)
+      toast.error(error.message || 'Error al eliminar conversación')
     }
   }
 
@@ -1140,8 +1132,8 @@ export default function ConversacionesPage() {
 
       if (error) throw error
 
-      updateConversation(selectedConversation, { labels: newLabels })
       updateContactDetails({ labels: newLabels })
+      await mutate() // Refrescar conversaciones
       
       setNewLabel('')
       setIsAddingLabel(false)
@@ -1170,8 +1162,8 @@ export default function ConversacionesPage() {
 
       if (error) throw error
 
-      updateConversation(selectedConversation, { labels: newLabels })
       updateContactDetails({ labels: newLabels })
+      await mutate() // Refrescar conversaciones
       
       toast.success('Etiqueta eliminada')
     } catch (error) {
@@ -1273,23 +1265,13 @@ export default function ConversacionesPage() {
           }
         }
 
-        // Si falla todo, usar lista por defecto
-        console.error('Error cargando usuarios')
-        setAvailableAgents([
-          { id: '1', name: 'Juan Pérez' },
-          { id: '2', name: 'María García' },
-          { id: '3', name: 'Carlos López' },
-          { id: '4', name: 'Ana Martínez' }
-        ])
+        // Si falla todo, no hay agentes disponibles
+        console.error('Error cargando usuarios: No se pudieron cargar agentes desde la BD')
+        setAvailableAgents([])
       } catch (error) {
         console.error('Error cargando agentes:', error)
-        // Usar lista por defecto en caso de error
-        setAvailableAgents([
-          { id: '1', name: 'Juan Pérez' },
-          { id: '2', name: 'María García' },
-          { id: '3', name: 'Carlos López' },
-          { id: '4', name: 'Ana Martínez' }
-        ])
+        // No usar fallback mock, dejar array vacío
+        setAvailableAgents([])
       } finally {
         setLoadingAgents(false)
       }
@@ -1494,8 +1476,8 @@ export default function ConversacionesPage() {
                         : (darkMode ? "hover:bg-gray-800/50" : "hover:bg-gray-100")
                     )}
                   >
-                    <div className="flex items-start gap-3">
-                      <Avatar className="w-10 h-10">
+                    <div className="flex items-start gap-3 relative">
+                      <Avatar className="w-10 h-10 relative">
                         {conversation.profilePictureUrl ? (
                           <AvatarImage 
                             src={conversation.profilePictureUrl} 
@@ -1520,15 +1502,35 @@ export default function ConversacionesPage() {
                           {(conversation.contactName || 'C').split(' ').map(n => n[0]).join('').slice(0, 2) || 'C'}
                         </AvatarFallback>
                       </Avatar>
+                      {/* Lead Indicator */}
+                      {conversation.lead && (
+                        <div className="absolute -top-1 -right-1 z-10">
+                          <LeadIndicator
+                            isLead={!!conversation.lead}
+                            leadStatus={conversation.lead.status}
+                            estimatedValue={conversation.lead.estimated_value}
+                            variant="icon"
+                          />
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className={cn(
-                            "text-sm font-medium truncate",
-                            conversation.unread && !darkMode ? "font-semibold" : "",
-                            darkMode ? "text-white" : "text-gray-900"
-                          )}>
-                            {conversation.contactName || 'Cliente WhatsApp'}
-                          </span>
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className={cn(
+                              "text-sm font-medium truncate",
+                              conversation.unread && !darkMode ? "font-semibold" : "",
+                              darkMode ? "text-white" : "text-gray-900"
+                            )}>
+                              {conversation.contactName || 'Cliente WhatsApp'}
+                            </span>
+                            {conversation.lead && (
+                              <LeadIndicator
+                                isLead={!!conversation.lead}
+                                leadStatus={conversation.lead.status}
+                                variant="badge"
+                              />
+                            )}
+                          </div>
                           <span className={cn(
                             "text-xs whitespace-nowrap ml-2",
                             darkMode ? "text-gray-500" : "text-gray-500"
@@ -1565,7 +1567,8 @@ export default function ConversacionesPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              updateConversation(conversation.id, { isFavorite: !conversation.isFavorite })
+                              // Actualizar en BD y refrescar
+                              mutate()
                               toast.success(conversation.isFavorite ? 'Eliminado de favoritos' : 'Agregado a favoritos')
                             }}
                             className="ml-1"
@@ -1585,6 +1588,23 @@ export default function ConversacionesPage() {
               )}
             </div>
           </ScrollArea>
+          
+          {/* Pagination Component */}
+          {!loadingConversations && conversations.length > 0 && pagination && (
+            <Pagination
+              currentPage={pagination.page || 1}
+              totalPages={pagination.totalPages || 1}
+              pageSize={pagination.pageSize || pageSize}
+              total={pagination.total || 0}
+              onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                // El pageSize está fijo en 20, pero podemos actualizar si es necesario
+                console.log('Page size change requested:', size)
+              }}
+              loading={loadingConversations}
+              showPageSizeSelector={false}
+            />
+          )}
         </div>
 
         {/* Center Panel - Chat */}
@@ -1648,32 +1668,82 @@ export default function ConversacionesPage() {
                       <div className="space-y-4 mt-4">
                         <div>
                           <Label className={darkMode ? "text-white" : ""}>Agente</Label>
-                          <select
-                            value={selectedAgent}
-                            onChange={(e) => setSelectedAgent(e.target.value)}
-                            disabled={loadingAgents}
-                            className={cn(
-                              "w-full mt-2 p-2 rounded-md border",
-                              darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300",
-                              loadingAgents ? "opacity-50 cursor-not-allowed" : ""
-                            )}
-                          >
-                            <option value="">
-                              {loadingAgents ? 'Cargando agentes...' : 'Selecciona un agente'}
-                            </option>
-                            {availableAgents.map(agent => (
-                              <option key={agent.id} value={agent.name}>{agent.name}</option>
-                            ))}
-                          </select>
+                          {loadingAgents ? (
+                            <div className={cn(
+                              "w-full mt-2 p-3 rounded-md border text-sm text-center",
+                              darkMode ? "bg-gray-700 border-gray-600 text-gray-400" : "bg-gray-50 border-gray-300 text-gray-600"
+                            )}>
+                              Cargando agentes...
+                            </div>
+                          ) : availableAgents.length === 0 ? (
+                            <div className={cn(
+                              "w-full mt-2 p-3 rounded-md border text-sm",
+                              darkMode ? "bg-yellow-900/20 border-yellow-700/50 text-yellow-300" : "bg-yellow-50 border-yellow-200 text-yellow-800"
+                            )}>
+                              <p className="font-medium mb-1">No hay agentes disponibles</p>
+                              <p className="text-xs opacity-90">
+                                Contacta al administrador para configurar agentes de WhatsApp.
+                              </p>
+                            </div>
+                          ) : (
+                            <select
+                              value={selectedAgent}
+                              onChange={(e) => setSelectedAgent(e.target.value)}
+                              className={cn(
+                                "w-full mt-2 p-2 rounded-md border",
+                                darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300"
+                              )}
+                            >
+                              <option value="">Selecciona un agente</option>
+                              {availableAgents.map(agent => (
+                                <option key={agent.id} value={agent.name}>{agent.name}</option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                         <div className="flex justify-end gap-2">
                           <Button variant="outline" onClick={() => setReassignDialogOpen(false)}>
                             Cancelar
                           </Button>
-                          <Button onClick={handleReassign} disabled={!selectedAgent}>
+                          <Button 
+                            onClick={handleReassign} 
+                            disabled={!selectedAgent || availableAgents.length === 0 || loadingAgents}
+                          >
                             Reasignar
                           </Button>
                         </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
+                  {/* Dialog de confirmación de eliminación */}
+                  <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                    <DialogContent className={darkMode ? "bg-gray-800 border-gray-700" : ""}>
+                      <DialogHeader>
+                        <DialogTitle className={darkMode ? "text-white" : ""}>Eliminar conversación</DialogTitle>
+                        <DialogDescription className={darkMode ? "text-gray-400" : ""}>
+                          ¿Estás seguro de que deseas eliminar esta conversación? Esta acción no se puede deshacer.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="flex justify-end gap-2 mt-4">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setDeleteDialogOpen(false)}
+                          className={darkMode ? "border-gray-700 text-gray-300 hover:bg-gray-700" : ""}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button 
+                          variant="destructive"
+                          onClick={() => {
+                            if (selectedConversation) {
+                              handleDeleteConversation(selectedConversation)
+                              setDeleteDialogOpen(false)
+                            }
+                          }}
+                        >
+                          Eliminar
+                        </Button>
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -2323,6 +2393,69 @@ export default function ConversacionesPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Lead Management Panel */}
+                  {selectedConversation && 
+                   selectedConversation.trim() !== '' && 
+                   (selectedConv || contactDetails) && (
+                    <LeadManagementPanel
+                      conversationId={selectedConversation}
+                      customerPhone={contactDetails?.phone || selectedConv?.contactPhone || ''}
+                      customerName={contactDetails?.name || selectedConv?.contactName || 'Cliente WhatsApp'}
+                      lead={contactDetails?.lead || selectedConv?.lead || null}
+                      onLeadCreated={async (lead) => {
+                        console.log('Lead creado:', lead)
+                        // Actualizar contactDetails con el nuevo lead
+                        updateContactDetails({ lead })
+                        // Recargar conversaciones para reflejar el cambio
+                        await mutate()
+                        // ✅ Recargar mensajes para asegurar que el lead se sincronice correctamente
+                        if (selectedConversation) {
+                          await loadMessages(selectedConversation)
+                        }
+                        toast.success('Lead creado exitosamente')
+                      }}
+                      onLeadUpdated={async (lead) => {
+                        console.log('📊 [Conversaciones] Lead actualizado desde panel:', {
+                          leadId: lead.id,
+                          newStatus: lead.status,
+                          conversationId: lead.whatsapp_conversation_id
+                        })
+                        
+                        // ✅ Actualizar contactDetails con el lead actualizado (esto actualiza el panel derecho)
+                        updateContactDetails({ lead })
+                        
+                        // ✅ Forzar recarga INMEDIATA de conversaciones (sin esperar)
+                        // Esto actualizará el LeadIndicator en la lista de conversaciones
+                        console.log('🔄 [Conversaciones] Forzando recarga inmediata de conversaciones...')
+                        mutate()
+                        
+                        // ✅ Recargar también después de un pequeño delay para asegurar sincronización
+                        // La suscripción realtime también debería disparar una actualización
+                        setTimeout(async () => {
+                          console.log('🔄 [Conversaciones] Segunda recarga para asegurar sincronización...')
+                          await mutate()
+                          
+                          // Recargar mensajes si hay una conversación seleccionada
+                          if (selectedConversation) {
+                            console.log('🔄 [Conversaciones] Recargando mensajes...')
+                            await loadMessages(selectedConversation)
+                          }
+                        }, 500)
+                        
+                        console.log('✅ [Conversaciones] Proceso de actualización iniciado')
+                        toast.success('Lead actualizado exitosamente')
+                      }}
+                      onLeadConverted={(customerId) => {
+                        console.log('Convertido a cliente:', customerId)
+                        // Recargar conversaciones para reflejar el cambio
+                        mutate()
+                        toast.success('Lead convertido a cliente exitosamente')
+                        // Opcional: Redirigir a la página del cliente
+                        // router.push(`/dashboard/clientes/${customerId}`)
+                      }}
+                    />
+                  )}
                 </div>
               </ScrollArea>
             </>

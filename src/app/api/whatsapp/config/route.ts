@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { rateLimitMiddleware } from '@/lib/rate-limit/middleware'
 
 /**
  * ✅ Genera un nombre de sesión único para WAHA por organización
@@ -14,25 +15,28 @@ function generateWhatsAppSessionName(organizationId: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  // ⚠️ LOG ÚNICO PARA VERIFICAR VERSIÓN DEL CÓDIGO
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('🔥 [CONFIG API] VERSIÓN: 2025-12-10-FIX-BD-V2')
-  console.log('🔥 [CONFIG API] Timestamp deploy:', new Date().toISOString())
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  
   try {
-    // Obtener usuario autenticado directamente
-    const { createClient } = await import('@/lib/supabase/server')
-    const supabase = await createClient()
+    // ✅ PRIMERO: Autenticación de Supabase (EXACTAMENTE igual que GET)
+    // Obtener usuario autenticado directamente usando createClientFromRequest
+    const { createClientFromRequest } = await import('@/lib/supabase/server')
+    const supabase = createClientFromRequest(request)
+    
+    console.log('[Config POST] 🔍 Verificando autenticación...')
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !authUser) {
-      console.error('[Config POST] Usuario no autenticado')
+      console.error('[Config POST] ❌ Usuario no autenticado:', {
+        hasError: !!authError,
+        errorMessage: authError?.message,
+        hasUser: !!authUser
+      })
       return NextResponse.json({
         success: false,
         error: 'No autorizado'
       }, { status: 401 })
     }
+    
+    console.log('[Config POST] ✅ Usuario autenticado:', authUser.id)
 
     // Obtener organizationId del perfil del usuario usando Service Role
     const supabaseAdmin = getSupabaseServiceClient()
@@ -53,7 +57,46 @@ export async function POST(request: NextRequest) {
     
     const organizationId = userProfile.organization_id
 
-    const data = await request.json()
+    // ✅ AHORA: Rate limiting DESPUÉS de la autenticación
+    // ⚠️ Rate limiting es opcional - si Upstash no está disponible, se omite (fail-open)
+    try {
+      const { rateLimitConfigs } = await import('@/lib/rate-limit/rate-limiter')
+      const { checkRateLimit } = await import('@/lib/rate-limit/rate-limiter')
+      const { createRateLimitErrorResponse } = await import('@/lib/rate-limit/middleware')
+      
+      // Aplicar rate limiting usando organizationId directamente
+      const rateLimitResult = await checkRateLimit(
+        `org:${organizationId}`,
+        rateLimitConfigs.aiAgent
+      )
+      
+      if (!rateLimitResult.success) {
+        console.warn('[WhatsApp Config] 🚫 Rate limit exceeded para organización:', organizationId)
+        return createRateLimitErrorResponse(
+          rateLimitResult,
+          'AI Agent rate limit exceeded. Please wait before sending more messages.'
+        )
+      }
+    } catch (rateLimitError: any) {
+      // ⚠️ Si rate limiting falla (Redis no disponible, etc.), continuar sin limitar
+      const errorMsg = rateLimitError?.message || 'Unknown error';
+      if (errorMsg.includes('REDIS_NOT_AVAILABLE') || errorMsg.includes('Missing')) {
+        console.warn('[WhatsApp Config] ⚠️ Rate limiting no disponible, continuando sin límites (fail-open)');
+      } else {
+        console.warn('[WhatsApp Config] ⚠️ Error en rate limiting, continuando sin límites:', errorMsg);
+      }
+      // Continuar sin bloquear el request
+    }
+
+    // ✅ Parsear body DESPUÉS de autenticación (igual que otros endpoints)
+    let data: any = {}
+    try {
+      data = await request.json()
+    } catch (jsonError) {
+      // Si el body está vacío o no es JSON válido, usar objeto vacío
+      console.warn('[Config POST] ⚠️ Error parseando JSON, usando objeto vacío:', jsonError)
+      data = {}
+    }
 
     // ✅ NUEVO: Si es una petición de TEST, procesarla aquí
     if (data.test === true && data.message) {
@@ -895,9 +938,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Obtener usuario autenticado directamente
-    const { createClient } = await import('@/lib/supabase/server')
-    const supabase = await createClient()
+    // Obtener usuario autenticado directamente usando createClientFromRequest
+    const { createClientFromRequest } = await import('@/lib/supabase/server')
+    const supabase = createClientFromRequest(request)
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !authUser) {

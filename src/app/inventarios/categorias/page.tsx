@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/navigation/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,6 +46,11 @@ export default function InventariosCategoriasPage() {
     fetchCategories();
   }, [fetchCategories]);
 
+  // ✅ Forzar re-render cuando categories cambie
+  useEffect(() => {
+    console.log('🔄 [PAGE] categories cambió:', categories.length);
+  }, [categories]);
+
   const handleInputChange = (field: string, value: string) => {
     setNewCategory(prev => ({
       ...prev,
@@ -54,6 +59,9 @@ export default function InventariosCategoriasPage() {
   };
 
   const handleCreateCategory = async () => {
+    console.log('🔄 [PAGE] handleCreateCategory - Iniciando');
+    console.log('📦 [PAGE] Datos:', newCategory);
+    
     if (!newCategory.name.trim()) {
       toast.error('Por favor ingresa el nombre de la categoría');
       return;
@@ -61,20 +69,23 @@ export default function InventariosCategoriasPage() {
 
     setSaving(true);
     try {
-      await createCategory({
+      console.log('🔄 [PAGE] Llamando createCategory...');
+      const result = await createCategory({
         name: newCategory.name.trim(),
         description: newCategory.description.trim() || null
       });
       
-      // Resetear formulario
-      setNewCategory({
-        name: '',
-        description: ''
-      });
-      setShowNewCategoryModal(false);
-      toast.success('Categoría creada exitosamente');
+      console.log('📦 [PAGE] Resultado:', result);
+      
+      if (result) {
+        console.log('✅ [PAGE] Categoría creada, cerrando modal');
+        setNewCategory({ name: '', description: '' });
+        setShowNewCategoryModal(false);
+      } else {
+        console.log('❌ [PAGE] createCategory retornó null');
+      }
     } catch (error) {
-      console.error('Error creating category:', error);
+      console.error('❌ [PAGE] Error:', error);
       toast.error('Error al crear la categoría');
     } finally {
       setSaving(false);
@@ -151,10 +162,16 @@ export default function InventariosCategoriasPage() {
     });
   };
 
-  const filteredCategories = categories.filter(category =>
-    category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // ✅ Usar useMemo para recalcular cuando categories o searchTerm cambien
+  const filteredCategories = useMemo(() => {
+    console.log('🔄 [PAGE] Recalculando filteredCategories, categories:', categories.length);
+    return categories.filter(category =>
+      category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [categories, searchTerm]);
+
+  console.log('🔍 [PAGE] filteredCategories length:', filteredCategories.length);
 
   if (loading) {
     return (

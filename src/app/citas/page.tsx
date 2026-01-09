@@ -410,7 +410,7 @@ export default function CitasPage() {
         console.log('✅ Cliente creado:', customerId)
       }
       
-      // 2. BUSCAR O CREAR VEHÍCULO (SIEMPRE CREAR UNO)
+      // 2. BUSCAR O CREAR VEHÍCULO (SIEMPRE CREAR UNO) - USAR API ENDPOINT
       let vehicleId: string
       console.log('🚗 Procesando información del vehículo...')
 
@@ -420,51 +420,61 @@ export default function CitasPage() {
       const licensePlate = vehicleParts[1]?.trim() || ''
 
       if (licensePlate) {
-        // BUSCAR POR PLACA
-        let vehicleQuery = supabase
-          .from('vehicles')
-          .select('id')
-          .eq('license_plate', licensePlate.toUpperCase())
-          .eq('organization_id', organizationId) // ✅ Filtrar por organization_id primero
-        
-        // ✅ Solo filtrar por workshop_id si existe (es opcional según schema)
-        if (workshopId) {
-          vehicleQuery = vehicleQuery.eq('workshop_id', workshopId)
-        }
-        
-        const { data: existingVehicle } = await vehicleQuery.maybeSingle()
-        
-        if (existingVehicle) {
-          vehicleId = existingVehicle.id
-          console.log('✅ Vehículo encontrado por placa:', vehicleId)
-        } else {
-          // CREAR CON PLACA
-          const vehicleWords = vehicleData.split(' ')
-          const brand = vehicleWords[0] || 'Desconocido'
-          const model = vehicleWords.slice(1).join(' ') || 'Desconocido'
+        // BUSCAR POR PLACA usando API endpoint
+        const searchResponse = await fetch(`/api/vehicles?search=${encodeURIComponent(licensePlate.toUpperCase())}&filter_customer_id=${customerId}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        })
+
+        if (searchResponse.ok) {
+          const searchResult = await searchResponse.json()
+          const existingVehicles = searchResult.data?.items || []
+          const existingVehicle = existingVehicles.find((v: any) => 
+            v.license_plate?.toUpperCase() === licensePlate.toUpperCase() &&
+            v.customer_id === customerId
+          )
           
-          const { data: newVehicle, error: vehicleError } = await supabase
-            .from('vehicles')
-            .insert({
-              customer_id: customerId,
-              workshop_id: workshopId || null, // ✅ workshop_id es opcional según schema
-              brand: brand,
-              model: model,
-              license_plate: licensePlate.toUpperCase(),
-              year: null
-            } as any)
-            .select()
-            .single()
-          
-          if (vehicleError || !newVehicle) {
-            throw new Error(`Error creando vehículo: ${vehicleError?.message || 'No se pudo crear el vehículo'}`)
+          if (existingVehicle) {
+            vehicleId = existingVehicle.id
+            console.log('✅ Vehículo encontrado por placa:', vehicleId)
+          } else {
+            // CREAR CON PLACA usando API endpoint
+            const vehicleWords = vehicleData.split(' ')
+            const brand = vehicleWords[0] || 'Desconocido'
+            const model = vehicleWords.slice(1).join(' ') || 'Desconocido'
+            
+            const createResponse = await fetch('/api/vehicles', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                customer_id: customerId,
+                workshop_id: workshopId || null,
+                brand: brand,
+                model: model,
+                license_plate: licensePlate.toUpperCase(),
+                year: null
+              }),
+            })
+
+            if (!createResponse.ok) {
+              const errorData = await createResponse.json()
+              throw new Error(`Error creando vehículo: ${errorData.error || 'No se pudo crear el vehículo'}`)
+            }
+
+            const createResult = await createResponse.json()
+            if (!createResult.success || !createResult.data) {
+              throw new Error(`Error creando vehículo: ${createResult.error || 'No se pudo crear el vehículo'}`)
+            }
+            
+            vehicleId = createResult.data.id
+            console.log('✅ Vehículo creado con placa:', vehicleId)
           }
-          
-          vehicleId = newVehicle.id
-          console.log('✅ Vehículo creado con placa:', vehicleId)
+        } else {
+          throw new Error('Error al buscar vehículo existente')
         }
       } else {
-        // NO HAY PLACA - CREAR VEHÍCULO GENÉRICO
+        // NO HAY PLACA - CREAR VEHÍCULO GENÉRICO usando API endpoint
         console.log('⚠️ No hay placa, creando vehículo genérico...')
         
         const vehicleWords = vehicleData.split(' ')
@@ -474,24 +484,30 @@ export default function CitasPage() {
         // Generar placa temporal única
         const tempPlate = `TEMP-${Date.now().toString().slice(-6)}`
         
-        const { data: newVehicle, error: vehicleError } = await supabase
-          .from('vehicles')
-          .insert({
+        const createResponse = await fetch('/api/vehicles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             customer_id: customerId,
-            workshop_id: workshopId || null, // ✅ workshop_id es opcional según schema
+            workshop_id: workshopId || null,
             brand: brand,
             model: model,
             license_plate: tempPlate,
             year: null
-          } as any)
-          .select()
-          .single()
-        
-        if (vehicleError || !newVehicle) {
-          throw new Error(`Error creando vehículo: ${vehicleError?.message || 'No se pudo crear el vehículo'}`)
+          }),
+        })
+
+        if (!createResponse.ok) {
+          const errorData = await createResponse.json()
+          throw new Error(`Error creando vehículo: ${errorData.error || 'No se pudo crear el vehículo'}`)
+        }
+
+        const createResult = await createResponse.json()
+        if (!createResult.success || !createResult.data) {
+          throw new Error(`Error creando vehículo: ${createResult.error || 'No se pudo crear el vehículo'}`)
         }
         
-        vehicleId = newVehicle.id
+        vehicleId = createResult.data.id
         console.log('✅ Vehículo genérico creado:', vehicleId, 'con placa:', tempPlate)
       }
       

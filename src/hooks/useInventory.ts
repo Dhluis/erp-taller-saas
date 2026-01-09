@@ -209,13 +209,13 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
       const url = `/api/inventory?${queryString}`;
       console.log('🔄 [useInventory] Fetching:', url);
 
-      // Check cache
+      // Check cache - REDUCIDO a 5 segundos para evitar datos obsoletos
       if (enableCache) {
         const cached = cacheRef.current.get(url);
         const cacheAge = cached ? Date.now() - cached.timestamp : Infinity;
         
-        if (cached && cacheAge < 30000) {
-          console.log('💾 [useInventory] Usando cache');
+        if (cached && cacheAge < 5000) { // ✅ 5 segundos en lugar de 30
+          console.log('💾 [useInventory] Usando cache (edad:', cacheAge, 'ms)');
           const responseData = cached.data.data || cached.data;
           setItems(responseData.items || []);
           setPagination(responseData.pagination);
@@ -344,22 +344,39 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
     setError(null);
 
     try {
+      console.log('🔄 [useInventory] createItem - Enviando POST:', itemData);
+      
       const response = await fetch('/api/inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ✅ Incluir cookies para autenticación
         body: JSON.stringify(itemData),
       });
 
+      console.log('📡 [useInventory] createItem - Response status:', response.status);
+
       const data = await response.json();
+      
+      console.log('📦 [useInventory] createItem - Response data:', data);
 
       if (!data.success) {
+        console.error('❌ [useInventory] createItem - Error en respuesta:', data.error);
         throw new Error(data.error || 'Error al crear producto');
       }
 
+      console.log('✅ [useInventory] createItem - Producto creado:', data.data?.id);
       toast.success('Producto creado exitosamente');
       
-      if (enableCache) cacheRef.current.clear();
+      // ✅ SIEMPRE limpiar cache después de crear
+      cacheRef.current.clear();
+      console.log('🗑️ [useInventory] createItem - Cache limpiado');
+      
+      // ✅ Pequeño delay para asegurar que la DB se sincronice
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('🔄 [useInventory] createItem - Recargando lista...');
       await fetchItems();
+      console.log('✅ [useInventory] createItem - Lista recargada, items:', items.length);
 
       return data.data;
     } catch (err) {
@@ -461,49 +478,42 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
     }
 
     try {
-      console.log('🔄 [useInventory] fetchCategories - Iniciando (GET) para organizationId:', organizationId);
+      console.log('🔄 [useInventory] fetchCategories - GET para org:', organizationId);
       
-      // ✅ GET para LEER categorías existentes
-      const result = await safeFetch<{ success: boolean; data: any[] }>(
-        `/api/inventory/categories`
-      );
-      
-      console.log('🔍 [useInventory] fetchCategories - Respuesta completa:', {
-        success: result.success,
-        hasData: !!result.data,
-        dataType: typeof result.data,
-        isArray: Array.isArray(result.data),
-        dataValue: result.data
+      // ✅ GET directo sin wrapper
+      const response = await fetch('/api/inventory/categories', {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Cache-Control': 'no-cache' }
       });
+
+      const result = await response.json();
+      console.log('📦 [useInventory] fetchCategories - Respuesta completa:', result);
       
-      if (result.success && result.data) {
-        // La API devuelve { success: true, data: [...] }
-        // safeFetch parsea esto, entonces result.data es el objeto completo
-        // Necesitamos acceder a result.data.data si está anidado, o result.data si es directo
-        const responseData = (result.data as any)?.data || result.data;
-        const categoriesList = Array.isArray(responseData) ? responseData : [];
-        
-        console.log('📊 [useInventory] fetchCategories - Categorías extraídas:', {
-          count: categoriesList.length,
-          firstCategory: categoriesList[0] ? {
-            id: categoriesList[0].id,
-            name: categoriesList[0].name,
-            organization_id: categoriesList[0].organization_id
-          } : null
-        });
-        
-        setCategories(categoriesList);
-        console.log('✅ [useInventory] fetchCategories - Exitoso:', categoriesList.length, 'categorías');
-        setError(null);
-      } else {
-        console.error('❌ [useInventory] fetchCategories - Error:', result.error);
-        setCategories([]);
-        setError(null);
+      // ✅ Extraer el array correctamente
+      // La API devuelve: { success: true, data: [...] }
+      // Pero a veces viene anidado: { success: true, data: { success: true, data: [...] } }
+      let categoriesArray: any[] = [];
+      
+      if (result.success) {
+        if (Array.isArray(result.data)) {
+          categoriesArray = result.data;
+        } else if (result.data?.data && Array.isArray(result.data.data)) {
+          // Caso anidado
+          categoriesArray = result.data.data;
+        }
       }
-    } catch (error: any) {
-      console.error('❌ [useInventory] fetchCategories - Excepción:', error);
-      setCategories([]);
+      
+      console.log('📊 [useInventory] fetchCategories - Array extraído:', categoriesArray.length, 'categorías');
+      console.log('📋 [useInventory] fetchCategories - IDs:', categoriesArray.map((c: any) => ({ id: c.id, name: c.name })));
+      
+      // ✅ Crear nuevo array para que React detecte el cambio
+      setCategories([...categoriesArray]);
+      console.log('✅ [useInventory] fetchCategories -', categoriesArray.length, 'categorías guardadas en state');
       setError(null);
+    } catch (error: any) {
+      console.error('❌ [useInventory] fetchCategories - Error:', error);
+      setCategories([]);
     }
   }, [organizationId, ready]);
 
@@ -517,30 +527,46 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
       return null;
     }
 
+    setLoading(true);
     try {
-      console.log('🔄 [useInventory] createCategory - Creando categoría:', categoryData.name);
+      console.log('🔄 [useInventory] createCategory - Creando:', categoryData.name);
       
-      // ✅ POST para CREAR nueva categoría
-      const result = await safePost<any>('/api/inventory/categories', {
-        ...categoryData,
-        organization_id: organizationId
+      const response = await fetch('/api/inventory/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...categoryData,
+          organization_id: organizationId
+        })
       });
+
+      const result = await response.json();
+      console.log('📦 [useInventory] createCategory - Respuesta:', result);
       
       if (result.success && result.data) {
-        toast.success(`Categoría "${categoryData.name}" creada exitosamente`);
-        console.log('✅ [useInventory] createCategory - Exitoso:', result.data);
+        toast.success(`Categoría "${categoryData.name}" creada`);
+        console.log('✅ [useInventory] createCategory - Creada, recargando lista...');
         
-        // Recargar lista de categorías
+        // ✅ Recargar y ESPERAR
         await fetchCategories();
         
+        // ✅ Delay para asegurar actualización de estado
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        console.log('✅ [useInventory] createCategory - Lista actualizada');
         return result.data;
       } else {
-        throw new Error(result.error || 'Error al crear categoría');
+        throw new Error(result.error || 'Error al crear');
       }
     } catch (error: any) {
       console.error('❌ [useInventory] createCategory - Error:', error);
-      toast.error('Error al crear categoría');
+      toast.error(error.message || 'Error al crear categoría');
+      // Recargar de todas formas
+      await fetchCategories();
       return null;
+    } finally {
+      setLoading(false);
     }
   }, [organizationId, fetchCategories]);
 
@@ -571,38 +597,47 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
   }, [fetchCategories]);
 
   const deleteCategory = useCallback(async (id: string) => {
+    setLoading(true);
     try {
-      console.log('🔄 [useInventory] deleteCategory - Eliminando categoría:', id);
+      console.log('🔄 [useInventory] deleteCategory - Eliminando:', id);
       
       const response = await fetch(`/api/inventory/categories/${id}`, {
         method: 'DELETE',
-        credentials: 'include', // ✅ FIX: Incluir cookies para autenticación
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
 
       const data = await response.json();
 
-      if (!data.success) {
-        throw new Error(data.error || 'Error al eliminar categoría');
+      if (!response.ok || !data.success) {
+        // Si es 404, la categoría ya no existe - solo recargar
+        if (response.status === 404) {
+          console.log('ℹ️ [useInventory] Categoría ya no existe, recargando...');
+          await fetchCategories();
+          return true;
+        }
+        throw new Error(data.error || `Error ${response.status}`);
       }
 
-      // ✅ No mostrar toast aquí - la página lo maneja
+      console.log('✅ [useInventory] deleteCategory - Eliminada, recargando lista...');
+      
+      // ✅ Recargar y ESPERAR a que termine
       await fetchCategories();
-
+      
+      // ✅ Pequeño delay para asegurar que el estado se actualice
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('✅ [useInventory] deleteCategory - Lista actualizada');
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       console.error('❌ [useInventory] deleteCategory - Error:', errorMessage);
+      // Recargar de todas formas
+      await fetchCategories();
       setError(errorMessage);
-      // ✅ No mostrar toast de error aquí - la página lo maneja
-      throw err; // Re-lanzar para que la página pueda manejarlo
+      throw err;
+    } finally {
+      setLoading(false);
     }
   }, [fetchCategories]);
 

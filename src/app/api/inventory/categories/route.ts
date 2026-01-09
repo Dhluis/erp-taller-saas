@@ -56,147 +56,60 @@ import { handleAPIError, createErrorResponse } from '@/lib/errors/APIError';
 // GET: Obtener todas las categorías
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔄 [GET /api/inventory/categories] Iniciando...')
+    console.log('🔄 [GET /api/inventory/categories] V2 - Iniciando...')
     
-    // ✅ PASO 1: Autenticación
-    let createClientFromRequest, getSupabaseServiceClient
-    try {
-      const serverModule = await import('@/lib/supabase/server')
-      createClientFromRequest = serverModule.createClientFromRequest
-      getSupabaseServiceClient = serverModule.getSupabaseServiceClient
-    } catch (importError) {
-      console.error('❌ [GET /api/inventory/categories] Error importando módulos:', importError)
-      return NextResponse.json({
-        success: true,
-        data: []
-      })
-    }
+    const { createClientFromRequest, getSupabaseServiceClient } = await import('@/lib/supabase/server')
     
-    let supabase, authUser, authError
-    try {
-      supabase = createClientFromRequest(request)
-      const authResult = await supabase.auth.getUser()
-      authUser = authResult.data.user
-      authError = authResult.error
-    } catch (authErr) {
-      console.error('❌ [GET /api/inventory/categories] Error en autenticación:', authErr)
-      return NextResponse.json({
-        success: true,
-        data: []
-      })
-    }
+    // Autenticación
+    const supabase = createClientFromRequest(request)
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    if (authError || !authUser) {
-      console.error('❌ [GET /api/inventory/categories] No autenticado')
-      return NextResponse.json({ 
-        success: true, // Cambiar a true para no romper la UI
-        data: []
-      })
+    if (authError || !user) {
+      console.error('❌ [GET] No autenticado:', authError)
+      return NextResponse.json({ success: true, data: [] })
     }
 
-    // ✅ PASO 2: Obtener organizationId
-    let supabaseAdmin, userProfile, profileError
-    try {
-      supabaseAdmin = getSupabaseServiceClient()
-      const profileResult = await supabaseAdmin
-        .from('users')
-        .select('organization_id')
-        .eq('auth_user_id', authUser.id)
-        .single()
-      
-      userProfile = profileResult.data
-      profileError = profileResult.error
-    } catch (profileErr) {
-      console.error('❌ [GET /api/inventory/categories] Error obteniendo perfil:', profileErr)
-      return NextResponse.json({
-        success: true,
-        data: []
-      })
+    // Obtener organization_id
+    const supabaseAdmin = getSupabaseServiceClient()
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single()
+
+    if (profileError || !userProfile?.organization_id) {
+      console.error('❌ [GET] Error perfil:', profileError)
+      return NextResponse.json({ success: true, data: [] })
     }
-    
-    if (profileError || !userProfile || !userProfile.organization_id) {
-      console.error('❌ [GET /api/inventory/categories] Error obteniendo perfil:', profileError)
-      return NextResponse.json({ 
-        success: true, // Cambiar a true para no romper la UI
-        data: []
-      })
-    }
-    
+
     const organizationId = userProfile.organization_id
-    console.log('✅ [GET /api/inventory/categories] Organization ID:', organizationId)
-    
-    // ✅ PASO 3: Query de categorías
-    let categories, queryError
-    try {
-      console.log('🔍 [GET /api/inventory/categories] Ejecutando query con organization_id:', organizationId)
-      
-      const queryResult = await supabaseAdmin
-        .from('inventory_categories')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('name', { ascending: true })
-      
-      categories = queryResult.data
-      queryError = queryResult.error
-      
-      console.log('📊 [GET /api/inventory/categories] Resultado de query:', {
-        hasData: !!categories,
-        isArray: Array.isArray(categories),
-        count: categories?.length || 0,
-        hasError: !!queryError,
-        firstCategory: categories?.[0] ? {
-          id: categories[0].id,
-          name: categories[0].name,
-          organization_id: categories[0].organization_id
-        } : null
-      })
-    } catch (queryErr) {
-      console.error('❌ [GET /api/inventory/categories] Excepción en query:', queryErr)
-      return NextResponse.json({
-        success: true,
-        data: []
-      })
-    }
-    
+    console.log('✅ [GET] Org:', organizationId)
+
+    // Query DIRECTO sin filtros complicados
+    const { data: categories, error: queryError } = await supabaseAdmin
+      .from('inventory_categories')
+      .select('id, name, description, status, organization_id, created_at, updated_at')
+      .eq('organization_id', organizationId)
+      .order('name', { ascending: true })
+
     if (queryError) {
-      console.error('❌ [GET /api/inventory/categories] Error en query:', queryError)
-      console.error('❌ [GET /api/inventory/categories] Detalles:', {
-        message: queryError.message,
-        code: queryError.code,
-        details: queryError.details,
-        hint: queryError.hint
-      })
-      
-      // SIEMPRE devolver array vacío en lugar de error 500
-      return NextResponse.json({
-        success: true,
-        data: []
-      })
+      console.error('❌ [GET] Error query:', queryError)
+      return NextResponse.json({ success: true, data: [] })
     }
-    
-    console.log('✅ [GET /api/inventory/categories] Categorías encontradas:', categories?.length || 0)
+
+    console.log('✅ [GET] Categorías encontradas:', categories?.length || 0)
     if (categories && categories.length > 0) {
-      console.log('📋 [GET /api/inventory/categories] Primeras categorías:', categories.slice(0, 3).map(c => ({
-        id: c.id,
-        name: c.name,
-        organization_id: c.organization_id
-      })))
+      console.log('📋 [GET] IDs de categorías:', categories.map(c => ({ id: c.id, name: c.name })))
     }
     
-    // ✅ RETORNAR estructura correcta
     return NextResponse.json({
       success: true,
-      data: Array.isArray(categories) ? categories : []
+      data: categories || []
     })
     
-  } catch (error: any) {
-    console.error('❌ [GET /api/inventory/categories] Error inesperado:', error)
-    console.error('❌ [GET /api/inventory/categories] Stack:', error.stack)
-    // SIEMPRE devolver array vacío en lugar de error 500
-    return NextResponse.json({
-      success: true,
-      data: []
-    })
+  } catch (error) {
+    console.error('❌ [GET] Error:', error)
+    return NextResponse.json({ success: true, data: [] })
   }
 }
 

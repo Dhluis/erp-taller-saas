@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { PageHeader } from '@/components/navigation/page-header'
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
+import { Pagination } from '@/components/ui/pagination'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import {
   Plus,
   Search,
@@ -22,8 +24,8 @@ import {
   Mail,
   Loader2
 } from "lucide-react"
-import { getSuppliers, getSupplierStats, createSupplier } from "@/lib/supabase/suppliers"
-import { Supplier } from "@/types/supabase-simple"
+import { getSupplierStats } from "@/lib/supabase/suppliers"
+import { useSuppliers } from '@/hooks/useSuppliers'
 
 interface PageStats {
   totalSuppliers: number
@@ -33,15 +35,45 @@ interface PageStats {
 }
 
 export default function ProveedoresPage() {
+  // ✅ Hook con paginación
+  const {
+    suppliers,
+    loading,
+    error,
+    pagination,
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    changePageSize,
+    setSearch,
+    refresh,
+    createSupplier
+  } = useSuppliers({
+    page: 1,
+    pageSize: 20,
+    sortBy: 'name',
+    sortOrder: 'asc',
+    autoLoad: true
+  })
+
+  // ✅ Debounce para búsqueda (800ms para mejor UX)
   const [searchTerm, setSearchTerm] = useState("")
-  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const debouncedSearch = useDebouncedValue(searchTerm, 800)
+
+  // Sincronizar búsqueda con debounce
+  useEffect(() => {
+    // Solo actualizar si el valor debounced cambió
+    if (debouncedSearch !== undefined) {
+      setSearch(debouncedSearch)
+    }
+  }, [debouncedSearch, setSearch])
+
   const [stats, setStats] = useState<PageStats>({
     totalSuppliers: 0,
     activeSuppliers: 0,
     totalOrders: 0,
     totalAmount: 0
   })
-  const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   
@@ -55,49 +87,10 @@ export default function ProveedoresPage() {
     is_active: true
   })
 
+  // ✅ Cargar stats en un useEffect separado (no paginado)
   useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = async () => {
-    setIsLoading(true)
-    try {
-      const [suppliersData, statsData] = await Promise.all([
-        getSuppliers(),
-        getSupplierStats()
-      ])
-      setSuppliers(suppliersData)
-      setStats({
-        totalSuppliers: statsData.total || 0,
-        activeSuppliers: statsData.active || 0,
-        totalOrders: 0, // No disponible en statsData
-        totalAmount: 0  // No disponible en statsData
-      })
-    } catch (error) {
-      console.error('Error loading data:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    
-    try {
-      const newSupplier = await createSupplier(formData)
-      if (newSupplier) {
-        setSuppliers([newSupplier, ...suppliers])
-        setIsDialogOpen(false)
-        setFormData({
-          name: '',
-          contact_person: '',
-          email: '',
-          phone: '',
-          address: '',
-          is_active: true
-        })
-        // Recargar estadísticas
+    const loadStats = async () => {
+      try {
         const statsData = await getSupplierStats()
         setStats({
           totalSuppliers: statsData.total || 0,
@@ -105,24 +98,47 @@ export default function ProveedoresPage() {
           totalOrders: 0, // No disponible en statsData
           totalAmount: 0  // No disponible en statsData
         })
-        alert('Proveedor creado exitosamente')
-      } else {
-        alert('Error al crear el proveedor')
+      } catch (error) {
+        console.error('Error loading stats:', error)
       }
+    }
+    loadStats()
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    
+    try {
+      await createSupplier(formData)
+      setIsDialogOpen(false)
+      // Resetear formulario
+      setFormData({
+        name: '',
+        contact_person: '',
+        email: '',
+        phone: '',
+        address: '',
+        is_active: true
+      })
+      // Recargar estadísticas
+      const statsData = await getSupplierStats()
+      setStats({
+        totalSuppliers: statsData.total || 0,
+        activeSuppliers: statsData.active || 0,
+        totalOrders: 0, // No disponible en statsData
+        totalAmount: 0  // No disponible en statsData
+      })
+      // El hook ya refresca automáticamente, pero podemos llamar refresh() para asegurar
+      await refresh()
     } catch (error) {
       console.error('Error creating supplier:', error)
-      alert('Error al crear el proveedor')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const filteredSuppliers = suppliers.filter(
-    (supplier) =>
-      (supplier.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (supplier.contact_person || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (supplier.id || '').toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // ✅ Ya no necesitamos filtrado local, se hace en el servidor
 
   const getStatusBadge = (isActive: boolean) => {
     if (isActive) {
@@ -132,7 +148,7 @@ export default function ProveedoresPage() {
     }
   }
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="flex items-center justify-center h-64">
@@ -290,13 +306,19 @@ export default function ProveedoresPage() {
         <h3 className="text-xl font-semibold">Lista de Proveedores</h3>
         <div className="flex items-center py-4">
           <div className="relative w-full max-w-sm">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className={`absolute left-2 top-2.5 h-4 w-4 text-muted-foreground ${loading ? 'animate-pulse' : ''}`} />
             <Input
               placeholder="Buscar por nombre, contacto o ID..."
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               className="pl-8"
+              disabled={loading}
             />
+            {searchTerm && searchTerm !== debouncedSearch && (
+              <div className="absolute right-2 top-2.5">
+                <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
           </div>
         </div>
         <div className="rounded-md border">
@@ -313,20 +335,46 @@ export default function ProveedoresPage() {
                 </tr>
               </thead>
               <tbody className="[&_tr:last-child]:border-0">
-                {filteredSuppliers.map((supplier) => (
-                  <tr key={supplier.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{supplier.id}</td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{supplier.name}</td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{supplier.contact_person}</td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" />{supplier.phone}</td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" />{supplier.email}</td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{getStatusBadge(supplier.is_active)}</td>
+                {suppliers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                      {searchTerm
+                        ? 'No se encontraron proveedores con los filtros aplicados'
+                        : 'No hay proveedores registrados'}
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  suppliers.map((supplier) => (
+                    <tr key={supplier.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                      <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{supplier.id}</td>
+                      <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{supplier.name}</td>
+                      <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{supplier.contact_person}</td>
+                      <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" />{supplier.phone}</td>
+                      <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" />{supplier.email}</td>
+                      <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{getStatusBadge(supplier.is_active)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
+
+        {/* Pagination */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              pageSize={pagination.pageSize}
+              total={pagination.total}
+              onPageChange={goToPage}
+              onPageSizeChange={changePageSize}
+              loading={loading}
+              pageSizeOptions={[10, 20, 50]}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

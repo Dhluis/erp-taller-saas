@@ -49,8 +49,14 @@ export default function InventariosProductosPage() {
     pageSize: 50,
     sortBy: 'name',
     sortOrder: 'asc',
-    autoLoad: true
+    autoLoad: true,
+    enableCache: false // ✅ Deshabilitar cache para siempre tener datos frescos
   });
+
+  // ✅ Recargar categorías cuando cambian (para actualizar dropdown)
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebouncedValue(searchQuery, 500);
@@ -111,6 +117,8 @@ export default function InventariosProductosPage() {
   };
 
   const handleEditProduct = (product: InventoryItem) => {
+    // ✅ Recargar categorías antes de abrir el modal de edición
+    fetchCategories();
     setSelectedProduct(product);
     setEditProduct({
       name: product.name,
@@ -286,7 +294,11 @@ export default function InventariosProductosPage() {
                 Actualizar
               </Button>
               <Button
-                onClick={() => setShowNewProductModal(true)}
+                onClick={() => {
+                  // ✅ Recargar categorías antes de abrir el modal para asegurar que estén actualizadas
+                  fetchCategories();
+                  setShowNewProductModal(true);
+                }}
               >
                 <PlusIcon className="w-5 h-5 mr-2" />
                 Nuevo Producto
@@ -361,7 +373,11 @@ export default function InventariosProductosPage() {
                 }
               </p>
               {!searchQuery && (
-                <Button onClick={() => setShowNewProductModal(true)}>
+                <Button onClick={() => {
+                  // ✅ Recargar categorías antes de abrir el modal
+                  fetchCategories();
+                  setShowNewProductModal(true);
+                }}>
                   <PlusIcon className="w-5 h-5 mr-2" />
                   Agregar Producto
                 </Button>

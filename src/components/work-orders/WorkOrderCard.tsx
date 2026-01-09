@@ -1,8 +1,19 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { WorkOrder } from '@/hooks/useWorkOrders';
 import { WorkOrderStatusBadge } from './WorkOrderStatusBadge';
 import { Eye, Edit, Trash2, Calendar, User, Car } from 'lucide-react';
@@ -20,6 +31,7 @@ export function WorkOrderCard({
   onEdit,
   onDelete,
 }: WorkOrderCardProps) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   return (
     <Card className="hover:shadow-md transition-shadow cursor-pointer">
       <CardHeader className="pb-3">
@@ -116,7 +128,7 @@ export function WorkOrderCard({
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => onDelete(workOrder)}
+              onClick={() => setShowDeleteDialog(true)}
               className="flex-1 text-destructive hover:text-destructive"
             >
               <Trash2 className="h-3 w-3 mr-1" />
@@ -125,6 +137,30 @@ export function WorkOrderCard({
           </div>
         </div>
       </CardContent>
+
+      {/* Diálogo de confirmación de eliminación */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar orden de trabajo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. La orden y todos sus datos asociados serán eliminados permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                onDelete(workOrder);
+                setShowDeleteDialog(false);
+              }}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

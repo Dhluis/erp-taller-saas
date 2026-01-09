@@ -6,6 +6,7 @@
  */
 
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
+import { getAppUrl } from '@/lib/utils/env';
 
 /**
  * Generar nombre de sesión único por organización
@@ -219,10 +220,9 @@ export async function createOrganizationSession(organizationId: string): Promise
   console.log(`[WAHA Sessions] 🌐 WAHA URL: ${url}`);
   console.log(`[WAHA Sessions] 🔑 WAHA Key length: ${key.length}`);
 
-  // URL del webhook
-  const webhookUrl = process.env.NEXT_PUBLIC_APP_URL 
-    ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
-    : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
+  // URL del webhook (fail-fast si no está configurada)
+  // ✅ Usar getAppUrl() que maneja automáticamente la limpieza y fallbacks
+  const webhookUrl = `${getAppUrl()}/api/webhooks/whatsapp`;
 
   console.log(`[WAHA Sessions] 🔗 Webhook URL: ${webhookUrl}`);
 
@@ -235,7 +235,11 @@ export async function createOrganizationSession(organizationId: string): Promise
         url: webhookUrl,
         events: ['message', 'session.status'],
         downloadMedia: true, // ✅ Descargar media automáticamente
-        downloadMediaOnMessage: true // ✅ Descargar media cuando llega mensaje
+        downloadMediaOnMessage: true, // ✅ Descargar media cuando llega mensaje
+        customHeaders: [{
+          name: 'X-Organization-ID',
+          value: organizationId
+        }]
       }]
     }
   };
@@ -331,67 +335,144 @@ export async function createOrganizationSession(organizationId: string): Promise
 /**
  * Actualizar configuración del webhook de una sesión existente
  * Útil para agregar soporte multimedia sin recrear la sesión
- * Siempre actualiza el webhook cuando se reconecta/inicia una sesión
+ * @deprecated Use updateWebhookForOrganization instead for clarity
  */
 export async function updateSessionWebhook(sessionName: string, organizationId?: string): Promise<void> {
-  try {
-    const orgId = organizationId || await getOrganizationFromSession(sessionName);
-    if (!orgId) {
-      throw new Error('No se pudo obtener organizationId para actualizar webhook');
-    }
-    
-    const { url, key } = await getWahaConfig(orgId);
-    
-    const webhookUrl = process.env.NEXT_PUBLIC_APP_URL 
-      ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
-      : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
+  return updateWebhookForOrganization(sessionName, organizationId);
+}
 
-    console.log(`[WAHA Sessions] 🔧 Actualizando webhook para sesión: ${sessionName}`);
-    console.log(`[WAHA Sessions] 📍 Webhook URL: ${webhookUrl}`);
-    console.log(`[WAHA Sessions] 🏢 Organization ID: ${orgId}`);
-
-    const requestBody = {
-      config: {
-        webhooks: [{
-          url: webhookUrl,
-          events: ['message', 'session.status'],
-          downloadMedia: true, // ✅ Descargar media automáticamente
-          downloadMediaOnMessage: true // ✅ Descargar media cuando llega mensaje
-        }]
-      }
-    };
-
-    console.log(`[WAHA Sessions] 📤 Request body:`, JSON.stringify(requestBody, null, 2));
-
-    const response = await fetch(`${url}/api/sessions/${sessionName}`, {
-      method: 'PUT',
-      headers: {
-        'X-Api-Key': key,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Error desconocido');
-      console.error(`[WAHA Sessions] ❌ Error actualizando webhook: ${response.status}`, errorText);
-      throw new Error(`Error actualizando webhook: ${response.status} - ${errorText}`);
-    }
-
-    const responseData = await response.json().catch(() => ({}));
-    console.log(`[WAHA Sessions] ✅ Webhook actualizado exitosamente`);
-    if (Object.keys(responseData).length > 0) {
-      console.log(`[WAHA Sessions] 📥 Response:`, JSON.stringify(responseData, null, 2));
-    }
-  } catch (error: any) {
-    console.error(`[WAHA Sessions] ❌ Error en updateSessionWebhook:`, {
-      message: error.message,
-      stack: error.stack,
-      sessionName,
-      organizationId
-    });
-    throw error;
+/**
+ * Actualizar webhook para una organización específica (multi-tenant)
+ * Configura el webhook con custom header X-Organization-ID dinámico
+ * 
+ * @param sessionName - Nombre de la sesión WAHA
+ * @param organizationId - ID de la organización (opcional, se obtiene de la sesión si no se proporciona)
+ */
+export async function updateWebhookForOrganization(sessionName: string, organizationId?: string): Promise<void> {
+  const orgId = organizationId || await getOrganizationFromSession(sessionName);
+  if (!orgId) {
+    throw new Error('No se pudo obtener organizationId para actualizar webhook');
   }
+  
+  const { url, key } = await getWahaConfig(orgId);
+  
+  // URL del webhook (fail-fast si no está configurada)
+  // ✅ Usar getAppUrl() que maneja automáticamente la limpieza y fallbacks
+  const webhookUrl = `${getAppUrl()}/api/webhooks/whatsapp`;
+
+  console.log(`[WAHA Sessions] 🔄 Actualizando webhook para organización: ${orgId}`);
+  console.log(`[WAHA Sessions] 📍 Session Name: ${sessionName}`);
+  console.log(`[WAHA Sessions] 🔗 Webhook URL: ${webhookUrl}`);
+  console.log(`[WAHA Sessions] 🏢 Configurando webhook con X-Organization-ID: ${orgId}`);
+
+  const requestBody = {
+    config: {
+      webhooks: [{
+        url: webhookUrl,
+        events: ['message', 'session.status'],
+        downloadMedia: true,
+        downloadMediaOnMessage: true,
+        customHeaders: [{
+          name: 'X-Organization-ID',
+          value: orgId
+        }]
+      }]
+    }
+  };
+
+  console.log(`[WAHA Sessions] 📤 Request body:`, JSON.stringify(requestBody, null, 2));
+
+  const response = await fetch(`${url}/api/sessions/${sessionName}`, {
+    method: 'PUT',
+    headers: {
+      'X-Api-Key': key,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Error desconocido');
+    console.error(`[WAHA Sessions] ❌ Error actualizando webhook: ${response.status}`, errorText);
+    throw new Error(`Error actualizando webhook: ${response.status} - ${errorText}`);
+  }
+
+  const responseData = await response.json().catch(() => ({}));
+  console.log(`[WAHA Sessions] ✅ Webhook actualizado exitosamente con X-Organization-ID: ${orgId}`);
+  if (Object.keys(responseData).length > 0) {
+    console.log(`[WAHA Sessions] 📥 Response:`, JSON.stringify(responseData, null, 2));
+  }
+}
+
+/**
+ * Verificar configuración del webhook de una sesión
+ * Retorna la configuración actual del webhook incluyendo custom headers
+ */
+export async function verifyWebhookConfiguration(sessionName: string, organizationId?: string): Promise<{
+  webhook?: {
+    url: string;
+    events: string[];
+    customHeaders?: Array<{ name: string; value: string }>;
+  };
+  isConfigured: boolean;
+  isCorrect: boolean;
+  expectedOrgId: string;
+  actualOrgId?: string;
+}> {
+  const orgId = organizationId || await getOrganizationFromSession(sessionName);
+  if (!orgId) {
+    throw new Error('No se pudo obtener organizationId para verificar webhook');
+  }
+
+  const { url, key } = await getWahaConfig(orgId);
+
+  console.log(`[WAHA Sessions] 🔍 Verificando configuración de webhook para sesión: ${sessionName}`);
+  console.log(`[WAHA Sessions] 🏢 Organization ID esperado: ${orgId}`);
+
+  const response = await fetch(`${url}/api/sessions/${sessionName}`, {
+    method: 'GET',
+    headers: {
+      'X-Api-Key': key,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Error desconocido');
+    console.error(`[WAHA Sessions] ❌ Error verificando webhook: ${response.status}`, errorText);
+    throw new Error(`Error verificando webhook: ${response.status} - ${errorText}`);
+  }
+
+  const sessionData = await response.json().catch(() => ({}));
+  
+  // Buscar webhook en la configuración
+  const webhooks = sessionData?.config?.webhooks || [];
+  const webhook = webhooks[0];
+
+  const isConfigured = !!webhook;
+  const customHeader = webhook?.customHeaders?.find((h: any) => h.name === 'X-Organization-ID');
+  const actualOrgId = customHeader?.value;
+  const isCorrect = isConfigured && actualOrgId === orgId;
+
+  console.log(`[WAHA Sessions] 📊 Verificación completada:`, {
+    isConfigured,
+    isCorrect,
+    expectedOrgId: orgId,
+    actualOrgId,
+    webhookUrl: webhook?.url
+  });
+
+  return {
+    webhook: webhook ? {
+      url: webhook.url,
+      events: webhook.events || [],
+      customHeaders: webhook.customHeaders || []
+    } : undefined,
+    isConfigured,
+    isCorrect,
+    expectedOrgId: orgId,
+    actualOrgId
+  };
 }
 
 /**
@@ -720,8 +801,16 @@ export async function sendWhatsAppMessage(
     // Continuar de todas formas, puede que el estado se pueda verificar después
   }
 
-  // Formatear número si no tiene @
-  const chatId = to.includes('@') ? to : `${to}@c.us`;
+  // Construir chatId - mantener formato original si ya tiene @
+  // Si no tiene @, agregar @c.us por defecto
+  let chatId: string;
+  if (to.includes('@')) {
+    // Ya tiene formato (@lid, @c.us, @s.whatsapp.net)
+    chatId = to;
+  } else {
+    // Solo número, agregar @c.us por defecto
+    chatId = `${to}@c.us`;
+  }
 
   // WAHA Plus usa /api/sendText con session en el body (no en la URL)
   const endpointUrl = `${url}/api/sendText`;

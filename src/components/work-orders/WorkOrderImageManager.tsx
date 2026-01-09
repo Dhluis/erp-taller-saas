@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -66,7 +66,8 @@ const CATEGORY_LABELS: Record<ImageCategory, { label: string; color: string }> =
 
 /**
  * Comprime imagen y genera thumbnail
- * Reduce tamaño de 4-12MB a ~500KB-1MB (imagen completa)
+ * ✅ OPTIMIZADO PARA MÓVIL: Reduce tamaño más agresivamente
+ * Reduce tamaño de 4-12MB a ~200-500KB (imagen completa) en móvil
  * Genera thumbnail de 200x200px (~10-20KB)
  */
 async function compressImage(file: File): Promise<{
@@ -74,6 +75,11 @@ async function compressImage(file: File): Promise<{
   thumbnail: File
 }> {
   return new Promise((resolve, reject) => {
+    // ✅ DETECTAR MÓVIL para optimizar más agresivamente
+    const isMobile = typeof window !== 'undefined' && 
+      (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+       window.innerWidth < 768)
+    
     const reader = new FileReader()
     reader.readAsDataURL(file)
     
@@ -86,11 +92,12 @@ async function compressImage(file: File): Promise<{
         const originalHeight = img.height
         
         // ============================================
-        // 1. GENERAR IMAGEN COMPLETA (1920px máximo)
+        // 1. GENERAR IMAGEN COMPLETA (optimizado para móvil)
         // ============================================
         let fullWidth = originalWidth
         let fullHeight = originalHeight
-        const MAX_SIZE = 1920
+        // ✅ MÓVIL: 1200px máximo, DESKTOP: 1920px máximo
+        const MAX_SIZE = isMobile ? 1200 : 1920
         
         if (fullWidth > fullHeight && fullWidth > MAX_SIZE) {
           fullHeight = Math.round((fullHeight * MAX_SIZE) / fullWidth)
@@ -155,6 +162,10 @@ async function compressImage(file: File): Promise<{
           }
         }
         
+        // ✅ OPTIMIZACIÓN MÓVIL: Calidad reducida para archivos más pequeños
+        const fullQuality = isMobile ? 0.65 : 0.8  // Móvil: 65%, Desktop: 80%
+        const thumbQuality = isMobile ? 0.75 : 0.85  // Móvil: 75%, Desktop: 85%
+        
         // Generar imagen completa
         fullCanvas.toBlob(
           (blob) => {
@@ -169,7 +180,7 @@ async function compressImage(file: File): Promise<{
             }
           },
           'image/jpeg',
-          0.8 // 80% de calidad
+          fullQuality
         )
         
         // Generar thumbnail
@@ -186,7 +197,7 @@ async function compressImage(file: File): Promise<{
             }
           },
           'image/jpeg',
-          0.85 // 85% de calidad para thumbnail (más pequeño, puede ser más calidad)
+          thumbQuality
         )
       }
       
@@ -197,7 +208,8 @@ async function compressImage(file: File): Promise<{
   })
 }
 
-export function WorkOrderImageManager({
+// ✅ OPTIMIZACIÓN: Memoizar componente para evitar renders innecesarios
+export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
   orderId,
   images,
   onImagesChange,
@@ -305,11 +317,18 @@ export function WorkOrderImageManager({
       // Procesar y subir todas las imágenes en paralelo
       toast.info(`Procesando ${filesArray.length} imagen${filesArray.length > 1 ? 'es' : ''}...`, { duration: 2000 })
       
-      const uploadPromises = filesArray.map(async (file, index) => {
+      // ✅ OPTIMIZACIÓN MÓVIL: Limitar procesamiento en paralelo (máx 2 a la vez)
+      const isMobile = typeof window !== 'undefined' && 
+        (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+         window.innerWidth < 768)
+      const maxConcurrent = isMobile ? 2 : 5  // Móvil: 2, Desktop: 5
+      
+      // Procesar imágenes en lotes para evitar sobrecarga en móvil
+      const processFile = async (file: File, index: number, total: number) => {
         try {
           // ✅ OPTIMIZACIÓN: Comprimir y generar thumbnail
-          console.log(`📸 [${index + 1}/${filesArray.length}] Procesando imagen:`, file.name)
-          console.log(`📊 [${index + 1}/${filesArray.length}] Tamaño original:`, (file.size / 1024 / 1024).toFixed(2), 'MB')
+          console.log(`📸 [${index + 1}/${total}] Procesando imagen:`, file.name)
+          console.log(`📊 [${index + 1}/${total}] Tamaño original:`, (file.size / 1024 / 1024).toFixed(2), 'MB')
 
           let fullFile = file
           let thumbFile: File | null = null
@@ -323,10 +342,10 @@ export function WorkOrderImageManager({
               
               const fullSizeKB = (fullFile.size / 1024).toFixed(0)
               const thumbSizeKB = (thumbFile.size / 1024).toFixed(0)
-              console.log(`✅ [${index + 1}/${filesArray.length}] Optimizada: ${fullSizeKB}KB (full) + ${thumbSizeKB}KB (thumb)`)
+              console.log(`✅ [${index + 1}/${total}] Optimizada: ${fullSizeKB}KB (full) + ${thumbSizeKB}KB (thumb)`)
             }
           } catch (error) {
-            console.error(`❌ [${index + 1}/${filesArray.length}] Error optimizando imagen:`, error)
+            console.error(`❌ [${index + 1}/${total}] Error optimizando imagen:`, error)
             // Continuar con archivo original si falla la compresión
           }
 
@@ -343,9 +362,9 @@ export function WorkOrderImageManager({
               const thumbResult = await uploadWorkOrderImage(
                 thumbFile,
                 orderId,
-                organizationId, // ✅ MULTI-TENANT: Pasar organizationId
+                organizationId,
                 userId,
-                `${selectedCategory}_thumb`, // Categoría especial para thumbnails
+                `${selectedCategory}_thumb`,
                 uploadDescription || undefined,
                 currentStatus,
                 session.access_token
@@ -354,16 +373,15 @@ export function WorkOrderImageManager({
               if (thumbResult.success && thumbResult.data) {
                 thumbnailUrl = thumbResult.data.url
                 thumbnailPath = thumbResult.data.path
-                console.log(`✅ [${index + 1}/${filesArray.length}] Thumbnail subido`)
+                console.log(`✅ [${index + 1}/${total}] Thumbnail subido`)
               }
             } catch (thumbError) {
-              console.warn(`⚠️ [${index + 1}/${filesArray.length}] Error subiendo thumbnail (no crítico):`, thumbError)
-              // No fallar si thumbnail falla, continuar con imagen completa
+              console.warn(`⚠️ [${index + 1}/${total}] Error subiendo thumbnail (no crítico):`, thumbError)
             }
           }
           
           // ✅ Subir imagen completa
-          console.log(`📊 [${index + 1}/${filesArray.length}] Subiendo imagen completa:`, (fullFile.size / 1024 / 1024).toFixed(2), 'MB')
+          console.log(`📊 [${index + 1}/${total}] Subiendo imagen completa:`, (fullFile.size / 1024 / 1024).toFixed(2), 'MB')
           
           if (!organizationId) {
             throw new Error('Organization ID no disponible')
@@ -372,7 +390,7 @@ export function WorkOrderImageManager({
           const uploadResult = await uploadWorkOrderImage(
             fullFile,
             orderId,
-            organizationId, // ✅ MULTI-TENANT: Pasar organizationId
+            organizationId,
             userId,
             selectedCategory,
             uploadDescription || undefined,
@@ -381,27 +399,40 @@ export function WorkOrderImageManager({
           )
 
           if (!uploadResult.success || !uploadResult.data) {
-            console.error(`❌ [${index + 1}/${filesArray.length}] Falló la subida:`, uploadResult.error)
+            console.error(`❌ [${index + 1}/${total}] Falló la subida:`, uploadResult.error)
             throw new Error(uploadResult.error || `Error al subir ${file.name}`)
           }
 
-          // ✅ Incluir thumbnailUrl en el resultado
           const imageData = {
             ...uploadResult.data,
             thumbnailUrl,
             thumbnailPath
           }
 
-          console.log(`✅ [${index + 1}/${filesArray.length}] Upload completado:`, file.name)
+          console.log(`✅ [${index + 1}/${total}] Upload completado:`, file.name)
           return imageData
         } catch (error: any) {
-          console.error(`❌ [${index + 1}/${filesArray.length}] Error:`, error)
+          console.error(`❌ [${index + 1}/${total}] Error:`, error)
           throw error
         }
-      })
+      }
 
-      // Esperar a que todas las imágenes se suban
-      const uploadResults = await Promise.all(uploadPromises)
+      // ✅ Procesar en lotes para evitar sobrecarga en móvil
+      const uploadResults: any[] = []
+      for (let i = 0; i < filesArray.length; i += maxConcurrent) {
+        const batch = filesArray.slice(i, i + maxConcurrent)
+        try {
+          const batchResults = await Promise.all(batch.map((file, batchIndex) => 
+            processFile(file, i + batchIndex, filesArray.length).catch(error => {
+              console.error(`Error procesando archivo ${file.name}:`, error)
+              return null  // Continuar con otros archivos si uno falla
+            })
+          ))
+          uploadResults.push(...batchResults.filter(r => r !== null))
+        } catch (batchError) {
+          console.error(`Error procesando lote ${Math.floor(i / maxConcurrent) + 1}:`, batchError)
+        }
+      }
       const successfulUploads = uploadResults.filter(result => result !== null)
 
       console.log(`✅ [handleFileChange] ${successfulUploads.length}/${filesArray.length} imágenes subidas exitosamente`)
@@ -736,7 +767,9 @@ export function WorkOrderImageManager({
                             fill
                             className="object-cover"
                             sizes="(max-width: 768px) 50vw, 20vw"
-                            loading="lazy"
+                            loading="lazy"  // ✅ OPTIMIZACIÓN: Lazy loading
+                            placeholder="blur"
+                            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
                           />
                         </div>
 
@@ -894,4 +927,13 @@ export function WorkOrderImageManager({
       </Dialog>
     </div>
   )
-}
+}, (prevProps, nextProps) => {
+  // ✅ OPTIMIZACIÓN: Solo re-renderizar si cambian props relevantes
+  return (
+    prevProps.orderId === nextProps.orderId &&
+    prevProps.images.length === nextProps.images.length &&
+    prevProps.currentStatus === nextProps.currentStatus &&
+    prevProps.userId === nextProps.userId &&
+    prevProps.maxImages === nextProps.maxImages
+  )
+})
