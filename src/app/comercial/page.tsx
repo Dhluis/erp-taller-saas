@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +15,7 @@ import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Users, Target, User
 import { LeadStatusBadge, type LeadStatus } from '@/components/whatsapp/LeadStatusBadge'
 import { toast } from 'sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { getSupabaseClient } from '@/lib/supabase/client'
 
 interface Lead {
   id: string
@@ -54,34 +55,116 @@ export default function TestComercialPage() {
     assigned_to: ""
   })
 
-  // Cargar leads desde API
-  useEffect(() => {
-    const loadLeads = async () => {
-      try {
-        setIsLoading(true)
-        const response = await fetch('/api/leads')
-        const data = await response.json()
-        
-        if (data.success && data.data) {
-          // Adaptar datos de API al formato local si es necesario
-          const leadsData = data.data.items || data.data || []
-          setLeads(leadsData.map((lead: any) => ({
-            ...lead,
-            company: lead.company || '',
-            last_contact: lead.last_contact || lead.created_at || '',
-            assigned_to: lead.assigned_to || lead.assigned_user?.full_name || ''
-          })))
-        }
-      } catch (error) {
-        console.error('Error cargando leads:', error)
-        toast.error('Error al cargar leads')
-      } finally {
-        setIsLoading(false)
+  // Ref para la suscripción realtime
+  const subscriptionRef = useRef<any>(null)
+
+  // ✅ Cargar leads desde API (useCallback para evitar re-creación)
+  const loadLeads = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/leads')
+      const data = await response.json()
+      
+      if (data.success && data.data) {
+        // Adaptar datos de API al formato local si es necesario
+        const leadsData = data.data.items || data.data || []
+        setLeads(leadsData.map((lead: any) => ({
+          ...lead,
+          company: lead.company || '',
+          last_contact: lead.last_contact || lead.created_at || '',
+          assigned_to: lead.assigned_to || lead.assigned_user?.full_name || '',
+          value: lead.estimated_value || lead.value || 0,
+          source: lead.lead_source || lead.source || ''
+        })))
       }
+    } catch (error) {
+      console.error('Error cargando leads:', error)
+      toast.error('Error al cargar leads')
+    } finally {
+      setIsLoading(false)
     }
-    
+  }, []) // Sin dependencias porque solo usa setters estables
+
+  // ✅ Cargar leads inicial
+  useEffect(() => {
     loadLeads()
   }, [])
+
+  // ✅ Suscripción realtime para cambios en leads
+  useEffect(() => {
+    const supabase = getSupabaseClient()
+    
+    console.log('🔄 [Comercial] Iniciando suscripción realtime a leads')
+    
+    const channel = supabase
+      .channel('leads-realtime-comercial')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'leads'
+        },
+        async (payload) => {
+          console.log('📡 [Comercial] Cambio detectado en leads:', {
+            eventType: payload.eventType,
+            leadId: payload.new?.id || payload.old?.id
+          })
+
+          // Si es UPDATE, actualizar el lead específico en el estado
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            const updatedLead = payload.new as any
+            setLeads(prevLeads => {
+              const leadIndex = prevLeads.findIndex(l => l.id === updatedLead.id)
+              
+              if (leadIndex >= 0) {
+                // Actualizar lead existente
+                const newLeads = [...prevLeads]
+                newLeads[leadIndex] = {
+                  ...newLeads[leadIndex],
+                  ...updatedLead,
+                  company: updatedLead.company || '',
+                  last_contact: updatedLead.last_contact || updatedLead.created_at || '',
+                  assigned_to: updatedLead.assigned_to || updatedLead.assigned_user?.full_name || '',
+                  value: updatedLead.estimated_value || updatedLead.value || 0,
+                  source: updatedLead.lead_source || updatedLead.source || '',
+                  status: updatedLead.status as LeadStatus
+                }
+                console.log('✅ [Comercial] Lead actualizado en tiempo real:', updatedLead.id)
+                return newLeads
+              } else {
+                // Si no existe, recargar todos los leads para asegurar sincronización
+                console.log('⚠️ [Comercial] Lead no encontrado localmente, recargando...')
+                loadLeads()
+                return prevLeads
+              }
+            })
+          } else if (payload.eventType === 'INSERT' || payload.eventType === 'DELETE') {
+            // Para INSERT y DELETE, recargar todos los leads
+            console.log('🔄 [Comercial] Cambio estructural detectado, recargando leads...')
+            loadLeads()
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ [Comercial] Suscrito a cambios en tiempo real de leads')
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ [Comercial] Error en suscripción realtime a leads')
+        }
+      })
+
+    subscriptionRef.current = channel
+
+    // Cleanup al desmontar
+    return () => {
+      if (subscriptionRef.current) {
+        console.log('🔌 [Comercial] Desuscribiendo de cambios en tiempo real')
+        supabase.removeChannel(subscriptionRef.current)
+        subscriptionRef.current = null
+      }
+    }
+  }, [loadLeads]) // ✅ Incluir loadLeads en dependencias
 
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = (lead.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||

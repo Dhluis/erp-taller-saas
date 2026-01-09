@@ -407,23 +407,23 @@ export function LeadManagementPanel({
                 value={selectedStatus}
                 onValueChange={(value) => setSelectedStatus(value as LeadStatus)}
               >
-                <SelectTrigger id="lead-status" className="bg-gray-800 border-gray-700 text-white">
-                  <SelectValue />
+                <SelectTrigger id="lead-status" className="bg-gray-900 border-gray-700 text-white hover:bg-gray-800 focus:bg-gray-800 focus:ring-gray-600">
+                  <SelectValue className="text-white" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                  <SelectItem value="new" className="text-white hover:bg-gray-700 focus:bg-gray-700">
+                <SelectContent className="bg-gray-900 border-gray-700 text-white">
+                  <SelectItem value="new" className="text-white hover:bg-gray-800 focus:bg-gray-800 focus:text-white cursor-pointer">
                     Nuevo
                   </SelectItem>
-                  <SelectItem value="contacted" className="text-white hover:bg-gray-700 focus:bg-gray-700">
+                  <SelectItem value="contacted" className="text-white hover:bg-gray-800 focus:bg-gray-800 focus:text-white cursor-pointer">
                     Contactado
                   </SelectItem>
-                  <SelectItem value="qualified" className="text-white hover:bg-gray-700 focus:bg-gray-700">
+                  <SelectItem value="qualified" className="text-white hover:bg-gray-800 focus:bg-gray-800 focus:text-white cursor-pointer">
                     Calificado
                   </SelectItem>
-                  <SelectItem value="appointment" className="text-white hover:bg-gray-700 focus:bg-gray-700">
+                  <SelectItem value="appointment" className="text-white hover:bg-gray-800 focus:bg-gray-800 focus:text-white cursor-pointer">
                     Cita Agendada
                   </SelectItem>
-                  <SelectItem value="lost" className="text-white hover:bg-gray-700 focus:bg-gray-700">
+                  <SelectItem value="lost" className="text-white hover:bg-gray-800 focus:bg-gray-800 focus:text-white cursor-pointer">
                     Perdido
                   </SelectItem>
                 </SelectContent>
