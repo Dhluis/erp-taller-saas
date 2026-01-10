@@ -150,10 +150,10 @@ export default function InventariosProductosPage() {
       const success = await deleteItem(productToDelete.id);
       if (success) {
         setDeleteDialogOpen(false);
-        setProductToDelete(null);
+        setProductToDelete(null);`n        `n        // ✅ Forzar refresh adicional para asegurar sincronización`n        console.log('🔄 [PAGE] handleDeleteConfirm - Forzando refresh adicional...');`n        await refresh();
       }
     } catch (error) {
-      console.error('Error deleting product:', error);
+      console.error('Error deleting product:', error);`n      `n      // ✅ Refrescar incluso si hay error para sincronizar estado`n      console.log('🔄 [PAGE] handleDeleteConfirm - Refrescando después de error...');`n      await refresh();
     } finally {
       setDeleting(false);
     }
