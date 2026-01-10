@@ -392,3 +392,5 @@
   z-index: 9997 !important;
   position: relative !important;
 }
+/* LANDING PAGE OVERRIDES */
+.landing-page-wrapper:has([data-landing-page='true']) { background-color: white !important; color: #111827 !important; }
