@@ -114,10 +114,11 @@ export default function InventariosCategoriasPage() {
         description: newCategory.description.trim() || null
       });
       
-      // ✅ AGREGAR: Esperar refetch
-      await fetchCategories();
-      
-      setNewCategory({ name: '', description: '' });
+      // Resetear formulario
+      setNewCategory({
+        name: '',
+        description: ''
+      });
       setEditingCategory(null);
       setShowNewCategoryModal(false);
       toast.success('Categoría actualizada exitosamente');
@@ -140,22 +141,13 @@ export default function InventariosCategoriasPage() {
     setDeleting(true);
     try {
       await deleteCategory(categoryToDelete);
+      // ✅ Toast manejado aquí (único lugar)
       toast.success('Categoría eliminada exitosamente');
-      
-      // ✅ Refetch después de eliminar
-      await fetchCategories();
-      
-      // ✅ Pequeño delay para asegurar renderizado
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
       setDeleteDialogOpen(false);
-      setCategoryToDelete(null);
+      setCategoryToDelete(null);`n      `n      // ✅ Forzar refresh adicional para asegurar sincronización`n      console.log('🔄 [PAGE] handleDeleteCategory - Forzando refresh adicional...');`n      await fetchCategories();
     } catch (error) {
       console.error('Error deleting category:', error);
-      toast.error('Error al eliminar la categoría');
-      
-      // ✅ Refrescar incluso si hay error
-      await fetchCategories();
+      toast.error('Error al eliminar la categoría');`n      `n      // ✅ Refrescar incluso si hay error para sincronizar estado`n      console.log('🔄 [PAGE] handleDeleteCategory - Refrescando después de error...');`n      await fetchCategories();
     } finally {
       setDeleting(false);
     }
