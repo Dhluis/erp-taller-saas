@@ -1,0 +1,22 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Verificar Workspace Correcto",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-Command",
+        "if ((Get-Location).Path -ne 'C:\\Users\\exclu\\erp-taller-saas') { Write-Host '❌ ERROR: Estás en el directorio incorrecto' -ForegroundColor Red; Write-Host 'Ruta actual:' (Get-Location).Path -ForegroundColor Yellow; Write-Host 'Ruta esperada: C:\\Users\\exclu\\erp-taller-saas' -ForegroundColor Green; exit 1 } else { $branch = git branch --show-current; if ($branch -ne 'main') { Write-Host '❌ ERROR: No estás en la rama main' -ForegroundColor Red; Write-Host 'Rama actual:' $branch -ForegroundColor Yellow; exit 1 } else { Write-Host '✅ Workspace correcto: C:\\Users\\exclu\\erp-taller-saas' -ForegroundColor Green; Write-Host '✅ Rama correcta: main' -ForegroundColor Green; Write-Host '✅ Todo listo para trabajar' -ForegroundColor Green } }"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    }
+  ]
+}

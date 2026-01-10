@@ -1,7 +1,25 @@
 {
+  // Git Configuration
   "git.autoRepositoryDetection": true,
   "git.detectSubmodules": false,
   "git.ignoreSubmodules": true,
+  "git.repositories.scanRepositories": [
+    "C:/Users/exclu/erp-taller-saas"
+  ],
+  "git.autoFetch": false,
+  "git.confirmSync": false,
+  "git.enableSmartCommit": true,
+  "git.suggestSmartCommit": true,
+  
+  // Terminal Configuration - Always use workspace folder
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  "terminal.integrated.defaultLocation": "view",
+  "terminal.integrated.automationProfile.windows": {
+    "path": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+    "args": ["-NoLogo"]
+  },
+  
+  // Exclude worktrees from file watching, search, and file explorer
   "files.watcherExclude": {
     "**/.cursor/worktrees/**": true,
     "**/.git/worktrees/**": true,
@@ -16,13 +34,18 @@
     "**/.cursor/worktrees/**": true,
     "**/.git/worktrees/**": true,
     "**/node_modules/**": true,
-    "**/.next/**": true
+    "**/.next/**": true,
+    "**/backup-*/**": true
   },
-  "git.repositories.scanRepositories": [
-    "C:/Users/exclu/erp-taller-saas"
-  ],
-  "git.autoFetch": false,
-  "git.confirmSync": false,
-  "git.enableSmartCommit": true,
-  "git.suggestSmartCommit": true
+  
+  // File Associations
+  "files.associations": {
+    "*.cursorrules": "plaintext"
+  },
+  
+  // Editor Configuration
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  }
 }
