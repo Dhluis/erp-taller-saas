@@ -54,50 +54,93 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
-                if (typeof window !== 'undefined' && window.location.pathname === '/') {
-                  // Ajustar HTML inmediatamente
-                  document.documentElement.classList.remove('dark');
-                  document.documentElement.style.colorScheme = 'light';
-                  document.documentElement.setAttribute('data-theme', 'light');
+                // Ejecutar inmediatamente sin esperar nada
+                const pathname = window.location?.pathname || '/';
+                if (pathname === '/') {
+                  // Ajustar HTML ANTES de cualquier otra cosa
+                  const html = document.documentElement;
+                  html.classList.remove('dark');
+                  html.style.setProperty('color-scheme', 'light', 'important');
+                  html.setAttribute('data-theme', 'light');
                   
-                  // Función para ajustar body y wrappers
+                  // Función para ajustar body y wrappers - ejecutar múltiples veces
                   function adjustLandingPage() {
-                    if (document.body) {
-                      document.body.setAttribute('data-landing', 'true');
-                      document.body.style.backgroundColor = 'white';
-                      document.body.style.color = '#111827';
+                    const body = document.body;
+                    if (body) {
+                      body.setAttribute('data-landing', 'true');
+                      body.style.setProperty('background-color', 'white', 'important');
+                      body.style.setProperty('color', '#111827', 'important');
                       
-                      // Ajustar wrappers cuando se rendericen
+                      // Ajustar wrappers inmediatamente
                       const adjustWrappers = () => {
-                        const wrappers = document.querySelectorAll('div.bg-bg-primary, div.text-text-primary');
+                        // Buscar TODOS los divs con clases oscuras
+                        const wrappers = document.querySelectorAll('div.bg-bg-primary, div.text-text-primary, div.min-h-screen');
                         wrappers.forEach(wrapper => {
-                          wrapper.classList.remove('bg-bg-primary', 'text-text-primary');
-                          wrapper.style.backgroundColor = 'white';
-                          wrapper.style.color = '#111827';
+                          const el = wrapper;
+                          el.classList.remove('bg-bg-primary', 'text-text-primary');
+                          el.style.setProperty('background-color', 'white', 'important');
+                          el.style.setProperty('background', 'white', 'important');
+                          el.style.setProperty('color', '#111827', 'important');
+                        });
+                        
+                        // Buscar también por selector más genérico
+                        const allDivs = document.querySelectorAll('body > div > div');
+                        allDivs.forEach(div => {
+                          const el = div;
+                          if (el.classList.contains('bg-bg-primary') || el.classList.contains('text-text-primary')) {
+                            el.style.setProperty('background-color', 'white', 'important');
+                            el.style.setProperty('color', '#111827', 'important');
+                          }
                         });
                       };
                       
-                      // Ajustar inmediatamente si ya están renderizados
+                      // Ejecutar inmediatamente
                       adjustWrappers();
                       
-                      // Usar MutationObserver para ajustar cuando se agreguen elementos
-                      const observer = new MutationObserver(adjustWrappers);
-                      observer.observe(document.body, { childList: true, subtree: true });
+                      // Ejecutar múltiples veces para asegurar
+                      setTimeout(adjustWrappers, 0);
+                      setTimeout(adjustWrappers, 10);
+                      setTimeout(adjustWrappers, 50);
+                      setTimeout(adjustWrappers, 100);
+                      setTimeout(adjustWrappers, 200);
+                      setTimeout(adjustWrappers, 500);
                       
-                      // Limpiar observer después de 3 segundos (suficiente para el render inicial)
-                      setTimeout(() => observer.disconnect(), 3000);
+                      // Usar MutationObserver para ajustar cuando se agreguen elementos
+                      const observer = new MutationObserver(function(mutations) {
+                        adjustWrappers();
+                      });
+                      observer.observe(body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+                      
+                      // Mantener observer activo por más tiempo
+                      setTimeout(() => observer.disconnect(), 5000);
                     }
                   }
                   
-                  // Ejecutar cuando el DOM esté listo
+                  // Ejecutar INMEDIATAMENTE si body existe
+                  if (document.body) {
+                    adjustLandingPage();
+                  } else {
+                    // Si body no existe, esperar a que se cree
+                    const bodyObserver = new MutationObserver(function(mutations, obs) {
+                      if (document.body) {
+                        adjustLandingPage();
+                        obs.disconnect();
+                      }
+                    });
+                    bodyObserver.observe(document.documentElement, { childList: true });
+                  }
+                  
+                  // Ejecutar cuando el DOM esté listo (por si acaso)
                   if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', adjustLandingPage);
+                    document.addEventListener('DOMContentLoaded', adjustLandingPage, { once: true });
                   } else {
                     adjustLandingPage();
                   }
                   
-                  // También ejecutar en el próximo frame para asegurar
+                  // Ejecutar en múltiples frames para asegurar
                   requestAnimationFrame(adjustLandingPage);
+                  requestAnimationFrame(() => requestAnimationFrame(adjustLandingPage));
+                  requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(adjustLandingPage)));
                 }
               })();
             `,

@@ -100,12 +100,20 @@ const nextConfig = {
         ],
       },
       {
-        // ✅ Landing page: Sin caché agresivo para permitir actualizaciones inmediatas
+        // ✅ Landing page: Sin caché para forzar actualizaciones inmediatas
         source: '/',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, s-maxage=60, stale-while-revalidate=300',
+            value: 'no-cache, no-store, must-revalidate, max-age=0',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
           },
         ],
       },
