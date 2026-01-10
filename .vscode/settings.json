@@ -1,0 +1,28 @@
+{
+  "git.autoRepositoryDetection": true,
+  "git.detectSubmodules": false,
+  "git.ignoreSubmodules": true,
+  "files.watcherExclude": {
+    "**/.cursor/worktrees/**": true,
+    "**/.git/worktrees/**": true,
+    "**/node_modules/**": true,
+    "**/.next/**": true
+  },
+  "files.exclude": {
+    "**/.cursor/worktrees": true,
+    "**/.git/worktrees": true
+  },
+  "search.exclude": {
+    "**/.cursor/worktrees/**": true,
+    "**/.git/worktrees/**": true,
+    "**/node_modules/**": true,
+    "**/.next/**": true
+  },
+  "git.repositories.scanRepositories": [
+    "C:/Users/exclu/erp-taller-saas"
+  ],
+  "git.autoFetch": false,
+  "git.confirmSync": false,
+  "git.enableSmartCommit": true,
+  "git.suggestSmartCommit": true
+}
