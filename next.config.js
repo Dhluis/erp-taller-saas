@@ -97,14 +97,30 @@ const nextConfig = {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains; preload',
           },
-          // ✅ Cache para assets estáticos
+        ],
+      },
+      {
+        // ✅ Landing page: Sin caché agresivo para permitir actualizaciones inmediatas
+        source: '/',
+        headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            value: 'public, s-maxage=60, stale-while-revalidate=300',
           },
         ],
       },
       {
+        // ✅ Páginas HTML: Caché corto con revalidación
+        source: '/((?!api|_next|images|favicon.ico|.*\\..*).*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=300, stale-while-revalidate=600',
+          },
+        ],
+      },
+      {
+        // ✅ Assets estáticos de Next.js: Caché largo (inmutables)
         source: '/_next/static/(.*)',
         headers: [
           {
@@ -114,11 +130,22 @@ const nextConfig = {
         ],
       },
       {
+        // ✅ Imágenes: Caché largo
         source: '/images/(.*)',
         headers: [
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        // ✅ API routes: Sin caché
+        source: '/api/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate',
           },
         ],
       },
