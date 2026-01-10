@@ -392,5 +392,78 @@
   z-index: 9997 !important;
   position: relative !important;
 }
-/* LANDING PAGE OVERRIDES */
-.landing-page-wrapper:has([data-landing-page='true']) { background-color: white !important; color: #111827 !important; }
+/* ============================================
+   LANDING PAGE OVERRIDES - FORCE WHITE THEME
+   ============================================ */
+
+/* Máxima especificidad: Sobrescribir wrapper del layout cuando estamos en landing page */
+html:not(.dark) body > div > div.bg-bg-primary,
+html:not(.dark) body > div > div.text-text-primary,
+body[data-landing='true'] > div > div.bg-bg-primary,
+body[data-landing='true'] > div > div.text-text-primary {
+  background-color: white !important;
+  background: white !important;
+  color: #111827 !important;
+}
+
+/* Sobrescribir cuando body tiene data-landing (ajustado por LandingPageThemeFix) */
+body[data-landing='true'],
+body[data-landing='true'] > div,
+body[data-landing='true'] > div > div {
+  background-color: white !important;
+  background: white !important;
+  color: #111827 !important;
+}
+
+/* Sobrescribir cuando html NO tiene clase dark */
+html:not(.dark) body > div > div,
+html:not(.dark) body > div > div > * {
+  background-color: white !important;
+  background: white !important;
+}
+
+/* Landing page wrapper específico - Máxima especificidad */
+.landing-page-wrapper[data-landing-page='true'],
+.landing-page-wrapper[data-landing-page='true'] main,
+.landing-page-wrapper[data-landing-page='true'] section.bg-white,
+.landing-page-wrapper[data-landing-page='true'] section.bg-slate-50 {
+  background-color: white !important;
+  background: white !important;
+  color: #111827 !important;
+}
+
+/* Forzar tema claro en landing page incluso si HTML tiene dark - MÁXIMA ESPECIFICIDAD */
+html.dark body[data-landing='true'],
+html.dark body[data-landing='true'] > div,
+html.dark body[data-landing='true'] > div > div,
+html.dark body[data-landing='true'] > div > div.bg-bg-primary,
+html.dark body[data-landing='true'] > div > div.text-text-primary,
+html.dark body[data-landing='true'] .landing-page-wrapper {
+  background-color: white !important;
+  background: white !important;
+  color: #111827 !important;
+}
+
+html.dark body[data-landing='true'] .landing-page-wrapper *,
+html.dark body[data-landing='true'] .landing-page-wrapper main *,
+html.dark body[data-landing='true'] .landing-page-wrapper main section * {
+  color: #111827 !important;
+}
+
+/* Asegurar que el wrapper principal NO tenga fondo oscuro cuando hay landing page */
+body[data-landing='true'] > div > div.min-h-screen {
+  background-color: white !important;
+  background: white !important;
+  color: #111827 !important;
+}
+
+/* Mantener secciones con gradiente y oscuras de la landing page */
+.landing-page-wrapper[data-landing-page='true'] section.bg-gradient-to-br {
+  background: linear-gradient(to bottom right, #06b6d4, #3b82f6, #2563eb) !important;
+}
+
+.landing-page-wrapper[data-landing-page='true'] section.bg-slate-900,
+.landing-page-wrapper[data-landing-page='true'] section.bg-slate-950 {
+  background-color: #0f172a !important;
+  color: white !important;
+}
