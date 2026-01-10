@@ -145,17 +145,17 @@ export default function InventariosCategoriasPage() {
       toast.success('Categoría eliminada exitosamente');
       setDeleteDialogOpen(false);
       setCategoryToDelete(null);
-      
-      // ✅ Forzar refresh adicional para asegurar sincronización
-      console.log('🔄 [PAGE] handleDeleteCategory - Forzando refresh adicional...');
-      await fetchCategories();
+
+// ✅ Forzar refresh adicional para asegurar sincronización
+console.log('🔄 [PAGE] handleDeleteCategory - Forzando refresh adicional...');
+await fetchCategories();
     } catch (error) {
       console.error('Error deleting category:', error);
       toast.error('Error al eliminar la categoría');
-      
-      // ✅ Refrescar incluso si hay error para sincronizar estado
-      console.log('🔄 [PAGE] handleDeleteCategory - Refrescando después de error...');
-      await fetchCategories();
+
+// ✅ Refrescar incluso si hay error para sincronizar estado
+console.log('🔄 [PAGE] handleDeleteCategory - Refrescando después de error...');
+await fetchCategories();
     } finally {
       setDeleting(false);
     }

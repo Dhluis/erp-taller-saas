@@ -3,14 +3,16 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Cloud, Headphones, Shield, FileText, Package, Users, Receipt, 
-  BarChart3, Smartphone, Check, Star, TrendingUp, Zap, ChevronDown 
+import {
+  Cloud, Headphones, Shield, FileText, Package, Users, Receipt,
+  BarChart3, Smartphone, Check, Star, TrendingUp, Zap, ChevronDown
 } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useSession } from '@/lib/context/SessionContext'
 
 const AnimatedCard = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => (
   <motion.div
@@ -23,7 +25,57 @@ const AnimatedCard = ({ children, delay = 0 }: { children: React.ReactNode; dela
 )
 
 export default function LandingPage() {
+  const router = useRouter()
+  const session = useSession()
   const [openFAQ, setOpenFAQ] = useState<number | null>(null)
+  const [checking, setChecking] = useState(true)
+
+  // Redirigir usuarios autenticados al dashboard (patrón consistente con login/page.tsx)
+  useEffect(() => {
+    // Verificar si viene de callback de OAuth (dar más tiempo para sincronizar cookies)
+    const urlParams = new URLSearchParams(window.location.search)
+    const isFromOAuthCallback =
+      typeof window !== 'undefined' && (
+        document.referrer.includes('/auth/callback') ||
+        sessionStorage.getItem('oauth_callback') === 'true' ||
+        urlParams.has('oauth_callback')
+      )
+
+    // Delay adicional si viene de OAuth callback
+    const checkDelay = isFromOAuthCallback ? 1500 : 500
+
+    const checkAuth = setTimeout(() => {
+      const user = session?.user
+      const isReady = session?.isReady
+      const isLoading = session?.isLoading
+
+      // Si la sesión está lista y hay usuario, redirigir al dashboard
+      if (isReady && !isLoading && user) {
+        console.log('[LandingPage] ✅ Usuario autenticado, redirigiendo al dashboard...')
+        router.replace('/dashboard')
+        return
+      }
+
+      // Si la sesión está lista pero no hay usuario, mostrar landing page
+      if (isReady && !isLoading) {
+        setChecking(false)
+      }
+    }, checkDelay)
+
+    return () => clearTimeout(checkAuth)
+  }, [session, router])
+
+  // Mostrar loading mientras valida autenticación
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-500 via-blue-500 to-blue-600">
+        <div className="text-white text-center">
+          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-lg font-medium">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
 
   const toggleFAQ = (index: number) => {
     setOpenFAQ(openFAQ === index ? null : index)
@@ -368,11 +420,10 @@ export default function LandingPage() {
             ].map((plan, index) => (
               <AnimatedCard key={index} delay={index * 0.1}>
                 <Card
-                  className={`p-8 relative ${
-                    plan.popular
+                  className={`p-8 relative ${plan.popular
                       ? "bg-white text-slate-900 shadow-2xl scale-105"
                       : "bg-white/10 backdrop-blur-sm border-white/20 text-white"
-                  }`}
+                    }`}
                 >
                   {plan.popular && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-4 py-1 rounded-full text-sm font-bold">
@@ -402,11 +453,10 @@ export default function LandingPage() {
                   <Link href="/auth/register">
                     <Button
                       size="lg"
-                      className={`w-full ${
-                        plan.popular
+                      className={`w-full ${plan.popular
                           ? "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
                           : "bg-white text-cyan-600 hover:bg-cyan-50"
-                      }`}
+                        }`}
                     >
                       {plan.cta}
                     </Button>
@@ -521,9 +571,8 @@ export default function LandingPage() {
                     >
                       <span className="font-semibold text-slate-900">{faq.question}</span>
                       <ChevronDown
-                        className={`w-5 h-5 text-gray-500 transition-transform ${
-                          openFAQ === index ? 'transform rotate-180' : ''
-                        }`}
+                        className={`w-5 h-5 text-gray-500 transition-transform ${openFAQ === index ? 'transform rotate-180' : ''
+                          }`}
                       />
                     </button>
                     {openFAQ === index && (
