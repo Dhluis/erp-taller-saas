@@ -1094,7 +1094,7 @@ export default function ConversacionesPage() {
       setSelectedConversation(null)
       
       // Refrescar lista de conversaciones
-      await mutate(true) // Forzar refresh después de DELETE exitoso
+      await mutate() // Forzar refresh después de DELETE exitoso
       
       toast.success('Conversación eliminada')
     } catch (error: any) {
@@ -1103,7 +1103,7 @@ export default function ConversacionesPage() {
       
       // ✅ Refrescar lista incluso si hay error (puede que se eliminó pero hubo error en la respuesta)
       console.log('[Delete Conversation] 🔄 Refrescando lista después de error...');
-      await mutate(true)
+      await mutate()
     }
   }
 
