@@ -538,9 +538,9 @@ export default function ConversacionesPage() {
       supabase.removeChannel(subscriptionRef.current)
     }
 
-    // Crear nueva suscripción
+    // Crear suscripción mejorada para mensajes Y conversaciones
     const channel = supabase
-      .channel('whatsapp-messages-realtime')
+      .channel(`whatsapp-realtime-${organizationId}`)
       .on(
         'postgres_changes',
         {
@@ -550,30 +550,30 @@ export default function ConversacionesPage() {
           filter: `organization_id=eq.${organizationId}`
         },
         (payload) => {
-          console.log('📨 Nuevo mensaje recibido:', payload)
+          console.log('📨 Nuevo mensaje:', payload)
           
-          // Si es un INSERT y pertenece a la conversación seleccionada
+          // Manejar nuevo mensaje
           if (payload.eventType === 'INSERT' && payload.new?.conversation_id === selectedConversation) {
             const newMsg = payload.new as any
             
-            // Mostrar indicador de "escribiendo" si es del bot
+            // Mostrar indicador si es del bot
             if (newMsg?.is_from_bot && newMsg?.direction === 'outbound') {
               setIsBotTyping(true)
-              // El indicador se ocultará cuando se cargue el mensaje completo
             }
 
-            // Recargar mensajes solo si hay selectedConversation
+            // Recargar mensajes de la conversación actual
             if (selectedConversation) {
-            loadMessages(selectedConversation)
-            // Recargar conversaciones para actualizar last_message
-            mutate()
+              loadMessages(selectedConversation)
             }
           }
 
-          // Si es un UPDATE y es un mensaje del bot que se completó
+          // Ocultar indicador cuando el mensaje se completa
           if (payload.eventType === 'UPDATE' && payload.new?.is_from_bot) {
             setIsBotTyping(false)
           }
+          
+          // Siempre recargar lista de conversaciones para actualizar last_message
+          mutate()
         }
       )
       .on(
@@ -586,13 +586,30 @@ export default function ConversacionesPage() {
         },
         (payload) => {
           console.log('💬 Cambio en conversación:', payload)
-          // Recargar conversaciones cuando hay cambios
-          if (payload && (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE')) {
+          
+          // Recargar lista completa en cualquier cambio
           mutate()
+          
+          // Si se creó nueva conversación, seleccionarla automáticamente si no hay ninguna seleccionada
+          if (payload.eventType === 'INSERT' && !selectedConversation) {
+            const newConv = payload.new as any
+            if (newConv?.id) {
+              console.log('🆕 Nueva conversación detectada, seleccionando:', newConv.id)
+              setSelectedConversation(newConv.id)
+            }
           }
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('🔌 Realtime connection status:', status)
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Realtime suscripción activa')
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Error en canal Realtime')
+        } else if (status === 'TIMED_OUT') {
+          console.warn('⏱️ Realtime timeout, reintentando...')
+        }
+      })
 
     subscriptionRef.current = channel
 
