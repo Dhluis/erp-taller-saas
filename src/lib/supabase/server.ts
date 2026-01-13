@@ -108,11 +108,25 @@ export function clearSupabaseServerCache() {
 }
 
 /**
- * Crear cliente Supabase desde un NextRequest (para API routes)
- * Esto permite leer las cookies directamente del request
+ * ✅ FIX CRÍTICO: Crear cliente Supabase desde un NextRequest (para API routes)
+ * Lee las cookies del header 'cookie' directamente para evitar cache
  */
 export function createClientFromRequest(request: NextRequest): SupabaseServerClient {
   const config = getConfig()
+  
+  // ✅ FIX: Parsear cookies del header directamente
+  const cookieHeader = request.headers.get('cookie') || ''
+  const cookieMap = new Map<string, string>()
+  
+  // Parsear cookies manualmente del header
+  if (cookieHeader) {
+    cookieHeader.split(';').forEach(cookie => {
+      const [name, ...valueParts] = cookie.trim().split('=')
+      if (name && valueParts.length > 0) {
+        cookieMap.set(name.trim(), valueParts.join('=').trim())
+      }
+    })
+  }
   
   return createServerClient<Database>(
     config.NEXT_PUBLIC_SUPABASE_URL,
@@ -120,13 +134,13 @@ export function createClientFromRequest(request: NextRequest): SupabaseServerCli
     {
       cookies: {
         get(name: string) {
-          return request.cookies.get(name)?.value
+          return cookieMap.get(name)
         },
         set(name: string, value: string, options?: ResponseCookie['options']) {
-          request.cookies.set({ name, value, ...(options ?? {}) })
+          // No podemos setear cookies en API routes desde aquí
         },
         remove(name: string, options?: ResponseCookie['options']) {
-          request.cookies.set({ name, value: '', ...(options ?? {}) })
+          // No podemos remover cookies en API routes desde aquí
         },
       },
       global: {
