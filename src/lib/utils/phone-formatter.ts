@@ -4,73 +4,89 @@
  */
 
 /**
- * Normalizar número de teléfono (remover caracteres no numéricos)
+ * Normaliza un número de teléfono removiendo caracteres no numéricos
  */
 export function normalizePhone(phone: string | null | undefined): string {
   if (!phone) return ''
+  // Remover todos los caracteres no numéricos (más robusto que solo espacios y signos)
   return phone.replace(/\D/g, '')
 }
 
 /**
- * Formatear número de teléfono mexicano
- * Ejemplo: 524491698635 -> +52 449 169 86 35
+ * Formatea un número de teléfono mexicano al formato: +52 XXX XXX XX XX
+ * 
+ * Acepta números en formato:
+ * - 524491698635 (12 dígitos con código país) → +52 449 169 86 35 ✅ FORMATO ESTÁNDAR EN BD
+ * - 4491698635 (10 dígitos sin código país) → +52 449 169 86 35
+ * - +524491698635 → +52 449 169 86 35
+ * - 5214491698635 (13 dígitos con 1 adicional) → +52 449 169 86 35
  */
 export function formatMexicanPhone(phone: string | null | undefined): string {
-  if (!phone) return ''
+  if (!phone) return 'N/A'
   
+  // Normalizar: solo números
   const normalized = normalizePhone(phone)
   
-  // Números mexicanos: 52 (país) + 10 dígitos
-  // Formato: +52 XXX XXX XX XX
+  // Si está vacío, devolver como está
+  if (!normalized) return phone
+  
+  // ✅ CASO 1: Número con código de país (52) de 12 dígitos: 524491698635
+  // Este es el formato ESTÁNDAR que guardamos en la BD
   if (normalized.length === 12 && normalized.startsWith('52')) {
-    const areaCode = normalized.substring(2, 5) // 449
-    const firstPart = normalized.substring(5, 8) // 169
+    const areaCode = normalized.substring(2, 5)  // 449
+    const firstPart = normalized.substring(5, 8)  // 169
     const secondPart = normalized.substring(8, 10) // 86
-    const thirdPart = normalized.substring(10) // 35
+    const thirdPart = normalized.substring(10, 12) // 35
     return `+52 ${areaCode} ${firstPart} ${secondPart} ${thirdPart}`
   }
   
-  // Si tiene 10 dígitos, asumir que es número mexicano sin código de país
+  // Caso 2: Número sin código de país de 10 dígitos: 4491698635
   if (normalized.length === 10) {
-    const areaCode = normalized.substring(0, 3)
-    const firstPart = normalized.substring(3, 6)
-    const secondPart = normalized.substring(6, 8)
-    const thirdPart = normalized.substring(8)
+    const areaCode = normalized.substring(0, 3)   // 449
+    const firstPart = normalized.substring(3, 6)   // 169
+    const secondPart = normalized.substring(6, 8)  // 86
+    const thirdPart = normalized.substring(8, 10)  // 35
     return `+52 ${areaCode} ${firstPart} ${secondPart} ${thirdPart}`
   }
   
-  // Para otros formatos, intentar formateo genérico
-  if (normalized.length > 10) {
-    // Números internacionales largos
-    if (normalized.length === 13) {
-      return `+${normalized.substring(0, 3)} ${normalized.substring(3, 6)} ${normalized.substring(6, 9)} ${normalized.substring(9)}`
-    }
-    if (normalized.length === 12) {
-      return `+${normalized.substring(0, 2)} ${normalized.substring(2, 5)} ${normalized.substring(5, 8)} ${normalized.substring(8)}`
-    }
+  // Caso 3: Número con código de país de 13 dígitos (con 1 adicional): 5214491698635
+  if (normalized.length === 13 && normalized.startsWith('521')) {
+    const areaCode = normalized.substring(3, 6)   // 449
+    const firstPart = normalized.substring(6, 9)   // 169
+    const secondPart = normalized.substring(9, 11) // 86
+    const thirdPart = normalized.substring(11, 13) // 35
+    return `+52 ${areaCode} ${firstPart} ${secondPart} ${thirdPart}`
   }
   
-  // Si no coincide con ningún formato conocido, devolver con +
-  return `+${normalized}`
+  // Si no coincide con ningún patrón conocido, intentar formatear lo mejor posible
+  // Asumir que es un número de 10 dígitos sin código de país
+  if (normalized.length >= 10) {
+    const last10 = normalized.slice(-10)
+    const areaCode = last10.substring(0, 3)
+    const firstPart = last10.substring(3, 6)
+    const secondPart = last10.substring(6, 8)
+    const thirdPart = last10.substring(8, 10)
+    return `+52 ${areaCode} ${firstPart} ${secondPart} ${thirdPart}`
+  }
+  
+  // Si es muy corto o no tiene formato reconocible, devolver con +52
+  return `+52 ${normalized}`
 }
 
 /**
- * Obtener nombre para mostrar (nombre o teléfono formateado)
+ * Obtiene un nombre formateado para display basado en nombre o teléfono
  */
-export function getDisplayName(
-  name: string | null | undefined,
-  phone: string | null | undefined
-): string {
-  // Si hay nombre válido, usarlo
-  if (name && name.trim() && name !== 'Cliente WhatsApp') {
-    return name.trim()
+export function getDisplayName(name: string | null | undefined, phone: string | null | undefined): string {
+  // Si hay nombre y no es genérico, usarlo
+  if (name && name !== 'Cliente WhatsApp' && name.trim() !== '') {
+    return name
   }
   
-  // Si hay teléfono, formatearlo
+  // Si hay teléfono, formatearlo y usarlo
   if (phone) {
     return formatMexicanPhone(phone)
   }
   
-  // Por defecto
+  // Fallback
   return 'Cliente WhatsApp'
 }
