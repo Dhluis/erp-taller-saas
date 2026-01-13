@@ -11,6 +11,9 @@ import {
 import { logger, createLogContext } from '@/lib/core/logging';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
+// Force dynamic rendering to avoid build-time execution
+export const dynamic = 'force-dynamic';
+
 // =====================================================
 // PUT - Actualizar descuento de nota de venta
 // =====================================================

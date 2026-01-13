@@ -11,7 +11,14 @@ import { logger, createLogContext, measureExecutionTime, logSupabaseError } from
 // El organizationId debe obtenerse del contexto de autenticación o parámetros
 // import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization';
 
-const supabase = createClient();
+// Lazy initialization para evitar errores durante build time
+let supabase: ReturnType<typeof createClient> | null = null;
+function getSupabaseClient() {
+  if (!supabase) {
+    supabase = createClient();
+  }
+  return supabase;
+}
 
 // =====================================================
 // TIPOS TYPESCRIPT
@@ -228,7 +235,7 @@ export async function updateQuotation(
 // Eliminar cotización
 export async function deleteQuotation(id: string) {
   return executeWithErrorHandling(async () => {
-    const { error } = await supabase.from('quotations').delete().eq('id', id);
+    const { error } = await getSupabaseClient().from('quotations').delete().eq('id', id);
 
     if (error) throw error;
   }, 'Error al eliminar cotización');
@@ -390,7 +397,7 @@ export async function updateQuotationItem(
 // Eliminar item de cotización
 export async function deleteQuotationItem(id: string) {
   return executeWithErrorHandling(async () => {
-    const { error } = await supabase.from('quotation_items').delete().eq('id', id);
+    const { error } = await getSupabaseClient().from('quotation_items').delete().eq('id', id);
 
     if (error) throw error;
   }, 'Error al eliminar item de cotización');
@@ -494,7 +501,7 @@ export async function updateInvoice(
 // Eliminar nota de venta
 export async function deleteInvoice(id: string) {
   return executeWithErrorHandling(async () => {
-    const { error } = await supabase.from('invoices').delete().eq('id', id);
+    const { error } = await getSupabaseClient().from('invoices').delete().eq('id', id);
 
     if (error) throw error;
   }, 'Error al eliminar nota de venta');
@@ -755,7 +762,7 @@ export async function updatePayment(
 // Eliminar pago
 export async function deletePayment(id: string) {
   return executeWithErrorHandling(async () => {
-    const { error } = await supabase.from('payments').delete().eq('id', id);
+    const { error } = await getSupabaseClient().from('payments').delete().eq('id', id);
 
     if (error) throw error;
   }, 'Error al eliminar pago');
