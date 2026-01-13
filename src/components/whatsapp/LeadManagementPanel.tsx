@@ -337,12 +337,12 @@ export function LeadManagementPanel({
                 <SelectTrigger id="lead-status">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">Nuevo</SelectItem>
-                  <SelectItem value="contacted">Contactado</SelectItem>
-                  <SelectItem value="qualified">Calificado</SelectItem>
-                  <SelectItem value="appointment">Cita Agendada</SelectItem>
-                  <SelectItem value="lost">Perdido</SelectItem>
+                <SelectContent className="bg-bg-secondary dark:bg-gray-800 border-border">
+                  <SelectItem value="new" className="hover:bg-bg-tertiary dark:hover:bg-gray-700">Nuevo</SelectItem>
+                  <SelectItem value="contacted" className="hover:bg-bg-tertiary dark:hover:bg-gray-700">Contactado</SelectItem>
+                  <SelectItem value="qualified" className="hover:bg-bg-tertiary dark:hover:bg-gray-700">Calificado</SelectItem>
+                  <SelectItem value="appointment" className="hover:bg-bg-tertiary dark:hover:bg-gray-700">Cita Agendada</SelectItem>
+                  <SelectItem value="lost" className="hover:bg-bg-tertiary dark:hover:bg-gray-700">Perdido</SelectItem>
                 </SelectContent>
               </Select>
               <Button
