@@ -88,13 +88,6 @@ export function getSupabaseClient(): SupabaseClient {
       },
     })
 
-    // Configurar listeners de error
-    browserClient.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
-        console.log('🔄 Auth state changed:', event)
-      }
-    })
-
     console.log('✅ Supabase browser client initialized')
     console.log('📍 Supabase URL:', url.substring(0, 30) + '...')
     return browserClient
