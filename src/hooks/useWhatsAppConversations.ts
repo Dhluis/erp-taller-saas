@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import { safeFetch } from '@/lib/api'
 import { useOrganization } from '@/lib/context/SessionContext'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import type { PaginatedResponse } from '@/types/pagination'
 
 // ==========================================
@@ -129,6 +130,7 @@ export function useWhatsAppConversations(
   // Refs
   const isFetching = useRef(false)
   const cacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map())
+  const subscriptionRef = useRef<any>(null)
 
   // ==========================================
   // FETCH FUNCTION
@@ -281,6 +283,78 @@ export function useWhatsAppConversations(
       fetchConversations()
     }
   }, [autoLoad, ready, organizationId, fetchConversations])
+
+  // ✅ Suscripción Realtime para actualizar conversaciones automáticamente
+  useEffect(() => {
+    if (!organizationId || !ready) return
+
+    const supabase = getSupabaseClient()
+    
+    // Limpiar suscripción anterior si existe
+    if (subscriptionRef.current) {
+      subscriptionRef.current.unsubscribe()
+      subscriptionRef.current = null
+    }
+
+    console.log('🔄 [useWhatsAppConversations] Configurando suscripción Realtime...')
+
+    // Suscribirse a cambios en conversaciones
+    const subscription = supabase
+      .channel('whatsapp-conversations-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'whatsapp_conversations',
+          filter: `organization_id=eq.${organizationId}`
+        },
+        (payload) => {
+          console.log('📨 [useWhatsAppConversations] Cambio detectado en conversaciones:', payload.eventType)
+          
+          // Refrescar conversaciones cuando hay cambios
+          // Usar un pequeño delay para evitar múltiples refreshes
+          setTimeout(() => {
+            fetchConversations()
+          }, 500)
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'whatsapp_messages',
+          filter: `organization_id=eq.${organizationId}`
+        },
+        (payload) => {
+          console.log('📨 [useWhatsAppConversations] Cambio detectado en mensajes:', payload.eventType)
+          
+          // Refrescar conversaciones cuando hay nuevos mensajes
+          setTimeout(() => {
+            fetchConversations()
+          }, 500)
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ [useWhatsAppConversations] Suscripción Realtime activa')
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ [useWhatsAppConversations] Error en suscripción Realtime')
+        }
+      })
+
+    subscriptionRef.current = subscription
+
+    // Cleanup al desmontar
+    return () => {
+      if (subscriptionRef.current) {
+        console.log('🧹 [useWhatsAppConversations] Limpiando suscripción Realtime')
+        subscriptionRef.current.unsubscribe()
+        subscriptionRef.current = null
+      }
+    }
+  }, [organizationId, ready, fetchConversations])
 
   // ==========================================
   // RETURN

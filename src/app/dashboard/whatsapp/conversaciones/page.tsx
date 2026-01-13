@@ -72,7 +72,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
-import { getDisplayName } from '@/lib/utils/phone-formatter'
+import { getDisplayName, formatMexicanPhone } from '@/lib/utils/phone-formatter'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { LeadManagementPanel } from '@/components/whatsapp/LeadManagementPanel'
@@ -446,7 +446,7 @@ export default function ConversacionesPage() {
 
         setContactDetails({
           name: conv.contactName || 'Cliente WhatsApp',
-          phone: conv.contactPhone || 'Sin teléfono',
+          phone: formatMexicanPhone(conv.contactPhone) || 'Sin teléfono',
           email: customerData?.email || undefined,
           profilePictureUrl: conv.profilePictureUrl || undefined,
           lastMessage: conv.lastMessageTime || 'Nunca',
@@ -2124,7 +2124,7 @@ export default function ConversacionesPage() {
                         {contactDetails?.name || selectedConv?.contactName || 'Cliente WhatsApp'}
                       </h3>
                       <p className={cn("text-sm", darkMode ? "text-gray-400" : "text-gray-600")}>
-                        {contactDetails?.phone || selectedConv?.contactPhone || 'Sin teléfono'}
+                        {formatMexicanPhone(contactDetails?.phone || selectedConv?.contactPhone) || 'Sin teléfono'}
                       </p>
                     </div>
                   </div>
@@ -2358,7 +2358,7 @@ export default function ConversacionesPage() {
                    (selectedConv || contactDetails) && (
                     <LeadManagementPanel
                       conversationId={selectedConversation}
-                      customerPhone={contactDetails?.phone || selectedConv?.contactPhone || ''}
+                      customerPhone={contactDetails?.phone || formatMexicanPhone(selectedConv?.contactPhone) || ''}
                       customerName={contactDetails?.name || selectedConv?.contactName || 'Cliente WhatsApp'}
                       lead={contactDetails?.lead || selectedConv?.lead || null}
                       onLeadCreated={(lead) => {
