@@ -86,12 +86,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verificar que la conversación no sea ya un lead
+    // ✅ FIX: Si la conversación ya es un lead, devolver el lead existente
     if (conversation.is_lead && conversation.lead_id) {
-      return NextResponse.json(
-        { error: 'Esta conversación ya es un lead', lead_id: conversation.lead_id },
-        { status: 409 }
-      )
+      const { data: existingLead, error: leadError } = await supabase
+        .from('leads')
+        .select(`
+          *,
+          assigned_user:users!leads_assigned_to_fkey(id, full_name, email)
+        `)
+        .eq('id', conversation.lead_id)
+        .single()
+      
+      if (existingLead && !leadError) {
+        return NextResponse.json({
+          success: true,
+          data: existingLead,
+          message: 'Lead existente encontrado',
+          existing: true
+        }, { status: 200 })
+      }
     }
 
     // Extraer información del contacto
@@ -123,8 +136,38 @@ export async function POST(request: NextRequest) {
     if (createError) {
       console.error('[Leads API] Error creando lead:', createError)
       
-      // Check for unique constraint violation
+      // ✅ FIX: Si hay error de unique constraint, buscar el lead existente
       if (createError.code === '23505') {
+        // Buscar lead existente por teléfono normalizado
+        const normalizedPhone = phone?.replace(/\D/g, '') || ''
+        
+        const { data: existingLeads, error: searchError } = await supabase
+          .from('leads')
+          .select(`
+            *,
+            assigned_user:users!leads_assigned_to_fkey(id, full_name, email)
+          `)
+          .eq('organization_id', organizationId)
+          .ilike('phone', `%${normalizedPhone}%`)
+        
+        if (existingLeads && existingLeads.length > 0) {
+          // Encontrar el lead que más coincida (por número completo)
+          const matchingLead = existingLeads.find(lead => {
+            const leadPhone = lead.phone?.replace(/\D/g, '') || ''
+            return leadPhone === normalizedPhone || 
+                   leadPhone.endsWith(normalizedPhone) ||
+                   normalizedPhone.endsWith(leadPhone)
+          }) || existingLeads[0]
+          
+          return NextResponse.json({
+            success: true,
+            data: matchingLead,
+            message: 'Lead existente encontrado',
+            existing: true
+          }, { status: 200 })
+        }
+        
+        // Si no se encuentra, devolver error genérico
         return NextResponse.json(
           { error: 'Ya existe un lead con este teléfono en tu organización' },
           { status: 409 }

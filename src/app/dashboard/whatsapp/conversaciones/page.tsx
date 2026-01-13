@@ -72,6 +72,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import { getDisplayName } from '@/lib/utils/phone-formatter'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { LeadManagementPanel } from '@/components/whatsapp/LeadManagementPanel'
@@ -231,24 +232,8 @@ export default function ConversacionesPage() {
   
   // Mapear conversaciones del hook al formato del componente
   const conversations: Conversation[] = hookConversations.map((conv) => {
-    // Obtener nombre del contacto
-    let contactName = 'Cliente WhatsApp'
-    if (conv.customer_name && conv.customer_name !== 'Cliente WhatsApp') {
-      contactName = conv.customer_name
-    } else if (conv.customer_phone) {
-      const phone = conv.customer_phone.replace(/\D/g, '')
-      if (phone.length >= 10) {
-        if (phone.length === 12) {
-          contactName = `+${phone.substring(0, 2)} ${phone.substring(2, 3)} ${phone.substring(3, 6)} ${phone.substring(6, 9)} ${phone.substring(9)}`
-        } else if (phone.length === 13) {
-          contactName = `+${phone.substring(0, 3)} ${phone.substring(3, 6)} ${phone.substring(6, 9)} ${phone.substring(9)}`
-        } else {
-          contactName = `+${phone}`
-        }
-      } else {
-        contactName = `+${phone}`
-      }
-    }
+    // ✅ FIX: Usar helper para obtener nombre formateado correctamente
+    const contactName = getDisplayName(conv.customer_name, conv.customer_phone)
     
     return {
       id: conv.id,
