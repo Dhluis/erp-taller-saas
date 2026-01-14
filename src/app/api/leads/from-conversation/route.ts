@@ -1,6 +1,6 @@
 // src/app/api/leads/from-conversation/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClientFromRequest } from '@/lib/supabase/server'
 
 /**
  * POST /api/leads/from-conversation
@@ -15,11 +15,13 @@ import { createClient } from '@/lib/supabase/server'
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    // ✅ FIX: Usar createClientFromRequest para leer cookies correctamente
+    const supabase = createClientFromRequest(request)
 
     // Verificar autenticación
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
+      console.error('[Leads API] Error de autenticación:', authError)
       return NextResponse.json(
         { error: 'No autenticado' },
         { status: 401 }
@@ -34,6 +36,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (userError || !userData) {
+      console.error('[Leads API] Error obteniendo usuario:', userError)
       return NextResponse.json(
         { error: 'Usuario no encontrado' },
         { status: 404 }
@@ -86,8 +89,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // ✅ FIX: Si la conversación ya es un lead, devolver el lead existente
+    // ✅ Si la conversación ya es un lead, devolver el lead existente
     if (conversation.is_lead && conversation.lead_id) {
+      console.log('[Leads API] Lead existente encontrado:', conversation.lead_id)
+      
       const { data: existingLead, error: leadError } = await supabase
         .from('leads')
         .select(`
@@ -108,7 +113,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Extraer información del contacto
-    const name = conversation.contact_name || conversation.customer_phone
+    const name = conversation.customer_name || conversation.customer_phone || 'Cliente WhatsApp'
     const phone = conversation.customer_phone
     const email = conversation.email || null
 
@@ -136,8 +141,10 @@ export async function POST(request: NextRequest) {
     if (createError) {
       console.error('[Leads API] Error creando lead:', createError)
       
-      // ✅ FIX: Si hay error de unique constraint, buscar el lead existente
+      // ✅ Si hay error de unique constraint, buscar el lead existente
       if (createError.code === '23505') {
+        console.log('[Leads API] Unique constraint violation, buscando lead existente por teléfono')
+        
         // Buscar lead existente por teléfono normalizado
         const normalizedPhone = phone?.replace(/\D/g, '') || ''
         
@@ -148,21 +155,31 @@ export async function POST(request: NextRequest) {
             assigned_user:users!leads_assigned_to_fkey(id, full_name, email)
           `)
           .eq('organization_id', organizationId)
-          .ilike('phone', `%${normalizedPhone}%`)
         
-        if (existingLeads && existingLeads.length > 0) {
+        if (!searchError && existingLeads && existingLeads.length > 0) {
           // Encontrar el lead que más coincida (por número completo)
           const matchingLead = existingLeads.find(lead => {
             const leadPhone = lead.phone?.replace(/\D/g, '') || ''
             return leadPhone === normalizedPhone || 
-                   leadPhone.endsWith(normalizedPhone) ||
-                   normalizedPhone.endsWith(leadPhone)
+                   leadPhone.endsWith(normalizedPhone.slice(-10)) ||
+                   normalizedPhone.endsWith(leadPhone.slice(-10))
           }) || existingLeads[0]
+          
+          // Vincular conversación con el lead existente
+          await supabase
+            .from('whatsapp_conversations')
+            .update({
+              is_lead: true,
+              lead_id: matchingLead.id,
+              lead_status: matchingLead.status,
+              lead_updated_at: new Date().toISOString()
+            })
+            .eq('id', conversation_id)
           
           return NextResponse.json({
             success: true,
             data: matchingLead,
-            message: 'Lead existente encontrado',
+            message: 'Lead existente encontrado y vinculado',
             existing: true
           }, { status: 200 })
         }
