@@ -136,26 +136,33 @@ export default function TestComercialPage() {
       return
     }
 
-    const confirmed = window.confirm(`¿Eliminar lead "${lead.name || 'Sin nombre'}"? Esta acción no se puede deshacer.`)
-    if (!confirmed) return
+    const deleteLead = async () => {
+      try {
+        const response = await fetch(`/api/leads/${lead.id}`, {
+          method: 'DELETE'
+        })
 
-    try {
-      const response = await fetch(`/api/leads/${lead.id}`, {
-        method: 'DELETE'
-      })
+        const data = await response.json().catch(() => ({}))
 
-      const data = await response.json().catch(() => ({}))
-
-      if (response.ok && data?.success !== false) {
-        setLeads(leads.filter(l => l.id !== lead.id))
-        toast.success('Lead eliminado')
-      } else {
-        toast.error(data.error || 'Error al eliminar lead')
+        if (response.ok && data?.success !== false) {
+          setLeads(prev => prev.filter(l => l.id !== lead.id))
+          toast.success('Lead eliminado')
+        } else {
+          toast.error(data.error || 'Error al eliminar lead')
+        }
+      } catch (error) {
+        console.error('Error deleting lead:', error)
+        toast.error('Error al eliminar lead')
       }
-    } catch (error) {
-      console.error('Error deleting lead:', error)
-      toast.error('Error al eliminar lead')
     }
+
+    toast(`¿Eliminar lead "${lead.name || 'Sin nombre'}"?`, {
+      description: 'Esta acción no se puede deshacer.',
+      action: {
+        label: 'Eliminar',
+        onClick: deleteLead
+      }
+    })
   }
 
   const handleConvertToCustomer = async (lead: Lead) => {
