@@ -156,9 +156,9 @@ export default function TestComercialPage() {
       }
     }
 
-    toast.custom((t) => (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div className="w-full max-w-md rounded-lg border border-cyan-500/50 bg-slate-800 p-4 text-white shadow-lg">
+    toast.custom(
+      (t) => (
+        <div className="w-[min(420px,90vw)] rounded-lg border border-cyan-500/50 bg-slate-800 p-4 text-white shadow-lg">
           <div className="text-sm font-semibold">
             ¿Eliminar lead "{lead.name || 'Sin nombre'}"?
           </div>
@@ -184,8 +184,9 @@ export default function TestComercialPage() {
             </Button>
           </div>
         </div>
-      </div>
-    ))
+      ),
+      { position: 'top-center', duration: Infinity }
+    )
   }
 
   const handleConvertToCustomer = async (lead: Lead) => {
