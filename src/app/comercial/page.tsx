@@ -156,13 +156,36 @@ export default function TestComercialPage() {
       }
     }
 
-    toast(`¿Eliminar lead "${lead.name || 'Sin nombre'}"?`, {
-      description: 'Esta acción no se puede deshacer.',
-      action: {
-        label: 'Eliminar',
-        onClick: deleteLead
-      }
-    })
+    toast.custom((t) => (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="w-full max-w-md rounded-lg border border-cyan-500/50 bg-slate-800 p-4 text-white shadow-lg">
+          <div className="text-sm font-semibold">
+            ¿Eliminar lead "{lead.name || 'Sin nombre'}"?
+          </div>
+          <div className="mt-1 text-sm text-slate-300">
+            Esta acción no se puede deshacer.
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              className="border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white"
+              onClick={() => toast.dismiss(t)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={() => {
+                toast.dismiss(t)
+                void deleteLead()
+              }}
+            >
+              Eliminar
+            </Button>
+          </div>
+        </div>
+      </div>
+    ))
   }
 
   const handleConvertToCustomer = async (lead: Lead) => {
