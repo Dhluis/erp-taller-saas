@@ -130,6 +130,34 @@ export default function TestComercialPage() {
     }
   }
 
+  const handleDeleteLead = async (lead: Lead) => {
+    if (!lead?.id) {
+      toast.error('No se puede eliminar: lead inválido')
+      return
+    }
+
+    const confirmed = window.confirm(`¿Eliminar lead "${lead.name || 'Sin nombre'}"? Esta acción no se puede deshacer.`)
+    if (!confirmed) return
+
+    try {
+      const response = await fetch(`/api/leads/${lead.id}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (response.ok && data?.success !== false) {
+        setLeads(leads.filter(l => l.id !== lead.id))
+        toast.success('Lead eliminado')
+      } else {
+        toast.error(data.error || 'Error al eliminar lead')
+      }
+    } catch (error) {
+      console.error('Error deleting lead:', error)
+      toast.error('Error al eliminar lead')
+    }
+  }
+
   const handleConvertToCustomer = async (lead: Lead) => {
     if (!lead || !lead.id) {
       toast.error('No se puede convertir: lead inválido')
@@ -669,6 +697,7 @@ export default function TestComercialPage() {
                         variant="ghost" 
                         size="icon"
                         className="hover:bg-gray-700 text-gray-300 hover:text-red-400"
+                        onClick={() => handleDeleteLead(lead)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
