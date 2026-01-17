@@ -1833,9 +1833,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           {/* ========== ✅ NUEVO: INSPECCIÓN DEL VEHÍCULO ========== */}
 
-          <div className="space-y-4 bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border">
+          <div className="space-y-4 bg-slate-900 p-4 rounded-lg border border-slate-700">
 
-            <h3 className="font-semibold text-sm border-b pb-2 flex items-center gap-2">
+            <h3 className="font-semibold text-sm border-b border-slate-700 pb-2 flex items-center gap-2 text-slate-300">
 
               <Clipboard className="h-4 w-4" />
 
@@ -1847,7 +1847,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             <div>
 
-              <Label className="flex items-center gap-2 mb-2">
+              <Label className="flex items-center gap-2 mb-2 text-slate-300">
 
                 <Fuel className="h-4 w-4 text-yellow-500" />
 
@@ -1885,7 +1885,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                         ? `${level.color} text-white shadow-lg`
 
-                        : 'bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-slate-600'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
 
                     }`}
 
@@ -1905,7 +1905,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             <div>
 
-              <Label className="flex items-center gap-2 mb-3">
+              <Label className="flex items-center gap-2 mb-3 text-slate-300">
 
                 <Droplet className="h-4 w-4 text-blue-500" />
 
@@ -1937,7 +1937,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                     key={fluid.key}
 
-                    className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors border"
+                    className="flex items-center gap-2 px-3 py-2 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors border border-slate-700"
 
                   >
 
@@ -1963,7 +1963,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                     />
 
-                    <span className="text-sm">{fluid.label}</span>
+                    <span className="text-sm text-slate-300">{fluid.label}</span>
 
                   </label>
 
@@ -1977,7 +1977,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             <div>
 
-              <Label htmlFor="valuable_items">Objetos de valor reportados</Label>
+              <Label htmlFor="valuable_items" className="text-slate-300">Objetos de valor reportados</Label>
 
               <Textarea
 
@@ -1991,6 +1991,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 placeholder="Ej: Estéreo, GPS, herramientas en cajuela..."
 
+                className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+
               />
 
             </div>
@@ -1999,9 +2001,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           {/* ========== ✅ NUEVO: MOTIVO DE INGRESO ========== */}
 
-          <div className="space-y-4 bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border">
+          <div className="space-y-4 bg-slate-900 p-4 rounded-lg border border-slate-700">
 
-            <h3 className="font-semibold text-sm border-b pb-2 flex items-center gap-2">
+            <h3 className="font-semibold text-sm border-b border-slate-700 pb-2 flex items-center gap-2 text-slate-300">
 
               <Wrench className="h-4 w-4" />
 
@@ -2013,9 +2015,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             <div className="grid grid-cols-3 gap-3">
 
-              <label className="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-800 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors border">
+              <label className="flex items-center justify-between px-4 py-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors border border-slate-700">
 
-                <span className="text-sm">¿Diagnóstico?</span>
+                <span className="text-sm text-slate-300">¿Diagnóstico?</span>
 
                 <input
 
@@ -2031,9 +2033,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
               </label>
 
-              <label className="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-800 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors border">
+              <label className="flex items-center justify-between px-4 py-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors border border-slate-700">
 
-                <span className="text-sm">¿Garantía?</span>
+                <span className="text-sm text-slate-300">¿Garantía?</span>
 
                 <input
 
@@ -2049,9 +2051,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
               </label>
 
-              <label className="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-800 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors border">
+              <label className="flex items-center justify-between px-4 py-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors border border-slate-700">
 
-                <span className="text-sm">¿Prueba de ruta?</span>
+                <span className="text-sm text-slate-300">¿Prueba de ruta?</span>
 
                 <input
 
@@ -2073,7 +2075,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             <div>
 
-              <Label htmlFor="entry_reason">Motivo de ingreso</Label>
+              <Label htmlFor="entry_reason" className="text-slate-300">Motivo de ingreso</Label>
 
               <Textarea
 
@@ -2087,6 +2089,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 placeholder="Ej: Cliente reporta ruido en motor, falla en arranque..."
 
+                className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+
               />
 
             </div>
@@ -2095,7 +2099,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             <div>
 
-              <Label htmlFor="procedures">Procedimientos a realizar</Label>
+              <Label htmlFor="procedures" className="text-slate-300">Procedimientos a realizar</Label>
 
               <Textarea
 
@@ -2108,6 +2112,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 rows={2}
 
                 placeholder="Ej: Revisión completa de motor, cambio de bujías..."
+
+                className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
 
               />
 

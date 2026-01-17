@@ -484,3 +484,4 @@ Si después de implementar los fixes el problema persiste, verificar:
 4. Si persiste, verificar política RLS y función `get_user_organization_id()`
 
 
+
