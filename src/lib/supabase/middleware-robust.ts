@@ -270,6 +270,7 @@ export function isProtectedRoute(pathname: string): boolean {
     '/facturas',
     '/notificaciones',
     '/usuarios',
+    '/configuraciones/usuarios',
     '/configuracion'
   ]
   

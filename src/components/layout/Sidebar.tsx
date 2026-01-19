@@ -185,7 +185,7 @@ export function Sidebar({ className }: SidebarProps) {
       icon: () => <ModernIcons.Configuracion size={20} />,
       visible: showAllForAdmin || permissions.canManageSettings(),
       items: [
-        { href: "/usuarios", label: "Usuarios", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageUsers() },
+        { href: "/configuraciones/usuarios", label: "Usuarios", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageUsers() },
         { href: "/configuraciones/empresa", label: "Empresa", icon: () => <ModernIcons.Dashboard size={18} />, visible: permissions.canManageSettings() }
       ].filter(item => item.visible)
     }

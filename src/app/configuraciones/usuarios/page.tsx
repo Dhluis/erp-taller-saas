@@ -1,6 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -18,16 +22,19 @@ import {
   Shield,
   User,
   Mail,
-  Calendar,
   Edit,
   Trash2,
   Save,
-  Building2
+  Building2,
+  Power,
+  PowerOff,
+  Loader2
 } from "lucide-react"
 import { toast } from "sonner"
 import type { User, CreateUserRequest } from "@/types/user"
 import { UserRole, ROLE_NAMES } from "@/lib/auth/permissions"
 import { usePermissions } from "@/hooks/usePermissions"
+import { useSession } from "@/lib/context/SessionContext"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,11 +46,31 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
+// Schema de validación con Zod
+const userSchema = z.object({
+  name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  email: z.string().email('Email inválido'),
+  password: z.string().optional(),
+  role: z.enum(['ADMIN', 'ASESOR', 'MECANICO'] as const),
+  phone: z.string().optional(),
+}).refine((data) => {
+  // Si no hay usuario seleccionado (modo crear), password es requerido
+  // Esta validación se hace manualmente en onSubmit
+  return true
+}, {
+  message: 'La contraseña debe tener al menos 8 caracteres',
+  path: ['password'],
+})
+
+type UserFormData = z.infer<typeof userSchema>
+
 interface UserResponse {
   users: User[]
 }
 
 export default function UsuariosPage() {
+  const router = useRouter()
+  const { profile, isLoading: sessionLoading } = useSession()
   const permissions = usePermissions()
   const [searchTerm, setSearchTerm] = useState("")
   const [users, setUsers] = useState<User[]>([])
@@ -59,17 +86,44 @@ export default function UsuariosPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState<User | null>(null)
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    role: 'ASESOR' as UserRole,
-    phone: '',
-    password: ''
+  const [isEditMode, setIsEditMode] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch,
+    setValue,
+  } = useForm<UserFormData>({
+    resolver: zodResolver(userSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+      role: 'ASESOR',
+      phone: '',
+    },
   })
 
+  const watchedRole = watch('role')
+
+  // ✅ PROTECCIÓN DE RUTA: Solo admin puede acceder
   useEffect(() => {
-    loadData()
-  }, [])
+    if (!sessionLoading && profile) {
+      if (profile.role !== 'ADMIN') {
+        toast.error('No tienes permisos para acceder a esta página')
+        router.push('/dashboard')
+      }
+    }
+  }, [profile, sessionLoading, router])
+
+  // Cargar usuarios
+  useEffect(() => {
+    if (profile?.role === 'ADMIN') {
+      loadData()
+    }
+  }, [profile])
 
   const loadData = async () => {
     setIsLoading(true)
@@ -164,140 +218,72 @@ export default function UsuariosPage() {
     }
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = e.target
-    setFormData(prev => ({ ...prev, [id]: value }))
-  }
-
-  const handleSelectChange = (id: string, value: string) => {
-    setFormData(prev => ({ ...prev, [id]: value as UserRole }))
-  }
-
-  // Helper para fetch con timeout
-  const fetchWithTimeout = async (url: string, options: RequestInit, timeout = 30000): Promise<Response> => {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), timeout)
-    
+  const onSubmit = async (data: UserFormData) => {
     try {
+      setIsSubmitting(true)
+
+      // ✅ Validación manual: Password requerido en creación
+      if (!isEditMode && (!data.password || data.password.length < 8)) {
+        toast.error('La contraseña es requerida y debe tener al menos 8 caracteres')
+        return
+      }
+
+      // ✅ Validación: Password en edición debe tener 8+ caracteres si se proporciona
+      if (isEditMode && data.password && data.password.length > 0 && data.password.length < 8) {
+        toast.error('La contraseña debe tener al menos 8 caracteres')
+        return
+      }
+
+      const url = isEditMode ? `/api/users/${editingUser?.id}` : '/api/users'
+      const method = isEditMode ? 'PATCH' : 'POST'
+
+      // Preparar payload según el modo
+      const payload: any = {
+        name: data.name,
+        role: data.role,
+        phone: data.phone || undefined,
+      }
+
+      // En edición, email no se puede cambiar
+      if (!isEditMode) {
+        payload.email = data.email
+      }
+
+      // Password solo si se proporciona
+      if (!isEditMode && data.password) {
+        payload.password = data.password
+      } else if (isEditMode && data.password && data.password.length > 0) {
+        payload.password = data.password
+      }
+
       const response = await fetch(url, {
-        ...options,
-        signal: controller.signal
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(payload),
       })
-      clearTimeout(timeoutId)
-      return response
-    } catch (error) {
-      clearTimeout(timeoutId)
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('La solicitud tardó demasiado tiempo. Por favor, intenta nuevamente.')
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al guardar usuario')
       }
-      throw error
-    }
-  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    setIsSubmitting(true)
-
-    try {
-      if (editingUser) {
-        // Actualizar usuario
-        const response = await fetchWithTimeout(`/api/users/${editingUser.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            name: formData.name,
-            email: formData.email,
-            role: formData.role,
-            phone: formData.phone || undefined
-          })
-        })
-
-        if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || 'Error al actualizar usuario')
-        }
-
-        toast.success('Usuario actualizado exitosamente')
-        
-        // Cerrar diálogo inmediatamente
-        setIsDialogOpen(false)
-        setEditingUser(null)
-        setFormData({
-          name: '',
-          email: '',
-          role: 'ASESOR',
-          phone: '',
-          password: ''
-        })
-        
-        // Recargar datos en segundo plano (sin bloquear UI)
-        loadData().catch((err) => {
-          console.error('Error recargando datos después de actualizar:', err)
-          // No mostrar error al usuario, ya se actualizó exitosamente
-        })
-      } else {
-        // Crear usuario
-        if (!formData.password || formData.password.length < 8) {
-          toast.error('La contraseña debe tener al menos 8 caracteres')
-          setIsSubmitting(false)
-          return
-        }
-
-        const response = await fetchWithTimeout('/api/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            name: formData.name,
-            email: formData.email,
-            password: formData.password,
-            role: formData.role,
-            phone: formData.phone || undefined
-          } as CreateUserRequest)
-        })
-
-        // Leer la respuesta una sola vez
-        const responseData = await response.json()
-
-        if (!response.ok) {
-          throw new Error(responseData.error || 'Error al crear usuario')
-        }
-
-        // Verificar que la respuesta sea válida
-        if (!responseData.user) {
-          throw new Error('La respuesta del servidor no contiene datos del usuario')
-        }
-
-        toast.success('Usuario creado exitosamente')
-        
-        // Cerrar diálogo inmediatamente después de crear exitosamente
-        setIsDialogOpen(false)
-        setEditingUser(null)
-        setFormData({
-          name: '',
-          email: '',
-          role: 'ASESOR',
-          phone: '',
-          password: ''
-        })
-        
-        // Recargar datos en segundo plano (sin bloquear UI)
-        loadData().catch((err) => {
-          console.error('Error recargando datos después de crear:', err)
-          // No mostrar error al usuario, ya se creó exitosamente
-          toast.error('Usuario creado, pero hubo un error al actualizar la lista', {
-            description: 'Puedes recargar la página para ver el nuevo usuario.'
-          })
-        })
-      }
-    } catch (error) {
-      console.error("❌ Error submitting user:", error)
-      toast.error("Error al guardar el usuario", {
-        description: error instanceof Error ? error.message : 'Inténtalo de nuevo.'
+      toast.success(
+        isEditMode ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente'
+      )
+      setIsDialogOpen(false)
+      reset()
+      setEditingUser(null)
+      setIsEditMode(false)
+      await loadData()
+    } catch (error: any) {
+      console.error('Error guardando usuario:', error)
+      toast.error('Error al guardar usuario', {
+        description: error.message,
       })
-      // NO cerrar el diálogo si hay error, para que el usuario pueda corregir
     } finally {
       setIsSubmitting(false)
     }
@@ -305,15 +291,75 @@ export default function UsuariosPage() {
 
   const handleEdit = (user: User) => {
     setEditingUser(user)
-    const userName = (user as any).name || (user as any).full_name || ''
-    setFormData({
-      name: userName,
-      email: user.email,
-      role: user.role,
-      phone: user.phone || '',
-      password: '' // No mostrar contraseña
+    setIsEditMode(true)
+    setValue('name', (user as any).name || (user as any).full_name || '')
+    setValue('email', user.email)
+    setValue('role', user.role as UserRole)
+    setValue('phone', user.phone || '')
+    setValue('password', '') // No mostrar password
+    setIsDialogOpen(true)
+  }
+
+  const handleToggleActive = async (user: User) => {
+    try {
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          is_active: !user.is_active,
+        }),
+      })
+
+      if (!response.ok) {
+        let result
+        try {
+          const text = await response.text()
+          result = text ? JSON.parse(text) : { error: `Error ${response.status}` }
+        } catch (parseError) {
+          result = { error: `Error ${response.status}: ${response.statusText}` }
+        }
+        throw new Error(result.error || result.message || 'Error al actualizar usuario')
+      }
+
+      const result = await response.json()
+      
+      if (result.success === false) {
+        throw new Error(result.error || 'Error al actualizar usuario')
+      }
+
+      toast.success(
+        `Usuario ${!user.is_active ? 'activado' : 'desactivado'} exitosamente`
+      )
+      await loadData()
+    } catch (error: any) {
+      console.error('Error actualizando usuario:', error)
+      toast.error('Error al actualizar usuario', {
+        description: error.message || 'Error desconocido',
+      })
+    }
+  }
+
+  const handleOpenCreateModal = () => {
+    setEditingUser(null)
+    setIsEditMode(false)
+    reset({
+      name: '',
+      email: '',
+      password: '',
+      role: 'ASESOR',
+      phone: '',
     })
     setIsDialogOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsDialogOpen(false)
+    setEditingUser(null)
+    setIsEditMode(false)
+    reset()
   }
 
   const handleDelete = (id: string) => {
@@ -360,16 +406,9 @@ export default function UsuariosPage() {
     }
   }
 
-  const handleAddUser = () => {
-    setEditingUser(null)
-    setFormData({
-      name: '',
-      email: '',
-      role: 'ASESOR',
-      phone: '',
-      password: ''
-    })
-    setIsDialogOpen(true)
+  // No mostrar nada si no es admin
+  if (!sessionLoading && profile?.role !== 'ADMIN') {
+    return null
   }
 
   if (isLoading) {
@@ -400,100 +439,11 @@ export default function UsuariosPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-3xl font-bold tracking-tight">Gestión de Usuarios</h2>
         <div className="flex items-center space-x-2">
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={handleAddUser}>
-                <Plus className="mr-2 h-4 w-4" /> Agregar Usuario
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[560px]">
-              <DialogHeader>
-                <DialogTitle>{editingUser ? "Editar Usuario" : "Agregar Nuevo Usuario"}</DialogTitle>
-                <DialogDescription>
-                  {editingUser ? "Modifica los datos del usuario." : "Ingresa los datos del nuevo usuario."}
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Nombre Completo</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="w-full bg-slate-900/70 border-slate-600 text-white h-11"
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full bg-slate-900/70 border-slate-600 text-white h-11"
-                    required
-                  />
-                </div>
-                {!editingUser && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="password">Contraseña</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      className="w-full bg-slate-900/70 border-slate-600 text-white h-11"
-                      required={!editingUser}
-                      minLength={8}
-                    />
-                  </div>
-                )}
-                <div className="grid gap-2">
-                  <Label htmlFor="phone">Teléfono (Opcional)</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="w-full bg-slate-900/70 border-slate-600 text-white h-11"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="role">Rol</Label>
-                  <Select value={formData.role} onValueChange={(value) => handleSelectChange('role', value)}>
-                    <SelectTrigger className="w-full h-11 bg-slate-900 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
-                      <SelectValue placeholder="Selecciona un rol" />
-                    </SelectTrigger>
-                    <SelectContent
-                      className="z-[9999] bg-slate-900 text-white border border-slate-600 shadow-2xl"
-                      sideOffset={4}
-                      position="popper"
-                    >
-                      <SelectItem value="ADMIN" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">{ROLE_NAMES.ADMIN}</SelectItem>
-                      <SelectItem value="ASESOR" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">{ROLE_NAMES.ASESOR}</SelectItem>
-                      <SelectItem value="MECANICO" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">{ROLE_NAMES.MECANICO}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <DialogFooter>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Guardando...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        {editingUser ? 'Actualizar' : 'Crear'}
-                      </>
-                    )}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          {profile?.role === 'ADMIN' && (
+            <Button onClick={handleOpenCreateModal}>
+              <Plus className="mr-2 h-4 w-4" /> Agregar Usuario
+            </Button>
+          )}
         </div>
       </div>
 
@@ -605,6 +555,20 @@ export default function UsuariosPage() {
                           <Edit className="h-4 w-4 mr-1" />
                           Editar
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleActive(user)}
+                          disabled={isSubmitting}
+                          title={user.is_active ? 'Desactivar usuario' : 'Activar usuario'}
+                        >
+                          {user.is_active ? (
+                            <PowerOff className="h-4 w-4 mr-1 text-warning" />
+                          ) : (
+                            <Power className="h-4 w-4 mr-1 text-success" />
+                          )}
+                          {user.is_active ? 'Desactivar' : 'Activar'}
+                        </Button>
                         {/* ✅ Ocultar botón eliminar para mecánicos */}
                         {!permissions.isMechanic && (
                           <Button 
@@ -628,31 +592,166 @@ export default function UsuariosPage() {
         </div>
       </div>
 
+      {/* Modal de crear/editar usuario */}
+      <Dialog open={isDialogOpen} onOpenChange={handleCloseModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {isEditMode ? 'Editar Usuario' : 'Crear Usuario'}
+            </DialogTitle>
+            <DialogDescription>
+              {isEditMode
+                ? 'Modifica la información del usuario'
+                : 'Completa los datos para crear un nuevo usuario'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">
+                Nombre <span className="text-error">*</span>
+              </Label>
+              <Input
+                id="name"
+                {...register('name')}
+                placeholder="Nombre completo"
+              />
+              {errors.name && (
+                <p className="text-sm text-error">{errors.name.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">
+                Email <span className="text-error">*</span>
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                {...register('email')}
+                placeholder="usuario@ejemplo.com"
+                disabled={isEditMode}
+              />
+              {errors.email && (
+                <p className="text-sm text-error">{errors.email.message}</p>
+              )}
+            </div>
+
+            {!isEditMode && (
+              <div className="space-y-2">
+                <Label htmlFor="password">
+                  Contraseña <span className="text-error">*</span>
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  {...register('password')}
+                  placeholder="Mínimo 8 caracteres"
+                />
+                {errors.password && (
+                  <p className="text-sm text-error">{errors.password.message}</p>
+                )}
+              </div>
+            )}
+
+            {isEditMode && (
+              <div className="space-y-2">
+                <Label htmlFor="password">
+                  Nueva Contraseña (opcional)
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  {...register('password')}
+                  placeholder="Dejar vacío para mantener la actual"
+                />
+                {errors.password && (
+                  <p className="text-sm text-error">{errors.password.message}</p>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="role">
+                Rol <span className="text-error">*</span>
+              </Label>
+              <Select
+                value={watchedRole}
+                onValueChange={(value) => setValue('role', value as UserRole)}
+              >
+                <SelectTrigger id="role">
+                  <SelectValue placeholder="Seleccionar rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ADMIN">
+                    {ROLE_NAMES.ADMIN}
+                  </SelectItem>
+                  <SelectItem value="ASESOR">
+                    {ROLE_NAMES.ASESOR}
+                  </SelectItem>
+                  <SelectItem value="MECANICO">
+                    {ROLE_NAMES.MECANICO}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.role && (
+                <p className="text-sm text-error">{errors.role.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Teléfono</Label>
+              <Input
+                id="phone"
+                type="tel"
+                {...register('phone')}
+                placeholder="+52 555 123 4567"
+              />
+              {errors.phone && (
+                <p className="text-sm text-error">{errors.phone.message}</p>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseModal}
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                {isEditMode ? 'Guardar Cambios' : 'Crear Usuario'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog de confirmación de eliminación */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
             <AlertDialogDescription>
-              {userToDelete && (
-                <>
-                  ¿Estás seguro de que quieres eliminar a{' '}
-                  <span className="font-semibold">
-                    {(userToDelete as any).name || (userToDelete as any).full_name || userToDelete.email}
-                  </span>
-                  ? Esta acción no se puede deshacer.
-                </>
-              )}
+              Esta acción no se puede deshacer. Se eliminará permanentemente el
+              usuario{' '}
+              <strong>
+                {(userToDelete as any)?.name || (userToDelete as any)?.full_name || userToDelete?.email}
+              </strong>
+              .
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
-              disabled={isSubmitting}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-error hover:bg-error/90"
             >
-              {isSubmitting ? 'Eliminando...' : 'Eliminar'}
+              Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

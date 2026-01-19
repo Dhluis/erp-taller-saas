@@ -43,6 +43,7 @@ export const AuthMiddlewareUtils = {
            pathname.startsWith('/facturas') ||
            pathname.startsWith('/garantias') ||
            pathname.startsWith('/usuarios') ||
+           pathname.startsWith('/configuraciones/usuarios') ||
            pathname.startsWith('/configuracion') ||
            pathname.startsWith('/reportes');
   },
@@ -57,8 +58,11 @@ export const AuthMiddlewareUtils = {
     }
     
     // Rutas de administración
-    if (pathname.startsWith('/api/users') || pathname.startsWith('/usuarios') ||
-        pathname.startsWith('/api/settings') || pathname.startsWith('/configuracion')) {
+    if (pathname.startsWith('/api/users') || 
+        pathname.startsWith('/usuarios') ||
+        pathname.startsWith('/configuraciones/usuarios') ||
+        pathname.startsWith('/api/settings') || 
+        pathname.startsWith('/configuracion')) {
       return 5; // ADMIN
     }
     
