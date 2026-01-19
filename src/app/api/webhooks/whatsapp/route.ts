@@ -286,11 +286,12 @@ async function handleMessageEvent(body: any) {
       return;
     }
 
-    // 8. Buscar o crear conversación
+    // 8. Buscar o crear conversación (pasando sessionName para obtener nombre real)
     const { conversationId, isNewConversation } = await getOrCreateConversation(
       supabase,
       organizationId,
-      customerPhone
+      customerPhone,
+      sessionName // ✅ Agregar sessionName para obtener nombre real del contacto
     );
     
     // 8.1. Si es nueva conversación, obtener foto de perfil en background (no bloquear el flujo)
@@ -736,12 +737,24 @@ function extractPhoneNumber(chatId: string): string | null {
 async function getOrCreateConversation(
   supabase: any,
   organizationId: string,
-  customerPhone: string
+  customerPhone: string,
+  sessionName: string
 ): Promise<{ conversationId: string; isNewConversation: boolean }> {
+  // ✅ Obtener nombre real del contacto desde WAHA ANTES de buscar/crear cliente
+  let contactName: string | null = null;
+  try {
+    const { getContactName } = await import('@/lib/waha-sessions');
+    contactName = await getContactName(customerPhone, sessionName, organizationId);
+    console.log('[WAHA Webhook] 📛 Nombre del contacto obtenido:', contactName || 'No disponible');
+  } catch (contactError: any) {
+    console.warn('[WAHA Webhook] ⚠️ Error obteniendo nombre del contacto:', contactError.message);
+    // Continuar de todas formas, usar fallback "Cliente WhatsApp"
+  }
+
   // Buscar conversación existente
   const { data: existing } = await supabase
     .from('whatsapp_conversations')
-    .select('id, is_bot_active')
+    .select('id, is_bot_active, customer_name')
     .eq('organization_id', organizationId)
     .eq('customer_phone', customerPhone)
     .eq('status', 'active')
@@ -751,6 +764,21 @@ async function getOrCreateConversation(
 
   if (existing) {
     console.log('[WAHA Webhook] ✅ Conversación existente encontrada:', existing.id);
+    
+    // ✅ Si el nombre en la conversación es genérico y tenemos nombre real, actualizar
+    if (existing.customer_name === 'Cliente WhatsApp' && contactName) {
+      const { error: updateConvError } = await supabase
+        .from('whatsapp_conversations')
+        .update({ customer_name: contactName })
+        .eq('id', existing.id);
+      
+      if (!updateConvError) {
+        console.log('[WAHA Webhook] ✅ Nombre en conversación actualizado:', contactName);
+      } else {
+        console.warn('[WAHA Webhook] ⚠️ Error actualizando nombre en conversación:', updateConvError);
+      }
+    }
+    
     return { conversationId: existing.id, isNewConversation: false };
   }
 
@@ -767,14 +795,31 @@ async function getOrCreateConversation(
 
   if (existingCustomer) {
     customerId = existingCustomer.id;
-    customerName = existingCustomer.name || 'Cliente WhatsApp';
+    
+    // ✅ Si el nombre actual es genérico, actualizar con nombre real
+    if (existingCustomer.name === 'Cliente WhatsApp' && contactName) {
+      const { error: updateError } = await supabase
+        .from('customers')
+        .update({ name: contactName })
+        .eq('id', existingCustomer.id);
+      
+      if (!updateError) {
+        console.log('[WAHA Webhook] ✅ Nombre actualizado de genérico a real:', contactName);
+        customerName = contactName;
+      } else {
+        console.warn('[WAHA Webhook] ⚠️ Error actualizando nombre del cliente:', updateError);
+        customerName = existingCustomer.name || contactName || 'Cliente WhatsApp';
+      }
+    } else {
+      customerName = existingCustomer.name || contactName || 'Cliente WhatsApp';
+    }
   } else {
-    // Crear nuevo cliente
+    // ✅ Crear nuevo cliente con nombre real si está disponible
     const { data: newCustomer, error: customerError } = await supabase
       .from('customers')
       .insert({
         organization_id: organizationId,
-        name: 'Cliente WhatsApp',
+        name: contactName || 'Cliente WhatsApp', // ✅ Usar nombre real obtenido
         phone: customerPhone
       })
       .select('id')
@@ -786,7 +831,7 @@ async function getOrCreateConversation(
     }
 
     customerId = newCustomer.id;
-    customerName = 'Cliente WhatsApp';
+    customerName = contactName || 'Cliente WhatsApp';
   }
 
   // Crear nueva conversación

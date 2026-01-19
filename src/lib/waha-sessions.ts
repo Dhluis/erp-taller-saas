@@ -973,3 +973,96 @@ export async function getProfilePicture(
   }
 }
 
+/**
+ * Obtiene el nombre real de un contacto desde WAHA
+ * @param phoneNumber - Número de teléfono del contacto (ej: "5214491234567")
+ * @param sessionName - Nombre de la sesión WAHA (ej: "eagles_b3962fe4d23842bc9455")
+ * @param organizationId - ID de la organización
+ * @returns Nombre real del contacto o null si no se encuentra
+ */
+export async function getContactName(
+  phoneNumber: string,
+  sessionName: string,
+  organizationId: string
+): Promise<string | null> {
+  try {
+    // Obtener credenciales WAHA
+    const { url, key } = await getWahaConfig(organizationId);
+    
+    if (!url || !key) {
+      console.warn('[getContactName] ⚠️ No hay credenciales WAHA disponibles');
+      return null;
+    }
+
+    // Normalizar número de teléfono (sin espacios, +, guiones)
+    const normalizedPhone = phoneNumber.replace(/[\s\+\-\(\)]/g, '');
+    
+    // Construir chatId con formato WhatsApp (@c.us, @s.whatsapp.net o @lid)
+    let chatId = normalizedPhone;
+    if (!chatId.includes('@')) {
+      chatId = `${normalizedPhone}@c.us`;
+    }
+
+    console.log('[getContactName] 🔍 Obteniendo nombre para:', chatId);
+
+    // Intentar múltiples endpoints de WAHA para obtener información del contacto
+    // WAHA Plus puede usar diferentes formatos de API
+    const endpoints = [
+      `${url}/api/${sessionName}/contacts/${encodeURIComponent(chatId)}`,
+      `${url}/api/contacts/${encodeURIComponent(chatId)}?session=${sessionName}`,
+      `${url}/api/${sessionName}/chats/${encodeURIComponent(chatId)}`,
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            'X-Api-Key': key,
+            'X-API-KEY': key, // Algunas versiones usan este formato
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          console.log(`[getContactName] ⚠️ Endpoint ${endpoint} retornó ${response.status}, probando siguiente...`);
+          continue;
+        }
+
+        const data = await response.json();
+        
+        // Extraer nombre del contacto (probar múltiples ubicaciones posibles)
+        const name = 
+          data.name || 
+          data.pushname || 
+          data.notify || 
+          data.verifiedName ||
+          data.contact?.name ||
+          data.contact?.pushname ||
+          data.title ||
+          data.contact?.title ||
+          null;
+
+        if (name && name !== phoneNumber && name.trim().length > 0) {
+          console.log('[getContactName] ✅ Nombre obtenido:', name);
+          return name.trim();
+        }
+
+        // Si encontramos datos pero sin nombre válido, continuar con siguiente endpoint
+        if (data && Object.keys(data).length > 0) {
+          console.log('[getContactName] ⚠️ Datos encontrados pero sin nombre válido:', Object.keys(data));
+        }
+      } catch (endpointError: any) {
+        console.log(`[getContactName] ⚠️ Error en endpoint ${endpoint}:`, endpointError.message);
+        continue;
+      }
+    }
+
+    console.log('[getContactName] ⚠️ No se encontró nombre real después de probar todos los endpoints');
+    return null;
+  } catch (error: any) {
+    console.error('[getContactName] ❌ Error:', error.message);
+    return null;
+  }
+}
+
