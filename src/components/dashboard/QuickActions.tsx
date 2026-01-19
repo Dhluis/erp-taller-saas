@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Plus, Users, Car, FileText, MessageSquare } from 'lucide-react'
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal'
+import { usePermissions } from '@/hooks/usePermissions'
 
 interface QuickActionsProps {
   onOrderCreated?: () => void
@@ -13,6 +14,7 @@ interface QuickActionsProps {
 
 export function QuickActions({ onOrderCreated }: QuickActionsProps) {
   const router = useRouter()
+  const permissions = usePermissions()
   const [modalOpen, setModalOpen] = useState(false)
   const [prefilledServiceType, setPrefilledServiceType] = useState<string>('')
 
@@ -64,21 +66,24 @@ export function QuickActions({ onOrderCreated }: QuickActionsProps) {
         </CardHeader>
         <CardContent className="pt-4 space-y-3">
           {/* Nueva Orden de Trabajo - Acción principal */}
-          <Button
-            className="w-full justify-start h-auto py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md transition-all duration-300"
-            onClick={handleNewOrder}
-          >
-            <div className="flex items-center">
-              <span className="text-xl mr-3">⚙️</span>
-              <Plus className="h-5 w-5 mr-2" />
-              <div className="text-left">
-                <div className="font-semibold">Nueva Orden de Trabajo</div>
-                <div className="text-xs text-blue-100 mt-0.5">
-                  Registra un nuevo servicio
+          {/* ✅ Solo mostrar si el usuario tiene permisos para crear órdenes */}
+          {permissions.canCreate('work_orders') && (
+            <Button
+              className="w-full justify-start h-auto py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md transition-all duration-300"
+              onClick={handleNewOrder}
+            >
+              <div className="flex items-center">
+                <span className="text-xl mr-3">⚙️</span>
+                <Plus className="h-5 w-5 mr-2" />
+                <div className="text-left">
+                  <div className="font-semibold">Nueva Orden de Trabajo</div>
+                  <div className="text-xs text-blue-100 mt-0.5">
+                    Registra un nuevo servicio
+                  </div>
                 </div>
               </div>
-            </div>
-          </Button>
+            </Button>
+          )}
 
           {/* Acciones Rápidas Específicas */}
           <div className="grid grid-cols-1 gap-2 pt-2 border-t">

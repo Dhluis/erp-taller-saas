@@ -29,6 +29,7 @@ interface KanbanBoardProps {
   searchQuery?: string;
   refreshKey?: number;
   onCreateOrder?: () => void;
+  canCreate?: boolean;
 }
 
 // Definición de columnas del Kanban
@@ -105,7 +106,7 @@ const KANBAN_COLUMNS: Omit<KanbanColumnType, 'orders'>[] = [
   },
 ];
 
-export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCreateOrder }: KanbanBoardProps) {
+export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCreateOrder, canCreate = true }: KanbanBoardProps) {
   const [columns, setColumns] = useState<KanbanColumnType[]>([]);
   const [activeOrder, setActiveOrder] = useState<WorkOrder | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
@@ -680,14 +681,19 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
               No hay órdenes todavía
             </h3>
             <p className="text-slate-400 mb-6">
-              Comienza creando tu primera orden de trabajo
+              {canCreate 
+                ? 'Comienza creando tu primera orden de trabajo'
+                : 'No hay órdenes para mostrar'}
             </p>
-            <button
-              onClick={() => onCreateOrder?.()}
-              className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors font-medium"
-            >
-              Crear Primera Orden
-            </button>
+            {/* ✅ Solo mostrar botón de crear si el usuario tiene permisos */}
+            {canCreate && (
+              <button
+                onClick={() => onCreateOrder?.()}
+                className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors font-medium"
+              >
+                Crear Primera Orden
+              </button>
+            )}
           </div>
         </div>
       )}

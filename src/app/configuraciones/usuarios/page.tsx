@@ -678,17 +678,21 @@ export default function UsuariosPage() {
                 value={watchedRole}
                 onValueChange={(value) => setValue('role', value as UserRole)}
               >
-                <SelectTrigger id="role">
+                <SelectTrigger id="role" className="bg-slate-900 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
                   <SelectValue placeholder="Seleccionar rol" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ADMIN">
+                <SelectContent
+                  className="z-[9999] bg-slate-900 text-white border border-slate-600 shadow-2xl"
+                  sideOffset={4}
+                  position="popper"
+                >
+                  <SelectItem value="ADMIN" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
                     {ROLE_NAMES.ADMIN}
                   </SelectItem>
-                  <SelectItem value="ASESOR">
+                  <SelectItem value="ASESOR" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
                     {ROLE_NAMES.ASESOR}
                   </SelectItem>
-                  <SelectItem value="MECANICO">
+                  <SelectItem value="MECANICO" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
                     {ROLE_NAMES.MECANICO}
                   </SelectItem>
                 </SelectContent>
