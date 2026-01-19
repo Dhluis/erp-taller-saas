@@ -74,6 +74,75 @@ export function formatMexicanPhone(phone: string | null | undefined): string {
 }
 
 /**
+ * Normaliza un número de teléfono para asegurar formato consistente en WhatsApp
+ * 
+ * Para México (52):
+ * - Formato correcto: 52 + 1 + 10 dígitos = 13 dígitos
+ * - Ejemplo: 5214494533160
+ * 
+ * Esta función asegura que todos los números mexicanos tengan el formato consistente
+ * para evitar duplicados en conversaciones de WhatsApp.
+ * 
+ * @param phoneNumber - Número en cualquier formato
+ * @returns Número normalizado (13 dígitos para México: 52 + 1 + 10 dígitos)
+ */
+export function normalizePhoneNumber(phoneNumber: string): string {
+  if (!phoneNumber) return '';
+
+  // 1. Extraer solo dígitos
+  const digitsOnly = phoneNumber.replace(/\D/g, '');
+
+  // 2. Si está vacío o muy corto, retornar como está
+  if (!digitsOnly || digitsOnly.length < 10) {
+    return digitsOnly;
+  }
+
+  // 3. Detectar si es número mexicano (empieza con 52)
+  if (digitsOnly.startsWith('52')) {
+    const withoutCountryCode = digitsOnly.substring(2); // Remover "52"
+
+    // Si tiene 13 dígitos (52 + 1 + 10), ya tiene el "1" y está correcto
+    if (digitsOnly.length === 13) {
+      // Verificar que después del 52 viene un "1"
+      if (withoutCountryCode.startsWith('1')) {
+        return digitsOnly; // Ya está correcto: 5214494533160
+      }
+      // Si tiene 13 dígitos pero no empieza con "1" después del 52, corregir
+      // Ejemplo: 5244945331600 (12 dígitos después del 52, pero 13 total)
+      // Esto no debería pasar, pero por seguridad lo manejamos
+      if (withoutCountryCode.length === 11) {
+        return `521${withoutCountryCode.substring(1)}`; // 52 + 1 + últimos 10
+      }
+    }
+
+    // Si tiene 12 dígitos (52 + 10), agregar "1" después del "52"
+    if (digitsOnly.length === 12 && withoutCountryCode.length === 10) {
+      return `521${withoutCountryCode}`; // Insertar "1": 52 + 1 + 4494533160
+    }
+
+    // Si tiene 11 dígitos después del 52 pero no empieza con "1", agregarlo
+    if (digitsOnly.length === 13 && !withoutCountryCode.startsWith('1')) {
+      return `521${withoutCountryCode.substring(1)}`; // 52 + 1 + últimos 10
+    }
+
+    // Si tiene más de 13 dígitos, tomar los primeros 13 (52 + 1 + 10)
+    if (digitsOnly.length > 13) {
+      const first13 = digitsOnly.substring(0, 13);
+      if (first13.startsWith('521')) {
+        return first13;
+      }
+      // Si no empieza con 521, intentar corregir
+      if (first13.startsWith('52') && first13.length === 13) {
+        return `521${first13.substring(2, 12)}`; // 52 + 1 + siguientes 10
+      }
+    }
+  }
+
+  // 4. Para otros países o formatos no reconocidos, retornar solo dígitos
+  return digitsOnly;
+}
+
+/**
  * Obtiene un nombre formateado para display basado en nombre o teléfono
  */
 export function getDisplayName(name: string | null | undefined, phone: string | null | undefined): string {

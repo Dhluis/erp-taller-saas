@@ -21,6 +21,7 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { processMessage } from '@/integrations/whatsapp/services/ai-agent';
 import { getOrganizationFromSession, sendWhatsAppMessage, getProfilePicture } from '@/lib/waha-sessions';
 import { rateLimitMiddleware } from '@/lib/rate-limit/middleware';
+import { normalizePhoneNumber } from '@/lib/utils/phone-formatter';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -726,9 +727,15 @@ function extractPhoneNumber(chatId: string): string | null {
     return null;
   }
   
-  // Retornar como está (formato internacional sin +)
-  // El formato será: 5214491234567
-  return phoneDigits;
+  // ✅ NORMALIZAR número antes de retornar para evitar duplicados
+  // Esto asegura que números mexicanos siempre tengan formato: 52 + 1 + 10 dígitos = 13 dígitos
+  const normalized = normalizePhoneNumber(phoneDigits);
+  
+  if (!normalized || normalized.length < 10) {
+    return null;
+  }
+  
+  return normalized;
 }
 
 /**
