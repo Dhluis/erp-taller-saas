@@ -2282,56 +2282,6 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             <div>
 
-              <Label htmlFor="estimated_cost">Costo Estimado (MXN)</Label>
-
-              <div className="relative">
-
-                <Input
-
-                  id="estimated_cost"
-
-                  name="estimated_cost"
-
-                  type="number"
-
-                  step="0.01"
-
-                  value={formData.estimated_cost}
-
-                  onChange={handleChange}
-
-                  placeholder="0.00"
-
-                  disabled={loading}
-
-                  className={`${errors.estimated_cost ? 'border-red-500' : 'border-gray-700'} pr-10`}
-
-                />
-
-                {!errors.estimated_cost && formData.estimated_cost && (
-
-                  <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
-
-                )}
-
-                {errors.estimated_cost && (
-
-                  <AlertCircle className="absolute right-3 top-2.5 h-5 w-5 text-red-500" />
-
-                )}
-
-              </div>
-
-              {errors.estimated_cost && (
-
-                <p className="text-xs text-red-500 mt-1">{errors.estimated_cost}</p>
-
-              )}
-
-            </div>
-
-            <div>
-
               <Label htmlFor="assigned_to">Asignar Empleado (opcional)</Label>
 
               <Select

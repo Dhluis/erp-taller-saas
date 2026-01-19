@@ -7,6 +7,8 @@ interface SearchResults {
   customers: any[];
   vehicles: any[];
   products: any[];
+  invoices: any[];
+  suppliers: any[];
 }
 
 export function useGlobalSearch() {
@@ -15,6 +17,8 @@ export function useGlobalSearch() {
     customers: [],
     vehicles: [],
     products: [],
+    invoices: [],
+    suppliers: [],
   });
   const [loading, setLoading] = useState(false);
 
@@ -53,6 +57,8 @@ export function useGlobalSearch() {
           customers: [],
           vehicles: [],
           products: [],
+          invoices: [],
+          suppliers: [],
         });
         return;
       }
@@ -65,6 +71,8 @@ export function useGlobalSearch() {
           customers: [],
           vehicles: [],
           products: [],
+          invoices: [],
+          suppliers: [],
         });
         return;
       }
@@ -75,6 +83,8 @@ export function useGlobalSearch() {
         customers: [],
         vehicles: [],
         products: [],
+        invoices: [],
+        suppliers: [],
       };
 
       result.data.forEach((item: any) => {
@@ -91,6 +101,12 @@ export function useGlobalSearch() {
           case 'product':
             groupedResults.products.push(item);
             break;
+          case 'invoice':
+            groupedResults.invoices.push(item);
+            break;
+          case 'supplier':
+            groupedResults.suppliers.push(item);
+            break;
         }
       });
 
@@ -101,7 +117,9 @@ export function useGlobalSearch() {
         customers: groupedResults.customers.length,
         vehicles: groupedResults.vehicles.length,
         products: groupedResults.products.length,
-        total: groupedResults.orders.length + groupedResults.customers.length + groupedResults.vehicles.length + groupedResults.products.length,
+        invoices: groupedResults.invoices.length,
+        suppliers: groupedResults.suppliers.length,
+        total: groupedResults.orders.length + groupedResults.customers.length + groupedResults.vehicles.length + groupedResults.products.length + groupedResults.invoices.length + groupedResults.suppliers.length,
       });
 
       setResults(groupedResults);
@@ -112,6 +130,8 @@ export function useGlobalSearch() {
         customers: [],
         vehicles: [],
         products: [],
+        invoices: [],
+        suppliers: [],
       });
     } finally {
       setLoading(false);

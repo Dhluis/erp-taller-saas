@@ -10,7 +10,9 @@ import {
   Package,
   Clock,
   Loader2,
-  ArrowRight
+  ArrowRight,
+  Receipt,
+  Truck
 } from 'lucide-react';
 import {
   Dialog,
@@ -72,6 +74,8 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     ...results.customers.map(item => ({ ...item, type: 'customer' as const })),
     ...results.vehicles.map(item => ({ ...item, type: 'vehicle' as const })),
     ...results.products.map(item => ({ ...item, type: 'product' as const })),
+    ...results.invoices.map(item => ({ ...item, type: 'invoice' as const })),
+    ...results.suppliers.map(item => ({ ...item, type: 'supplier' as const })),
   ];
 
   // Log de resultados para debug - MEJORADO
@@ -85,6 +89,8 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         customers: results.customers.length,
         vehicles: results.vehicles.length,
         products: results.products.length,
+        invoices: results.invoices.length,
+        suppliers: results.suppliers.length,
         allResultsArray: allResults.slice(0, 3), // Primeros 3 para debug
       });
       
@@ -120,13 +126,23 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         path = `/ordenes/${result.id}`;
         break;
       case 'customer':
-        path = `/clientes`;
+        // ✅ Mejorar: Redirigir a detalles específicos del cliente
+        path = result.id ? `/clientes/${result.id}` : `/clientes`;
         break;
       case 'vehicle':
-        path = `/vehiculos`;
+        // ✅ Mejorar: Redirigir a detalles específicos del vehículo
+        path = result.id ? `/vehiculos/${result.id}` : `/vehiculos`;
         break;
       case 'product':
         path = `/inventarios`;
+        break;
+      case 'invoice':
+        // ✅ Nuevo: Redirigir a detalles de factura
+        path = result.id ? `/ingresos/facturacion/${result.id}` : `/ingresos/facturacion`;
+        break;
+      case 'supplier':
+        // ✅ Nuevo: Redirigir a detalles de proveedor
+        path = result.id ? `/proveedores/${result.id}` : `/proveedores`;
         break;
     }
     
@@ -150,6 +166,10 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         return <Car className="w-4 h-4 text-blue-400" />;
       case 'product':
         return <Package className="w-4 h-4 text-purple-400" />;
+      case 'invoice':
+        return <Receipt className="w-4 h-4 text-yellow-400" />;
+      case 'supplier':
+        return <Truck className="w-4 h-4 text-orange-400" />;
       default:
         return <Search className="w-4 h-4 text-slate-400" />;
     }
@@ -166,6 +186,10 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         return 'Vehículo';
       case 'product':
         return 'Producto';
+      case 'invoice':
+        return 'Factura';
+      case 'supplier':
+        return 'Proveedor';
       default:
         return type;
     }
@@ -203,6 +227,18 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
           subtitle: `SKU: ${result.sku || 'N/A'} - Stock: ${result.current_stock || 0}`,
           badge: result.current_stock < result.min_stock ? 'Stock Bajo' : null,
         };
+      case 'invoice':
+        return {
+          title: result.title || `Factura ${result.metadata?.invoice_number || result.id?.substring(0, 8)}`,
+          subtitle: result.description || `${result.metadata?.customer || 'Cliente'} - $${result.metadata?.amount || 0}`,
+          badge: result.metadata?.status || null,
+        };
+      case 'supplier':
+        return {
+          title: result.title || result.name,
+          subtitle: result.description || result.metadata?.email || result.metadata?.phone || 'Proveedor',
+          badge: null,
+        };
       default:
         return { title: 'Resultado', subtitle: '', badge: null };
     }
@@ -215,7 +251,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         <DialogHeader className="sr-only">
           <DialogTitle>Búsqueda Global</DialogTitle>
           <DialogDescription>
-            Busca órdenes, clientes, vehículos y productos en el sistema
+            Busca órdenes, clientes, vehículos, productos, facturas y proveedores en el sistema
           </DialogDescription>
         </DialogHeader>
         {/* Search Input */}
@@ -224,7 +260,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
           <Input
             ref={inputRef}
             type="text"
-            placeholder="Buscar órdenes, clientes, vehículos, productos..."
+            placeholder="Buscar órdenes, clientes, vehículos, productos, facturas, proveedores..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -242,7 +278,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                 Comienza a escribir para buscar...
               </p>
               <p className="text-slate-500 text-xs mt-2">
-                Órdenes, Clientes, Vehículos, Productos
+                Órdenes, Clientes, Vehículos, Productos, Facturas, Proveedores
               </p>
             </div>
           ) : loading ? (
@@ -273,13 +309,18 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                 customers: results.customers.length,
                 vehicles: results.vehicles.length,
                 products: results.products.length,
+                invoices: results.invoices.length,
+                suppliers: results.suppliers.length,
               })}
               
               {/* Órdenes */}
               {results.orders.length > 0 && (
                 <div className="mb-4">
-                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase">
-                    Órdenes de Trabajo ({results.orders.length})
+                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase flex items-center justify-between">
+                    <span>Órdenes de Trabajo ({results.orders.length})</span>
+                    {results.orders.length >= 5 && (
+                      <span className="text-xs text-slate-500 font-normal">Mostrando primeros 5</span>
+                    )}
                   </div>
                   {results.orders.map((order, index) => {
                     const globalIndex = allResults.findIndex(r => r.type === 'order' && r.id === order.id);
@@ -337,8 +378,11 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               {/* Clientes */}
               {results.customers.length > 0 && (
                 <div className="mb-4">
-                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase">
-                    Clientes ({results.customers.length})
+                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase flex items-center justify-between">
+                    <span>Clientes ({results.customers.length})</span>
+                    {results.customers.length >= 5 && (
+                      <span className="text-xs text-slate-500 font-normal">Mostrando primeros 5</span>
+                    )}
                   </div>
                   {results.customers.map((customer) => {
                     const globalIndex = allResults.findIndex(r => r.type === 'customer' && r.id === customer.id);
@@ -389,8 +433,11 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               {/* Vehículos */}
               {results.vehicles.length > 0 && (
                 <div className="mb-4">
-                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase">
-                    Vehículos ({results.vehicles.length})
+                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase flex items-center justify-between">
+                    <span>Vehículos ({results.vehicles.length})</span>
+                    {results.vehicles.length >= 5 && (
+                      <span className="text-xs text-slate-500 font-normal">Mostrando primeros 5</span>
+                    )}
                   </div>
                   {results.vehicles.map((vehicle) => {
                     const globalIndex = allResults.findIndex(r => r.type === 'vehicle' && r.id === vehicle.id);
@@ -441,8 +488,11 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               {/* Productos */}
               {results.products.length > 0 && (
                 <div className="mb-4">
-                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase">
-                    Productos ({results.products.length})
+                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase flex items-center justify-between">
+                    <span>Productos ({results.products.length})</span>
+                    {results.products.length >= 5 && (
+                      <span className="text-xs text-slate-500 font-normal">Mostrando primeros 5</span>
+                    )}
                   </div>
                   {results.products.map((product) => {
                     const globalIndex = allResults.findIndex(r => r.type === 'product' && r.id === product.id);
@@ -491,6 +541,123 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                             isSelected ? 'text-purple-400 scale-110' : 'text-slate-500'
                           }`} />
                         </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Facturas */}
+              {results.invoices.length > 0 && (
+                <div className="mb-4">
+                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase flex items-center justify-between">
+                    <span>Facturas ({results.invoices.length})</span>
+                    {results.invoices.length >= 5 && (
+                      <span className="text-xs text-slate-500 font-normal">Mostrando primeros 5</span>
+                    )}
+                  </div>
+                  {results.invoices.map((invoice) => {
+                    const globalIndex = allResults.findIndex(r => r.type === 'invoice' && r.id === invoice.id);
+                    const isSelected = globalIndex === selectedIndex;
+                    const formatted = formatResult({ ...invoice, type: 'invoice' });
+                    return (
+                      <button
+                        key={`invoice-${invoice.id}`}
+                        onClick={() => handleSelectResult({ ...invoice, type: 'invoice' })}
+                        onMouseEnter={() => setSelectedIndex(globalIndex)}
+                        className={`w-full px-4 py-3 flex items-center justify-between transition-all duration-200 relative ${
+                          isSelected 
+                            ? 'bg-yellow-500/30 border-l-4 border-yellow-400 shadow-xl shadow-yellow-500/30 backdrop-blur-md ring-2 ring-yellow-400/50 scale-[1.02]' 
+                            : 'hover:bg-slate-800/50 border-l-4 border-transparent hover:border-slate-600'
+                        }`}
+                      >
+                        {/* Indicador de selección */}
+                        {isSelected && (
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-400 rounded-r-full animate-pulse" />
+                        )}
+                        
+                        <div className="flex items-center gap-3 flex-1 text-left">
+                          <div className={`transition-all duration-200 ${isSelected ? 'scale-110' : ''}`}>
+                            {getIcon('invoice')}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-sm font-medium truncate transition-all duration-200 ${
+                              isSelected ? 'text-yellow-200 font-semibold' : 'text-white'
+                            }`}>
+                              {formatted.title}
+                            </div>
+                            <div className={`text-xs truncate transition-all duration-200 ${
+                              isSelected ? 'text-yellow-300/80' : 'text-slate-400'
+                            }`}>
+                              {formatted.subtitle}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {formatted.badge && (
+                            <Badge variant="secondary" className="text-xs">
+                              {formatted.badge}
+                            </Badge>
+                          )}
+                          <ArrowRight className={`w-4 h-4 transition-all duration-200 ${
+                            isSelected ? 'text-yellow-400 scale-110' : 'text-slate-500'
+                          }`} />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Proveedores */}
+              {results.suppliers.length > 0 && (
+                <div className="mb-4">
+                  <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase flex items-center justify-between">
+                    <span>Proveedores ({results.suppliers.length})</span>
+                    {results.suppliers.length >= 5 && (
+                      <span className="text-xs text-slate-500 font-normal">Mostrando primeros 5</span>
+                    )}
+                  </div>
+                  {results.suppliers.map((supplier) => {
+                    const globalIndex = allResults.findIndex(r => r.type === 'supplier' && r.id === supplier.id);
+                    const isSelected = globalIndex === selectedIndex;
+                    const formatted = formatResult({ ...supplier, type: 'supplier' });
+                    return (
+                      <button
+                        key={`supplier-${supplier.id}`}
+                        onClick={() => handleSelectResult({ ...supplier, type: 'supplier' })}
+                        onMouseEnter={() => setSelectedIndex(globalIndex)}
+                        className={`w-full px-4 py-3 flex items-center justify-between transition-all duration-200 relative ${
+                          isSelected 
+                            ? 'bg-orange-500/30 border-l-4 border-orange-400 shadow-xl shadow-orange-500/30 backdrop-blur-md ring-2 ring-orange-400/50 scale-[1.02]' 
+                            : 'hover:bg-slate-800/50 border-l-4 border-transparent hover:border-slate-600'
+                        }`}
+                      >
+                        {/* Indicador de selección */}
+                        {isSelected && (
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-400 rounded-r-full animate-pulse" />
+                        )}
+                        
+                        <div className="flex items-center gap-3 flex-1 text-left">
+                          <div className={`transition-all duration-200 ${isSelected ? 'scale-110' : ''}`}>
+                            {getIcon('supplier')}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-sm font-medium truncate transition-all duration-200 ${
+                              isSelected ? 'text-orange-200 font-semibold' : 'text-white'
+                            }`}>
+                              {formatted.title}
+                            </div>
+                            <div className={`text-xs truncate transition-all duration-200 ${
+                              isSelected ? 'text-orange-300/80' : 'text-slate-400'
+                            }`}>
+                              {formatted.subtitle}
+                            </div>
+                          </div>
+                        </div>
+                        <ArrowRight className={`w-4 h-4 transition-all duration-200 ${
+                          isSelected ? 'text-orange-400 scale-110' : 'text-slate-500'
+                        }`} />
                       </button>
                     );
                   })}

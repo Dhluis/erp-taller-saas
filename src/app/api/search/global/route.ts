@@ -157,7 +157,9 @@ export async function GET(request: NextRequest) {
     });
 
     // ✅ Buscar en órdenes (FILTRADO POR ORGANIZACIÓN)
-    const { data: orders } = await supabaseAdmin
+    // ✅ MEJORADO: Expandir búsqueda para incluir cliente, vehículo y placa
+    // Primero buscar órdenes por ID y descripción
+    const { data: ordersByText } = await supabaseAdmin
       .from('work_orders')
       .select(`
         id,
@@ -166,12 +168,72 @@ export async function GET(request: NextRequest) {
         entry_date,
         estimated_cost,
         total_amount,
+        customer_id,
+        vehicle_id,
         customer:customers(id, name, phone, email),
         vehicle:vehicles(id, brand, model, year, license_plate)
       `)
-      .eq('organization_id', organizationId) // ✅ FILTRO CRÍTICO
+      .eq('organization_id', organizationId)
       .or(`id.ilike.%${query}%,description.ilike.%${query}%`)
-      .limit(5);
+      .limit(3);
+
+    // Buscar clientes que coincidan con la query
+    const { data: matchingCustomers } = await supabaseAdmin
+      .from('customers')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .or(`name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`)
+      .limit(10);
+
+    // Buscar vehículos que coincidan con la query
+    const { data: matchingVehicles } = await supabaseAdmin
+      .from('vehicles')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .or(`brand.ilike.%${query}%,model.ilike.%${query}%,license_plate.ilike.%${query}%`)
+      .limit(10);
+
+    // Buscar órdenes relacionadas con clientes que coinciden
+    const customerIds = matchingCustomers?.map(c => c.id) || [];
+    const vehicleIds = matchingVehicles?.map(v => v.id) || [];
+    
+    let ordersByRelation: any[] = [];
+    if (customerIds.length > 0 || vehicleIds.length > 0) {
+      let relationQuery = supabaseAdmin
+        .from('work_orders')
+        .select(`
+          id,
+          status,
+          description,
+          entry_date,
+          estimated_cost,
+          total_amount,
+          customer_id,
+          vehicle_id,
+          customer:customers(id, name, phone, email),
+          vehicle:vehicles(id, brand, model, year, license_plate)
+        `)
+        .eq('organization_id', organizationId);
+
+      if (customerIds.length > 0 && vehicleIds.length > 0) {
+        relationQuery = relationQuery.or(`customer_id.in.(${customerIds.join(',')}),vehicle_id.in.(${vehicleIds.join(',')})`);
+      } else if (customerIds.length > 0) {
+        relationQuery = relationQuery.in('customer_id', customerIds);
+      } else if (vehicleIds.length > 0) {
+        relationQuery = relationQuery.in('vehicle_id', vehicleIds);
+      }
+
+      const { data } = await relationQuery.limit(2);
+      ordersByRelation = data || [];
+    }
+
+    // Combinar y deduplicar órdenes
+    const allOrders = [...(ordersByText || []), ...ordersByRelation];
+    const uniqueOrders = Array.from(
+      new Map(allOrders.map(order => [order.id, order])).values()
+    ).slice(0, 5);
+
+    const orders = uniqueOrders;
 
     orders?.forEach(order => {
       const customer = order.customer as any;
@@ -234,7 +296,7 @@ export async function GET(request: NextRequest) {
       ? results.filter(r => r.type === typeFilter)
       : results;
 
-    // ✅ ORDENAR POR RELEVANCIA: Los que mejor coinciden aparecen primero
+    // ✅ MEJORADO: ORDENAR POR RELEVANCIA con algoritmo mejorado
     const queryLower = query.toLowerCase();
     filteredResults = filteredResults.sort((a, b) => {
       // Calcular score de relevancia para cada resultado
@@ -242,19 +304,39 @@ export async function GET(request: NextRequest) {
         let score = 0;
         const titleLower = (result.title || '').toLowerCase();
         const descriptionLower = (result.description || '').toLowerCase();
+        const queryLength = queryLower.length;
         
-        // Coincidencia exacta en título = mayor prioridad
+        // ✅ Coincidencia exacta en título = mayor prioridad (100 puntos)
         if (titleLower === queryLower) score += 100;
-        // Coincidencia que empieza con la query = alta prioridad
+        // ✅ Coincidencia que empieza con la query = alta prioridad (50 puntos)
         else if (titleLower.startsWith(queryLower)) score += 50;
-        // Coincidencia en título = prioridad media
+        // ✅ Coincidencia en título = prioridad media (30 puntos)
         else if (titleLower.includes(queryLower)) score += 30;
         
-        // Coincidencia en descripción = prioridad baja
-        if (descriptionLower.includes(queryLower)) score += 10;
+        // ✅ Coincidencia exacta en descripción = prioridad media-alta (25 puntos)
+        if (descriptionLower === queryLower) score += 25;
+        // ✅ Coincidencia que empieza en descripción = prioridad media (15 puntos)
+        else if (descriptionLower.startsWith(queryLower)) score += 15;
+        // ✅ Coincidencia en descripción = prioridad baja (10 puntos)
+        else if (descriptionLower.includes(queryLower)) score += 10;
         
-        // Prioridad por tipo: clientes y vehículos primero
-        if (result.type === 'customer' || result.type === 'vehicle') score += 5;
+        // ✅ Bonus por longitud de query: queries más largas son más específicas
+        if (queryLength >= 5) score += 5;
+        if (queryLength >= 10) score += 5;
+        
+        // ✅ Prioridad por tipo: clientes y órdenes primero (más usados)
+        if (result.type === 'customer') score += 10;
+        else if (result.type === 'order') score += 8;
+        else if (result.type === 'vehicle') score += 6;
+        else if (result.type === 'product') score += 4;
+        else if (result.type === 'invoice') score += 3;
+        else if (result.type === 'supplier') score += 2;
+        
+        // ✅ Bonus por coincidencia en metadata (campos adicionales)
+        if (result.metadata) {
+          const metadataStr = JSON.stringify(result.metadata).toLowerCase();
+          if (metadataStr.includes(queryLower)) score += 5;
+        }
         
         return score;
       };
