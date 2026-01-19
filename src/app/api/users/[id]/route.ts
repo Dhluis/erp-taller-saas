@@ -183,7 +183,7 @@ async function updateUserHandler(
       .from('users')
       .update(updateData)
       .eq('id', targetUserId)
-      .select()
+      .select('id, auth_user_id, email, full_name, role, phone, is_active, organization_id, created_at, updated_at')
       .single()
     
     if (updateError) {
