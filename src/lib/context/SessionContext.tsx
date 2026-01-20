@@ -558,16 +558,79 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     console.log('🔒 [Session] Marcando flag de signOut en sessionStorage')
     
     // 🛡️ SOLUCIÓN DEFINITIVA: Usar sessionStorage para persistir el flag entre page reloads
-    sessionStorage.setItem('isSigningOut', 'true')
+    try {
+      sessionStorage.setItem('isSigningOut', 'true')
+    } catch (e) {
+      // Safari puede bloquear sessionStorage, usar ref como fallback
+      console.warn('[Session] ⚠️ No se pudo escribir en sessionStorage (Safari?), usando solo ref')
+    }
     isSigningOut.current = true
     
-    // Ejecutar signOut en paralelo con redirección inmediata
-    console.log('📤 [Session] Llamando a supabase.auth.signOut()')
-    supabase.auth.signOut().catch(err => console.error('Error signOut:', err))
+    // ✅ SOLUCIÓN SAFARI: Timeout de seguridad para forzar redirección si signOut se cuelga
+    const forceRedirectTimeout = setTimeout(() => {
+      console.warn('[Session] ⚠️ Timeout de seguridad: forzando redirección después de 3 segundos')
+      cleanupAndRedirect()
+    }, 3000)
     
-    // Redirigir INMEDIATAMENTE (no esperar a que signOut termine)
-    console.log('🚀 [Session] Ejecutando redirección a /auth/login')
-    window.location.replace('/auth/login')
+    try {
+      // ✅ SOLUCIÓN SAFARI: Esperar a que signOut complete antes de redirigir
+      console.log('📤 [Session] Llamando a supabase.auth.signOut() y esperando respuesta...')
+      const { error } = await supabase.auth.signOut()
+      
+      // Limpiar timeout si signOut completó exitosamente
+      clearTimeout(forceRedirectTimeout)
+      
+      if (error) {
+        console.error('[Session] ❌ Error en signOut:', error)
+        // Continuar con limpieza incluso si hay error
+      } else {
+        console.log('[Session] ✅ signOut completado exitosamente')
+      }
+      
+      // ✅ SOLUCIÓN SAFARI: Limpiar almacenamiento manualmente
+      cleanupAndRedirect()
+      
+    } catch (error: any) {
+      console.error('[Session] ❌ Error capturado en signOut:', error)
+      clearTimeout(forceRedirectTimeout)
+      // Forzar limpieza y redirección incluso si hay error
+      cleanupAndRedirect()
+    }
+    
+    // Función helper para limpiar y redirigir
+    function cleanupAndRedirect() {
+      console.log('[Session] 🧹 Limpiando almacenamiento...')
+      
+      try {
+        // Limpiar sessionStorage
+        sessionStorage.removeItem('isSigningOut')
+        sessionStorage.clear()
+      } catch (e) {
+        console.warn('[Session] ⚠️ Error limpiando sessionStorage:', e)
+      }
+      
+      try {
+        // Limpiar localStorage de Supabase (todas las keys que empiezan con 'sb-')
+        const supabaseKeys = Object.keys(localStorage).filter(key => 
+          key.startsWith('sb-') || 
+          key.startsWith('supabase.') ||
+          key.includes('supabase')
+        )
+        supabaseKeys.forEach(key => {
+          localStorage.removeItem(key)
+        })
+        console.log(`[Session] ✅ Limpiadas ${supabaseKeys.length} keys de localStorage`)
+      } catch (e) {
+        console.warn('[Session] ⚠️ Error limpiando localStorage:', e)
+      }
+      
+      // Resetear ref
+      isSigningOut.current = false
+      
+      // Redirigir
+      console.log('[Session] 🚀 Ejecutando redirección a /auth/login')
+      window.location.replace('/auth/login')
+    }
   }, [supabase.auth])
 
   // useEffect separado para manejar redirección a onboarding
