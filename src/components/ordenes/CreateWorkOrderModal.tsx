@@ -364,11 +364,12 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         
 
       case 'estimated_cost':
-
-        if (!value) return 'El costo estimado es requerido'
-
-        if (parseFloat(value) <= 0) return 'Debe ser mayor a 0'
-
+        // ✅ Campo opcional - solo validar formato si tiene valor
+        if (value && value.trim() !== '') {
+          const numValue = parseFloat(value)
+          if (isNaN(numValue)) return 'Debe ser un número válido'
+          if (numValue < 0) return 'No puede ser negativo'
+        }
         return ''
 
         
@@ -810,7 +811,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
       'vehicleMileage',
 
-      'estimated_cost'
+      'estimated_cost' // ✅ Opcional - solo valida formato si tiene valor
 
     ]
 
@@ -2119,6 +2120,38 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             </div>
 
+          </div>
+
+          {/* ========== ✅ COSTO ESTIMADO (OPCIONAL) ========== */}
+          <div className="space-y-4 bg-slate-900 p-4 rounded-lg border border-slate-700">
+            <div>
+              <Label htmlFor="estimated_cost" className="text-slate-300">
+                Costo Estimado (MXN) <span className="text-slate-500 text-xs">(Opcional)</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  id="estimated_cost"
+                  name="estimated_cost"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.estimated_cost}
+                  onChange={handleChange}
+                  placeholder="0.00"
+                  disabled={loading}
+                  className={`${errors.estimated_cost ? 'border-red-500' : 'border-gray-700'} pr-10`}
+                />
+                {!errors.estimated_cost && formData.estimated_cost && (
+                  <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
+                )}
+                {errors.estimated_cost && (
+                  <AlertCircle className="absolute right-3 top-2.5 h-5 w-5 text-red-500" />
+                )}
+              </div>
+              {errors.estimated_cost && (
+                <p className="text-xs text-red-500 mt-1">{errors.estimated_cost}</p>
+              )}
+            </div>
           </div>
 
             {/* ✅ Fotos del Vehículo */}
