@@ -45,8 +45,8 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
 
-    // URL correcta del webhook
-    const correctWebhookUrl = `${getAppUrl()}/api/whatsapp/webhook`
+    // URL correcta del webhook (usar el webhook principal)
+    const correctWebhookUrl = `${getAppUrl()}/api/webhooks/whatsapp`
 
     console.log('[Fix Webhook] 📡 WAHA URL:', wahaUrl)
     console.log('[Fix Webhook] 🎯 Session:', sessionName)
