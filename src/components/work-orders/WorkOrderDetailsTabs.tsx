@@ -15,13 +15,16 @@ import {
   FileText,
   MessageSquare,
   History,
-  Folder
+  Folder,
+  Wrench,
+  UserCog
 } from 'lucide-react'
 
 interface WorkOrderDetailsTabsProps {
   order: any // El tipo completo de WorkOrder
   userId?: string
   onUpdate?: () => void
+  onAssignMechanic?: () => void // ✅ Callback para abrir modal de asignación
 }
 
 // ✅ Función helper para validar y filtrar notas
@@ -42,7 +45,8 @@ function validateNotes(notes: any[]): WorkOrderNote[] {
 export function WorkOrderDetailsTabs({
   order,
   userId,
-  onUpdate
+  onUpdate,
+  onAssignMechanic
 }: WorkOrderDetailsTabsProps) {
   const [images, setImages] = useState<WorkOrderImage[]>(order?.images || [])
   // ✅ VALIDAR NOTAS EN EL ESTADO INICIAL
@@ -218,6 +222,48 @@ export function WorkOrderDetailsTabs({
           <p className="text-sm text-muted-foreground">
             {order.description || 'Sin descripción'}
           </p>
+        </div>
+
+        {/* Mecánico Asignado */}
+        <div className="space-y-3 border rounded-lg p-4 bg-muted/50">
+          <div className="flex items-center justify-between">
+            <h4 className="font-semibold text-lg flex items-center gap-2">
+              <Wrench className="h-5 w-5" />
+              Mecánico Asignado
+            </h4>
+            {onAssignMechanic && (
+              <button
+                onClick={onAssignMechanic}
+                className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+              >
+                <UserCog className="h-4 w-4" />
+                {(order.assigned_user || order.assigned_to) ? 'Reasignar' : 'Asignar'}
+              </button>
+            )}
+          </div>
+          {(order.assigned_user || order.assigned_to) ? (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-semibold">
+                {(order.assigned_user?.full_name || 'M').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="font-medium">
+                  {order.assigned_user?.full_name || 'Mecánico asignado'}
+                </p>
+                <p className="text-sm text-muted-foreground capitalize">
+                  {order.assigned_user?.role === 'MECANICO' ? 'Mecánico' :
+                    order.assigned_user?.role === 'ASESOR' ? 'Asesor' :
+                    order.assigned_user?.role === 'ADMIN' ? 'Administrador' :
+                    order.assigned_user?.role || 'Sin rol'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <UserCog className="h-10 w-10" />
+              <p className="text-sm">No hay mecánico asignado</p>
+            </div>
+          )}
         </div>
 
         {/* Costos */}

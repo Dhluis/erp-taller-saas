@@ -396,17 +396,18 @@ export default function UsuariosPage() {
         const orderCount = errorData.orderCount || 0
         
         // ✅ Si hay órdenes activas, mostrar toast con botón de acción
-        if (orderIds.length > 0) {
+        if (orderCount > 0) {
           toast.error(errorMessage, {
             description: errorDetails,
             duration: 8000, // Mostrar por más tiempo
             action: {
-              label: `Ver ${orderCount} orden${orderCount > 1 ? 'es' : ''}`,
+              label: 'VER ÓRDENES ACTIVAS',
               onClick: () => {
                 // ✅ Navegar a la página de órdenes
                 router.push('/ordenes')
               }
-            }
+            },
+            className: '[&>button]:bg-blue-500 [&>button]:text-white [&>button]:hover:bg-blue-600 [&>button]:border-none'
           })
           setDeleteDialogOpen(false)
           setUserToDelete(null)

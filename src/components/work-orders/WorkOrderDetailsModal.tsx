@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -11,6 +12,7 @@ import {
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden'
 import { Badge } from '@/components/ui/badge'
 import { WorkOrderDetailsTabs } from './WorkOrderDetailsTabs'
+import AssignMechanicModal from '@/components/mecanicos/AssignMechanicModal'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Camera, MessageSquare } from 'lucide-react'
@@ -44,6 +46,8 @@ export function WorkOrderDetailsModal({
   userId,
   onUpdate
 }: WorkOrderDetailsModalProps) {
+  const [showAssignMechanic, setShowAssignMechanic] = useState(false)
+  
   if (!order) return null
 
   const statusInfo = STATUS_LABELS[order.status] || { label: order.status, color: 'bg-gray-500' }
@@ -51,6 +55,11 @@ export function WorkOrderDetailsModal({
   // Contar imágenes y notas
   const imagesCount = order.images?.length || 0
   const notesCount = order.notes?.length || 0
+  
+  const handleAssignSuccess = () => {
+    setShowAssignMechanic(false)
+    onUpdate?.() // Recargar la orden después de asignar
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -110,8 +119,20 @@ export function WorkOrderDetailsModal({
           order={order}
           userId={userId}
           onUpdate={onUpdate}
+          onAssignMechanic={() => setShowAssignMechanic(true)}
         />
       </DialogContent>
+      
+      {/* Modal de asignar/reasignar mecánico */}
+      {order?.id && (
+        <AssignMechanicModal
+          isOpen={showAssignMechanic}
+          onClose={() => setShowAssignMechanic(false)}
+          orderId={order.id}
+          currentMechanicId={order.assigned_to || (order.assigned_user as any)?.id || null}
+          onSuccess={handleAssignSuccess}
+        />
+      )}
     </Dialog>
   )
 }

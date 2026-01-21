@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, DollarSign, Car, User } from 'lucide-react';
+import { Clock, DollarSign, Car, User, Wrench } from 'lucide-react';
 import type { WorkOrder, Customer, Vehicle } from '@/hooks/useWorkOrders';
 
 interface OrderCardProps {
@@ -132,6 +132,29 @@ export function OrderCard({
             <p className="text-sm text-gray-700 line-clamp-2">
               {order.description}
             </p>
+          </div>
+        )}
+
+        {/* Mecánico asignado */}
+        {(order as any).assigned_user ? (
+          <div className="flex items-center gap-2 mb-2 pt-2 border-t border-gray-100">
+            <Wrench className="h-4 w-4 text-cyan-600" />
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium text-cyan-700 truncate">
+                {(order as any).assigned_user.full_name || 'Sin nombre'}
+              </span>
+              <div className="text-xs text-gray-500">
+                {(order as any).assigned_user.role === 'MECANICO' ? 'Mecánico' :
+                  (order as any).assigned_user.role === 'ASESOR' ? 'Asesor' :
+                  (order as any).assigned_user.role === 'ADMIN' ? 'Administrador' :
+                  (order as any).assigned_user.role || 'Sin rol'}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 mb-2 pt-2 border-t border-gray-100">
+            <Wrench className="h-4 w-4 text-gray-400" />
+            <span className="text-sm text-gray-500 italic">Sin asignar</span>
           </div>
         )}
 

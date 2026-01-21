@@ -277,6 +277,12 @@ export async function GET(request: NextRequest) {
               model,
               year,
               license_plate
+            ),
+            assigned_user:users!work_orders_assigned_to_fkey(
+              id,
+              full_name,
+              role,
+              email
             )
           `, { count: 'exact' }) // ✅ IMPORTANTE: count para paginación
           .eq('organization_id', organizationId)

@@ -299,37 +299,47 @@ export async function DELETE(
     }
     
     // ✅ VALIDACIÓN: Verificar si el usuario tiene órdenes de trabajo asignadas
-    const { data: assignedOrders, error: ordersError } = await (supabase as any)
+    // Primero contar todas las órdenes activas (sin limit)
+    const { count: activeCount, error: countError } = await (supabase as any)
       .from('work_orders')
-      .select('id, status, order_number')
+      .select('id', { count: 'exact', head: true })
       .eq('assigned_to', targetUserId)
       .eq('organization_id', organizationId)
       .not('status', 'in', '("completed","cancelled")')
-      .limit(10) // Limitar para no sobrecargar, pero suficiente para mostrar el problema
     
-    if (ordersError) {
-      console.error('[Delete User] Error verificando órdenes asignadas:', ordersError)
+    if (countError) {
+      console.error('[Delete User] Error contando órdenes asignadas:', countError)
       return NextResponse.json(
         { success: false, error: 'Error al verificar órdenes asignadas' },
         { status: 500 }
       )
     }
     
-    if (assignedOrders && assignedOrders.length > 0) {
-      const activeCount = assignedOrders.length
+    // Si hay órdenes activas, obtener algunas para mostrar en el mensaje
+    if (activeCount && activeCount > 0) {
+      const { data: assignedOrders, error: ordersError } = await (supabase as any)
+        .from('work_orders')
+        .select('id, status, order_number')
+        .eq('assigned_to', targetUserId)
+        .eq('organization_id', organizationId)
+        .not('status', 'in', '("completed","cancelled")')
+        .limit(5) // Solo para mostrar en el mensaje
+      
+      if (ordersError) {
+        console.error('[Delete User] Error obteniendo órdenes asignadas:', ordersError)
+      }
+      
       const orderNumbers = assignedOrders
-        .slice(0, 5)
+        ?.slice(0, 5)
         .map((o: any) => o.order_number || `#${o.id.substring(0, 8)}`)
-        .join(', ')
+        .join(', ') || ''
       const moreText = activeCount > 5 ? ` y ${activeCount - 5} más` : ''
-      const orderIds = assignedOrders.map((o: any) => o.id) // ✅ IDs para navegación
       
       return NextResponse.json(
         { 
           success: false, 
           error: `No se puede eliminar el usuario porque tiene ${activeCount} orden${activeCount > 1 ? 'es' : ''} de trabajo activa${activeCount > 1 ? 's' : ''}`,
-          details: `Órdenes activas: ${orderNumbers}${moreText}. Para eliminar este usuario, primero debes reasignar estas órdenes a otro mecánico o completarlas/cancelarlas.`,
-          orderIds: orderIds, // ✅ IDs para navegación directa
+          details: orderNumbers ? `Órdenes activas: ${orderNumbers}${moreText}. Para eliminar este usuario, primero debes reasignar estas órdenes a otro mecánico o completarlas/cancelarlas.` : `Para eliminar este usuario, primero debes reasignar estas órdenes a otro mecánico o completarlas/cancelarlas.`,
           orderCount: activeCount
         },
         { status: 400 }
