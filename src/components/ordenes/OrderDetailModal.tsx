@@ -351,7 +351,7 @@ export function OrderDetailModal({ isOpen, onClose, order, onUpdate }: OrderDeta
         isOpen={showAssignMechanic}
         onClose={() => setShowAssignMechanic(false)}
         orderId={order.id}
-        currentMechanicId={(order as any).assigned_to || ((order as any).assigned_user as any)?.id || null}
+        currentMechanicId={((order as any).assigned_user as any)?.id || (order as any).assigned_to || null}
         onSuccess={handleAssignSuccess}
       />
     </>

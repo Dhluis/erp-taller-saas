@@ -137,7 +137,7 @@ export function WorkOrderDetailsModal({
           isOpen={showAssignMechanic}
           onClose={() => setShowAssignMechanic(false)}
           orderId={order.id}
-          currentMechanicId={order.assigned_to || (order.assigned_user as any)?.id || null}
+          currentMechanicId={(order.assigned_user as any)?.id || order.assigned_to || null}
           onSuccess={handleAssignSuccess}
         />
       )}
