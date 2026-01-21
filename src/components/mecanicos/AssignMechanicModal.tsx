@@ -48,6 +48,7 @@ export default function AssignMechanicModal({
     console.log('🔄 [AssignMechanicModal] Modal abierto, cargando mecánicos...', {
       orderId,
       currentMechanicId,
+      currentMechanicIdType: typeof currentMechanicId,
       isOpen
     })
 
@@ -72,9 +73,12 @@ export default function AssignMechanicModal({
         
         console.log('✅ [AssignMechanicModal] Mecánicos cargados:', {
           total: mechanicUsers.length,
+          currentMechanicId,
+          currentMechanicIdType: typeof currentMechanicId,
           mechanics: mechanicUsers.map((m: any) => ({ 
             id: m.id, 
-            name: m.full_name 
+            name: m.full_name,
+            matchesCurrent: m.id === currentMechanicId
           }))
         })
         
