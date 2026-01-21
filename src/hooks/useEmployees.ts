@@ -324,15 +324,13 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
         throw new Error(message)
       }
 
-      console.log('✅ [useEmployees] Orden asignada exitosamente:', { orderId, userId, data })
+      console.log('✅ [useEmployees] Orden asignada exitosamente:', { orderId, userId })
       toast.success('Orden asignada', {
         description: 'La orden ha sido asignada al mecánico'
       })
 
-      // ❌ NO refrescar empleados aquí - asignar una orden NO cambia la lista de empleados
-      // Es responsabilidad del componente padre refrescar las órdenes con onUpdate?.()
-      // await refreshEmployees() // ← REMOVIDO
-
+      // ✅ FIX: No refrescar empleados aquí
+      // Es responsabilidad del componente padre refrescar las órdenes vía onSuccess()
       return true
     } catch (err: any) {
       const errorMessage = err?.message || 'Error al asignar orden'
@@ -341,7 +339,7 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
       toast.error('Error al asignar', { description: errorMessage })
       return false
     }
-  }, [refreshEmployees])
+  }, [])
 
   // Desasignar orden
   const unassignOrderFromEmployee = useCallback(async (orderId: string): Promise<boolean> => {
