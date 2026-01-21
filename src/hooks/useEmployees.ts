@@ -286,22 +286,45 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
       const payload = { assigned_to: userId }
       console.log('🔄 [useEmployees] Asignando orden vía API:', { orderId, payload })
 
+      console.log('🔄 [useEmployees] Llamando API PUT /api/work-orders/' + orderId, {
+        orderId,
+        userId,
+        payload
+      })
+
       const response = await fetch(`/api/work-orders/${orderId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        credentials: 'include', // ✅ CRÍTICO: Incluir cookies para autenticación
         body: JSON.stringify(payload)
       })
 
-      const data = await response.json().catch(() => ({}))
+      console.log('📡 [useEmployees] Respuesta recibida:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const data = await response.json().catch((err) => {
+        console.error('❌ [useEmployees] Error parseando JSON:', err)
+        return {}
+      })
+
+      console.log('📦 [useEmployees] Datos parseados:', data)
 
       if (!response.ok || data?.success === false) {
         const message = data?.error || response.statusText || 'Error al asignar orden'
-        console.error('❌ [useEmployees] Error API asignar orden:', { status: response.status, data })
+        console.error('❌ [useEmployees] Error API asignar orden:', { 
+          status: response.status, 
+          statusText: response.statusText,
+          data,
+          message
+        })
         throw new Error(message)
       }
 
-      console.log('✅ [useEmployees] Orden asignada:', { orderId, userId, data })
+      console.log('✅ [useEmployees] Orden asignada exitosamente:', { orderId, userId, data })
       toast.success('Orden asignada', {
         description: 'La orden ha sido asignada al mecánico'
       })
