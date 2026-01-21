@@ -430,14 +430,18 @@ export async function DELETE(
       )
     }
     
-    // ✅ FIX: Buscar TODAS las órdenes (incluyendo completadas/canceladas) para desasignarlas
-    // Esto resuelve el foreign key constraint violation
-    const { data: allOrders, error: allOrdersError } = await (supabase as any)
+    // ✅ FIX: Usar Service Role Client para todas las operaciones (bypass RLS)
+    const supabaseAdmin = getSupabaseAdmin()
+    
+    // ✅ FIX: Buscar TODAS las órdenes (incluyendo completadas/canceladas/eliminadas)
+    // IMPORTANTE: NO filtrar por deleted_at porque el foreign key constraint no lo respeta
+    // Si hay una fila con assigned_to = userId, el DELETE fallará sin importar deleted_at
+    const { data: allOrders, error: allOrdersError } = await (supabaseAdmin as any)
       .from('work_orders')
-      .select('id, order_number, status')
+      .select('id, order_number, status, deleted_at')
       .eq('assigned_to', targetUserId)
       .eq('organization_id', organizationId)
-      .is('deleted_at', null) // Solo órdenes activas (no eliminadas con soft delete)
+      // ✅ CRÍTICO: NO filtrar por deleted_at - necesitamos TODAS las órdenes
     
     if (allOrdersError) {
       console.error('❌ [Delete User] Error al verificar todas las órdenes:', allOrdersError)
@@ -453,27 +457,31 @@ export async function DELETE(
       return acc
     }, {} as Record<string, number>) || {}
     
+    const activeOrdersCount = allOrders?.filter((o: any) => !o.deleted_at).length || 0
+    const deletedOrdersCount = allOrders?.filter((o: any) => o.deleted_at).length || 0
+    
     console.log('🔍 [Delete User] Órdenes encontradas:', {
       userId: targetUserId,
       userName: userToDelete.full_name,
       activeOrders: activeCount || 0,
       totalOrders,
+      activeOrdersCount,
+      deletedOrdersCount,
       ordersByStatus
     })
     
-    // ✅ FIX: Usar Service Role Client para todas las operaciones (bypass RLS)
-    const supabaseAdmin = getSupabaseAdmin()
-    
     // ✅ FIX: Desasignar TODAS las órdenes antes de eliminar (resuelve foreign key constraint)
+    // CRÍTICO: Actualizar TODAS las órdenes sin filtrar por deleted_at
+    // El foreign key constraint no distingue entre órdenes activas y eliminadas
     if (totalOrders > 0) {
-      console.log(`🔄 [Delete User] Desasignando ${totalOrders} órdenes del usuario...`)
+      console.log(`🔄 [Delete User] Desasignando ${totalOrders} órdenes del usuario (${activeOrdersCount} activas, ${deletedOrdersCount} eliminadas)...`)
       
       const { error: updateError } = await (supabaseAdmin as any)
         .from('work_orders')
         .update({ assigned_to: null })
         .eq('assigned_to', targetUserId)
         .eq('organization_id', organizationId)
-        .is('deleted_at', null) // Solo actualizar órdenes activas (no eliminadas)
+        // ✅ CRÍTICO: NO filtrar por deleted_at - actualizar TODAS las órdenes
       
       if (updateError) {
         console.error('❌ [Delete User] Error al desasignar órdenes:', {
