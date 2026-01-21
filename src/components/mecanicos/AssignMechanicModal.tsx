@@ -9,15 +9,6 @@ import { X, User, Search, Loader2 } from 'lucide-react'
 import { useEmployees } from '@/hooks/useEmployees'
 import { toast } from 'sonner'
 
-// 🔍 TEMP DEBUG: Declaraciones de tipo para window
-declare global {
-  interface Window {
-    __MECHANICS__?: any[]
-    __CURRENT_MECHANIC__?: string | null
-    __SELECTED_MECHANIC__?: string | null
-  }
-}
-
 interface AssignMechanicModalProps {
   isOpen: boolean
   onClose: () => void
@@ -88,21 +79,6 @@ export default function AssignMechanicModal({
         })
         
         setMechanics(mechanicUsers)
-
-        // 🔍 TEMP DEBUG: Exponer datos en window para diagnóstico
-        window.__MECHANICS__ = mechanicUsers
-        window.__CURRENT_MECHANIC__ = currentMechanicId
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        console.log('🔍 [TEMP DEBUG] Datos del modal:')
-        console.log('  Mecánicos cargados:', mechanicUsers.length)
-        console.log('  currentMechanicId:', currentMechanicId)
-        console.log('  currentMechanicId tipo:', typeof currentMechanicId)
-        console.log('  Mecánicos:', mechanicUsers.map(m => ({ 
-            id: m.id, 
-            name: m.full_name,
-            esActual: m.id === currentMechanicId
-          })))
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
       } catch (error: any) {
         console.error('Error cargando mecánicos:', error)
         toast.error('Error', {
@@ -129,31 +105,8 @@ export default function AssignMechanicModal({
 
   // Actualizar selección cuando cambia el mecánico actual
   useEffect(() => {
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('🔍 [TEMP DEBUG] useEffect - Actualizando selectedMechanicId')
-    console.log('  Valor anterior:', selectedMechanicId)
-    console.log('  Valor nuevo:', currentMechanicId)
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     setSelectedMechanicId(currentMechanicId || null)
   }, [currentMechanicId])
-
-  // 🔍 TEMP DEBUG: Monitorear cambios en selectedMechanicId
-  useEffect(() => {
-    window.__SELECTED_MECHANIC__ = selectedMechanicId
-    
-    const isButtonDisabled = loadingMechanics || isAssigning || !selectedMechanicId || selectedMechanicId === currentMechanicId
-    
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('🔍 [TEMP DEBUG] Estado del botón:')
-    console.log('  selectedMechanicId:', selectedMechanicId)
-    console.log('  currentMechanicId:', currentMechanicId)
-    console.log('  Son iguales:', selectedMechanicId === currentMechanicId)
-    console.log('  loadingMechanics:', loadingMechanics)
-    console.log('  isAssigning:', isAssigning)
-    console.log('  !selectedMechanicId:', !selectedMechanicId)
-    console.log('  → Botón DESHABILITADO:', isButtonDisabled)
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  }, [selectedMechanicId, currentMechanicId, loadingMechanics, isAssigning])
 
   // Filtrar mecánicos por búsqueda
   const filteredMechanics = mechanics.filter(m =>
@@ -162,14 +115,6 @@ export default function AssignMechanicModal({
   )
 
   const handleAssign = async () => {
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('🚀 [TEMP DEBUG] handleAssign EJECUTADO!')
-    console.log('  orderId:', orderId)
-    console.log('  selectedMechanicId:', selectedMechanicId)
-    console.log('  currentMechanicId:', currentMechanicId)
-    console.log('  Son iguales:', selectedMechanicId === currentMechanicId)
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    
     if (!selectedMechanicId) {
       toast.error('Por favor selecciona un mecánico')
       return
@@ -269,7 +214,7 @@ export default function AssignMechanicModal({
         </div>
 
         {/* Lista de mecánicos */}
-        <div className="p-6 overflow-y-auto max-h-[400px]">
+        <div className="p-6 overflow-y-auto min-h-[200px] max-h-[400px]">
           {loadingMechanics ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
@@ -290,16 +235,7 @@ export default function AssignMechanicModal({
                 return (
                   <button
                     key={mechanic.id}
-                    onClick={() => {
-                      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-                      console.log('🖱️ [TEMP DEBUG] Click en mecánico:')
-                      console.log('  mechanic.id:', mechanic.id)
-                      console.log('  mechanic.name:', mechanic.full_name)
-                      console.log('  currentMechanicId:', currentMechanicId)
-                      console.log('  Es el mismo que el actual:', mechanic.id === currentMechanicId)
-                      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-                      setSelectedMechanicId(mechanic.id)
-                    }}
+                    onClick={() => setSelectedMechanicId(mechanic.id)}
                     className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
                       isSelected
                         ? 'border-cyan-500 bg-cyan-500/10'
@@ -359,13 +295,7 @@ export default function AssignMechanicModal({
             Cancelar
           </button>
           <button
-            onClick={() => {
-              console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-              console.log('🖱️ [TEMP DEBUG] Click en botón Asignar/Reasignar')
-              console.log('  Botón disabled:', loadingMechanics || isAssigning || !selectedMechanicId || selectedMechanicId === currentMechanicId)
-              console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-              handleAssign()
-            }}
+            onClick={handleAssign}
             disabled={loadingMechanics || isAssigning || !selectedMechanicId || selectedMechanicId === currentMechanicId}
             className="px-6 py-2.5 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
