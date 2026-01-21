@@ -392,6 +392,26 @@ export default function UsuariosPage() {
         // ✅ Si hay detalles adicionales, mostrarlos en la descripción
         const errorMessage = errorData.error || 'Error al eliminar usuario'
         const errorDetails = errorData.details || ''
+        const orderIds = errorData.orderIds || [] // ✅ IDs de órdenes para navegación
+        const orderCount = errorData.orderCount || 0
+        
+        // ✅ Si hay órdenes activas, mostrar toast con botón de acción
+        if (orderIds.length > 0) {
+          toast.error(errorMessage, {
+            description: errorDetails,
+            duration: 8000, // Mostrar por más tiempo
+            action: {
+              label: `Ver ${orderCount} orden${orderCount > 1 ? 'es' : ''}`,
+              onClick: () => {
+                // ✅ Navegar a la página de órdenes
+                router.push('/ordenes')
+              }
+            }
+          })
+          setDeleteDialogOpen(false)
+          setUserToDelete(null)
+          return
+        }
         
         throw new Error(errorMessage + (errorDetails ? `\n${errorDetails}` : ''))
       }

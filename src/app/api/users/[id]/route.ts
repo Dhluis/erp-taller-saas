@@ -322,12 +322,15 @@ export async function DELETE(
         .map((o: any) => o.order_number || `#${o.id.substring(0, 8)}`)
         .join(', ')
       const moreText = activeCount > 5 ? ` y ${activeCount - 5} más` : ''
+      const orderIds = assignedOrders.map((o: any) => o.id) // ✅ IDs para navegación
       
       return NextResponse.json(
         { 
           success: false, 
           error: `No se puede eliminar el usuario porque tiene ${activeCount} orden${activeCount > 1 ? 'es' : ''} de trabajo activa${activeCount > 1 ? 's' : ''}`,
-          details: `Órdenes activas: ${orderNumbers}${moreText}. Para eliminar este usuario, primero debes reasignar estas órdenes a otro mecánico o completarlas/cancelarlas desde el módulo de órdenes.`
+          details: `Órdenes activas: ${orderNumbers}${moreText}. Para eliminar este usuario, primero debes reasignar estas órdenes a otro mecánico o completarlas/cancelarlas.`,
+          orderIds: orderIds, // ✅ IDs para navegación directa
+          orderCount: activeCount
         },
         { status: 400 }
       )
