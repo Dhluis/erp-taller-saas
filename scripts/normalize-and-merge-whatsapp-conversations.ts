@@ -6,6 +6,12 @@
  * Cambia la constante ORGANIZATION_ID con tu organization_id real
  */
 
+import { config } from 'dotenv';
+import { resolve } from 'path';
+
+// Cargar variables de entorno desde .env.local
+config({ path: resolve(process.cwd(), '.env.local') });
+
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { normalizePhoneNumber } from '@/lib/utils/phone-formatter';
 

@@ -56,9 +56,17 @@ export function WorkOrderDetailsModal({
   const imagesCount = order.images?.length || 0
   const notesCount = order.notes?.length || 0
   
-  const handleAssignSuccess = () => {
+  const handleAssignSuccess = async () => {
+    console.log('✅ [WorkOrderDetailsModal] Orden asignada, cerrando modal y refrescando...')
     setShowAssignMechanic(false)
-    onUpdate?.() // Recargar la orden después de asignar
+    
+    if (onUpdate) {
+      console.log('🔄 [WorkOrderDetailsModal] Llamando onUpdate...')
+      await onUpdate()
+      console.log('✅ [WorkOrderDetailsModal] onUpdate completado')
+    } else {
+      console.warn('⚠️ [WorkOrderDetailsModal] onUpdate no está definido!')
+    }
   }
 
   return (

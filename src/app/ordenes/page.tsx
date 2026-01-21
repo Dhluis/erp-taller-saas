@@ -678,9 +678,11 @@ export default function OrdenesPage() {
           setSelectedOrder(null);
         }}
         order={selectedOrder}
-        onUpdate={() => {
-          refresh();
-          setIsDetailModalOpen(false);
+        onUpdate={async () => {
+          console.log('🔄 [OrdenesPage] onUpdate llamado - refrescando órdenes después de asignar mecánico...')
+          await refresh()
+          console.log('✅ [OrdenesPage] onUpdate completado - órdenes refrescadas')
+          setIsDetailModalOpen(false)
         }}
       />
 

@@ -86,10 +86,18 @@ export function OrderDetailModal({ isOpen, onClose, order, onUpdate }: OrderDeta
     return translations[status] || status;
   };
 
-  const handleAssignSuccess = () => {
-    setShowAssignMechanic(false);
-    onUpdate?.();
-  };
+  const handleAssignSuccess = async () => {
+    console.log('✅ [OrderDetailModal] Orden asignada, cerrando modal y refrescando...')
+    setShowAssignMechanic(false)
+    
+    if (onUpdate) {
+      console.log('🔄 [OrderDetailModal] Llamando onUpdate...')
+      await onUpdate()
+      console.log('✅ [OrderDetailModal] onUpdate completado')
+    } else {
+      console.warn('⚠️ [OrderDetailModal] onUpdate no está definido!')
+    }
+  }
 
   return (
     <>

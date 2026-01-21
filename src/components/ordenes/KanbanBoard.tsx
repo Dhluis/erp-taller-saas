@@ -731,6 +731,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
           open={detailsModalOpen}
           onOpenChange={setDetailsModalOpen}
           onUpdate={async () => {
+            console.log('🔄 [KanbanBoard] onUpdate llamado - recargando órdenes después de asignar mecánico...')
             // Recargar órdenes después de actualizar
             const reloadedOrders = await loadOrders()
             
@@ -741,8 +742,11 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
               if (updatedOrder) {
                 console.log('✅ [KanbanBoard] Actualizando selectedOrder con orden recargada')
                 setSelectedOrder(updatedOrder)
+              } else {
+                console.warn('⚠️ [KanbanBoard] Orden no encontrada después de recargar')
               }
             }
+            console.log('✅ [KanbanBoard] onUpdate completado')
           }}
         />
       </DndContext>

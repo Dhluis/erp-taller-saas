@@ -329,7 +329,10 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
         description: 'La orden ha sido asignada al mecánico'
       })
 
-      await refreshEmployees()
+      // ❌ NO refrescar empleados aquí - asignar una orden NO cambia la lista de empleados
+      // Es responsabilidad del componente padre refrescar las órdenes con onUpdate?.()
+      // await refreshEmployees() // ← REMOVIDO
+
       return true
     } catch (err: any) {
       const errorMessage = err?.message || 'Error al asignar orden'
