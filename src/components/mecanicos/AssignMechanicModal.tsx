@@ -45,6 +45,12 @@ export default function AssignMechanicModal({
   useEffect(() => {
     if (!isOpen) return
 
+    console.log('🔄 [AssignMechanicModal] Modal abierto, cargando mecánicos...', {
+      orderId,
+      currentMechanicId,
+      isOpen
+    })
+
     const loadMechanics = async () => {
       setLoadingMechanics(true)
       try {
@@ -63,6 +69,11 @@ export default function AssignMechanicModal({
         const mechanicUsers = allUsers.filter((user: any) => 
           user.role === 'MECANICO' && user.is_active !== false
         )
+        
+        console.log('✅ [AssignMechanicModal] Mecánicos cargados:', {
+          total: mechanicUsers.length,
+          mechanics: mechanicUsers.map((m: any) => ({ id: m.id, name: m.full_name }))
+        })
         
         setMechanics(mechanicUsers)
       } catch (error: any) {
