@@ -45,12 +45,11 @@ export default function AssignMechanicModal({
   useEffect(() => {
     if (!isOpen) return
 
-    console.log('🔄 [AssignMechanicModal] Modal abierto, cargando mecánicos...', {
-      orderId,
-      currentMechanicId,
-      currentMechanicIdType: typeof currentMechanicId,
-      isOpen
-    })
+    console.log('🔄 [AssignMechanicModal] Modal abierto, cargando mecánicos...')
+    console.log('  orderId:', orderId)
+    console.log('  currentMechanicId:', currentMechanicId)
+    console.log('  currentMechanicIdType:', typeof currentMechanicId)
+    console.log('  isOpen:', isOpen)
 
     const loadMechanics = async () => {
       setLoadingMechanics(true)
@@ -71,16 +70,30 @@ export default function AssignMechanicModal({
           user.role === 'MECANICO' && user.is_active !== false
         )
         
-        console.log('✅ [AssignMechanicModal] Mecánicos cargados:', {
-          total: mechanicUsers.length,
-          currentMechanicId,
-          currentMechanicIdType: typeof currentMechanicId,
-          mechanics: mechanicUsers.map((m: any) => ({ 
-            id: m.id, 
-            name: m.full_name,
-            matchesCurrent: m.id === currentMechanicId
-          }))
-        })
+        console.log('✅ [AssignMechanicModal] Mecánicos cargados:')
+        console.log('  Total:', mechanicUsers.length)
+        console.log('  currentMechanicId:', currentMechanicId)
+        console.log('  currentMechanicIdType:', typeof currentMechanicId)
+        console.log('  Mecánicos:', mechanicUsers.map((m: any) => ({ 
+          id: m.id, 
+          name: m.full_name,
+          matchesCurrent: m.id === currentMechanicId
+        })))
+        
+        // 🔍 DIAGNÓSTICO: Verificar si currentMechanicId coincide con algún mecánico
+        if (currentMechanicId) {
+          const foundMechanic = mechanicUsers.find((m: any) => m.id === currentMechanicId)
+          console.log('🔍 [DIAGNÓSTICO] Mecánico actual encontrado en lista:', foundMechanic ? 'SÍ' : 'NO')
+          if (foundMechanic) {
+            console.log('  Mecánico encontrado:', { id: foundMechanic.id, name: foundMechanic.full_name })
+          } else {
+            console.log('  ⚠️ PROBLEMA: currentMechanicId no coincide con ningún mecánico en la lista')
+            console.log('  currentMechanicId recibido:', currentMechanicId)
+            console.log('  IDs de mecánicos disponibles:', mechanicUsers.map((m: any) => m.id))
+          }
+        } else {
+          console.log('🔍 [DIAGNÓSTICO] No hay currentMechanicId (orden sin asignar)')
+        }
         
         setMechanics(mechanicUsers)
       } catch (error: any) {
@@ -119,15 +132,24 @@ export default function AssignMechanicModal({
   )
 
   const handleAssign = async () => {
+    console.log('🚀 [AssignMechanicModal] handleAssign llamado')
+    console.log('  selectedMechanicId:', selectedMechanicId)
+    console.log('  currentMechanicId:', currentMechanicId)
+    console.log('  Son iguales:', selectedMechanicId === currentMechanicId)
+    
     if (!selectedMechanicId) {
+      console.log('  ❌ No hay mecánico seleccionado')
       toast.error('Por favor selecciona un mecánico')
       return
     }
 
     if (selectedMechanicId === currentMechanicId) {
+      console.log('  ⚠️ Mecánico seleccionado es el mismo que el actual')
       toast.info('Este mecánico ya está asignado a la orden')
       return
     }
+    
+    console.log('  ✅ Procediendo con asignación...')
 
     setIsAssigning(true)
     
