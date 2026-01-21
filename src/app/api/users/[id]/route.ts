@@ -299,21 +299,49 @@ export async function DELETE(
     }
     
     // ✅ VALIDACIÓN: Verificar si el usuario tiene órdenes de trabajo asignadas
-    // Primero contar todas las órdenes activas (sin limit)
+    // Estados activos (NO incluir completed ni cancelled)
+    const ACTIVE_STATUSES = [
+      'reception',
+      'diagnosis',
+      'waiting_parts',
+      'in_progress',
+      'quality_check'
+    ]
+
+    console.log('🔍 [Delete User Validation] Verificando órdenes activas:', {
+      userId: targetUserId,
+      organizationId,
+      activeStatuses: ACTIVE_STATUSES
+    })
+
+    // ✅ FIX: Usar users.id directamente (work_orders.assigned_to → users.id)
+    // ✅ FIX: Filtrar por deleted_at IS NULL (soft delete)
+    // ✅ FIX: Usar .in() para estados activos (más preciso que .not())
     const { count: activeCount, error: countError } = await (supabase as any)
       .from('work_orders')
       .select('id', { count: 'exact', head: true })
-      .eq('assigned_to', targetUserId)
+      .eq('assigned_to', targetUserId) // ← Usa users.id directamente
       .eq('organization_id', organizationId)
-      .not('status', 'in', '("completed","cancelled")')
+      .is('deleted_at', null) // ✅ SOFT DELETE: Solo contar órdenes activas (no eliminadas)
+      .in('status', ACTIVE_STATUSES) // ✅ FIX: Usar .in() en lugar de .not()
     
     if (countError) {
-      console.error('[Delete User] Error contando órdenes asignadas:', countError)
+      console.error('❌ [Delete User Validation] Error contando órdenes asignadas:', {
+        error: countError,
+        userId: targetUserId,
+        organizationId
+      })
       return NextResponse.json(
         { success: false, error: 'Error al verificar órdenes asignadas' },
         { status: 500 }
       )
     }
+
+    console.log('📊 [Delete User Validation] Resultado:', {
+      userId: targetUserId,
+      activeCount: activeCount || 0,
+      canDelete: !activeCount || activeCount === 0
+    })
     
     // Si hay órdenes activas, obtener algunas para mostrar en el mensaje
     if (activeCount && activeCount > 0) {
@@ -322,12 +350,22 @@ export async function DELETE(
         .select('id, status, order_number')
         .eq('assigned_to', targetUserId)
         .eq('organization_id', organizationId)
-        .not('status', 'in', '("completed","cancelled")')
+        .is('deleted_at', null) // ✅ SOFT DELETE: Solo órdenes activas
+        .in('status', ACTIVE_STATUSES) // ✅ FIX: Usar .in() en lugar de .not()
         .limit(5) // Solo para mostrar en el mensaje
       
       if (ordersError) {
-        console.error('[Delete User] Error obteniendo órdenes asignadas:', ordersError)
+        console.error('❌ [Delete User Validation] Error obteniendo órdenes asignadas:', ordersError)
       }
+
+      console.log('📋 [Delete User Validation] Órdenes activas encontradas:', {
+        count: activeCount,
+        orders: assignedOrders?.map((o: any) => ({
+          id: o.id,
+          status: o.status,
+          order_number: o.order_number
+        }))
+      })
       
       const orderNumbers = assignedOrders
         ?.slice(0, 5)
@@ -340,11 +378,14 @@ export async function DELETE(
           success: false, 
           error: `No se puede eliminar el usuario porque tiene ${activeCount} orden${activeCount > 1 ? 'es' : ''} de trabajo activa${activeCount > 1 ? 's' : ''}`,
           details: orderNumbers ? `Órdenes activas: ${orderNumbers}${moreText}. Para eliminar este usuario, primero debes reasignar estas órdenes a otro mecánico o completarlas/cancelarlas.` : `Para eliminar este usuario, primero debes reasignar estas órdenes a otro mecánico o completarlas/cancelarlas.`,
+          orderIds: assignedOrders?.map((o: any) => o.id) || [],
           orderCount: activeCount
         },
         { status: 400 }
       )
     }
+
+    console.log('✅ [Delete User Validation] Usuario puede ser eliminado (0 órdenes activas)')
     
     // Validar: No permitir eliminar el último admin activo
     if (targetUser.role === 'ADMIN') {

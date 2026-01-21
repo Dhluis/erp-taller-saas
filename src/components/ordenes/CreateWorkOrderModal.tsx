@@ -236,6 +236,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>([])
   const [employees, setEmployees] = useState<any[]>([])
   
+  // ✅ Estados para IDs de la cita (para usar directamente sin búsqueda)
+  const [appointmentCustomerId, setAppointmentCustomerId] = useState<string | null>(null)
+  const [appointmentVehicleId, setAppointmentVehicleId] = useState<string | null>(null)
+  
   // Estado para el dropdown de clientes
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
   // ❌ ELIMINADO: const [filteredCustomers, setFilteredCustomers] = useState<typeof customers>([])
@@ -617,8 +621,19 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             return
           }
 
-          // Pre-llenar datos del cliente
           const appointmentData = appointment as any
+
+          // ✅ GUARDAR IDs DIRECTOS DE LA CITA (para usar sin búsqueda)
+          if (appointmentData.customer_id) {
+            setAppointmentCustomerId(appointmentData.customer_id)
+            console.log('✅ [Cita] customer_id guardado:', appointmentData.customer_id)
+          }
+          if (appointmentData.vehicle_id) {
+            setAppointmentVehicleId(appointmentData.vehicle_id)
+            console.log('✅ [Cita] vehicle_id guardado:', appointmentData.vehicle_id)
+          }
+
+          // Pre-llenar datos del cliente
           if (appointmentData.customer) {
             setFormData(prev => ({
               ...prev,
@@ -702,6 +717,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       setFormData(INITIAL_FORM_DATA)
       
       setShowCustomerDropdown(false)
+
+      // ✅ Limpiar IDs de la cita cuando se cierra el modal
+      setAppointmentCustomerId(null)
+      setAppointmentVehicleId(null)
 
     }
 
@@ -886,102 +905,142 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       console.log('🔍 [CreateWorkOrderModal] workshopId:', workshopId || 'sin asignar');
       console.log('🔍 [CreateWorkOrderModal] Has Multiple Workshops:', hasMultipleWorkshops);
 
-      // ✅ Búsqueda de cliente con filtro opcional por workshop_id
-      let customerQuery = supabase
-        .from('customers')
-        .select('*')
-        .eq('phone', formData.customerPhone)
-        .eq('organization_id', organizationId);
-      
-      // ✅ Solo filtrar por workshop_id si existe
-      if (workshopId) {
-        customerQuery = customerQuery.eq('workshop_id', workshopId);
-      }
-      
-      const { data: existingCustomer } = await customerQuery.maybeSingle()
+      // ✅ MEJORA: Usar IDs de la cita directamente si están disponibles
+      let customerId: string | null = null
+      let vehicleId: string | null = null
 
-      let customerId = (existingCustomer as any)?.id
-
-      if (!customerId) {
-
-        // ✅ Crear cliente con workshop_id opcional
-        const customerData: any = {
-          organization_id: organizationId,
-          name: formData.customerName,
-          phone: formData.customerPhone,
-          email: formData.customerEmail || null
-        };
-        
-        // ✅ Solo agregar workshop_id si existe
-        if (workshopId) {
-          customerData.workshop_id = workshopId;
-        }
-
-        const { data: newCustomer, error: customerError } = await supabase
+      // ✅ CLIENTE: Usar ID de la cita directamente (más eficiente y preciso)
+      if (appointmentCustomerId) {
+        console.log('✅ [CreateWorkOrderModal] Usando customer_id de la cita:', appointmentCustomerId)
+        // Verificar que el cliente existe y pertenece a la organización
+        const { data: customerCheck, error: customerCheckError } = await supabase
           .from('customers')
-          .insert(customerData)
-
-          .select()
-
+          .select('id')
+          .eq('id', appointmentCustomerId)
+          .eq('organization_id', organizationId)
           .single()
 
-        if (customerError) throw customerError
-
-        if (!newCustomer) throw new Error('No se pudo crear el cliente')
-
-        customerId = (newCustomer as any).id
-
-      }
-
-      // ✅ Búsqueda de vehículo con filtro opcional por workshop_id
-      let vehicleQuery = supabase
-        .from('vehicles')
-        .select('id')
-        .eq('license_plate', formData.vehiclePlate.toUpperCase())
-        .eq('organization_id', organizationId);
-      
-      // ✅ Solo filtrar por workshop_id si existe
-      if (workshopId) {
-        vehicleQuery = vehicleQuery.eq('workshop_id', workshopId);
-      }
-      
-      const { data: existingVehicle } = await vehicleQuery.maybeSingle()
-
-      let vehicleId = (existingVehicle as any)?.id
-
-      if (!vehicleId) {
-
-        // ✅ Crear vehículo con workshop_id opcional
-        const vehicleData: any = {
-          customer_id: customerId,
-          organization_id: organizationId,
-          brand: formData.vehicleBrand,
-          model: formData.vehicleModel,
-          year: formData.vehicleYear ? parseInt(formData.vehicleYear) : null,
-          license_plate: formData.vehiclePlate.toUpperCase(),
-          color: formData.vehicleColor || null,
-          mileage: formData.vehicleMileage ? parseInt(formData.vehicleMileage) : null
-        };
-        
-        // ✅ Solo agregar workshop_id si existe
-        if (workshopId) {
-          vehicleData.workshop_id = workshopId;
+        if (customerCheckError || !customerCheck) {
+          console.warn('⚠️ [CreateWorkOrderModal] customer_id de cita no válido, buscando por teléfono...')
+          // Fallback a búsqueda por teléfono (customerId seguirá siendo null)
+        } else {
+          customerId = appointmentCustomerId
         }
+      }
 
-        const { data: newVehicle, error: vehicleError } = await supabase
+      // Si no tenemos customerId de la cita, buscar o crear
+      if (!customerId) {
+        // ✅ Búsqueda de cliente con filtro opcional por workshop_id
+        let customerQuery = supabase
+          .from('customers')
+          .select('*')
+          .eq('phone', formData.customerPhone)
+          .eq('organization_id', organizationId);
+        
+        // ✅ Solo filtrar por workshop_id si existe
+        if (workshopId) {
+          customerQuery = customerQuery.eq('workshop_id', workshopId);
+        }
+        
+        const { data: existingCustomer } = await customerQuery.maybeSingle()
+
+        customerId = (existingCustomer as any)?.id
+
+        if (!customerId) {
+          // ✅ Crear cliente con workshop_id opcional
+          const customerData: any = {
+            organization_id: organizationId,
+            name: formData.customerName,
+            phone: formData.customerPhone,
+            email: formData.customerEmail || null
+          };
+          
+          // ✅ Solo agregar workshop_id si existe
+          if (workshopId) {
+            customerData.workshop_id = workshopId;
+          }
+
+          const { data: newCustomer, error: customerError } = await supabase
+            .from('customers')
+            .insert(customerData)
+            .select()
+            .single()
+
+          if (customerError) throw customerError
+
+          if (!newCustomer) throw new Error('No se pudo crear el cliente')
+
+          customerId = (newCustomer as any).id
+        }
+      }
+
+      // ✅ VEHÍCULO: Usar ID de la cita directamente (más eficiente y preciso)
+      if (appointmentVehicleId) {
+        console.log('✅ [CreateWorkOrderModal] Usando vehicle_id de la cita:', appointmentVehicleId)
+        // Verificar que el vehículo existe y pertenece a la organización
+        const { data: vehicleCheck, error: vehicleCheckError } = await supabase
           .from('vehicles')
-          .insert(vehicleData)
-
-          .select()
-
+          .select('id')
+          .eq('id', appointmentVehicleId)
+          .eq('organization_id', organizationId)
           .single()
 
-        if (vehicleError) throw vehicleError
+        if (vehicleCheckError || !vehicleCheck) {
+          console.warn('⚠️ [CreateWorkOrderModal] vehicle_id de cita no válido, buscando por placa...')
+          // Fallback a búsqueda por placa (vehicleId seguirá siendo null)
+        } else {
+          vehicleId = appointmentVehicleId
+        }
+      }
 
-        if (!newVehicle) throw new Error('No se pudo crear el vehículo')
+      // Si no tenemos vehicleId de la cita, buscar o crear
+      if (!vehicleId) {
+        // ✅ Búsqueda de vehículo con filtro opcional por workshop_id
+        let vehicleQuery = supabase
+          .from('vehicles')
+          .select('id')
+          .eq('license_plate', formData.vehiclePlate.toUpperCase())
+          .eq('organization_id', organizationId);
+        
+        // ✅ Solo filtrar por workshop_id si existe
+        if (workshopId) {
+          vehicleQuery = vehicleQuery.eq('workshop_id', workshopId);
+        }
+        
+        const { data: existingVehicle } = await vehicleQuery.maybeSingle()
 
-        vehicleId = (newVehicle as any).id
+        vehicleId = (existingVehicle as any)?.id
 
+        if (!vehicleId) {
+          // ✅ Crear vehículo con workshop_id opcional
+          const vehicleData: any = {
+            customer_id: customerId,
+            organization_id: organizationId,
+            brand: formData.vehicleBrand,
+            model: formData.vehicleModel,
+            year: formData.vehicleYear ? parseInt(formData.vehicleYear) : null,
+            license_plate: formData.vehiclePlate.toUpperCase(),
+            color: formData.vehicleColor || null,
+            mileage: formData.vehicleMileage ? parseInt(formData.vehicleMileage) : null
+          };
+          
+          // ✅ Solo agregar workshop_id si existe
+          if (workshopId) {
+            vehicleData.workshop_id = workshopId;
+          }
+
+          const { data: newVehicle, error: vehicleError } = await supabase
+            .from('vehicles')
+            .insert(vehicleData)
+            .select()
+            .single()
+
+          if (vehicleError) throw vehicleError
+
+          if (!newVehicle) throw new Error('No se pudo crear el vehículo')
+
+          vehicleId = (newVehicle as any).id
+        }
       }
 
       // Subir archivo PDF de términos si existe
@@ -1315,6 +1374,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     setErrors({})
 
     setTouched({})
+
+    // ✅ Limpiar IDs de la cita
+    setAppointmentCustomerId(null)
+    setAppointmentVehicleId(null)
 
     // Limpiar fotos temporales
     temporaryImages.forEach(img => {
