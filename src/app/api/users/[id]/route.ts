@@ -298,6 +298,41 @@ export async function DELETE(
       )
     }
     
+    // ✅ VALIDACIÓN: Verificar si el usuario tiene órdenes de trabajo asignadas
+    const { data: assignedOrders, error: ordersError } = await (supabase as any)
+      .from('work_orders')
+      .select('id, status, order_number')
+      .eq('assigned_to', targetUserId)
+      .eq('organization_id', organizationId)
+      .not('status', 'in', '("completed","cancelled")')
+      .limit(10) // Limitar para no sobrecargar, pero suficiente para mostrar el problema
+    
+    if (ordersError) {
+      console.error('[Delete User] Error verificando órdenes asignadas:', ordersError)
+      return NextResponse.json(
+        { success: false, error: 'Error al verificar órdenes asignadas' },
+        { status: 500 }
+      )
+    }
+    
+    if (assignedOrders && assignedOrders.length > 0) {
+      const activeCount = assignedOrders.length
+      const orderNumbers = assignedOrders
+        .slice(0, 5)
+        .map((o: any) => o.order_number || `#${o.id.substring(0, 8)}`)
+        .join(', ')
+      const moreText = activeCount > 5 ? ` y ${activeCount - 5} más` : ''
+      
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `No se puede eliminar el usuario porque tiene ${activeCount} orden${activeCount > 1 ? 'es' : ''} de trabajo activa${activeCount > 1 ? 's' : ''}`,
+          details: `Órdenes activas: ${orderNumbers}${moreText}. Para eliminar este usuario, primero debes reasignar estas órdenes a otro mecánico o completarlas/cancelarlas desde el módulo de órdenes.`
+        },
+        { status: 400 }
+      )
+    }
+    
     // Validar: No permitir eliminar el último admin activo
     if (targetUser.role === 'ADMIN') {
       const { count, error: countError } = await (supabase as any)

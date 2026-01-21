@@ -388,8 +388,12 @@ export default function UsuariosPage() {
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Error al eliminar usuario')
+        const errorData = await response.json()
+        // ✅ Si hay detalles adicionales, mostrarlos en la descripción
+        const errorMessage = errorData.error || 'Error al eliminar usuario'
+        const errorDetails = errorData.details || ''
+        
+        throw new Error(errorMessage + (errorDetails ? `\n${errorDetails}` : ''))
       }
 
       await loadData()
@@ -398,8 +402,12 @@ export default function UsuariosPage() {
       setUserToDelete(null)
     } catch (error) {
       console.error("❌ Error deleting user:", error)
-      toast.error("Error al eliminar el usuario", {
-        description: error instanceof Error ? error.message : 'Inténtalo de nuevo.'
+      const errorMessage = error instanceof Error ? error.message : 'Inténtalo de nuevo.'
+      const [mainMessage, ...details] = errorMessage.split('\n')
+      
+      toast.error(mainMessage, {
+        description: details.length > 0 ? details.join('\n') : undefined,
+        duration: 6000 // Mostrar por más tiempo si hay detalles
       })
     } finally {
       setIsSubmitting(false)
