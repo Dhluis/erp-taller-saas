@@ -6,7 +6,8 @@
 
 import { useState, useEffect } from 'react'
 import { X, User, Search, Loader2 } from 'lucide-react'
-import { useMechanics, useEmployees } from '@/hooks/useEmployees'
+import { useEmployees } from '@/hooks/useEmployees'
+import { toast } from 'sonner'
 
 interface AssignMechanicModalProps {
   isOpen: boolean
@@ -14,6 +15,13 @@ interface AssignMechanicModalProps {
   orderId: string
   currentMechanicId?: string | null
   onSuccess?: () => void
+}
+
+interface MechanicUser {
+  id: string
+  full_name: string
+  email: string | null
+  role: string
 }
 
 export default function AssignMechanicModal({
@@ -27,9 +35,47 @@ export default function AssignMechanicModal({
   const [selectedMechanicId, setSelectedMechanicId] = useState<string | null>(
     currentMechanicId || null
   )
+  const [mechanics, setMechanics] = useState<MechanicUser[]>([])
+  const [loadingMechanics, setLoadingMechanics] = useState(false)
   
-  const { mechanics, loading: loadingMechanics } = useMechanics()
   const { assignOrder, loading: assigning } = useEmployees({ autoLoad: false })
+
+  // Cargar usuarios con rol MECANICO
+  useEffect(() => {
+    if (!isOpen) return
+
+    const loadMechanics = async () => {
+      setLoadingMechanics(true)
+      try {
+        const response = await fetch('/api/users', {
+          credentials: 'include'
+        })
+        
+        if (!response.ok) {
+          throw new Error('Error al cargar mecánicos')
+        }
+        
+        const data = await response.json()
+        const allUsers = data.users || []
+        
+        // Filtrar solo usuarios con rol MECANICO
+        const mechanicUsers = allUsers.filter((user: any) => 
+          user.role === 'MECANICO' && user.is_active !== false
+        )
+        
+        setMechanics(mechanicUsers)
+      } catch (error: any) {
+        console.error('Error cargando mecánicos:', error)
+        toast.error('Error', {
+          description: error.message || 'No se pudieron cargar los mecánicos'
+        })
+      } finally {
+        setLoadingMechanics(false)
+      }
+    }
+
+    loadMechanics()
+  }, [isOpen])
 
   // Actualizar selección cuando cambia el mecánico actual
   useEffect(() => {
@@ -38,8 +84,8 @@ export default function AssignMechanicModal({
 
   // Filtrar mecánicos por búsqueda
   const filteredMechanics = mechanics.filter(m =>
-    m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    (m.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (m.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const handleAssign = async () => {
@@ -136,12 +182,12 @@ export default function AssignMechanicModal({
                           ? 'bg-cyan-500'
                           : 'bg-gray-700'
                       }`}>
-                        {mechanic.name.charAt(0).toUpperCase()}
+                        {(mechanic.full_name || 'M').charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold text-white">
-                            {mechanic.name}
+                            {mechanic.full_name || 'Sin nombre'}
                           </h3>
                           {mechanic.id === currentMechanicId && (
                             <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">
@@ -152,18 +198,9 @@ export default function AssignMechanicModal({
                         {mechanic.email && (
                           <p className="text-sm text-gray-400">{mechanic.email}</p>
                         )}
-                        {mechanic.specialties && mechanic.specialties.length > 0 && (
-                          <div className="flex gap-1 mt-2 flex-wrap">
-                            {mechanic.specialties.map((specialty: string, idx: number) => (
-                              <span
-                                key={idx}
-                                className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded"
-                              >
-                                {specialty}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                        <p className="text-xs text-gray-500 mt-1 capitalize">
+                          {mechanic.role === 'MECANICO' ? 'Mecánico' : mechanic.role}
+                        </p>
                       </div>
                     </div>
                     {selectedMechanicId === mechanic.id && (

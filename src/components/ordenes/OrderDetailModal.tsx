@@ -175,21 +175,24 @@ export function OrderDetailModal({ isOpen, onClose, order, onUpdate }: OrderDeta
                 className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
               >
                 <UserCog className="w-3 h-3" />
-                {(order as any).assigned_mechanic ? 'Reasignar' : 'Asignar'}
+                {(order as any).assigned_user || (order as any).assigned_to ? 'Reasignar' : 'Asignar'}
               </button>
             </div>
             
-            {(order as any).assigned_mechanic ? (
+            {(order as any).assigned_user ? (
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-cyan-500 rounded-full flex items-center justify-center text-white font-semibold">
-                  {(order as any).assigned_mechanic.name.charAt(0).toUpperCase()}
+                  {((order as any).assigned_user.full_name || 'M').charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <p className="text-white font-medium">
-                    {(order as any).assigned_mechanic.name}
+                    {(order as any).assigned_user.full_name || 'Sin nombre'}
                   </p>
                   <p className="text-sm text-slate-400 capitalize">
-                    {(order as any).assigned_mechanic.role}
+                    {(order as any).assigned_user.role === 'MECANICO' ? 'Mecánico' :
+                      (order as any).assigned_user.role === 'ASESOR' ? 'Asesor' :
+                      (order as any).assigned_user.role === 'ADMIN' ? 'Administrador' :
+                      (order as any).assigned_user.role || 'Sin rol'}
                   </p>
                 </div>
               </div>
