@@ -266,7 +266,7 @@ export function canModifySettings(userRole: UserRole): boolean {
  * @returns true si puede acceder, false en caso contrario
  */
 export async function canAccessWorkOrder(
-  userId: string,
+  userId: string, // auth.user.id
   workOrderId: string,
   role: UserRole,
   supabaseClient: any // Requerido explícitamente para evitar imports del servidor
@@ -276,46 +276,32 @@ export async function canAccessWorkOrder(
     return true
   }
   
-  // Mecánico: solo órdenes asignadas a él
+  // Mecánico: solo órdenes asignadas a él (comparar contra users.id)
   if (role === 'MECANICO' && supabaseClient) {
-    
-    // Obtener la orden
-    const { data: workOrder, error: workOrderError } = await supabaseClient
-      .from('work_orders')
-      .select('assigned_to')
-      .eq('id', workOrderId)
-      .single()
-    
-    if (workOrderError || !workOrder || !workOrder.assigned_to) {
-      return false
-    }
-    
-    // Verificar si está asignada a este empleado
-    // Nota: La tabla employees NO tiene user_id, se relaciona por email
-    // Necesitamos obtener el email del usuario desde auth.users
     try {
-      // Obtener email del usuario desde auth.users usando Service Role
-      const { data: authUser, error: authUserError } = await supabaseClient.auth.admin.getUserById(userId);
+      // 1) Obtener la orden
+      const { data: workOrder, error: workOrderError } = await supabaseClient
+        .from('work_orders')
+        .select('assigned_to')
+        .eq('id', workOrderId)
+        .single()
       
-      if (authUserError || !authUser?.user?.email) {
-        return false;
-      }
-      
-      // Buscar employee por email
-      const { data: employee, error: employeeError } = await supabaseClient
-        .from('employees')
-        .select('id')
-        .eq('email', authUser.user.email)
-        .maybeSingle();
-      
-      if (employeeError || !employee) {
-        return true;
-      }
-      
-      return workOrder.assigned_to === employee.id;
+      if (workOrderError || !workOrder?.assigned_to) return false
+
+      // 2) Obtener el perfil del usuario (tabla users) usando auth_user_id
+      const { data: userProfile, error: profileError } = await supabaseClient
+        .from('users')
+        .select('id, organization_id')
+        .eq('auth_user_id', userId)
+        .maybeSingle()
+
+      if (profileError || !userProfile?.id) return false
+
+      // 3) Validar que la orden esté asignada a este user.id
+      return workOrder.assigned_to === userProfile.id
     } catch (error) {
-      console.error('[canAccessWorkOrder] Error verificando acceso:', error);
-      return false;
+      console.error('[canAccessWorkOrder] Error verificando acceso:', error)
+      return false
     }
   }
   

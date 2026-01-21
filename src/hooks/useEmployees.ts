@@ -280,44 +280,39 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
 
   // Asignar orden a empleado (usando API endpoint para evitar problemas de RLS)
   const assignOrder = useCallback(async (orderId: string, userId: string): Promise<boolean> => {
+    setError(null)
+
     try {
-      setError(null)
-      
-      // ✅ Usar API endpoint en lugar de función directa del cliente
+      const payload = { assigned_to: userId }
+      console.log('🔄 [useEmployees] Asignando orden vía API:', { orderId, payload })
+
       const response = await fetch(`/api/work-orders/${orderId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          assigned_to: userId
-        })
+        body: JSON.stringify(payload)
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Error al asignar orden')
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data?.success === false) {
+        const message = data?.error || response.statusText || 'Error al asignar orden'
+        console.error('❌ [useEmployees] Error API asignar orden:', { status: response.status, data })
+        throw new Error(message)
       }
 
-      const result = await response.json()
-      
-      console.log('✅ [useEmployees] Orden asignada:', orderId, '→', userId)
+      console.log('✅ [useEmployees] Orden asignada:', { orderId, userId, data })
       toast.success('Orden asignada', {
         description: 'La orden ha sido asignada al mecánico'
       })
-      
-      // Refrescar datos
+
       await refreshEmployees()
-      
       return true
     } catch (err: any) {
-      const errorMessage = err.message || 'Error al asignar orden'
+      const errorMessage = err?.message || 'Error al asignar orden'
       setError(errorMessage)
-      console.error('❌ [useEmployees] Error:', errorMessage)
-      toast.error('Error', {
-        description: errorMessage
-      })
+      console.error('❌ [useEmployees] Error asignando orden:', err)
+      toast.error('Error al asignar', { description: errorMessage })
       return false
     }
   }, [refreshEmployees])
