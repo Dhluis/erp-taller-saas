@@ -77,6 +77,17 @@ export default function AssignMechanicModal({
     loadMechanics()
   }, [isOpen])
 
+  // Bloquear scroll del body mientras el modal está abierto
+  useEffect(() => {
+    if (isOpen) {
+      const prevOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = prevOverflow
+      }
+    }
+  }, [isOpen])
+
   // Actualizar selección cuando cambia el mecánico actual
   useEffect(() => {
     setSelectedMechanicId(currentMechanicId || null)
@@ -111,8 +122,16 @@ export default function AssignMechanicModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000] p-4" style={{ zIndex: 10000 }}>
-      <div className="bg-[#0A0F1E] rounded-xl w-full max-w-2xl max-h-[80vh] overflow-hidden border border-gray-800 relative z-[10001]">
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000] p-4 pointer-events-auto"
+      style={{ zIndex: 10000, overflowY: 'auto', overscrollBehavior: 'contain' }}
+      onWheel={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
+    >
+      <div
+        className="bg-[#0A0F1E] rounded-xl w-full max-w-2xl max-h-[80vh] overflow-hidden border border-gray-800 relative z-[10001]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-800">
           <div className="flex items-center gap-3">
