@@ -37,8 +37,9 @@ export default function AssignMechanicModal({
   )
   const [mechanics, setMechanics] = useState<MechanicUser[]>([])
   const [loadingMechanics, setLoadingMechanics] = useState(false)
+  const [isAssigning, setIsAssigning] = useState(false)
   
-  const { assignOrder, loading: assigning } = useEmployees({ autoLoad: false })
+  const { assignOrder } = useEmployees({ autoLoad: false })
 
   // Cargar usuarios con rol MECANICO
   useEffect(() => {
@@ -101,15 +102,42 @@ export default function AssignMechanicModal({
 
   const handleAssign = async () => {
     if (!selectedMechanicId) {
-      alert('Por favor selecciona un mecánico')
+      toast.error('Por favor selecciona un mecánico')
       return
     }
 
-    const success = await assignOrder(orderId, selectedMechanicId)
+    if (selectedMechanicId === currentMechanicId) {
+      toast.info('Este mecánico ya está asignado a la orden')
+      return
+    }
+
+    setIsAssigning(true)
     
-    if (success) {
-      onSuccess?.()
-      onClose()
+    try {
+      console.log('🔄 [AssignMechanicModal] Asignando orden:', {
+        orderId,
+        selectedMechanicId,
+        currentMechanicId
+      })
+
+      const success = await assignOrder(orderId, selectedMechanicId)
+      
+      console.log('✅ [AssignMechanicModal] Resultado de asignación:', success)
+      
+      if (success) {
+        console.log('✅ [AssignMechanicModal] Llamando onSuccess y cerrando modal')
+        onSuccess?.()
+        onClose()
+      } else {
+        console.error('❌ [AssignMechanicModal] La asignación falló')
+      }
+    } catch (error: any) {
+      console.error('❌ [AssignMechanicModal] Error inesperado:', error)
+      toast.error('Error inesperado', {
+        description: error.message || 'No se pudo asignar el mecánico'
+      })
+    } finally {
+      setIsAssigning(false)
     }
   }
 
@@ -247,11 +275,11 @@ export default function AssignMechanicModal({
           </button>
           <button
             onClick={handleAssign}
-            disabled={loadingMechanics || !selectedMechanicId || selectedMechanicId === currentMechanicId}
+            disabled={loadingMechanics || isAssigning || !selectedMechanicId || selectedMechanicId === currentMechanicId}
             className="px-6 py-2.5 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {loadingMechanics && <Loader2 className="w-4 h-4 animate-spin" />}
-            {currentMechanicId ? 'Reasignar' : 'Asignar'}
+            {(loadingMechanics || isAssigning) && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isAssigning ? 'Asignando...' : (currentMechanicId ? 'Reasignar' : 'Asignar')}
           </button>
         </div>
       </div>

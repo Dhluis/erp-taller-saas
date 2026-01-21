@@ -278,15 +278,33 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     }
   }, [])
 
-  // Asignar orden a empleado
-  const assignOrder = useCallback(async (orderId: string, employeeId: string): Promise<boolean> => {
+  // Asignar orden a empleado (usando API endpoint para evitar problemas de RLS)
+  const assignOrder = useCallback(async (orderId: string, userId: string): Promise<boolean> => {
     try {
       setError(null)
-      await assignOrderToEmployee(orderId, employeeId)
       
-      console.log('✅ [useEmployees] Orden asignada:', orderId, '→', employeeId)
+      // ✅ Usar API endpoint en lugar de función directa del cliente
+      const response = await fetch(`/api/work-orders/${orderId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          assigned_to: userId
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al asignar orden')
+      }
+
+      const result = await response.json()
+      
+      console.log('✅ [useEmployees] Orden asignada:', orderId, '→', userId)
       toast.success('Orden asignada', {
-        description: 'La orden ha sido asignada al empleado'
+        description: 'La orden ha sido asignada al mecánico'
       })
       
       // Refrescar datos

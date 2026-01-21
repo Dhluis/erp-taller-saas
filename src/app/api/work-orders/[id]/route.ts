@@ -268,6 +268,12 @@ export async function PUT(
           year,
           license_plate
         ),
+        assigned_user:users!work_orders_assigned_to_fkey(
+          id,
+          full_name,
+          role,
+          email
+        ),
         order_items(*)
       `)
       .single();
