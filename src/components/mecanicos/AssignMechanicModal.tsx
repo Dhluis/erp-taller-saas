@@ -85,11 +85,33 @@ export default function AssignMechanicModal({
           const foundMechanic = mechanicUsers.find((m: any) => m.id === currentMechanicId)
           console.log('🔍 [DIAGNÓSTICO] Mecánico actual encontrado en lista:', foundMechanic ? 'SÍ' : 'NO')
           if (foundMechanic) {
-            console.log('  Mecánico encontrado:', { id: foundMechanic.id, name: foundMechanic.full_name })
+            console.log('  ✅ Mecánico encontrado:', { 
+              id: foundMechanic.id, 
+              name: foundMechanic.full_name,
+              auth_user_id: foundMechanic.auth_user_id 
+            })
           } else {
             console.log('  ⚠️ PROBLEMA: currentMechanicId no coincide con ningún mecánico en la lista')
             console.log('  currentMechanicId recibido:', currentMechanicId)
-            console.log('  IDs de mecánicos disponibles:', mechanicUsers.map((m: any) => m.id))
+            console.log('  Tipo de currentMechanicId:', typeof currentMechanicId)
+            console.log('  IDs de mecánicos disponibles:')
+            mechanicUsers.forEach((m: any, index: number) => {
+              console.log(`    [${index}] id: ${m.id}, name: ${m.full_name}, auth_user_id: ${m.auth_user_id}`)
+              console.log(`        ¿Coincide con currentMechanicId? ${m.id === currentMechanicId}`)
+              console.log(`        ¿auth_user_id coincide? ${m.auth_user_id === currentMechanicId}`)
+            })
+            
+            // 🔍 INTENTAR BUSCAR POR auth_user_id también
+            const foundByAuthId = mechanicUsers.find((m: any) => m.auth_user_id === currentMechanicId)
+            if (foundByAuthId) {
+              console.log('  ⚠️ PROBLEMA DETECTADO: currentMechanicId es un auth_user_id, no users.id!')
+              console.log('  Mecánico encontrado por auth_user_id:', {
+                id: foundByAuthId.id,
+                auth_user_id: foundByAuthId.auth_user_id,
+                name: foundByAuthId.full_name
+              })
+              console.log('  💡 SOLUCIÓN: El componente padre debe pasar users.id, no auth_user_id')
+            }
           }
         } else {
           console.log('🔍 [DIAGNÓSTICO] No hay currentMechanicId (orden sin asignar)')
