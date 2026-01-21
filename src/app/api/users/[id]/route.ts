@@ -430,16 +430,85 @@ export async function DELETE(
       )
     }
     
+    // ✅ FIX: Buscar TODAS las órdenes (incluyendo completadas/canceladas) para desasignarlas
+    // Esto resuelve el foreign key constraint violation
+    const { data: allOrders, error: allOrdersError } = await (supabase as any)
+      .from('work_orders')
+      .select('id, order_number, status')
+      .eq('assigned_to', targetUserId)
+      .eq('organization_id', organizationId)
+      .is('deleted_at', null) // Solo órdenes activas (no eliminadas con soft delete)
+    
+    if (allOrdersError) {
+      console.error('❌ [Delete User] Error al verificar todas las órdenes:', allOrdersError)
+      return NextResponse.json(
+        { success: false, error: 'Error al verificar órdenes del usuario' },
+        { status: 500 }
+      )
+    }
+    
+    const totalOrders = allOrders?.length || 0
+    const ordersByStatus = allOrders?.reduce((acc: Record<string, number>, o: any) => {
+      acc[o.status] = (acc[o.status] || 0) + 1
+      return acc
+    }, {} as Record<string, number>) || {}
+    
+    console.log('🔍 [Delete User] Órdenes encontradas:', {
+      userId: targetUserId,
+      userName: userToDelete.full_name,
+      activeOrders: activeCount || 0,
+      totalOrders,
+      ordersByStatus
+    })
+    
+    // ✅ FIX: Usar Service Role Client para todas las operaciones (bypass RLS)
+    const supabaseAdmin = getSupabaseAdmin()
+    
+    // ✅ FIX: Desasignar TODAS las órdenes antes de eliminar (resuelve foreign key constraint)
+    if (totalOrders > 0) {
+      console.log(`🔄 [Delete User] Desasignando ${totalOrders} órdenes del usuario...`)
+      
+      const { error: updateError } = await (supabaseAdmin as any)
+        .from('work_orders')
+        .update({ assigned_to: null })
+        .eq('assigned_to', targetUserId)
+        .eq('organization_id', organizationId)
+        .is('deleted_at', null) // Solo actualizar órdenes activas (no eliminadas)
+      
+      if (updateError) {
+        console.error('❌ [Delete User] Error al desasignar órdenes:', {
+          error: updateError,
+          message: updateError.message,
+          code: updateError.code,
+          details: updateError.details,
+          hint: updateError.hint,
+          userId: targetUserId,
+          organizationId,
+          totalOrders
+        })
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Error al desasignar órdenes del usuario',
+            details: updateError.message || 'Error desconocido'
+          },
+          { status: 500 }
+        )
+      }
+      
+      console.log(`✅ [Delete User] ${totalOrders} órdenes desasignadas correctamente`)
+    } else {
+      console.log('ℹ️ [Delete User] Usuario no tiene órdenes asignadas')
+    }
+    
     console.log('🔄 [Delete User] Procediendo a eliminar usuario:', {
       userId: targetUserId,
       userName: userToDelete.full_name,
       userEmail: userToDelete.email,
       organizationId,
-      activeOrders: 0
+      activeOrders: activeCount || 0,
+      totalOrdersDesasignadas: totalOrders
     })
-    
-    // ✅ FIX: Usar Service Role Client para eliminar (bypass RLS)
-    const supabaseAdmin = getSupabaseAdmin()
     
     // 1. Eliminar usuario de auth primero (usando service role)
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(
@@ -485,7 +554,8 @@ export async function DELETE(
       userId: targetUserId,
       userName: userToDelete.full_name,
       userEmail: userToDelete.email,
-      organizationId
+      organizationId,
+      ordersDesasignadas: totalOrders
     })
     
     return NextResponse.json({
@@ -496,7 +566,9 @@ export async function DELETE(
         name: userToDelete.full_name,
         email: userToDelete.email,
         role: userToDelete.role
-      }
+      },
+      ordersUpdated: totalOrders,
+      ordersByStatus: ordersByStatus
     })
   } catch (error: any) {
     console.error('[Delete User] Error:', error)
