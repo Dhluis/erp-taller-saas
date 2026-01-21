@@ -414,36 +414,89 @@ export async function DELETE(
       }
     }
     
-    // Eliminar usuario de auth primero (usando service role)
+    // ✅ Obtener datos completos del usuario antes de eliminar (para logging y respuesta)
+    const { data: userToDelete, error: getUserError } = await (supabase as any)
+      .from('users')
+      .select('id, full_name, email, role, organization_id')
+      .eq('id', targetUserId)
+      .eq('organization_id', organizationId)
+      .single()
+    
+    if (getUserError || !userToDelete) {
+      console.error('❌ [Delete User] Error obteniendo datos del usuario:', getUserError)
+      return NextResponse.json(
+        { success: false, error: 'Error al obtener datos del usuario' },
+        { status: 500 }
+      )
+    }
+    
+    console.log('🔄 [Delete User] Procediendo a eliminar usuario:', {
+      userId: targetUserId,
+      userName: userToDelete.full_name,
+      userEmail: userToDelete.email,
+      organizationId,
+      activeOrders: 0
+    })
+    
+    // ✅ FIX: Usar Service Role Client para eliminar (bypass RLS)
     const supabaseAdmin = getSupabaseAdmin()
     
+    // 1. Eliminar usuario de auth primero (usando service role)
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(
       targetUser.auth_user_id
     )
     
     if (deleteAuthError) {
-      console.error('[Delete User] Error eliminando usuario de auth:', deleteAuthError)
-      // Intentar eliminar de todos modos el registro de users
+      console.error('❌ [Delete User] Error eliminando usuario de auth:', deleteAuthError)
+      // Continuar con eliminación de users aunque falle auth (puede que ya no exista en auth)
+      console.warn('⚠️ [Delete User] Continuando con eliminación de users a pesar del error en auth')
+    } else {
+      console.log('✅ [Delete User] Usuario eliminado de auth correctamente')
     }
     
-    // Eliminar de tabla users (si existe)
-    const { error: deleteError } = await (supabase as any)
+    // 2. ✅ FIX: Eliminar de tabla users usando Service Role Client (bypass RLS)
+    const { error: deleteError } = await (supabaseAdmin as any)
       .from('users')
       .delete()
       .eq('id', targetUserId)
+      .eq('organization_id', organizationId) // ✅ Multi-tenant safety
     
     if (deleteError) {
-      console.error('[Delete User] Error eliminando usuario:', deleteError)
+      console.error('❌ [Delete User] Error eliminando usuario de BD:', {
+        error: deleteError,
+        message: deleteError.message,
+        code: deleteError.code,
+        details: deleteError.details,
+        hint: deleteError.hint,
+        userId: targetUserId,
+        organizationId
+      })
       return NextResponse.json(
-        { success: false, error: `Error al eliminar usuario: ${deleteError.message}` },
+        { 
+          success: false, 
+          error: 'Error al eliminar usuario de la base de datos',
+          details: deleteError.message || 'Error desconocido'
+        },
         { status: 500 }
       )
     }
     
-    console.log('[Delete User] ✅ Usuario eliminado exitosamente:', targetUserId)
+    console.log('✅ [Delete User] Usuario eliminado exitosamente de la BD:', {
+      userId: targetUserId,
+      userName: userToDelete.full_name,
+      userEmail: userToDelete.email,
+      organizationId
+    })
+    
     return NextResponse.json({
       success: true,
-      message: 'Usuario eliminado exitosamente'
+      message: `Usuario ${userToDelete.full_name || userToDelete.email} eliminado exitosamente`,
+      deletedUser: {
+        id: targetUserId,
+        name: userToDelete.full_name,
+        email: userToDelete.email,
+        role: userToDelete.role
+      }
     })
   } catch (error: any) {
     console.error('[Delete User] Error:', error)
