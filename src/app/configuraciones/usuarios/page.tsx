@@ -418,7 +418,11 @@ export default function UsuariosPage() {
       }
 
       await loadData()
-      toast.success('Usuario eliminado exitosamente')
+      toast.success('Usuario eliminado exitosamente', {
+        description: `El usuario ${(userToDelete as any)?.name || (userToDelete as any)?.full_name || userToDelete?.email} ha sido eliminado permanentemente.`,
+        duration: 5000,
+        className: 'bg-green-500/10 border-green-500/50 text-green-400 [&>div]:text-green-300'
+      })
       setDeleteDialogOpen(false)
       setUserToDelete(null)
     } catch (error) {
@@ -768,23 +772,34 @@ export default function UsuariosPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el
-              usuario{' '}
-              <strong>
+            <AlertDialogTitle className="text-red-500">⚠️ Eliminar Usuario</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-300">
+              <strong className="text-red-400">Esta acción es irreversible.</strong>
+              <br /><br />
+              Se eliminará permanentemente el usuario{' '}
+              <strong className="text-white">
                 {(userToDelete as any)?.name || (userToDelete as any)?.full_name || userToDelete?.email}
               </strong>
-              .
+              {' '}y todos sus datos asociados.
+              <br /><br />
+              <span className="text-yellow-400">¿Estás seguro de que deseas continuar?</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
-              className="bg-error hover:bg-error/90"
+              disabled={isSubmitting}
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold"
             >
-              Eliminar
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar Usuario'
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
