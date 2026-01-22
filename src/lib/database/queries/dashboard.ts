@@ -162,7 +162,7 @@ export async function getAlertasInventario(organizationId: string) {
   
   const { data, error } = await supabase
     .from('inventory')
-    .select('id, quantity, minimum_stock')
+    .select('id, quantity, min_quantity')
     .eq('organization_id', organizationId);
   
   if (error) {
@@ -171,8 +171,8 @@ export async function getAlertasInventario(organizationId: string) {
     throw error;
   }
   
-  // Filtrar productos donde quantity <= minimum_stock
-  const count = data?.filter(item => item.quantity <= (item.minimum_stock || 0)).length || 0;
+  // Filtrar productos donde quantity <= min_quantity
+  const count = data?.filter(item => item.quantity <= (item.min_quantity || 0)).length || 0;
   
   console.log('⚠️ [getAlertasInventario] Productos con stock bajo:', count);
   return count || 0;
