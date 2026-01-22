@@ -322,11 +322,15 @@ export async function DELETE(
     })
 
     // ✅ DIAGNÓSTICO: Verificar TODAS las órdenes del usuario (sin filtros) para debugging
-    const { data: allUserOrders, error: allOrdersError } = await (supabaseAdmin as any)
+    const { data: allUserOrders, error: allUserOrdersError } = await (supabaseAdmin as any)
       .from('work_orders')
       .select('id, status, order_number, assigned_to, deleted_at')
       .eq('assigned_to', targetUserId)
       .eq('organization_id', organizationId)
+    
+    if (allUserOrdersError) {
+      console.warn('⚠️ [Delete User] Error en diagnóstico (no crítico):', allUserOrdersError)
+    }
     
     console.log('🔍 [Delete User] DIAGNÓSTICO - Todas las órdenes del usuario:', {
       totalOrders: allUserOrders?.length || 0,
