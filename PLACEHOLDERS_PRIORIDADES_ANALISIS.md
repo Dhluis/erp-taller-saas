@@ -22,14 +22,28 @@ Este documento analiza todos los placeholders, TODOs, y funcionalidades pendient
 
 ### 🔴 ALTA PRIORIDAD (Crítico - Implementar pronto)
 
-#### 1. Sistema de Inventario - Alertas
+#### 1. Sistema de Inventario - Alertas (CONECTAR AL DASHBOARD)
 **Archivo:** `src/app/dashboard/page.tsx` (línea 441)
 ```typescript
 alertasInventario: alertasInventario, // TODO: Cargar desde API de inventario
 ```
+
+**Estado actual:**
+- ✅ **Componente implementado:** `src/components/dashboard/LowStockAlert.tsx`
+- ✅ **API endpoint existe:** `/api/inventory/low-stock`
+- ✅ **Query function existe:** `getLowStockItems()` en `src/lib/database/queries/inventory.ts`
+- ✅ **Función dashboard existe:** `getAlertasInventario()` en `src/lib/database/queries/dashboard.ts`
+- ❌ **NO está conectado:** Dashboard no carga las alertas (siempre muestra 0)
+- ⚠️ **Bug en query:** `getAlertasInventario()` usa `quantity <= 10` hardcodeado en lugar de `minimum_stock`
+
 **Impacto:** Dashboard muestra 0 alertas aunque haya stock bajo  
-**Esfuerzo:** 2-3 horas  
-**Dependencias:** API de inventario debe existir
+**Esfuerzo:** 1-2 horas (solo conectar, funcionalidad ya existe)  
+**Dependencias:** Ninguna (todo ya está implementado)
+
+**Acción requerida:**
+1. Llamar `getAlertasInventario()` en `loadIncomeAndCustomers()` o crear función separada
+2. Actualizar `setAlertasInventario()` con el resultado
+3. Corregir `getAlertasInventario()` para usar `minimum_stock` en lugar de `quantity <= 10`
 
 #### 2. Envío de Emails - Invitaciones
 **Archivos:**
@@ -203,9 +217,12 @@ Los siguientes placeholders son correctos y mejoran la UX:
    - Por usuario
 
 ### 📊 Dashboard y Reportes
-1. **Alertas de inventario** (Alta prioridad)
-   - Stock bajo
-   - Productos agotados
+1. **Alertas de inventario** (Alta prioridad) - ⚠️ **FUNCIONALIDAD EXISTE, FALTA CONECTAR**
+   - ✅ Componente `LowStockAlert` implementado
+   - ✅ API `/api/inventory/low-stock` funciona
+   - ✅ Query `getLowStockItems()` implementada
+   - ❌ NO conectado al dashboard principal
+   - ⚠️ Bug: `getAlertasInventario()` usa `quantity <= 10` hardcodeado (debería usar `minimum_stock`)
 
 ### 🔄 Conversiones y Transformaciones
 1. **Work Order → Quotation** (Baja prioridad)
@@ -222,7 +239,9 @@ Los siguientes placeholders son correctos y mejoran la UX:
 ## 🎯 PLAN DE ACCIÓN RECOMENDADO
 
 ### Fase 1: Alta Prioridad (1-2 semanas)
-1. ✅ **Alertas de inventario** - Conectar dashboard con API
+1. ✅ **Alertas de inventario** - Conectar dashboard con API (funcionalidad ya existe)
+   - Llamar `getAlertasInventario()` en `loadIncomeAndCustomers()`
+   - Corregir bug: usar `minimum_stock` en lugar de `quantity <= 10`
 2. ✅ **Envío de emails** - Configurar servicio (SendGrid/Resend)
 3. ✅ **Emails de cotizaciones** - Templates y envío
 
@@ -280,6 +299,30 @@ Los siguientes placeholders son correctos y mejoran la UX:
 - ✅ `src/app/**/route.ts`
 - ✅ `src/lib/**/*.ts`
 - ✅ `src/hooks/**/*.ts`
+
+---
+
+## ✅ FUNCIONALIDADES YA IMPLEMENTADAS (Solo falta conectar)
+
+### Stock Bajo - Sistema Completo Implementado
+
+**Componentes existentes:**
+- ✅ `src/components/dashboard/LowStockAlert.tsx` - Componente completo y funcional
+- ✅ `src/app/api/inventory/low-stock/route.ts` - API endpoint funcionando
+- ✅ `src/lib/database/queries/inventory.ts` - `getLowStockItems()` implementada (usa `min_quantity` correctamente)
+- ✅ `src/lib/database/queries/dashboard.ts` - `getAlertasInventario()` existe pero tiene bug
+
+**Páginas que usan stock bajo:**
+- ✅ `/inventarios/alerts` - Página dedicada de alertas
+- ✅ `/inventarios/productos` - Muestra badges de "Stock Bajo"
+- ✅ `/inventarios` - Card de "Stock Bajo" con contador
+
+**Lo que falta:**
+1. Conectar `getAlertasInventario()` al dashboard principal (`src/app/dashboard/page.tsx`)
+2. Corregir bug en `getAlertasInventario()`: cambiar `quantity <= 10` por comparación con `minimum_stock`
+3. Llamar la función en `loadIncomeAndCustomers()` o crear función separada
+
+**Esfuerzo estimado:** 30-60 minutos (solo conectar, no implementar)
 
 ---
 
