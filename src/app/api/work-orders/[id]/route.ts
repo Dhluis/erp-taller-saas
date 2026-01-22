@@ -186,6 +186,25 @@ export async function PUT(
     
     const body = await request.json();
 
+    // ✅ VALIDACIÓN: Verificar permisos para reasignar órdenes
+    if (body.assigned_to !== undefined) {
+      // Si está intentando cambiar assigned_to, verificar que tenga permisos
+      if (currentUserRole !== 'ADMIN' && currentUserRole !== 'ASESOR') {
+        console.log('❌ [API PUT /work-orders/[id]] Intento de reasignación sin permisos:', {
+          userId: user.id,
+          userRole: currentUserRole,
+          orderId: params.id,
+          assignedTo: body.assigned_to
+        })
+        
+        return NextResponse.json({ 
+          success: false,
+          error: 'No tienes permisos para reasignar órdenes',
+          details: 'Solo administradores y asesores pueden reasignar órdenes de trabajo.'
+        }, { status: 403 })
+      }
+    }
+
     // Validaciones opcionales
     if (body.description !== undefined && body.description.trim().length < 10) {
       return NextResponse.json(

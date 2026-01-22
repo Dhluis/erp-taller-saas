@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import AssignMechanicModal from '@/components/mecanicos/AssignMechanicModal';
+import { useSession } from '@/lib/context/SessionContext';
+import { toast } from 'sonner';
 import type { WorkOrder } from '@/types/orders';
 import { 
   User, 
@@ -28,7 +30,24 @@ interface OrderDetailModalProps {
 }
 
 export function OrderDetailModal({ isOpen, onClose, order, onUpdate }: OrderDetailModalProps) {
+  const { profile } = useSession()
   const [showAssignMechanic, setShowAssignMechanic] = useState(false);
+
+  // ✅ Validar permisos para reasignar órdenes
+  const canReassignOrders = profile?.role === 'ADMIN' || profile?.role === 'ASESOR'
+
+  const handleReassignClick = () => {
+    // ✅ Validación de permisos
+    if (!canReassignOrders) {
+      toast.error('No tienes permisos para reasignar órdenes', {
+        description: 'Solo administradores y asesores pueden reasignar órdenes de trabajo.',
+        duration: 4000
+      })
+      return
+    }
+    
+    setShowAssignMechanic(true)
+  }
 
   if (!order) return null;
 
@@ -178,13 +197,16 @@ export function OrderDetailModal({ isOpen, onClose, order, onUpdate }: OrderDeta
                 <Wrench className="w-4 h-4" />
                 MECÁNICO ASIGNADO
               </h3>
-              <button
-                onClick={() => setShowAssignMechanic(true)}
-                className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
-              >
-                <UserCog className="w-3 h-3" />
-                {(order as any).assigned_user || (order as any).assigned_to ? 'Reasignar' : 'Asignar'}
-              </button>
+              {/* ✅ Solo mostrar botón si tiene permisos */}
+              {canReassignOrders && (
+                <button
+                  onClick={handleReassignClick}
+                  className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+                >
+                  <UserCog className="w-3 h-3" />
+                  {(order as any).assigned_user || (order as any).assigned_to ? 'Reasignar' : 'Asignar'}
+                </button>
+              )}
             </div>
             
             {(order as any).assigned_user ? (

@@ -8,6 +8,8 @@ import { WorkOrderItems } from '@/components/work-orders/WorkOrderItems'
 import WorkOrderDocuments from '@/components/work-orders/WorkOrderDocuments'
 import { WorkOrderImage } from '@/lib/supabase/work-order-storage'
 import { WorkOrderNote } from '@/lib/types/work-orders'
+import { useSession } from '@/lib/context/SessionContext'
+import { toast } from 'sonner'
 import { 
   ClipboardList, 
   Camera, 
@@ -48,6 +50,7 @@ export function WorkOrderDetailsTabs({
   onUpdate,
   onAssignMechanic
 }: WorkOrderDetailsTabsProps) {
+  const { profile } = useSession()
   const [images, setImages] = useState<WorkOrderImage[]>(order?.images || [])
   // ✅ VALIDAR NOTAS EN EL ESTADO INICIAL
   const [notes, setNotes] = useState<WorkOrderNote[]>(() => {
@@ -55,6 +58,22 @@ export function WorkOrderDetailsTabs({
   })
   const [documents, setDocuments] = useState<any[]>(order?.documents || [])
   const [lastNotesUpdate, setLastNotesUpdate] = useState<number>(0)
+
+  // ✅ Validar permisos para reasignar órdenes
+  const canReassignOrders = profile?.role === 'ADMIN' || profile?.role === 'ASESOR'
+
+  const handleReassignClick = () => {
+    // ✅ Validación de permisos
+    if (!canReassignOrders) {
+      toast.error('No tienes permisos para reasignar órdenes', {
+        description: 'Solo administradores y asesores pueden reasignar órdenes de trabajo.',
+        duration: 4000
+      })
+      return
+    }
+    
+    onAssignMechanic?.()
+  }
 
   // ✅ SINCRONIZAR ESTADO CON LA PROPIEDAD order.images
   useEffect(() => {
@@ -231,9 +250,10 @@ export function WorkOrderDetailsTabs({
               <Wrench className="h-5 w-5" />
               Mecánico Asignado
             </h4>
-            {onAssignMechanic && (
+            {/* ✅ Solo mostrar botón si tiene permisos */}
+            {canReassignOrders && onAssignMechanic && (
               <button
-                onClick={onAssignMechanic}
+                onClick={handleReassignClick}
                 className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
               >
                 <UserCog className="h-4 w-4" />

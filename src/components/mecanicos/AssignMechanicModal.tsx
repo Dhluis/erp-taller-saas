@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react'
 import { X, User, Search, Loader2 } from 'lucide-react'
 import { useEmployees } from '@/hooks/useEmployees'
+import { useSession } from '@/lib/context/SessionContext'
 import { toast } from 'sonner'
 
 interface AssignMechanicModalProps {
@@ -31,6 +32,7 @@ export default function AssignMechanicModal({
   currentMechanicId,
   onSuccess
 }: AssignMechanicModalProps) {
+  const { profile } = useSession()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedMechanicId, setSelectedMechanicId] = useState<string | null>(
     currentMechanicId || null
@@ -40,6 +42,22 @@ export default function AssignMechanicModal({
   const [isAssigning, setIsAssigning] = useState(false)
   
   const { assignOrder } = useEmployees({ autoLoad: false })
+
+  // ✅ Validar permisos al abrir el modal
+  useEffect(() => {
+    if (isOpen) {
+      const canReassignOrders = profile?.role === 'ADMIN' || profile?.role === 'ASESOR'
+      
+      if (!canReassignOrders) {
+        toast.error('No tienes permisos para reasignar órdenes', {
+          description: 'Solo administradores y asesores pueden reasignar órdenes de trabajo.',
+          duration: 4000
+        })
+        onClose()
+        return
+      }
+    }
+  }, [isOpen, profile?.role, onClose])
 
   // Cargar usuarios con rol MECANICO
   useEffect(() => {
@@ -154,6 +172,18 @@ export default function AssignMechanicModal({
   )
 
   const handleAssign = async () => {
+    // ✅ Doble validación de permisos (por si acaso)
+    const canReassignOrders = profile?.role === 'ADMIN' || profile?.role === 'ASESOR'
+    
+    if (!canReassignOrders) {
+      toast.error('Acción no permitida', {
+        description: 'No tienes permisos para reasignar órdenes de trabajo.',
+        duration: 4000
+      })
+      onClose()
+      return
+    }
+
     console.log('🚀 [AssignMechanicModal] handleAssign llamado')
     console.log('  selectedMechanicId:', selectedMechanicId)
     console.log('  currentMechanicId:', currentMechanicId)
