@@ -355,11 +355,12 @@ export async function DELETE(
     // ✅ VALIDACIÓN: Verificar si el usuario tiene órdenes de trabajo asignadas
     // Estados activos (NO incluir completed ni cancelled)
     const ACTIVE_STATUSES = [
-      'reception',
-      'diagnosis',
-      'waiting_parts',
-      'in_progress',
-      'quality_check'
+      'initial_quote',     // ← Cotización inicial (orden activa)
+      'reception',         // ← Recepción
+      'diagnosis',         // ← Diagnóstico
+      'waiting_parts',     // ← Esperando refacciones
+      'in_progress',       // ← En progreso
+      'quality_check'      // ← Control de calidad
     ]
 
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
