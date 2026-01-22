@@ -145,11 +145,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener organization_id y rol del perfil del usuario usando Service Role Client
+    // Obtener organization_id, rol e id del perfil del usuario usando Service Role Client
     const supabaseAdmin = getSupabaseServiceClient();
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('organization_id, role')
+      .select('id, organization_id, role')
       .eq('auth_user_id', user.id)
       .single();
 
@@ -168,84 +168,13 @@ export async function GET(request: NextRequest) {
     const organizationId = userProfile.organization_id;
     const userRole = userProfile.role;
     
-    // ✅ Si es mecánico, obtener su employee_id para filtrar órdenes asignadas
-    // Nota: La relación entre users y employees puede ser por email
-    // La tabla employees NO tiene user_id, se relaciona por email
-    let assignedEmployeeId: string | null = null;
-    if (userRole === 'MECANICO' && user.email) {
-      try {
-        console.log(`[GET /api/work-orders] 🔍 Buscando employee para mecánico: ${user.email} (org: ${organizationId})`);
-        
-        // Buscar employee por email (relación más común)
-        let { data: employee, error: employeeError } = await supabaseAdmin
-          .from('employees')
-          .select('id, email, name')
-          .eq('email', user.email)
-          .eq('organization_id', organizationId)
-          .maybeSingle();
-        
-        // ✅ Si no se encuentra por email, buscar employees sin email y actualizar el primero
-        if (!employee && !employeeError) {
-          console.log(`[GET /api/work-orders] ⚠️ No se encontró employee con email ${user.email}, buscando employees sin email...`);
-          
-          // Buscar employees sin email en la organización
-          const { data: employeesWithoutEmail, error: employeesError } = await supabaseAdmin
-            .from('employees')
-            .select('id, email, name')
-            .eq('organization_id', organizationId)
-            .is('email', null)
-            .limit(1);
-          
-          if (!employeesError && employeesWithoutEmail && employeesWithoutEmail.length > 0) {
-            const employeeToUpdate = employeesWithoutEmail[0];
-            console.log(`[GET /api/work-orders] 🔧 Actualizando employee ${employeeToUpdate.id} (${employeeToUpdate.name}) con email ${user.email}`);
-            
-            // Actualizar el employee con el email del usuario
-            const { data: updatedEmployee, error: updateError } = await supabaseAdmin
-              .from('employees')
-              .update({ email: user.email })
-              .eq('id', employeeToUpdate.id)
-              .select('id, email, name')
-              .single();
-            
-            if (!updateError && updatedEmployee) {
-              employee = updatedEmployee;
-              console.log(`[GET /api/work-orders] ✅ Employee actualizado exitosamente: ${updatedEmployee.id}`);
-            } else {
-              console.error(`[GET /api/work-orders] ❌ Error actualizando employee:`, updateError);
-            }
-          }
-        }
-        
-        if (employee) {
-          assignedEmployeeId = employee.id;
-          console.log(`[GET /api/work-orders] ✅ Employee encontrado: ${employee.id} (${employee.name || employee.email})`);
-        } else {
-          console.warn(`[GET /api/work-orders] ⚠️ Mecánico ${user.id} (${user.email}) no tiene employee_id asociado`);
-          console.warn(`[GET /api/work-orders] ⚠️ Error:`, employeeError);
-          
-          // ✅ DEBUG: Buscar todos los employees de la organización para ver qué hay
-          const { data: allEmployees, error: allEmployeesError } = await supabaseAdmin
-            .from('employees')
-            .select('id, email, name, organization_id')
-            .eq('organization_id', organizationId)
-            .limit(10);
-          
-          console.log(`[GET /api/work-orders] 🔍 Employees en la organización:`, allEmployees);
-          console.log(`[GET /api/work-orders] 🔍 Error al buscar todos:`, allEmployeesError);
-          
-          // ✅ OPCIÓN 1: Si no tiene employee_id, NO filtrar por assigned_to
-          // Devolver TODAS las órdenes de la organización (consistencia con /api/orders/stats)
-          console.log(`[GET /api/work-orders] ℹ️ Mecánico sin employee_id - mostrando TODAS las órdenes de la organización`);
-          assignedEmployeeId = null; // Asegurar que es null para no aplicar filtro
-        }
-      } catch (error) {
-        console.error('[GET /api/work-orders] ❌ Error buscando employee:', error);
-        // ✅ OPCIÓN 1: En caso de error, continuar sin filtrar por assigned_to
-        // Mostrar TODAS las órdenes de la organización (consistencia con /api/orders/stats)
-        console.log(`[GET /api/work-orders] ℹ️ Error buscando employee - mostrando TODAS las órdenes de la organización`);
-        assignedEmployeeId = null; // Asegurar que es null para no aplicar filtro
-      }
+    // ✅ Si es mecánico, usar directamente users.id para filtrar órdenes asignadas
+    // work_orders.assigned_to ahora referencia users.id (no employees.id)
+    let assignedUserId: string | null = null;
+    if (userRole === 'MECANICO') {
+      // Ya tenemos el users.id en userProfile (lo agregamos al select)
+      assignedUserId = userProfile.id;
+      console.log(`[GET /api/work-orders] ✅ Mecánico users.id: ${assignedUserId}`);
     }
     
     // ✅ Helper para crear timeout promise
@@ -288,14 +217,14 @@ export async function GET(request: NextRequest) {
           .eq('organization_id', organizationId)
           .is('deleted_at', null); // ✅ SOFT DELETE: Solo mostrar órdenes activas
         
-        // ✅ Si es mecánico Y tiene employee_id, filtrar solo órdenes asignadas a él
-        // Si NO tiene employee_id, mostrar TODAS las órdenes de la organización (Opción 1)
-        if (userRole === 'MECANICO' && assignedEmployeeId) {
-          console.log(`[GET /api/work-orders] 🔍 Filtrando órdenes por assigned_to: ${assignedEmployeeId}`);
-          query = query.eq('assigned_to', assignedEmployeeId);
-        } else if (userRole === 'MECANICO' && !assignedEmployeeId) {
-          console.log(`[GET /api/work-orders] ℹ️ Mecánico sin employee_id - mostrando TODAS las órdenes de la organización (sin filtro assigned_to)`);
-          // NO aplicar filtro - mostrar todas las órdenes de la organización
+        // ✅ Si es mecánico, filtrar solo órdenes asignadas a él (usando users.id)
+        if (userRole === 'MECANICO' && assignedUserId) {
+          console.log(`[GET /api/work-orders] 🔍 Filtrando órdenes por assigned_to (users.id): ${assignedUserId}`);
+          query = query.eq('assigned_to', assignedUserId);
+        } else if (userRole === 'MECANICO' && !assignedUserId) {
+          console.warn(`[GET /api/work-orders] ⚠️ Mecánico sin users.id - no se pueden filtrar órdenes`);
+          // Si no se puede obtener users.id, no mostrar órdenes (más seguro)
+          query = query.eq('assigned_to', '00000000-0000-0000-0000-000000000000'); // ID imposible = 0 resultados
         }
 
         // ✅ Filtros
@@ -386,7 +315,7 @@ export async function GET(request: NextRequest) {
     // ✅ DEBUG: Log para mecánicos
     if (userRole === 'MECANICO') {
       console.log(`[GET /api/work-orders] 📊 Órdenes encontradas para mecánico: ${orders?.length || 0}`);
-      console.log(`[GET /api/work-orders] 🔍 Filtro aplicado: ${assignedEmployeeId ? `assigned_to = ${assignedEmployeeId}` : 'NINGUNO (todas las órdenes de la organización)'}`);
+      console.log(`[GET /api/work-orders] 🔍 Filtro aplicado: ${assignedUserId ? `assigned_to = ${assignedUserId} (users.id)` : 'NINGUNO (error obteniendo users.id)'}`);
       if (orders && orders.length > 0) {
         console.log(`[GET /api/work-orders] 📋 Primeras órdenes:`, orders.slice(0, 3).map((o: any) => ({
           id: o.id,
@@ -411,10 +340,10 @@ export async function GET(request: NextRequest) {
       (response as any).debug = {
         userRole,
         userEmail: user.email,
-        assignedEmployeeId,
+        assignedUserId,
         organizationId,
         ordersFound: orders?.length || 0,
-        hasAssignedEmployeeId: !!assignedEmployeeId
+        hasAssignedUserId: !!assignedUserId
       };
     }
 
