@@ -248,27 +248,53 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('🗑️ [DELETE USER] INICIO DE PROCESO')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    
     const { id: targetUserId } = await params
     const { userId, organizationId } = await getTenantContext(request)
+    
+    console.log('📋 [DELETE USER] Parámetros recibidos:', {
+      targetUserId,
+      targetUserIdType: typeof targetUserId,
+      userId,
+      userIdType: typeof userId,
+      organizationId,
+      organizationIdType: typeof organizationId,
+      timestamp: new Date().toISOString()
+    })
+    
     const supabase = await createClient()
     
     // Obtener rol del usuario actual
+    console.log('👤 [DELETE USER] Obteniendo usuario actual...')
     const { data: currentUser, error: userError } = await (supabase as any)
       .from('users')
-      .select('role')
+      .select('id, role, full_name, email, organization_id')
       .eq('auth_user_id', userId)
       .single()
     
     if (userError || !currentUser || !currentUser.role) {
+      console.error('❌ [DELETE USER] Error obteniendo usuario actual:', userError)
       return NextResponse.json(
         { success: false, error: 'Usuario no encontrado' },
         { status: 404 }
       )
     }
     
+    console.log('✅ [DELETE USER] Usuario actual:', {
+      id: currentUser.id,
+      name: currentUser.full_name,
+      email: currentUser.email,
+      role: currentUser.role,
+      organizationId: currentUser.organization_id
+    })
+    
     // Validar permisos (solo admin puede eliminar usuarios)
     const currentUserRole = currentUser.role as UserRole
     if (!hasPermission(currentUserRole, 'users', 'delete')) {
+      console.log('❌ [DELETE USER] Sin permisos para eliminar usuarios')
       return NextResponse.json(
         { success: false, error: 'No tienes permisos para eliminar usuarios' },
         { status: 403 }
@@ -276,22 +302,45 @@ export async function DELETE(
     }
     
     // Validar que el usuario a eliminar existe y pertenece a la organización
+    console.log('🔍 [DELETE USER] Obteniendo usuario a eliminar...')
     const { data: targetUser, error: existingError } = await (supabase as any)
       .from('users')
-      .select('id, auth_user_id, role')
+      .select('id, auth_user_id, role, full_name, email, organization_id')
       .eq('id', targetUserId)
       .eq('organization_id', organizationId)
       .single()
     
     if (existingError || !targetUser) {
+      console.error('❌ [DELETE USER] Error obteniendo usuario a eliminar:', existingError)
       return NextResponse.json(
         { success: false, error: 'Usuario no encontrado' },
         { status: 404 }
       )
     }
     
+    console.log('✅ [DELETE USER] Usuario a eliminar:', {
+      id: targetUser.id,
+      name: targetUser.full_name,
+      email: targetUser.email,
+      role: targetUser.role,
+      organizationId: targetUser.organization_id,
+      authUserId: targetUser.auth_user_id
+    })
+    
+    // Validar multi-tenant
+    if (targetUser.organization_id !== organizationId) {
+      console.log('❌ [DELETE USER] Intento de eliminar usuario de otra organización')
+      console.log('   Usuario actual org:', organizationId)
+      console.log('   Usuario a eliminar org:', targetUser.organization_id)
+      return NextResponse.json(
+        { success: false, error: 'No puedes eliminar usuarios de otra organización' },
+        { status: 403 }
+      )
+    }
+    
     // No permitir auto-eliminación
     if (targetUser.auth_user_id === userId) {
+      console.log('❌ [DELETE USER] Intento de auto-eliminación')
       return NextResponse.json(
         { success: false, error: 'No puedes eliminarte a ti mismo' },
         { status: 400 }
@@ -313,51 +362,62 @@ export async function DELETE(
       'quality_check'
     ]
 
-    console.log('🔍 [Delete User] Iniciando validación de órdenes activas:', {
-      userIdToDelete: targetUserId,
-      userIdToDeleteType: typeof targetUserId,
-      organizationId,
-      activeStatuses: ACTIVE_STATUSES,
-      timestamp: new Date().toISOString()
-    })
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('🔍 [DELETE USER] VERIFICANDO ÓRDENES ACTIVAS')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('📋 [DELETE USER] Estados considerados activos:', ACTIVE_STATUSES)
+    console.log('🔍 [DELETE USER] Buscando órdenes con:')
+    console.log('   - assigned_to:', targetUserId, `(type: ${typeof targetUserId})`)
+    console.log('   - organization_id:', organizationId, `(type: ${typeof organizationId})`)
+    console.log('   - deleted_at: null')
+    console.log('   - status IN:', ACTIVE_STATUSES)
 
     // ✅ DIAGNÓSTICO: Verificar TODAS las órdenes del usuario (sin filtros) para debugging
+    console.log('🔍 [DELETE USER] PASO 1: Buscando TODAS las órdenes del usuario (sin filtros)...')
     const { data: allUserOrders, error: allUserOrdersError } = await (supabaseAdmin as any)
       .from('work_orders')
-      .select('id, status, order_number, assigned_to, deleted_at')
+      .select('id, status, order_number, assigned_to, organization_id, deleted_at, created_at')
       .eq('assigned_to', targetUserId)
       .eq('organization_id', organizationId)
     
     if (allUserOrdersError) {
-      console.warn('⚠️ [Delete User] Error en diagnóstico (no crítico):', allUserOrdersError)
+      console.error('❌ [DELETE USER] Error en diagnóstico:', {
+        error: allUserOrdersError,
+        message: allUserOrdersError.message,
+        code: allUserOrdersError.code,
+        details: allUserOrdersError.details
+      })
+    } else {
+      console.log('📊 [DELETE USER] TODAS las órdenes del usuario:', {
+        total: allUserOrders?.length || 0,
+        ordenes: allUserOrders?.map((o: any) => ({
+          id: o.id,
+          number: o.order_number,
+          status: o.status,
+          assignedTo: o.assigned_to,
+          assignedToType: typeof o.assigned_to,
+          assignedToMatches: o.assigned_to === targetUserId,
+          organizationId: o.organization_id,
+          orgIdMatches: o.organization_id === organizationId,
+          hasDeletedAt: !!o.deleted_at,
+          deletedAt: o.deleted_at,
+          createdAt: o.created_at
+        }))
+      })
     }
-    
-    console.log('🔍 [Delete User] DIAGNÓSTICO - Todas las órdenes del usuario:', {
-      totalOrders: allUserOrders?.length || 0,
-      orders: allUserOrders?.map((o: any) => ({
-        id: o.id,
-        orderNumber: o.order_number,
-        status: o.status,
-        assignedTo: o.assigned_to,
-        assignedToType: typeof o.assigned_to,
-        matchesTargetUser: o.assigned_to === targetUserId,
-        hasDeletedAt: !!o.deleted_at,
-        deletedAt: o.deleted_at
-      }))
-    })
 
     // ✅ CRÍTICO: Obtener órdenes activas DIRECTAMENTE (más confiable que count)
-    // Esto nos permite verificar que realmente existen y que assigned_to es correcto
+    console.log('🔍 [DELETE USER] PASO 2: Buscando órdenes ACTIVAS del usuario...')
     const { data: activeOrders, error: ordersError } = await (supabaseAdmin as any)
       .from('work_orders')
-      .select('id, status, order_number, assigned_to, deleted_at')
+      .select('id, status, order_number, assigned_to, organization_id, deleted_at, created_at')
       .eq('assigned_to', targetUserId) // ✅ CRÍTICO: Usuario a eliminar
       .eq('organization_id', organizationId) // ✅ CRÍTICO: Multi-tenant safety
       .is('deleted_at', null) // ✅ SOFT DELETE: Solo órdenes activas (no eliminadas)
       .in('status', ACTIVE_STATUSES) // ✅ Solo estados activos
     
     if (ordersError) {
-      console.error('❌ [Delete User] Error obteniendo órdenes activas:', {
+      console.error('❌ [DELETE USER] Error obteniendo órdenes activas:', {
         error: ordersError,
         message: ordersError.message,
         code: ordersError.code,
@@ -375,24 +435,35 @@ export async function DELETE(
     // ✅ CRÍTICO: Normalizar activeCount
     const normalizedActiveCount = activeOrders?.length || 0
     
-    console.log('📊 [Delete User] Resultado de validación:', {
-      userId: targetUserId,
-      activeCount: normalizedActiveCount,
-      ordersFound: activeOrders?.length || 0,
-      orders: activeOrders?.map((o: any) => ({
+    console.log('📊 [DELETE USER] Resultado de validación de órdenes ACTIVAS:', {
+      encontradas: normalizedActiveCount,
+      ordenes: activeOrders?.map((o: any) => ({
         id: o.id,
-        orderNumber: o.order_number,
+        number: o.order_number,
         status: o.status,
         assignedTo: o.assigned_to,
-        matchesTargetUser: o.assigned_to === targetUserId,
-        hasDeletedAt: !!o.deleted_at
-      })),
-      canDelete: normalizedActiveCount === 0
+        assignedToType: typeof o.assigned_to,
+        assignedToMatches: o.assigned_to === targetUserId,
+        organizationId: o.organization_id,
+        orgIdMatches: o.organization_id === organizationId,
+        hasDeletedAt: !!o.deleted_at,
+        deletedAt: o.deleted_at,
+        createdAt: o.created_at
+      }))
     })
     
     // ✅ CRÍTICO: Si hay órdenes activas, RECHAZAR eliminación
     if (normalizedActiveCount > 0) {
-      console.log('🚫 [Delete User] BLOQUEANDO eliminación - usuario tiene órdenes activas')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('🚫 [DELETE USER] ELIMINACIÓN RECHAZADA')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('❌ Usuario tiene órdenes activas asignadas')
+      console.log('   Cantidad:', normalizedActiveCount)
+      console.log('   Órdenes:', activeOrders?.map((o: any) => ({
+        id: o.id,
+        number: o.order_number,
+        status: o.status
+      })))
       
       const orderNumbers = activeOrders
         ?.slice(0, 5)
@@ -412,7 +483,10 @@ export async function DELETE(
       )
     }
 
-    console.log('✅ [Delete User] Validación pasada - 0 órdenes activas, procediendo...')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('✅ [DELETE USER] Validación de órdenes activas OK')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('✅ No hay órdenes activas, procediendo con eliminación...')
     
     // Validar: No permitir eliminar el último admin activo
     if (targetUser.role === 'ADMIN') {
@@ -533,29 +607,38 @@ export async function DELETE(
       console.log('ℹ️ [Delete User] Usuario no tiene órdenes asignadas')
     }
     
-    console.log('🔄 [Delete User] Procediendo a eliminar usuario:', {
-      userId: targetUserId,
-      userName: userToDelete.full_name,
-      userEmail: userToDelete.email,
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('🗑️ [DELETE USER] ELIMINANDO USUARIO DE BD')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('🗑️ [DELETE USER] Usuario a eliminar:', {
+      id: targetUserId,
+      name: userToDelete.full_name,
+      email: userToDelete.email,
+      role: userToDelete.role,
       organizationId,
-      activeOrders: normalizedActiveCount,
-      totalOrdersDesasignadas: totalOrders
+      ordenesDesasignadas: totalOrders
     })
     
     // 1. Eliminar usuario de auth primero (usando service role)
+    console.log('🔐 [DELETE USER] Eliminando usuario de auth...')
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(
       targetUser.auth_user_id
     )
     
     if (deleteAuthError) {
-      console.error('❌ [Delete User] Error eliminando usuario de auth:', deleteAuthError)
+      console.error('❌ [DELETE USER] Error eliminando usuario de auth:', {
+        error: deleteAuthError,
+        message: deleteAuthError.message,
+        authUserId: targetUser.auth_user_id
+      })
       // Continuar con eliminación de users aunque falle auth (puede que ya no exista en auth)
-      console.warn('⚠️ [Delete User] Continuando con eliminación de users a pesar del error en auth')
+      console.warn('⚠️ [DELETE USER] Continuando con eliminación de users a pesar del error en auth')
     } else {
-      console.log('✅ [Delete User] Usuario eliminado de auth correctamente')
+      console.log('✅ [DELETE USER] Usuario eliminado de auth correctamente')
     }
     
     // 2. ✅ FIX: Eliminar de tabla users usando Service Role Client (bypass RLS)
+    console.log('🗑️ [DELETE USER] Eliminando usuario de tabla users...')
     const { error: deleteError } = await (supabaseAdmin as any)
       .from('users')
       .delete()
@@ -563,7 +646,7 @@ export async function DELETE(
       .eq('organization_id', organizationId) // ✅ Multi-tenant safety
     
     if (deleteError) {
-      console.error('❌ [Delete User] Error eliminando usuario de BD:', {
+      console.error('❌ [DELETE USER] Error eliminando usuario de BD:', {
         error: deleteError,
         message: deleteError.message,
         code: deleteError.code,
@@ -582,13 +665,19 @@ export async function DELETE(
       )
     }
     
-    console.log('✅ [Delete User] Usuario eliminado exitosamente de la BD:', {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('✅ [DELETE USER] Usuario eliminado exitosamente')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('📊 [DELETE USER] Resumen:', {
       userId: targetUserId,
       userName: userToDelete.full_name,
       userEmail: userToDelete.email,
-      organizationId,
-      ordersDesasignadas: totalOrders
+      ordersDesasignadas: totalOrders,
+      timestamp: new Date().toISOString()
     })
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('🎉 [DELETE USER] PROCESO COMPLETADO')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     
     return NextResponse.json({
       success: true,
@@ -599,11 +688,16 @@ export async function DELETE(
         email: userToDelete.email,
         role: userToDelete.role
       },
-      ordersUpdated: totalOrders,
-      ordersByStatus: ordersByStatus
+      ordersUpdated: totalOrders
     })
   } catch (error: any) {
-    console.error('[Delete User] Error:', error)
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.error('❌ [DELETE USER] ERROR GENERAL')
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.error('❌ Error:', error)
+    console.error('❌ Stack:', error instanceof Error ? error.stack : 'No stack')
+    console.error('❌ Timestamp:', new Date().toISOString())
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     return NextResponse.json(
       { success: false, error: error.message || 'Error interno del servidor' },
       { status: 500 }
