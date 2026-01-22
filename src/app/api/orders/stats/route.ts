@@ -21,12 +21,12 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Obtener organizationId del perfil del usuario usando Service Role
+    // Obtener organizationId, rol e id del perfil del usuario usando Service Role
     const supabaseAdmin = getSupabaseServiceClient()
     
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('organization_id')
+      .select('id, organization_id, role')
       .eq('auth_user_id', authUser.id)
       .single()
     
@@ -42,6 +42,8 @@ export async function GET(request: NextRequest) {
     }
     
     const organizationId = userProfile.organization_id
+    const userRole = userProfile.role
+    const assignedUserId = userRole === 'MECANICO' ? userProfile.id : null
 
     // Obtener parámetro de filtro de tiempo
     const { searchParams } = new URL(request.url)
@@ -114,11 +116,19 @@ export async function GET(request: NextRequest) {
     // Consultar órdenes por estado para la organización específica
     // Primero obtener todas las órdenes de la organización (sin filtro de fecha en la query)
     // Luego filtrar en JavaScript para mayor flexibilidad
-    const { data: orders, error: ordersError } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('work_orders')
-      .select('status, created_at, entry_date, deleted_at')
+      .select('status, created_at, entry_date, deleted_at, assigned_to')
       .eq('organization_id', organizationId)
       .is('deleted_at', null) // ✅ excluir soft-deleted
+    
+    // ✅ Si es mecánico, filtrar solo órdenes asignadas a él (usando users.id)
+    if (userRole === 'MECANICO' && assignedUserId) {
+      console.log(`[GET /api/orders/stats] 🔍 Filtrando órdenes por assigned_to (users.id): ${assignedUserId}`)
+      query = query.eq('assigned_to', assignedUserId)
+    }
+    
+    const { data: orders, error: ordersError } = await query
 
     // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
