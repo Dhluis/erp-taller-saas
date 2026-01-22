@@ -298,6 +298,11 @@ export async function DELETE(
       )
     }
     
+    // ✅ CRÍTICO: Usar Service Role Client para validación (bypass RLS)
+    // Si usamos cliente normal, RLS puede bloquear la consulta y retornar 0 órdenes
+    // incluso cuando hay órdenes activas, permitiendo eliminación incorrecta
+    const supabaseAdmin = getSupabaseAdmin()
+    
     // ✅ VALIDACIÓN: Verificar si el usuario tiene órdenes de trabajo asignadas
     // Estados activos (NO incluir completed ni cancelled)
     const ACTIVE_STATUSES = [
@@ -308,26 +313,52 @@ export async function DELETE(
       'quality_check'
     ]
 
-    console.log('🔍 [Delete User Validation] Verificando órdenes activas:', {
-      userId: targetUserId,
+    console.log('🔍 [Delete User] Iniciando validación de órdenes activas:', {
+      userIdToDelete: targetUserId,
+      userIdToDeleteType: typeof targetUserId,
       organizationId,
-      activeStatuses: ACTIVE_STATUSES
+      activeStatuses: ACTIVE_STATUSES,
+      timestamp: new Date().toISOString()
     })
 
-    // ✅ FIX: Usar users.id directamente (work_orders.assigned_to → users.id)
-    // ✅ FIX: Filtrar por deleted_at IS NULL (soft delete)
-    // ✅ FIX: Usar .in() para estados activos (más preciso que .not())
-    const { count: activeCount, error: countError } = await (supabase as any)
+    // ✅ DIAGNÓSTICO: Verificar TODAS las órdenes del usuario (sin filtros) para debugging
+    const { data: allUserOrders, error: allOrdersError } = await (supabaseAdmin as any)
       .from('work_orders')
-      .select('id', { count: 'exact', head: true })
-      .eq('assigned_to', targetUserId) // ← Usa users.id directamente
+      .select('id, status, order_number, assigned_to, deleted_at')
+      .eq('assigned_to', targetUserId)
       .eq('organization_id', organizationId)
-      .is('deleted_at', null) // ✅ SOFT DELETE: Solo contar órdenes activas (no eliminadas)
-      .in('status', ACTIVE_STATUSES) // ✅ FIX: Usar .in() en lugar de .not()
     
-    if (countError) {
-      console.error('❌ [Delete User Validation] Error contando órdenes asignadas:', {
-        error: countError,
+    console.log('🔍 [Delete User] DIAGNÓSTICO - Todas las órdenes del usuario:', {
+      totalOrders: allUserOrders?.length || 0,
+      orders: allUserOrders?.map((o: any) => ({
+        id: o.id,
+        orderNumber: o.order_number,
+        status: o.status,
+        assignedTo: o.assigned_to,
+        assignedToType: typeof o.assigned_to,
+        matchesTargetUser: o.assigned_to === targetUserId,
+        hasDeletedAt: !!o.deleted_at,
+        deletedAt: o.deleted_at
+      }))
+    })
+
+    // ✅ CRÍTICO: Obtener órdenes activas DIRECTAMENTE (más confiable que count)
+    // Esto nos permite verificar que realmente existen y que assigned_to es correcto
+    const { data: activeOrders, error: ordersError } = await (supabaseAdmin as any)
+      .from('work_orders')
+      .select('id, status, order_number, assigned_to, deleted_at')
+      .eq('assigned_to', targetUserId) // ✅ CRÍTICO: Usuario a eliminar
+      .eq('organization_id', organizationId) // ✅ CRÍTICO: Multi-tenant safety
+      .is('deleted_at', null) // ✅ SOFT DELETE: Solo órdenes activas (no eliminadas)
+      .in('status', ACTIVE_STATUSES) // ✅ Solo estados activos
+    
+    if (ordersError) {
+      console.error('❌ [Delete User] Error obteniendo órdenes activas:', {
+        error: ordersError,
+        message: ordersError.message,
+        code: ordersError.code,
+        details: ordersError.details,
+        hint: ordersError.hint,
         userId: targetUserId,
         organizationId
       })
@@ -337,55 +368,47 @@ export async function DELETE(
       )
     }
 
-    console.log('📊 [Delete User Validation] Resultado:', {
+    // ✅ CRÍTICO: Normalizar activeCount
+    const normalizedActiveCount = activeOrders?.length || 0
+    
+    console.log('📊 [Delete User] Resultado de validación:', {
       userId: targetUserId,
-      activeCount: activeCount || 0,
-      canDelete: !activeCount || activeCount === 0
+      activeCount: normalizedActiveCount,
+      ordersFound: activeOrders?.length || 0,
+      orders: activeOrders?.map((o: any) => ({
+        id: o.id,
+        orderNumber: o.order_number,
+        status: o.status,
+        assignedTo: o.assigned_to,
+        matchesTargetUser: o.assigned_to === targetUserId,
+        hasDeletedAt: !!o.deleted_at
+      })),
+      canDelete: normalizedActiveCount === 0
     })
     
-    // Si hay órdenes activas, obtener algunas para mostrar en el mensaje
-    if (activeCount && activeCount > 0) {
-      const { data: assignedOrders, error: ordersError } = await (supabase as any)
-        .from('work_orders')
-        .select('id, status, order_number')
-        .eq('assigned_to', targetUserId)
-        .eq('organization_id', organizationId)
-        .is('deleted_at', null) // ✅ SOFT DELETE: Solo órdenes activas
-        .in('status', ACTIVE_STATUSES) // ✅ FIX: Usar .in() en lugar de .not()
-        .limit(5) // Solo para mostrar en el mensaje
+    // ✅ CRÍTICO: Si hay órdenes activas, RECHAZAR eliminación
+    if (normalizedActiveCount > 0) {
+      console.log('🚫 [Delete User] BLOQUEANDO eliminación - usuario tiene órdenes activas')
       
-      if (ordersError) {
-        console.error('❌ [Delete User Validation] Error obteniendo órdenes asignadas:', ordersError)
-      }
-
-      console.log('📋 [Delete User Validation] Órdenes activas encontradas:', {
-        count: activeCount,
-        orders: assignedOrders?.map((o: any) => ({
-          id: o.id,
-          status: o.status,
-          order_number: o.order_number
-        }))
-      })
-      
-      const orderNumbers = assignedOrders
+      const orderNumbers = activeOrders
         ?.slice(0, 5)
         .map((o: any) => o.order_number || `#${o.id.substring(0, 8)}`)
         .join(', ') || ''
-      const moreText = activeCount > 5 ? ` y ${activeCount - 5} más` : ''
+      const moreText = normalizedActiveCount > 5 ? ` y ${normalizedActiveCount - 5} más` : ''
       
       return NextResponse.json(
         { 
           success: false, 
-          error: `No se puede eliminar el usuario porque tiene ${activeCount} orden${activeCount > 1 ? 'es' : ''} de trabajo activa${activeCount > 1 ? 's' : ''}`,
+          error: `No se puede eliminar el usuario porque tiene ${normalizedActiveCount} orden${normalizedActiveCount > 1 ? 'es' : ''} de trabajo activa${normalizedActiveCount > 1 ? 's' : ''}`,
           details: orderNumbers ? `Órdenes activas: ${orderNumbers}${moreText}. Para eliminar este usuario, primero debes reasignar estas órdenes a otro mecánico o completarlas/cancelarlas.` : `Para eliminar este usuario, primero debes reasignar estas órdenes a otro mecánico o completarlas/cancelarlas.`,
-          orderIds: assignedOrders?.map((o: any) => o.id) || [],
-          orderCount: activeCount
+          orderIds: activeOrders?.map((o: any) => o.id) || [],
+          orderCount: normalizedActiveCount
         },
         { status: 400 }
       )
     }
 
-    console.log('✅ [Delete User Validation] Usuario puede ser eliminado (0 órdenes activas)')
+    console.log('✅ [Delete User] Validación pasada - 0 órdenes activas, procediendo...')
     
     // Validar: No permitir eliminar el último admin activo
     if (targetUser.role === 'ADMIN') {
@@ -430,9 +453,6 @@ export async function DELETE(
       )
     }
     
-    // ✅ FIX: Usar Service Role Client para todas las operaciones (bypass RLS)
-    const supabaseAdmin = getSupabaseAdmin()
-    
     // ✅ FIX: Buscar TODAS las órdenes (incluyendo completadas/canceladas/eliminadas)
     // IMPORTANTE: NO filtrar por deleted_at porque el foreign key constraint no lo respeta
     // Si hay una fila con assigned_to = userId, el DELETE fallará sin importar deleted_at
@@ -463,7 +483,7 @@ export async function DELETE(
     console.log('🔍 [Delete User] Órdenes encontradas:', {
       userId: targetUserId,
       userName: userToDelete.full_name,
-      activeOrders: activeCount || 0,
+      activeOrders: normalizedActiveCount,
       totalOrders,
       activeOrdersCount,
       deletedOrdersCount,
@@ -514,7 +534,7 @@ export async function DELETE(
       userName: userToDelete.full_name,
       userEmail: userToDelete.email,
       organizationId,
-      activeOrders: activeCount || 0,
+      activeOrders: normalizedActiveCount,
       totalOrdersDesasignadas: totalOrders
     })
     
