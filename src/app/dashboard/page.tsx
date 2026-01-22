@@ -13,6 +13,7 @@ import { CalendarIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization, useSession } from '@/lib/context/SessionContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { getAlertasInventario } from '@/lib/database/queries/dashboard';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -318,6 +319,15 @@ export default function DashboardPage() {
         setIngresos(totalIngresos);
         setClientesAtendidos(uniqueCustomers.size);
         
+        // Cargar alertas de inventario
+        try {
+          const alertas = await getAlertasInventario(organizationId);
+          setAlertasInventario(alertas);
+        } catch (error) {
+          console.error('Error cargando alertas de inventario:', error);
+          setAlertasInventario(0);
+        }
+        
         // ✅ Calcular ingresos y órdenes por día para el gráfico
         // Agrupar órdenes por día
         const ordersByDay: { [key: string]: { ingresos: number; ordenes: number } } = {};
@@ -438,7 +448,7 @@ export default function DashboardPage() {
     ingresos: ingresos,
     ordenesActivas: ordenesActivas,
     clientesAtendidos: clientesAtendidos,
-    alertasInventario: alertasInventario, // TODO: Cargar desde API de inventario
+    alertasInventario: alertasInventario,
     ordenesPendientes: ordenesPendientes,
     ordenesCompletadas: ordenesCompletadas
   };

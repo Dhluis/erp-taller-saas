@@ -160,17 +160,19 @@ export async function getClientesAtendidosDelMes(
 export async function getAlertasInventario(organizationId: string) {
   console.log('🔍 [getAlertasInventario] Iniciando con organizationId:', organizationId);
   
-  const { count, error } = await supabase
+  const { data, error } = await supabase
     .from('inventory')
-    .select('*', { count: 'exact', head: true })
-    .eq('organization_id', organizationId)
-    .lte('quantity', 10); // Stock <= 10 unidades
-
+    .select('id, quantity, minimum_stock')
+    .eq('organization_id', organizationId);
+  
   if (error) {
     console.error('❌ [getAlertasInventario] Error de Supabase:', JSON.stringify(error, null, 2));
     console.error('❌ [getAlertasInventario] Error completo:', error);
     throw error;
   }
+  
+  // Filtrar productos donde quantity <= minimum_stock
+  const count = data?.filter(item => item.quantity <= (item.minimum_stock || 0)).length || 0;
   
   console.log('⚠️ [getAlertasInventario] Productos con stock bajo:', count);
   return count || 0;
