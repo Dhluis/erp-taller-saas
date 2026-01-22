@@ -28,7 +28,8 @@ import {
   Building2,
   Power,
   PowerOff,
-  Loader2
+  Loader2,
+  AlertCircle
 } from "lucide-react"
 import { toast } from "sonner"
 import type { User, CreateUserRequest } from "@/types/user"
@@ -87,6 +88,13 @@ export default function UsuariosPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState<User | null>(null)
   const [isEditMode, setIsEditMode] = useState(false)
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false)
+  const [errorDialogData, setErrorDialogData] = useState<{
+    error: string
+    details: string
+    orderIds: string[]
+    orderCount: number
+  } | null>(null)
 
   const {
     register,
@@ -395,22 +403,18 @@ export default function UsuariosPage() {
         const orderIds = errorData.orderIds || [] // ✅ IDs de órdenes para navegación
         const orderCount = errorData.orderCount || 0
         
-        // ✅ Si hay órdenes activas, mostrar toast con botón de acción
+        // ✅ Si hay órdenes activas, mostrar modal de error
         if (orderCount > 0) {
-          toast.error(errorMessage, {
-            description: errorDetails,
-            duration: 8000, // Mostrar por más tiempo
-            action: {
-              label: 'VER ÓRDENES ACTIVAS',
-              onClick: () => {
-                // ✅ Navegar a la página de órdenes
-                router.push('/ordenes')
-              }
-            },
-            className: '[&>button]:bg-blue-500 [&>button]:text-white [&>button]:hover:bg-blue-600 [&>button]:border-none'
+          setErrorDialogData({
+            error: errorMessage,
+            details: errorDetails,
+            orderIds,
+            orderCount
           })
           setDeleteDialogOpen(false)
+          setErrorDialogOpen(true)
           setUserToDelete(null)
+          setIsSubmitting(false)
           return
         }
         
@@ -770,23 +774,24 @@ export default function UsuariosPage() {
 
       {/* Dialog de confirmación de eliminación */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-slate-900 text-white border-slate-700">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-500">⚠️ Eliminar Usuario</AlertDialogTitle>
+            <AlertDialogTitle className="text-red-500 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              ⚠️ Eliminar Usuario
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-slate-300">
-              <strong className="text-red-400">Esta acción es irreversible.</strong>
-              <br /><br />
-              Se eliminará permanentemente el usuario{' '}
+              Esta acción es irreversible. Se eliminará permanentemente el usuario{' '}
               <strong className="text-white">
                 {(userToDelete as any)?.name || (userToDelete as any)?.full_name || userToDelete?.email}
               </strong>
-              {' '}y todos sus datos asociados.
+              {' '}y todas sus asignaciones.
               <br /><br />
-              <span className="text-yellow-400">¿Estás seguro de que deseas continuar?</span>
+              <span className="text-yellow-400 font-semibold">¿Estás seguro de que deseas continuar?</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel className="bg-slate-700 text-white hover:bg-slate-600 border-none">Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               disabled={isSubmitting}
@@ -798,9 +803,57 @@ export default function UsuariosPage() {
                   Eliminando...
                 </>
               ) : (
-                'Eliminar Usuario'
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Eliminar
+                </>
               )}
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de error - Órdenes activas */}
+      <AlertDialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <AlertDialogContent className="bg-slate-900 text-white border-slate-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-500 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              No se puede eliminar el usuario
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-300">
+              {errorDialogData && (
+                <>
+                  <p className="mb-4">
+                    {errorDialogData.error}
+                  </p>
+                  {errorDialogData.details && (
+                    <div className="mb-4 p-3 bg-slate-800 rounded-lg border border-slate-700">
+                      <p className="text-sm text-slate-300 mb-2">
+                        <strong className="text-white">Órdenes activas:</strong> {errorDialogData.details.split('Órdenes activas: ')[1] || errorDialogData.details}
+                      </p>
+                      <p className="text-sm text-slate-400">
+                        Para eliminar este usuario, primero debes reasignar estas órdenes a otro mecánico o completarlas/cancelarlas.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-slate-700 text-white hover:bg-slate-600 border-none">Cerrar</AlertDialogCancel>
+            {errorDialogData && errorDialogData.orderIds.length > 0 && (
+              <AlertDialogAction
+                onClick={() => {
+                  setErrorDialogOpen(false)
+                  router.push('/ordenes')
+                }}
+                className="bg-blue-500 hover:bg-blue-600 text-white font-semibold"
+              >
+                Ver Órdenes Activas
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
