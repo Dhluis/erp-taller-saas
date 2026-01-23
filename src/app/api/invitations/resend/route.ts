@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
+import { sendEmail } from '@/lib/email/mailer'
+import { getInvitationEmailTemplate } from '@/lib/email/templates/invitation'
 
 /**
  * POST /api/invitations/resend
@@ -126,7 +128,7 @@ async function sendInvitationEmail(
     const { getAppUrl } = await import('@/lib/config/env')
     const baseUrl = getAppUrl()
 
-    // Obtener nombre de la organización
+    // Obtener nombre de la organización y usuario que invita
     const supabase = await createClient()
     const { data: organization } = await supabase
       .from('organizations')
@@ -136,20 +138,46 @@ async function sendInvitationEmail(
 
     const orgName = organization?.name || 'la organización'
 
-    // Link de registro con parámetro de invitación
-    const registerUrl = `${baseUrl}/auth/register?invitation=${invitationId}`
+    // Obtener usuario que invita desde la invitación
+    const { data: invitation } = await supabase
+      .from('invitations')
+      .select('invited_by')
+      .eq('id', invitationId)
+      .single()
 
-    // TODO: Implementar envío de email real
-    // Por ahora, solo logueamos
-    console.log('📧 [Email Invitación - Reenvío]', {
+    let invitedByName = 'Un administrador'
+    if (invitation?.invited_by) {
+      const { data: inviterUser } = await supabase
+        .from('users')
+        .select('full_name, email')
+        .eq('auth_user_id', invitation.invited_by)
+        .single()
+      
+      if (inviterUser) {
+        invitedByName = inviterUser.full_name || inviterUser.email || 'Un administrador'
+      }
+    }
+
+    // Link de registro con parámetro de invitación
+    const invitationLink = `${baseUrl}/auth/register?invitation=${invitationId}`
+
+    // Reenviar email de invitación
+    const emailSent = await sendEmail({
       to: email,
-      subject: `Invitación a ${orgName}`,
-      registerUrl,
-      role,
-      message
+      subject: `Invitación a ${orgName} en Eagles ERP`,
+      html: getInvitationEmailTemplate({
+        invitedEmail: email,
+        invitedByName,
+        organizationName: orgName,
+        invitationLink,
+      }),
     })
 
-    // En producción, usar servicio de email (Resend, SendGrid, etc.)
+    if (!emailSent) {
+      throw new Error('No se pudo enviar el email de invitación')
+    }
+
+    console.log('✅ Email de invitación reenviado a:', email)
     return { success: true }
   } catch (error: any) {
     console.error('❌ Error enviando email de invitación:', error)

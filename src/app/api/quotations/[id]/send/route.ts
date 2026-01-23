@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getQuotationById, trackQuotationChange, saveQuotationVersion } from '@/lib/database/queries/quotations'
 import { createClient } from '@/lib/supabase/server'
+import { sendEmail } from '@/lib/email/mailer'
+import { getQuotationEmailTemplate } from '@/lib/email/templates/quotation'
 
 // POST /api/quotations/[id]/send - Enviar cotización al cliente
 export async function POST(
@@ -150,6 +152,12 @@ export async function POST(
           year,
           license_plate,
           vin
+        ),
+        quotation_items (
+          id,
+          description,
+          quantity,
+          price
         )
       `)
       .single()
@@ -185,10 +193,69 @@ export async function POST(
 
     if (send_via_email) {
       try {
-        // TODO: Implementar envío de email
-        // await sendQuotationEmail(quotationId, sentQuotation, email_message, recipient_email)
-        emailSent = false // Cambiar a true cuando se implemente
-        console.log('📧 Email pendiente de implementación')
+        // Obtener nombre de la organización
+        const { data: user } = await supabase.auth.getUser()
+        if (user) {
+          const { data: userProfile } = await supabase
+            .from('users')
+            .select('organization_id')
+            .eq('auth_user_id', user.id)
+            .single()
+
+          if (userProfile?.organization_id) {
+            const { data: organization } = await supabase
+              .from('organizations')
+              .select('name')
+              .eq('id', userProfile.organization_id)
+              .single()
+
+            const organizationName = organization?.name || 'Nuestra organización'
+
+            // Preparar datos para el email
+            const items = (sentQuotation.quotation_items || []).map((item: any) => ({
+              description: item.description || 'Item sin descripción',
+              quantity: item.quantity || 1,
+              price: new Intl.NumberFormat('es-MX', {
+                style: 'currency',
+                currency: 'MXN',
+              }).format((item.price || 0) * (item.quantity || 1)),
+            }))
+
+            const totalAmount = new Intl.NumberFormat('es-MX', {
+              style: 'currency',
+              currency: 'MXN',
+            }).format(sentQuotation.total_amount || 0)
+
+            const vehicleInfo = sentQuotation.vehicles
+              ? `${sentQuotation.vehicles.brand || ''} ${sentQuotation.vehicles.model || ''} ${sentQuotation.vehicles.year || ''} - ${sentQuotation.vehicles.license_plate || ''}`.trim()
+              : 'No especificado'
+
+            const customerEmail = recipient_email || sentQuotation.customers?.email
+            const customerName = sentQuotation.customers?.name || 'Cliente'
+
+            // Enviar email de cotización
+            const emailSentResult = await sendEmail({
+              to: customerEmail,
+              subject: `Cotización #${sentQuotation.quotation_number} - ${organizationName}`,
+              html: getQuotationEmailTemplate({
+                customerName,
+                quotationNumber: sentQuotation.quotation_number || sentQuotation.id.substring(0, 8),
+                vehicleInfo,
+                organizationName,
+                quotationLink: `${process.env.NEXT_PUBLIC_APP_URL || 'https://erp-taller-saas-correct.vercel.app'}/cotizaciones/${quotationId}`,
+                totalAmount,
+                items,
+              }),
+            })
+
+            if (!emailSentResult) {
+              throw new Error('No se pudo enviar el email de cotización')
+            }
+
+            emailSent = true
+            console.log('✅ Email de cotización enviado a:', customerEmail)
+          }
+        }
       } catch (error: any) {
         console.error('Error sending email:', error)
         emailError = error.message
