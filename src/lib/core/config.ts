@@ -14,9 +14,17 @@ const envSchema = z.object({
   
   // Aplicación
   NEXT_PUBLIC_APP_URL: z.string()
+    .transform((val) => {
+      // 🚨 FIX TEMPORAL: Si no tiene protocolo, agregar https://
+      if (val && !val.startsWith('http://') && !val.startsWith('https://')) {
+        console.warn(`⚠️ NEXT_PUBLIC_APP_URL sin protocolo detectado: "${val}". Agregando https:// automáticamente.`);
+        return `https://${val}`;
+      }
+      return val;
+    })
     .refine(
       (val) => {
-        if (!val) return true; // opcional
+        if (!val) return true;
         try {
           new URL(val);
           return true;
@@ -24,7 +32,7 @@ const envSchema = z.object({
           return false;
         }
       },
-      { message: 'NEXT_PUBLIC_APP_URL debe ser una URL válida (ej: https://tudominio.com)' }
+      { message: 'NEXT_PUBLIC_APP_URL debe ser una URL válida' }
     )
     .optional()
     .default('http://localhost:3000'),
