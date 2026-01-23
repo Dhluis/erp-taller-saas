@@ -19,8 +19,15 @@ import {
   History,
   Folder,
   Wrench,
-  UserCog
+  UserCog,
+  Edit,
+  Save,
+  X,
+  Loader2
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 
 interface WorkOrderDetailsTabsProps {
   order: any // El tipo completo de WorkOrder
@@ -243,12 +250,95 @@ export function WorkOrderDetailsTabs({
           </div>
         </div>
 
-        {/* Descripción */}
+        {/* Descripción - Editable */}
         <div className="space-y-3">
-          <h4 className="font-semibold text-lg">Descripción del Trabajo</h4>
-          <p className="text-sm text-muted-foreground">
-            {order.description || 'Sin descripción'}
-          </p>
+          <div className="flex items-center justify-between">
+            <h4 className="font-semibold text-lg">Descripción del Trabajo</h4>
+            {!isEditingGeneral && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsEditingGeneral(true)
+                  setEditedDescription(order?.description || '')
+                }}
+                className="h-8"
+              >
+                <Edit className="h-4 w-4 mr-1" />
+                Editar
+              </Button>
+            )}
+          </div>
+          {isEditingGeneral ? (
+            <div className="space-y-2">
+              <Textarea
+                value={editedDescription}
+                onChange={(e) => setEditedDescription(e.target.value)}
+                placeholder="Descripción del trabajo a realizar..."
+                className="min-h-[100px]"
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    setIsSaving(true)
+                    try {
+                      const response = await fetch(`/api/work-orders/${order.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ description: editedDescription }),
+                        credentials: 'include'
+                      })
+                      
+                      if (response.ok) {
+                        toast.success('Descripción actualizada')
+                        setIsEditingGeneral(false)
+                        onUpdate?.()
+                      } else {
+                        const error = await response.json()
+                        throw new Error(error.error || 'Error al actualizar')
+                      }
+                    } catch (error: any) {
+                      toast.error('Error al actualizar descripción', {
+                        description: error.message
+                      })
+                    } finally {
+                      setIsSaving(false)
+                    }
+                  }}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-1" />
+                      Guardar
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsEditingGeneral(false)
+                    setEditedDescription(order?.description || '')
+                  }}
+                  disabled={isSaving}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {order.description || 'Sin descripción'}
+            </p>
+          )}
         </div>
 
         {/* Mecánico Asignado */}
