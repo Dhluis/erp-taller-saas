@@ -144,11 +144,13 @@ export default function QuotationsPage() {
 
   // Handlers para acciones
   const handleEdit = (quotation: Quotation) => {
+    console.log('🔄 [QuotationsPage] handleEdit llamado:', quotation.id)
     setQuotationToEdit(quotation)
     setIsEditModalOpen(true)
   }
 
   const handleView = async (quotation: Quotation) => {
+    console.log('👁️ [QuotationsPage] handleView llamado:', quotation.id)
     try {
       // Cargar cotización completa con items
       const response = await fetch(`/api/quotations/${quotation.id}`, {
@@ -157,21 +159,24 @@ export default function QuotationsPage() {
       
       if (response.ok) {
         const data = await response.json()
+        console.log('✅ [QuotationsPage] Cotización cargada:', data)
         setQuotationToView(data.data || quotation)
         setIsViewModalOpen(true)
       } else {
+        console.warn('⚠️ [QuotationsPage] Error al cargar cotización, usando datos básicos')
         // Si falla, usar la cotización básica
         setQuotationToView(quotation)
         setIsViewModalOpen(true)
       }
     } catch (error) {
-      console.error('Error cargando cotización:', error)
+      console.error('❌ [QuotationsPage] Error cargando cotización:', error)
       setQuotationToView(quotation)
       setIsViewModalOpen(true)
     }
   }
 
   const handleDelete = (quotation: Quotation) => {
+    console.log('🗑️ [QuotationsPage] handleDelete llamado:', quotation.id)
     setQuotationToDelete(quotation)
     setDeleteDialogOpen(true)
   }
@@ -314,7 +319,7 @@ export default function QuotationsPage() {
                     if (safeQuotations.length === 0) {
                       return (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          <TableCell colSpan={8} className="text-center text-muted-foreground">
                             {searchTerm || statusFilter
                               ? 'No se encontraron cotizaciones con los filtros aplicados'
                               : 'Crea tu primera cotización para comenzar'}
@@ -357,8 +362,13 @@ export default function QuotationsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleView(quotation)}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleView(quotation)
+                              }}
                               disabled={loading}
+                              type="button"
                             >
                               <Eye className="h-4 w-4 mr-1" />
                               Ver
@@ -366,8 +376,13 @@ export default function QuotationsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleEdit(quotation)}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleEdit(quotation)
+                              }}
                               disabled={loading || quotation.status === 'converted'}
+                              type="button"
                             >
                               <Edit className="h-4 w-4 mr-1" />
                               Editar
@@ -375,9 +390,14 @@ export default function QuotationsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDelete(quotation)}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleDelete(quotation)
+                              }}
                               disabled={loading || quotation.status === 'converted' || quotation.status !== 'draft'}
                               className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                              type="button"
                             >
                               <Trash2 className="h-4 w-4 mr-1" />
                               Eliminar
@@ -390,7 +410,7 @@ export default function QuotationsPage() {
                     console.error('❌ [QuotationsPage] Error en renderizado:', error)
                     return (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-red-500">
+                        <TableCell colSpan={8} className="text-center text-red-500">
                           Error al renderizar cotizaciones
                         </TableCell>
                       </TableRow>
