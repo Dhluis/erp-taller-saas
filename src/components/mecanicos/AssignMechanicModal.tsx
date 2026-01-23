@@ -149,7 +149,7 @@ export default function AssignMechanicModal({
     loadMechanics()
   }, [isOpen, currentMechanicId, orderId])
 
-  // Bloquear scroll del body mientras el modal está abierto
+  // Bloquear scroll del body mientras el modal está abierto (pero permitir scroll dentro del modal)
   useEffect(() => {
     if (isOpen) {
       const prevOverflow = document.body.style.overflow
@@ -245,17 +245,16 @@ export default function AssignMechanicModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000] p-4 pointer-events-auto"
-      style={{ zIndex: 10000, overflowY: 'auto', overscrollBehavior: 'contain' }}
-      onWheel={(e) => e.stopPropagation()}
-      onTouchMove={(e) => e.stopPropagation()}
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000] p-4 pointer-events-auto overflow-y-auto"
+      style={{ zIndex: 10000 }}
+      onClick={handleClose}
     >
       <div
-        className="bg-[#0A0F1E] rounded-xl w-full max-w-2xl max-h-[80vh] overflow-hidden border border-gray-800 relative z-[10001]"
+        className="bg-[#0A0F1E] rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-gray-800 relative z-[10001]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-800">
+        {/* Header - Fixed */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-800 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-cyan-500/10 rounded-lg flex items-center justify-center">
               <User className="w-5 h-5 text-cyan-400" />
@@ -277,8 +276,8 @@ export default function AssignMechanicModal({
           </button>
         </div>
 
-        {/* Búsqueda */}
-        <div className="p-6 border-b border-gray-800">
+        {/* Búsqueda - Fixed */}
+        <div className="p-6 border-b border-gray-800 flex-shrink-0">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
@@ -291,8 +290,8 @@ export default function AssignMechanicModal({
           </div>
         </div>
 
-        {/* Lista de mecánicos */}
-        <div className="p-6 overflow-y-auto min-h-[200px] max-h-[400px]">
+        {/* Lista de mecánicos - Scrollable */}
+        <div className="flex-1 overflow-y-auto min-h-0 p-6">
           {loadingMechanics ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
@@ -363,8 +362,8 @@ export default function AssignMechanicModal({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-gray-800 flex justify-end gap-3">
+        {/* Footer - Fixed */}
+        <div className="p-6 border-t border-gray-800 flex justify-end gap-3 flex-shrink-0 bg-[#0A0F1E]">
           <button
             onClick={handleClose}
             disabled={loadingMechanics}
