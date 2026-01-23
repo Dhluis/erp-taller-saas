@@ -209,8 +209,24 @@ export default function OrdenesPage() {
     }
   };
 
-  const handleEditOrder = (order: WorkOrder) => {
-    router.push(`/ordenes/${order.id}`);
+  const handleEditOrder = async (order: WorkOrder) => {
+    try {
+      // Cargar orden completa con todos los datos (imágenes, notas, items, etc.)
+      const fullOrder = await fetchWorkOrderById(order.id);
+      if (fullOrder) {
+        setSelectedOrder(fullOrder);
+        setIsDetailModalOpen(true);
+      } else {
+        // Si no se puede cargar completa, usar la orden básica
+        setSelectedOrder(order);
+        setIsDetailModalOpen(true);
+      }
+    } catch (error) {
+      console.error('Error loading order details:', error);
+      // Aún así mostrar el modal con la orden básica
+      setSelectedOrder(order);
+      setIsDetailModalOpen(true);
+    }
   };
 
   const handleDeleteClick = (order: WorkOrder) => {
