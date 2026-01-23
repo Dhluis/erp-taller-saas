@@ -58,6 +58,8 @@ export async function signUpWithProfile(userData: {
   password: string
   fullName?: string
   organizationId?: string
+  role?: string
+  invitationId?: string
 }) {
   try {
     const supabase = getBrowserClient()
@@ -101,6 +103,9 @@ export async function signUpWithProfile(userData: {
       
       // Intentar crear el perfil en users (pero NO fallar si hay error)
       try {
+        // Usar rol de invitación si existe, sino 'ADMIN' por defecto
+        const userRole = userData.role || 'ADMIN'
+        
         const { error: profileError } = await supabase
           .from('users')
           .insert({
@@ -110,7 +115,7 @@ export async function signUpWithProfile(userData: {
             full_name: userData.fullName || data.user.email?.split('@')[0] || '',
             organization_id: userData.organizationId || null,
             workshop_id: null,
-            role: 'ADMIN',
+            role: userRole,
             is_active: true,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -139,6 +144,27 @@ export async function signUpWithProfile(userData: {
           }
         } else {
           console.log('✅ [signUpWithProfile] Perfil de usuario creado exitosamente en users')
+        }
+
+        // Si hay invitationId, actualizar estado de la invitación a "accepted"
+        if (userData.invitationId) {
+          try {
+            const { error: invitationError } = await supabase
+              .from('invitations')
+              .update({
+                status: 'accepted',
+                accepted_at: new Date().toISOString(),
+              })
+              .eq('id', userData.invitationId)
+
+            if (invitationError) {
+              console.warn('⚠️ [signUpWithProfile] Error actualizando invitación (no crítico):', invitationError)
+            } else {
+              console.log('✅ [signUpWithProfile] Invitación actualizada a "accepted"')
+            }
+          } catch (invitationErr: any) {
+            console.warn('⚠️ [signUpWithProfile] Error en proceso de actualización de invitación (no crítico):', invitationErr)
+          }
         }
       } catch (profileErr: any) {
         console.warn('⚠️ [signUpWithProfile] Error en proceso de creación de perfil (no crítico):', profileErr)

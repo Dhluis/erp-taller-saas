@@ -95,6 +95,8 @@ export default function UsuariosPage() {
     orderIds: string[]
     orderCount: number
   } | null>(null)
+  const [toggleActiveDialogOpen, setToggleActiveDialogOpen] = useState(false)
+  const [userToToggle, setUserToToggle] = useState<User | null>(null)
 
   const {
     register,
@@ -308,16 +310,25 @@ export default function UsuariosPage() {
     setIsDialogOpen(true)
   }
 
-  const handleToggleActive = async (user: User) => {
+  const handleToggleActive = (user: User) => {
+    // Abrir diálogo de confirmación
+    setUserToToggle(user)
+    setToggleActiveDialogOpen(true)
+  }
+
+  const confirmToggleActive = async () => {
+    if (!userToToggle) return
+
+    setIsSubmitting(true)
     try {
-      const response = await fetch(`/api/users/${user.id}`, {
+      const response = await fetch(`/api/users/${userToToggle.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
         body: JSON.stringify({
-          is_active: !user.is_active,
+          is_active: !userToToggle.is_active,
         }),
       })
 
@@ -338,15 +349,29 @@ export default function UsuariosPage() {
         throw new Error(result.error || 'Error al actualizar usuario')
       }
 
+      const wasActive = userToToggle.is_active
+      const action = !wasActive ? 'activado' : 'desactivado'
+      const userName = (userToToggle as any).name || (userToToggle as any).full_name || userToToggle.email
+      
       toast.success(
-        `Usuario ${!user.is_active ? 'activado' : 'desactivado'} exitosamente`
+        `Usuario ${action} exitosamente`,
+        {
+          description: wasActive 
+            ? `${userName} ha sido desactivado. Ya no podrá iniciar sesión ni acceder al sistema hasta que sea reactivado.`
+            : `${userName} ha sido activado. Ahora puede iniciar sesión y acceder al sistema normalmente.`,
+          duration: 6000,
+        }
       )
+      setToggleActiveDialogOpen(false)
+      setUserToToggle(null)
       await loadData()
     } catch (error: any) {
       console.error('Error actualizando usuario:', error)
       toast.error('Error al actualizar usuario', {
         description: error.message || 'Error desconocido',
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -854,6 +879,111 @@ export default function UsuariosPage() {
                 Ver Órdenes Activas
               </AlertDialogAction>
             )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de confirmación - Activar/Desactivar usuario */}
+      <AlertDialog open={toggleActiveDialogOpen} onOpenChange={setToggleActiveDialogOpen}>
+        <AlertDialogContent className="bg-slate-900 text-white border-slate-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className={`flex items-center gap-2 ${userToToggle?.is_active ? 'text-yellow-500' : 'text-green-500'}`}>
+              {userToToggle?.is_active ? (
+                <>
+                  <PowerOff className="h-5 w-5" />
+                  Desactivar Usuario
+                </>
+              ) : (
+                <>
+                  <Power className="h-5 w-5" />
+                  Activar Usuario
+                </>
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-300">
+              {userToToggle && (
+                <>
+                  {userToToggle.is_active ? (
+                    <>
+                      <p className="mb-4">
+                        ¿Estás seguro de que deseas <strong className="text-yellow-400">desactivar</strong> al usuario{' '}
+                        <strong className="text-white">
+                          {(userToToggle as any).name || (userToToggle as any).full_name || userToToggle.email}
+                        </strong>?
+                      </p>
+                      <div className="mb-4 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
+                        <p className="text-sm text-yellow-300 mb-2">
+                          <strong className="text-yellow-400">⚠️ Consecuencias de desactivar:</strong>
+                        </p>
+                        <ul className="text-sm text-slate-300 list-disc list-inside space-y-1">
+                          <li>El usuario <strong>no podrá iniciar sesión</strong> en el sistema</li>
+                          <li>No recibirá notificaciones ni acceso a ninguna funcionalidad</li>
+                          <li>Sus datos y asignaciones se mantendrán en el sistema</li>
+                          <li>Puedes reactivarlo en cualquier momento</li>
+                        </ul>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mb-4">
+                        ¿Estás seguro de que deseas <strong className="text-green-400">activar</strong> al usuario{' '}
+                        <strong className="text-white">
+                          {(userToToggle as any).name || (userToToggle as any).full_name || userToToggle.email}
+                        </strong>?
+                      </p>
+                      <div className="mb-4 p-3 bg-green-500/10 rounded-lg border border-green-500/30">
+                        <p className="text-sm text-green-300 mb-2">
+                          <strong className="text-green-400">✅ El usuario podrá:</strong>
+                        </p>
+                        <ul className="text-sm text-slate-300 list-disc list-inside space-y-1">
+                          <li>Iniciar sesión en el sistema nuevamente</li>
+                          <li>Acceder a todas sus funcionalidades según su rol</li>
+                          <li>Recibir notificaciones y actualizaciones</li>
+                        </ul>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              className="bg-slate-700 text-white hover:bg-slate-600 border-none"
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmToggleActive}
+              disabled={isSubmitting}
+              className={`font-semibold text-white ${
+                userToToggle?.is_active 
+                  ? 'bg-yellow-600 hover:bg-yellow-700' 
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {userToToggle?.is_active ? 'Desactivando...' : 'Activando...'}
+                </>
+              ) : (
+                <>
+                  {userToToggle?.is_active ? (
+                    <>
+                      <PowerOff className="w-4 h-4 mr-2" />
+                      Desactivar
+                    </>
+                  ) : (
+                    <>
+                      <Power className="w-4 h-4 mr-2" />
+                      Activar
+                    </>
+                  )}
+                </>
+              )}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -14,6 +14,7 @@ export default function RegisterPage() {
   const searchParams = useSearchParams()
   
   // Estados del formulario
+  const invitationId = searchParams?.get('invitation')
   const [step, setStep] = useState(1) // 1: Datos del taller, 2: Datos del usuario
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -21,6 +22,16 @@ export default function RegisterPage() {
   const [registeredEmail, setRegisteredEmail] = useState('')
   const [userExistsError, setUserExistsError] = useState(false) // Para mostrar botón de login
   const [registeredPassword, setRegisteredPassword] = useState('') // Guardar contraseña para uso posterior
+  
+  // Estados de invitación
+  const [invitationData, setInvitationData] = useState<{
+    email: string
+    role: string
+    organizationId: string
+    organizationName: string
+  } | null>(null)
+  const [invitationError, setInvitationError] = useState<string | null>(null)
+  const [loadingInvitation, setLoadingInvitation] = useState(false)
   
   // Datos del taller
   const [workshopName, setWorkshopName] = useState('')
@@ -46,10 +57,45 @@ export default function RegisterPage() {
   // Pre-llenar email si viene como parámetro (útil cuando vienen desde otras páginas)
   useEffect(() => {
     const emailParam = searchParams?.get('email')
-    if (emailParam) {
+    if (emailParam && !invitationData) {
       setEmail(emailParam)
     }
-  }, [searchParams])
+  }, [searchParams, invitationData])
+
+  // Cargar datos de invitación si existe el parámetro
+  useEffect(() => {
+    if (!invitationId) return
+
+    const validateInvitation = async () => {
+      setLoadingInvitation(true)
+      setInvitationError(null)
+      try {
+        const response = await fetch(`/api/invitations/validate?id=${invitationId}`)
+        const data = await response.json()
+
+        if (!response.ok) {
+          setInvitationError(data.error || 'Error al validar invitación')
+          return
+        }
+
+        setInvitationData(data.invitation)
+        
+        // Pre-llenar el email y saltar al paso 2
+        if (data.invitation.email) {
+          setEmail(data.invitation.email)
+          setStep(2) // Saltar paso 1 (crear taller) si hay invitación válida
+        }
+        
+      } catch (error) {
+        console.error('Error validando invitación:', error)
+        setInvitationError('Error al validar invitación')
+      } finally {
+        setLoadingInvitation(false)
+      }
+    }
+
+    validateInvitation()
+  }, [invitationId])
 
   // Efecto de confeti cuando se muestra la pantalla de bienvenida
   useEffect(() => {
@@ -137,27 +183,44 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      // PASO 1: Crear la organización
-      const { data: organization, error: orgError } = await supabase
-        .from('organizations')
-        .insert({
-          name: workshopName,
-          email: workshopEmail,
-          phone: workshopPhone,
-          address: workshopAddress,
+      let organizationId: string
+      let userRole: string = 'ADMIN'
+
+      // Si hay invitación, usar organización y rol de la invitación
+      if (invitationData) {
+        organizationId = invitationData.organizationId
+        userRole = invitationData.role
+        console.log('🔄 [Register] Registro con invitación:', {
+          organizationId,
+          role: userRole,
+          email: invitationData.email
         })
-        .select()
-        .single()
+      } else {
+        // PASO 1: Crear la organización (solo si NO hay invitación)
+        const { data: organization, error: orgError } = await supabase
+          .from('organizations')
+          .insert({
+            name: workshopName,
+            email: workshopEmail,
+            phone: workshopPhone,
+            address: workshopAddress,
+          })
+          .select()
+          .single()
 
-      if (orgError) throw orgError
+        if (orgError) throw orgError
+        organizationId = organization.id
+      }
 
-      // PASO 2: Registrar usuario con la organización (flujo normal para todos)
+      // PASO 2: Registrar usuario con la organización
       console.log('🔄 [Register] Llamando a signUpWithProfile...')
       const result = await signUpWithProfile({
         email,
         password: password,
         fullName,
-        organizationId: organization.id
+        organizationId,
+        role: userRole,
+        invitationId: invitationId || undefined
       })
 
       console.log('🔍 [Register] Resultado de signUpWithProfile:', {
@@ -173,6 +236,24 @@ export default function RegisterPage() {
       // Incluso si hay un error menor, si el usuario existe en auth, el registro fue exitoso
       if (result.user) {
         console.log('✅ [Register] Usuario creado exitosamente, mostrando popup de felicidades')
+        
+        // Enviar email de bienvenida (no bloqueante)
+        if (result.user.id && organizationId) {
+          try {
+            await fetch('/api/auth/send-welcome-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email,
+                userId: result.user.id,
+                organizationId
+              })
+            })
+          } catch (emailError) {
+            console.warn('⚠️ Error enviando email de bienvenida (no crítico):', emailError)
+            // No bloquear el flujo por error de email
+          }
+        }
         
         // Mostrar mensaje de bienvenida
         setRegisteredEmail(email)
@@ -284,11 +365,13 @@ export default function RegisterPage() {
             return
           }
         } else {
-          // ✅ Si NO es error de usuario existente, eliminar organización y mostrar error
-          try {
-            await supabase.from('organizations').delete().eq('id', organization.id)
-          } catch (deleteError) {
-            console.warn('Error al eliminar organización:', deleteError)
+          // ✅ Si NO es error de usuario existente, eliminar organización solo si se creó (no hay invitación)
+          if (!invitationData) {
+            try {
+              await supabase.from('organizations').delete().eq('id', organizationId)
+            } catch (deleteError) {
+              console.warn('Error al eliminar organización:', deleteError)
+            }
           }
           setUserExistsError(false)
           throw result.error
@@ -358,10 +441,13 @@ export default function RegisterPage() {
             />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">
-            Crear Cuenta en Eagles System
+            {invitationData ? 'Aceptar Invitación' : 'Crear Cuenta en Eagles System'}
           </h1>
           <p className="text-slate-400">
-            Registra tu taller y comienza a gestionar tu negocio
+            {invitationData 
+              ? 'Completa tu registro para unirte al equipo'
+              : 'Registra tu taller y comienza a gestionar tu negocio'
+            }
           </p>
         </div>
 
@@ -386,8 +472,45 @@ export default function RegisterPage() {
 
         {/* Card de Registro */}
         <div className="bg-slate-800 rounded-2xl shadow-xl p-8 border border-slate-700">
-          {/* STEP 1: Datos del Taller */}
-          {step === 1 && (
+          {/* Indicadores de Invitación */}
+          {loadingInvitation && (
+            <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+              <p className="text-blue-400 text-sm flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Validando invitación...
+              </p>
+            </div>
+          )}
+
+          {invitationError && (
+            <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <p className="text-red-400 text-sm font-medium mb-1">⚠️ {invitationError}</p>
+              <p className="text-red-300 text-xs">
+                Puedes registrarte normalmente sin la invitación.
+              </p>
+            </div>
+          )}
+
+          {invitationData && !invitationError && (
+            <div className="mb-4 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+              <p className="text-green-400 font-medium mb-2 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5" />
+                Invitación válida
+              </p>
+              <p className="text-green-300 text-sm mb-1">
+                Te estás uniendo a: <strong className="text-white">{invitationData.organizationName}</strong>
+              </p>
+              <p className="text-green-300 text-sm">
+                Email: <strong className="text-white">{invitationData.email}</strong>
+              </p>
+              <p className="text-green-300 text-sm mt-1">
+                Rol: <strong className="text-white">{invitationData.role}</strong>
+              </p>
+            </div>
+          )}
+
+          {/* STEP 1: Datos del Taller (solo si NO hay invitación) */}
+          {step === 1 && !invitationData && (
             <form onSubmit={handleNextStep} className="space-y-6">
               <div className="text-center mb-6">
                 <h2 className="text-xl font-bold text-white mb-2">Datos del Taller</h2>
@@ -486,8 +609,12 @@ export default function RegisterPage() {
           {step === 2 && (
             <form onSubmit={handleRegister} className="space-y-6">
               <div className="text-center mb-6">
-                <h2 className="text-xl font-bold text-white mb-2">Datos del Administrador</h2>
-                <p className="text-slate-400 text-sm">Tu información personal</p>
+                <h2 className="text-xl font-bold text-white mb-2">
+                  {invitationData ? 'Completa tu Registro' : 'Datos del Administrador'}
+                </h2>
+                <p className="text-slate-400 text-sm">
+                  {invitationData ? 'Últimos datos para unirte al equipo' : 'Tu información personal'}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -514,6 +641,9 @@ export default function RegisterPage() {
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
                     Email <span className="text-red-400">*</span>
+                    {invitationData && (
+                      <span className="ml-2 text-xs text-green-400">(de la invitación)</span>
+                    )}
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
@@ -524,7 +654,8 @@ export default function RegisterPage() {
                       className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="tu@email.com"
                       required
-                      disabled={loading}
+                      disabled={loading || !!invitationData}
+                      readOnly={!!invitationData}
                     />
                   </div>
                 </div>
