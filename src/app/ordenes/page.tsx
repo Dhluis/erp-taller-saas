@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
-import { OrderDetailModal } from '@/components/ordenes/OrderDetailModal';
+import { WorkOrderDetailsModal } from '@/components/work-orders/WorkOrderDetailsModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -191,13 +191,21 @@ export default function OrdenesPage() {
 
   const handleViewOrder = async (order: WorkOrder) => {
     try {
+      // Cargar orden completa con todos los datos (imágenes, notas, items, etc.)
       const fullOrder = await fetchWorkOrderById(order.id);
       if (fullOrder) {
         setSelectedOrder(fullOrder);
         setIsDetailModalOpen(true);
+      } else {
+        // Si no se puede cargar completa, usar la orden básica
+        setSelectedOrder(order);
+        setIsDetailModalOpen(true);
       }
     } catch (error) {
-      toast.error('Error al cargar detalles de la orden');
+      console.error('Error loading order details:', error);
+      // Aún así mostrar el modal con la orden básica
+      setSelectedOrder(order);
+      setIsDetailModalOpen(true);
     }
   };
 
@@ -694,19 +702,33 @@ export default function OrdenesPage() {
         }}
       />
 
-      {/* Modal de detalles */}
-      <OrderDetailModal
-        isOpen={isDetailModalOpen}
-        onClose={() => {
-          setIsDetailModalOpen(false);
-          setSelectedOrder(null);
-        }}
+      {/* Modal de detalles - Usando el mismo modal completo que Kanban */}
+      <WorkOrderDetailsModal
         order={selectedOrder}
+        open={isDetailModalOpen}
+        onOpenChange={(open) => {
+          setIsDetailModalOpen(open);
+          if (!open) setSelectedOrder(null);
+        }}
+        userId={profile?.id}
         onUpdate={async () => {
-          console.log('🔄 [OrdenesPage] onUpdate llamado - refrescando órdenes después de asignar mecánico...')
-          await refresh()
-          console.log('✅ [OrdenesPage] onUpdate completado - órdenes refrescadas')
-          setIsDetailModalOpen(false)
+          console.log('🔄 [OrdenesPage] onUpdate llamado - recargando órdenes...');
+          // Recargar órdenes después de actualizar
+          await refresh();
+          
+          // ✅ Actualizar selectedOrder con la orden recargada si existe
+          if (selectedOrder?.id) {
+            try {
+              const updatedOrder = await fetchWorkOrderById(selectedOrder.id);
+              if (updatedOrder) {
+                console.log('✅ [OrdenesPage] Actualizando selectedOrder con orden recargada');
+                setSelectedOrder(updatedOrder);
+              }
+            } catch (error) {
+              console.warn('⚠️ [OrdenesPage] Error al recargar orden:', error);
+            }
+          }
+          console.log('✅ [OrdenesPage] onUpdate completado');
         }}
       />
 
