@@ -47,7 +47,7 @@ export default function DashboardLayout({
     })
   }, [session, user, organizationId, isLoading, isReady, sessionError])
 
-  // ✅ FIX: Detectar si viene de callback de OAuth y esperar un poco más
+  // ✅ FIX: Detectar si viene de callback de OAuth y forzar recarga de sesión
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -60,7 +60,7 @@ export default function DashboardLayout({
       hasOAuthCallbackParam
 
     if (isFromOAuthCallback && !oauthCallbackChecked.current) {
-      console.log('[DashboardLayout] 🔄 Detectado callback de OAuth, esperando sincronización de cookies...')
+      console.log('[DashboardLayout] 🔄 Detectado callback de OAuth, forzando recarga de sesión...')
       oauthCallbackChecked.current = true
       
       // Limpiar el flag de sessionStorage y parámetro de URL
@@ -74,10 +74,24 @@ export default function DashboardLayout({
       
       // Forzar recarga de sesión después de un delay para dar tiempo a que las cookies se sincronicen
       if (session?.refresh) {
+        // Esperar un poco más para OAuth (las cookies pueden tardar en sincronizarse)
         setTimeout(() => {
           console.log('[DashboardLayout] 🔄 Forzando recarga de sesión después de callback OAuth...')
-          session.refresh()
-        }, 500)
+          session.refresh().catch((error) => {
+            console.error('[DashboardLayout] ❌ Error al refrescar sesión:', error)
+            // Si falla, intentar recargar la página después de otro delay
+            setTimeout(() => {
+              console.log('[DashboardLayout] 🔄 Recargando página como fallback...')
+              window.location.reload()
+            }, 1000)
+          })
+        }, 1000) // Aumentado a 1 segundo para dar más tiempo a las cookies
+      } else {
+        // Si no hay método refresh, recargar la página directamente
+        setTimeout(() => {
+          console.log('[DashboardLayout] 🔄 No hay método refresh, recargando página...')
+          window.location.reload()
+        }, 1500)
       }
     }
   }, [session])

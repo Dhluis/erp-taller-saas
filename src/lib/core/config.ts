@@ -13,7 +13,21 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   
   // Aplicación
-  NEXT_PUBLIC_APP_URL: z.string().url().optional().default('http://localhost:3000'),
+  NEXT_PUBLIC_APP_URL: z.string()
+    .refine(
+      (val) => {
+        if (!val) return true; // opcional
+        try {
+          new URL(val);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: 'NEXT_PUBLIC_APP_URL debe ser una URL válida (ej: https://tudominio.com)' }
+    )
+    .optional()
+    .default('http://localhost:3000'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   NEXT_PUBLIC_APP_VERSION: z.string().default('1.0.0'),
   
