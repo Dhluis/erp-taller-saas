@@ -91,11 +91,6 @@ export function WorkOrderDetailsTabs({
   
   // ✅ Estado para modo de edición del tab General
   const [isEditingGeneral, setIsEditingGeneral] = useState(false)
-  const [editedDescription, setEditedDescription] = useState(order?.description || '')
-  const [editedStatus, setEditedStatus] = useState(order?.status || '')
-  const [editedEstimatedCost, setEditedEstimatedCost] = useState(order?.estimated_cost?.toString() || '')
-  const [editedFinalCost, setEditedFinalCost] = useState(order?.final_cost?.toString() || '')
-  const [isSaving, setIsSaving] = useState(false)
 
   // ✅ Validar permisos para reasignar órdenes
   const canReassignOrders = profile?.role === 'ADMIN' || profile?.role === 'ASESOR'
