@@ -58,6 +58,14 @@ export function WorkOrderDetailsTabs({
   })
   const [documents, setDocuments] = useState<any[]>(order?.documents || [])
   const [lastNotesUpdate, setLastNotesUpdate] = useState<number>(0)
+  
+  // ✅ Estado para modo de edición del tab General
+  const [isEditingGeneral, setIsEditingGeneral] = useState(false)
+  const [editedDescription, setEditedDescription] = useState(order?.description || '')
+  const [editedStatus, setEditedStatus] = useState(order?.status || '')
+  const [editedEstimatedCost, setEditedEstimatedCost] = useState(order?.estimated_cost?.toString() || '')
+  const [editedFinalCost, setEditedFinalCost] = useState(order?.final_cost?.toString() || '')
+  const [isSaving, setIsSaving] = useState(false)
 
   // ✅ Validar permisos para reasignar órdenes
   const canReassignOrders = profile?.role === 'ADMIN' || profile?.role === 'ASESOR'
@@ -286,19 +294,45 @@ export function WorkOrderDetailsTabs({
           )}
         </div>
 
-        {/* Costos */}
+        {/* Costos - Editables */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-3">
-            <h4 className="font-semibold text-lg">Costo Estimado</h4>
-            <p className="text-2xl font-bold">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-lg">Costo Estimado</h4>
+              {isEditingGeneral && (
+                <Input
+                  type="number"
+                  value={editedEstimatedCost}
+                  onChange={(e) => setEditedEstimatedCost(e.target.value)}
+                  placeholder="0.00"
+                  className="w-24 h-8 text-sm"
+                />
+              )}
+            </div>
+            {!isEditingGeneral && (
+              <p className="text-2xl font-bold">
               ${order.estimated_cost?.toFixed(2) || '0.00'}
             </p>
+            )}
           </div>
           <div className="space-y-3">
-            <h4 className="font-semibold text-lg">Costo Final</h4>
-            <p className="text-2xl font-bold">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-lg">Costo Final</h4>
+              {isEditingGeneral && (
+                <Input
+                  type="number"
+                  value={editedFinalCost}
+                  onChange={(e) => setEditedFinalCost(e.target.value)}
+                  placeholder="0.00"
+                  className="w-24 h-8 text-sm"
+                />
+              )}
+            </div>
+            {!isEditingGeneral && (
+              <p className="text-2xl font-bold">
               ${order.final_cost?.toFixed(2) || '0.00'}
             </p>
+            )}
           </div>
           <div className="space-y-3">
             <h4 className="font-semibold text-lg">Total</h4>
@@ -307,6 +341,79 @@ export function WorkOrderDetailsTabs({
             </p>
           </div>
         </div>
+        
+        {/* Botón para guardar cambios de costos */}
+        {isEditingGeneral && (
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsEditingGeneral(false)
+                setEditedEstimatedCost(order?.estimated_cost?.toString() || '')
+                setEditedFinalCost(order?.final_cost?.toString() || '')
+              }}
+              disabled={isSaving}
+            >
+              <X className="h-4 w-4 mr-1" />
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              onClick={async () => {
+                setIsSaving(true)
+                try {
+                  const updateData: any = {}
+                  if (editedEstimatedCost !== (order?.estimated_cost?.toString() || '')) {
+                    updateData.estimated_cost = parseFloat(editedEstimatedCost) || 0
+                  }
+                  if (editedFinalCost !== (order?.final_cost?.toString() || '')) {
+                    updateData.final_cost = parseFloat(editedFinalCost) || 0
+                  }
+                  
+                  if (Object.keys(updateData).length > 0) {
+                    const response = await fetch(`/api/work-orders/${order.id}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(updateData),
+                      credentials: 'include'
+                    })
+                    
+                    if (response.ok) {
+                      toast.success('Costos actualizados')
+                      setIsEditingGeneral(false)
+                      onUpdate?.()
+                    } else {
+                      const error = await response.json()
+                      throw new Error(error.error || 'Error al actualizar')
+                    }
+                  } else {
+                    setIsEditingGeneral(false)
+                  }
+                } catch (error: any) {
+                  toast.error('Error al actualizar costos', {
+                    description: error.message
+                  })
+                } finally {
+                  setIsSaving(false)
+                }
+              }}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-1" />
+                  Guardar Costos
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </TabsContent>
 
       {/* TAB FOTOS */}
