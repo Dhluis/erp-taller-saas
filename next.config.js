@@ -53,7 +53,7 @@ const nextConfig = {
     return config
   },
 
-  // Headers de seguridad
+  // Headers de seguridad y cache
   async headers() {
     return [
       {
@@ -66,6 +66,26 @@ const nextConfig = {
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
+          },
+        ],
+      },
+      {
+        // Deshabilitar cache para archivos JS y CSS en desarrollo/producción
+        source: '/_next/static/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        // Forzar revalidación de páginas
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
           },
         ],
       },
