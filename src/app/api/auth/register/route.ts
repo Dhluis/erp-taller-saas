@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimitMiddleware } from '@/lib/rate-limit/middleware'
-import { sendEmail } from '@/lib/email/mailer'
-import { getWelcomeEmailTemplate } from '@/lib/email/templates/welcome'
 
 interface RegisterData {
   email: string
@@ -191,29 +189,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 4. Enviar email de bienvenida
-    try {
-      const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/auth/login`
-      
-      const emailSent = await sendEmail({
-        to: body.email,
-        subject: '¡Bienvenido a Eagles ERP! 🦅',
-        html: getWelcomeEmailTemplate({
-          userName: body.fullName || body.email.split('@')[0],
-          organizationName: orgData.name,
-          loginUrl,
-        }),
-      })
-
-      if (emailSent) {
-        console.log('✅ Email de bienvenida enviado a:', body.email)
-      } else {
-        console.warn('⚠️ No se pudo enviar email de bienvenida')
-      }
-    } catch (emailError) {
-      console.error('❌ Error enviando email de bienvenida:', emailError)
-      // No fallar el registro por error de email
-    }
 
     // 5. Respuesta exitosa
     return NextResponse.json({
