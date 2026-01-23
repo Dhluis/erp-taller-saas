@@ -6,6 +6,7 @@ import { WorkOrderImageManager } from '@/components/work-orders/WorkOrderImageMa
 import { WorkOrderNotes } from '@/components/work-orders/WorkOrderNotes'
 import { WorkOrderItems } from '@/components/work-orders/WorkOrderItems'
 import WorkOrderDocuments from '@/components/work-orders/WorkOrderDocuments'
+import { WorkOrderGeneralForm } from '@/components/work-orders/WorkOrderGeneralForm'
 import { WorkOrderImage } from '@/lib/supabase/work-order-storage'
 import { WorkOrderNote } from '@/lib/types/work-orders'
 import { useSession } from '@/lib/context/SessionContext'
@@ -28,6 +29,28 @@ import {
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { useCustomers } from '@/hooks/useCustomers'
+import { useOrganization } from '@/lib/context/SessionContext'
+import { createClient } from '@/lib/supabase/client'
+import { 
+  User, 
+  Droplet, 
+  Fuel, 
+  Shield, 
+  Clipboard, 
+  Wrench, 
+  ChevronDown,
+  CheckCircle2,
+  AlertCircle
+} from 'lucide-react'
 
 interface WorkOrderDetailsTabsProps {
   order: any // El tipo completo de WorkOrder
@@ -233,8 +256,17 @@ export function WorkOrderDetailsTabs({
         </TabsTrigger>
       </TabsList>
 
-      {/* TAB GENERAL */}
+      {/* TAB GENERAL - Usando formulario completo replicado de creación */}
       <TabsContent value="general" className="space-y-8 mt-6">
+        <WorkOrderGeneralForm
+          order={order}
+          isEditing={isEditingGeneral}
+          onEditChange={setIsEditingGeneral}
+          onSave={() => {
+            onUpdate?.()
+          }}
+        />
+      </TabsContent>
         {/* Info Cliente y Vehículo */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Info del Cliente */}

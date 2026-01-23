@@ -76,14 +76,17 @@ export async function GET(
           id,
           name,
           email,
-          phone
+          phone,
+          address
         ),
         vehicle:vehicles(
           id,
           brand,
           model,
           year,
-          license_plate
+          license_plate,
+          color,
+          mileage
         ),
         assigned_user:users!work_orders_assigned_to_fkey(
           id,
@@ -97,6 +100,19 @@ export async function GET(
       .eq('organization_id', organizationId)
       .is('deleted_at', null) // ✅ SOFT DELETE: Solo mostrar órdenes activas
       .single();
+
+    // ✅ Obtener datos de inspección si existen
+    let inspection = null;
+    if (order) {
+      const { data: inspectionData } = await supabaseAdmin
+        .from('vehicle_inspections')
+        .select('*')
+        .eq('order_id', params.id)
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+      
+      inspection = inspectionData;
+    }
 
     if (orderError || !order) {
       console.error('❌ [API GET /work-orders/[id]] Error obteniendo orden:', orderError);
@@ -112,7 +128,10 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: order,
+      data: {
+        ...order,
+        inspection // ✅ Incluir datos de inspección en la respuesta
+      },
     });
   } catch (error) {
     console.error('Error fetching work order:', error);
