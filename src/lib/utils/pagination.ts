@@ -109,7 +109,13 @@ export function buildPaginationQueryString(params: Partial<PaginationParams & { 
   if (params.filters) {
     Object.entries(params.filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
-        searchParams.set(`filter_${key}`, value.toString())
+        // ✅ FIX: Agregar filtros comunes directamente sin prefijo filter_
+        // Esto mantiene compatibilidad con APIs que esperan parámetros directos
+        if (key === 'status' || key === 'customer_id' || key === 'vehicle_id') {
+          searchParams.set(key, value.toString())
+        } else {
+          searchParams.set(`filter_${key}`, value.toString())
+        }
       }
     })
   }

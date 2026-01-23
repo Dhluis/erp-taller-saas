@@ -105,7 +105,8 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const { searchParams } = url;
     const search = searchParams.get('search');
-    const status = searchParams.get('status');
+    // ✅ FIX: Leer status desde filter_status (enviado por buildPaginationQueryString) o status directo
+    const status = searchParams.get('filter_status') || searchParams.get('status') || null;
     const stats = searchParams.get('stats');
 
     // Si se solicitan estadísticas

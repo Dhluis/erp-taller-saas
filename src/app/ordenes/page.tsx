@@ -21,6 +21,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Search, FileText, Edit, Trash2, Eye, Plus, Download, RefreshCw, User } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { useWorkOrders, type WorkOrder } from '@/hooks/useWorkOrders';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -110,6 +117,7 @@ export default function OrdenesPage() {
     } else {
       setFilters({});
     }
+    // ✅ El hook useWorkOrders ya dispara automáticamente el fetch cuando cambian los filtros
   }, [statusFilter, setFilters]);
 
   // Mostrar error si hay uno
@@ -401,19 +409,32 @@ export default function OrdenesPage() {
           </div>
 
           {/* Filtro de estado */}
-          <select
+          <Select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as OrderStatus | 'all')}
-            className="px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            onValueChange={(value) => setStatusFilter(value as OrderStatus | 'all')}
             disabled={loading}
           >
-            <option value="all">Todos los estados</option>
-            {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-              <option key={key} value={key}>
-                {config.label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-[200px] bg-slate-900/50 border-slate-700 text-white hover:bg-slate-800/50 focus:ring-2 focus:ring-cyan-500">
+              <SelectValue placeholder="Todos los estados" />
+            </SelectTrigger>
+            <SelectContent className="bg-slate-900 border-slate-700">
+              <SelectItem 
+                value="all" 
+                className="text-white hover:bg-slate-800 focus:bg-slate-800 cursor-pointer"
+              >
+                Todos los estados
+              </SelectItem>
+              {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                <SelectItem
+                  key={key}
+                  value={key}
+                  className="text-white hover:bg-slate-800 focus:bg-slate-800 cursor-pointer"
+                >
+                  {config.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {/* Limpiar filtros */}
           {(searchQuery || statusFilter !== 'all') && (

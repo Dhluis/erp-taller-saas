@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 import { hasPermission, UserRole } from '@/lib/auth/permissions'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 // Cliente de Supabase con permisos de Service Role (para operaciones administrativas)
@@ -178,11 +178,16 @@ async function updateUserHandler(
     if (phone !== undefined) updateData.phone = phone || null
     if (is_active !== undefined) updateData.is_active = is_active
     
+    // ✅ FIX: Usar Service Role Client para actualizar (bypass RLS)
+    // El cliente normal puede tener problemas con RLS después del update
+    const supabaseAdmin = getSupabaseServiceClient()
+    
     // Actualizar en tabla users
-    const { data: updatedUser, error: updateError } = await (supabase as any)
+    const { data: updatedUser, error: updateError } = await (supabaseAdmin as any)
       .from('users')
       .update(updateData)
       .eq('id', targetUserId)
+      .eq('organization_id', organizationId) // ✅ Multi-tenant safety
       .select('id, auth_user_id, email, full_name, role, phone, is_active, organization_id, created_at, updated_at')
       .single()
     
@@ -191,6 +196,14 @@ async function updateUserHandler(
       return NextResponse.json(
         { success: false, error: `Error al actualizar usuario: ${updateError.message}` },
         { status: 500 }
+      )
+    }
+    
+    if (!updatedUser) {
+      console.error('[Update User] Usuario no encontrado después de actualizar')
+      return NextResponse.json(
+        { success: false, error: 'Usuario no encontrado después de la actualización' },
+        { status: 404 }
       )
     }
     

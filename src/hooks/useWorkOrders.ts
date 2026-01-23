@@ -848,6 +848,9 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
   // EFFECTS
   // ==========================================
 
+  // ✅ FIX: Disparar fetch cuando cambian las dependencias (incluyendo filtros)
+  // fetchWorkOrders se recrea cuando cambian sus dependencias (page, pageSize, search, filters, etc.)
+  // por lo que este useEffect se ejecutará cuando cambien cualquiera de esas dependencias
   useEffect(() => {
     if (autoLoad && organizationId) {
       fetchWorkOrders()
