@@ -87,6 +87,24 @@ export function getConfig(): AppConfig {
 
   try {
     // Parsear variables de entorno
+    // 🔍 DEBUG TEMPORAL - Ver valor exacto de NEXT_PUBLIC_APP_URL
+    console.log('🔍 [CONFIG DEBUG] NEXT_PUBLIC_APP_URL:', {
+      value: process.env.NEXT_PUBLIC_APP_URL,
+      type: typeof process.env.NEXT_PUBLIC_APP_URL,
+      length: process.env.NEXT_PUBLIC_APP_URL?.length,
+      trimmed: process.env.NEXT_PUBLIC_APP_URL?.trim(),
+      hasSpaces: process.env.NEXT_PUBLIC_APP_URL !== process.env.NEXT_PUBLIC_APP_URL?.trim(),
+      charCodes: Array.from(process.env.NEXT_PUBLIC_APP_URL || '').map(c => c.charCodeAt(0)),
+    });
+
+    // Intentar crear URL para debug
+    try {
+      const testUrl = new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
+      console.log('✅ [CONFIG DEBUG] URL válida:', testUrl.href);
+    } catch (urlError: any) {
+      console.log('❌ [CONFIG DEBUG] URL inválida:', urlError.message);
+    }
+
     const rawEnv = {
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
