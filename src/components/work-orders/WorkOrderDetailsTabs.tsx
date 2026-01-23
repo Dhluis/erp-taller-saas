@@ -90,6 +90,16 @@ export function WorkOrderDetailsTabs({
     onAssignMechanic?.()
   }
 
+  // ✅ SINCRONIZAR ESTADO CON LA PROPIEDAD order cuando cambia
+  useEffect(() => {
+    if (order) {
+      setEditedDescription(order.description || '')
+      setEditedStatus(order.status || '')
+      setEditedEstimatedCost(order.estimated_cost?.toString() || '')
+      setEditedFinalCost(order.final_cost?.toString() || '')
+    }
+  }, [order])
+  
   // ✅ SINCRONIZAR ESTADO CON LA PROPIEDAD order.images
   useEffect(() => {
     console.log('🔄 [WorkOrderDetailsTabs] Sincronizando imágenes:', order?.images)
