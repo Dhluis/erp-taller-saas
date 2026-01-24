@@ -55,6 +55,7 @@ export function WorkOrderGeneralForm({
   // ✅ Función helper para inicializar formData desde order
   const initializeFormData = (orderData: any) => {
     if (!orderData) {
+      console.warn('⚠️ [WorkOrderGeneralForm] orderData es null/undefined')
       return {
         customerName: '',
         customerPhone: '',
@@ -95,6 +96,12 @@ export function WorkOrderGeneralForm({
                         : null) ||
                       null
     
+    if (inspection) {
+      console.log('✅ [WorkOrderGeneralForm] Inspection encontrada:', inspection)
+    } else {
+      console.warn('⚠️ [WorkOrderGeneralForm] No se encontró inspection en orderData')
+    }
+    
     // ✅ Mapear fluids_check correctamente
     const fluidsCheck = inspection?.fluids_check || {}
     const fluids = {
@@ -107,7 +114,7 @@ export function WorkOrderGeneralForm({
       limpia_parabrisas: fluidsCheck.limpia_parabrisas || false,
     }
 
-    return {
+    const formData = {
       // Cliente
       customerName: orderData.customer?.name || '',
       customerPhone: orderData.customer?.phone || '',
@@ -137,6 +144,22 @@ export function WorkOrderGeneralForm({
       is_warranty: inspection?.is_warranty || false,
       authorize_test_drive: inspection?.authorize_test_drive || false,
     }
+
+    // ✅ DEBUG: Log de campos vacíos
+    const emptyFields = Object.entries(formData)
+      .filter(([key, value]) => {
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          return Object.values(value).every(v => !v)
+        }
+        return !value || value === ''
+      })
+      .map(([key]) => key)
+    
+    if (emptyFields.length > 0) {
+      console.log('📝 [WorkOrderGeneralForm] Campos vacíos encontrados:', emptyFields)
+    }
+
+    return formData
   }
 
   // ✅ Estados para todos los campos editables (replicando CreateWorkOrderModal)
@@ -188,8 +211,27 @@ export function WorkOrderGeneralForm({
   // ✅ SINCRONIZAR ESTADO CON LA PROPIEDAD order cuando cambia
   useEffect(() => {
     if (order) {
+      // ✅ DEBUG: Log para verificar qué datos estamos recibiendo
+      console.log('🔍 [WorkOrderGeneralForm] Order recibida:', {
+        id: order.id,
+        hasCustomer: !!order.customer,
+        customer: order.customer,
+        hasVehicle: !!order.vehicle,
+        vehicle: order.vehicle,
+        hasInspection: !!(order as any).inspection,
+        inspection: (order as any).inspection,
+        hasVehicleInspections: !!(order as any).vehicle_inspections,
+        vehicle_inspections: (order as any).vehicle_inspections,
+        description: order.description,
+        estimated_cost: order.estimated_cost,
+        assigned_to: order.assigned_to,
+        assigned_user: (order as any).assigned_user,
+      })
+      
       // ✅ Usar la función helper para inicializar formData consistentemente
-      setFormData(initializeFormData(order))
+      const initializedData = initializeFormData(order)
+      console.log('📋 [WorkOrderGeneralForm] FormData inicializado:', initializedData)
+      setFormData(initializedData)
     }
   }, [order])
 

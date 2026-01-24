@@ -104,14 +104,32 @@ export async function GET(
     // ✅ Obtener datos de inspección si existen
     let inspection = null;
     if (order) {
-      const { data: inspectionData } = await supabaseAdmin
+      const { data: inspectionData, error: inspectionError } = await supabaseAdmin
         .from('vehicle_inspections')
         .select('*')
         .eq('order_id', params.id)
         .eq('organization_id', organizationId)
         .maybeSingle();
       
-      inspection = inspectionData;
+      if (inspectionError) {
+        console.error('❌ [API GET /work-orders/[id]] Error obteniendo inspección:', inspectionError);
+      } else {
+        inspection = inspectionData;
+        if (inspection) {
+          console.log('✅ [API GET /work-orders/[id]] Inspección encontrada:', {
+            id: inspection.id,
+            order_id: inspection.order_id,
+            has_fluids_check: !!inspection.fluids_check,
+            fluids_check: inspection.fluids_check,
+            fuel_level: inspection.fuel_level,
+            valuable_items: inspection.valuable_items,
+            entry_reason: inspection.entry_reason,
+            procedures: inspection.procedures,
+          });
+        } else {
+          console.log('ℹ️ [API GET /work-orders/[id]] No se encontró inspección para esta orden');
+        }
+      }
     }
 
     if (orderError || !order) {
@@ -125,6 +143,33 @@ export async function GET(
         { status: orderError ? 500 : 404 }
       );
     }
+
+    // ✅ DEBUG: Log de datos que se están devolviendo
+    console.log('📤 [API GET /work-orders/[id]] Datos devueltos:', {
+      order_id: order.id,
+      has_customer: !!order.customer,
+      customer: order.customer ? {
+        id: order.customer.id,
+        name: order.customer.name,
+        phone: order.customer.phone,
+        email: order.customer.email,
+      } : null,
+      has_vehicle: !!order.vehicle,
+      vehicle: order.vehicle ? {
+        id: order.vehicle.id,
+        brand: order.vehicle.brand,
+        model: order.vehicle.model,
+        year: order.vehicle.year,
+        license_plate: order.vehicle.license_plate,
+        color: order.vehicle.color,
+        mileage: order.vehicle.mileage,
+      } : null,
+      has_inspection: !!inspection,
+      description: order.description,
+      estimated_cost: order.estimated_cost,
+      assigned_to: order.assigned_to,
+      has_assigned_user: !!(order as any).assigned_user,
+    });
 
     return NextResponse.json({
       success: true,
