@@ -52,45 +52,95 @@ export function WorkOrderGeneralForm({
   const [loadingEmployees, setLoadingEmployees] = useState(false)
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
   
+  // ✅ Función helper para inicializar formData desde order
+  const initializeFormData = (orderData: any) => {
+    if (!orderData) {
+      return {
+        customerName: '',
+        customerPhone: '',
+        customerEmail: '',
+        customerAddress: '',
+        vehicleBrand: '',
+        vehicleModel: '',
+        vehicleYear: '',
+        vehiclePlate: '',
+        vehicleColor: '',
+        vehicleMileage: '',
+        description: '',
+        estimated_cost: '',
+        assigned_to: '',
+        fluids: {
+          aceite_motor: false,
+          aceite_transmision: false,
+          liquido_frenos: false,
+          liquido_embrague: false,
+          refrigerante: false,
+          aceite_hidraulico: false,
+          limpia_parabrisas: false,
+        },
+        fuel_level: 'half',
+        valuable_items: '',
+        will_diagnose: false,
+        entry_reason: '',
+        procedures: '',
+        is_warranty: false,
+        authorize_test_drive: false,
+      }
+    }
+
+    // ✅ Mejorar acceso a inspection
+    const inspection = orderData.inspection || 
+                      (orderData.vehicle_inspections && Array.isArray(orderData.vehicle_inspections) 
+                        ? orderData.vehicle_inspections[0] 
+                        : null) ||
+                      null
+    
+    // ✅ Mapear fluids_check correctamente
+    const fluidsCheck = inspection?.fluids_check || {}
+    const fluids = {
+      aceite_motor: fluidsCheck.aceite_motor || false,
+      aceite_transmision: fluidsCheck.aceite_transmision || false,
+      liquido_frenos: fluidsCheck.liquido_frenos || false,
+      liquido_embrague: fluidsCheck.liquido_embrague || false,
+      refrigerante: fluidsCheck.refrigerante || false,
+      aceite_hidraulico: fluidsCheck.aceite_hidraulico || false,
+      limpia_parabrisas: fluidsCheck.limpia_parabrisas || false,
+    }
+
+    return {
+      // Cliente
+      customerName: orderData.customer?.name || '',
+      customerPhone: orderData.customer?.phone || '',
+      customerEmail: orderData.customer?.email || '',
+      customerAddress: orderData.customer?.address || '',
+      
+      // Vehículo
+      vehicleBrand: orderData.vehicle?.brand || '',
+      vehicleModel: orderData.vehicle?.model || '',
+      vehicleYear: orderData.vehicle?.year?.toString() || '',
+      vehiclePlate: orderData.vehicle?.license_plate || '',
+      vehicleColor: orderData.vehicle?.color || '',
+      vehicleMileage: orderData.vehicle?.mileage?.toString() || '',
+      
+      // Orden
+      description: orderData.description || '',
+      estimated_cost: orderData.estimated_cost ? orderData.estimated_cost.toString() : '',
+      assigned_to: orderData.assigned_user?.id || orderData.assigned_to || '',
+      
+      // Inspección
+      fluids,
+      fuel_level: inspection?.fuel_level || 'half',
+      valuable_items: inspection?.valuable_items || '',
+      will_diagnose: inspection?.will_diagnose || false,
+      entry_reason: inspection?.entry_reason || '',
+      procedures: inspection?.procedures || '',
+      is_warranty: inspection?.is_warranty || false,
+      authorize_test_drive: inspection?.authorize_test_drive || false,
+    }
+  }
+
   // ✅ Estados para todos los campos editables (replicando CreateWorkOrderModal)
-  const [formData, setFormData] = useState({
-    // Cliente
-    customerName: order?.customer?.name || '',
-    customerPhone: order?.customer?.phone || '',
-    customerEmail: order?.customer?.email || '',
-    customerAddress: order?.customer?.address || '',
-    
-    // Vehículo
-    vehicleBrand: order?.vehicle?.brand || '',
-    vehicleModel: order?.vehicle?.model || '',
-    vehicleYear: order?.vehicle?.year?.toString() || '',
-    vehiclePlate: order?.vehicle?.license_plate || '',
-    vehicleColor: order?.vehicle?.color || '',
-    vehicleMileage: order?.vehicle?.mileage?.toString() || '',
-    
-    // Orden
-    description: order?.description || '',
-    estimated_cost: order?.estimated_cost?.toString() || '',
-    assigned_to: (order as any)?.assigned_user?.id || order?.assigned_to || '',
-    
-    // Inspección (desde inspection si existe)
-    fluids: {
-      aceite_motor: false,
-      aceite_transmision: false,
-      liquido_frenos: false,
-      liquido_embrague: false,
-      refrigerante: false,
-      aceite_hidraulico: false,
-      limpia_parabrisas: false,
-    },
-    fuel_level: 'half',
-    valuable_items: '',
-    will_diagnose: false,
-    entry_reason: '',
-    procedures: '',
-    is_warranty: false,
-    authorize_test_drive: false,
-  })
+  const [formData, setFormData] = useState(() => initializeFormData(order))
 
   // ✅ Filtrar clientes por búsqueda
   const filteredCustomers = useMemo(() => {
@@ -138,46 +188,8 @@ export function WorkOrderGeneralForm({
   // ✅ SINCRONIZAR ESTADO CON LA PROPIEDAD order cuando cambia
   useEffect(() => {
     if (order) {
-      const inspection = (order as any).inspection
-      
-      setFormData({
-        // Cliente
-        customerName: order.customer?.name || '',
-        customerPhone: order.customer?.phone || '',
-        customerEmail: order.customer?.email || '',
-        customerAddress: order.customer?.address || '',
-        
-        // Vehículo
-        vehicleBrand: order.vehicle?.brand || '',
-        vehicleModel: order.vehicle?.model || '',
-        vehicleYear: order.vehicle?.year?.toString() || '',
-        vehiclePlate: order.vehicle?.license_plate || '',
-        vehicleColor: order.vehicle?.color || '',
-        vehicleMileage: order.vehicle?.mileage?.toString() || '',
-        
-        // Orden
-        description: order.description || '',
-        estimated_cost: order.estimated_cost?.toString() || '',
-        assigned_to: (order as any)?.assigned_user?.id || order?.assigned_to || '',
-        
-        // Inspección
-        fluids: inspection?.fluids_check || {
-          aceite_motor: false,
-          aceite_transmision: false,
-          liquido_frenos: false,
-          liquido_embrague: false,
-          refrigerante: false,
-          aceite_hidraulico: false,
-          limpia_parabrisas: false,
-        },
-        fuel_level: inspection?.fuel_level || 'half',
-        valuable_items: inspection?.valuable_items || '',
-        will_diagnose: inspection?.will_diagnose || false,
-        entry_reason: inspection?.entry_reason || '',
-        procedures: inspection?.procedures || '',
-        is_warranty: inspection?.is_warranty || false,
-        authorize_test_drive: inspection?.authorize_test_drive || false,
-      })
+      // ✅ Usar la función helper para inicializar formData consistentemente
+      setFormData(initializeFormData(order))
     }
   }, [order])
 
@@ -288,39 +300,8 @@ export function WorkOrderGeneralForm({
               size="sm"
               onClick={() => {
                 onEditChange(false)
-                // Resetear formData a valores originales
-                const inspection = (order as any).inspection
-                setFormData({
-                  customerName: order.customer?.name || '',
-                  customerPhone: order.customer?.phone || '',
-                  customerEmail: order.customer?.email || '',
-                  customerAddress: order.customer?.address || '',
-                  vehicleBrand: order.vehicle?.brand || '',
-                  vehicleModel: order.vehicle?.model || '',
-                  vehicleYear: order.vehicle?.year?.toString() || '',
-                  vehiclePlate: order.vehicle?.license_plate || '',
-                  vehicleColor: order.vehicle?.color || '',
-                  vehicleMileage: order.vehicle?.mileage?.toString() || '',
-                  description: order.description || '',
-                  estimated_cost: order.estimated_cost?.toString() || '',
-                  assigned_to: (order as any)?.assigned_user?.id || order?.assigned_to || '',
-                  fluids: inspection?.fluids_check || {
-                    aceite_motor: false,
-                    aceite_transmision: false,
-                    liquido_frenos: false,
-                    liquido_embrague: false,
-                    refrigerante: false,
-                    aceite_hidraulico: false,
-                    limpia_parabrisas: false,
-                  },
-                  fuel_level: inspection?.fuel_level || 'half',
-                  valuable_items: inspection?.valuable_items || '',
-                  will_diagnose: inspection?.will_diagnose || false,
-                  entry_reason: inspection?.entry_reason || '',
-                  procedures: inspection?.procedures || '',
-                  is_warranty: inspection?.is_warranty || false,
-                  authorize_test_drive: inspection?.authorize_test_drive || false,
-                })
+                // ✅ Resetear formData a valores originales usando la función helper
+                setFormData(initializeFormData(order))
               }}
               disabled={isSaving}
             >
