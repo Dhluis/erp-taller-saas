@@ -831,9 +831,9 @@ export function WorkOrderGeneralForm({
         </div>
       </div>
 
-      {/* Asignar Empleado */}
+      {/* Asignar o Reasignar Empleado */}
       <div className="space-y-4">
-        <Label htmlFor="assigned_to">Asignar Empleado (opcional)</Label>
+        <Label htmlFor="assigned_to">Asignar o Reasignar Empleado</Label>
         {isEditing ? (
           <Select
             name="assigned_to"
@@ -843,13 +843,19 @@ export function WorkOrderGeneralForm({
             }}
             disabled={loadingEmployees}
           >
-            <SelectTrigger>
+            <SelectTrigger className="bg-slate-900/50 border-slate-700 text-white hover:bg-slate-800 focus:bg-primary/25 w-full">
               <SelectValue placeholder="Seleccionar empleado..." />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Sin asignar</SelectItem>
+            <SelectContent className="bg-slate-900 border-slate-700 text-white">
+              <SelectItem value="none" className="hover:bg-slate-800 focus:bg-slate-800 text-white">
+                Sin asignar
+              </SelectItem>
               {employees.map((employee) => (
-                <SelectItem key={employee.id} value={employee.id}>
+                <SelectItem 
+                  key={employee.id} 
+                  value={employee.id}
+                  className="hover:bg-slate-800 focus:bg-slate-800 text-white"
+                >
                   {employee.full_name} ({employee.role === 'MECANICO' ? 'Mecánico' : 'Asesor'})
                 </SelectItem>
               ))}
