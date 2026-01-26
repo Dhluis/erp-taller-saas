@@ -97,7 +97,18 @@ export function WorkOrderGeneralForm({
                       null
     
     if (inspection) {
-      console.log('✅ [WorkOrderGeneralForm] Inspection encontrada:', inspection)
+      console.log('✅ [WorkOrderGeneralForm] Inspection encontrada:', {
+        id: inspection.id,
+        order_id: inspection.order_id,
+        fluids_check: inspection.fluids_check,
+        fuel_level: inspection.fuel_level,
+        valuable_items: inspection.valuable_items,
+        will_diagnose: inspection.will_diagnose,
+        entry_reason: inspection.entry_reason,
+        procedures: inspection.procedures,
+        is_warranty: inspection.is_warranty,
+        authorize_test_drive: inspection.authorize_test_drive,
+      })
     } else {
       console.warn('⚠️ [WorkOrderGeneralForm] No se encontró inspection en orderData')
     }
@@ -145,7 +156,7 @@ export function WorkOrderGeneralForm({
       authorize_test_drive: inspection?.authorize_test_drive || false,
     }
 
-    // ✅ DEBUG: Log de campos vacíos
+    // ✅ DEBUG: Log de campos vacíos con detalles
     const emptyFields = Object.entries(formData)
       .filter(([key, value]) => {
         if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
@@ -153,11 +164,24 @@ export function WorkOrderGeneralForm({
         }
         return !value || value === ''
       })
-      .map(([key]) => key)
+      .map(([key, value]) => ({ key, value }))
     
     if (emptyFields.length > 0) {
-      console.log('📝 [WorkOrderGeneralForm] Campos vacíos encontrados:', emptyFields)
+      console.log('📝 [WorkOrderGeneralForm] Campos vacíos encontrados:', emptyFields.map(f => f.key))
+      console.log('📝 [WorkOrderGeneralForm] Detalles de campos vacíos:', emptyFields)
     }
+    
+    // ✅ DEBUG: Log de campos con datos
+    const fieldsWithData = Object.entries(formData)
+      .filter(([key, value]) => {
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          return Object.values(value).some(v => !!v)
+        }
+        return !!value && value !== ''
+      })
+      .map(([key, value]) => ({ key, value }))
+    
+    console.log('✅ [WorkOrderGeneralForm] Campos con datos:', fieldsWithData.map(f => f.key))
 
     return formData
   }
@@ -215,17 +239,41 @@ export function WorkOrderGeneralForm({
       console.log('🔍 [WorkOrderGeneralForm] Order recibida:', {
         id: order.id,
         hasCustomer: !!order.customer,
-        customer: order.customer,
+        customer: order.customer ? {
+          id: order.customer.id,
+          name: order.customer.name,
+          phone: order.customer.phone,
+          email: order.customer.email,
+          address: order.customer.address,
+        } : null,
         hasVehicle: !!order.vehicle,
-        vehicle: order.vehicle,
+        vehicle: order.vehicle ? {
+          id: order.vehicle.id,
+          brand: order.vehicle.brand,
+          model: order.vehicle.model,
+          year: order.vehicle.year,
+          license_plate: order.vehicle.license_plate,
+          color: order.vehicle.color,
+          mileage: order.vehicle.mileage,
+        } : null,
         hasInspection: !!(order as any).inspection,
-        inspection: (order as any).inspection,
+        inspection: (order as any).inspection ? {
+          id: (order as any).inspection.id,
+          fluids_check: (order as any).inspection.fluids_check,
+          fuel_level: (order as any).inspection.fuel_level,
+          valuable_items: (order as any).inspection.valuable_items,
+          entry_reason: (order as any).inspection.entry_reason,
+          procedures: (order as any).inspection.procedures,
+        } : null,
         hasVehicleInspections: !!(order as any).vehicle_inspections,
         vehicle_inspections: (order as any).vehicle_inspections,
         description: order.description,
         estimated_cost: order.estimated_cost,
         assigned_to: order.assigned_to,
-        assigned_user: (order as any).assigned_user,
+        assigned_user: (order as any).assigned_user ? {
+          id: (order as any).assigned_user.id,
+          full_name: (order as any).assigned_user.full_name,
+        } : null,
       })
       
       // ✅ Usar la función helper para inicializar formData consistentemente
