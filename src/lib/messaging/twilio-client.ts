@@ -96,7 +96,15 @@ export function configureSendGrid(): void {
   }
 
   // SendGrid se configura globalmente
-  sgMail.setApiKey(apiKey);
+  // @sendgrid/mail puede exportar como default o named export
+  if (sgMail.default && typeof sgMail.default.setApiKey === 'function') {
+    sgMail.default.setApiKey(apiKey);
+  } else if (typeof sgMail.setApiKey === 'function') {
+    sgMail.setApiKey(apiKey);
+  } else {
+    // Fallback: intentar acceder directamente
+    (sgMail as any).setApiKey(apiKey);
+  }
 
   console.log('✅ [SendGrid] Cliente configurado correctamente');
 }
