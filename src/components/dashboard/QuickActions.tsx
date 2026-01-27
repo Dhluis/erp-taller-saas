@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Users, Car, FileText, MessageSquare } from 'lucide-react'
+import { Plus, Users, Car, FileText, MessageSquare, Mail } from 'lucide-react'
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal'
 import { usePermissions } from '@/hooks/usePermissions'
 
@@ -45,6 +45,11 @@ export function QuickActions({ onOrderCreated }: QuickActionsProps) {
   const handleCotizacion = () => {
     console.log('🔥 [QuickActions] Navegar a Cotizaciones')
     router.push('/cotizaciones')
+  }
+
+  const handleMensajeria = () => {
+    console.log('🔥 [QuickActions] Navegar a Mensajería')
+    router.push('/mensajeria')
   }
 
 
@@ -150,6 +155,23 @@ export function QuickActions({ onOrderCreated }: QuickActionsProps) {
                   <div className="font-semibold text-sm">Cotización</div>
                   <div className="text-xs text-amber-100 mt-0.5">
                     Crear nueva cotización
+                  </div>
+                </div>
+              </div>
+            </Button>
+
+            {/* Mensajería - Amarillo */}
+            <Button
+              className="w-full justify-start h-auto py-3 px-4 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white shadow-md transition-all duration-300"
+              onClick={handleMensajeria}
+            >
+              <div className="flex items-center">
+                <span className="text-xl mr-3">💬</span>
+                <Mail className="h-5 w-5 mr-2" />
+                <div className="text-left">
+                  <div className="font-semibold text-sm">Mensajería</div>
+                  <div className="text-xs text-yellow-100 mt-0.5">
+                    Email, SMS y WhatsApp
                   </div>
                 </div>
               </div>
