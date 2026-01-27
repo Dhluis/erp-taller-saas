@@ -104,7 +104,7 @@ export default function MessagingPage() {
           title="WhatsApp"
           description="Comunicación directa con clientes vía WhatsApp"
           status={getWhatsAppStatus()}
-          href="/mensajeria/whatsapp"
+          href="/dashboard/whatsapp"
         />
       </div>
 
