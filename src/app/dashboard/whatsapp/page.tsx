@@ -32,7 +32,9 @@ export default function WhatsAppPage() {
   const [activeTab, setActiveTab] = useState<'asistente' | 'envio' | 'testing'>('asistente')
   const [messagingConfig, setMessagingConfig] = useState<any>(null)
   const [loadingMessagingConfig, setLoadingMessagingConfig] = useState(false)
+  const [messagingConfigError, setMessagingConfigError] = useState(false)
   const [showTestModal, setShowTestModal] = useState(false)
+  const messagingConfigLoadedRef = useRef(false) // Ref para evitar múltiples cargas
 
   console.log('[WhatsApp Page] 🔍 useSession hook:', {
     organizationId,
@@ -327,28 +329,44 @@ export default function WhatsAppPage() {
 
   // Cargar configuración de mensajería para tab de planes
   const loadMessagingConfig = useCallback(async () => {
-    if (!organizationId) return
+    if (!organizationId || messagingConfigLoadedRef.current || loadingMessagingConfig) return
     
     setLoadingMessagingConfig(true)
+    setMessagingConfigError(false)
+    messagingConfigLoadedRef.current = true
+    
     try {
-      const response = await fetch('/api/messaging/config')
+      const response = await fetch('/api/messaging/config', {
+        cache: 'no-store',
+        credentials: 'include'
+      })
+      
       if (response.ok) {
         const data = await response.json()
         setMessagingConfig(data.config)
+        setMessagingConfigError(false)
+      } else {
+        console.warn('[WhatsApp] No se pudo cargar configuración de mensajería:', response.status)
+        setMessagingConfigError(true)
+        // Reset ref para permitir reintento manual
+        messagingConfigLoadedRef.current = false
       }
     } catch (error) {
       console.error('Error loading messaging config:', error)
+      setMessagingConfigError(true)
+      // Reset ref para permitir reintento manual
+      messagingConfigLoadedRef.current = false
     } finally {
       setLoadingMessagingConfig(false)
     }
-  }, [organizationId])
+  }, [organizationId, loadingMessagingConfig])
 
   // Cargar configuración de mensajería cuando cambia el tab a "envio" o "testing"
   useEffect(() => {
-    if ((activeTab === 'envio' || activeTab === 'testing') && !messagingConfig && !loadingMessagingConfig) {
+    if ((activeTab === 'envio' || activeTab === 'testing') && !messagingConfig && !loadingMessagingConfig && !messagingConfigLoadedRef.current) {
       loadMessagingConfig()
     }
-  }, [activeTab, messagingConfig, loadingMessagingConfig, loadMessagingConfig])
+  }, [activeTab]) // Solo activeTab en dependencias para evitar loops
 
   // Handler para enviar prueba de WhatsApp
   const handleTestWhatsApp = async (data: { testValue: string }) => {
