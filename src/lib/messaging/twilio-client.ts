@@ -1,0 +1,125 @@
+import { getSupabaseServiceClient } from '@/lib/supabase/server';
+
+/**
+ * Interfaz para configuración de mensajería desde BD
+ */
+export interface MessagingConfig {
+  id: string;
+  organizationId: string;
+  emailEnabled: boolean;
+  emailFromName: string;
+  emailReplyTo: string | null;
+  smsEnabled: boolean;
+  smsFromNumber: string | null;
+  whatsappProvider: string;
+  whatsappEnabled: boolean;
+  whatsappTwilioNumber: string | null;
+  whatsappVerified: boolean;
+  wahaSessionId: string | null;
+  wahaConnected: boolean;
+  chatbotEnabled: boolean;
+  chatbotSystemPrompt: string | null;
+  monthlyEmailLimit: number;
+  monthlySmsLimit: number;
+  monthlyWhatsappLimit: number;
+}
+
+/**
+ * Obtener configuración de mensajería de una organización
+ */
+export async function getMessagingConfig(
+  organizationId: string
+): Promise<MessagingConfig | null> {
+  try {
+    const supabase = getSupabaseServiceClient();
+
+    const { data, error } = await supabase
+      .from('organization_messaging_config')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No se encontró configuración, retornar null
+        console.warn(`[Messaging] No config found for org: ${organizationId}`);
+        return null;
+      }
+      throw error;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    // Mapear datos de BD a interfaz (usar 'as any' porque la tabla no está en tipos de Supabase aún)
+    const configData = data as any;
+    return {
+      id: configData.id,
+      organizationId: configData.organization_id,
+      emailEnabled: configData.email_enabled ?? true,
+      emailFromName: configData.email_from_name || 'Eagles ERP',
+      emailReplyTo: configData.email_reply_to,
+      smsEnabled: configData.sms_enabled ?? false,
+      smsFromNumber: configData.sms_from_number,
+      whatsappProvider: configData.whatsapp_provider || 'waha',
+      whatsappEnabled: configData.whatsapp_enabled ?? false,
+      whatsappTwilioNumber: configData.whatsapp_twilio_number,
+      whatsappVerified: configData.whatsapp_verified ?? false,
+      wahaSessionId: configData.waha_session_id,
+      wahaConnected: configData.waha_connected ?? false,
+      chatbotEnabled: configData.chatbot_enabled ?? false,
+      chatbotSystemPrompt: configData.chatbot_system_prompt,
+      monthlyEmailLimit: configData.monthly_email_limit ?? 1000,
+      monthlySmsLimit: configData.monthly_sms_limit ?? 100,
+      monthlyWhatsappLimit: configData.monthly_whatsapp_limit ?? 500,
+    };
+  } catch (error) {
+    console.error('[Messaging] Error getting config:', error);
+    return null;
+  }
+}
+
+/**
+ * Configurar cliente de SendGrid con API Key
+ */
+export function configureSendGrid(): void {
+  const apiKey = process.env.SENDGRID_API_KEY;
+
+  if (!apiKey) {
+    throw new Error(
+      'SENDGRID_API_KEY no está configurada en variables de entorno'
+    );
+  }
+
+  // SendGrid se configura globalmente
+  const sgMail = require('@sendgrid/mail');
+  if (sgMail.default) {
+    sgMail.default.setApiKey(apiKey);
+  } else {
+    sgMail.setApiKey(apiKey);
+  }
+
+  console.log('✅ [SendGrid] Cliente configurado correctamente');
+}
+
+/**
+ * Configurar cliente de Twilio
+ */
+export function configureTwilio(): any {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+  if (!accountSid || !authToken) {
+    throw new Error(
+      'TWILIO_ACCOUNT_SID o TWILIO_AUTH_TOKEN no están configuradas'
+    );
+  }
+
+  const twilio = require('twilio');
+  const client = twilio(accountSid, authToken);
+
+  console.log('✅ [Twilio] Cliente configurado correctamente');
+  return client;
+}
+
