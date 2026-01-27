@@ -123,3 +123,10 @@ export function configureTwilio(): any {
   return client;
 }
 
+/**
+ * Obtener cliente Twilio configurado (alias para compatibilidad)
+ */
+export function getTwilioClient(): any {
+  return configureTwilio();
+}
+
