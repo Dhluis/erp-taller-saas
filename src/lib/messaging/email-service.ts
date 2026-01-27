@@ -48,7 +48,15 @@ export async function sendEmailViaSendGrid(
     };
 
     // 4. Enviar
-    await sgMail.send(msg);
+    // @sendgrid/mail puede exportar como default o named export
+    if (sgMail.default && typeof sgMail.default.send === 'function') {
+      await sgMail.default.send(msg);
+    } else if (typeof sgMail.send === 'function') {
+      await sgMail.send(msg);
+    } else {
+      // Fallback: intentar acceder directamente
+      await (sgMail as any).send(msg);
+    }
 
     console.log('✅ [SendGrid] Email sent:', {
       to: options.to,
