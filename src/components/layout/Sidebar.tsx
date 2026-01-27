@@ -45,7 +45,7 @@ export function Sidebar({ className }: SidebarProps) {
         'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/reportes'],
         'compras': ['/compras', '/compras/proveedores', '/compras/pagos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/inventario', '/reportes/financieros'],
-        'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/perfil']
+        'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/mensajeria', '/mensajeria/email', '/mensajeria/sms', '/mensajeria/whatsapp', '/perfil']
       }
       
       if (sectionRoutes[section]?.some(route => pathname.startsWith(route))) {
