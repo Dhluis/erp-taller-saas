@@ -1,4 +1,4 @@
-import * as sgMail from '@sendgrid/mail';
+import sgMail from '@sendgrid/mail';
 import { configureSendGrid, getMessagingConfig } from './twilio-client';
 
 export interface EmailOptions {
@@ -38,7 +38,7 @@ export async function sendEmailViaSendGrid(
 
     const replyTo = options.replyTo || config.emailReplyTo || undefined;
 
-    const msg = {
+    const msg: any = {
       to: options.to,
       from,
       replyTo,
@@ -48,7 +48,7 @@ export async function sendEmailViaSendGrid(
     };
 
     // 4. Enviar
-    await sgMail.default.send(msg);
+    await sgMail.send(msg);
 
     console.log('✅ [SendGrid] Email sent:', {
       to: options.to,
