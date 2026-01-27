@@ -845,6 +845,23 @@ export default function WhatsAppPage() {
                   <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
                   <p className="text-text-secondary">Cargando configuración...</p>
                 </div>
+              ) : messagingConfigError ? (
+                <div className="text-center py-8">
+                  <AlertCircle className="w-8 h-8 text-warning mx-auto mb-4" />
+                  <p className="text-text-primary font-semibold mb-2">No se pudo cargar la configuración</p>
+                  <p className="text-text-secondary text-sm mb-4">
+                    El endpoint de mensajería no está disponible. Esto es normal si aún no has configurado el sistema de mensajería.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      messagingConfigLoadedRef.current = false
+                      loadMessagingConfig()
+                    }}
+                  >
+                    Reintentar
+                  </Button>
+                </div>
               ) : (() => {
                 const isBasic = messagingConfig?.whatsappProvider === 'waha'
                 const isPremium = messagingConfig?.whatsappProvider === 'twilio'
