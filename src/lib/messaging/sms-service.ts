@@ -33,9 +33,6 @@ function normalizePhoneNumber(phone: string): string {
   return cleaned.startsWith('+') ? cleaned : `+${cleaned}`;
 }
 
-// Importar getTwilioClient desde twilio-client
-import { getTwilioClient } from './twilio-client';
-
 /**
  * Enviar SMS usando Twilio
  */

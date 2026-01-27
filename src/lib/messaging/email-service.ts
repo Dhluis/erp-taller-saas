@@ -1,4 +1,4 @@
-import sgMail from '@sendgrid/mail';
+import * as sgMail from '@sendgrid/mail';
 import { configureSendGrid, getMessagingConfig } from './twilio-client';
 
 export interface EmailOptions {

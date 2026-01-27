@@ -80,6 +80,9 @@ export async function getMessagingConfig(
   }
 }
 
+import * as sgMail from '@sendgrid/mail';
+import twilio from 'twilio';
+
 /**
  * Configurar cliente de SendGrid con API Key
  */
@@ -93,12 +96,7 @@ export function configureSendGrid(): void {
   }
 
   // SendGrid se configura globalmente
-  const sgMail = require('@sendgrid/mail');
-  if (sgMail.default) {
-    sgMail.default.setApiKey(apiKey);
-  } else {
-    sgMail.setApiKey(apiKey);
-  }
+  sgMail.setApiKey(apiKey);
 
   console.log('✅ [SendGrid] Cliente configurado correctamente');
 }
@@ -106,7 +104,7 @@ export function configureSendGrid(): void {
 /**
  * Configurar cliente de Twilio
  */
-export function configureTwilio(): any {
+export function configureTwilio(): twilio.Twilio {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
 
@@ -116,7 +114,6 @@ export function configureTwilio(): any {
     );
   }
 
-  const twilio = require('twilio');
   const client = twilio(accountSid, authToken);
 
   console.log('✅ [Twilio] Cliente configurado correctamente');
@@ -126,7 +123,7 @@ export function configureTwilio(): any {
 /**
  * Obtener cliente Twilio configurado (alias para compatibilidad)
  */
-export function getTwilioClient(): any {
+export function getTwilioClient(): twilio.Twilio {
   return configureTwilio();
 }
 
