@@ -61,7 +61,7 @@ comment on column organization_messaging_config.monthly_whatsapp_limit is 'Lími
 alter table organization_messaging_config enable row level security;
 
 -- Policy: usuarios solo ven su organización
--- Usa la misma lógica que otras tablas multi-tenant del sistema
+-- Compatible con user_profiles (migraciones antiguas) y users (migraciones nuevas)
 create policy "Users can view their org messaging config"
   on organization_messaging_config for select
   using (
@@ -70,6 +70,12 @@ create policy "Users can view their org messaging config"
       from users 
       where users.auth_user_id = auth.uid()
         and users.organization_id = organization_messaging_config.organization_id
+    )
+    or exists (
+      select 1 
+      from user_profiles 
+      where user_profiles.id = auth.uid()
+        and user_profiles.organization_id = organization_messaging_config.organization_id
     )
   );
 
@@ -83,6 +89,12 @@ create policy "Users can update their org messaging config"
       where users.auth_user_id = auth.uid()
         and users.organization_id = organization_messaging_config.organization_id
     )
+    or exists (
+      select 1 
+      from user_profiles 
+      where user_profiles.id = auth.uid()
+        and user_profiles.organization_id = organization_messaging_config.organization_id
+    )
   );
 
 -- Policy: usuarios solo pueden insertar para su organización
@@ -94,6 +106,12 @@ create policy "Users can insert their org messaging config"
       from users 
       where users.auth_user_id = auth.uid()
         and users.organization_id = organization_messaging_config.organization_id
+    )
+    or exists (
+      select 1 
+      from user_profiles 
+      where user_profiles.id = auth.uid()
+        and user_profiles.organization_id = organization_messaging_config.organization_id
     )
   );
 
