@@ -1,96 +1,147 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
-import { sendEmailViaSendGrid } from '@/lib/messaging/email-service';
+import { createClientFromRequest } from '@/lib/supabase/server';
+import * as sgMail from '@sendgrid/mail';
 
 /**
  * POST /api/messaging/test/email
- * Enviar email de prueba
+ * Enviar email de prueba con SendGrid (SIN depender de BD)
  */
 export async function POST(request: NextRequest) {
   try {
     // 1. Autenticar
     const supabase = createClientFromRequest(request);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    // 2. Obtener perfil usando Service Role Client
-    const supabaseAdmin = getSupabaseServiceClient();
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('users')
-      .select('organization_id, email, full_name')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (profileError || !profile || !profile.organization_id) {
-      console.error('[POST /api/messaging/test/email] Error obteniendo perfil:', profileError);
-      return NextResponse.json({ error: 'Perfil no encontrado' }, { status: 404 });
-    }
-
-    // 3. Parsear body
-    const body = await request.json();
-    const { testEmail } = body;
+    // 2. Parsear body
+    const { testEmail } = await request.json();
 
     if (!testEmail || !testEmail.includes('@')) {
-      return NextResponse.json(
-        { error: 'Email inválido' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Email inválido' }, { status: 400 });
     }
 
-    // 4. Enviar email de prueba
-    const success = await sendEmailViaSendGrid(profile.organization_id, {
-      to: testEmail,
-      subject: '✅ Email de Prueba - Eagles ERP',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%); padding: 20px; border-radius: 8px 8px 0 0;">
-            <h2 style="color: white; margin: 0;">✅ ¡Email de Prueba Exitoso!</h2>
-          </div>
-          <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-            <p style="color: #374151; font-size: 16px; line-height: 1.6;">Hola,</p>
-            <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-              Este es un <strong>email de prueba</strong> desde Eagles ERP.
-            </p>
-            <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-              Tu configuración de email está funcionando correctamente. ✅
-            </p>
-            <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
-              <p style="margin: 0; color: #6b7280; font-size: 14px;">
-                <strong>Organización:</strong> ${profile.organization_id.substring(0, 8)}...<br>
-                <strong>Fecha:</strong> ${new Date().toLocaleString('es-MX')}
-              </p>
-            </div>
-            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-            <p style="font-size: 12px; color: #6b7280; margin: 0;">
-              Este es un mensaje de prueba. No respondas a este email.
-            </p>
-            <p style="font-size: 12px; color: #6b7280; margin: 5px 0 0 0;">
-              Enviado desde Eagles ERP | Sistema de Mensajería
-            </p>
-          </div>
-        </div>
-      `,
-    });
-
-    if (!success) {
+    // 3. Verificar que SendGrid esté configurado
+    const apiKey = process.env.SENDGRID_API_KEY;
+    if (!apiKey) {
       return NextResponse.json(
-        { error: 'Error al enviar email de prueba. Verifica tu configuración de SendGrid.' },
+        {
+          error:
+            'SendGrid no configurado. Agrega SENDGRID_API_KEY a las variables de entorno.',
+        },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      message: `Email de prueba enviado a ${testEmail}`
+    // 4. Configurar SendGrid (compatibilidad default/named export)
+    if ((sgMail as any).default && typeof (sgMail as any).default.setApiKey === 'function') {
+      (sgMail as any).default.setApiKey(apiKey);
+    } else if (typeof (sgMail as any).setApiKey === 'function') {
+      (sgMail as any).setApiKey(apiKey);
+    } else {
+      (sgMail as any).setApiKey(apiKey);
+    }
+
+    // 5. Preparar email
+    const from = {
+      email: process.env.SMTP_FROM_EMAIL || 'servicios@eaglessystem.io',
+      name: process.env.SMTP_FROM_NAME || 'Eagles ERP',
+    };
+
+    // 6. Enviar email
+    await (sgMail as any).send({
+      to: testEmail,
+      from,
+      subject: '✅ Email de Prueba - Eagles ERP',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">✅ ¡Email de Prueba Exitoso!</h1>
+          </div>
+          
+          <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">Hola,</p>
+            
+            <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">
+              Este es un email de prueba desde <strong>Eagles ERP</strong>.
+            </p>
+            
+            <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 15px; margin: 20px 0; border-radius: 4px;">
+              <p style="margin: 0; color: #166534; font-weight: 500;">
+                ✓ Tu configuración de email está funcionando correctamente
+              </p>
+            </div>
+            
+            <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+              <strong>Información técnica:</strong><br>
+              Enviado desde: ${from.name} &lt;${from.email}&gt;<br>
+              Fecha: ${new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}<br>
+              Powered by: SendGrid
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 20px; padding: 20px;">
+            <p style="font-size: 12px; color: #9ca3af; margin: 0;">
+              Eagles ERP - Sistema de Gestión para Talleres Automotrices
+            </p>
+          </div>
+        </div>
+      `,
+      text: `
+        ✅ Email de Prueba - Eagles ERP
+        
+        Hola,
+        
+        Este es un email de prueba desde Eagles ERP.
+        
+        ✓ Tu configuración de email está funcionando correctamente
+        
+        ---
+        Enviado desde: ${from.name} <${from.email}>
+        Fecha: ${new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}
+        Powered by: SendGrid
+      `,
     });
 
+    console.log('✅ [SendGrid Test] Email enviado exitosamente:', {
+      to: testEmail,
+      from: from.email,
+      timestamp: new Date().toISOString(),
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `✅ Email de prueba enviado a ${testEmail}`,
+      from: from.email,
+    });
   } catch (error: any) {
-    console.error('[POST /api/messaging/test/email] Error:', error);
+    console.error('❌ [SendGrid Test] Error:', error);
+
+    // Error específico de SendGrid
+    if (error?.response) {
+      console.error('[SendGrid Test] Response body:', error.response.body);
+      return NextResponse.json(
+        {
+          error: 'Error al enviar email',
+          details:
+            error.response.body?.errors?.[0]?.message ||
+            'Error desconocido',
+          code: error.code,
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Error al enviar email de prueba', details: error.message },
+      {
+        error: error?.message || 'Error al enviar email de prueba',
+        details: 'Revisa las variables de entorno de SendGrid',
+      },
       { status: 500 }
     );
   }
