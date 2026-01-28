@@ -5,18 +5,52 @@ import * as sgMail from '@sendgrid/mail';
 /**
  * POST /api/messaging/test/email
  * Enviar email de prueba con SendGrid (SIN depender de BD)
+ *
+ * Seguridad:
+ * - Mantiene auth Supabase cuando es posible
+ * - Bypass temporal controlado por header `x-messaging-test-token`
+ *   si existe `MESSAGING_TEST_TOKEN` en env (para evitar endpoint abierto)
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Autenticar
-    const supabase = createClientFromRequest(request);
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    // 1. Autenticar (o bypass temporal con token)
+    const testTokenHeader = request.headers.get('x-messaging-test-token') || '';
+    const envTestToken = (process.env.MESSAGING_TEST_TOKEN || '').trim();
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    let isAuthorized = false;
+
+    // Intentar auth Supabase normal
+    try {
+      const supabase = createClientFromRequest(request);
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (!authError && user) {
+        isAuthorized = true;
+      }
+    } catch (authCrash: any) {
+      // Si falla por headers inválidos (p.ej. caracteres CRLF en env/cookies), permitir fallback con token
+      console.error('⚠️ [SendGrid Test] Error en autenticación Supabase:', authCrash?.message || authCrash);
+    }
+
+    // Bypass temporal controlado por token (solo si se configuró env)
+    if (!isAuthorized) {
+      if (envTestToken && testTokenHeader.trim() === envTestToken) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      return NextResponse.json(
+        {
+          error: 'No autorizado',
+          hint:
+            'Inicia sesión o envía header x-messaging-test-token (requiere MESSAGING_TEST_TOKEN en env).',
+        },
+        { status: 401 }
+      );
     }
 
     // 2. Parsear body
@@ -27,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Verificar que SendGrid esté configurado
-    const apiKey = process.env.SENDGRID_API_KEY;
+    const apiKey = (process.env.SENDGRID_API_KEY || '').trim();
     if (!apiKey) {
       return NextResponse.json(
         {
@@ -49,8 +83,8 @@ export async function POST(request: NextRequest) {
 
     // 5. Preparar email
     const from = {
-      email: process.env.SMTP_FROM_EMAIL || 'servicios@eaglessystem.io',
-      name: process.env.SMTP_FROM_NAME || 'Eagles ERP',
+      email: (process.env.SMTP_FROM_EMAIL || 'servicios@eaglessystem.io').trim(),
+      name: (process.env.SMTP_FROM_NAME || 'Eagles ERP').trim(),
     };
 
     // 6. Enviar email
