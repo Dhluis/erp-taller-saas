@@ -38,14 +38,31 @@ export async function GET(request: NextRequest) {
     // 3. Obtener configuración de mensajería
     const config = await getMessagingConfig(profile.organization_id);
 
+    // 4. Si no hay configuración en BD, retornar valores por defecto
     if (!config) {
-      return NextResponse.json(
-        { error: 'Configuración no encontrada' },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        success: true,
+        config: {
+          emailEnabled: true,
+          emailFromName: process.env.SMTP_FROM_NAME || 'Eagles ERP',
+          emailReplyTo: process.env.SMTP_FROM_EMAIL || 'servicios@eaglessystem.io',
+          smsEnabled: false,
+          smsFromNumber: process.env.TWILIO_PHONE_NUMBER || null,
+          whatsappProvider: 'waha',
+          whatsappEnabled: false,
+          whatsappTwilioNumber: null,
+          whatsappVerified: false,
+          wahaConnected: false,
+          chatbotEnabled: true,
+          chatbotSystemPrompt: null,
+          monthlyEmailLimit: 1000,
+          monthlySmsLimit: 100,
+          monthlyWhatsappLimit: 500,
+        }
+      });
     }
 
-    // 4. Retornar configuración (solo campos seguros)
+    // 5. Retornar configuración (solo campos seguros)
     return NextResponse.json({
       success: true,
       config: {
