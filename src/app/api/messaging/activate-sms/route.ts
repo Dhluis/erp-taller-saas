@@ -49,13 +49,27 @@ export async function POST(request: NextRequest) {
     const organizationId = profile.organization_id;
 
     // 3. Verificar que no tenga número ya asignado
-    const { data: existingConfig } = await supabaseAdmin
+    const { data: existingConfig, error: configError } = await supabaseAdmin
       .from('organization_messaging_config')
       .select('sms_from_number, sms_twilio_phone_sid, sms_enabled')
       .eq('organization_id', organizationId)
       .single();
 
+    // Si hay error pero no es "no encontrado", reportarlo
+    if (configError && configError.code !== 'PGRST116') {
+      console.error('❌ [Activate SMS] Error obteniendo configuración:', configError);
+      return NextResponse.json(
+        { 
+          error: 'Error al verificar configuración existente',
+          details: configError.message
+        },
+        { status: 500 }
+      );
+    }
+
+    // Si ya tiene número configurado, retornar éxito
     if (existingConfig?.sms_from_number && existingConfig?.sms_twilio_phone_sid) {
+      console.log('✅ [Activate SMS] SMS ya está activado para esta organización');
       return NextResponse.json({
         success: true,
         message: 'SMS ya está activado',
@@ -66,9 +80,19 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Obtener URL base de la aplicación
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : 'https://eaglessystem.io';
+    let appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io';
+    
+    // Si no tiene protocolo, agregarlo
+    if (!appUrl.startsWith('http://') && !appUrl.startsWith('https://')) {
+      appUrl = `https://${appUrl}`;
+    }
+    
+    // Si VERCEL_URL está disponible y no hay NEXT_PUBLIC_APP_URL, usarlo
+    if (!process.env.NEXT_PUBLIC_APP_URL && process.env.VERCEL_URL) {
+      appUrl = `https://${process.env.VERCEL_URL}`;
+    }
+    
+    console.log('🌐 [Activate SMS] URL base de aplicación:', appUrl);
 
     // 5. Obtener números existentes en la cuenta de Twilio
     const twilioClient = getTwilioClient();
@@ -166,7 +190,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 7. Actualizar configuración en BD
+    // 7. Verificar que purchasedNumber existe
+    if (!purchasedNumber || !purchasedNumber.phoneNumber || !purchasedNumber.sid) {
+      console.error('❌ [Activate SMS] Número no válido después de obtener/comprar');
+      return NextResponse.json(
+        { 
+          error: 'Error al obtener número de teléfono',
+          details: 'No se pudo obtener o comprar un número válido'
+        },
+        { status: 500 }
+      );
+    }
+
+    // 8. Actualizar configuración en BD (upsert para crear si no existe)
     const updates: any = {
       sms_enabled: true,
       sms_from_number: purchasedNumber.phoneNumber,
@@ -177,28 +213,61 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    const { data: updatedConfig, error: updateError } = await supabaseAdmin
+    // Intentar update primero, si no existe, hacer insert
+    let updatedConfig;
+    let updateError;
+
+    const { data: updateData, error: updateErr } = await supabaseAdmin
       .from('organization_messaging_config')
       .update(updates)
       .eq('organization_id', organizationId)
       .select()
       .single();
 
+    updateError = updateErr;
+    updatedConfig = updateData;
+
+    // Si no existe la configuración, crearla
+    if (updateError && updateError.code === 'PGRST116') {
+      console.log('📝 [Activate SMS] Creando nueva configuración...');
+      const { data: insertData, error: insertError } = await supabaseAdmin
+        .from('organization_messaging_config')
+        .insert({
+          organization_id: organizationId,
+          ...updates,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        updateError = insertError;
+      } else {
+        updatedConfig = insertData;
+        updateError = null;
+      }
+    }
+
     if (updateError) {
       console.error('❌ [Activate SMS] Error actualizando BD:', updateError);
       
-      // Intentar liberar el número si falla la BD
-      try {
-        await twilioClient.incomingPhoneNumbers(purchasedNumber.sid).remove();
-        console.log('🔄 [Activate SMS] Número liberado debido a error en BD');
-      } catch (releaseError) {
-        console.error('❌ [Activate SMS] Error liberando número:', releaseError);
+      // NO liberar el número si ya existía (no lo compramos)
+      if (existingNumbers && existingNumbers.length > 0) {
+        console.log('⚠️ [Activate SMS] Número existente, no se liberará');
+      } else {
+        // Solo liberar si lo compramos nosotros
+        try {
+          await twilioClient.incomingPhoneNumbers(purchasedNumber.sid).remove();
+          console.log('🔄 [Activate SMS] Número liberado debido a error en BD');
+        } catch (releaseError) {
+          console.error('❌ [Activate SMS] Error liberando número:', releaseError);
+        }
       }
 
       return NextResponse.json(
         { 
           error: 'Error al guardar configuración',
-          details: updateError.message
+          details: updateError.message,
+          code: updateError.code
         },
         { status: 500 }
       );
