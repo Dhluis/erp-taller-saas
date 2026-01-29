@@ -70,47 +70,101 @@ export async function POST(request: NextRequest) {
       ? `https://${process.env.VERCEL_URL}` 
       : 'https://eaglessystem.io';
 
-    // 5. Comprar número de teléfono en Twilio (México)
+    // 5. Obtener números existentes en la cuenta de Twilio
     const twilioClient = getTwilioClient();
-    
-    console.log('📱 [Activate SMS] Buscando números disponibles en México...');
-    
-    // Buscar números disponibles en México (código de país +52)
-    const availableNumbers = await twilioClient.availablePhoneNumbers('MX')
-      .local
-      .list({ limit: 5 });
-
-    if (!availableNumbers || availableNumbers.length === 0) {
-      console.error('❌ [Activate SMS] No hay números disponibles en México');
-      return NextResponse.json(
-        { 
-          error: 'No hay números disponibles en México. Intenta más tarde o contacta soporte.',
-          details: 'Twilio no tiene números disponibles en este momento'
-        },
-        { status: 503 }
-      );
-    }
-
-    // Seleccionar el primer número disponible
-    const selectedNumber = availableNumbers[0];
-    console.log('✅ [Activate SMS] Número seleccionado:', selectedNumber.phoneNumber);
-
-    // 6. Comprar el número
     const webhookUrl = `${appUrl}/api/messaging/sms/webhook/${organizationId}`;
     const statusWebhookUrl = `${appUrl}/api/messaging/sms/webhook/${organizationId}/status`;
 
-    console.log('💰 [Activate SMS] Comprando número...');
-    const purchasedNumber = await twilioClient.incomingPhoneNumbers.create({
-      phoneNumber: selectedNumber.phoneNumber,
-      smsUrl: webhookUrl,
-      statusCallback: statusWebhookUrl,
-      statusCallbackMethod: 'POST',
-    });
+    console.log('📱 [Activate SMS] Verificando números existentes en cuenta Twilio...');
+    
+    // Primero verificar si ya hay números en la cuenta
+    let existingNumbers;
+    try {
+      existingNumbers = await twilioClient.incomingPhoneNumbers.list({ limit: 10 });
+      console.log('📋 [Activate SMS] Números existentes en cuenta:', existingNumbers.length);
+    } catch (error: any) {
+      console.error('❌ [Activate SMS] Error obteniendo números existentes:', error);
+      existingNumbers = [];
+    }
 
-    console.log('✅ [Activate SMS] Número comprado:', {
-      phoneNumber: purchasedNumber.phoneNumber,
-      sid: purchasedNumber.sid
-    });
+    let purchasedNumber;
+
+    // Si ya hay números, usar el primero disponible
+    if (existingNumbers && existingNumbers.length > 0) {
+      const firstNumber = existingNumbers[0];
+      console.log('✅ [Activate SMS] Usando número existente:', firstNumber.phoneNumber);
+      
+      // Actualizar webhooks del número existente
+      try {
+        purchasedNumber = await twilioClient.incomingPhoneNumbers(firstNumber.sid).update({
+          smsUrl: webhookUrl,
+          statusCallback: statusWebhookUrl,
+          statusCallbackMethod: 'POST',
+        });
+        console.log('✅ [Activate SMS] Webhooks actualizados en número existente');
+      } catch (updateError: any) {
+        console.error('❌ [Activate SMS] Error actualizando webhooks:', updateError);
+        // Continuar con el número aunque falle la actualización de webhooks
+        purchasedNumber = firstNumber;
+      }
+    } else {
+      // No hay números, intentar comprar uno nuevo
+      console.log('📱 [Activate SMS] No hay números existentes, buscando disponibles en México...');
+      
+      try {
+        // Buscar números disponibles en México (código de país +52)
+        const availableNumbers = await twilioClient.availablePhoneNumbers('MX')
+          .local
+          .list({ limit: 5 });
+
+        if (!availableNumbers || availableNumbers.length === 0) {
+          console.error('❌ [Activate SMS] No hay números disponibles en México');
+          return NextResponse.json(
+            { 
+              error: 'No hay números disponibles en México. Intenta más tarde o contacta soporte.',
+              details: 'Twilio no tiene números disponibles en este momento'
+            },
+            { status: 503 }
+          );
+        }
+
+        // Seleccionar el primer número disponible
+        const selectedNumber = availableNumbers[0];
+        console.log('✅ [Activate SMS] Número seleccionado:', selectedNumber.phoneNumber);
+
+        // Comprar el número
+        console.log('💰 [Activate SMS] Comprando número...');
+        purchasedNumber = await twilioClient.incomingPhoneNumbers.create({
+          phoneNumber: selectedNumber.phoneNumber,
+          smsUrl: webhookUrl,
+          statusCallback: statusWebhookUrl,
+          statusCallbackMethod: 'POST',
+        });
+
+        console.log('✅ [Activate SMS] Número comprado:', {
+          phoneNumber: purchasedNumber.phoneNumber,
+          sid: purchasedNumber.sid
+        });
+      } catch (purchaseError: any) {
+        // Error específico de cuenta trial
+        if (purchaseError.code === 21404) {
+          console.error('❌ [Activate SMS] Cuenta trial - solo permite un número');
+          return NextResponse.json(
+            { 
+              error: 'Cuenta Trial de Twilio',
+              details: 'Las cuentas trial de Twilio solo permiten un número. Ya tienes un número asignado.',
+              code: purchaseError.code,
+              solution: 'Para usar SMS, actualiza tu cuenta de Twilio a un plan de pago o usa el número existente.',
+              moreInfo: purchaseError.moreInfo
+            },
+            { status: 400 }
+          );
+        }
+        
+        // Otro error
+        throw purchaseError;
+      }
+    }
 
     // 7. Actualizar configuración en BD
     const updates: any = {
