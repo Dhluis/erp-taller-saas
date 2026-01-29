@@ -34,24 +34,33 @@ function normalizePhoneNumber(phone: string): string {
 }
 
 /**
+ * Resultado de envío de SMS
+ */
+export interface SMSResult {
+  success: boolean;
+  messageSid?: string;
+  error?: string;
+}
+
+/**
  * Enviar SMS usando Twilio
  */
 export async function sendSMS(
   organizationId: string,
   options: SMSOptions
-): Promise<boolean> {
+): Promise<SMSResult> {
   try {
     // 1. Obtener configuración
     const config = await getMessagingConfig(organizationId);
 
     if (!config || !config.smsEnabled) {
       console.warn('[SMS] SMS not enabled for org:', organizationId);
-      return false;
+      return { success: false, error: 'SMS no habilitado' };
     }
 
     if (!config.smsFromNumber) {
       console.error('[SMS] No SMS number configured for org:', organizationId);
-      return false;
+      return { success: false, error: 'Número SMS no configurado' };
     }
 
     // 2. Normalizar número destino
@@ -82,7 +91,7 @@ export async function sendSMS(
       organizationId
     });
 
-    return true;
+    return { success: true, messageSid: message.sid };
 
   } catch (error: any) {
     console.error('❌ [SMS] Error sending:', error);
@@ -91,7 +100,10 @@ export async function sendSMS(
       console.error('[SMS] Twilio error code:', error.code);
     }
 
-    return false;
+    return { 
+      success: false, 
+      error: error.message || 'Error desconocido al enviar SMS' 
+    };
   }
 }
 
@@ -126,8 +138,8 @@ export async function sendBulkSMS(
   let failed = 0;
 
   for (const recipient of recipients) {
-    const success = await sendSMS(organizationId, recipient);
-    if (success) {
+    const result = await sendSMS(organizationId, recipient);
+    if (result.success) {
       sent++;
     } else {
       failed++;

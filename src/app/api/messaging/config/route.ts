@@ -48,6 +48,8 @@ export async function GET(request: NextRequest) {
           emailReplyTo: process.env.SMTP_FROM_EMAIL || 'servicios@eaglessystem.io',
           smsEnabled: false,
           smsFromNumber: process.env.TWILIO_PHONE_NUMBER || null,
+          smsAutoNotifications: false,
+          smsNotificationStatuses: ['completed', 'ready'],
           whatsappProvider: 'waha',
           whatsappEnabled: false,
           whatsappTwilioNumber: null,
@@ -62,7 +64,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 5. Retornar configuración (solo campos seguros)
+    // 5. Obtener campos adicionales de SMS automático
+    const { data: messagingConfig } = await supabaseAdmin
+      .from('organization_messaging_config')
+      .select('sms_auto_notifications, sms_notification_statuses')
+      .eq('organization_id', profile.organization_id)
+      .single();
+
+    // 6. Retornar configuración (solo campos seguros)
     return NextResponse.json({
       success: true,
       config: {
@@ -71,6 +80,8 @@ export async function GET(request: NextRequest) {
         emailReplyTo: config.emailReplyTo,
         smsEnabled: config.smsEnabled,
         smsFromNumber: config.smsFromNumber,
+        smsAutoNotifications: (messagingConfig as any)?.sms_auto_notifications ?? false,
+        smsNotificationStatuses: (messagingConfig as any)?.sms_notification_statuses || ['completed', 'ready'],
         whatsappProvider: config.whatsappProvider,
         whatsappEnabled: config.whatsappEnabled,
         whatsappTwilioNumber: config.whatsappTwilioNumber,
@@ -143,6 +154,8 @@ export async function PUT(request: NextRequest) {
       'email_reply_to',
       'sms_enabled',
       'sms_from_number',
+      'sms_auto_notifications',
+      'sms_notification_statuses',
       'whatsapp_provider',
       'whatsapp_enabled',
       'whatsapp_twilio_number',
@@ -195,6 +208,8 @@ export async function PUT(request: NextRequest) {
       emailReplyTo: configData.email_reply_to,
       smsEnabled: configData.sms_enabled ?? false,
       smsFromNumber: configData.sms_from_number,
+      smsAutoNotifications: configData.sms_auto_notifications ?? false,
+      smsNotificationStatuses: configData.sms_notification_statuses || ['completed', 'ready'],
       whatsappProvider: configData.whatsapp_provider || 'waha',
       whatsappEnabled: configData.whatsapp_enabled ?? false,
       whatsappTwilioNumber: configData.whatsapp_twilio_number,

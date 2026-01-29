@@ -7,6 +7,7 @@ import {
 import { hasPermission, canAccessWorkOrder, UserRole } from '@/lib/auth/permissions';
 import { createClientFromRequest } from '@/lib/supabase/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
+import { sendOrderSMSNotification } from '@/lib/messaging/send-order-sms-notification';
 
 // GET: Obtener una orden por ID
 export async function GET(
@@ -370,6 +371,25 @@ export async function PUT(
         },
         { status: 500 }
       );
+    }
+
+    // ✅ Enviar SMS automático si el status cambió
+    if (body.status && updatedOrder) {
+      const orderData = updatedOrder as any;
+      const customer = orderData.customer as any;
+      const total = orderData.total || orderData.final_cost || orderData.estimated_cost;
+
+      // Enviar SMS en background (no bloquear respuesta)
+      sendOrderSMSNotification({
+        orderId: params.id,
+        organizationId: organizationId,
+        newStatus: body.status,
+        total: total,
+        customerPhone: customer?.phone,
+      }).catch(err => {
+        console.error('❌ [API PUT /work-orders/[id]] Error enviando SMS:', err);
+        // No fallar la actualización si falla el SMS
+      });
     }
 
     return NextResponse.json({
