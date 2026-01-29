@@ -27,13 +27,15 @@ export async function GET(request: NextRequest) {
       .eq('auth_user_id', user.id)
       .single();
     
-    if (profileError || !userProfile?.organization_id) {
+    if (profileError || !userProfile || !(userProfile as any).organization_id) {
       console.error('[GET /api/messaging/activate-sms] Error obteniendo perfil:', profileError);
       return NextResponse.json(
         { success: false, error: 'No se pudo obtener organización' },
         { status: 403 }
       );
     }
+    
+    const userProfileData = userProfile as any;
     
     // 3. Obtener configuración de SMS
     const { data: config, error: configError } = await supabaseAdmin
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
         updated_at,
         created_at
       `)
-      .eq('organization_id', userProfile.organization_id)
+      .eq('organization_id', userProfileData.organization_id)
       .single();
     
     if (configError && configError.code !== 'PGRST116') {
@@ -59,17 +61,19 @@ export async function GET(request: NextRequest) {
       );
     }
     
+    const configData = config as any;
+    
     // 4. Retornar estado
     return NextResponse.json({
       success: true,
       data: {
-        enabled: config?.sms_enabled || false,
-        phoneNumber: config?.sms_from_number || null,
-        phoneSid: config?.sms_twilio_phone_sid || null,
-        webhookUrl: config?.sms_webhook_url || null,
-        autoNotifications: config?.sms_auto_notifications || false,
-        notificationStatuses: config?.sms_notification_statuses || ['completed', 'ready'],
-        activatedAt: config?.updated_at || config?.created_at || null,
+        enabled: configData?.sms_enabled || false,
+        phoneNumber: configData?.sms_from_number || null,
+        phoneSid: configData?.sms_twilio_phone_sid || null,
+        webhookUrl: configData?.sms_webhook_url || null,
+        autoNotifications: configData?.sms_auto_notifications || false,
+        notificationStatuses: configData?.sms_notification_statuses || ['completed', 'ready'],
+        activatedAt: configData?.updated_at || configData?.created_at || null,
         // Costos estimados (hardcoded por ahora)
         costs: {
           monthlyUsd: 1.0, // $1 USD/mes por número
@@ -90,19 +94,20 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/messaging/activate-sms
  * Activar SMS para una organización:
- * 1. Comprar número de teléfono en Twilio (México)
- * 2. Configurar webhook para SMS entrantes
- * 3. Actualizar configuración en BD
+ * 1. Buscar número disponible en Twilio (área del taller)
+ * 2. Comprar el número automáticamente
+ * 3. Configurar webhook para recibir SMS
+ * 4. Guardar configuración en BD
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Autenticar usuario
+    // 1. Autenticación
     const supabase = createClientFromRequest(request);
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
       return NextResponse.json(
-        { error: 'No autorizado' },
+        { success: false, error: 'No autorizado' },
         { status: 401 }
       );
     }
@@ -111,32 +116,51 @@ export async function POST(request: NextRequest) {
     const supabaseAdmin = getSupabaseServiceClient();
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('organization_id, role')
+      .select('organization_id, role, email')
       .eq('auth_user_id', user.id)
       .single();
 
-    if (profileError || !profile || !profile.organization_id) {
+    if (profileError || !profile || !(profile as any).organization_id) {
       console.error('[POST /api/messaging/activate-sms] Error obteniendo perfil:', profileError);
       return NextResponse.json(
-        { error: 'Perfil no encontrado' },
+        { success: false, error: 'Perfil no encontrado' },
         { status: 404 }
       );
     }
 
+    const profileData = profile as any;
+
     // Solo ADMIN y OWNER pueden activar SMS
-    if (!['ADMIN', 'OWNER'].includes(profile.role)) {
+    if (!['ADMIN', 'OWNER'].includes(profileData.role)) {
       return NextResponse.json(
-        { error: 'Sin permisos para activar SMS' },
+        { success: false, error: 'Sin permisos para activar SMS' },
         { status: 403 }
       );
     }
 
-    const organizationId = profile.organization_id;
+    const organizationId = profileData.organization_id;
 
-    // 3. Verificar que no tenga número ya asignado
+    // 3. Obtener datos de la organización
+    const { data: organization, error: orgError } = await supabaseAdmin
+      .from('organizations')
+      .select('id, name, city, state, country, phone')
+      .eq('id', organizationId)
+      .single();
+    
+    if (orgError || !organization) {
+      console.error('[POST /api/messaging/activate-sms] Error obteniendo organización:', orgError);
+      return NextResponse.json(
+        { success: false, error: 'Organización no encontrada' },
+        { status: 404 }
+      );
+    }
+
+    const orgData = organization as any;
+
+    // 4. Verificar que no tenga SMS ya activado
     const { data: existingConfig, error: configError } = await supabaseAdmin
       .from('organization_messaging_config')
-      .select('sms_from_number, sms_twilio_phone_sid, sms_enabled')
+      .select('sms_enabled, sms_from_number, sms_twilio_phone_sid')
       .eq('organization_id', organizationId)
       .single();
 
@@ -145,6 +169,7 @@ export async function POST(request: NextRequest) {
       console.error('❌ [Activate SMS] Error obteniendo configuración:', configError);
       return NextResponse.json(
         { 
+          success: false,
           error: 'Error al verificar configuración existente',
           details: configError.message
         },
@@ -152,19 +177,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const configData = existingConfig as any;
+
     // Si ya tiene número configurado, retornar éxito
-    if (existingConfig?.sms_from_number && existingConfig?.sms_twilio_phone_sid) {
+    if (configData?.sms_enabled && configData?.sms_from_number && configData?.sms_twilio_phone_sid) {
       console.log('✅ [Activate SMS] SMS ya está activado para esta organización');
       return NextResponse.json({
-        success: true,
-        message: 'SMS ya está activado',
-        phoneNumber: existingConfig.sms_from_number,
-        phoneSid: existingConfig.sms_twilio_phone_sid,
-        alreadyActive: true
-      });
+        success: false,
+        error: 'SMS ya está activado',
+        data: {
+          phone_number: configData.sms_from_number
+        }
+      }, { status: 400 });
     }
 
-    // 4. Obtener URL base de la aplicación
+    // 5. Verificar credenciales de Twilio
+    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+      console.error('❌ [Activate SMS] Twilio credentials not configured');
+      return NextResponse.json(
+        { success: false, error: 'Servicio SMS no configurado' },
+        { status: 500 }
+      );
+    }
+
+    // 6. Inicializar cliente Twilio
+    const twilioClient = getTwilioClient();
+
+    // 7. Determinar código de área (basado en ubicación)
+    let areaCode: number | undefined;
+    if (orgData.city?.toLowerCase().includes('aguascalientes')) {
+      areaCode = 449;
+    } else if (orgData.state?.toLowerCase().includes('aguascalientes')) {
+      areaCode = 449;
+    }
+    // Agregar más códigos de área según necesidad
+    // Ejemplo: if (organization.city?.toLowerCase().includes('guadalajara')) areaCode = 33;
+    
+    console.log(`📱 [Activate SMS] Buscando número en México, área code: ${areaCode || 'cualquiera'}`);
+
+    // 8. Obtener URL base de la aplicación
     let appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io';
     
     // Si no tiene protocolo, agregarlo
@@ -177,16 +228,13 @@ export async function POST(request: NextRequest) {
       appUrl = `https://${process.env.VERCEL_URL}`;
     }
     
-    console.log('🌐 [Activate SMS] URL base de aplicación:', appUrl);
-
-    // 5. Obtener números existentes en la cuenta de Twilio
-    const twilioClient = getTwilioClient();
     const webhookUrl = `${appUrl}/api/messaging/sms/webhook/${organizationId}`;
     const statusWebhookUrl = `${appUrl}/api/messaging/sms/webhook/${organizationId}/status`;
-
-    console.log('📱 [Activate SMS] Verificando números existentes en cuenta Twilio...');
     
-    // Primero verificar si ya hay números en la cuenta
+    console.log('🌐 [Activate SMS] URL base de aplicación:', appUrl);
+    console.log('🔗 [Activate SMS] Webhook URL:', webhookUrl);
+
+    // 9. Verificar números existentes en la cuenta de Twilio
     let existingNumbers;
     try {
       existingNumbers = await twilioClient.incomingPhoneNumbers.list({ limit: 10 });
@@ -206,9 +254,11 @@ export async function POST(request: NextRequest) {
       // Actualizar webhooks del número existente
       try {
         purchasedNumber = await twilioClient.incomingPhoneNumbers(firstNumber.sid).update({
+          friendlyName: `Eagles ERP - ${orgData.name}`,
           smsUrl: webhookUrl,
+          smsMethod: 'POST',
           statusCallback: statusWebhookUrl,
-          statusCallbackMethod: 'POST',
+          statusCallbackMethod: 'POST'
         });
         console.log('✅ [Activate SMS] Webhooks actualizados en número existente');
       } catch (updateError: any) {
@@ -217,39 +267,72 @@ export async function POST(request: NextRequest) {
         purchasedNumber = firstNumber;
       }
     } else {
-      // No hay números, intentar comprar uno nuevo
+      // No hay números, buscar y comprar uno nuevo
       console.log('📱 [Activate SMS] No hay números existentes, buscando disponibles en México...');
       
+      // 10. Buscar números disponibles en México
+      let availableNumbers;
+      
       try {
-        // Buscar números disponibles en México (código de país +52)
-        const availableNumbers = await twilioClient.availablePhoneNumbers('MX')
-          .local
-          .list({ limit: 5 });
-
-        if (!availableNumbers || availableNumbers.length === 0) {
-          console.error('❌ [Activate SMS] No hay números disponibles en México');
-          return NextResponse.json(
-            { 
-              error: 'No hay números disponibles en México. Intenta más tarde o contacta soporte.',
-              details: 'Twilio no tiene números disponibles en este momento'
-            },
-            { status: 503 }
-          );
+        // Intentar primero con área code específico si existe
+        if (areaCode) {
+          console.log(`🔍 [Activate SMS] Buscando números con área code ${areaCode}...`);
+          availableNumbers = await twilioClient
+            .availablePhoneNumbers('MX')
+            .local
+            .list({
+              areaCode: areaCode,
+              smsEnabled: true,
+              voiceEnabled: false, // Solo SMS, no voz (más barato)
+              limit: 10
+            });
         }
+        
+        // Si no hay números o no hay área code, buscar cualquier número en México
+        if (!availableNumbers || availableNumbers.length === 0) {
+          console.log('🔍 [Activate SMS] No hay números con área code, buscando cualquier número en México...');
+          availableNumbers = await twilioClient
+            .availablePhoneNumbers('MX')
+            .local
+            .list({
+              smsEnabled: true,
+              voiceEnabled: false,
+              limit: 20
+            });
+        }
+        
+        if (!availableNumbers || availableNumbers.length === 0) {
+          throw new Error('No hay números disponibles en México');
+        }
+        
+        console.log(`✅ [Activate SMS] Encontrados ${availableNumbers.length} números disponibles`);
+        
+      } catch (searchError: any) {
+        console.error('❌ [Activate SMS] Error buscando números:', searchError);
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'Error al buscar números disponibles',
+            details: searchError.message
+          },
+          { status: 500 }
+        );
+      }
 
-        // Seleccionar el primer número disponible
-        const selectedNumber = availableNumbers[0];
-        console.log('✅ [Activate SMS] Número seleccionado:', selectedNumber.phoneNumber);
-
-        // Comprar el número
-        console.log('💰 [Activate SMS] Comprando número...');
-        purchasedNumber = await twilioClient.incomingPhoneNumbers.create({
-          phoneNumber: selectedNumber.phoneNumber,
-          smsUrl: webhookUrl,
-          statusCallback: statusWebhookUrl,
-          statusCallbackMethod: 'POST',
-        });
-
+      // 11. Comprar el primer número disponible (AUTOMÁTICO)
+      try {
+        console.log('💰 [Activate SMS] Comprando número:', availableNumbers[0].phoneNumber);
+        purchasedNumber = await twilioClient
+          .incomingPhoneNumbers
+          .create({
+            phoneNumber: availableNumbers[0].phoneNumber,
+            friendlyName: `Eagles ERP - ${orgData.name}`,
+            smsUrl: webhookUrl,
+            smsMethod: 'POST',
+            statusCallback: statusWebhookUrl,
+            statusCallbackMethod: 'POST'
+          });
+        
         console.log('✅ [Activate SMS] Número comprado:', {
           phoneNumber: purchasedNumber.phoneNumber,
           sid: purchasedNumber.sid
@@ -260,6 +343,7 @@ export async function POST(request: NextRequest) {
           console.error('❌ [Activate SMS] Cuenta trial - solo permite un número');
           return NextResponse.json(
             { 
+              success: false,
               error: 'Cuenta Trial de Twilio',
               details: 'Las cuentas trial de Twilio solo permiten un número. Ya tienes un número asignado.',
               code: purchaseError.code,
@@ -270,16 +354,24 @@ export async function POST(request: NextRequest) {
           );
         }
         
-        // Otro error
-        throw purchaseError;
+        console.error('❌ [Activate SMS] Error comprando número:', purchaseError);
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'Error al comprar número',
+            details: purchaseError.message 
+          },
+          { status: 500 }
+        );
       }
     }
 
-    // 7. Verificar que purchasedNumber existe
+    // 12. Verificar que purchasedNumber existe
     if (!purchasedNumber || !purchasedNumber.phoneNumber || !purchasedNumber.sid) {
       console.error('❌ [Activate SMS] Número no válido después de obtener/comprar');
       return NextResponse.json(
         { 
+          success: false,
           error: 'Error al obtener número de teléfono',
           details: 'No se pudo obtener o comprar un número válido'
         },
@@ -287,8 +379,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 8. Actualizar configuración en BD (upsert para crear si no existe)
-    const updates: any = {
+    // 13. Guardar configuración en BD (UPSERT)
+    const updates = {
       sms_enabled: true,
       sms_from_number: purchasedNumber.phoneNumber,
       sms_twilio_phone_sid: purchasedNumber.sid,
@@ -302,7 +394,7 @@ export async function POST(request: NextRequest) {
     let updatedConfig;
     let updateError;
 
-    const { data: updateData, error: updateErr } = await supabaseAdmin
+    const { data: updateData, error: updateErr } = await (supabaseAdmin as any)
       .from('organization_messaging_config')
       .update(updates)
       .eq('organization_id', organizationId)
@@ -315,12 +407,14 @@ export async function POST(request: NextRequest) {
     // Si no existe la configuración, crearla
     if (updateError && updateError.code === 'PGRST116') {
       console.log('📝 [Activate SMS] Creando nueva configuración...');
-      const { data: insertData, error: insertError } = await supabaseAdmin
+      const insertPayload = {
+        organization_id: organizationId,
+        ...updates,
+      };
+      
+      const { data: insertData, error: insertError } = await (supabaseAdmin as any)
         .from('organization_messaging_config')
-        .insert({
-          organization_id: organizationId,
-          ...updates,
-        })
+        .insert(insertPayload)
         .select()
         .single();
 
@@ -333,64 +427,59 @@ export async function POST(request: NextRequest) {
     }
 
     if (updateError) {
-      console.error('❌ [Activate SMS] Error actualizando BD:', updateError);
+      console.error('❌ [Activate SMS] Error guardando configuración:', updateError);
       
-      // NO liberar el número si ya existía (no lo compramos)
-      if (existingNumbers && existingNumbers.length > 0) {
-        console.log('⚠️ [Activate SMS] Número existente, no se liberará');
-      } else {
-        // Solo liberar si lo compramos nosotros
+      // Intentar liberar el número si falló guardar en BD (solo si lo compramos)
+      if (!existingNumbers || existingNumbers.length === 0) {
         try {
           await twilioClient.incomingPhoneNumbers(purchasedNumber.sid).remove();
-          console.log('🔄 [Activate SMS] Número liberado debido a error en BD');
+          console.log('🔄 [Activate SMS] Número liberado después de error en BD');
         } catch (releaseError) {
           console.error('❌ [Activate SMS] Error liberando número:', releaseError);
         }
       }
-
+      
       return NextResponse.json(
         { 
+          success: false,
           error: 'Error al guardar configuración',
-          details: updateError.message,
-          code: updateError.code
+          details: updateError.message
         },
         { status: 500 }
       );
     }
 
-    console.log('✅ [Activate SMS] SMS activado exitosamente para org:', organizationId);
+    console.log(`✅ [Activate SMS] SMS activado exitosamente para org ${organizationId}`);
 
+    // 14. Retornar respuesta exitosa
     return NextResponse.json({
       success: true,
-      message: 'SMS activado exitosamente',
-      phoneNumber: purchasedNumber.phoneNumber,
-      phoneSid: purchasedNumber.sid,
-      webhookUrl: webhookUrl,
-      config: {
-        smsEnabled: true,
-        smsFromNumber: purchasedNumber.phoneNumber,
-        smsAutoNotifications: true,
-        smsNotificationStatuses: ['completed', 'ready'],
+      message: 'SMS activado correctamente',
+      data: {
+        phone_number: purchasedNumber.phoneNumber,
+        sid: purchasedNumber.sid,
+        webhook_url: webhookUrl,
+        friendly_name: purchasedNumber.friendlyName,
+        costs: {
+          monthly_usd: 1.00,
+          per_sms_mxn: 0.15,
+          currency_monthly: 'USD',
+          currency_per_sms: 'MXN'
+        },
+        activated_at: new Date().toISOString()
       }
     });
 
   } catch (error: any) {
-    console.error('❌ [POST /api/messaging/activate-sms] Error:', error);
-    
-    // Error específico de Twilio
-    if (error.code) {
-      return NextResponse.json({
-        error: 'Error de Twilio al activar SMS',
-        details: error.message,
-        code: error.code,
-        moreInfo: error.moreInfo
-      }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      error: 'Error al activar SMS',
-      details: error.message || 'Error desconocido'
-    }, { status: 500 });
+    console.error('❌ [POST /api/messaging/activate-sms] Error inesperado:', error);
+    return NextResponse.json(
+      { 
+        success: false,
+        error: 'Error inesperado al activar SMS',
+        details: error.message 
+      },
+      { status: 500 }
+    );
   }
 }
 
