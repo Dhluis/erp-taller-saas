@@ -113,12 +113,29 @@ export function configureSendGrid(): void {
  * Configurar cliente de Twilio
  */
 export function configureTwilio(): twilio.Twilio {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
+  const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
 
   if (!accountSid || !authToken) {
+    console.error('❌ [Twilio] Variables de entorno faltantes:', {
+      hasAccountSid: !!accountSid,
+      hasAuthToken: !!authToken,
+      accountSidLength: accountSid?.length || 0,
+      authTokenLength: authToken?.length || 0,
+    });
     throw new Error(
-      'TWILIO_ACCOUNT_SID o TWILIO_AUTH_TOKEN no están configuradas'
+      'TWILIO_ACCOUNT_SID o TWILIO_AUTH_TOKEN no están configuradas o están vacías. Verifica las variables de entorno en Vercel.'
+    );
+  }
+
+  // Validar formato básico de Account SID (debe empezar con "AC")
+  if (!accountSid.startsWith('AC')) {
+    console.error('❌ [Twilio] Account SID con formato incorrecto:', {
+      accountSid: accountSid.substring(0, 5) + '...',
+      expectedFormat: 'AC...'
+    });
+    throw new Error(
+      'TWILIO_ACCOUNT_SID tiene formato incorrecto. Debe empezar con "AC".'
     );
   }
 
