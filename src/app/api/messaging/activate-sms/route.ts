@@ -3,6 +3,91 @@ import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabas
 import { getTwilioClient } from '@/lib/messaging/twilio-client';
 
 /**
+ * GET /api/messaging/activate-sms
+ * Obtiene el estado de activación de SMS para la organización
+ */
+export async function GET(request: NextRequest) {
+  try {
+    // 1. Autenticación
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { success: false, error: 'No autorizado' },
+        { status: 401 }
+      );
+    }
+    
+    // 2. Obtener organization_id
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+    
+    if (profileError || !userProfile?.organization_id) {
+      console.error('[GET /api/messaging/activate-sms] Error obteniendo perfil:', profileError);
+      return NextResponse.json(
+        { success: false, error: 'No se pudo obtener organización' },
+        { status: 403 }
+      );
+    }
+    
+    // 3. Obtener configuración de SMS
+    const { data: config, error: configError } = await supabaseAdmin
+      .from('organization_messaging_config')
+      .select(`
+        sms_enabled,
+        sms_from_number,
+        sms_twilio_phone_sid,
+        sms_webhook_url,
+        sms_auto_notifications,
+        sms_notification_statuses,
+        updated_at,
+        created_at
+      `)
+      .eq('organization_id', userProfile.organization_id)
+      .single();
+    
+    if (configError && configError.code !== 'PGRST116') {
+      console.error('❌ [GET /api/messaging/activate-sms] Error obteniendo configuración:', configError);
+      return NextResponse.json(
+        { success: false, error: 'Error al obtener configuración', details: configError.message },
+        { status: 500 }
+      );
+    }
+    
+    // 4. Retornar estado
+    return NextResponse.json({
+      success: true,
+      data: {
+        enabled: config?.sms_enabled || false,
+        phoneNumber: config?.sms_from_number || null,
+        phoneSid: config?.sms_twilio_phone_sid || null,
+        webhookUrl: config?.sms_webhook_url || null,
+        autoNotifications: config?.sms_auto_notifications || false,
+        notificationStatuses: config?.sms_notification_statuses || ['completed', 'ready'],
+        activatedAt: config?.updated_at || config?.created_at || null,
+        // Costos estimados (hardcoded por ahora)
+        costs: {
+          monthlyUsd: 1.0, // $1 USD/mes por número
+          perSmsMxn: 0.15  // $0.15 MXN por SMS
+        }
+      }
+    });
+    
+  } catch (error: any) {
+    console.error('❌ [GET /api/messaging/activate-sms] Error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Error al obtener estado de SMS', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * POST /api/messaging/activate-sms
  * Activar SMS para una organización:
  * 1. Comprar número de teléfono en Twilio (México)
