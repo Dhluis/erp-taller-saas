@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { toast } from 'sonner';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -29,6 +30,13 @@ export default function SMSConfigPage() {
   const [showTestModal, setShowTestModal] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [autoNotifications, setAutoNotifications] = useState(false);
+  const [bundleError, setBundleError] = useState<{
+    error: string;
+    details?: string;
+    solution?: string;
+    twilioBundleDocs?: string;
+    twilioConsole?: string;
+  } | null>(null);
 
   useEffect(() => {
     loadConfig();
@@ -82,6 +90,7 @@ export default function SMSConfigPage() {
 
   const handleActivateSMS = async () => {
     setActivating(true);
+    setBundleError(null); // Limpiar error anterior
     try {
       const response = await fetch('/api/messaging/activate-sms', {
         method: 'POST',
@@ -90,11 +99,30 @@ export default function SMSConfigPage() {
 
       if (response.ok) {
         const result = await response.json();
-        toast.success(`✅ SMS activado exitosamente! Número: ${result.phoneNumber}`);
+        toast.success(`✅ SMS activado exitosamente! Número: ${result.data?.phone_number || result.phoneNumber}`);
         loadConfig(); // Recargar configuración
+        setBundleError(null); // Limpiar error si fue exitoso
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Error al activar SMS');
+        
+        // Si es error de Bundle, mostrar información detallada
+        if (error.code === 21649 || error.error?.includes('Bundle')) {
+          setBundleError({
+            error: error.error || 'Bundle requerido',
+            details: error.details,
+            solution: error.solution,
+            twilioBundleDocs: error.twilioBundleDocs,
+            twilioConsole: error.twilioConsole,
+          });
+          toast.error(error.error || 'Error al activar SMS', {
+            description: error.details || error.solution,
+            duration: 10000, // Mostrar por más tiempo
+          });
+        } else {
+          toast.error(error.error || 'Error al activar SMS', {
+            description: error.details || error.solution,
+          });
+        }
       }
     } catch (error: any) {
       console.error('Error activating SMS:', error);
@@ -157,36 +185,78 @@ export default function SMSConfigPage() {
 
       {/* Activar SMS si no está configurado */}
       {!isConfigured && (
-        <Card className="mb-6 border-primary/50 bg-primary/5">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl">📱</span>
-              <div className="flex-1">
-                <h3 className="font-semibold text-primary mb-1">Activar SMS Automático</h3>
-                <p className="text-sm text-text-secondary mb-4">
-                  Activa SMS con un solo clic. El sistema comprará automáticamente un número de teléfono en México y configurará todo lo necesario.
-                </p>
-                <Button
-                  onClick={handleActivateSMS}
-                  disabled={activating}
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  {activating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Activando...
-                    </>
-                  ) : (
-                    '🚀 Activar SMS Automático'
+        <>
+          {/* Error de Bundle */}
+          {bundleError && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>{bundleError.error}</AlertTitle>
+              <AlertDescription className="space-y-2 mt-2">
+                {bundleError.details && (
+                  <p className="text-sm">{bundleError.details}</p>
+                )}
+                {bundleError.solution && (
+                  <p className="text-sm font-medium">{bundleError.solution}</p>
+                )}
+                <div className="flex gap-2 mt-3">
+                  {bundleError.twilioBundleDocs && (
+                    <a
+                      href={bundleError.twilioBundleDocs}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline flex items-center gap-1"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Documentación de Bundles
+                    </a>
                   )}
-                </Button>
-                <p className="text-xs text-text-muted mt-3">
-                  Costo: ~$1 USD/mes por número + $0.15 MXN por SMS enviado
-                </p>
+                  {bundleError.twilioConsole && (
+                    <a
+                      href={bundleError.twilioConsole}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline flex items-center gap-1"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Crear Bundle en Twilio
+                    </a>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <Card className="mb-6 border-primary/50 bg-primary/5">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">📱</span>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-primary mb-1">Activar SMS Automático</h3>
+                  <p className="text-sm text-text-secondary mb-4">
+                    Activa SMS con un solo clic. El sistema intentará comprar automáticamente un número LOCAL (no requiere Bundle). Si solo hay números MOBILE disponibles, necesitarás crear un Bundle en Twilio.
+                  </p>
+                  <Button
+                    onClick={handleActivateSMS}
+                    disabled={activating}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    {activating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Activando...
+                      </>
+                    ) : (
+                      '🚀 Activar SMS Automático'
+                    )}
+                  </Button>
+                  <p className="text-xs text-text-muted mt-3">
+                    Costo: ~$1 USD/mes por número + $0.15 MXN por SMS enviado
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {/* Configuration Form */}
