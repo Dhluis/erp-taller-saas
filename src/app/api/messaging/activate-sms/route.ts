@@ -445,8 +445,9 @@ export async function POST(request: NextRequest) {
         
         try {
           let availableNumbers: any[] = [];
+          let numberType: 'local' | 'mobile' = 'local';
           
-          // Intentar primero con números local
+          // Intentar primero con números local (preferidos, no requieren Bundle)
           try {
             const localNumbers = await twilioClient
               .availablePhoneNumbers(countryCode)
@@ -455,12 +456,17 @@ export async function POST(request: NextRequest) {
                 smsEnabled: true,
                 limit: 20
               });
-            availableNumbers = localNumbers;
+            
+            if (localNumbers && localNumbers.length > 0) {
+              availableNumbers = localNumbers;
+              numberType = 'local';
+              console.log(`✅ [SMS Activation] Encontrados ${localNumbers.length} números LOCAL en ${countryInfo.name}`);
+            }
           } catch (localError: any) {
-            console.log(`⚠️ [SMS Activation] No hay números local en ${countryInfo.name}, intentando mobile...`);
+            console.log(`⚠️ [SMS Activation] No hay números local en ${countryInfo.name}:`, localError.message);
           }
           
-          // Si no hay local, intentar mobile
+          // Si no hay local, intentar mobile (pueden requerir Bundle)
           if (availableNumbers.length === 0) {
             try {
               const mobileNumbers = await twilioClient
@@ -470,9 +476,14 @@ export async function POST(request: NextRequest) {
                   smsEnabled: true,
                   limit: 20
                 });
-              availableNumbers = mobileNumbers;
+              
+              if (mobileNumbers && mobileNumbers.length > 0) {
+                availableNumbers = mobileNumbers;
+                numberType = 'mobile';
+                console.log(`⚠️ [SMS Activation] Encontrados ${mobileNumbers.length} números MOBILE en ${countryInfo.name} (pueden requerir Bundle)`);
+              }
             } catch (mobileError: any) {
-              console.log(`⚠️ [SMS Activation] No hay números mobile en ${countryInfo.name}`);
+              console.log(`⚠️ [SMS Activation] No hay números mobile en ${countryInfo.name}:`, mobileError.message);
             }
           }
           
@@ -480,7 +491,7 @@ export async function POST(request: NextRequest) {
             throw new Error(`No hay números disponibles en ${countryInfo.name}`);
           }
           
-          console.log(`✅ [SMS Activation] Encontrados ${availableNumbers.length} números en ${countryInfo.name}`);
+          console.log(`✅ [SMS Activation] Encontrados ${availableNumbers.length} números ${numberType.toUpperCase()} en ${countryInfo.name}`);
           
           // CRÍTICO: Crear o obtener dirección registrada en Twilio
           let addressSid: string | undefined;
@@ -567,11 +578,34 @@ export async function POST(request: NextRequest) {
             console.log(`📮 [SMS Activation] Comprando número con dirección: ${addressSid}`);
           }
           
-          selectedNumber = await twilioClient
-            .incomingPhoneNumbers
-            .create(purchaseParams);
-          
-          console.log(`✅ [SMS Activation] Número comprado: ${selectedNumber.phoneNumber}`);
+          try {
+            selectedNumber = await twilioClient
+              .incomingPhoneNumbers
+              .create(purchaseParams);
+            
+            console.log(`✅ [SMS Activation] Número comprado: ${selectedNumber.phoneNumber}`);
+          } catch (purchaseError: any) {
+            // Error específico: Bundle requerido para números MOBILE en México
+            if (purchaseError.code === 21649) {
+              return NextResponse.json(
+                { 
+                  success: false,
+                  error: 'Bundle requerido para números MOBILE',
+                  details: `Los números MOBILE en ${countryInfo.name} requieren un Bundle (paquete de verificación regulatoria) de Twilio.`,
+                  solution: 'Para comprar números MOBILE, necesitas crear un Bundle en Twilio Console. Alternativamente, intenta con números LOCAL que no requieren Bundle.',
+                  country: countryInfo.name,
+                  numberType: 'mobile',
+                  code: purchaseError.code,
+                  twilioBundleDocs: 'https://www.twilio.com/docs/phone-numbers/regulatory/bundles',
+                  twilioConsole: 'https://console.twilio.com/us1/develop/phone-numbers/manage/regulatory/bundles'
+                },
+                { status: 400 }
+              );
+            }
+            
+            // Re-lanzar otros errores para que se manejen en el catch externo
+            throw purchaseError;
+          }
           
         } catch (twilioError: any) {
           console.error('❌ [SMS Activation] Error al comprar número:', twilioError);
@@ -586,6 +620,24 @@ export async function POST(request: NextRequest) {
                 solution: 'Actualiza tu cuenta de Twilio a un plan superior en: https://console.twilio.com/billing',
                 country: countryInfo.name,
                 code: twilioError.code
+              },
+              { status: 400 }
+            );
+          }
+          
+          // Error de Bundle ya manejado arriba, pero por si acaso
+          if (twilioError.code === 21649) {
+            return NextResponse.json(
+              { 
+                success: false,
+                error: 'Bundle requerido para números MOBILE',
+                details: `Los números MOBILE en ${countryInfo.name} requieren un Bundle (paquete de verificación regulatoria) de Twilio.`,
+                solution: 'Para comprar números MOBILE, necesitas crear un Bundle en Twilio Console. Alternativamente, intenta con números LOCAL que no requieren Bundle.',
+                country: countryInfo.name,
+                numberType: 'mobile',
+                code: twilioError.code,
+                twilioBundleDocs: 'https://www.twilio.com/docs/phone-numbers/regulatory/bundles',
+                twilioConsole: 'https://console.twilio.com/us1/develop/phone-numbers/manage/regulatory/bundles'
               },
               { status: 400 }
             );
