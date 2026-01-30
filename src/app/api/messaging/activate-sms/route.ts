@@ -2,9 +2,57 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
 import { getTwilioClient } from '@/lib/messaging/twilio-client';
 
+// Mapeo de países latinoamericanos soportados
+const LATAM_COUNTRIES = {
+  MX: { name: 'México', code: 'MX', monthlyCost: 1.00, perSMS: 0.15 },
+  CO: { name: 'Colombia', code: 'CO', monthlyCost: 1.00, perSMS: 0.20 },
+  AR: { name: 'Argentina', code: 'AR', monthlyCost: 2.00, perSMS: 0.25 },
+  CL: { name: 'Chile', code: 'CL', monthlyCost: 2.00, perSMS: 0.20 },
+  PE: { name: 'Perú', code: 'PE', monthlyCost: 15.00, perSMS: 0.30 },
+  BR: { name: 'Brasil', code: 'BR', monthlyCost: 1.00, perSMS: 0.18 },
+  EC: { name: 'Ecuador', code: 'EC', monthlyCost: 1.00, perSMS: 0.22 },
+  UY: { name: 'Uruguay', code: 'UY', monthlyCost: 2.00, perSMS: 0.25 },
+  CR: { name: 'Costa Rica', code: 'CR', monthlyCost: 2.00, perSMS: 0.23 },
+  PA: { name: 'Panamá', code: 'PA', monthlyCost: 2.00, perSMS: 0.20 },
+  GT: { name: 'Guatemala', code: 'GT', monthlyCost: 2.00, perSMS: 0.25 },
+  SV: { name: 'El Salvador', code: 'SV', monthlyCost: 2.00, perSMS: 0.22 },
+  HN: { name: 'Honduras', code: 'HN', monthlyCost: 2.00, perSMS: 0.24 },
+  NI: { name: 'Nicaragua', code: 'NI', monthlyCost: 2.00, perSMS: 0.26 },
+  BO: { name: 'Bolivia', code: 'BO', monthlyCost: 2.00, perSMS: 0.28 },
+  PY: { name: 'Paraguay', code: 'PY', monthlyCost: 2.00, perSMS: 0.27 },
+  VE: { name: 'Venezuela', code: 'VE', monthlyCost: 2.00, perSMS: 0.30 },
+};
+
+/**
+ * Obtiene el prefijo telefónico del país
+ */
+function getCountryPhonePrefix(countryCode: string): string {
+  const prefixes: Record<string, string> = {
+    'MX': '+52',
+    'CO': '+57',
+    'AR': '+54',
+    'CL': '+56',
+    'PE': '+51',
+    'BR': '+55',
+    'EC': '+593',
+    'UY': '+598',
+    'CR': '+506',
+    'PA': '+507',
+    'GT': '+502',
+    'SV': '+503',
+    'HN': '+504',
+    'NI': '+505',
+    'BO': '+591',
+    'PY': '+595',
+    'VE': '+58',
+  };
+  
+  return prefixes[countryCode] || '+52';
+}
+
 /**
  * GET /api/messaging/activate-sms
- * Obtiene el estado de activación de SMS para la organización
+ * Obtiene el estado de activación de SMS con información del país
  */
 export async function GET(request: NextRequest) {
   try {
@@ -37,7 +85,17 @@ export async function GET(request: NextRequest) {
     
     const userProfileData = userProfile as any;
     
-    // 3. Obtener configuración de SMS
+    // 3. Obtener país de la organización
+    const { data: org } = await supabaseAdmin
+      .from('organizations')
+      .select('country')
+      .eq('id', userProfileData.organization_id)
+      .single();
+    
+    const countryCode = (org as any)?.country?.toUpperCase() || 'MX';
+    const countryInfo = LATAM_COUNTRIES[countryCode as keyof typeof LATAM_COUNTRIES];
+    
+    // 4. Obtener configuración de SMS
     const { data: config, error: configError } = await supabaseAdmin
       .from('organization_messaging_config')
       .select(`
@@ -63,7 +121,7 @@ export async function GET(request: NextRequest) {
     
     const configData = config as any;
     
-    // 4. Retornar estado
+    // 5. Retornar estado con información del país
     return NextResponse.json({
       success: true,
       data: {
@@ -74,10 +132,15 @@ export async function GET(request: NextRequest) {
         autoNotifications: configData?.sms_auto_notifications || false,
         notificationStatuses: configData?.sms_notification_statuses || ['completed', 'ready'],
         activatedAt: configData?.updated_at || configData?.created_at || null,
-        // Costos estimados (hardcoded por ahora)
-        costs: {
-          monthlyUsd: 1.0, // $1 USD/mes por número
-          perSmsMxn: 0.15  // $0.15 MXN por SMS
+        country: countryInfo?.name || null,
+        country_code: countryCode,
+        // Costos del país (o defaults si no hay país configurado)
+        costs: countryInfo ? {
+          monthlyUsd: countryInfo.monthlyCost,
+          perSmsMxn: countryInfo.perSMS
+        } : {
+          monthlyUsd: 1.0,
+          perSmsMxn: 0.15
         }
       }
     });
@@ -94,11 +157,12 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/messaging/activate-sms
  * 
- * Activa SMS para una organización:
- * 1. Busca números existentes en la cuenta de Twilio
- * 2. Usa el primero disponible (o compra uno si no hay)
- * 3. Configura webhook para recibir SMS
- * 4. Guarda configuración en BD
+ * Activa SMS para cualquier país de Latinoamérica:
+ * 1. Detecta el país de la organización
+ * 2. Busca números existentes en Twilio de ese país
+ * 3. Si no hay, intenta comprar uno del país correspondiente
+ * 4. Configura webhooks
+ * 5. Guarda configuración en BD
  */
 export async function POST(request: NextRequest) {
   try {
@@ -130,10 +194,10 @@ export async function POST(request: NextRequest) {
     
     const organizationId = (userProfile as any).organization_id;
     
-    // 3. Obtener datos de la organización (solo columnas básicas)
+    // 3. Obtener datos de la organización (incluyendo país)
     const { data: organization, error: orgError } = await supabaseAdmin
       .from('organizations')
-      .select('id, name')
+      .select('id, name, country')
       .eq('id', organizationId)
       .single();
     
@@ -146,7 +210,24 @@ export async function POST(request: NextRequest) {
     
     const orgData = organization as any;
     
-    // 4. Verificar que no tenga SMS ya activado
+    // 4. Determinar país (default México si no está configurado)
+    const countryCode = orgData.country?.toUpperCase() || 'MX';
+    const countryInfo = LATAM_COUNTRIES[countryCode as keyof typeof LATAM_COUNTRIES];
+    
+    if (!countryInfo) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'País no soportado',
+          details: `El país ${countryCode} no está disponible para SMS. Países soportados: ${Object.keys(LATAM_COUNTRIES).join(', ')}`
+        },
+        { status: 400 }
+      );
+    }
+    
+    console.log(`🌍 [SMS Activation] País detectado: ${countryInfo.name} (${countryCode})`);
+    
+    // 5. Verificar que no tenga SMS ya activado
     const { data: existingConfig } = await supabaseAdmin
       .from('organization_messaging_config')
       .select('sms_enabled, sms_from_number')
@@ -159,14 +240,15 @@ export async function POST(request: NextRequest) {
           success: false, 
           error: 'SMS ya está activado',
           data: {
-            phone_number: (existingConfig as any).sms_from_number
+            phone_number: (existingConfig as any).sms_from_number,
+            country: countryInfo.name
           }
         },
         { status: 400 }
       );
     }
     
-    // 5. Verificar credenciales de Twilio
+    // 6. Verificar credenciales de Twilio
     if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
       console.error('❌ [SMS Activation] Twilio credentials not configured');
       return NextResponse.json(
@@ -175,10 +257,10 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // 6. Inicializar cliente Twilio
+    // 7. Inicializar cliente Twilio
     const twilioClient = getTwilioClient();
     
-    // 7. Configurar webhook URL
+    // 8. Configurar webhook URL
     let appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io';
     
     // Si no tiene protocolo, agregarlo
@@ -196,21 +278,29 @@ export async function POST(request: NextRequest) {
     
     console.log(`🔗 [SMS Activation] Webhook URL: ${webhookUrl}`);
     
-    // 8. PRIMERO: Buscar números existentes en la cuenta de Twilio
+    // 9. Buscar números existentes en Twilio (del país correspondiente)
     let selectedNumber;
     
     try {
       console.log('🔍 [SMS Activation] Buscando números existentes en cuenta Twilio...');
-      const existingNumbers = await twilioClient.incomingPhoneNumbers.list({ limit: 20 });
+      const existingNumbers = await twilioClient.incomingPhoneNumbers.list({ limit: 50 });
       
       console.log(`📋 [SMS Activation] Números existentes encontrados: ${existingNumbers.length}`);
       
-      if (existingNumbers && existingNumbers.length > 0) {
-        // USAR NÚMERO EXISTENTE
-        const firstNumber = existingNumbers[0];
+      // Filtrar números del país de la organización
+      const countryPrefix = getCountryPhonePrefix(countryCode);
+      const countryNumbers = existingNumbers.filter(num => {
+        // Los números vienen en formato E.164, ejemplo: +52... para México
+        return num.phoneNumber.startsWith(countryPrefix);
+      });
+      
+      console.log(`📱 [SMS Activation] Números de ${countryInfo.name}: ${countryNumbers.length}`);
+      
+      if (countryNumbers.length > 0) {
+        // USAR NÚMERO EXISTENTE DEL MISMO PAÍS
+        const firstNumber = countryNumbers[0];
         console.log(`✅ [SMS Activation] Usando número existente: ${firstNumber.phoneNumber}`);
         
-        // Actualizar webhooks del número existente
         try {
           selectedNumber = await twilioClient.incomingPhoneNumbers(firstNumber.sid).update({
             smsUrl: webhookUrl,
@@ -227,24 +317,47 @@ export async function POST(request: NextRequest) {
           selectedNumber = firstNumber;
         }
       } else {
-        // NO HAY NÚMEROS EXISTENTES - INTENTAR COMPRAR
-        console.log('📱 [SMS Activation] No hay números existentes, intentando comprar...');
+        // NO HAY NÚMEROS DEL PAÍS - INTENTAR COMPRAR
+        console.log(`📱 [SMS Activation] Intentando comprar número en ${countryInfo.name}...`);
         
         try {
-          const availableNumbers = await twilioClient
-            .availablePhoneNumbers('MX')
-            .local
-            .list({
-              smsEnabled: true,
-              voiceEnabled: false,
-              limit: 20
-            });
+          let availableNumbers: any[] = [];
           
-          if (availableNumbers.length === 0) {
-            throw new Error('No hay números disponibles en México');
+          // Intentar primero con números local
+          try {
+            const localNumbers = await twilioClient
+              .availablePhoneNumbers(countryCode)
+              .local
+              .list({
+                smsEnabled: true,
+                limit: 20
+              });
+            availableNumbers = localNumbers;
+          } catch (localError: any) {
+            console.log(`⚠️ [SMS Activation] No hay números local en ${countryInfo.name}, intentando mobile...`);
           }
           
-          console.log(`✅ [SMS Activation] Encontrados ${availableNumbers.length} números disponibles`);
+          // Si no hay local, intentar mobile
+          if (availableNumbers.length === 0) {
+            try {
+              const mobileNumbers = await twilioClient
+                .availablePhoneNumbers(countryCode)
+                .mobile
+                .list({
+                  smsEnabled: true,
+                  limit: 20
+                });
+              availableNumbers = mobileNumbers;
+            } catch (mobileError: any) {
+              console.log(`⚠️ [SMS Activation] No hay números mobile en ${countryInfo.name}`);
+            }
+          }
+          
+          if (availableNumbers.length === 0) {
+            throw new Error(`No hay números disponibles en ${countryInfo.name}`);
+          }
+          
+          console.log(`✅ [SMS Activation] Encontrados ${availableNumbers.length} números en ${countryInfo.name}`);
           
           // Comprar número
           selectedNumber = await twilioClient
@@ -264,26 +377,29 @@ export async function POST(request: NextRequest) {
           console.error('❌ [SMS Activation] Error al comprar número:', twilioError);
           
           // Errores específicos
-          if (twilioError.code === 21404 || twilioError.code === 21450) {
+          if (twilioError.code === 21450 || twilioError.code === 21421 || twilioError.code === 21404) {
             return NextResponse.json(
               { 
                 success: false,
-                error: 'Cuenta Trial de Twilio',
-                details: 'Las cuentas Trial solo permiten un número. Ya tienes el máximo permitido.',
-                solution: 'Actualiza tu cuenta de Twilio a un plan de pago en: https://console.twilio.com/billing',
+                error: 'Límite de números alcanzado',
+                details: 'Tu cuenta de Twilio ha alcanzado el límite de números.',
+                solution: 'Actualiza tu cuenta de Twilio a un plan superior en: https://console.twilio.com/billing',
+                country: countryInfo.name,
                 code: twilioError.code
               },
               { status: 400 }
             );
           }
           
-          if (twilioError.message?.includes('No hay números disponibles')) {
+          if (twilioError.message?.includes('No hay números disponibles') || 
+              twilioError.message?.includes('no phone numbers')) {
             return NextResponse.json(
               { 
                 success: false,
                 error: 'No hay números disponibles',
-                details: 'Twilio no tiene números de México disponibles en este momento.',
+                details: `Twilio no tiene números de ${countryInfo.name} disponibles en este momento.`,
                 solution: 'Intenta de nuevo más tarde o contacta a soporte de Twilio.',
+                country: countryInfo.name,
                 twilioSupport: 'https://support.twilio.com'
               },
               { status: 503 }
@@ -299,26 +415,28 @@ export async function POST(request: NextRequest) {
         { 
           success: false, 
           error: 'Error al obtener número de Twilio',
-          details: error.message 
+          details: error.message,
+          country: countryInfo.name
         },
         { status: 500 }
       );
     }
     
-    // 9. Verificar que selectedNumber existe
+    // 10. Verificar que selectedNumber existe
     if (!selectedNumber || !selectedNumber.phoneNumber || !selectedNumber.sid) {
       console.error('❌ [SMS Activation] No se pudo obtener número válido');
       return NextResponse.json(
         { 
           success: false,
           error: 'No se pudo obtener número de teléfono',
-          details: 'No hay números disponibles y no se pudo comprar uno nuevo'
+          details: `No hay números disponibles en ${countryInfo.name}`,
+          country: countryInfo.name
         },
         { status: 500 }
       );
     }
 
-    // 10. Guardar configuración en BD (UPSERT)
+    // 11. Guardar configuración en BD (UPSERT) con costos del país
     const updates = {
       sms_enabled: true,
       sms_from_number: selectedNumber.phoneNumber,
@@ -365,8 +483,7 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       console.error('❌ [SMS Activation] Error guardando configuración:', updateError);
       
-      // Intentar liberar el número solo si lo compramos (no si era existente)
-      // No podemos saber si era existente, así que no liberamos para evitar problemas
+      // No liberar el número (puede ser existente)
       console.log('⚠️ [SMS Activation] Número no se liberará (puede ser existente)');
       
       return NextResponse.json(
@@ -375,20 +492,22 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    console.log(`✅ [SMS Activation] SMS activado exitosamente para org ${organizationId}`);
+    console.log(`✅ [SMS Activation] SMS activado exitosamente para ${countryInfo.name} - org ${organizationId}`);
     
-    // 11. Retornar respuesta exitosa
+    // 12. Retornar respuesta exitosa con información del país
     return NextResponse.json({
       success: true,
       message: 'SMS activado correctamente',
       data: {
         phone_number: selectedNumber.phoneNumber,
         sid: selectedNumber.sid,
+        country: countryInfo.name,
+        country_code: countryCode,
         webhook_url: webhookUrl,
         friendly_name: selectedNumber.friendlyName,
         costs: {
-          monthly_usd: 1.00,
-          per_sms_mxn: 0.15,
+          monthly_usd: countryInfo.monthlyCost,
+          per_sms_mxn: countryInfo.perSMS,
           currency_monthly: 'USD',
           currency_per_sms: 'MXN'
         },
