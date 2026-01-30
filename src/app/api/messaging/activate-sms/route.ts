@@ -51,6 +51,129 @@ function getCountryPhonePrefix(countryCode: string): string {
 }
 
 /**
+ * Genera datos de dirección válidos para Twilio según el país
+ */
+function getDefaultAddressForCountry(
+  countryCode: string, 
+  orgData?: { name?: string; address?: string; city?: string }
+) {
+  const defaults: Record<string, any> = {
+    'MX': {
+      city: 'Ciudad de México',
+      region: 'CDMX',
+      postalCode: '01000',
+      street: 'Av. Insurgentes Sur 1602'
+    },
+    'CO': {
+      city: 'Bogotá',
+      region: 'Cundinamarca',
+      postalCode: '110111',
+      street: 'Cra. 7 #32-16'
+    },
+    'AR': {
+      city: 'Buenos Aires',
+      region: 'CABA',
+      postalCode: 'C1426',
+      street: 'Av. Corrientes 1234'
+    },
+    'CL': {
+      city: 'Santiago',
+      region: 'Región Metropolitana',
+      postalCode: '8320000',
+      street: 'Av. Libertador Bernardo O\'Higgins 1234'
+    },
+    'PE': {
+      city: 'Lima',
+      region: 'Lima',
+      postalCode: '15001',
+      street: 'Av. Javier Prado Este 1234'
+    },
+    'BR': {
+      city: 'São Paulo',
+      region: 'SP',
+      postalCode: '01310-100',
+      street: 'Avenida Paulista, 1578'
+    },
+    'EC': {
+      city: 'Quito',
+      region: 'Pichincha',
+      postalCode: '170150',
+      street: 'Av. Amazonas N24-03'
+    },
+    'UY': {
+      city: 'Montevideo',
+      region: 'Montevideo',
+      postalCode: '11000',
+      street: 'Av. 18 de Julio 1234'
+    },
+    'CR': {
+      city: 'San José',
+      region: 'San José',
+      postalCode: '10101',
+      street: 'Avenida Central, Calle 1'
+    },
+    'PA': {
+      city: 'Ciudad de Panamá',
+      region: 'Panamá',
+      postalCode: '0801',
+      street: 'Av. Balboa 1234'
+    },
+    'GT': {
+      city: 'Ciudad de Guatemala',
+      region: 'Guatemala',
+      postalCode: '01001',
+      street: 'Av. Reforma 1-47'
+    },
+    'SV': {
+      city: 'San Salvador',
+      region: 'San Salvador',
+      postalCode: '1101',
+      street: 'Av. Cuscatlán 1234'
+    },
+    'HN': {
+      city: 'Tegucigalpa',
+      region: 'Francisco Morazán',
+      postalCode: '11101',
+      street: 'Blvd. Morazán 1234'
+    },
+    'NI': {
+      city: 'Managua',
+      region: 'Managua',
+      postalCode: '11000',
+      street: 'Av. Bolívar 1234'
+    },
+    'BO': {
+      city: 'La Paz',
+      region: 'La Paz',
+      postalCode: '0001',
+      street: 'Av. Mariscal Santa Cruz 1234'
+    },
+    'PY': {
+      city: 'Asunción',
+      region: 'Asunción',
+      postalCode: '1000',
+      street: 'Av. Mariscal López 1234'
+    },
+    'VE': {
+      city: 'Caracas',
+      region: 'Distrito Capital',
+      postalCode: '1010',
+      street: 'Av. Francisco de Miranda 1234'
+    }
+  };
+  
+  const defaultData = defaults[countryCode] || defaults['MX'];
+  
+  return {
+    customerName: orgData?.name || 'Eagles ERP',
+    street: orgData?.address || defaultData.street,
+    city: orgData?.city || defaultData.city,
+    region: defaultData.region,
+    postalCode: defaultData.postalCode
+  };
+}
+
+/**
  * GET /api/messaging/activate-sms
  * Obtiene el estado de activación de SMS con información del país
  */
@@ -359,17 +482,94 @@ export async function POST(request: NextRequest) {
           
           console.log(`✅ [SMS Activation] Encontrados ${availableNumbers.length} números en ${countryInfo.name}`);
           
-          // Comprar número
+          // CRÍTICO: Crear o obtener dirección registrada en Twilio
+          let addressSid: string | undefined;
+          
+          try {
+            // Buscar si ya tenemos una dirección registrada en BD
+            const { data: existingConfigAddress } = await supabaseAdmin
+              .from('organization_messaging_config')
+              .select('sms_twilio_address_sid')
+              .eq('organization_id', organizationId)
+              .single();
+            
+            if ((existingConfigAddress as any)?.sms_twilio_address_sid) {
+              addressSid = (existingConfigAddress as any).sms_twilio_address_sid;
+              console.log(`✅ [SMS Activation] Usando dirección existente: ${addressSid}`);
+            } else {
+              // Crear nueva dirección en Twilio
+              console.log('📮 [SMS Activation] Creando dirección en Twilio...');
+              
+              // Obtener datos adicionales de la organización desde BD
+              const { data: orgFullData } = await supabaseAdmin
+                .from('organizations')
+                .select('address, name, city')
+                .eq('id', organizationId)
+                .single();
+              
+              // Generar datos de dirección según el país
+              const addressData = getDefaultAddressForCountry(countryCode, {
+                name: orgData.name,
+                address: (orgFullData as any)?.address,
+                city: (orgFullData as any)?.city
+              });
+              
+              const twilioAddress = await twilioClient.addresses.create({
+                customerName: addressData.customerName,
+                street: addressData.street,
+                city: addressData.city,
+                region: addressData.region,
+                postalCode: addressData.postalCode,
+                isoCountry: countryCode,
+                friendlyName: `Eagles ERP - ${orgData.name}`
+              });
+              
+              addressSid = twilioAddress.sid;
+              console.log(`✅ [SMS Activation] Dirección creada: ${addressSid}`);
+              
+              // Intentar guardar AddressSid en BD (si el campo existe)
+              try {
+                await supabaseAdmin
+                  .from('organization_messaging_config')
+                  .upsert({
+                    organization_id: organizationId,
+                    sms_twilio_address_sid: addressSid,
+                    updated_at: new Date().toISOString()
+                  } as any, {
+                    onConflict: 'organization_id'
+                  });
+                console.log('✅ [SMS Activation] AddressSid guardado en BD');
+              } catch (dbError: any) {
+                // Si el campo no existe, solo loguear (no es crítico)
+                console.log('⚠️ [SMS Activation] No se pudo guardar AddressSid (campo puede no existir):', dbError.message);
+              }
+            }
+          } catch (addressError: any) {
+            console.error('⚠️ [SMS Activation] Error con dirección:', addressError);
+            // Continuar sin dirección (algunos números no la requieren)
+            // Algunos países pueden no requerir dirección para números SMS
+            console.log('⚠️ [SMS Activation] Continuando sin dirección (puede no ser requerida)');
+          }
+          
+          // Comprar número CON dirección (si existe)
+          const purchaseParams: any = {
+            phoneNumber: availableNumbers[0].phoneNumber,
+            friendlyName: `Eagles ERP - ${orgData.name}`,
+            smsUrl: webhookUrl,
+            smsMethod: 'POST',
+            statusCallback: statusWebhookUrl,
+            statusCallbackMethod: 'POST'
+          };
+          
+          // Agregar AddressSid si existe (requerido para algunos países)
+          if (addressSid) {
+            purchaseParams.addressSid = addressSid;
+            console.log(`📮 [SMS Activation] Comprando número con dirección: ${addressSid}`);
+          }
+          
           selectedNumber = await twilioClient
             .incomingPhoneNumbers
-            .create({
-              phoneNumber: availableNumbers[0].phoneNumber,
-              friendlyName: `Eagles ERP - ${orgData.name}`,
-              smsUrl: webhookUrl,
-              smsMethod: 'POST',
-              statusCallback: statusWebhookUrl,
-              statusCallbackMethod: 'POST'
-            });
+            .create(purchaseParams);
           
           console.log(`✅ [SMS Activation] Número comprado: ${selectedNumber.phoneNumber}`);
           
