@@ -95,8 +95,8 @@ export async function GET(request: NextRequest) {
  * POST /api/messaging/activate-sms
  * 
  * Activa SMS para una organización:
- * 1. Busca número disponible en Twilio (México)
- * 2. Compra el número automáticamente
+ * 1. Busca números existentes en la cuenta de Twilio
+ * 2. Usa el primero disponible (o compra uno si no hay)
  * 3. Configura webhook para recibir SMS
  * 4. Guarda configuración en BD
  */
@@ -178,42 +178,7 @@ export async function POST(request: NextRequest) {
     // 6. Inicializar cliente Twilio
     const twilioClient = getTwilioClient();
     
-    // 7. Buscar cualquier número disponible en México
-    console.log(`📱 [SMS Activation] Buscando número en México (cualquier área)`);
-    
-    // 8. Buscar números disponibles en México
-    let availableNumbers;
-    
-    try {
-      console.log('🔍 [SMS Activation] Buscando números disponibles en México');
-      availableNumbers = await twilioClient
-        .availablePhoneNumbers('MX')
-        .local
-        .list({
-          smsEnabled: true,
-          voiceEnabled: false, // Solo SMS, no voz (más barato)
-          limit: 20
-        });
-      
-      if (availableNumbers.length === 0) {
-        throw new Error('No hay números disponibles en México');
-      }
-      
-      console.log(`✅ [SMS Activation] Encontrados ${availableNumbers.length} números disponibles`);
-      
-    } catch (twilioError: any) {
-      console.error('❌ [SMS Activation] Error buscando números:', twilioError);
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Error al buscar números disponibles',
-          details: twilioError.message
-        },
-        { status: 500 }
-      );
-    }
-    
-    // 9. Configurar webhook URL
+    // 7. Configurar webhook URL
     let appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io';
     
     // Si no tiene protocolo, agregarlo
@@ -231,55 +196,133 @@ export async function POST(request: NextRequest) {
     
     console.log(`🔗 [SMS Activation] Webhook URL: ${webhookUrl}`);
     
-    // 10. Comprar el primer número disponible (AUTOMÁTICO)
-    let purchasedNumber;
+    // 8. PRIMERO: Buscar números existentes en la cuenta de Twilio
+    let selectedNumber;
     
     try {
-      purchasedNumber = await twilioClient
-        .incomingPhoneNumbers
-        .create({
-          phoneNumber: availableNumbers[0].phoneNumber,
-          friendlyName: `Eagles ERP - ${orgData.name}`,
-          smsUrl: webhookUrl,
-          smsMethod: 'POST',
-          statusCallback: statusWebhookUrl,
-          statusCallbackMethod: 'POST'
-        });
+      console.log('🔍 [SMS Activation] Buscando números existentes en cuenta Twilio...');
+      const existingNumbers = await twilioClient.incomingPhoneNumbers.list({ limit: 20 });
       
-      console.log(`✅ [SMS Activation] Número comprado: ${purchasedNumber.phoneNumber}`);
+      console.log(`📋 [SMS Activation] Números existentes encontrados: ${existingNumbers.length}`);
       
-    } catch (twilioError: any) {
-      console.error('❌ [SMS Activation] Error comprando número:', twilioError);
-      
-      // Error específico de cuenta trial
-      if (twilioError.code === 21404) {
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'Cuenta Trial de Twilio',
-            details: 'Las cuentas trial de Twilio solo permiten un número. Ya tienes un número asignado.',
-            code: twilioError.code,
-            solution: 'Para usar SMS, actualiza tu cuenta de Twilio a un plan de pago o usa el número existente.'
-          },
-          { status: 400 }
-        );
+      if (existingNumbers && existingNumbers.length > 0) {
+        // USAR NÚMERO EXISTENTE
+        const firstNumber = existingNumbers[0];
+        console.log(`✅ [SMS Activation] Usando número existente: ${firstNumber.phoneNumber}`);
+        
+        // Actualizar webhooks del número existente
+        try {
+          selectedNumber = await twilioClient.incomingPhoneNumbers(firstNumber.sid).update({
+            smsUrl: webhookUrl,
+            smsMethod: 'POST',
+            statusCallback: statusWebhookUrl,
+            statusCallbackMethod: 'POST',
+            friendlyName: `Eagles ERP - ${orgData.name}`
+          });
+          
+          console.log('✅ [SMS Activation] Webhooks configurados en número existente');
+        } catch (updateError: any) {
+          console.error('⚠️ [SMS Activation] Error actualizando webhooks:', updateError);
+          // Continuar con el número aunque falle la actualización
+          selectedNumber = firstNumber;
+        }
+      } else {
+        // NO HAY NÚMEROS EXISTENTES - INTENTAR COMPRAR
+        console.log('📱 [SMS Activation] No hay números existentes, intentando comprar...');
+        
+        try {
+          const availableNumbers = await twilioClient
+            .availablePhoneNumbers('MX')
+            .local
+            .list({
+              smsEnabled: true,
+              voiceEnabled: false,
+              limit: 20
+            });
+          
+          if (availableNumbers.length === 0) {
+            throw new Error('No hay números disponibles en México');
+          }
+          
+          console.log(`✅ [SMS Activation] Encontrados ${availableNumbers.length} números disponibles`);
+          
+          // Comprar número
+          selectedNumber = await twilioClient
+            .incomingPhoneNumbers
+            .create({
+              phoneNumber: availableNumbers[0].phoneNumber,
+              friendlyName: `Eagles ERP - ${orgData.name}`,
+              smsUrl: webhookUrl,
+              smsMethod: 'POST',
+              statusCallback: statusWebhookUrl,
+              statusCallbackMethod: 'POST'
+            });
+          
+          console.log(`✅ [SMS Activation] Número comprado: ${selectedNumber.phoneNumber}`);
+          
+        } catch (twilioError: any) {
+          console.error('❌ [SMS Activation] Error al comprar número:', twilioError);
+          
+          // Errores específicos
+          if (twilioError.code === 21404 || twilioError.code === 21450) {
+            return NextResponse.json(
+              { 
+                success: false,
+                error: 'Cuenta Trial de Twilio',
+                details: 'Las cuentas Trial solo permiten un número. Ya tienes el máximo permitido.',
+                solution: 'Actualiza tu cuenta de Twilio a un plan de pago en: https://console.twilio.com/billing',
+                code: twilioError.code
+              },
+              { status: 400 }
+            );
+          }
+          
+          if (twilioError.message?.includes('No hay números disponibles')) {
+            return NextResponse.json(
+              { 
+                success: false,
+                error: 'No hay números disponibles',
+                details: 'Twilio no tiene números de México disponibles en este momento.',
+                solution: 'Intenta de nuevo más tarde o contacta a soporte de Twilio.',
+                twilioSupport: 'https://support.twilio.com'
+              },
+              { status: 503 }
+            );
+          }
+          
+          throw twilioError;
+        }
       }
-      
+    } catch (error: any) {
+      console.error('❌ [SMS Activation] Error en búsqueda/compra:', error);
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Error al comprar número',
-          details: twilioError.message 
+          error: 'Error al obtener número de Twilio',
+          details: error.message 
+        },
+        { status: 500 }
+      );
+    }
+    
+    // 9. Verificar que selectedNumber existe
+    if (!selectedNumber || !selectedNumber.phoneNumber || !selectedNumber.sid) {
+      console.error('❌ [SMS Activation] No se pudo obtener número válido');
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'No se pudo obtener número de teléfono',
+          details: 'No hay números disponibles y no se pudo comprar uno nuevo'
         },
         { status: 500 }
       );
     }
 
-    // 11. Guardar configuración en BD (UPSERT)
+    // 10. Guardar configuración en BD (UPSERT)
     const updates = {
       sms_enabled: true,
-      sms_from_number: purchasedNumber.phoneNumber,
-      sms_twilio_phone_sid: purchasedNumber.sid,
+      sms_from_number: selectedNumber.phoneNumber,
+      sms_twilio_phone_sid: selectedNumber.sid,
       sms_webhook_url: webhookUrl,
       sms_auto_notifications: true,
       sms_notification_statuses: ['completed', 'ready'],
@@ -322,31 +365,27 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       console.error('❌ [SMS Activation] Error guardando configuración:', updateError);
       
-      // Intentar liberar el número si falló guardar en BD
-      try {
-        await twilioClient.incomingPhoneNumbers(purchasedNumber.sid).remove();
-        console.log('🔄 [SMS Activation] Número liberado después de error en BD');
-      } catch (releaseError) {
-        console.error('❌ [SMS Activation] Error liberando número:', releaseError);
-      }
+      // Intentar liberar el número solo si lo compramos (no si era existente)
+      // No podemos saber si era existente, así que no liberamos para evitar problemas
+      console.log('⚠️ [SMS Activation] Número no se liberará (puede ser existente)');
       
       return NextResponse.json(
         { success: false, error: 'Error al guardar configuración' },
         { status: 500 }
       );
     }
-
+    
     console.log(`✅ [SMS Activation] SMS activado exitosamente para org ${organizationId}`);
     
-    // 12. Retornar respuesta exitosa
+    // 11. Retornar respuesta exitosa
     return NextResponse.json({
       success: true,
       message: 'SMS activado correctamente',
       data: {
-        phone_number: purchasedNumber.phoneNumber,
-        sid: purchasedNumber.sid,
+        phone_number: selectedNumber.phoneNumber,
+        sid: selectedNumber.sid,
         webhook_url: webhookUrl,
-        friendly_name: purchasedNumber.friendlyName,
+        friendly_name: selectedNumber.friendlyName,
         costs: {
           monthly_usd: 1.00,
           per_sms_mxn: 0.15,
