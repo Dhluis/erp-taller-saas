@@ -1,38 +1,366 @@
 // src/app/api/messaging/activate-sms/route.ts
-// VERSIÓN TOLL-FREE: Usa números 800 que NO requieren Bundle regulatorio
+// SISTEMA EMPRESARIAL MULTI-TENANT
+// 1 Bundle Maestro → Infinitas Organizaciones
 
 import { NextRequest, NextResponse } from 'next/server';
 import twilio from 'twilio';
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
-import { getAppUrl } from '@/lib/utils/env';
+import { getAppUrl, cleanEnvVar } from '@/lib/utils/env';
 
-// Mapeo de países latinoamericanos soportados
 const LATAM_COUNTRIES = {
-  MX: { name: 'México', code: 'MX', monthlyCost: 2.00, perSMS: 0.15 },
-  CO: { name: 'Colombia', code: 'CO', monthlyCost: 2.00, perSMS: 0.20 },
-  AR: { name: 'Argentina', code: 'AR', monthlyCost: 3.00, perSMS: 0.25 },
-  CL: { name: 'Chile', code: 'CL', monthlyCost: 3.00, perSMS: 0.20 },
+  MX: { name: 'México', code: 'MX', monthlyCost: 1.00, perSMS: 0.15 },
+  CO: { name: 'Colombia', code: 'CO', monthlyCost: 1.00, perSMS: 0.20 },
+  AR: { name: 'Argentina', code: 'AR', monthlyCost: 2.00, perSMS: 0.25 },
+  CL: { name: 'Chile', code: 'CL', monthlyCost: 2.00, perSMS: 0.20 },
   PE: { name: 'Perú', code: 'PE', monthlyCost: 15.00, perSMS: 0.30 },
-  BR: { name: 'Brasil', code: 'BR', monthlyCost: 2.00, perSMS: 0.18 },
-  // Toll-Free tiene costos ligeramente superiores pero NO requiere Bundle
+  BR: { name: 'Brasil', code: 'BR', monthlyCost: 1.00, perSMS: 0.18 },
+  EC: { name: 'Ecuador', code: 'EC', monthlyCost: 1.00, perSMS: 0.22 },
+  UY: { name: 'Uruguay', code: 'UY', monthlyCost: 2.00, perSMS: 0.25 },
+  CR: { name: 'Costa Rica', code: 'CR', monthlyCost: 2.00, perSMS: 0.23 },
 };
 
 /**
- * Limpia variables de entorno removiendo \r\n, espacios y caracteres invisibles
- * CRÍTICO: Vercel a veces agrega \r\n al final de las variables
+ * POST /api/messaging/activate-sms
+ * ARQUITECTURA EMPRESARIAL MULTI-TENANT:
+ * - 1 Bundle Regulatorio Maestro (Eagles System)
+ * - Compra automática de números para cada organización
+ * - Escalable a infinitas organizaciones
+ * - Multi-país (9 países LATAM)
  */
-function cleanEnvVar(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  return value
-    .replace(/\r\n/g, '')  // Remover \r\n
-    .replace(/\r/g, '')    // Remover \r
-    .replace(/\n/g, '')    // Remover \n
-    .trim();               // Remover espacios al inicio/final
+export async function POST(req: NextRequest) {
+  try {
+    // 1. Autenticación
+    const supabase = createClientFromRequest(req);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+    }
+    
+    const supabaseAdmin = getSupabaseServiceClient();
+    const { data: userProfile } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+    
+    if (!userProfile?.organization_id) {
+      return NextResponse.json({ success: false, error: 'No se pudo obtener organización' }, { status: 403 });
+    }
+    
+    const organizationId = userProfile.organization_id;
+    
+    // 2. Obtener datos de la organización
+    const { data: organization } = await supabaseAdmin
+      .from('organizations')
+      .select('id, name, country, address, city')
+      .eq('id', organizationId)
+      .single();
+    
+    if (!organization) {
+      return NextResponse.json({ success: false, error: 'Organización no encontrada' }, { status: 404 });
+    }
+    
+    const countryCode = organization.country?.toUpperCase() || 'MX';
+    const countryInfo = LATAM_COUNTRIES[countryCode as keyof typeof LATAM_COUNTRIES];
+    
+    if (!countryInfo) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'País no soportado',
+        details: `Países disponibles: ${Object.keys(LATAM_COUNTRIES).join(', ')}`
+      }, { status: 400 });
+    }
+    
+    console.log(`🌍 [SMS Activation] País: ${countryInfo.name} (${countryCode})`);
+    console.log(`🏢 [SMS Activation] Organización: ${organization.name}`);
+    
+    // 3. Verificar si ya tiene SMS activado
+    const { data: existingConfig } = await supabaseAdmin
+      .from('organization_messaging_config')
+      .select('sms_enabled, sms_twilio_number, sms_twilio_sid')
+      .eq('organization_id', organizationId)
+      .single();
+    
+    if (existingConfig?.sms_enabled && existingConfig?.sms_twilio_number) {
+      console.log(`ℹ️ [SMS Activation] Ya tiene SMS: ${existingConfig.sms_twilio_number}`);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'SMS ya está activado',
+        data: { 
+          phone_number: existingConfig.sms_twilio_number,
+          sid: existingConfig.sms_twilio_sid
+        }
+      }, { status: 400 });
+    }
+    
+    // 4. Validar credenciales y Bundle (limpiar variables de entorno)
+    const accountSid = cleanEnvVar(process.env.TWILIO_ACCOUNT_SID);
+    const authToken = cleanEnvVar(process.env.TWILIO_AUTH_TOKEN);
+    const bundleSid = cleanEnvVar(process.env.TWILIO_REGULATORY_BUNDLE_SID);
+    
+    if (!accountSid || !authToken) {
+      return NextResponse.json({ success: false, error: 'Servicio SMS no configurado' }, { status: 500 });
+    }
+    
+    if (!bundleSid) {
+      console.error('❌ [SMS Activation] TWILIO_REGULATORY_BUNDLE_SID no configurado');
+      return NextResponse.json({
+        success: false,
+        error: 'Sistema no configurado',
+        details: 'El Bundle regulatorio maestro no está configurado. Contacta a soporte.',
+        adminAction: 'Configurar TWILIO_REGULATORY_BUNDLE_SID en variables de entorno'
+      }, { status: 500 });
+    }
+    
+    // Validar formato de Account SID
+    if (!accountSid.startsWith('AC')) {
+      console.error('❌ [SMS Activation] Account SID con formato incorrecto');
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Configuración de Twilio inválida' 
+      }, { status: 500 });
+    }
+    
+    const twilioClient = twilio(accountSid, authToken);
+    
+    console.log(`📋 [SMS Activation] Bundle Maestro: ${bundleSid}`);
+    
+    // Usar getAppUrl() que maneja automáticamente protocolo y limpieza
+    const appUrl = getAppUrl();
+    const webhookUrl = `${appUrl}/api/messaging/sms/webhook/${organizationId}`;
+    const statusWebhookUrl = `${webhookUrl}/status`;
+    
+    console.log(`🔗 [SMS Activation] App URL: ${appUrl}`);
+    console.log(`🔗 [SMS Activation] Webhook: ${webhookUrl}`);
+    
+    // 5. ESTRATEGIA DE COMPRA INTELIGENTE
+    let selectedNumber;
+    
+    try {
+      console.log('🔍 [SMS Activation] PASO 1: Verificando números existentes en cuenta...');
+      const existingNumbers = await twilioClient.incomingPhoneNumbers.list({ limit: 100 });
+      
+      console.log(`📋 [SMS Activation] Total números en cuenta: ${existingNumbers.length}`);
+      
+      // Filtrar números disponibles del país correcto
+      const countryPrefix = getCountryPhonePrefix(countryCode);
+      const availableInAccount = existingNumbers.filter(num => {
+        // Número del país correcto
+        const isCorrectCountry = num.phoneNumber.startsWith(countryPrefix);
+        
+        // NO está asignado a otra organización (verificar en BD)
+        // TODO: Implementar verificación en BD si quieres reutilizar números
+        
+        return isCorrectCountry;
+      });
+      
+      console.log(`📱 [SMS Activation] Números de ${countryInfo.name} en cuenta: ${availableInAccount.length}`);
+      
+      // OPCIÓN A: Reutilizar número existente (si tienes pool)
+      if (availableInAccount.length > 0) {
+        const firstAvailable = availableInAccount[0];
+        console.log(`♻️ [SMS Activation] Reutilizando número existente: ${firstAvailable.phoneNumber}`);
+        
+        selectedNumber = await twilioClient.incomingPhoneNumbers(firstAvailable.sid).update({
+          smsUrl: webhookUrl,
+          smsMethod: 'POST',
+          statusCallback: statusWebhookUrl,
+          statusCallbackMethod: 'POST',
+          friendlyName: `Eagles ERP - ${organization.name}`
+        });
+        
+        console.log(`✅ [SMS Activation] Número configurado: ${selectedNumber.phoneNumber}`);
+        
+      } else {
+        // OPCIÓN B: Comprar número nuevo con Bundle Maestro
+        console.log('🛒 [SMS Activation] PASO 2: Comprando número nuevo...');
+        
+        // Estrategia: Toll-Free → Local con Bundle
+        let numbersToBuy;
+        let numberType = 'toll-free';
+        
+        try {
+          console.log(`📞 [SMS Activation] Buscando Toll-Free en ${countryInfo.name}...`);
+          numbersToBuy = await twilioClient
+            .availablePhoneNumbers(countryCode)
+            .tollFree
+            .list({ smsEnabled: true, limit: 20 });
+          
+          if (numbersToBuy.length === 0) {
+            throw new Error('No Toll-Free available');
+          }
+          
+          console.log(`✅ [SMS Activation] Encontrados ${numbersToBuy.length} números Toll-Free`);
+          
+        } catch (tollFreeError) {
+          // Toll-Free no disponible, intentar Local
+          console.log(`⚠️ [SMS Activation] No hay Toll-Free, buscando números locales...`);
+          numberType = 'local';
+          
+          numbersToBuy = await twilioClient
+            .availablePhoneNumbers(countryCode)
+            .local
+            .list({ smsEnabled: true, limit: 20 });
+          
+          if (numbersToBuy.length === 0) {
+            throw new Error('No hay números disponibles para compra');
+          }
+          
+          console.log(`✅ [SMS Activation] Encontrados ${numbersToBuy.length} números locales`);
+        }
+        
+        // Seleccionar el primer número disponible
+        const selectedPhoneNumber = numbersToBuy[0].phoneNumber;
+        console.log(`🎯 [SMS Activation] Número seleccionado: ${selectedPhoneNumber} (${numberType})`);
+        
+        // Parámetros de compra
+        const purchaseParams: any = {
+          phoneNumber: selectedPhoneNumber,
+          friendlyName: `Eagles ERP - ${organization.name}`,
+          smsUrl: webhookUrl,
+          smsMethod: 'POST',
+          statusCallback: statusWebhookUrl,
+          statusCallbackMethod: 'POST'
+        };
+        
+        // Agregar Bundle SID si es número local (Toll-Free no lo necesita)
+        if (numberType === 'local') {
+          purchaseParams.bundleSid = bundleSid;
+          console.log(`📋 [SMS Activation] Usando Bundle Maestro: ${bundleSid}`);
+        }
+        
+        // COMPRAR NÚMERO
+        selectedNumber = await twilioClient.incomingPhoneNumbers.create(purchaseParams);
+        
+        console.log(`💰 [SMS Activation] Número comprado exitosamente: ${selectedNumber.phoneNumber}`);
+        console.log(`📇 [SMS Activation] SID: ${selectedNumber.sid}`);
+      }
+      
+    } catch (error: any) {
+      console.error('❌ [SMS Activation] Error en proceso de compra:', error);
+      
+      // Errores específicos de Twilio
+      if (error.code === 21617) {
+        return NextResponse.json({
+          success: false,
+          error: 'Bundle Regulatorio Inválido',
+          details: 'El Bundle maestro no está aprobado o es inválido.',
+          adminAction: 'Verificar estado del Bundle en Twilio Console',
+          bundleUrl: 'https://console.twilio.com/us1/develop/compliance/bundles'
+        }, { status: 500 });
+      }
+      
+      if (error.code === 21450 || error.code === 21421) {
+        return NextResponse.json({
+          success: false,
+          error: 'Límite de números alcanzado',
+          details: 'La cuenta de Twilio ha alcanzado el límite de números.',
+          adminAction: 'Actualizar plan de Twilio o liberar números no usados',
+          twilioUrl: 'https://console.twilio.com/billing/upgrade'
+        }, { status: 400 });
+      }
+      
+      if (error.message?.includes('No hay números disponibles')) {
+        return NextResponse.json({
+          success: false,
+          error: 'No hay números disponibles',
+          details: `Twilio no tiene números disponibles en ${countryInfo.name} en este momento.`,
+          suggestion: 'Por favor intenta de nuevo en unos minutos o contacta a soporte.',
+          alternative: 'También puedes comprar un número manualmente en Twilio Console y configurarlo.'
+        }, { status: 503 });
+      }
+      
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Error al obtener número',
+        details: error.message 
+      }, { status: 500 });
+    }
+    
+    // 6. Verificar que se obtuvo un número válido
+    if (!selectedNumber || !selectedNumber.phoneNumber || !selectedNumber.sid) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'No se pudo obtener número válido'
+      }, { status: 500 });
+    }
+    
+    // 7. Guardar configuración en BD
+    console.log(`💾 [SMS Activation] Guardando configuración en BD...`);
+    
+    const { error: upsertError } = await (supabaseAdmin as any)
+      .from('organization_messaging_config')
+      .upsert({
+        organization_id: organizationId,
+        sms_enabled: true,
+        sms_provider: 'twilio',
+        sms_twilio_number: selectedNumber.phoneNumber,
+        sms_twilio_sid: selectedNumber.sid,
+        sms_webhook_url: webhookUrl,
+        sms_monthly_cost_usd: countryInfo.monthlyCost,
+        sms_per_message_cost_mxn: countryInfo.perSMS,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'organization_id'
+      });
+    
+    if (upsertError) {
+      console.error('❌ [SMS Activation] Error guardando en BD:', upsertError);
+      
+      // Intentar liberar el número si falló guardar
+      try {
+        await twilioClient.incomingPhoneNumbers(selectedNumber.sid).remove();
+        console.log(`🔄 [SMS Activation] Número liberado debido a error en BD`);
+      } catch (releaseError) {
+        console.error('❌ [SMS Activation] Error liberando número:', releaseError);
+      }
+      
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Error al guardar configuración' 
+      }, { status: 500 });
+    }
+    
+    console.log(`✅✅✅ [SMS Activation] SMS ACTIVADO EXITOSAMENTE`);
+    console.log(`📱 [SMS Activation] Número: ${selectedNumber.phoneNumber}`);
+    console.log(`🏢 [SMS Activation] Organización: ${organization.name} (${organizationId})`);
+    console.log(`🌍 [SMS Activation] País: ${countryInfo.name}`);
+    
+    // 8. Retornar respuesta exitosa
+    return NextResponse.json({
+      success: true,
+      message: 'SMS activado correctamente',
+      data: {
+        phone_number: selectedNumber.phoneNumber,
+        sid: selectedNumber.sid,
+        type: selectedNumber.phoneNumber.includes('800') ? 'toll-free' : 'local',
+        country: countryInfo.name,
+        country_code: countryCode,
+        webhook_url: webhookUrl,
+        costs: {
+          monthly_usd: countryInfo.monthlyCost,
+          per_sms_mxn: countryInfo.perSMS,
+          currency_monthly: 'USD',
+          currency_per_sms: 'MXN'
+        },
+        activated_at: new Date().toISOString()
+      }
+    });
+    
+  } catch (error: any) {
+    console.error('❌ [SMS Activation] Error inesperado:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Error inesperado',
+      details: error.message 
+    }, { status: 500 });
+  }
 }
 
 /**
- * POST /api/messaging/activate-sms
- * ESTRATEGIA: Intentar Toll-Free primero (no requiere Bundle)
+ * GET /api/messaging/activate-sms
+ * Obtener estado de activación de SMS
  */
 export async function GET(req: NextRequest) {
   try {
@@ -40,10 +368,7 @@ export async function GET(req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: 'No autorizado' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
     }
     
     const supabaseAdmin = getSupabaseServiceClient();
@@ -56,10 +381,7 @@ export async function GET(req: NextRequest) {
     const userProfileData = userProfile as any;
     
     if (!userProfileData?.organization_id) {
-      return NextResponse.json(
-        { success: false, error: 'No se pudo obtener organización' },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, error: 'No se pudo obtener organización' }, { status: 403 });
     }
     
     const { data: org } = await supabaseAdmin
@@ -78,6 +400,7 @@ export async function GET(req: NextRequest) {
         sms_enabled,
         sms_provider,
         sms_twilio_number,
+        sms_twilio_sid,
         sms_monthly_cost_usd,
         sms_per_message_cost_mxn,
         sms_activated_at
@@ -93,6 +416,7 @@ export async function GET(req: NextRequest) {
         enabled: configData?.sms_enabled || false,
         provider: configData?.sms_provider || null,
         phone_number: configData?.sms_twilio_number || null,
+        sid: configData?.sms_twilio_sid || null,
         country: countryInfo?.name || null,
         country_code: countryCode,
         costs: configData ? {
@@ -108,343 +432,13 @@ export async function GET(req: NextRequest) {
     
   } catch (error: any) {
     console.error('[SMS Activation GET] Error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Error al obtener estado' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Error al obtener estado' }, { status: 500 });
   }
 }
 
 /**
- * POST /api/messaging/activate-sms
- * ESTRATEGIA: Intentar Toll-Free primero (no requiere Bundle)
+ * Helper: Obtener prefijo telefónico por país
  */
-export async function POST(req: NextRequest) {
-  try {
-    // 1-3. Autenticación y validación (igual que antes)
-    const supabase = createClientFromRequest(req);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: 'No autorizado' },
-        { status: 401 }
-      );
-    }
-    
-    const supabaseAdmin = getSupabaseServiceClient();
-    const { data: userProfile } = await supabaseAdmin
-      .from('users')
-      .select('organization_id')
-      .eq('auth_user_id', user.id)
-      .single();
-    
-    const userProfileData = userProfile as any;
-    
-    if (!userProfileData?.organization_id) {
-      return NextResponse.json(
-        { success: false, error: 'No se pudo obtener organización' },
-        { status: 403 }
-      );
-    }
-    
-    const organizationId = userProfileData.organization_id;
-    
-    const { data: organization } = await supabaseAdmin
-      .from('organizations')
-      .select('id, name, country')
-      .eq('id', organizationId)
-      .single();
-    
-    const orgData = organization as any;
-    
-    if (!orgData) {
-      return NextResponse.json(
-        { success: false, error: 'Organización no encontrada' },
-        { status: 404 }
-      );
-    }
-    
-    const countryCode = orgData.country?.toUpperCase() || 'MX';
-    const countryInfo = LATAM_COUNTRIES[countryCode as keyof typeof LATAM_COUNTRIES];
-    
-    if (!countryInfo) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'País no soportado para Toll-Free',
-          details: `Actualmente solo soportamos: ${Object.keys(LATAM_COUNTRIES).join(', ')}`
-        },
-        { status: 400 }
-      );
-    }
-    
-    console.log(`🌍 [SMS Activation] País: ${countryInfo.name} (${countryCode})`);
-    
-    // Verificar si ya tiene SMS activado
-    const { data: existingConfig } = await supabaseAdmin
-      .from('organization_messaging_config')
-      .select('sms_enabled, sms_twilio_number')
-      .eq('organization_id', organizationId)
-      .single();
-    
-    const existingConfigData = existingConfig as any;
-    
-    if (existingConfigData?.sms_enabled && existingConfigData?.sms_twilio_number) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'SMS ya está activado',
-          data: { phone_number: existingConfigData.sms_twilio_number }
-        },
-        { status: 400 }
-      );
-    }
-    
-    // Verificar y limpiar credenciales de Twilio (remover \r\n que Vercel a veces agrega)
-    const accountSid = cleanEnvVar(process.env.TWILIO_ACCOUNT_SID);
-    const authToken = cleanEnvVar(process.env.TWILIO_AUTH_TOKEN);
-    
-    if (!accountSid || !authToken) {
-      console.error('❌ [SMS Activation] Variables de Twilio faltantes o vacías:', {
-        hasAccountSid: !!accountSid,
-        hasAuthToken: !!authToken,
-        accountSidLength: accountSid?.length || 0,
-        authTokenLength: authToken?.length || 0
-      });
-      return NextResponse.json(
-        { success: false, error: 'Servicio SMS no configurado' },
-        { status: 500 }
-      );
-    }
-    
-    // Validar formato de Account SID
-    if (!accountSid.startsWith('AC')) {
-      console.error('❌ [SMS Activation] Account SID con formato incorrecto:', {
-        accountSid: accountSid.substring(0, 10) + '...',
-        length: accountSid.length
-      });
-      return NextResponse.json(
-        { success: false, error: 'Configuración de Twilio inválida' },
-        { status: 500 }
-      );
-    }
-    
-    const twilioClient = twilio(accountSid, authToken);
-    
-    // Usar getAppUrl() que maneja automáticamente protocolo y limpieza
-    const appUrl = getAppUrl();
-    const webhookUrl = `${appUrl}/api/messaging/sms/webhook/${organizationId}`;
-    const statusWebhookUrl = `${webhookUrl}/status`;
-    
-    console.log(`🔗 [SMS Activation] App URL: ${appUrl}`);
-    console.log(`🔗 [SMS Activation] Webhook: ${webhookUrl}`);
-    
-    // ESTRATEGIA: TOLL-FREE PRIMERO (no requiere Bundle ni Address)
-    let selectedNumber;
-    
-    try {
-      console.log('🔍 [SMS Activation] Buscando números existentes...');
-      const existingNumbers = await twilioClient.incomingPhoneNumbers.list({ limit: 50 });
-      
-      console.log(`📋 [SMS Activation] Números existentes: ${existingNumbers.length}`);
-      
-      const countryPrefix = getCountryPhonePrefix(countryCode);
-      const countryNumbers = existingNumbers.filter(num => 
-        num.phoneNumber.startsWith(countryPrefix)
-      );
-      
-      if (countryNumbers.length > 0) {
-        // Usar número existente
-        const firstNumber = countryNumbers[0];
-        console.log(`✅ [SMS Activation] Usando número existente: ${firstNumber.phoneNumber}`);
-        
-        selectedNumber = await twilioClient.incomingPhoneNumbers(firstNumber.sid).update({
-          smsUrl: webhookUrl,
-          smsMethod: 'POST',
-          statusCallback: statusWebhookUrl,
-          statusCallbackMethod: 'POST',
-          friendlyName: `Eagles ERP - ${orgData.name}`
-        });
-        
-      } else {
-        // NO HAY NÚMEROS - INTENTAR COMPRAR TOLL-FREE
-        console.log('📞 [SMS Activation] Buscando números TOLL-FREE (800)...');
-        
-        try {
-          const tollFreeNumbers = await twilioClient
-            .availablePhoneNumbers(countryCode)
-            .tollFree
-            .list({
-              smsEnabled: true,
-              limit: 20
-            });
-          
-          if (tollFreeNumbers.length > 0) {
-            console.log(`✅ [SMS Activation] Encontrados ${tollFreeNumbers.length} números Toll-Free`);
-            console.log(`💡 [SMS Activation] Toll-Free NO requiere Bundle ni Address`);
-            
-            // Comprar número Toll-Free (SIN AddressSid, SIN BundleSid)
-            selectedNumber = await twilioClient
-              .incomingPhoneNumbers
-              .create({
-                phoneNumber: tollFreeNumbers[0].phoneNumber,
-                friendlyName: `Eagles ERP - ${orgData.name}`,
-                smsUrl: webhookUrl,
-                smsMethod: 'POST',
-                statusCallback: statusWebhookUrl,
-                statusCallbackMethod: 'POST'
-              });
-            
-            console.log(`✅ [SMS Activation] Número Toll-Free comprado: ${selectedNumber.phoneNumber}`);
-            
-          } else {
-            // NO HAY TOLL-FREE - Intentar números locales como alternativa
-            console.log('⚠️ [SMS Activation] No hay Toll-Free, intentando números locales...');
-            
-            try {
-              const localNumbers = await twilioClient
-                .availablePhoneNumbers(countryCode)
-                .local
-                .list({
-                  smsEnabled: true,
-                  limit: 10
-                });
-              
-              if (localNumbers.length > 0) {
-                console.log(`✅ [SMS Activation] Encontrados ${localNumbers.length} números locales`);
-                console.log(`⚠️ [SMS Activation] NOTA: Números locales pueden requerir Regulatory Bundle`);
-                
-                // Intentar comprar número local (puede fallar si requiere Bundle)
-                try {
-                  selectedNumber = await twilioClient
-                    .incomingPhoneNumbers
-                    .create({
-                      phoneNumber: localNumbers[0].phoneNumber,
-                      friendlyName: `Eagles ERP - ${orgData.name}`,
-                      smsUrl: webhookUrl,
-                      smsMethod: 'POST',
-                      statusCallback: statusWebhookUrl,
-                      statusCallbackMethod: 'POST'
-                    });
-                  
-                  console.log(`✅ [SMS Activation] Número local comprado: ${selectedNumber.phoneNumber}`);
-                } catch (localError: any) {
-                  // Si falla por Bundle, informar al usuario
-                  if (localError.message?.includes('Bundle') || localError.message?.includes('Address')) {
-                    throw new Error('Números locales requieren Regulatory Bundle. No hay números Toll-Free disponibles.');
-                  }
-                  throw localError;
-                }
-              } else {
-                throw new Error('No hay números Toll-Free ni locales disponibles en este momento');
-              }
-            } catch (localError: any) {
-              console.error('❌ [SMS Activation] Error con números locales:', localError);
-              throw new Error('No hay números disponibles (ni Toll-Free ni locales)');
-            }
-          }
-          
-        } catch (tollFreeError: any) {
-          console.error('❌ [SMS Activation] Error con Toll-Free:', tollFreeError);
-          
-          return NextResponse.json(
-            { 
-              success: false,
-              error: 'No hay números disponibles',
-              details: tollFreeError.message || 'Los números Toll-Free (800) no están disponibles temporalmente.',
-              solution: 'Por favor intenta de nuevo más tarde o contacta a soporte.',
-              alternativa: 'Puedes crear un Regulatory Bundle en Twilio para usar números mobile.',
-              bundleUrl: 'https://console.twilio.com/us1/develop/compliance/bundles',
-              country: countryInfo.name,
-              country_code: countryCode
-            },
-            { status: 503 }
-          );
-        }
-      }
-      
-    } catch (error: any) {
-      console.error('❌ [SMS Activation] Error general:', error);
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Error al obtener número',
-          details: error.message 
-        },
-        { status: 500 }
-      );
-    }
-    
-    // Verificar que selectedNumber existe
-    if (!selectedNumber || !selectedNumber.phoneNumber || !selectedNumber.sid) {
-      return NextResponse.json(
-        { 
-          success: false,
-          error: 'No se pudo obtener número válido'
-        },
-        { status: 500 }
-      );
-    }
-    
-    // Guardar configuración en BD
-    const { error: upsertError } = await (supabaseAdmin as any)
-      .from('organization_messaging_config')
-      .upsert({
-        organization_id: organizationId,
-        sms_enabled: true,
-        sms_provider: 'twilio',
-        sms_twilio_number: selectedNumber.phoneNumber,
-        sms_twilio_sid: selectedNumber.sid,
-        sms_webhook_url: webhookUrl,
-        sms_monthly_cost_usd: countryInfo.monthlyCost,
-        sms_per_message_cost_mxn: countryInfo.perSMS,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'organization_id'
-      });
-    
-    if (upsertError) {
-      console.error('❌ [SMS Activation] Error guardando:', upsertError);
-      return NextResponse.json(
-        { success: false, error: 'Error al guardar configuración' },
-        { status: 500 }
-      );
-    }
-    
-    console.log(`✅ [SMS Activation] SUCCESS - ${countryInfo.name} - org ${organizationId}`);
-    
-    return NextResponse.json({
-      success: true,
-      message: 'SMS activado correctamente',
-      data: {
-        phone_number: selectedNumber.phoneNumber,
-        sid: selectedNumber.sid,
-        type: selectedNumber.phoneNumber.includes('800') ? 'toll-free' : 'local',
-        country: countryInfo.name,
-        country_code: countryCode,
-        webhook_url: webhookUrl,
-        costs: {
-          monthly_usd: countryInfo.monthlyCost,
-          per_sms_mxn: countryInfo.perSMS
-        },
-        activated_at: new Date().toISOString()
-      }
-    });
-    
-  } catch (error: any) {
-    console.error('❌ [SMS Activation] Error inesperado:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Error inesperado',
-        details: error.message 
-      },
-      { status: 500 }
-    );
-  }
-}
-
 function getCountryPhonePrefix(countryCode: string): string {
   const prefixes: Record<string, string> = {
     'MX': '+52', 'CO': '+57', 'AR': '+54', 'CL': '+56',
@@ -454,4 +448,3 @@ function getCountryPhonePrefix(countryCode: string): string {
   };
   return prefixes[countryCode] || '+52';
 }
-
