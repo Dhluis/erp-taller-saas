@@ -55,6 +55,9 @@ interface UseWhatsAppConversationsOptions {
   page?: number
   pageSize?: number
   status?: 'all' | 'active' | 'closed' | 'archived' | 'resolved' | 'pending' | 'unread' | 'favorite'
+  search?: string // Búsqueda por teléfono o nombre
+  sortBy?: 'last_message_at' | 'created_at' | 'customer_name' | 'messages_count' // Campo de ordenamiento
+  sortOrder?: 'asc' | 'desc' // Orden ascendente o descendente
   autoLoad?: boolean // Si debe cargar automáticamente al montar
   enableCache?: boolean // Habilitar cache simple
 }
@@ -101,10 +104,18 @@ export function useWhatsAppConversations(
   status: UseWhatsAppConversationsOptions['status'] = 'all',
   options: Omit<UseWhatsAppConversationsOptions, 'page' | 'pageSize' | 'status'> = {}
 ): UseWhatsAppConversationsReturn {
+  
+  // Extraer opciones adicionales
+  const {
+    search = '',
+    sortBy = 'last_message_at',
+    sortOrder = 'desc',
+    ...restOptions
+  } = options
   const {
     autoLoad = true,
     enableCache = false
-  } = options
+  } = restOptions
 
   // ==========================================
   // STATE
@@ -162,6 +173,15 @@ export function useWhatsAppConversations(
       params.set('pageSize', pageSize.toString())
       if (status && status !== 'all') {
         params.set('status', status)
+      }
+      if (search) {
+        params.set('search', search)
+      }
+      if (sortBy) {
+        params.set('sortBy', sortBy)
+      }
+      if (sortOrder) {
+        params.set('sortOrder', sortOrder)
       }
 
       const url = `/api/whatsapp/conversations?${params.toString()}`
@@ -228,7 +248,7 @@ export function useWhatsAppConversations(
       setIsLoading(false)
       isFetching.current = false
     }
-  }, [organizationId, ready, page, pageSize, status, enableCache])
+  }, [organizationId, ready, page, pageSize, status, search, sortBy, sortOrder, enableCache])
 
   // ==========================================
   // NAVIGATION ACTIONS (No-op, controlado externamente)

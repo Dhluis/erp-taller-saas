@@ -151,6 +151,27 @@ export default function ConversacionesPage() {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('all')
+  
+  // Handlers para búsqueda y ordenamiento
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value)
+    setPage(1) // Reset a primera página al buscar
+  }
+  
+  const handleSortChange = (newSortBy: typeof sortBy) => {
+    setSortBy(newSortBy)
+    setPage(1) // Reset a primera página al cambiar orden
+  }
+  
+  const handleSortOrderChange = (newOrder: typeof sortOrder) => {
+    setSortOrder(newOrder)
+    setPage(1) // Reset a primera página al cambiar orden
+  }
+  
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize)
+    setPage(1) // Reset a primera página al cambiar tamaño
+  }
   const [messageText, setMessageText] = useState('')
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'Responder' | 'Nota' | 'Respuestas' | 'Programado' | 'IA Respuesta'>('Responder')
@@ -162,16 +183,23 @@ export default function ConversacionesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState('')
   const [page, setPage] = useState(1)
-  const [pageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(20)
+  const [sortBy, setSortBy] = useState<'last_message_at' | 'created_at' | 'customer_name' | 'messages_count'>('last_message_at')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [isBotTyping, setIsBotTyping] = useState(false)
   
-  // Hook de conversaciones con paginación
+  // Hook de conversaciones con paginación, búsqueda y ordenamiento
   const { conversations: hookConversations, pagination, isLoading: loadingConversations, error, mutate } = useWhatsAppConversations(
     page,
     pageSize,
-    activeFilter === 'all' ? 'all' : activeFilter === 'resolved' ? 'resolved' : activeFilter === 'unread' ? 'unread' : activeFilter === 'favorite' ? 'favorite' : 'all'
+    activeFilter === 'all' ? 'all' : activeFilter === 'resolved' ? 'resolved' : activeFilter === 'unread' ? 'unread' : activeFilter === 'favorite' ? 'favorite' : 'all',
+    {
+      search: searchQuery,
+      sortBy,
+      sortOrder
+    }
   )
   
   // Emojis comunes
@@ -506,24 +534,19 @@ export default function ConversacionesPage() {
     }
   }, [darkMode])
 
+  // ✅ Filtrado ahora se hace en el backend, usar conversaciones directamente
+  // Solo mantener filtro de frontend para estados especiales (unread, favorite) si no están en backend
   const filteredConversations = conversations.filter(conv => {
     if (!conv) return false
     
-    const searchLower = searchQuery.toLowerCase()
-    const contactName = (conv.contactName || '').toLowerCase()
-    const lastMessage = (conv.lastMessage || '').toLowerCase()
-    
-    const matchesSearch = 
-      contactName.includes(searchLower) ||
-      lastMessage.includes(searchLower)
-    
+    // Filtros que aún se hacen en frontend (si no están soportados en backend)
     const matchesFilter = 
       activeFilter === 'all' ||
+      activeFilter === 'resolved' ||
       (activeFilter === 'unread' && conv.unread) ||
-      (activeFilter === 'resolved' && conv.status === 'resolved') ||
       (activeFilter === 'favorite' && conv.isFavorite)
 
-    return matchesSearch && matchesFilter
+    return matchesFilter
   })
 
   // Suscripción realtime para nuevos mensajes
@@ -1380,7 +1403,7 @@ export default function ConversacionesPage() {
               <Input
                 placeholder="Contactos, mensaje, @agente o etiqueta"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className={cn(
                   "pl-10",
                   darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-300"
@@ -1403,13 +1426,16 @@ export default function ConversacionesPage() {
                 <ChevronDown className="w-4 h-4" />
               </span>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {['all', 'unread', 'resolved', 'favorite'].map((filter) => (
                 <Button
                   key={filter}
                   variant={activeFilter === filter ? "default" : "ghost"}
                   size="sm"
-                  onClick={() => setActiveFilter(filter)}
+                  onClick={() => {
+                    setActiveFilter(filter)
+                    setPage(1) // Reset a primera página al cambiar filtro
+                  }}
                   className={cn(
                     "text-xs capitalize",
                     activeFilter === filter 
@@ -1420,6 +1446,43 @@ export default function ConversacionesPage() {
                   {filter === 'all' ? 'Todos' : filter === 'unread' ? 'No leídos' : filter === 'resolved' ? 'Resueltos' : 'Favoritos'}
                 </Button>
               ))}
+              
+              {/* Controles de ordenamiento */}
+              <div className="flex items-center gap-2 ml-auto">
+                <span className={cn(
+                  "text-xs",
+                  darkMode ? "text-gray-400" : "text-gray-600"
+                )}>
+                  Ordenar:
+                </span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => handleSortChange(e.target.value as typeof sortBy)}
+                  className={cn(
+                    "text-xs px-2 py-1 rounded border",
+                    darkMode 
+                      ? "bg-gray-800 border-gray-700 text-white" 
+                      : "bg-white border-gray-300 text-gray-900"
+                  )}
+                >
+                  <option value="last_message_at">Más recientes</option>
+                  <option value="created_at">Fecha de creación</option>
+                  <option value="customer_name">Nombre A-Z</option>
+                  <option value="messages_count">Más mensajes</option>
+                </select>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleSortOrderChange(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className={cn(
+                    "h-7 w-7 p-0",
+                    darkMode ? "text-gray-400 hover:text-gray-300" : "text-gray-600 hover:text-gray-800"
+                  )}
+                  title={sortOrder === 'asc' ? 'Ascendente' : 'Descendente'}
+                >
+                  {sortOrder === 'asc' ? '↑' : '↓'}
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -1572,12 +1635,9 @@ export default function ConversacionesPage() {
               pageSize={pagination.pageSize || pageSize}
               total={pagination.total || 0}
               onPageChange={setPage}
-              onPageSizeChange={(size) => {
-                // El pageSize está fijo en 20, pero podemos actualizar si es necesario
-                console.log('Page size change requested:', size)
-              }}
+              onPageSizeChange={handlePageSizeChange}
               loading={loadingConversations}
-              showPageSizeSelector={false}
+              showPageSizeSelector={true}
             />
           )}
         </div>
