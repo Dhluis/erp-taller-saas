@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import twilio from 'twilio';
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
+import { getAppUrl } from '@/lib/utils/env';
 
 // Mapeo de países latinoamericanos soportados
 const LATAM_COUNTRIES = {
@@ -231,9 +232,12 @@ export async function POST(req: NextRequest) {
     
     const twilioClient = twilio(accountSid, authToken);
     
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/messaging/sms/webhook/${organizationId}`;
+    // Usar getAppUrl() que maneja automáticamente protocolo y limpieza
+    const appUrl = getAppUrl();
+    const webhookUrl = `${appUrl}/api/messaging/sms/webhook/${organizationId}`;
     const statusWebhookUrl = `${webhookUrl}/status`;
     
+    console.log(`🔗 [SMS Activation] App URL: ${appUrl}`);
     console.log(`🔗 [SMS Activation] Webhook: ${webhookUrl}`);
     
     // ESTRATEGIA: TOLL-FREE PRIMERO (no requiere Bundle ni Address)
@@ -295,8 +299,50 @@ export async function POST(req: NextRequest) {
             console.log(`✅ [SMS Activation] Número Toll-Free comprado: ${selectedNumber.phoneNumber}`);
             
           } else {
-            // NO HAY TOLL-FREE - Informar al usuario
-            throw new Error('No hay números Toll-Free disponibles en este momento');
+            // NO HAY TOLL-FREE - Intentar números locales como alternativa
+            console.log('⚠️ [SMS Activation] No hay Toll-Free, intentando números locales...');
+            
+            try {
+              const localNumbers = await twilioClient
+                .availablePhoneNumbers(countryCode)
+                .local
+                .list({
+                  smsEnabled: true,
+                  limit: 10
+                });
+              
+              if (localNumbers.length > 0) {
+                console.log(`✅ [SMS Activation] Encontrados ${localNumbers.length} números locales`);
+                console.log(`⚠️ [SMS Activation] NOTA: Números locales pueden requerir Regulatory Bundle`);
+                
+                // Intentar comprar número local (puede fallar si requiere Bundle)
+                try {
+                  selectedNumber = await twilioClient
+                    .incomingPhoneNumbers
+                    .create({
+                      phoneNumber: localNumbers[0].phoneNumber,
+                      friendlyName: `Eagles ERP - ${orgData.name}`,
+                      smsUrl: webhookUrl,
+                      smsMethod: 'POST',
+                      statusCallback: statusWebhookUrl,
+                      statusCallbackMethod: 'POST'
+                    });
+                  
+                  console.log(`✅ [SMS Activation] Número local comprado: ${selectedNumber.phoneNumber}`);
+                } catch (localError: any) {
+                  // Si falla por Bundle, informar al usuario
+                  if (localError.message?.includes('Bundle') || localError.message?.includes('Address')) {
+                    throw new Error('Números locales requieren Regulatory Bundle. No hay números Toll-Free disponibles.');
+                  }
+                  throw localError;
+                }
+              } else {
+                throw new Error('No hay números Toll-Free ni locales disponibles en este momento');
+              }
+            } catch (localError: any) {
+              console.error('❌ [SMS Activation] Error con números locales:', localError);
+              throw new Error('No hay números disponibles (ni Toll-Free ni locales)');
+            }
           }
           
         } catch (tollFreeError: any) {
@@ -306,10 +352,12 @@ export async function POST(req: NextRequest) {
             { 
               success: false,
               error: 'No hay números disponibles',
-              details: 'Los números Toll-Free (800) no están disponibles temporalmente.',
+              details: tollFreeError.message || 'Los números Toll-Free (800) no están disponibles temporalmente.',
               solution: 'Por favor intenta de nuevo más tarde o contacta a soporte.',
               alternativa: 'Puedes crear un Regulatory Bundle en Twilio para usar números mobile.',
-              bundleUrl: 'https://console.twilio.com/us1/develop/compliance/bundles'
+              bundleUrl: 'https://console.twilio.com/us1/develop/compliance/bundles',
+              country: countryInfo.name,
+              country_code: countryCode
             },
             { status: 503 }
           );
