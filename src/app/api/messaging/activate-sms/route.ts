@@ -103,16 +103,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Servicio SMS no configurado' }, { status: 500 });
     }
     
-    if (!bundleSid) {
-      console.error('❌ [SMS Activation] TWILIO_REGULATORY_BUNDLE_SID no configurado');
-      return NextResponse.json({
-        success: false,
-        error: 'Sistema no configurado',
-        details: 'El Bundle regulatorio maestro no está configurado. Contacta a soporte.',
-        adminAction: 'Configurar TWILIO_REGULATORY_BUNDLE_SID en variables de entorno'
-      }, { status: 500 });
-    }
-    
     // Validar formato de Account SID
     if (!accountSid.startsWith('AC')) {
       console.error('❌ [SMS Activation] Account SID con formato incorrecto');
@@ -124,7 +114,59 @@ export async function POST(req: NextRequest) {
     
     const twilioClient = twilio(accountSid, authToken);
     
-    console.log(`📋 [SMS Activation] Bundle Maestro: ${bundleSid}`);
+    // 5. Verificar estado del Bundle (si está configurado)
+    let bundleStatus = 'not_configured';
+    let bundleInfo: any = null;
+    
+    if (bundleSid) {
+      try {
+        console.log(`📋 [SMS Activation] Verificando estado del Bundle: ${bundleSid}`);
+        const bundle = await twilioClient.numbers.v2.regulatoryCompliance.bundles(bundleSid).fetch();
+        bundleStatus = bundle.status || 'unknown';
+        bundleInfo = {
+          sid: bundle.sid,
+          friendlyName: bundle.friendlyName,
+          status: bundle.status,
+          statusCallback: bundle.statusCallback,
+          dateCreated: bundle.dateCreated,
+          dateUpdated: bundle.dateUpdated,
+          url: bundle.url
+        };
+        console.log(`📊 [SMS Activation] Bundle Status: ${bundleStatus}`);
+      } catch (bundleError: any) {
+        console.warn(`⚠️ [SMS Activation] No se pudo verificar Bundle: ${bundleError.message}`);
+        bundleStatus = 'error';
+        bundleInfo = {
+          sid: bundleSid,
+          status: 'error',
+          error: bundleError.message
+        };
+      }
+    } else {
+      console.warn('⚠️ [SMS Activation] TWILIO_REGULATORY_BUNDLE_SID no configurado - Solo Toll-Free disponible');
+    }
+    
+    // Placeholders para plataforma, status y prioridades
+    const platformInfo = {
+      platform: 'Twilio',
+      account_type: 'Multi-Tenant Enterprise',
+      bundle_required: bundleStatus !== 'twilio-approved' && bundleStatus !== 'approved',
+      bundle_status: bundleStatus,
+      bundle_info: bundleInfo,
+      capabilities: {
+        toll_free: true,  // Siempre disponible
+        local_numbers: bundleStatus === 'twilio-approved' || bundleStatus === 'approved',
+        international: false,
+        short_codes: false
+      },
+      priority: {
+        toll_free: 'high',      // Prioridad alta - no requiere Bundle
+        local_numbers: bundleStatus === 'twilio-approved' || bundleStatus === 'approved' ? 'high' : 'pending',
+        regulatory_compliance: bundleStatus === 'twilio-approved' || bundleStatus === 'approved' ? 'complete' : 'in_progress'
+      }
+    };
+    
+    console.log(`🏢 [SMS Activation] Platform Info:`, platformInfo);
     
     // Usar getAppUrl() que maneja automáticamente protocolo y limpieza
     const appUrl = getAppUrl();
@@ -226,8 +268,11 @@ export async function POST(req: NextRequest) {
         
         // Agregar Bundle SID si es número local (Toll-Free no lo necesita)
         if (numberType === 'local') {
+          if (!bundleSid || bundleStatus !== 'twilio-approved' && bundleStatus !== 'approved') {
+            throw new Error('Bundle regulatorio requerido para números locales pero no está aprobado');
+          }
           purchaseParams.bundleSid = bundleSid;
-          console.log(`📋 [SMS Activation] Usando Bundle Maestro: ${bundleSid}`);
+          console.log(`📋 [SMS Activation] Usando Bundle Maestro: ${bundleSid} (Status: ${bundleStatus})`);
         }
         
         // COMPRAR NÚMERO
@@ -247,8 +292,32 @@ export async function POST(req: NextRequest) {
           error: 'Bundle Regulatorio Inválido',
           details: 'El Bundle maestro no está aprobado o es inválido.',
           adminAction: 'Verificar estado del Bundle en Twilio Console',
-          bundleUrl: 'https://console.twilio.com/us1/develop/compliance/bundles'
+          bundleUrl: 'https://console.twilio.com/us1/develop/compliance/bundles',
+          platform: platformInfo.platform,
+          bundle_status: bundleStatus,
+          priority: {
+            action: 'high',
+            message: 'El Bundle debe estar aprobado para usar números locales'
+          }
         }, { status: 500 });
+      }
+      
+      if (error.message?.includes('Bundle regulatorio requerido')) {
+        return NextResponse.json({
+          success: false,
+          error: 'Bundle Regulatorio Pendiente',
+          details: 'El Bundle está en proceso de aprobación. Solo números Toll-Free están disponibles temporalmente.',
+          platform: platformInfo.platform,
+          bundle_status: bundleStatus,
+          current_capabilities: platformInfo.capabilities,
+          priority: {
+            action: 'medium',
+            message: 'Usar números Toll-Free mientras el Bundle está en aprobación',
+            estimated_approval: '24-72 horas'
+          },
+          suggestion: 'Intenta activar SMS nuevamente cuando el Bundle esté aprobado para acceder a números locales.',
+          bundleUrl: 'https://console.twilio.com/us1/develop/compliance/bundles'
+        }, { status: 503 });
       }
       
       if (error.code === 21450 || error.code === 21421) {
@@ -327,14 +396,16 @@ export async function POST(req: NextRequest) {
     console.log(`🏢 [SMS Activation] Organización: ${organization.name} (${organizationId})`);
     console.log(`🌍 [SMS Activation] País: ${countryInfo.name}`);
     
-    // 8. Retornar respuesta exitosa
+    // 8. Retornar respuesta exitosa con información de plataforma
+    const numberType = selectedNumber.phoneNumber.includes('800') ? 'toll-free' : 'local';
+    
     return NextResponse.json({
       success: true,
       message: 'SMS activado correctamente',
       data: {
         phone_number: selectedNumber.phoneNumber,
         sid: selectedNumber.sid,
-        type: selectedNumber.phoneNumber.includes('800') ? 'toll-free' : 'local',
+        type: numberType,
         country: countryInfo.name,
         country_code: countryCode,
         webhook_url: webhookUrl,
@@ -344,7 +415,19 @@ export async function POST(req: NextRequest) {
           currency_monthly: 'USD',
           currency_per_sms: 'MXN'
         },
-        activated_at: new Date().toISOString()
+        activated_at: new Date().toISOString(),
+        platform: {
+          provider: platformInfo.platform,
+          account_type: platformInfo.account_type,
+          bundle_status: bundleStatus,
+          bundle_required: numberType === 'local',
+          capabilities: platformInfo.capabilities,
+          priority: {
+            number_type: numberType,
+            regulatory_compliance: platformInfo.priority.regulatory_compliance,
+            status: numberType === 'toll-free' ? 'operational' : (bundleStatus === 'twilio-approved' || bundleStatus === 'approved' ? 'operational' : 'pending_approval')
+          }
+        }
       }
     });
     
