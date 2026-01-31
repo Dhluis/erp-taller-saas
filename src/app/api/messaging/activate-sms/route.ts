@@ -17,6 +17,19 @@ const LATAM_COUNTRIES = {
 };
 
 /**
+ * Limpia variables de entorno removiendo \r\n, espacios y caracteres invisibles
+ * CRÍTICO: Vercel a veces agrega \r\n al final de las variables
+ */
+function cleanEnvVar(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return value
+    .replace(/\r\n/g, '')  // Remover \r\n
+    .replace(/\r/g, '')    // Remover \r
+    .replace(/\n/g, '')    // Remover \n
+    .trim();               // Remover espacios al inicio/final
+}
+
+/**
  * POST /api/messaging/activate-sms
  * ESTRATEGIA: Intentar Toll-Free primero (no requiere Bundle)
  */
@@ -187,18 +200,36 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Verificar credenciales de Twilio
-    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+    // Verificar y limpiar credenciales de Twilio (remover \r\n que Vercel a veces agrega)
+    const accountSid = cleanEnvVar(process.env.TWILIO_ACCOUNT_SID);
+    const authToken = cleanEnvVar(process.env.TWILIO_AUTH_TOKEN);
+    
+    if (!accountSid || !authToken) {
+      console.error('❌ [SMS Activation] Variables de Twilio faltantes o vacías:', {
+        hasAccountSid: !!accountSid,
+        hasAuthToken: !!authToken,
+        accountSidLength: accountSid?.length || 0,
+        authTokenLength: authToken?.length || 0
+      });
       return NextResponse.json(
         { success: false, error: 'Servicio SMS no configurado' },
         { status: 500 }
       );
     }
     
-    const twilioClient = twilio(
-      process.env.TWILIO_ACCOUNT_SID,
-      process.env.TWILIO_AUTH_TOKEN
-    );
+    // Validar formato de Account SID
+    if (!accountSid.startsWith('AC')) {
+      console.error('❌ [SMS Activation] Account SID con formato incorrecto:', {
+        accountSid: accountSid.substring(0, 10) + '...',
+        length: accountSid.length
+      });
+      return NextResponse.json(
+        { success: false, error: 'Configuración de Twilio inválida' },
+        { status: 500 }
+      );
+    }
+    
+    const twilioClient = twilio(accountSid, authToken);
     
     const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/messaging/sms/webhook/${organizationId}`;
     const statusWebhookUrl = `${webhookUrl}/status`;

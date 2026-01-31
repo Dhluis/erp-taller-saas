@@ -110,11 +110,24 @@ export function configureSendGrid(): void {
 }
 
 /**
+ * Limpia variables de entorno removiendo \r\n, espacios y caracteres invisibles
+ * CRÍTICO: Vercel a veces agrega \r\n al final de las variables
+ */
+function cleanEnvVar(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return value
+    .replace(/\r\n/g, '')  // Remover \r\n
+    .replace(/\r/g, '')    // Remover \r
+    .replace(/\n/g, '')    // Remover \n
+    .trim();               // Remover espacios al inicio/final
+}
+
+/**
  * Configurar cliente de Twilio
  */
 export function configureTwilio(): twilio.Twilio {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
-  const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
+  const accountSid = cleanEnvVar(process.env.TWILIO_ACCOUNT_SID);
+  const authToken = cleanEnvVar(process.env.TWILIO_AUTH_TOKEN);
 
   if (!accountSid || !authToken) {
     console.error('❌ [Twilio] Variables de entorno faltantes:', {
