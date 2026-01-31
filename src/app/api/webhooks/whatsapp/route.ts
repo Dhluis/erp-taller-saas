@@ -19,7 +19,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { processMessage } from '@/integrations/whatsapp/services/ai-agent';
-import { getOrganizationFromSession, sendWhatsAppMessage, getProfilePicture } from '@/lib/waha-sessions';
+import { getOrganizationFromSession, sendWhatsAppMessage, getProfilePicture, getWahaConfig } from '@/lib/waha-sessions';
 import { rateLimitMiddleware } from '@/lib/rate-limit/middleware';
 import { normalizePhoneNumber } from '@/lib/utils/phone-formatter';
 
@@ -239,16 +239,24 @@ async function handleMessageEvent(body: any) {
       return;
     }
 
-    // 6. IMPORTANTE: Extraer número del remitente y verificar que no sea la misma sesión
-    const fromNumber = extractPhoneNumber(chatId);
-    console.log('[WAHA Webhook] 📱 Número del remitente:', fromNumber);
-    
-    // Obtener organizationId para verificar el número de la sesión
+    // 6. Obtener organizationId PRIMERO (necesario para resolver @lid)
     const organizationId = await getOrganizationFromSession(sessionName);
     if (!organizationId) {
       console.error('[WAHA Webhook] ❌ No se pudo obtener organizationId de sesión:', sessionName);
       return;
     }
+
+    // 6.1. IMPORTANTE: Resolver número real del remitente (maneja @lid correctamente)
+    const fromNumber = await resolveRealPhoneNumber(chatId, sessionName, organizationId);
+    
+    if (!fromNumber) {
+      // No se pudo resolver el número real → NO crear conversación ficticia
+      console.warn(`[WAHA Webhook] ⚠️ Ignorando mensaje de contacto no resuelto: ${chatId}`);
+      console.warn(`[WAHA Webhook] ⚠️ Esto previene crear conversaciones ficticias con IDs de WhatsApp`);
+      return;
+    }
+    
+    console.log('[WAHA Webhook] 📱 Número del remitente resuelto:', fromNumber);
 
     // Obtener el estado de la sesión para verificar el número propio
     try {
@@ -277,17 +285,13 @@ async function handleMessageEvent(body: any) {
     console.log('[WAHA Webhook] 📍 Organization ID:', organizationId);
     console.log('[WAHA Webhook] 📱 Chat ID:', chatId);
 
-    // 6. Obtener cliente Supabase con service role (bypass RLS)
+    // 7. Obtener cliente Supabase con service role (bypass RLS)
     const supabase = getSupabaseServiceClient();
 
-    // 7. Extraer número de teléfono del cliente
+    // 8. Usar número resuelto (ya validado en resolveRealPhoneNumber)
     const customerPhone = fromNumber;
-    if (!customerPhone) {
-      console.error('[WAHA Webhook] ❌ No se pudo extraer número de teléfono de:', chatId);
-      return;
-    }
 
-    // 8. Buscar o crear conversación (pasando sessionName para obtener nombre real)
+    // 9. Buscar o crear conversación (pasando sessionName para obtener nombre real)
     const { conversationId, isNewConversation } = await getOrCreateConversation(
       supabase,
       organizationId,
@@ -295,7 +299,7 @@ async function handleMessageEvent(body: any) {
       sessionName // ✅ Agregar sessionName para obtener nombre real del contacto
     );
     
-    // 8.1. Si es nueva conversación, obtener foto de perfil en background (no bloquear el flujo)
+    // 9.1. Si es nueva conversación, obtener foto de perfil en background (no bloquear el flujo)
     if (isNewConversation) {
       console.log('[Webhook] 📸 Nueva conversación detectada, obteniendo foto de perfil...');
       getProfilePicture(customerPhone, sessionName, organizationId)
@@ -313,7 +317,7 @@ async function handleMessageEvent(body: any) {
         .catch(err => console.log('[Webhook] ⚠️ Error obteniendo foto de perfil:', err.message));
     }
 
-    // 9. Detectar tipo de mensaje y multimedia
+    // 10. Detectar tipo de mensaje y multimedia
     const messageType = message.type || message.messageType || 'text';
     
     // Buscar media también en body.payload (WAHA puede enviarlo ahí)
@@ -423,7 +427,7 @@ async function handleMessageEvent(body: any) {
       ? new Date(message.timestamp * 1000 || message.timestamp)
       : new Date();
 
-    // 10. GUARDAR MENSAJE EN BD ANTES DE PROCESAR CON AI
+    // 11. GUARDAR MENSAJE EN BD ANTES DE PROCESAR CON AI
     // Si es duplicado, el constraint UNIQUE (provider_message_id) lanzará error 23505
     const finalMessageId = messageId || `waha_${Date.now()}`;
     
@@ -526,7 +530,7 @@ async function handleMessageEvent(body: any) {
       throw err;
     }
 
-    // 11. Verificar si el bot está activo en la conversación
+    // 12. Verificar si el bot está activo en la conversación
     const { data: conversation } = await supabase
       .from('whatsapp_conversations')
       .select('is_bot_active')
@@ -538,7 +542,7 @@ async function handleMessageEvent(body: any) {
       return;
     }
 
-    // 12. Cargar configuración AI para logging (debugging)
+    // 13. Cargar configuración AI para logging (debugging)
     console.log('[WAHA Webhook] 🔍 Verificando configuración AI...');
     const { data: aiConfig, error: aiConfigError } = await supabase
       .from('ai_agent_config')
@@ -572,7 +576,7 @@ async function handleMessageEvent(body: any) {
       return;
     }
 
-    // 13. Procesar mensaje con AI Agent
+    // 14. Procesar mensaje con AI Agent
     console.log('[WAHA Webhook] 🤖 Procesando con AI Agent...');
     console.log('[Webhook] 🤖 ANTES de llamar a AI - messageId:', finalMessageId);
     const aiResult = await processMessage({
@@ -584,7 +588,7 @@ async function handleMessageEvent(body: any) {
     });
     console.log('[Webhook] 🤖 DESPUÉS de AI - messageId:', finalMessageId, '- Respuesta:', aiResult.success ? 'SÍ' : 'NO');
 
-    // 14. Si AI responde, enviar respuesta
+    // 15. Si AI responde, enviar respuesta
     if (aiResult.success && aiResult.response) {
       console.log('[WAHA Webhook] ✅ AI generó respuesta, enviando...');
       
@@ -599,7 +603,7 @@ async function handleMessageEvent(body: any) {
         );
 
         if (sendResult) {
-        // 15. Guardar mensaje saliente
+        // 16. Guardar mensaje saliente
         await saveOutgoingMessage(
           supabase,
           conversationId,
@@ -714,8 +718,9 @@ async function handleReactionEvent(body: any) {
 // Función extractOrganizationId eliminada - ahora se usa getOrganizationFromSession de waha-sessions.ts
 
 /**
- * Extrae número de teléfono del chatId
+ * Extrae número de teléfono del chatId (DEPRECATED - usar resolveRealPhoneNumber)
  * Formato: 5214491234567@c.us, @s.whatsapp.net o @lid -> 5214491234567
+ * ⚠️ Esta función NO resuelve @lid correctamente, solo normaliza números directos
  */
 function extractPhoneNumber(chatId: string): string | null {
   if (!chatId) return null;
@@ -736,6 +741,173 @@ function extractPhoneNumber(chatId: string): string | null {
   }
   
   return normalized;
+}
+
+/**
+ * Valida si un string parece ser un número de teléfono real.
+ * Los números reales de LATAM empiezan con el código de país.
+ */
+function isValidPhoneNumber(number: string): boolean {
+  if (!number) return false;
+
+  // Códigos de país LATAM conocidos
+  const validPrefixes = [
+    '52',   // México
+    '57',   // Colombia
+    '54',   // Argentina
+    '56',   // Chile
+    '51',   // Perú
+    '55',   // Brasil
+    '593',  // Ecuador
+    '598',  // Uruguay
+    '506',  // Costa Rica
+    '507',  // Panamá
+    '1',    // USA/Canadá
+  ];
+
+  return validPrefixes.some(prefix => number.startsWith(prefix)) && number.length >= 10 && number.length <= 15;
+}
+
+/**
+ * Resuelve el número real de un contacto en WAHA.
+ * Si el chatId es formato @lid, llama a la API de WAHA
+ * para obtener el número de teléfono real.
+ * 
+ * @param chatId - El chatId del mensaje (ej: "5214494533160@c.us" o "93832184119502@lid")
+ * @param sessionName - Nombre de la sesión de WAHA
+ * @param organizationId - ID de la organización (para obtener configuración WAHA)
+ * @returns string | null - El número real normalizado, o null si no se resuelve
+ */
+async function resolveRealPhoneNumber(
+  chatId: string,
+  sessionName: string,
+  organizationId: string
+): Promise<string | null> {
+  if (!chatId) {
+    console.warn('[WAHA Webhook] ⚠️ resolveRealPhoneNumber: chatId vacío');
+    return null;
+  }
+
+  // Si es @c.us, el chatId ya contiene el número real
+  if (chatId.includes('@c.us')) {
+    const rawNumber = chatId.replace('@c.us', '');
+    const normalized = normalizePhoneNumber(rawNumber);
+    
+    if (normalized && isValidPhoneNumber(normalized)) {
+      console.log(`[WAHA Webhook] ✅ Número real directo (@c.us): ${normalized}`);
+      return normalized;
+    } else {
+      console.warn(`[WAHA Webhook] ⚠️ Número @c.us no válido después de normalizar: ${rawNumber} → ${normalized}`);
+      return null;
+    }
+  }
+
+  // Si es @s.whatsapp.net, también es número real
+  if (chatId.includes('@s.whatsapp.net')) {
+    const rawNumber = chatId.replace('@s.whatsapp.net', '');
+    const normalized = normalizePhoneNumber(rawNumber);
+    
+    if (normalized && isValidPhoneNumber(normalized)) {
+      console.log(`[WAHA Webhook] ✅ Número real directo (@s.whatsapp.net): ${normalized}`);
+      return normalized;
+    } else {
+      console.warn(`[WAHA Webhook] ⚠️ Número @s.whatsapp.net no válido después de normalizar: ${rawNumber} → ${normalized}`);
+      return null;
+    }
+  }
+
+  // Si es @lid, necesitamos consultar WAHA para obtener el número real
+  if (chatId.includes('@lid')) {
+    try {
+      console.log(`[WAHA Webhook] 🔍 Resolviendo contacto @lid: ${chatId} via WAHA API...`);
+      
+      // Obtener configuración de WAHA
+      const { url: wahaUrl, key: wahaApiKey } = await getWahaConfig(organizationId);
+      
+      // Intentar diferentes endpoints de WAHA según la versión
+      // WAHA Plus puede usar diferentes formatos
+      const endpoints = [
+        `${wahaUrl}/api/sessions/${sessionName}/contacts/${chatId}`,
+        `${wahaUrl}/api/v1/sessions/${sessionName}/contacts/${chatId}`,
+        `${wahaUrl}/api/${sessionName}/contacts/${chatId}`,
+      ];
+
+      let contactData: any = null;
+      let lastError: Error | null = null;
+
+      for (const endpoint of endpoints) {
+        try {
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Api-Key': wahaApiKey,
+            },
+            // Timeout de 5 segundos para evitar bloqueos
+            signal: AbortSignal.timeout(5000),
+          });
+
+          if (response.ok) {
+            contactData = await response.json();
+            console.log(`[WAHA Webhook] ✅ Contacto resuelto desde: ${endpoint}`);
+            break;
+          } else if (response.status !== 404) {
+            // Si es 404, intentar siguiente endpoint
+            // Si es otro error, loguear pero continuar
+            console.warn(`[WAHA Webhook] ⚠️ Error ${response.status} en ${endpoint}, intentando siguiente...`);
+          }
+        } catch (endpointError: any) {
+          lastError = endpointError;
+          console.warn(`[WAHA Webhook] ⚠️ Error en endpoint ${endpoint}:`, endpointError.message);
+          // Continuar con siguiente endpoint
+        }
+      }
+
+      if (!contactData) {
+        console.warn(`[WAHA Webhook] ⚠️ WAHA no resolvió contacto ${chatId} desde ningún endpoint`, lastError?.message);
+        return null;
+      }
+
+      // WAHA retorna el número real en diferentes campos según la versión
+      const realNumber =
+        contactData.phoneNumber ||
+        contactData.phone ||
+        contactData.id?.replace('@c.us', '')?.replace('@s.whatsapp.net', '') ||
+        contactData.number ||
+        contactData.contact?.phoneNumber ||
+        contactData.contact?.phone;
+
+      if (!realNumber) {
+        console.warn(`[WAHA Webhook] ⚠️ WAHA no retornó número para ${chatId}:`, JSON.stringify(contactData).substring(0, 200));
+        return null;
+      }
+
+      const normalized = normalizePhoneNumber(realNumber);
+      
+      if (!normalized || !isValidPhoneNumber(normalized)) {
+        console.warn(`[WAHA Webhook] ⚠️ Número resuelto de @lid no es válido: ${realNumber} → ${normalized}`);
+        return null;
+      }
+
+      console.log(`[WAHA Webhook] ✅ Resuelto: ${chatId} → ${normalized}`);
+      return normalized;
+    } catch (error: any) {
+      console.error(`[WAHA Webhook] ❌ Error resolviendo contacto ${chatId}:`, error.message);
+      return null;
+    }
+  }
+
+  // Si no tiene sufijo conocido, intentar normalizar directamente
+  const normalized = normalizePhoneNumber(chatId);
+
+  // Validar que parece un número real (debe empezar con código de país)
+  if (normalized && isValidPhoneNumber(normalized)) {
+    console.log(`[WAHA Webhook] ✅ Número normalizado sin sufijo: ${normalized}`);
+    return normalized;
+  }
+
+  console.warn(`[WAHA Webhook] ⚠️ chatId no reconocido o no válido: ${chatId} (normalizado: ${normalized})`);
+  return null;
 }
 
 /**
