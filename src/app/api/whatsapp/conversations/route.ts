@@ -49,15 +49,19 @@ export async function GET(request: NextRequest) {
 
     // ✅ Extraer parámetros de paginación de la URL
     const url = new URL(request.url);
-    const { page, pageSize } = extractPaginationFromURL(url);
+    const { page, pageSize, sortBy, sortOrder } = extractPaginationFromURL(url);
     
     // Obtener parámetros adicionales
     const status = url.searchParams.get('status');
+    const search = url.searchParams.get('search') || '';
 
     console.log('📄 [GET /api/whatsapp/conversations] Parámetros:', {
       page,
       pageSize,
       status,
+      search,
+      sortBy,
+      sortOrder,
       organizationId
     });
 
@@ -85,9 +89,18 @@ export async function GET(request: NextRequest) {
       query = query.eq('status', status);
     }
 
-    // Aplicar ordenamiento y paginación
+    // Aplicar búsqueda por teléfono o nombre de contacto
+    if (search) {
+      query = query.or(`customer_phone.ilike.%${search}%,customer_name.ilike.%${search}%`);
+    }
+
+    // Aplicar ordenamiento personalizado o default
+    const validSortFields = ['last_message_at', 'created_at', 'customer_name', 'messages_count'];
+    const sortField = sortBy && validSortFields.includes(sortBy) ? sortBy : 'last_message_at';
+    const ascending = sortOrder === 'asc';
+    
     query = query
-      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .order(sortField, { ascending, nullsFirst: false })
       .range(offset, offset + pageSize - 1);
 
     const { data: conversations, count, error: conversationsError } = await query;
