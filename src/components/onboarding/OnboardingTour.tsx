@@ -198,6 +198,16 @@ export function OnboardingTour({ run: externalRun, onComplete }: OnboardingTourP
   const [run, setRun] = useState(externalRun ?? isTourActive)
   const [stepIndex, setStepIndex] = useState(0)
 
+  // Log cuando cambia el estado
+  useEffect(() => {
+    console.log('[OnboardingTour] 📊 Estado:', {
+      externalRun,
+      isTourActive,
+      run,
+      stepIndex
+    })
+  }, [externalRun, isTourActive, run, stepIndex])
+
   // Sincronizar con prop externo si se proporciona
   useEffect(() => {
     if (externalRun !== undefined) {
@@ -247,20 +257,53 @@ export function OnboardingTour({ run: externalRun, onComplete }: OnboardingTourP
     }
   }
 
-  // Si no hay elementos del tour en la página, no mostrar el tour
+  // Si no hay elementos del tour en la página, esperar y verificar
   if (typeof window === 'undefined') return null
 
-  const hasTourElements = document.querySelectorAll('[data-tour]').length > 0
+  // Verificar elementos del tour con un delay para dar tiempo a que se rendericen
+  const [hasTourElements, setHasTourElements] = useState(false)
 
-  if (!hasTourElements && run) {
-    // Si no hay elementos pero el tour está activo, esperar un poco
-    setTimeout(() => {
-      const stillNoElements = document.querySelectorAll('[data-tour]').length === 0
-      if (stillNoElements) {
-        setRun(false)
-        skipTour()
-      }
-    }, 2000)
+  useEffect(() => {
+    if (!run) return
+
+    // Verificar inmediatamente
+    const checkElements = () => {
+      const elements = document.querySelectorAll('[data-tour]')
+      const count = elements.length
+      console.log('[OnboardingTour] 🔍 Elementos data-tour encontrados:', count, {
+        elements: Array.from(elements).map(el => el.getAttribute('data-tour'))
+      })
+      setHasTourElements(count > 0)
+      return count > 0
+    }
+
+    // Verificar inmediatamente
+    if (checkElements()) {
+      return
+    }
+
+    // Si no hay elementos, esperar y verificar de nuevo (la UI puede tardar en cargar)
+    const timer1 = setTimeout(() => {
+      if (checkElements()) return
+      
+      // Segunda verificación después de más tiempo
+      const timer2 = setTimeout(() => {
+        if (!checkElements()) {
+          console.warn('[OnboardingTour] ⚠️ No se encontraron elementos data-tour después de 3 segundos')
+          setRun(false)
+          skipTour()
+        }
+      }, 2000)
+      
+      return () => clearTimeout(timer2)
+    }, 1000)
+
+    return () => clearTimeout(timer1)
+  }, [run, skipTour])
+
+  // Si no hay elementos y el tour está activo, mostrar mensaje de debug
+  if (run && !hasTourElements) {
+    console.log('[OnboardingTour] ⏳ Esperando elementos data-tour...')
     return null
   }
 

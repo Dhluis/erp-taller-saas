@@ -184,10 +184,12 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
           </button>
           
           {/* Notifications */}
-          <NotificationBell />
+          <div data-tour="notifications">
+            <NotificationBell />
+          </div>
           
           {/* User Profile */}
-          <div className="flex items-center space-x-3 pl-4 border-l border-border">
+          <div className="flex items-center space-x-3 pl-4 border-l border-border" data-tour="profile">
             <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-bg-primary font-bold text-sm">
               {userInitials}
             </div>

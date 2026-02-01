@@ -298,11 +298,14 @@ export function Sidebar({ className }: SidebarProps) {
   }
 
   return (
-    <div className={cn(
-      "flex flex-col h-screen bg-card border-r overflow-hidden transition-all duration-300 relative z-10",
-      isCollapsed ? "w-20" : "w-64",
-      className
-    )}>
+    <div 
+      className={cn(
+        "flex flex-col h-screen bg-card border-r overflow-hidden transition-all duration-300 relative z-10",
+        isCollapsed ? "w-20" : "w-64",
+        className
+      )}
+      data-tour="sidebar"
+    >
       {/* Header */}
       <div className={cn(
         "border-b border-border overflow-hidden relative",

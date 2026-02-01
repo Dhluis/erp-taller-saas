@@ -15,7 +15,11 @@ const ONBOARDING_STORAGE_KEY = 'eagles_erp_onboarding_completed'
 const ONBOARDING_VERSION = '1.0' // Incrementar si cambias los pasos del tour
 
 // ✅ Fecha de deploy del tour - usuarios creados ANTES de esta fecha NO verán el tour automáticamente
+// IMPORTANTE: Si quieres que TODOS los usuarios vean el tour (incluso antiguos), cambia esta fecha a una muy futura
 const TOUR_DEPLOY_DATE = new Date('2025-01-27T00:00:00Z') // Ajustar a la fecha real del deploy
+
+// ✅ OPCIÓN: Si no quieres filtrar por fecha, descomenta esta línea y comenta la de arriba
+// const TOUR_DEPLOY_DATE = new Date('2099-12-31T00:00:00Z') // Todos los usuarios verán el tour
 
 interface UseOnboardingTourReturn {
   isFirstTime: boolean
@@ -37,11 +41,25 @@ export function useOnboardingTour(): UseOnboardingTourReturn {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
+    console.log('[useOnboardingTour] 🔍 Iniciando verificación...', {
+      hasUser: !!user,
+      hasProfile: !!profile,
+      userCreatedAt: user?.created_at,
+      profileCreatedAt: profile?.created_at
+    })
+
     const completed = localStorage.getItem(ONBOARDING_STORAGE_KEY)
     const version = localStorage.getItem(`${ONBOARDING_STORAGE_KEY}_version`)
 
+    console.log('[useOnboardingTour] 📋 Estado localStorage:', {
+      completed,
+      version,
+      expectedVersion: ONBOARDING_VERSION
+    })
+
     // Si ya completó el tour, no mostrar
     if (completed && version === ONBOARDING_VERSION) {
+      console.log('[useOnboardingTour] ✅ Tour ya completado, no mostrar')
       setIsFirstTime(false)
       setIsTourActive(false)
       return
@@ -52,12 +70,35 @@ export function useOnboardingTour(): UseOnboardingTourReturn {
     let isOldAccount = false
     
     if (profile?.created_at) {
-      const userCreatedAt = new Date(profile.created_at)
-      isOldAccount = userCreatedAt < TOUR_DEPLOY_DATE
+      try {
+        const userCreatedAt = new Date(profile.created_at)
+        isOldAccount = userCreatedAt < TOUR_DEPLOY_DATE
+        console.log('[useOnboardingTour] 📅 Verificando profile.created_at:', {
+          userCreatedAt: userCreatedAt.toISOString(),
+          tourDeployDate: TOUR_DEPLOY_DATE.toISOString(),
+          isOldAccount
+        })
+      } catch (e) {
+        console.warn('[useOnboardingTour] ⚠️ Error parseando profile.created_at:', e)
+      }
     } else if (user?.created_at) {
-      // Fallback: usar created_at del usuario de auth si profile no tiene
-      const userCreatedAt = new Date(user.created_at)
-      isOldAccount = userCreatedAt < TOUR_DEPLOY_DATE
+      try {
+        // Fallback: usar created_at del usuario de auth si profile no tiene
+        const userCreatedAt = new Date(user.created_at)
+        isOldAccount = userCreatedAt < TOUR_DEPLOY_DATE
+        console.log('[useOnboardingTour] 📅 Verificando user.created_at:', {
+          userCreatedAt: userCreatedAt.toISOString(),
+          tourDeployDate: TOUR_DEPLOY_DATE.toISOString(),
+          isOldAccount
+        })
+      } catch (e) {
+        console.warn('[useOnboardingTour] ⚠️ Error parseando user.created_at:', e)
+      }
+    } else {
+      // Si no hay created_at disponible, asumir que es cuenta nueva (mostrar tour)
+      // Esto es más seguro que asumir que es antigua
+      console.log('[useOnboardingTour] ⚠️ No se encontró created_at, asumiendo cuenta nueva')
+      isOldAccount = false
     }
 
     // Si es cuenta antigua, marcar como completado automáticamente (sin mostrar el tour)
@@ -72,17 +113,21 @@ export function useOnboardingTour(): UseOnboardingTourReturn {
 
     // Si es cuenta nueva y no ha completado el tour, es primera vez
     const isFirst = !completed || version !== ONBOARDING_VERSION
+    console.log('[useOnboardingTour] 🎯 Es primera vez?', isFirst)
     setIsFirstTime(isFirst)
 
     // Si es primera vez (cuenta nueva), iniciar el tour automáticamente después de un delay
     if (isFirst) {
-      console.log('[useOnboardingTour] 🎯 Cuenta nueva detectada, iniciando tour...')
+      console.log('[useOnboardingTour] 🎯 Cuenta nueva detectada, iniciando tour en 1 segundo...')
       // Esperar 1 segundo para que la UI se cargue completamente
       const timer = setTimeout(() => {
+        console.log('[useOnboardingTour] ✅ Activando tour ahora...')
         setIsTourActive(true)
       }, 1000)
 
       return () => clearTimeout(timer)
+    } else {
+      console.log('[useOnboardingTour] ⏸️ No es primera vez, no iniciar tour')
     }
   }, [user, profile])
 
