@@ -557,7 +557,7 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 md:px-6">
+      <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 md:px-6" data-tour="dashboard">
         {/* Header */}
         <div className="flex items-center justify-between">
         <div>

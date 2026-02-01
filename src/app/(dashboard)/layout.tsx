@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { AppLayout } from "@/components/layout/AppLayout"
 import { useSession } from '@/lib/context/SessionContext'
 import { Loader2 } from 'lucide-react'
+import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
 
 /**
  * Layout del Dashboard con redirección automática
@@ -242,9 +243,13 @@ export default function DashboardLayout({
 
   // Renderizar el layout normal si tiene organización o no está autenticado
   return (
-    <AppLayout>
-      {children}
-    </AppLayout>
+    <>
+      <AppLayout>
+        {children}
+      </AppLayout>
+      {/* Tour de onboarding - solo se muestra la primera vez */}
+      <OnboardingTour />
+    </>
   )
 }
 
