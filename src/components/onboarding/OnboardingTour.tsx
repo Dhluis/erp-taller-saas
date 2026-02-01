@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react'
 import Joyride, { CallBackProps, STATUS, Step, Styles } from 'react-joyride'
-import { useOnboardingTour } from '@/hooks/useOnboardingTour'
+import { useOnboardingTour } from './useOnboardingTour'
 import { toast } from 'sonner'
 import { Sparkles, X } from 'lucide-react'
 
@@ -204,6 +204,14 @@ export function OnboardingTour({ run: externalRun, onComplete }: OnboardingTourP
       setRun(externalRun)
     }
   }, [externalRun])
+
+  // ✅ FIX: Sincronizar con isTourActive del hook cuando cambia
+  useEffect(() => {
+    if (externalRun === undefined) {
+      // Solo sincronizar si no hay control externo
+      setRun(isTourActive)
+    }
+  }, [isTourActive, externalRun])
 
   // Mostrar toast de bienvenida cuando inicia el tour
   useEffect(() => {
