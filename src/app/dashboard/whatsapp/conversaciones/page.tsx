@@ -189,18 +189,26 @@ export default function ConversacionesPage() {
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [isBotTyping, setIsBotTyping] = useState(false)
+  const [realtimeConnected, setRealtimeConnected] = useState(false) // Estado de conexión realtime
   
   // Hook de conversaciones con paginación, búsqueda y ordenamiento
-  const { conversations: hookConversations, pagination, isLoading: loadingConversations, error, mutate } = useWhatsAppConversations(
+  // ✅ Realtime habilitado por defecto para actualizaciones automáticas
+  const { conversations: hookConversations, pagination, isLoading: loadingConversations, error, mutate, realtimeConnected: hookRealtimeConnected } = useWhatsAppConversations(
     page,
     pageSize,
     activeFilter === 'all' ? 'all' : activeFilter === 'resolved' ? 'resolved' : activeFilter === 'unread' ? 'unread' : activeFilter === 'favorite' ? 'favorite' : 'all',
     {
       search: searchQuery,
       sortBy,
-      sortOrder
+      sortOrder,
+      enableRealtime: true // ✅ Habilitar actualizaciones en tiempo real
     }
   )
+  
+  // Sincronizar estado de realtime del hook con el estado local
+  useEffect(() => {
+    setRealtimeConnected(hookRealtimeConnected)
+  }, [hookRealtimeConnected])
   
   // Emojis comunes
   const commonEmojis = [
@@ -1335,6 +1343,19 @@ export default function ConversacionesPage() {
                   <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                 </span>
               </Button>
+              
+              {/* Indicador de conexión Realtime */}
+              <div className="flex items-center gap-2 text-xs">
+                <div className={cn(
+                  "w-2 h-2 rounded-full transition-colors",
+                  realtimeConnected ? "bg-green-500 animate-pulse" : "bg-gray-400"
+                )} />
+                <span className={cn(
+                  darkMode ? "text-gray-400" : "text-gray-600"
+                )}>
+                  {realtimeConnected ? "Actualizaciones en vivo" : "Conectando..."}
+                </span>
+              </div>
               <Button
                 variant="ghost"
                 className={cn(

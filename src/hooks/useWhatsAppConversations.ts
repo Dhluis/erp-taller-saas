@@ -60,6 +60,7 @@ interface UseWhatsAppConversationsOptions {
   sortOrder?: 'asc' | 'desc' // Orden ascendente o descendente
   autoLoad?: boolean // Si debe cargar automáticamente al montar
   enableCache?: boolean // Habilitar cache simple
+  enableRealtime?: boolean // Habilitar actualizaciones en tiempo real (default: true)
 }
 
 interface UseWhatsAppConversationsReturn {
@@ -114,7 +115,8 @@ export function useWhatsAppConversations(
   } = options
   const {
     autoLoad = true,
-    enableCache = false
+    enableCache = false,
+    enableRealtime = true // Habilitado por defecto
   } = restOptions
 
   // ==========================================
@@ -142,6 +144,9 @@ export function useWhatsAppConversations(
   const isFetching = useRef(false)
   const cacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map())
   const subscriptionRef = useRef<any>(null)
+  
+  // Realtime connection state
+  const [realtimeConnected, setRealtimeConnected] = useState(false)
 
   // ==========================================
   // FETCH FUNCTION
@@ -306,75 +311,87 @@ export function useWhatsAppConversations(
 
   // ✅ Suscripción Realtime para actualizar conversaciones automáticamente
   useEffect(() => {
-    if (!organizationId || !ready) return
+    if (!enableRealtime || !organizationId || !ready) {
+      console.log('📡 [useWhatsAppConversations] Realtime deshabilitado o sin organizationId')
+      return
+    }
 
+    console.log('📡 [useWhatsAppConversations] Configurando suscripción Realtime...')
+    
     const supabase = getSupabaseClient()
     
     // Limpiar suscripción anterior si existe
     if (subscriptionRef.current) {
-      subscriptionRef.current.unsubscribe()
+      supabase.removeChannel(subscriptionRef.current)
       subscriptionRef.current = null
     }
 
-    console.log('🔄 [useWhatsAppConversations] Configurando suscripción Realtime...')
-
-    // Suscribirse a cambios en conversaciones
-    const subscription = supabase
-      .channel('whatsapp-conversations-realtime')
+    // Subscription a cambios en conversaciones
+    const conversationsChannel = supabase
+      .channel('whatsapp-conversations-changes')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: '*', // INSERT, UPDATE, DELETE
           schema: 'public',
           table: 'whatsapp_conversations',
-          filter: `organization_id=eq.${organizationId}`
+          filter: `organization_id=eq.${organizationId}`,
         },
         (payload) => {
-          console.log('📨 [useWhatsAppConversations] Cambio detectado en conversaciones:', payload.eventType)
+          console.log('🔔 [useWhatsAppConversations] Cambio detectado en conversaciones:', payload.eventType, payload.new || payload.old)
           
-          // Refrescar conversaciones cuando hay cambios
-          // Usar un pequeño delay para evitar múltiples refreshes
+          // Revalidar datos para refrescar lista
+          // Usar un pequeño delay para evitar múltiples refreshes simultáneos
           setTimeout(() => {
             fetchConversations()
-          }, 500)
+          }, 300)
         }
       )
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: '*', // INSERT, UPDATE, DELETE
           schema: 'public',
           table: 'whatsapp_messages',
-          filter: `organization_id=eq.${organizationId}`
+          filter: `organization_id=eq.${organizationId}`,
         },
         (payload) => {
-          console.log('📨 [useWhatsAppConversations] Cambio detectado en mensajes:', payload.eventType)
+          console.log('🔔 [useWhatsAppConversations] Cambio detectado en mensajes:', payload.eventType)
           
-          // Refrescar conversaciones cuando hay nuevos mensajes
+          // Refrescar conversaciones cuando hay nuevos mensajes (actualiza last_message, last_message_at, etc)
           setTimeout(() => {
             fetchConversations()
-          }, 500)
+          }, 300)
         }
       )
       .subscribe((status) => {
+        console.log('📡 [useWhatsAppConversations] Realtime status:', status)
         if (status === 'SUBSCRIBED') {
           console.log('✅ [useWhatsAppConversations] Suscripción Realtime activa')
+          setRealtimeConnected(true)
         } else if (status === 'CHANNEL_ERROR') {
           console.error('❌ [useWhatsAppConversations] Error en suscripción Realtime')
+          setRealtimeConnected(false)
+        } else if (status === 'TIMED_OUT') {
+          console.warn('⚠️ [useWhatsAppConversations] Suscripción Realtime timeout')
+          setRealtimeConnected(false)
+        } else if (status === 'CLOSED') {
+          console.log('🔌 [useWhatsAppConversations] Suscripción Realtime cerrada')
+          setRealtimeConnected(false)
         }
       })
 
-    subscriptionRef.current = subscription
+    subscriptionRef.current = conversationsChannel
 
     // Cleanup al desmontar
     return () => {
       if (subscriptionRef.current) {
-        console.log('🧹 [useWhatsAppConversations] Limpiando suscripción Realtime')
-        subscriptionRef.current.unsubscribe()
+        console.log('🧹 [useWhatsAppConversations] Desconectando realtime...')
+        supabase.removeChannel(subscriptionRef.current)
         subscriptionRef.current = null
       }
     }
-  }, [organizationId, ready, fetchConversations])
+  }, [organizationId, ready, enableRealtime, fetchConversations])
 
   // ==========================================
   // RETURN
@@ -388,6 +405,9 @@ export function useWhatsAppConversations(
     
     // Pagination
     pagination,
+    
+    // Realtime status
+    realtimeConnected,
     
     // Navigation
     goToPage,
