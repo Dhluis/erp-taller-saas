@@ -273,7 +273,12 @@ export function OnboardingTour({ run: externalRun, onComplete }: OnboardingTourP
   }
 
   // Si no hay elementos del tour en la página, esperar y verificar
-  if (typeof window === 'undefined') return null
+  if (typeof window === 'undefined') {
+    console.log('[OnboardingTour] ⏸️ SSR, no renderizar')
+    return null
+  }
+  
+  console.log('[OnboardingTour] ✅ Cliente detectado, continuando...')
 
   // Verificar elementos del tour con un delay para dar tiempo a que se rendericen
   const [hasTourElements, setHasTourElements] = useState(false)
