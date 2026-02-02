@@ -242,6 +242,13 @@ export default function DashboardLayout({
   }
 
   // Renderizar el layout normal si tiene organización o no está autenticado
+  console.log('[DashboardLayout] 🎨 Renderizando layout con OnboardingTour...', {
+    hasUser: !!user,
+    hasOrganizationId: !!organizationId,
+    pathname,
+    timestamp: new Date().toISOString()
+  })
+
   return (
     <>
       <AppLayout>
