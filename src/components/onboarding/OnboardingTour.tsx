@@ -198,6 +198,11 @@ export function OnboardingTour({ run: externalRun, onComplete }: OnboardingTourP
   const [run, setRun] = useState(externalRun ?? false)
   const [stepIndex, setStepIndex] = useState(0)
 
+  // ✅ Log inicial para verificar que el componente se está montando
+  useEffect(() => {
+    console.log('[OnboardingTour] 🚀 Componente montado')
+  }, [])
+
   // Log cuando cambia el estado
   useEffect(() => {
     console.log('[OnboardingTour] 📊 Estado:', {

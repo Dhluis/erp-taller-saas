@@ -38,6 +38,16 @@ export function useOnboardingTour(): UseOnboardingTourReturn {
   const user = session?.user
   const profile = session?.profile
 
+  // ✅ Log inicial para verificar que el hook se está montando
+  useEffect(() => {
+    console.log('[useOnboardingTour] 🚀 Hook montado/actualizado', {
+      hasUser: !!user,
+      hasProfile: !!profile,
+      isReady: session?.isReady,
+      isLoading: session?.isLoading
+    })
+  }, [])
+
   // Verificar si es la primera vez al montar
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -49,7 +59,9 @@ export function useOnboardingTour(): UseOnboardingTourReturn {
       hasUser: !!user,
       hasProfile: !!profile,
       userEmail: user?.email,
-      profileId: profile?.id
+      profileId: profile?.id,
+      isReady: session?.isReady,
+      isLoading: session?.isLoading
     })
 
     const completed = localStorage.getItem(ONBOARDING_STORAGE_KEY)
@@ -91,7 +103,7 @@ export function useOnboardingTour(): UseOnboardingTourReturn {
     } else {
       console.log('[useOnboardingTour] ⏸️ No es primera vez, no iniciar tour')
     }
-  }, [user, profile])
+  }, [user, profile, session?.isReady, session?.isLoading])
 
   const startTour = useCallback(() => {
     setIsTourActive(true)
