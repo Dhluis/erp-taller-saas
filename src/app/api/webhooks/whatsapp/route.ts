@@ -159,6 +159,9 @@ async function handleMessageEvent(body: any) {
     const message = body.payload || body.message || body.data || body;
     const sessionName = body.session || message.session;
     
+    // Guardar payload completo para resolver @lid desde remoteJidAlt
+    const fullPayload = body.payload || body;
+    
     // 2. Extraer messageId (ya se hizo deduplicación arriba, pero lo necesitamos para logs)
     const messageId = message?.id || message?.messageId || body.id || body.payload?.id;
     
