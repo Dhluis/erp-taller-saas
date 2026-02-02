@@ -32,6 +32,11 @@ interface UseOnboardingTourReturn {
 }
 
 export function useOnboardingTour(): UseOnboardingTourReturn {
+  // ✅ Log INMEDIATO al ejecutar el hook (antes de cualquier useState)
+  console.log('[useOnboardingTour] 🚀 Hook ejecutándose...', {
+    timestamp: new Date().toISOString()
+  })
+
   const [isFirstTime, setIsFirstTime] = useState(false)
   const [isTourActive, setIsTourActive] = useState(false)
   const session = useSession()
@@ -40,7 +45,7 @@ export function useOnboardingTour(): UseOnboardingTourReturn {
 
   // ✅ Log inicial para verificar que el hook se está montando
   useEffect(() => {
-    console.log('[useOnboardingTour] 🚀 Hook montado/actualizado', {
+    console.log('[useOnboardingTour] 🚀 Hook montado/actualizado (useEffect)', {
       hasUser: !!user,
       hasProfile: !!profile,
       isReady: session?.isReady,

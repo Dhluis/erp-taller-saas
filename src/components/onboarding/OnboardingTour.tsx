@@ -194,13 +194,19 @@ const TOUR_STYLES: Styles = {
 }
 
 export function OnboardingTour({ run: externalRun, onComplete }: OnboardingTourProps) {
+  // ✅ Log INMEDIATO al renderizar (antes de cualquier hook)
+  console.log('[OnboardingTour] 🚀 Componente renderizando...', {
+    externalRun,
+    timestamp: new Date().toISOString()
+  })
+
   const { isTourActive, stopTour, skipTour } = useOnboardingTour()
   const [run, setRun] = useState(externalRun ?? false)
   const [stepIndex, setStepIndex] = useState(0)
 
   // ✅ Log inicial para verificar que el componente se está montando
   useEffect(() => {
-    console.log('[OnboardingTour] 🚀 Componente montado')
+    console.log('[OnboardingTour] 🚀 Componente montado (useEffect)')
   }, [])
 
   // Log cuando cambia el estado
