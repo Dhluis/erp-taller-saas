@@ -40,11 +40,16 @@ export function useOnboardingTour(): UseOnboardingTourReturn {
 
   // Verificar si es la primera vez al montar
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined') {
+      console.log('[useOnboardingTour] ⏸️ SSR, no ejecutar')
+      return
+    }
 
     console.log('[useOnboardingTour] 🔍 Iniciando verificación...', {
       hasUser: !!user,
-      hasProfile: !!profile
+      hasProfile: !!profile,
+      userEmail: user?.email,
+      profileId: profile?.id
     })
 
     const completed = localStorage.getItem(ONBOARDING_STORAGE_KEY)
@@ -72,14 +77,17 @@ export function useOnboardingTour(): UseOnboardingTourReturn {
 
     // Si es primera vez, iniciar el tour automáticamente después de un delay
     if (isFirst) {
-      console.log('[useOnboardingTour] 🎯 Iniciando tour en 1 segundo...')
-      // Esperar 1 segundo para que la UI se cargue completamente
+      console.log('[useOnboardingTour] 🎯 Iniciando tour en 2 segundos...')
+      // Esperar 2 segundos para que la UI se cargue completamente
       const timer = setTimeout(() => {
         console.log('[useOnboardingTour] ✅ Activando tour ahora...')
         setIsTourActive(true)
-      }, 1000)
+      }, 2000)
 
-      return () => clearTimeout(timer)
+      return () => {
+        console.log('[useOnboardingTour] 🧹 Limpiando timer')
+        clearTimeout(timer)
+      }
     } else {
       console.log('[useOnboardingTour] ⏸️ No es primera vez, no iniciar tour')
     }

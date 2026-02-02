@@ -195,7 +195,7 @@ const TOUR_STYLES: Styles = {
 
 export function OnboardingTour({ run: externalRun, onComplete }: OnboardingTourProps) {
   const { isTourActive, stopTour, skipTour } = useOnboardingTour()
-  const [run, setRun] = useState(externalRun ?? isTourActive)
+  const [run, setRun] = useState(externalRun ?? false)
   const [stepIndex, setStepIndex] = useState(0)
 
   // Log cuando cambia el estado
@@ -204,7 +204,8 @@ export function OnboardingTour({ run: externalRun, onComplete }: OnboardingTourP
       externalRun,
       isTourActive,
       run,
-      stepIndex
+      stepIndex,
+      timestamp: new Date().toISOString()
     })
   }, [externalRun, isTourActive, run, stepIndex])
 
@@ -219,7 +220,10 @@ export function OnboardingTour({ run: externalRun, onComplete }: OnboardingTourP
   useEffect(() => {
     if (externalRun === undefined) {
       // Solo sincronizar si no hay control externo
+      console.log('[OnboardingTour] 🔄 Sincronizando con isTourActive:', isTourActive)
       setRun(isTourActive)
+    } else {
+      console.log('[OnboardingTour] ⏸️ Control externo activo, no sincronizar')
     }
   }, [isTourActive, externalRun])
 
