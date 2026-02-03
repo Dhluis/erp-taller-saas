@@ -78,7 +78,7 @@ export async function getAllPurchaseOrders(
         suppliers (
           id,
           name,
-          contact_person,
+          contact_name,
           email,
           phone
         )
@@ -149,16 +149,16 @@ export async function getPurchaseOrderById(id: string) {
         suppliers (
           id,
           name,
-          contact_person,
+          contact_name,
           email,
           phone,
           address,
           city,
           state,
-          zip_code,
+          postal_code,
           country,
           tax_id,
-          payment_terms
+          company_name
         ),
         purchase_order_items (
           id,
@@ -472,7 +472,7 @@ export async function getPendingPurchaseOrders(organizationId: string) {
         suppliers (
           id,
           name,
-          contact_person,
+          contact_name,
           email,
           phone
         )
