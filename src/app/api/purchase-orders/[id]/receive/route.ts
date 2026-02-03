@@ -47,7 +47,7 @@ export async function POST(
       )
     }
 
-    const { organizationId, userId } = tenantContext
+    const { organizationId, userId, workshopId } = tenantContext
     const orderId = params.id
 
     // 2. Validar body con Zod
@@ -111,7 +111,7 @@ export async function POST(
     const itemIds = items.map(item => item.id)
     const { data: orderItems, error: itemsError } = await supabaseAdmin
       .from('purchase_order_items')
-      .select('id, product_id, quantity_ordered, quantity_received, organization_id')
+      .select('id, product_id, quantity_ordered, quantity_received, unit_cost, organization_id')
       .eq('purchase_order_id', orderId)
       .eq('organization_id', organizationId)
       .in('id', itemIds)
@@ -191,7 +191,27 @@ export async function POST(
       try {
         const orderItem = itemsMap.get(item.id)!
 
-        // 7a. Actualizar quantity_received en purchase_order_items
+        // 7a. Obtener previous_stock ANTES de actualizar (CRÍTICO)
+        const { data: currentProduct, error: productFetchError } = await supabaseAdmin
+          .from('inventory')
+          .select('current_stock')
+          .eq('id', item.product_id)
+          .eq('organization_id', organizationId)
+          .single()
+
+        if (productFetchError || !currentProduct) {
+          errors.push(`Error obteniendo stock del producto ${item.product_id}: ${productFetchError?.message || 'Producto no encontrado'}`)
+          continue
+        }
+
+        const previousStock = currentProduct.current_stock || 0
+        const newStock = previousStock + item.quantity_received
+
+        // 7b. Calcular costos si están disponibles
+        const unitCost = orderItem.unit_cost || null
+        const totalCost = unitCost ? (unitCost * item.quantity_received) : null
+
+        // 7c. Actualizar quantity_received en purchase_order_items
         const { error: updateError } = await supabaseAdmin
           .from('purchase_order_items')
           .update({
@@ -206,7 +226,7 @@ export async function POST(
           continue
         }
 
-        // 7b. Llamar función SQL para incrementar stock de forma atómica
+        // 7d. Llamar función SQL para incrementar stock de forma atómica
         const { error: stockError } = await supabaseAdmin.rpc('increment_product_stock', {
           p_product_id: item.product_id,
           p_quantity: item.quantity_received
@@ -227,35 +247,22 @@ export async function POST(
           continue
         }
 
-        // 7c. Obtener stock actual para el movimiento
-        const { data: currentProduct } = await supabaseAdmin
-          .from('inventory')
-          .select('current_stock')
-          .eq('id', item.product_id)
-          .single()
-
-        const previousStock = (currentProduct?.current_stock || 0) - item.quantity_received
-        const newStock = currentProduct?.current_stock || 0
-
-        // 7d. Crear inventory_movement para tracking
-        // Nota: Si la tabla usa 'reason' en lugar de 'notes', ajustar aquí
+        // 7e. Crear inventory_movement para tracking con estructura EXACTA
         const movementData: any = {
           organization_id: organizationId,
+          workshop_id: workshopId || null, // ✅ Multi-tenant adicional (opcional)
           product_id: item.product_id,
-          movement_type: 'entry', // Usar 'entry' según migración 006, o 'entrada' si la tabla lo requiere
+          movement_type: 'entrada', // ✅ Tipo de movimiento (siempre 'entrada')
           quantity: item.quantity_received,
-          previous_stock: previousStock,
-          new_stock: newStock,
-          reference_type: 'purchase_order',
-          reference_id: orderId,
-          created_by: userId
+          unit_cost: unitCost, // ✅ Costo unitario (opcional)
+          total_cost: totalCost, // ✅ Costo total (cantidad × unit_cost)
+          previous_stock: previousStock, // ✅ Stock antes del movimiento
+          new_stock: newStock, // ✅ Stock después del movimiento
+          notes: item.notes || generalNotes || `Recepción de Orden de Compra #${order.order_number}`, // ✅ Descripción
+          reference_id: orderId, // ✅ ID de la purchase_order
+          reference_type: 'purchase_order', // ✅ Tipo de referencia (siempre 'purchase_order')
+          created_by: userId // ✅ Usuario que recibió
         }
-
-        // Usar 'notes' o 'reason' según la estructura de la tabla
-        const reasonText = item.notes || generalNotes || `Recepción PO #${order.order_number}`
-        movementData.notes = reasonText
-        // Si la tabla tiene columna 'reason' en lugar de 'notes', descomentar:
-        // movementData.reason = reasonText
 
         const { error: movementError } = await supabaseAdmin
           .from('inventory_movements')
