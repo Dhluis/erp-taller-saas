@@ -7,7 +7,6 @@ export interface Supplier {
   id: string
   organization_id: string
   name: string
-  company_name?: string
   contact_name?: string
   email?: string
   phone?: string
@@ -15,10 +14,9 @@ export interface Supplier {
   city?: string
   state?: string
   postal_code?: string
-  country: string
+  country?: string
   tax_id?: string
-  payment_terms?: string
-  credit_limit: number
+  company_name?: string
   notes?: string
   is_active: boolean
   created_at: string

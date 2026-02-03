@@ -15,15 +15,18 @@ export interface Supplier {
   id: string
   organization_id: string
   name: string
-  contact_person?: string
+  contact_name?: string
+  contact_person?: string // Compatibilidad con formularios
   phone?: string
   email?: string
   address?: string
   city?: string
   state?: string
-  zip_code?: string
+  postal_code?: string
+  zip_code?: string // Compatibilidad con formularios
   country?: string
   tax_id?: string
+  company_name?: string
   is_active: boolean
   notes?: string
   created_at: string

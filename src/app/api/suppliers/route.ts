@@ -9,39 +9,36 @@ import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabas
 import { z } from 'zod'
 
 // Schema de validación
-// ✅ Bug Fix 1: Aceptar tanto contact_person como contact_name, y zip_code como postal_code
-const createSupplierSchema = z.object({
-  name: z.string().min(1, 'El nombre es requerido'),
-  company_name: z.string().optional(),
-  // Aceptar ambos nombres de campo para compatibilidad
+// Aceptar tanto contact_person como contact_name para compatibilidad con formularios
+const supplierSchema = z.object({
+  name: z.string().min(1, "Nombre es requerido"),
   contact_name: z.string().optional(),
-  contact_person: z.string().optional(),
+  contact_person: z.string().optional(), // Compatibilidad con formularios
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
-  // Aceptar ambos nombres de campo para compatibilidad
   postal_code: z.string().optional(),
-  zip_code: z.string().optional(),
-  country: z.string().default('México'),
+  zip_code: z.string().optional(), // Compatibilidad con formularios
+  country: z.string().optional(),
   tax_id: z.string().optional(),
-  payment_terms: z.string().optional(),
-  credit_limit: z.number().min(0).default(0),
+  company_name: z.string().optional(),
   notes: z.string().optional(),
+  is_active: z.boolean().default(true)
 }).transform((data) => {
-  // Normalizar campos: usar contact_name y postal_code como estándar
+  // Normalizar: usar contact_name y postal_code como estándar
   const normalized: any = {
     ...data,
     contact_name: data.contact_name || data.contact_person || undefined,
     postal_code: data.postal_code || data.zip_code || undefined,
   }
   
-  // Remover campos alternativos para evitar confusión
+  // Remover campos alternativos
   delete normalized.contact_person
   delete normalized.zip_code
   
-  // Remover campos undefined para limpiar el objeto
+  // Remover undefined
   Object.keys(normalized).forEach(key => {
     if (normalized[key] === undefined) {
       delete normalized[key]
@@ -164,14 +161,26 @@ export async function POST(request: NextRequest) {
     
     // Validar body
     const body = await request.json()
-    const validatedData = createSupplierSchema.parse(body)
+    const validatedData = supplierSchema.parse(body)
     
-    // Crear proveedor
+    // Crear proveedor - SOLO con campos del schema
     const { data: supplier, error } = await supabaseAdmin
       .from('suppliers')
       .insert({
-        ...validatedData,
-        organization_id: userProfile.organization_id
+        organization_id: userProfile.organization_id,
+        name: validatedData.name,
+        contact_name: validatedData.contact_name,
+        email: validatedData.email,
+        phone: validatedData.phone,
+        address: validatedData.address,
+        city: validatedData.city,
+        state: validatedData.state,
+        postal_code: validatedData.postal_code,
+        country: validatedData.country,
+        tax_id: validatedData.tax_id,
+        company_name: validatedData.company_name,
+        notes: validatedData.notes,
+        is_active: validatedData.is_active
       })
       .select()
       .single()
