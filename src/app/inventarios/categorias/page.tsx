@@ -151,7 +151,7 @@ export default function InventariosCategoriasPage() {
     });
   };
 
-  const filteredCategories = categories.filter(category =>
+  const filteredCategories = (categories || []).filter(category =>
     category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -369,7 +369,7 @@ export default function InventariosCategoriasPage() {
                   <br />
                   <br />
                   <strong className="text-text-primary">
-                    {categories.find(c => c.id === categoryToDelete)?.name}
+                    {(categories || []).find(c => c.id === categoryToDelete)?.name}
                   </strong>
                 </>
               )}
