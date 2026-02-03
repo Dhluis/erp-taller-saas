@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ShoppingCart, Clock, CheckCircle, DollarSign } from 'lucide-react';
+import { ShoppingCart, Clock, CheckCircle, DollarSign, Plus } from 'lucide-react';
+import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 
 interface PurchaseOrder {
   id: string;
@@ -19,6 +21,7 @@ interface PurchaseOrder {
 }
 
 export default function PurchaseOrdersPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -66,6 +69,11 @@ export default function PurchaseOrdersPage() {
     }
   }
 
+  const handleCreateOrder = () => {
+    // Navegar a la página de creación (si existe) o mostrar modal
+    router.push('/compras/ordenes/nueva');
+  };
+
   const formatCurrency = (amount: number | string | undefined) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : (amount || 0);
     return new Intl.NumberFormat('es-MX', {
@@ -94,71 +102,97 @@ export default function PurchaseOrdersPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
-        <h1 className="text-3xl font-bold mb-6">Órdenes de Compra</h1>
-        <p>Cargando órdenes...</p>
+      <div className="flex-1 space-y-4 p-8 pt-6">
+        <StandardBreadcrumbs 
+          currentPage="Órdenes de Compra"
+          parentPages={[
+            { label: "Compras", href: "/compras" }
+          ]}
+        />
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Cargando órdenes...</p>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Órdenes de Compra</h1>
-        <Button className="bg-cyan-500 hover:bg-cyan-600">
-          + Crear Nueva Orden
+    <div className="flex-1 space-y-4 p-8 pt-6">
+      {/* Breadcrumbs */}
+      <StandardBreadcrumbs 
+        currentPage="Órdenes de Compra"
+        parentPages={[
+          { label: "Compras", href: "/compras" }
+        ]}
+      />
+
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Órdenes de Compra</h1>
+          <p className="text-muted-foreground">Gestiona tus órdenes de compra a proveedores</p>
+        </div>
+        <Button 
+          onClick={handleCreateOrder}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Crear Nueva Orden
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card>
+      {/* Stats Cards con colores del dashboard */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="bg-blue-500/10 border-blue-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Órdenes</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            <ShoppingCart className="h-4 w-4 text-blue-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-2xl font-bold text-blue-400">{stats.total}</div>
             <p className="text-xs text-muted-foreground">Órdenes registradas</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-yellow-500/10 border-yellow-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <Clock className="h-4 w-4 text-yellow-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pending}</div>
+            <div className="text-2xl font-bold text-yellow-400">{stats.pending}</div>
             <p className="text-xs text-muted-foreground">Por aprobar</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-green-500/10 border-green-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Aprobadas</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <CheckCircle className="h-4 w-4 text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.approved}</div>
+            <div className="text-2xl font-bold text-green-400">{stats.approved}</div>
             <p className="text-xs text-muted-foreground">En proceso</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-purple-500/10 border-purple-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <DollarSign className="h-4 w-4 text-purple-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalValue)}</div>
+            <div className="text-2xl font-bold text-purple-400">{formatCurrency(stats.totalValue)}</div>
             <p className="text-xs text-muted-foreground">Monto total de compras</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Search */}
-      <div className="mb-6">
+      <div>
         <Input 
           placeholder="Buscar por proveedor o ID..."
           className="max-w-md"
@@ -176,7 +210,11 @@ export default function PurchaseOrdersPage() {
               <p className="text-muted-foreground mb-4">
                 No hay órdenes de compra registradas
               </p>
-              <Button className="bg-cyan-500 hover:bg-cyan-600">
+              <Button 
+                onClick={handleCreateOrder}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Plus className="mr-2 h-4 w-4" />
                 Crear Primera Orden
               </Button>
             </div>
