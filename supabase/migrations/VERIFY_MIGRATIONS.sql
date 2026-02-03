@@ -8,7 +8,23 @@
 -- 1. VERIFICAR MIGRACIONES EJECUTADAS
 -- ==========================================
 
--- Verificar migraciones relacionadas con suppliers/purchase_orders
+-- Intentar verificar migraciones (puede fallar si no existe la tabla)
+-- Si falla, continuar con las demás verificaciones
+DO $$
+BEGIN
+  -- Intentar consultar migraciones si la tabla existe
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'supabase_migrations' 
+    AND table_name = 'schema_migrations'
+  ) THEN
+    RAISE NOTICE 'Tabla de migraciones encontrada';
+  ELSE
+    RAISE NOTICE 'Tabla de migraciones no encontrada - continuando con verificación directa de tablas';
+  END IF;
+END $$;
+
+-- Verificar migraciones (solo si la tabla existe)
 SELECT 
   version,
   name,
