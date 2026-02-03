@@ -672,10 +672,12 @@ export default function DashboardPage() {
           {kpiCards.map((kpi, index) => {
             const IconComponent = kpi.icon;
             return (
-              <div key={index} className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
+              <div key={index} className={`${kpi.bgColor} rounded-lg p-4 sm:p-6 border ${kpi.bgColor.replace('/10', '/20')}`}>
                 <div className="flex items-center justify-between mb-3 sm:mb-4">
                   <div className={`p-2 sm:p-3 rounded-lg ${kpi.bgColor}`}>
-                    <IconComponent />
+                    <div className={kpi.color}>
+                      <IconComponent />
+                    </div>
                   </div>
                   {kpi.trend && (
                     <span className={`text-xs sm:text-sm ${kpi.trend.includes('↓') ? 'text-red-400' : 'text-green-400'}`}>
@@ -684,7 +686,7 @@ export default function DashboardPage() {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-xl sm:text-2xl font-bold text-white">{kpi.value}</h3>
+                  <h3 className={`text-xl sm:text-2xl font-bold ${kpi.color}`}>{kpi.value}</h3>
                   <p className="text-gray-400 text-xs sm:text-sm">{kpi.title}</p>
                   <p className="text-gray-500 text-xs">{kpi.description}</p>
                 </div>

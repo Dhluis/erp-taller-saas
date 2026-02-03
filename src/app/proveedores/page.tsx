@@ -260,43 +260,43 @@ export default function ProveedoresPage() {
       />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="bg-blue-500/10 border-blue-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Proveedores</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <Building2 className="h-4 w-4 text-blue-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalSuppliers}</div>
+            <div className="text-2xl font-bold text-blue-400">{stats.totalSuppliers}</div>
             <p className="text-xs text-muted-foreground">Registrados en el sistema</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-green-500/10 border-green-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Proveedores Activos</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <CheckCircle className="h-4 w-4 text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.activeSuppliers}</div>
+            <div className="text-2xl font-bold text-green-400">{stats.activeSuppliers}</div>
             <p className="text-xs text-muted-foreground">Actualmente operando</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-yellow-500/10 border-yellow-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Órdenes Realizadas</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
+            <Truck className="h-4 w-4 text-yellow-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalOrders}</div>
+            <div className="text-2xl font-bold text-yellow-400">{stats.totalOrders}</div>
             <p className="text-xs text-muted-foreground">Total de órdenes de compra</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-purple-500/10 border-purple-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monto Comprado</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <DollarSign className="h-4 w-4 text-purple-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(stats.totalAmount || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold text-purple-400">${(stats.totalAmount || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Valor total de compras</p>
           </CardContent>
         </Card>
