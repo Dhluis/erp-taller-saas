@@ -84,9 +84,9 @@ export async function GET(
     // Mapear items con nombre del producto
     const mappedItems = (items || []).map((item: any) => ({
       ...item,
-      product_id: item.product?.id || item.product_id,
-      product_name: item.product?.name || 'Producto',
-      product_stock: item.product?.current_stock || 0
+      product_id: item.product.id,
+      product_name: item.product.name,
+      product_stock: item.product.current_stock
     }));
     
     return NextResponse.json({
