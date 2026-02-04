@@ -49,14 +49,18 @@ export const ClientesIcon = ({ className = '', size = 24 }: IconProps) => (
   </svg>
 )
 
-// Órdenes / Documentos
+// Órdenes de Trabajo / Llave de Mecánico
 export const OrdenesIcon = ({ className = '', size = 24 }: IconProps) => (
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
-    <rect x="8" y="4" width="32" height="40" rx="3" fill="#F59E0B"/>
-    <rect x="12" y="10" width="24" height="4" rx="1" fill="#FCD34D"/>
-    <rect x="12" y="18" width="20" height="3" rx="1" fill="#FEF3C7"/>
-    <rect x="12" y="24" width="16" height="3" rx="1" fill="#FEF3C7"/>
-    <rect x="12" y="30" width="18" height="3" rx="1" fill="#FEF3C7"/>
+    {/* Anillo de la llave */}
+    <circle cx="18" cy="18" r="8" fill="#F59E0B" stroke="#FCD34D" strokeWidth="2"/>
+    <circle cx="18" cy="18" r="5" fill="#FEF3C7"/>
+    {/* Cuerpo de la llave */}
+    <rect x="24" y="16" width="16" height="4" rx="2" fill="#F59E0B"/>
+    {/* Dientes de la llave */}
+    <rect x="28" y="20" width="4" height="8" rx="1" fill="#FCD34D"/>
+    <rect x="34" y="20" width="4" height="6" rx="1" fill="#FCD34D"/>
+    <rect x="38" y="20" width="2" height="12" rx="1" fill="#FCD34D"/>
   </svg>
 )
 
