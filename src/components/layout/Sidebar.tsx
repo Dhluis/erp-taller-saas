@@ -163,7 +163,7 @@ export function Sidebar({ className }: SidebarProps) {
       icon: () => <ModernIcons.Pagos size={20} />,
       visible: showAllForAdmin || permissions.canManagePurchases(),
       items: [
-        { href: "/compras", label: "Órdenes de Compra", icon: () => <ModernIcons.Ordenes size={18} /> },
+        { href: "/compras", label: "Órdenes de Compra", icon: () => <ModernIcons.OrdenesCompra size={18} /> },
         { href: "/compras/proveedores", label: "Proveedores", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageSuppliers() },
         { href: "/compras/pagos", label: "Pagos", icon: () => <ModernIcons.Transfer size={18} />, visible: permissions.canPayInvoices() }
       ].filter(item => item.visible !== false)

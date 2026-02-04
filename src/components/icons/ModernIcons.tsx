@@ -3,7 +3,7 @@
  * Diseño consistente para todo el sistema
  */
 
-import { Wrench } from 'lucide-react'
+import { Wrench, FileText } from 'lucide-react'
 
 interface IconProps {
   className?: string
@@ -58,6 +58,18 @@ export const OrdenesIcon = ({ className = '', size = 24 }: IconProps) => (
     className={className}
     style={{ 
       color: '#F59E0B',
+      strokeWidth: 2.5
+    }}
+  />
+)
+
+// Órdenes de Compra / Documento (FileText)
+export const OrdenesCompraIcon = ({ className = '', size = 24 }: IconProps) => (
+  <FileText 
+    size={size} 
+    className={className}
+    style={{ 
+      color: '#3B82F6',
       strokeWidth: 2.5
     }}
   />
@@ -300,6 +312,7 @@ export default {
   Bot: BotIcon,
   Clientes: ClientesIcon,
   Ordenes: OrdenesIcon,
+  OrdenesCompra: OrdenesCompraIcon,
   Citas: CitasIcon,
   Vehiculos: VehiculosIcon,
   Inventarios: InventariosIcon,
