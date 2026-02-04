@@ -137,9 +137,9 @@ export default function PurchaseOrdersPage() {
         </div>
         <Button 
           className="bg-cyan-500 hover:bg-cyan-600"
-          disabled
+          onClick={() => router.push('/compras/ordenes/nueva')}
         >
-          + Crear Nueva Orden (Próximamente)
+          + Crear Nueva Orden
         </Button>
       </div>
 
