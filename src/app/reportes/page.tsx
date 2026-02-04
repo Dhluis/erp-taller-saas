@@ -1278,69 +1278,69 @@ Fecha: ${new Date().toLocaleString('es-ES')}
 
         {/* Estadísticas principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
+          <Card className="bg-blue-500/10 border-blue-500/20">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-text-secondary">Total Clientes</p>
-                  <p className="text-2xl font-bold text-text-primary">
+                  <p className="text-2xl font-bold text-blue-400">
                     {reportData.totalCustomers}
                   </p>
                   <p className="text-xs text-text-muted">Clientes registrados</p>
                 </div>
-                <div className="p-3 rounded-lg bg-info/10">
-                  <UsersIcon className="h-6 w-6 text-info" />
+                <div className="p-3 rounded-lg bg-blue-500/10">
+                  <UsersIcon className="h-6 w-6 text-blue-400" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-blue-500/10 border-blue-500/20">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-text-secondary">Total Vehículos</p>
-                  <p className="text-2xl font-bold text-text-primary">
+                  <p className="text-2xl font-bold text-blue-400">
                     {reportData.totalVehicles}
                   </p>
                   <p className="text-xs text-text-muted">Vehículos registrados</p>
                 </div>
-                <div className="p-3 rounded-lg bg-primary/10">
-                  <TruckIcon className="h-6 w-6 text-primary" />
+                <div className="p-3 rounded-lg bg-blue-500/10">
+                  <TruckIcon className="h-6 w-6 text-blue-400" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-yellow-500/10 border-yellow-500/20">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-text-secondary">Total Órdenes</p>
-                  <p className="text-2xl font-bold text-text-primary">
+                  <p className="text-2xl font-bold text-yellow-400">
                     {reportData.totalOrders}
                   </p>
                   <p className="text-xs text-text-muted">Órdenes procesadas</p>
                 </div>
-                <div className="p-3 rounded-lg bg-warning/10">
-                  <WrenchScrewdriverIcon className="h-6 w-6 text-warning" />
+                <div className="p-3 rounded-lg bg-yellow-500/10">
+                  <WrenchScrewdriverIcon className="h-6 w-6 text-yellow-400" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-green-500/10 border-green-500/20">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-text-secondary">Ingresos Totales</p>
-                  <p className="text-2xl font-bold text-text-primary">
+                  <p className="text-2xl font-bold text-green-400">
                     ${reportData.totalRevenue.toLocaleString()}
                   </p>
                   <p className="text-xs text-text-muted">Ingresos acumulados</p>
                 </div>
-                <div className="p-3 rounded-lg bg-success/10">
-                  <CurrencyDollarIcon className="h-6 w-6 text-success" />
+                <div className="p-3 rounded-lg bg-green-500/10">
+                  <CurrencyDollarIcon className="h-6 w-6 text-green-400" />
                 </div>
               </div>
             </CardContent>
@@ -1349,52 +1349,52 @@ Fecha: ${new Date().toLocaleString('es-ES')}
 
         {/* Estadísticas adicionales */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
+          <Card className="bg-yellow-500/10 border-yellow-500/20">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-text-secondary">Órdenes Pendientes</p>
-                  <p className="text-2xl font-bold text-warning">
+                  <p className="text-2xl font-bold text-yellow-400">
                     {reportData.pendingOrders}
                   </p>
                   <p className="text-xs text-text-muted">Requieren atención</p>
                 </div>
-                <div className="p-3 rounded-lg bg-warning/10">
-                  <ClockIcon className="h-6 w-6 text-warning" />
+                <div className="p-3 rounded-lg bg-yellow-500/10">
+                  <ClockIcon className="h-6 w-6 text-yellow-400" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-green-500/10 border-green-500/20">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-text-secondary">Órdenes Completadas</p>
-                  <p className="text-2xl font-bold text-success">
+                  <p className="text-2xl font-bold text-green-400">
                     {reportData.completedOrders}
                   </p>
                   <p className="text-xs text-text-muted">Trabajos finalizados</p>
                 </div>
-                <div className="p-3 rounded-lg bg-success/10">
-                  <WrenchScrewdriverIcon className="h-6 w-6 text-success" />
+                <div className="p-3 rounded-lg bg-green-500/10">
+                  <WrenchScrewdriverIcon className="h-6 w-6 text-green-400" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-purple-500/10 border-purple-500/20">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-text-secondary">Valor Promedio</p>
-                  <p className="text-2xl font-bold text-primary">
+                  <p className="text-2xl font-bold text-purple-400">
                     ${reportData.averageOrderValue.toFixed(0)}
                   </p>
                   <p className="text-xs text-text-muted">Por orden</p>
                 </div>
-                <div className="p-3 rounded-lg bg-primary/10">
-                  <ChartBarIcon className="h-6 w-6 text-primary" />
+                <div className="p-3 rounded-lg bg-purple-500/10">
+                  <ChartBarIcon className="h-6 w-6 text-purple-400" />
                 </div>
               </div>
             </CardContent>
