@@ -36,6 +36,8 @@ Crear un Regulatory Bundle para poder usar números locales de SMS en Twilio (re
 ### 2.3 Continuar
 - Haz clic en **"Next"** (se habilitará después de seleccionar ambos campos)
 
+**💾 Guardado Automático:** Los datos se guardan automáticamente mientras avanzas. Puedes volver atrás usando las flechas en cada paso sin perder información.
+
 ---
 
 ## 👤 Paso 3: Seleccionar End-User (Usuario Final)
@@ -272,6 +274,21 @@ TWILIO_REGULATORY_BUNDLE_SID=BUxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ---
 
 ## 🚨 Problemas Comunes y Soluciones
+
+### ❓ ¿Se pierden los datos si cierro el navegador?
+**Respuesta:** 
+- ✅ **NO se pierden** si ya has avanzado al menos un paso
+- ✅ Los datos se guardan automáticamente en la sesión de Twilio
+- ✅ Puedes volver más tarde y continuar desde donde quedaste
+- ⚠️ **PERO:** Si cierras antes de completar el Paso 1 (país y tipo), deberás empezar de nuevo
+- 💡 **Recomendación:** Completa al menos el Paso 2 antes de cerrar para asegurar que se guarde
+
+### ❓ ¿Puedo volver atrás sin perder información?
+**Respuesta:**
+- ✅ **SÍ**, puedes usar las flechas de navegación en cada paso
+- ✅ Todos los datos ingresados se conservan
+- ✅ Los documentos subidos también se conservan
+- ✅ Puedes editar cualquier paso antes de hacer "Submit for review"
 
 ### Problema: "Next" button está deshabilitado
 **Solución:** Asegúrate de haber completado todos los campos requeridos del paso actual.
