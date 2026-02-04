@@ -14,7 +14,7 @@ interface PurchaseOrderItem {
   id: string;
   product_id: string;
   product_name?: string;
-  quantity_ordered: number;
+  quantity: number;  // Asegurar que sea number, no number | undefined
   quantity_received: number;
   unit_cost: number;
   total: number;
@@ -58,6 +58,11 @@ export default function ReceivePurchaseOrderPage() {
       const data = await res.json();
       
       if (data.success && data.data) {
+        console.log('📦 [Frontend] Orden recibida:', data.data);
+        console.log('📦 [Frontend] Items:', data.data.items);
+        console.log('📦 [Frontend] Item[0]:', data.data.items?.[0]);
+        console.log('📦 [Frontend] Quantity[0]:', data.data.items?.[0]?.quantity);
+        
         // El endpoint ahora retorna items directamente con product_name mapeado
         const orderData = data.data;
         
@@ -93,7 +98,14 @@ export default function ReceivePurchaseOrderPage() {
   }
 
   function getPendingQuantity(item: PurchaseOrderItem) {
-    return item.quantity_ordered - (item.quantity_received || 0);
+    console.log('📊 Calculando pendiente para item:', {
+      id: item.id,
+      quantity: item.quantity,
+      quantity_received: item.quantity_received,
+      pendiente: (item.quantity || 0) - (item.quantity_received || 0)
+    });
+    
+    return (item.quantity || 0) - (item.quantity_received || 0);
   }
 
   function canReceiveItem(item: PurchaseOrderItem) {
@@ -317,7 +329,7 @@ export default function ReceivePurchaseOrderPage() {
                       {/* Quantities */}
                       <div className="md:col-span-2 text-center">
                         <p className="text-sm text-muted-foreground">Ordenado</p>
-                        <p className="font-medium">{item.quantity_ordered}</p>
+                        <p className="font-medium">{item.quantity || 0}</p>
                       </div>
                       
                       <div className="md:col-span-2 text-center">
