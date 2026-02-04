@@ -63,7 +63,7 @@ export async function GET(
       }, { status: 404 });
     }
     
-    // Query items con productos - SIN duplicados
+    // Query items con productos
     const { data: items, error: itemsError } = await supabaseAdmin
       .from('purchase_order_items')
       .select(`
@@ -75,7 +75,7 @@ export async function GET(
         total,
         notes,
         created_at,
-        inventory!purchase_order_items_product_id_fkey (
+        product:inventory!product_id (
           id,
           name,
           current_stock
@@ -89,31 +89,27 @@ export async function GET(
       console.error('❌ Error loading items:', itemsError);
       return NextResponse.json({ 
         success: false,
-        error: 'Error cargando items de la orden',
+        error: 'Error cargando items de la orden: ' + itemsError.message,
         data: null
       }, { status: 500 });
     }
     
-    console.log('📦 Items raw from DB:', JSON.stringify(items, null, 2));
+    console.log('📦 Raw items from DB:', items);
     
-    // Mapear items - ASEGURAR que quantity es número
-    const mappedItems = (items || []).map((item: any) => {
-      const product = Array.isArray(item.inventory) ? item.inventory[0] : item.inventory;
-      
-      return {
-        id: item.id,
-        product_id: item.product_id,
-        product_name: product?.name || 'Producto desconocido',
-        product_stock: product?.current_stock || 0,
-        quantity: Number(item.quantity) || 0,  // CRÍTICO: Convertir a número
-        quantity_received: Number(item.quantity_received) || 0,
-        unit_cost: Number(item.unit_cost) || 0,
-        total: Number(item.total) || 0,
-        notes: item.notes || null
-      };
-    });
+    // Mapear items con TODOS los campos
+    const mappedItems = (items || []).map((item: any) => ({
+      id: item.id,
+      product_id: item.product_id,
+      product_name: item.product?.name || 'Producto desconocido',
+      product_stock: item.product?.current_stock || 0,
+      quantity: Number(item.quantity) || 0,
+      quantity_received: Number(item.quantity_received) || 0,
+      unit_cost: Number(item.unit_cost) || 0,
+      total: Number(item.total) || 0,
+      notes: item.notes
+    }));
     
-    console.log('📦 Items mapped:', JSON.stringify(mappedItems, null, 2));
+    console.log('📦 Mapped items:', mappedItems);
     
     return NextResponse.json({
       success: true,
