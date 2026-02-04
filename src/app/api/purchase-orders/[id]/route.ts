@@ -81,12 +81,17 @@ export async function GET(
       console.error('Error loading items:', itemsError);
     }
     
-    // Mapear items con nombre del producto
+    // Mapear items con TODOS los campos necesarios
     const mappedItems = (items || []).map((item: any) => ({
-      ...item,
-      product_id: item.product.id,
-      product_name: item.product.name,
-      product_stock: item.product.current_stock
+      id: item.id,
+      product_id: item.product?.id || item.product_id,
+      product_name: item.product?.name || 'Producto desconocido',
+      product_stock: item.product?.current_stock || 0,
+      quantity: item.quantity,
+      quantity_received: item.quantity_received || 0,
+      unit_cost: parseFloat(item.unit_cost) || 0,
+      total: parseFloat(item.total) || 0,
+      notes: item.notes
     }));
     
     return NextResponse.json({
