@@ -93,17 +93,17 @@ export default function InventariosPage() {
         {/* Estadísticas rápidas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Productos */}
-          <Card className="bg-bg-secondary border border-border rounded-lg shadow-md">
+          <Card className="bg-blue-500/10 border-blue-500/20 rounded-lg shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-text-primary">Total Productos</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <Package className="h-4 w-4 text-blue-400" />
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="text-2xl font-bold animate-pulse">...</div>
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{stats.totalProducts}</div>
+                  <div className="text-2xl font-bold text-blue-400">{stats.totalProducts}</div>
                   <p className="text-xs text-muted-foreground">Productos en inventario</p>
                 </>
               )}
@@ -111,17 +111,17 @@ export default function InventariosPage() {
           </Card>
 
           {/* Categorías */}
-          <Card className="bg-bg-secondary border border-border rounded-lg shadow-md">
+          <Card className="bg-green-500/10 border-green-500/20 rounded-lg shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-text-primary">Categorías</CardTitle>
-              <Tag className="h-4 w-4 text-muted-foreground" />
+              <Tag className="h-4 w-4 text-green-400" />
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="text-2xl font-bold animate-pulse">...</div>
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{stats.categories}</div>
+                  <div className="text-2xl font-bold text-green-400">{stats.categories}</div>
                   <p className="text-xs text-muted-foreground">Categorías activas</p>
                 </>
               )}
@@ -129,25 +129,21 @@ export default function InventariosPage() {
           </Card>
 
           {/* Stock Bajo - CON ALERTA */}
-          <Card className={`bg-bg-secondary border rounded-lg shadow-md ${
+          <Card className={`bg-yellow-500/10 border-yellow-500/20 rounded-lg shadow-md ${
             stats.lowStock > 0 
-              ? 'border-yellow-500 ring-2 ring-yellow-500 ring-opacity-50' 
-              : 'border-border'
+              ? 'ring-2 ring-yellow-500 ring-opacity-50' 
+              : ''
           }`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-text-primary">Stock Bajo</CardTitle>
-              <AlertTriangle className={`h-4 w-4 ${
-                stats.lowStock > 0 ? 'text-yellow-500' : 'text-muted-foreground'
-              }`} />
+              <AlertTriangle className="h-4 w-4 text-yellow-400" />
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="text-2xl font-bold animate-pulse">...</div>
               ) : (
                 <>
-                  <div className={`text-2xl font-bold ${
-                    stats.lowStock > 0 ? 'text-yellow-600' : ''
-                  }`}>
+                  <div className="text-2xl font-bold text-yellow-400">
                     {stats.lowStock}
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -161,17 +157,17 @@ export default function InventariosPage() {
           </Card>
 
           {/* Valor Total */}
-          <Card className="bg-bg-secondary border border-border rounded-lg shadow-md">
+          <Card className="bg-purple-500/10 border-purple-500/20 rounded-lg shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-text-primary">Valor Total</CardTitle>
-              <DollarSign className="h-4 w-4 text-green-500" />
+              <DollarSign className="h-4 w-4 text-purple-400" />
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="text-2xl font-bold animate-pulse">...</div>
               ) : (
                 <>
-                  <div className="text-2xl font-bold">
+                  <div className="text-2xl font-bold text-purple-400">
                     ${stats.totalValue.toLocaleString('es-MX', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2
