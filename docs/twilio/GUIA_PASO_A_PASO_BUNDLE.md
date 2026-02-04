@@ -50,6 +50,15 @@ Crear un Regulatory Bundle para poder usar números locales de SMS en Twilio (re
 - **Email:** Tu email de contacto empresarial
 - **Teléfono:** Tu número de contacto
 
+**⚠️ IMPORTANTE - ACLARACIÓN SOBRE EL NÚMERO DE TELÉFONO:**
+- El número que ingresas aquí (ej: 449 169 86 35) es **SOLO para contacto**
+- **NO se pierde ni deja de pertenecerte**
+- Es el número donde Twilio puede contactarte si necesita información adicional
+- **NO es el número que usarás para enviar SMS**
+- El número para SMS se compra **DESPUÉS** de que el Bundle sea aprobado
+- Puedes usar tu número personal o empresarial sin problema
+- Este número sigue siendo tuyo y funcionando normalmente
+
 ### 3.2 Continuar
 - Haz clic en **"Next"**
 
@@ -289,6 +298,17 @@ TWILIO_REGULATORY_BUNDLE_SID=BUxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 - ✅ Todos los datos ingresados se conservan
 - ✅ Los documentos subidos también se conservan
 - ✅ Puedes editar cualquier paso antes de hacer "Submit for review"
+
+### ❓ ¿Si subo mi número de teléfono (ej: 449 169 86 35), se pierde o deja de ser mío?
+**Respuesta:**
+- ✅ **NO se pierde ni deja de pertenecerte**
+- ✅ El número que ingresas es **SOLO para contacto** con Twilio
+- ✅ Es el número donde Twilio puede llamarte o enviarte SMS si necesita información
+- ✅ **NO es el número que usarás para enviar SMS a tus clientes**
+- ✅ El número para SMS se compra **DESPUÉS** de que el Bundle sea aprobado
+- ✅ Tu número personal/empresarial sigue funcionando normalmente
+- ✅ Puedes usar tu número actual sin ningún problema
+- 💡 **Ejemplo:** Si ingresas "449 169 86 35", ese número sigue siendo tuyo y funcionando. Solo lo usan para contactarte si necesitan algo del Bundle.
 
 ### Problema: "Next" button está deshabilitado
 **Solución:** Asegúrate de haber completado todos los campos requeridos del paso actual.
