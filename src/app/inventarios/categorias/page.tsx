@@ -258,51 +258,61 @@ export default function InventariosCategoriasPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCategories.map((category) => (
-            <Card key={category.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-2">
-                    <TagIcon className="h-5 w-5 text-blue-600" />
-                    <CardTitle className="text-lg">{category.name}</CardTitle>
+          {filteredCategories.map((category, index) => {
+            // Rotar colores entre las categorías
+            const colors = [
+              { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-400', icon: 'text-blue-400' },
+              { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-400', icon: 'text-green-400' },
+              { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-400', icon: 'text-purple-400' },
+            ];
+            const colorScheme = colors[index % colors.length];
+            
+            return (
+              <Card key={category.id} className={`hover:shadow-lg transition-shadow ${colorScheme.bg} ${colorScheme.border}`}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-2">
+                      <TagIcon className={`h-5 w-5 ${colorScheme.icon}`} />
+                      <CardTitle className={`text-lg ${colorScheme.text}`}>{category.name}</CardTitle>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      Activa
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className="text-xs">
-                    Activa
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {category.description && (
-                  <p className="text-sm text-gray-600">{category.description}</p>
-                )}
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Productos:</span>
-                  <span className="text-sm font-medium">0</span>
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={() => handleEditCategory(category)}
-                  >
-                    <PencilIcon className="h-4 w-4 mr-1" />
-                    Editar
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="flex-1 text-red-600 hover:text-red-700"
-                    onClick={() => handleDeleteClick(category.id)}
-                    disabled={deleting}
-                  >
-                    <TrashIcon className="h-4 w-4 mr-1" />
-                    Eliminar
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {category.description && (
+                    <p className="text-sm text-gray-600">{category.description}</p>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Productos:</span>
+                    <span className="text-sm font-medium">0</span>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={() => handleEditCategory(category)}
+                    >
+                      <PencilIcon className="h-4 w-4 mr-1" />
+                      Editar
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="flex-1 text-red-600 hover:text-red-700"
+                      onClick={() => handleDeleteClick(category.id)}
+                      disabled={deleting}
+                    >
+                      <TrashIcon className="h-4 w-4 mr-1" />
+                      Eliminar
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 

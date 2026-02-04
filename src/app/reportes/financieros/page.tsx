@@ -192,13 +192,13 @@ export default function ReportesFinancierosPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="bg-green-500/10 border-green-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-green-400">Ingresos Totales</CardTitle>
+            <DollarSign className="h-4 w-4 text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(report.totalRevenue || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-400">${(report.totalRevenue || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground flex items-center">
               <TrendingUp className="h-3 w-3 mr-1 text-green-500" />
               +{report.revenueGrowth}% del mes anterior
@@ -206,13 +206,13 @@ export default function ReportesFinancierosPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-yellow-500/10 border-yellow-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gastos Totales</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-yellow-400">Gastos Totales</CardTitle>
+            <TrendingDown className="h-4 w-4 text-yellow-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(report.totalExpenses || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold text-yellow-400">${(report.totalExpenses || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground flex items-center">
               <TrendingUp className="h-3 w-3 mr-1 text-red-500" />
               +{report.expenseGrowth}% del mes anterior
@@ -220,13 +220,13 @@ export default function ReportesFinancierosPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-green-500/10 border-green-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ganancia Neta</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-green-400">Ganancia Neta</CardTitle>
+            <BarChart3 className="h-4 w-4 text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${report.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="text-2xl font-bold text-green-400">
               ${(report.netProfit || 0).toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -235,13 +235,13 @@ export default function ReportesFinancierosPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-purple-500/10 border-purple-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rentabilidad</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-purple-400">Rentabilidad</CardTitle>
+            <TrendingUp className="h-4 w-4 text-purple-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{(report.profitMargin || 0).toFixed(1)}%</div>
+            <div className="text-2xl font-bold text-purple-400">{(report.profitMargin || 0).toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
               {report.profitMargin > 20 ? 'Excelente' : report.profitMargin > 10 ? 'Buena' : 'Mejorable'}
             </p>
