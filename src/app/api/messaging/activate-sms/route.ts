@@ -20,6 +20,23 @@ const LATAM_COUNTRIES = {
 };
 
 /**
+ * Mapeo de países a Bundle SIDs de Twilio
+ * Cada país requiere su propio Regulatory Bundle
+ * Configurar en variables de entorno: TWILIO_REGULATORY_BUNDLE_MX, TWILIO_REGULATORY_BUNDLE_CO, etc.
+ */
+function getBundleSidForCountry(countryCode: string): string | null {
+  const bundleEnvVar = `TWILIO_REGULATORY_BUNDLE_${countryCode.toUpperCase()}`;
+  const bundleSid = cleanEnvVar(process.env[bundleEnvVar]);
+  
+  // Fallback al Bundle genérico si existe (para compatibilidad)
+  if (!bundleSid) {
+    return cleanEnvVar(process.env.TWILIO_REGULATORY_BUNDLE_SID);
+  }
+  
+  return bundleSid;
+}
+
+/**
  * POST /api/messaging/activate-sms
  * ARQUITECTURA EMPRESARIAL MULTI-TENANT:
  * - 1 Bundle Regulatorio Maestro (Eagles System)
@@ -97,7 +114,9 @@ export async function POST(req: NextRequest) {
     // 4. Validar credenciales y Bundle (limpiar variables de entorno)
     const accountSid = cleanEnvVar(process.env.TWILIO_ACCOUNT_SID);
     const authToken = cleanEnvVar(process.env.TWILIO_AUTH_TOKEN);
-    const bundleSid = cleanEnvVar(process.env.TWILIO_REGULATORY_BUNDLE_SID);
+    
+    // Obtener Bundle SID específico para el país de la organización
+    const bundleSid = getBundleSidForCountry(countryCode);
     
     if (!accountSid || !authToken) {
       return NextResponse.json({ success: false, error: 'Servicio SMS no configurado' }, { status: 500 });
