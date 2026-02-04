@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ShoppingCart, Clock, CheckCircle, DollarSign, Plus } from 'lucide-react';
+import { ShoppingCart, Clock, CheckCircle, DollarSign, Plus, Package } from 'lucide-react';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 
 interface PurchaseOrder {
@@ -136,11 +136,10 @@ export default function PurchaseOrdersPage() {
           <p className="text-muted-foreground">Gestiona tus órdenes de compra a proveedores</p>
         </div>
         <Button 
-          onClick={handleCreateOrder}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
+          className="bg-cyan-500 hover:bg-cyan-600"
+          disabled
         >
-          <Plus className="mr-2 h-4 w-4" />
-          Crear Nueva Orden
+          + Crear Nueva Orden (Próximamente)
         </Button>
       </div>
 
@@ -211,11 +210,10 @@ export default function PurchaseOrdersPage() {
                 No hay órdenes de compra registradas
               </p>
               <Button 
-                onClick={handleCreateOrder}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-cyan-500 hover:bg-cyan-600"
+                disabled
               >
-                <Plus className="mr-2 h-4 w-4" />
-                Crear Primera Orden
+                + Crear Primera Orden (Próximamente)
               </Button>
             </div>
           ) : (
@@ -229,6 +227,7 @@ export default function PurchaseOrdersPage() {
                     <th className="text-left p-4">Estado</th>
                     <th className="text-left p-4">Items</th>
                     <th className="text-left p-4">Fecha</th>
+                    <th className="text-left p-4">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -240,6 +239,24 @@ export default function PurchaseOrdersPage() {
                       <td className="p-4">{getStatusBadge(order.status)}</td>
                       <td className="p-4">-</td>
                       <td className="p-4">{formatDate(order.created_at)}</td>
+                      <td className="p-4">
+                        {order.status !== 'received' && order.status !== 'cancelled' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.location.href = `/compras/ordenes/${order.id}/recibir`}
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                          >
+                            <Package className="mr-1 h-3 w-3" />
+                            Recibir
+                          </Button>
+                        )}
+                        {order.status === 'received' && (
+                          <Badge variant="secondary" className="text-green-600">
+                            Completada
+                          </Badge>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
