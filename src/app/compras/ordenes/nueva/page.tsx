@@ -210,28 +210,29 @@ export default function NewPurchaseOrderPage() {
   };
 
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6">
+    <div className="flex-1 space-y-6 p-8 pt-6">
       {/* Breadcrumbs */}
-      <StandardBreadcrumbs 
-        currentPage="Nueva Orden de Compra"
-        parentPages={[
-          { label: "Compras", href: "/compras" },
-          { label: "Órdenes de Compra", href: "/compras/ordenes" }
-        ]}
-      />
+      <div className="mb-6">
+        <StandardBreadcrumbs 
+          currentPage="Nueva Orden de Compra"
+          parentPages={[
+            { label: "Compras", href: "/compras" },
+            { label: "Órdenes de Compra", href: "/compras/ordenes" }
+          ]}
+        />
+      </div>
 
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 mb-8">
         <Button
           variant="ghost"
           onClick={() => router.back()}
-          className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Volver
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Nueva Orden de Compra</h1>
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold tracking-tight mb-2">Nueva Orden de Compra</h1>
           <p className="text-muted-foreground">Crea una nueva orden de compra para tus proveedores</p>
         </div>
       </div>
@@ -252,12 +253,16 @@ export default function NewPurchaseOrderPage() {
                   value={supplierId}
                   onValueChange={setSupplierId}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Selecciona un proveedor" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-gray-900 border-gray-700">
                     {suppliers.map(supplier => (
-                      <SelectItem key={supplier.id} value={supplier.id}>
+                      <SelectItem 
+                        key={supplier.id} 
+                        value={supplier.id}
+                        className="bg-gray-900 text-white hover:bg-gray-800 focus:bg-gray-800"
+                      >
                         {supplier.name}
                       </SelectItem>
                     ))}
