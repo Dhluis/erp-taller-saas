@@ -63,36 +63,57 @@ export async function GET(
       }, { status: 404 });
     }
     
-    // Query items con productos
+    // Query items con productos - SIN duplicados
     const { data: items, error: itemsError } = await supabaseAdmin
       .from('purchase_order_items')
       .select(`
-        *,
-        product:inventory (
+        id,
+        product_id,
+        quantity,
+        quantity_received,
+        unit_cost,
+        total,
+        notes,
+        created_at,
+        inventory!purchase_order_items_product_id_fkey (
           id,
           name,
           current_stock
         )
       `)
       .eq('purchase_order_id', params.id)
-      .eq('organization_id', userProfile.organization_id);
+      .eq('organization_id', userProfile.organization_id)
+      .order('created_at', { ascending: true });
     
     if (itemsError) {
-      console.error('Error loading items:', itemsError);
+      console.error('❌ Error loading items:', itemsError);
+      return NextResponse.json({ 
+        success: false,
+        error: 'Error cargando items de la orden',
+        data: null
+      }, { status: 500 });
     }
     
-    // Mapear items con TODOS los campos necesarios
-    const mappedItems = (items || []).map((item: any) => ({
-      id: item.id,
-      product_id: item.product?.id || item.product_id,
-      product_name: item.product?.name || 'Producto desconocido',
-      product_stock: item.product?.current_stock || 0,
-      quantity: item.quantity,
-      quantity_received: item.quantity_received || 0,
-      unit_cost: parseFloat(item.unit_cost) || 0,
-      total: parseFloat(item.total) || 0,
-      notes: item.notes
-    }));
+    console.log('📦 Items raw from DB:', JSON.stringify(items, null, 2));
+    
+    // Mapear items - ASEGURAR que quantity es número
+    const mappedItems = (items || []).map((item: any) => {
+      const product = Array.isArray(item.inventory) ? item.inventory[0] : item.inventory;
+      
+      return {
+        id: item.id,
+        product_id: item.product_id,
+        product_name: product?.name || 'Producto desconocido',
+        product_stock: product?.current_stock || 0,
+        quantity: Number(item.quantity) || 0,  // CRÍTICO: Convertir a número
+        quantity_received: Number(item.quantity_received) || 0,
+        unit_cost: Number(item.unit_cost) || 0,
+        total: Number(item.total) || 0,
+        notes: item.notes || null
+      };
+    });
+    
+    console.log('📦 Items mapped:', JSON.stringify(mappedItems, null, 2));
     
     return NextResponse.json({
       success: true,
