@@ -47,6 +47,9 @@ export async function POST(
       }, { status: 403 });
     }
     
+    const organizationId = userProfile.organization_id;
+    const userId = userProfile.id;
+    
     // 3. Validar input
     const body = await request.json();
     const validatedData = receiveSchema.parse(body);
@@ -59,7 +62,7 @@ export async function POST(
       .from('purchase_orders')
       .select('id, order_number, status, organization_id')
       .eq('id', params.id)
-      .eq('organization_id', userProfile.organization_id)
+      .eq('organization_id', organizationId)
       .single();
     
     if (orderError || !order) {
@@ -125,13 +128,16 @@ export async function POST(
       
       console.log('✅ [Receive] Item encontrado, continuando...');
       
+      // Type assertion para orderItem
+      const itemData = orderItem as { id: string; quantity: number; quantity_received: number | null; unit_cost: number | null };
+      
       // 6b. Validar que no exceda la cantidad ordenada
-      const newTotalReceived = (orderItem.quantity_received || 0) + item.quantity_received;
-      if (newTotalReceived > orderItem.quantity) {
+      const newTotalReceived = (itemData.quantity_received || 0) + item.quantity_received;
+      if (newTotalReceived > itemData.quantity) {
         console.error('❌ [Receive] Cantidad excede lo ordenado:', {
           item_id: item.id,
-          quantity_ordered: orderItem.quantity,
-          quantity_received: orderItem.quantity_received,
+          quantity_ordered: itemData.quantity,
+          quantity_received: itemData.quantity_received,
           new_quantity_received: item.quantity_received,
           new_total: newTotalReceived
         });
@@ -149,7 +155,8 @@ export async function POST(
         .eq('id', item.product_id)
         .single();
       
-      const previousStock = product?.current_stock || 0;
+      const productData = product as { current_stock: number } | null;
+      const previousStock = productData?.current_stock || 0;
       
       // 6d. Actualizar quantity_received en purchase_order_items
       const { error: updateError } = await supabaseAdmin
@@ -184,18 +191,18 @@ export async function POST(
       const { error: movementError } = await supabaseAdmin
         .from('inventory_movements')
         .insert({
-          organization_id: userProfile.organization_id,
+          organization_id: organizationId,
           product_id: item.product_id,
           movement_type: 'entry',
           quantity: item.quantity_received,
           previous_stock: previousStock,
           new_stock: newStock,
-          unit_cost: orderItem.unit_cost,
-          total_cost: orderItem.unit_cost ? (orderItem.unit_cost * item.quantity_received) : null,
+          unit_cost: itemData.unit_cost,
+          total_cost: itemData.unit_cost ? (itemData.unit_cost * item.quantity_received) : null,
           reference_type: 'purchase_order',
           reference_id: params.id,
-          notes: `Recepción de Orden de Compra ${order.order_number}`,
-          created_by: userProfile.id
+          notes: `Recepción de Orden de Compra ${(order as any).order_number}`,
+          created_by: userId
         });
       
       if (movementError) {
@@ -226,14 +233,17 @@ export async function POST(
       .eq('id', params.id)
       .single();
     
+    const orderData = order as { id: string; order_number: string; status: string };
+    const updatedOrderData = updatedOrder as { status: string } | null;
+    
     return NextResponse.json({
       success: true,
       data: {
         order_id: params.id,
-        order_number: order.order_number,
+        order_number: orderData.order_number,
         items_processed: results.length,
         results,
-        order_status: updatedOrder?.status || order.status
+        order_status: updatedOrderData?.status || orderData.status
       },
       error: null
     });
