@@ -51,6 +51,9 @@ export async function POST(
     const body = await request.json();
     const validatedData = receiveSchema.parse(body);
     
+    console.log('📦 [Receive] Items recibidos del frontend:', validatedData.items);
+    console.log('📦 [Receive] Order ID:', params.id);
+    
     // 4. Verificar que la orden existe y pertenece a la organización
     const { data: order, error: orderError } = await supabaseAdmin
       .from('purchase_orders')
@@ -87,23 +90,51 @@ export async function POST(
     // 6. Procesar cada item
     const results = [];
     
+    console.log('📦 [Receive] Iniciando procesamiento de', validatedData.items.length, 'items');
+    
     for (const item of validatedData.items) {
+      console.log('📦 [Receive] Procesando item:', {
+        id: item.id,
+        product_id: item.product_id,
+        quantity_received: item.quantity_received
+      });
+      
       // 6a. Verificar que el item pertenece a esta orden
+      console.log('📦 [Receive] Buscando item en BD...', {
+        item_id: item.id,
+        purchase_order_id: params.id
+      });
+      
       const { data: orderItem, error: itemError } = await supabaseAdmin
         .from('purchase_order_items')
-        .select('id, quantity_ordered, quantity_received, unit_cost')
+        .select('id, quantity, quantity_received, unit_cost')
         .eq('id', item.id)
         .eq('purchase_order_id', params.id)
         .single();
       
+      console.log('📦 [Receive] Resultado búsqueda:', {
+        found: !!orderItem,
+        error: itemError?.message,
+        orderItem
+      });
+      
       if (itemError || !orderItem) {
-        console.error(`Item ${item.id} no encontrado`);
+        console.error('❌ [Receive] Item NO encontrado:', item.id, itemError);
         continue;
       }
       
+      console.log('✅ [Receive] Item encontrado, continuando...');
+      
       // 6b. Validar que no exceda la cantidad ordenada
       const newTotalReceived = (orderItem.quantity_received || 0) + item.quantity_received;
-      if (newTotalReceived > orderItem.quantity_ordered) {
+      if (newTotalReceived > orderItem.quantity) {
+        console.error('❌ [Receive] Cantidad excede lo ordenado:', {
+          item_id: item.id,
+          quantity_ordered: orderItem.quantity,
+          quantity_received: orderItem.quantity_received,
+          new_quantity_received: item.quantity_received,
+          new_total: newTotalReceived
+        });
         return NextResponse.json({ 
           success: false,
           error: `La cantidad recibida para el item ${item.id} excede la cantidad ordenada`,
@@ -179,7 +210,11 @@ export async function POST(
         previous_stock: previousStock,
         new_stock: newStock
       });
+      
+      console.log('✅ [Receive] Item procesado exitosamente:', item.id);
     }
+    
+    console.log('📦 [Receive] Procesamiento finalizado. Total procesados:', results.length);
     
     // 7. El trigger update_purchase_order_status() actualizará automáticamente
     //    el status de la orden si todos los items están completamente recibidos
