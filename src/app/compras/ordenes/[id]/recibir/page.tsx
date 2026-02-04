@@ -58,15 +58,31 @@ export default function ReceivePurchaseOrderPage() {
       const data = await res.json();
       
       if (data.data && !data.error) {
-        setOrder(data.data);
+        // Ajustar estructura de datos si viene de getPurchaseOrderById
+        const orderData = data.data;
+        
+        // Si items viene como purchase_order_items, mapearlo
+        const items = orderData.purchase_order_items || orderData.items || [];
+        const mappedItems = items.map((item: any) => ({
+          id: item.id,
+          product_id: item.product_id,
+          product_name: item.product?.name || item.product_name || 'Producto',
+          quantity_ordered: item.quantity_ordered || item.quantity || 0,
+          quantity_received: item.quantity_received || 0,
+          unit_cost: item.unit_cost || 0,
+          total: item.total || 0
+        }));
+        
+        setOrder({
+          ...orderData,
+          items: mappedItems
+        });
         
         // Inicializar cantidades recibidas en 0
         const initialQuantities: Record<string, number> = {};
-        if (data.data.items) {
-          data.data.items.forEach((item: PurchaseOrderItem) => {
-            initialQuantities[item.id] = 0;
-          });
-        }
+        mappedItems.forEach((item: PurchaseOrderItem) => {
+          initialQuantities[item.id] = 0;
+        });
         setReceivedQuantities(initialQuantities);
       } else {
         toast.error(data.error || "No se pudo cargar la orden");
