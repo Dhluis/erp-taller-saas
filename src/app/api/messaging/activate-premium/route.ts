@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
 import twilio from 'twilio';
-import { getAppUrl } from '@/lib/utils/app-url';
+import { getAppUrl } from '@/lib/utils/env';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
