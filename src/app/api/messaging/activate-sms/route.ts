@@ -146,11 +146,23 @@ export async function POST(req: NextRequest) {
     let bundleInfo: any = null;
     
     if (!bundleSid) {
-      console.error('❌ [Activate SMS] TWILIO_REGULATORY_BUNDLE_MX no configurado');
+      console.error(`❌ [Activate SMS] TWILIO_REGULATORY_BUNDLE_${countryCode} no configurado`);
       return NextResponse.json({
         success: false,
         error: 'Regulatory Bundle no configurado',
-        details: `Variable TWILIO_REGULATORY_BUNDLE_${countryCode} no encontrada`
+        details: `Variable TWILIO_REGULATORY_BUNDLE_${countryCode} no encontrada`,
+        country: countryInfo.name,
+        country_code: countryCode,
+        instructions: {
+          step1: 'Crear Regulatory Bundle en Twilio Console',
+          step1_url: 'https://console.twilio.com/us1/develop/compliance/bundles',
+          step2: `Configurar variable de entorno: TWILIO_REGULATORY_BUNDLE_${countryCode}`,
+          step2_value: 'BUxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (Bundle SID de Twilio)',
+          step3: 'En Vercel: Settings → Environment Variables → Add',
+          step4: 'Redeploy la aplicación después de agregar la variable',
+          documentation: '/docs/twilio/GUIA_PASO_A_PASO_BUNDLE.md'
+        },
+        alternative: 'Puedes usar números Toll-Free sin Bundle, pero tienen limitaciones'
       }, { status: 500 });
     }
     
