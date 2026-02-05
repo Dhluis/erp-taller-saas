@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     // 2. Obtener datos de la organización
     const { data: organization } = await supabaseAdmin
       .from('organizations')
-      .select('id, name, country, address, city')
+      .select('id, name, country, address')
       .eq('id', organizationId)
       .single();
     
