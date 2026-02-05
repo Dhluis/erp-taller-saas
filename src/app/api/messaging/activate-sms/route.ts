@@ -502,9 +502,10 @@ export async function POST(req: NextRequest) {
           }
         }
         
-        // ESTRATEGIA 2: Búsqueda sin filtro de área
+        // ESTRATEGIA 2: Búsqueda Local sin filtro de área (prioridad alta - tenemos Bundle Local)
         if (numbersToBuy.length === 0) {
-          console.log(`🔍 [SMS Activation] ESTRATEGIA 2: Buscando sin filtro de área...`);
+          console.log(`🔍 [SMS Activation] ESTRATEGIA 2: Buscando Local sin filtro de área...`);
+          console.log(`📋 [SMS Activation] (Bundle tipo Local - compatible)`);
           
           try {
             numbersToBuy = await twilioClient
@@ -516,40 +517,18 @@ export async function POST(req: NextRequest) {
               });
             
             if (numbersToBuy.length > 0) {
-              console.log(`✅ [SMS Activation] Encontrados ${numbersToBuy.length} números locales`);
+              console.log(`✅ [SMS Activation] Encontrados ${numbersToBuy.length} números Local`);
             }
             
           } catch (generalError: any) {
-            console.log(`⚠️ [SMS Activation] Búsqueda general falló:`, generalError.message);
+            console.log(`⚠️ [SMS Activation] Búsqueda Local falló:`, generalError.message);
           }
         }
         
-        // ESTRATEGIA 3: Números Mobile (si el país lo soporta)
+        // ESTRATEGIA 3: Toll-Free (no requiere Bundle - buena alternativa)
         if (numbersToBuy.length === 0) {
-          console.log(`📱 [SMS Activation] ESTRATEGIA 3: Intentando números Mobile...`);
-          
-          try {
-            numbersToBuy = await twilioClient
-              .availablePhoneNumbers(countryCode)
-              .mobile
-              .list({ 
-                smsEnabled: true, 
-                limit: 20 
-              });
-            
-            if (numbersToBuy.length > 0) {
-              numberType = 'mobile';
-              console.log(`✅ [SMS Activation] Encontrados ${numbersToBuy.length} números Mobile`);
-            }
-            
-          } catch (mobileError: any) {
-            console.log(`⚠️ [SMS Activation] No hay números Mobile:`, mobileError.message);
-          }
-        }
-        
-        // ESTRATEGIA 4: Toll-Free como último recurso
-        if (numbersToBuy.length === 0) {
-          console.log(`☎️ [SMS Activation] ESTRATEGIA 4: Intentando Toll-Free...`);
+          console.log(`☎️ [SMS Activation] ESTRATEGIA 3: Intentando Toll-Free...`);
+          console.log(`📋 [SMS Activation] (No requiere Bundle)`);
           
           try {
             numbersToBuy = await twilioClient
@@ -567,6 +546,31 @@ export async function POST(req: NextRequest) {
             
           } catch (tollFreeError: any) {
             console.log(`⚠️ [SMS Activation] No hay Toll-Free:`, tollFreeError.message);
+          }
+        }
+        
+        // ESTRATEGIA 4: Mobile como ÚLTIMO recurso (requiere Bundle tipo Mobile diferente)
+        if (numbersToBuy.length === 0) {
+          console.log(`📱 [SMS Activation] ESTRATEGIA 4: Intentando números Mobile...`);
+          console.log(`⚠️ [SMS Activation] ADVERTENCIA: Bundle actual es tipo Local, Mobile puede fallar`);
+          
+          try {
+            numbersToBuy = await twilioClient
+              .availablePhoneNumbers(countryCode)
+              .mobile
+              .list({ 
+                smsEnabled: true, 
+                limit: 20 
+              });
+            
+            if (numbersToBuy.length > 0) {
+              numberType = 'mobile';
+              console.log(`✅ [SMS Activation] Encontrados ${numbersToBuy.length} números Mobile`);
+              console.log(`⚠️ [SMS Activation] Nota: Estos requieren Bundle tipo Mobile`);
+            }
+            
+          } catch (mobileError: any) {
+            console.log(`⚠️ [SMS Activation] No hay números Mobile:`, mobileError.message);
           }
         }
         
@@ -762,6 +766,24 @@ export async function POST(req: NextRequest) {
           suggestion: 'Por favor intenta de nuevo en unos minutos o contacta a soporte.',
           alternative: 'También puedes comprar un número manualmente en Twilio Console y configurarlo.'
         }, { status: 503 });
+      }
+      
+      // Error: Bundle tipo incorrecto para el número
+      if (error.code === 21617 || error.message?.includes('regulation type') || error.message?.includes('correct regulation')) {
+        console.error('❌ [Activate SMS] Bundle tipo incorrecto para este número');
+        return NextResponse.json({
+          success: false,
+          error: 'Bundle tipo incorrecto',
+          details: `El Bundle "${bundleInfo?.friendlyName || bundleSid}" es tipo "Local" pero el número requiere Bundle tipo "${numberType === 'mobile' ? 'Mobile' : numberType}".`,
+          suggestion: numberType === 'mobile' 
+            ? 'El sistema buscará números Local que son compatibles con tu Bundle actual.'
+            : 'Contacta a soporte para obtener el Bundle correcto.',
+          twilioError: error.message,
+          code: error.code,
+          bundleType: 'local',
+          requiredType: numberType,
+          action: 'retry_with_local_numbers'
+        }, { status: 400 });
       }
       
       // Error genérico
