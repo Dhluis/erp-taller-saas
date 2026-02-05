@@ -176,6 +176,7 @@ export async function POST(req: NextRequest) {
     
     let bundleStatus = 'not_configured';
     let bundleInfo: any = null;
+    let addressSid: string | null = null;
     
     if (!bundleSid) {
       console.error(`❌ [Activate SMS] TWILIO_REGULATORY_BUNDLE_${countryCode} no configurado`);
@@ -235,6 +236,38 @@ export async function POST(req: NextRequest) {
       }
       
       console.log('✅ [Activate SMS] Bundle aprobado, continuando...');
+      
+      // Obtener AddressSid del Bundle para números que lo requieran
+      try {
+        console.log('📍 [Activate SMS] Obteniendo direcciones del Bundle...');
+        
+        const bundleAddresses = await twilioClient.numbers.v2
+          .regulatoryCompliance
+          .bundles(bundleSid)
+          .itemAssignments
+          .list({ limit: 20 });
+        
+        // Buscar el Address asignado al Bundle
+        const addressAssignment = bundleAddresses.find(item => 
+          item.objectSid && item.objectSid.startsWith('AD')
+        );
+        
+        if (addressAssignment && addressAssignment.objectSid) {
+          addressSid = addressAssignment.objectSid;
+          console.log('✅ [Activate SMS] Address SID obtenido:', addressSid);
+        } else {
+          console.log('⚠️ [Activate SMS] No se encontró Address en el Bundle');
+          console.log('📋 [Activate SMS] Item assignments:', bundleAddresses.map(i => ({
+            sid: i.sid,
+            objectSid: i.objectSid
+          })));
+        }
+        
+      } catch (addressError: any) {
+        console.error('❌ [Activate SMS] Error obteniendo Address del Bundle:', addressError);
+        // Continuar sin addressSid, algunos números no lo requieren
+      }
+      
     } catch (bundleError: any) {
       console.error('❌ [Activate SMS] Error verificando bundle:', bundleError);
       return NextResponse.json({
@@ -487,17 +520,29 @@ export async function POST(req: NextRequest) {
           if (bundleStatus !== 'twilio-approved' && bundleStatus !== 'approved') {
             throw new Error(`Bundle regulatorio requerido para números ${numberType} pero no está aprobado`);
           }
+          
           purchaseParams.bundleSid = bundleSid;
-          console.log(`📋 [Activate SMS] Usando Bundle para ${numberType}: ${bundleSid} (Status: ${bundleStatus})`);
+          console.log(`📦 [Activate SMS] Bundle SID: ${bundleSid}`);
+          
+          // Agregar Address SID si está disponible
+          if (addressSid) {
+            purchaseParams.addressSid = addressSid;
+            console.log(`📍 [Activate SMS] Address SID: ${addressSid}`);
+          } else {
+            console.log(`⚠️ [Activate SMS] Sin Address SID - intentando sin él`);
+          }
+          
         } else if (numberType === 'toll-free') {
-          console.log(`📋 [Activate SMS] Toll-Free no requiere Bundle`);
+          console.log(`📋 [Activate SMS] Toll-Free no requiere Bundle ni Address`);
         }
         
         // COMPRAR NÚMERO
         console.log('🛒 [Activate SMS] Ejecutando compra con parámetros:', {
           phoneNumber: purchaseParams.phoneNumber,
           hasBundleSid: !!purchaseParams.bundleSid,
-          bundleSid: purchaseParams.bundleSid || 'N/A (Toll-Free)'
+          bundleSid: purchaseParams.bundleSid || 'N/A (Toll-Free)',
+          hasAddressSid: !!purchaseParams.addressSid,
+          addressSid: purchaseParams.addressSid || 'N/A'
         });
         
         selectedNumber = await twilioClient.incomingPhoneNumbers.create(purchaseParams);
