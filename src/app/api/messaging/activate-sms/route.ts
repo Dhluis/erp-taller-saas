@@ -20,6 +20,22 @@ const LATAM_COUNTRIES = {
 };
 
 /**
+ * Área codes principales por país para búsqueda de números
+ * Organizado por ciudades principales para maximizar disponibilidad
+ */
+const AREA_CODES_BY_COUNTRY: Record<string, string[]> = {
+  MX: ['55', '33', '81', '442', '222', '656', '662', '664', '477', '449'],  // CDMX, GDL, MTY, AGS, Puebla, Juárez, Hermosillo, Tijuana, León, SLP
+  CO: ['1', '4', '5', '2', '7', '6'],  // Bogotá, Medellín, Cali, Barranquilla, Bucaramanga, Cartagena
+  AR: ['11', '351', '261', '341', '221', '223'],  // Buenos Aires, Córdoba, Mendoza, Rosario, La Plata, Mar del Plata
+  CL: ['2', '32', '41', '42', '51', '55'],  // Santiago, Valparaíso, Concepción, Puerto Montt, Iquique, Antofagasta
+  PE: ['1', '54', '44', '74', '76', '84'],  // Lima, Arequipa, Trujillo, Iquitos, Chiclayo, Cusco
+  BR: ['11', '21', '31', '41', '51', '61', '71', '85'],  // São Paulo, Rio, Belo Horizonte, Curitiba, Porto Alegre, Brasília, Salvador, Fortaleza
+  EC: ['2', '4', '7', '5', '3', '6'],  // Quito, Guayaquil, Cuenca, Ambato, Loja, Riobamba
+  UY: ['2', '4', '43', '45', '46', '47'],  // Montevideo, Interior Norte, Interior Sur, Interior Este, Interior Oeste, Zona Litoral
+  CR: ['2', '4', '6', '7', '8'],  // San José, Heredia, Alajuela, Cartago, Puntarenas
+};
+
+/**
  * Mapeo de países a Bundle SIDs de Twilio
  * Cada país requiere su propio Regulatory Bundle
  * Configurar en variables de entorno: TWILIO_REGULATORY_BUNDLE_MX, TWILIO_REGULATORY_BUNDLE_CO, etc.
@@ -323,46 +339,132 @@ export async function POST(req: NextRequest) {
         console.log(`✅ [SMS Activation] Número configurado: ${selectedNumber.phoneNumber}`);
         
       } else {
-        // OPCIÓN B: Comprar número nuevo con Bundle Maestro
+        // OPCIÓN B: Comprar número nuevo con estrategia por país
         console.log('🛒 [SMS Activation] PASO 2: Comprando número nuevo...');
+        console.log(`🌍 [SMS Activation] País objetivo: ${countryInfo.name} (${countryCode})`);
         
-        // Estrategia: Toll-Free → Local con Bundle
-        let numbersToBuy;
-        let numberType = 'toll-free';
+        let numbersToBuy: any[] = [];
+        let numberType = 'local';
+        let foundInArea = '';
         
-        try {
-          console.log(`📞 [SMS Activation] Buscando Toll-Free en ${countryInfo.name}...`);
-          numbersToBuy = await twilioClient
-            .availablePhoneNumbers(countryCode)
-            .tollFree
-            .list({ smsEnabled: true, limit: 20 });
+        // Obtener área codes para este país
+        const areaCodes = AREA_CODES_BY_COUNTRY[countryCode] || [];
+        console.log(`📋 [SMS Activation] Área codes a intentar: ${areaCodes.join(', ') || 'ninguno'}`);
+        
+        // ESTRATEGIA 1: Buscar en área codes principales del país
+        if (areaCodes.length > 0) {
+          console.log(`📞 [SMS Activation] ESTRATEGIA 1: Buscando en áreas principales...`);
           
-          if (numbersToBuy.length === 0) {
-            throw new Error('No Toll-Free available');
+          for (const areaCode of areaCodes) {
+            try {
+              console.log(`🔍 [SMS Activation] Intentando área code: ${areaCode}`);
+              
+              const available = await twilioClient
+                .availablePhoneNumbers(countryCode)
+                .local
+                .list({ 
+                  smsEnabled: true, 
+                  areaCode: areaCode,
+                  limit: 5 
+                });
+              
+              if (available.length > 0) {
+                numbersToBuy = available;
+                foundInArea = areaCode;
+                console.log(`✅ [SMS Activation] Encontrados ${available.length} números en área ${areaCode}`);
+                break;
+              }
+              
+              console.log(`⚠️ [SMS Activation] No hay números en área ${areaCode}`);
+              
+            } catch (areaError: any) {
+              console.log(`⚠️ [SMS Activation] Error en área ${areaCode}:`, areaError.message);
+              continue;
+            }
           }
+        }
+        
+        // ESTRATEGIA 2: Búsqueda sin filtro de área
+        if (numbersToBuy.length === 0) {
+          console.log(`🔍 [SMS Activation] ESTRATEGIA 2: Buscando sin filtro de área...`);
           
-          console.log(`✅ [SMS Activation] Encontrados ${numbersToBuy.length} números Toll-Free`);
-          
-        } catch (tollFreeError) {
-          // Toll-Free no disponible, intentar Local
-          console.log(`⚠️ [SMS Activation] No hay Toll-Free, buscando números locales...`);
-          numberType = 'local';
-          
-          numbersToBuy = await twilioClient
-            .availablePhoneNumbers(countryCode)
-            .local
-            .list({ smsEnabled: true, limit: 20 });
-          
-          if (numbersToBuy.length === 0) {
-            throw new Error('No hay números disponibles para compra');
+          try {
+            numbersToBuy = await twilioClient
+              .availablePhoneNumbers(countryCode)
+              .local
+              .list({ 
+                smsEnabled: true, 
+                limit: 20 
+              });
+            
+            if (numbersToBuy.length > 0) {
+              console.log(`✅ [SMS Activation] Encontrados ${numbersToBuy.length} números locales`);
+            }
+            
+          } catch (generalError: any) {
+            console.log(`⚠️ [SMS Activation] Búsqueda general falló:`, generalError.message);
           }
+        }
+        
+        // ESTRATEGIA 3: Números Mobile (si el país lo soporta)
+        if (numbersToBuy.length === 0) {
+          console.log(`📱 [SMS Activation] ESTRATEGIA 3: Intentando números Mobile...`);
           
-          console.log(`✅ [SMS Activation] Encontrados ${numbersToBuy.length} números locales`);
+          try {
+            numbersToBuy = await twilioClient
+              .availablePhoneNumbers(countryCode)
+              .mobile
+              .list({ 
+                smsEnabled: true, 
+                limit: 20 
+              });
+            
+            if (numbersToBuy.length > 0) {
+              numberType = 'mobile';
+              console.log(`✅ [SMS Activation] Encontrados ${numbersToBuy.length} números Mobile`);
+            }
+            
+          } catch (mobileError: any) {
+            console.log(`⚠️ [SMS Activation] No hay números Mobile:`, mobileError.message);
+          }
+        }
+        
+        // ESTRATEGIA 4: Toll-Free como último recurso
+        if (numbersToBuy.length === 0) {
+          console.log(`☎️ [SMS Activation] ESTRATEGIA 4: Intentando Toll-Free...`);
+          
+          try {
+            numbersToBuy = await twilioClient
+              .availablePhoneNumbers(countryCode)
+              .tollFree
+              .list({ 
+                smsEnabled: true, 
+                limit: 20 
+              });
+            
+            if (numbersToBuy.length > 0) {
+              numberType = 'toll-free';
+              console.log(`✅ [SMS Activation] Encontrados ${numbersToBuy.length} números Toll-Free`);
+            }
+            
+          } catch (tollFreeError: any) {
+            console.log(`⚠️ [SMS Activation] No hay Toll-Free:`, tollFreeError.message);
+          }
+        }
+        
+        // Verificar si se encontraron números
+        if (numbersToBuy.length === 0) {
+          console.error(`❌ [SMS Activation] Sin números después de 4 estrategias en ${countryInfo.name}`);
+          throw new Error(`No hay números disponibles en ${countryInfo.name}. Twilio puede estar sin inventario temporalmente.`);
         }
         
         // Seleccionar el primer número disponible
         const selectedPhoneNumber = numbersToBuy[0].phoneNumber;
-        console.log(`🎯 [SMS Activation] Número seleccionado: ${selectedPhoneNumber} (${numberType})`);
+        const selectedRegion = numbersToBuy[0].region || foundInArea || 'unknown';
+        
+        console.log(`🎯 [SMS Activation] Número seleccionado: ${selectedPhoneNumber}`);
+        console.log(`📍 [SMS Activation] Región: ${selectedRegion}`);
+        console.log(`🏷️ [SMS Activation] Tipo: ${numberType}`);
         
         // Parámetros de compra
         console.log('💰 [Activate SMS] Comprando número:', selectedPhoneNumber);
