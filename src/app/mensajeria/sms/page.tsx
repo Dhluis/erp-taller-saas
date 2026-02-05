@@ -11,9 +11,6 @@ import { toast } from 'sonner';
 import { ArrowLeft, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
-
 interface SMSConfig {
   smsEnabled: boolean;
   smsFromNumber: string | null;
