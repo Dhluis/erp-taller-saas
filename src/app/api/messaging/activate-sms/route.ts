@@ -133,36 +133,65 @@ export async function POST(req: NextRequest) {
     
     const twilioClient = twilio(accountSid, authToken);
     
-    // 5. Verificar estado del Bundle (si está configurado)
+    // 5. Verificar estado del Bundle (CRÍTICO: debe estar aprobado)
+    console.log('🔍 [Activate SMS] Verificando Regulatory Bundle...');
+    
     let bundleStatus = 'not_configured';
     let bundleInfo: any = null;
     
-    if (bundleSid) {
-      try {
-        console.log(`📋 [SMS Activation] Verificando estado del Bundle: ${bundleSid}`);
-        const bundle = await twilioClient.numbers.v2.regulatoryCompliance.bundles(bundleSid).fetch();
-        bundleStatus = bundle.status || 'unknown';
-        bundleInfo = {
-          sid: bundle.sid,
-          friendlyName: bundle.friendlyName,
-          status: bundle.status,
-          statusCallback: bundle.statusCallback,
-          dateCreated: bundle.dateCreated,
-          dateUpdated: bundle.dateUpdated,
-          url: bundle.url
-        };
-        console.log(`📊 [SMS Activation] Bundle Status: ${bundleStatus}`);
-      } catch (bundleError: any) {
-        console.warn(`⚠️ [SMS Activation] No se pudo verificar Bundle: ${bundleError.message}`);
-        bundleStatus = 'error';
-        bundleInfo = {
-          sid: bundleSid,
-          status: 'error',
-          error: bundleError.message
-        };
+    if (!bundleSid) {
+      console.error('❌ [Activate SMS] TWILIO_REGULATORY_BUNDLE_MX no configurado');
+      return NextResponse.json({
+        success: false,
+        error: 'Regulatory Bundle no configurado',
+        details: `Variable TWILIO_REGULATORY_BUNDLE_${countryCode} no encontrada`
+      }, { status: 500 });
+    }
+    
+    console.log('📦 [Activate SMS] Bundle SID:', bundleSid);
+    
+    // Verificar estado del bundle
+    try {
+      console.log('📋 [Activate SMS] Obteniendo información del Bundle...');
+      const bundle = await twilioClient.numbers.v2
+        .regulatoryCompliance
+        .bundles(bundleSid)
+        .fetch();
+      
+      bundleStatus = bundle.status || 'unknown';
+      bundleInfo = {
+        sid: bundle.sid,
+        friendlyName: bundle.friendlyName,
+        status: bundle.status,
+        statusCallback: bundle.statusCallback,
+        dateCreated: bundle.dateCreated,
+        dateUpdated: bundle.dateUpdated,
+        url: bundle.url
+      };
+      
+      console.log('📊 [Activate SMS] Bundle status:', bundleStatus);
+      console.log('📋 [Activate SMS] Bundle friendly name:', bundle.friendlyName);
+      
+      if (bundle.status !== 'approved' && bundle.status !== 'twilio-approved') {
+        console.error('❌ [Activate SMS] Bundle no está aprobado:', bundle.status);
+        return NextResponse.json({
+          success: false,
+          error: `Regulatory Bundle no está aprobado (Status: ${bundle.status})`,
+          details: 'El Bundle debe estar en estado "approved" o "twilio-approved" para comprar números locales',
+          bundle_status: bundle.status,
+          bundle_sid: bundleSid
+        }, { status: 400 });
       }
-    } else {
-      console.warn('⚠️ [SMS Activation] TWILIO_REGULATORY_BUNDLE_SID no configurado - Solo Toll-Free disponible');
+      
+      console.log('✅ [Activate SMS] Bundle aprobado, continuando...');
+    } catch (bundleError: any) {
+      console.error('❌ [Activate SMS] Error verificando bundle:', bundleError);
+      return NextResponse.json({
+        success: false,
+        error: 'Error verificando Regulatory Bundle: ' + bundleError.message,
+        details: bundleError.message,
+        code: bundleError.code
+      }, { status: 500 });
     }
     
     // Placeholders para plataforma, status y prioridades
@@ -276,6 +305,9 @@ export async function POST(req: NextRequest) {
         console.log(`🎯 [SMS Activation] Número seleccionado: ${selectedPhoneNumber} (${numberType})`);
         
         // Parámetros de compra
+        console.log('💰 [Activate SMS] Comprando número:', selectedPhoneNumber);
+        console.log('📦 [Activate SMS] Usando bundle:', bundleSid);
+        
         const purchaseParams: any = {
           phoneNumber: selectedPhoneNumber,
           friendlyName: `Eagles ERP - ${organization.name}`,
@@ -287,29 +319,65 @@ export async function POST(req: NextRequest) {
         
         // Agregar Bundle SID si es número local (Toll-Free no lo necesita)
         if (numberType === 'local') {
-          if (!bundleSid || bundleStatus !== 'twilio-approved' && bundleStatus !== 'approved') {
+          if (!bundleSid) {
+            throw new Error('Bundle regulatorio requerido para números locales pero no está configurado');
+          }
+          if (bundleStatus !== 'twilio-approved' && bundleStatus !== 'approved') {
             throw new Error('Bundle regulatorio requerido para números locales pero no está aprobado');
           }
           purchaseParams.bundleSid = bundleSid;
-          console.log(`📋 [SMS Activation] Usando Bundle Maestro: ${bundleSid} (Status: ${bundleStatus})`);
+          console.log(`📋 [Activate SMS] Usando Bundle: ${bundleSid} (Status: ${bundleStatus})`);
         }
         
         // COMPRAR NÚMERO
+        console.log('🛒 [Activate SMS] Ejecutando compra con parámetros:', {
+          phoneNumber: purchaseParams.phoneNumber,
+          hasBundleSid: !!purchaseParams.bundleSid,
+          bundleSid: purchaseParams.bundleSid || 'N/A (Toll-Free)'
+        });
+        
         selectedNumber = await twilioClient.incomingPhoneNumbers.create(purchaseParams);
         
-        console.log(`💰 [SMS Activation] Número comprado exitosamente: ${selectedNumber.phoneNumber}`);
-        console.log(`📇 [SMS Activation] SID: ${selectedNumber.sid}`);
+        console.log('✅ [Activate SMS] Número comprado:', selectedNumber.phoneNumber);
+        console.log('📋 [Activate SMS] SID del número:', selectedNumber.sid);
       }
       
     } catch (error: any) {
-      console.error('❌ [SMS Activation] Error en proceso de compra:', error);
+      console.error('❌ [Activate SMS] Error en compra:', error);
+      console.error('📋 [Activate SMS] Error code:', error.code);
+      console.error('📋 [Activate SMS] Error message:', error.message);
       
-      // Errores específicos de Twilio
+      // Errores específicos de Regulatory Bundle
+      if (error.code === 21453) {
+        console.error('❌ [Activate SMS] Bundle requerido pero no proporcionado');
+        return NextResponse.json({
+          success: false,
+          error: 'Regulatory Bundle requerido pero no proporcionado',
+          details: error.message,
+          code: error.code,
+          action: 'Verificar que bundleSid esté incluido en la compra'
+        }, { status: 400 });
+      }
+      
+      if (error.code === 21452) {
+        console.error('❌ [Activate SMS] Bundle no válido o no aprobado');
+        return NextResponse.json({
+          success: false,
+          error: 'Regulatory Bundle no válido o no aprobado',
+          details: error.message,
+          code: error.code,
+          bundle_sid: bundleSid,
+          bundle_status: bundleStatus,
+          action: 'Verificar estado del Bundle en Twilio Console'
+        }, { status: 400 });
+      }
+      
       if (error.code === 21617) {
+        console.error('❌ [Activate SMS] Bundle Regulatorio Inválido');
         return NextResponse.json({
           success: false,
           error: 'Bundle Regulatorio Inválido',
-          details: 'El Bundle maestro no está aprobado o es inválido.',
+          details: 'El Bundle no está aprobado o es inválido.',
           adminAction: 'Verificar estado del Bundle en Twilio Console',
           bundleUrl: 'https://console.twilio.com/us1/develop/compliance/bundles',
           platform: platformInfo.platform,
@@ -322,6 +390,7 @@ export async function POST(req: NextRequest) {
       }
       
       if (error.message?.includes('Bundle regulatorio requerido')) {
+        console.error('❌ [Activate SMS] Bundle requerido pero no aprobado');
         return NextResponse.json({
           success: false,
           error: 'Bundle Regulatorio Pendiente',
@@ -339,17 +408,42 @@ export async function POST(req: NextRequest) {
         }, { status: 503 });
       }
       
+      // Error de autenticación
+      if (error.code === 20003) {
+        console.error('❌ [Activate SMS] Autenticación fallida');
+        return NextResponse.json({
+          success: false,
+          error: 'Autenticación fallida',
+          details: 'Las credenciales de Twilio son inválidas',
+          code: error.code
+        }, { status: 401 });
+      }
+      
+      // Error de número no disponible
+      if (error.code === 21422) {
+        console.error('❌ [Activate SMS] Número no disponible');
+        return NextResponse.json({
+          success: false,
+          error: 'Número no disponible',
+          details: 'El número seleccionado ya no está disponible',
+          code: error.code
+        }, { status: 400 });
+      }
+      
       if (error.code === 21450 || error.code === 21421) {
+        console.error('❌ [Activate SMS] Límite de números alcanzado');
         return NextResponse.json({
           success: false,
           error: 'Límite de números alcanzado',
           details: 'La cuenta de Twilio ha alcanzado el límite de números.',
           adminAction: 'Actualizar plan de Twilio o liberar números no usados',
-          twilioUrl: 'https://console.twilio.com/billing/upgrade'
+          twilioUrl: 'https://console.twilio.com/billing/upgrade',
+          code: error.code
         }, { status: 400 });
       }
       
       if (error.message?.includes('No hay números disponibles')) {
+        console.error('❌ [Activate SMS] No hay números disponibles');
         return NextResponse.json({
           success: false,
           error: 'No hay números disponibles',
@@ -359,10 +453,13 @@ export async function POST(req: NextRequest) {
         }, { status: 503 });
       }
       
+      // Error genérico
+      console.error('❌ [Activate SMS] Error genérico:', error);
       return NextResponse.json({ 
         success: false, 
-        error: 'Error al obtener número',
-        details: error.message 
+        error: 'Error comprando número: ' + error.message,
+        code: error.code,
+        details: error.message
       }, { status: 500 });
     }
     
@@ -375,7 +472,9 @@ export async function POST(req: NextRequest) {
     }
     
     // 7. Guardar configuración en BD
-    console.log(`💾 [SMS Activation] Guardando configuración en BD...`);
+    console.log('💾 [Activate SMS] Guardando configuración en BD...');
+    console.log('📱 [Activate SMS] Número a guardar:', selectedNumber.phoneNumber);
+    console.log('📇 [Activate SMS] SID a guardar:', selectedNumber.sid);
     
     const { error: upsertError } = await (supabaseAdmin as any)
       .from('organization_messaging_config')
