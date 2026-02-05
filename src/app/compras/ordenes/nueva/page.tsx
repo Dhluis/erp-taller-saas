@@ -361,8 +361,23 @@ export default function NewPurchaseOrderPage() {
                         <Input
                           type="number"
                           min="1"
-                          value={item.quantity}
-                          onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
+                          value={item.quantity === 0 ? '' : item.quantity}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Si está vacío, usar 0
+                            if (value === '' || value === '-' || value === '+') {
+                              updateItem(item.id, 'quantity', 0);
+                            } else {
+                              const numValue = parseInt(value);
+                              updateItem(item.id, 'quantity', isNaN(numValue) ? 0 : numValue);
+                            }
+                          }}
+                          onFocus={(e) => {
+                            // Si el valor es 0 o 1, seleccionar todo el texto
+                            if (item.quantity === 0 || item.quantity === 1) {
+                              e.target.select();
+                            }
+                          }}
                         />
                       </div>
                       
