@@ -61,11 +61,13 @@ export async function POST(req: NextRequest) {
       .eq('auth_user_id', user.id)
       .single();
     
-    if (!userProfile?.organization_id) {
+    const userProfileData = userProfile as { organization_id: string } | null;
+    
+    if (!userProfileData?.organization_id) {
       return NextResponse.json({ success: false, error: 'No se pudo obtener organización' }, { status: 403 });
     }
     
-    const organizationId = userProfile.organization_id;
+    const organizationId = userProfileData.organization_id;
     
     // 2. Obtener datos de la organización
     const { data: organization } = await supabaseAdmin
@@ -74,11 +76,13 @@ export async function POST(req: NextRequest) {
       .eq('id', organizationId)
       .single();
     
-    if (!organization) {
+    const orgData = organization as { id: string; name: string; country?: string; address?: string; city?: string } | null;
+    
+    if (!orgData) {
       return NextResponse.json({ success: false, error: 'Organización no encontrada' }, { status: 404 });
     }
     
-    const countryCode = organization.country?.toUpperCase() || 'MX';
+    const countryCode = orgData.country?.toUpperCase() || 'MX';
     const countryInfo = LATAM_COUNTRIES[countryCode as keyof typeof LATAM_COUNTRIES];
     
     if (!countryInfo) {
@@ -90,7 +94,7 @@ export async function POST(req: NextRequest) {
     }
     
     console.log(`🌍 [SMS Activation] País: ${countryInfo.name} (${countryCode})`);
-    console.log(`🏢 [SMS Activation] Organización: ${organization.name}`);
+    console.log(`🏢 [SMS Activation] Organización: ${orgData.name}`);
     
     // 3. Verificar si ya tiene SMS activado
     const { data: existingConfig } = await supabaseAdmin
@@ -99,14 +103,16 @@ export async function POST(req: NextRequest) {
       .eq('organization_id', organizationId)
       .single();
     
-    if (existingConfig?.sms_enabled && existingConfig?.sms_twilio_number) {
-      console.log(`ℹ️ [SMS Activation] Ya tiene SMS: ${existingConfig.sms_twilio_number}`);
+    const configData = existingConfig as { sms_enabled?: boolean; sms_twilio_number?: string; sms_twilio_sid?: string } | null;
+    
+    if (configData?.sms_enabled && configData?.sms_twilio_number) {
+      console.log(`ℹ️ [SMS Activation] Ya tiene SMS: ${configData.sms_twilio_number}`);
       return NextResponse.json({ 
         success: false, 
         error: 'SMS ya está activado',
         data: { 
-          phone_number: existingConfig.sms_twilio_number,
-          sid: existingConfig.sms_twilio_sid
+          phone_number: configData.sms_twilio_number,
+          sid: configData.sms_twilio_sid
         }
       }, { status: 400 });
     }
@@ -172,7 +178,8 @@ export async function POST(req: NextRequest) {
       console.log('📊 [Activate SMS] Bundle status:', bundleStatus);
       console.log('📋 [Activate SMS] Bundle friendly name:', bundle.friendlyName);
       
-      if (bundle.status !== 'approved' && bundle.status !== 'twilio-approved') {
+      const bundleStatusValue = bundle.status as string;
+      if (bundleStatusValue !== 'approved' && bundleStatusValue !== 'twilio-approved') {
         console.error('❌ [Activate SMS] Bundle no está aprobado:', bundle.status);
         return NextResponse.json({
           success: false,
@@ -257,7 +264,7 @@ export async function POST(req: NextRequest) {
           smsMethod: 'POST',
           statusCallback: statusWebhookUrl,
           statusCallbackMethod: 'POST',
-          friendlyName: `Eagles ERP - ${organization.name}`
+          friendlyName: `Eagles ERP - ${orgData.name}`
         });
         
         console.log(`✅ [SMS Activation] Número configurado: ${selectedNumber.phoneNumber}`);
@@ -310,7 +317,7 @@ export async function POST(req: NextRequest) {
         
         const purchaseParams: any = {
           phoneNumber: selectedPhoneNumber,
-          friendlyName: `Eagles ERP - ${organization.name}`,
+          friendlyName: `Eagles ERP - ${orgData.name}`,
           smsUrl: webhookUrl,
           smsMethod: 'POST',
           statusCallback: statusWebhookUrl,
@@ -511,7 +518,7 @@ export async function POST(req: NextRequest) {
     
     console.log(`✅✅✅ [SMS Activation] SMS ACTIVADO EXITOSAMENTE`);
     console.log(`📱 [SMS Activation] Número: ${selectedNumber.phoneNumber}`);
-    console.log(`🏢 [SMS Activation] Organización: ${organization.name} (${organizationId})`);
+    console.log(`🏢 [SMS Activation] Organización: ${orgData.name} (${organizationId})`);
     console.log(`🌍 [SMS Activation] País: ${countryInfo.name}`);
     
     // 8. Retornar respuesta exitosa con información de plataforma
