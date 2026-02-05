@@ -471,6 +471,21 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
       const newImagesList = [...images, ...successfulUploads]
       onImagesChange(newImagesList)
 
+      // ✅ Abrir automáticamente el modal de la última foto subida para editar categoría/descripción
+      if (successfulUploads.length > 0) {
+        const lastUploadedImage = successfulUploads[successfulUploads.length - 1]
+        // Esperar un momento para que la UI se actualice
+        setTimeout(() => {
+          openImageDetail(lastUploadedImage)
+          // Activar edición de categoría automáticamente para que pueda cambiarla si se equivocó
+          setEditingCategory(true)
+          // Si no tiene descripción, también activar edición de descripción
+          if (!lastUploadedImage.description) {
+            setEditingDescription(true)
+          }
+        }, 300)
+      }
+
       if (successfulUploads.length === filesArray.length) {
         toast.success(`${successfulUploads.length} imagen${successfulUploads.length > 1 ? 'es' : ''} subida${successfulUploads.length > 1 ? 's' : ''} exitosamente`)
       } else {
