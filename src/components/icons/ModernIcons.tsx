@@ -297,6 +297,20 @@ export const FinancierosIcon = ({ className = '', size = 24 }: IconProps) => (
   </svg>
 )
 
+// Facturación / Factura (Documento con líneas y $)
+export const FacturacionIcon = ({ className = '', size = 24 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+    <rect x="8" y="4" width="32" height="40" rx="3" fill="#F59E0B"/>
+    <rect x="8" y="4" width="32" height="12" rx="3" fill="#FBBF24"/>
+    <rect x="12" y="20" width="24" height="2" rx="1" fill="#FEF3C7"/>
+    <rect x="12" y="26" width="20" height="2" rx="1" fill="#FEF3C7"/>
+    <rect x="12" y="32" width="24" height="2" rx="1" fill="#FEF3C7"/>
+    <rect x="12" y="38" width="16" height="2" rx="1" fill="#FEF3C7"/>
+    <circle cx="30" cy="30" r="6" fill="#FCD34D"/>
+    <text x="30" y="34" fontSize="8" fontWeight="bold" textAnchor="middle" fill="#92400E">$</text>
+  </svg>
+)
+
 // Search / Buscar
 export const SearchIcon = ({ className = '', size = 24 }: IconProps) => (
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
@@ -331,6 +345,7 @@ export default {
   Cobros: CobrosIcon,
   Transfer: TransferIcon,
   Financieros: FinancierosIcon,
+  Facturacion: FacturacionIcon,
   Check: CheckIcon,
   Error: ErrorIcon,
   Warning: WarningIcon,

@@ -153,7 +153,7 @@ export function Sidebar({ className }: SidebarProps) {
       icon: () => <ModernIcons.Finanzas size={20} />,
       visible: showAllForAdmin || permissions.canRead('invoices') || permissions.canPayInvoices(),
       items: [
-        { href: "/ingresos", label: "Facturación", icon: () => <ModernIcons.Ordenes size={18} />, visible: permissions.canRead('invoices') },
+        { href: "/ingresos", label: "Facturación", icon: () => <ModernIcons.Facturacion size={18} />, visible: permissions.canRead('invoices') },
         { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Cobros size={18} />, visible: permissions.canPayInvoices() }
       ].filter(item => item.visible)
     },
