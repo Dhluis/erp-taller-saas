@@ -175,38 +175,8 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
     
-    // 6. Generar número de orden usando función SQL
-    console.log('📦 [Create PO] Llamando generate_purchase_order_number con org:', organizationId);
-    
-    const { data: orderNumber, error: orderNumberError } = await supabaseAdmin
-      .rpc('generate_purchase_order_number', {
-        p_organization_id: organizationId
-      });
-    
-    console.log('📦 [Create PO] Resultado RPC:', {
-      orderNumber,
-      error: orderNumberError,
-      hasError: !!orderNumberError,
-      isNull: orderNumber === null,
-      isUndefined: orderNumber === undefined,
-      type: typeof orderNumber,
-      organizationId
-    });
-    
-    if (orderNumberError || !orderNumber) {
-      console.error('❌ [Create PO] Error generando número:', {
-        error: orderNumberError,
-        orderNumber,
-        organizationId
-      });
-      return NextResponse.json({ 
-        success: false,
-        error: 'Error generando número de orden: ' + (orderNumberError?.message || 'Número vacío'),
-        data: null
-      }, { status: 500 });
-    }
-    
-    console.log('✅ [Create PO] Número de orden generado:', orderNumber);
+    // 6. El trigger generate_purchase_order_number_trigger generará automáticamente
+    //    el número de orden al insertar, así que no necesitamos llamar la función RPC
     
     // 7. Calcular totales
     const subtotal = validatedData.items.reduce((sum, item) => {
@@ -217,14 +187,11 @@ export async function POST(request: NextRequest) {
     const tax = subtotal * taxRate;
     const total = subtotal + tax;
     
-    // 8. Crear purchase order con número generado
-    console.log('📦 [Create PO] Creando orden con número:', orderNumber);
-    
+    // 8. Crear purchase order (el trigger generará order_number automáticamente)
     const { data: order, error: orderError } = await supabaseAdmin
       .from('purchase_orders')
       .insert({
         organization_id: organizationId,
-        order_number: orderNumber,
         supplier_id: validatedData.supplier_id,
         status: 'draft',
         order_date: validatedData.order_date,
@@ -237,12 +204,6 @@ export async function POST(request: NextRequest) {
       })
       .select()
       .single();
-    
-    console.log('📦 [Create PO] Resultado creación orden:', {
-      order: order ? { id: order.id, order_number: order.order_number } : null,
-      error: orderError,
-      hasError: !!orderError
-    });
     
     if (orderError || !order) {
       console.error('Error creando orden:', orderError);
@@ -316,4 +277,3 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
-
