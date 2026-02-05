@@ -402,3 +402,50 @@ export async function updateImageDescription(
     return { success: false, error: error.message }
   }
 }
+
+/**
+ * Actualizar categoría de una imagen
+ */
+export async function updateImageCategory(
+  orderId: string,
+  imagePath: string,
+  newCategory: ImageCategory
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Obtener imágenes actuales
+    const { data: order, error: fetchError } = await supabase
+      .from('work_orders')
+      .select('images')
+      .eq('id', orderId)
+      .single()
+
+    if (fetchError) {
+      return { success: false, error: fetchError.message }
+    }
+
+    const currentImages = order.images || []
+    const updatedImages = currentImages.map((img: WorkOrderImage) =>
+      img.path === imagePath
+        ? { ...img, category: newCategory }
+        : img
+    )
+
+    // Actualizar orden
+    const { error: updateError } = await supabase
+      .from('work_orders')
+      .update({ 
+        images: updatedImages,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId)
+
+    if (updateError) {
+      return { success: false, error: updateError.message }
+    }
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error actualizando categoría:', error)
+    return { success: false, error: error.message }
+  }
+}

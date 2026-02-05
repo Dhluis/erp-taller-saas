@@ -35,6 +35,7 @@ import { toast } from 'sonner'
 import {
   uploadWorkOrderImage,
   updateImageDescription,
+  updateImageCategory,
   WorkOrderImage,
   ImageCategory
 } from '@/lib/supabase/work-order-storage'
@@ -227,6 +228,8 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
   const [selectedImage, setSelectedImage] = useState<WorkOrderImage | null>(null)
   const [editingDescription, setEditingDescription] = useState(false)
   const [newDescription, setNewDescription] = useState('')
+  const [editingCategory, setEditingCategory] = useState(false)
+  const [newCategory, setNewCategory] = useState<ImageCategory>('reception')
   const [selectedCategory, setSelectedCategory] = useState<ImageCategory>('reception')
   
   // Log cuando cambie la categoría
@@ -553,9 +556,42 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
     }
   }
 
+  const handleUpdateCategory = async () => {
+    if (!selectedImage) return
+
+    try {
+      const result = await updateImageCategory(
+        orderId,
+        selectedImage.path,
+        newCategory
+      )
+
+      if (!result.success) {
+        toast.error(result.error || 'Error al actualizar categoría')
+        return
+      }
+
+      const updatedImages = images.map(img =>
+        img.path === selectedImage.path
+          ? { ...img, category: newCategory }
+          : img
+      )
+      onImagesChange(updatedImages)
+
+      setSelectedImage({ ...selectedImage, category: newCategory })
+      setEditingCategory(false)
+      toast.success('Categoría actualizada')
+    } catch (error: any) {
+      toast.error(error.message || 'Error al actualizar categoría')
+    }
+  }
+
   const openImageDetail = (image: WorkOrderImage) => {
     setSelectedImage(image)
     setNewDescription(image.description || '')
+    setNewCategory(image.category)
+    setEditingDescription(false)
+    setEditingCategory(false)
   }
 
   // Agrupar por categoría
@@ -843,8 +879,8 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[selectedImage.category].color}`} />
-                  {CATEGORY_LABELS[selectedImage.category].label}
+                  <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[editingCategory ? newCategory : selectedImage.category].color}`} />
+                  {CATEGORY_LABELS[editingCategory ? newCategory : selectedImage.category].label}
                 </DialogTitle>
                 <DialogDescription>
                   Subida el {format(new Date(selectedImage.uploadedAt), "d 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
@@ -861,6 +897,76 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                     className="object-contain"
                     sizes="100vw"
                   />
+                </div>
+
+                {/* Categoría */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Categoría</Label>
+                    {!editingCategory && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setEditingCategory(true)}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Cambiar
+                      </Button>
+                    )}
+                  </div>
+
+                  {editingCategory ? (
+                    <div className="space-y-2">
+                      <Select
+                        value={newCategory}
+                        onValueChange={(value) => setNewCategory(value as ImageCategory)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue>
+                            <div className="flex items-center gap-2">
+                              <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[newCategory].color}`} />
+                              {CATEGORY_LABELS[newCategory].label}
+                            </div>
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                          {Object.entries(CATEGORY_LABELS).map(([key, { label, color }]) => (
+                            <SelectItem 
+                              key={key} 
+                              value={key}
+                              className="hover:bg-slate-800 focus:bg-slate-800 text-white"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className={`w-3 h-3 rounded-full ${color}`} />
+                                {label}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex gap-2">
+                        <Button onClick={handleUpdateCategory}>
+                          Guardar
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => {
+                            setEditingCategory(false)
+                            setNewCategory(selectedImage.category)
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[selectedImage.category].color}`} />
+                      <p className="text-sm font-medium">
+                        {CATEGORY_LABELS[selectedImage.category].label}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Descripción */}
