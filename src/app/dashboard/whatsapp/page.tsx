@@ -35,6 +35,7 @@ export default function WhatsAppPage() {
   const [loadingMessagingConfig, setLoadingMessagingConfig] = useState(false)
   const [messagingConfigError, setMessagingConfigError] = useState(false)
   const [showTestModal, setShowTestModal] = useState(false)
+  const [activatingTrial, setActivatingTrial] = useState(false)
   const messagingConfigLoadedRef = useRef(false) // Ref para evitar múltiples cargas
 
   console.log('[WhatsApp Page] 🔍 useSession hook:', {
@@ -882,8 +883,6 @@ export default function WhatsAppPage() {
                   trialProgress = ((7 - daysLeft) / 7) * 100
                 }
 
-                const [activatingTrial, setActivatingTrial] = useState(false)
-
                 const handleStartTrial = async () => {
                   setActivatingTrial(true)
                   try {
@@ -958,12 +957,7 @@ export default function WhatsAppPage() {
                               {daysLeft}/7 días
                             </span>
                           </div>
-                          <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2 mb-2">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full transition-all"
-                              style={{ width: `${trialProgress}%` }}
-                            />
-                          </div>
+                          <Progress value={trialProgress} className="h-2 mb-2" />
                           <p className="text-xs text-blue-700 dark:text-blue-300">
                             Activa tu suscripción antes de que termine para no perder acceso
                           </p>
