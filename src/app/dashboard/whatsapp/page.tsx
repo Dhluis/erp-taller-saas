@@ -8,11 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import ModernIcons from '@/components/icons/ModernIcons'
-import { ArrowRight, Loader2, AlertCircle, RefreshCw, CheckCircle, Check, Star } from 'lucide-react'
+import { ArrowRight, Loader2, AlertCircle, RefreshCw, CheckCircle, Check, Star, Clock, Sparkles, Shield, Zap, CreditCard } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { TestMessageModal } from '@/components/messaging/TestMessageModal'
 import { StatusBadge } from '@/components/messaging/StatusBadge'
+import { Progress } from '@/components/ui/progress'
 
 export default function WhatsAppPage() {
   const { organizationId, isLoading: sessionLoading } = useSession()
@@ -863,226 +864,354 @@ export default function WhatsAppPage() {
                   </Button>
                 </div>
               ) : (() => {
-                const isBasic = messagingConfig?.whatsappProvider === 'waha'
-                const isPremium = messagingConfig?.whatsappProvider === 'twilio'
-                const hasActivePlan = isBasic || isPremium
+                const status = messagingConfig?.subscription_status || 'none'
+                const isTrial = status === 'trial'
+                const isActive = status === 'active'
+                const isExpired = status === 'expired'
+                const isNone = status === 'none'
+
+                // Calcular días restantes de prueba
+                let daysLeft = 0
+                let trialProgress = 0
+                
+                if (isTrial && messagingConfig?.trial_ends_at) {
+                  const now = new Date()
+                  const endDate = new Date(messagingConfig.trial_ends_at)
+                  const diffTime = endDate.getTime() - now.getTime()
+                  daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
+                  trialProgress = ((7 - daysLeft) / 7) * 100
+                }
+
+                const [activatingTrial, setActivatingTrial] = useState(false)
+
+                const handleStartTrial = async () => {
+                  setActivatingTrial(true)
+                  try {
+                    const response = await fetch('/api/messaging/start-trial', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                    })
+                    
+                    const data = await response.json()
+                    
+                    if (data.success) {
+                      // Recargar configuración
+                      messagingConfigLoadedRef.current = false
+                      loadMessagingConfig()
+                    } else {
+                      alert(data.error || 'Error iniciando prueba')
+                    }
+                  } catch (error) {
+                    console.error('Error iniciando trial:', error)
+                    alert('Error iniciando prueba gratis')
+                  } finally {
+                    setActivatingTrial(false)
+                  }
+                }
+
+                const handleActivateSubscription = () => {
+                  // Redirigir a página de pago/checkout
+                  router.push('/checkout/whatsapp-premium')
+                }
 
                 return (
                   <>
                     <div className="mb-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h2 className="text-2xl font-bold text-text-primary mb-2">💬 Planes de WhatsApp</h2>
-                          <p className="text-text-secondary">Elige cómo quieres usar WhatsApp con tus clientes</p>
+                          <h2 className="text-2xl font-bold text-text-primary mb-2">💬 WhatsApp Business</h2>
+                          <p className="text-text-secondary">Asistente virtual con IA para tu taller</p>
                         </div>
-                        <StatusBadge
-                          status={hasActivePlan ? 'success' : 'warning'}
-                          label={
-                            isBasic 
-                              ? '🟢 Plan Básico' 
-                              : isPremium 
-                              ? '⭐ Plan Premium' 
-                              : '⚠️ Sin configurar'
-                          }
-                        />
+                        {isTrial && (
+                          <Badge variant="secondary" className="text-sm py-1 px-3">
+                            🎁 Prueba Gratis - {daysLeft} días restantes
+                          </Badge>
+                        )}
+                        {isActive && (
+                          <Badge className="text-sm py-1 px-3 bg-green-500">
+                            ✓ Suscripción Activa
+                          </Badge>
+                        )}
+                        {isExpired && (
+                          <Badge variant="destructive" className="text-sm py-1 px-3">
+                            ⚠️ Prueba Finalizada
+                          </Badge>
+                        )}
+                        {isNone && (
+                          <Badge variant="outline" className="text-sm py-1 px-3">
+                            Sin configurar
+                          </Badge>
+                        )}
                       </div>
                     </div>
 
-                    {/* Plan Básico - WAHA */}
-                    <Card className={`mb-6 ${isBasic ? 'border-primary/50 bg-primary/5' : 'border-border'}`}>
-                      <CardHeader>
+                    {/* Trial Alert */}
+                    {isTrial && (
+                      <Alert className="mb-6 border-blue-200 bg-blue-50 dark:bg-blue-950">
+                        <Clock className="h-4 w-4 text-blue-600" />
+                        <AlertDescription className="text-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium text-blue-900 dark:text-blue-100">
+                              Tu prueba gratis finaliza en {daysLeft} días
+                            </span>
+                            <span className="text-xs text-blue-700 dark:text-blue-300">
+                              {daysLeft}/7 días
+                            </span>
+                          </div>
+                          <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2 mb-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full transition-all"
+                              style={{ width: `${trialProgress}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-blue-700 dark:text-blue-300">
+                            Activa tu suscripción antes de que termine para no perder acceso
+                          </p>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* Expired Alert */}
+                    {isExpired && (
+                      <Alert variant="destructive" className="mb-6">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          Tu prueba gratis ha finalizado. Activa tu suscripción para continuar usando WhatsApp Business.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* Main Package Card */}
+                    <Card className="relative overflow-hidden border-2 border-primary/20 shadow-lg mb-6">
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl -z-10"></div>
+                      
+                      <CardHeader className="pb-4">
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3">
-                            <span className="text-3xl">📱</span>
+                            <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+                              <Sparkles className="w-7 h-7 text-white" />
+                            </div>
                             <div>
-                              <CardTitle>Plan Básico - WAHA</CardTitle>
-                              <CardDescription>
-                                Conecta tu WhatsApp personal con código QR
+                              <CardTitle className="text-2xl">WhatsApp Business Premium</CardTitle>
+                              <CardDescription className="text-base">
+                                API Oficial + IA Avanzada
                               </CardDescription>
                             </div>
                           </div>
-                          {isBasic && (
-                            <StatusBadge status="success" label="✓ Activo" />
+                          
+                          {isActive && (
+                            <Badge className="bg-green-500">
+                              ✓ Activo
+                            </Badge>
                           )}
                         </div>
+
+                        {/* Pricing */}
+                        <div className="mt-6 pt-6 border-t">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-4xl font-bold">$2,900</span>
+                            <span className="text-lg text-text-secondary">MXN/mes</span>
+                          </div>
+                          <p className="text-sm text-text-secondary mt-1">
+                            {isTrial && 'Después de tu prueba gratis de 7 días'}
+                            {isExpired && 'Activa ahora para continuar'}
+                            {isActive && 'Tu suscripción está activa'}
+                            {isNone && 'Incluye 7 días de prueba gratis'}
+                          </p>
+                        </div>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm text-text-secondary">
-                            <Check className="w-4 h-4 text-success" />
-                            <span>Setup instantáneo (escanea QR)</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-text-secondary">
-                            <Check className="w-4 h-4 text-success" />
-                            <span>Sin costos adicionales</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-text-secondary">
-                            <Check className="w-4 h-4 text-success" />
-                            <span>Usa tu número actual</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-text-secondary">
-                            <Check className="w-4 h-4 text-success" />
-                            <span>Chatbot con IA incluido</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-text-secondary">
-                            <AlertCircle className="w-4 h-4 text-warning" />
-                            <span>Límites de cuenta personal</span>
+
+                      <CardContent className="space-y-6">
+                        {/* Features Grid */}
+                        <div className="grid gap-4">
+                          <h3 className="font-semibold text-sm text-text-secondary uppercase tracking-wide">
+                            Incluye:
+                          </h3>
+                          
+                          <div className="grid md:grid-cols-2 gap-3">
+                            <div className="flex items-center gap-2">
+                              <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                              <span className="text-sm">WhatsApp Business API Oficial</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                              <span className="text-sm">Badge verificado ✓</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                              <span className="text-sm">IA avanzada (GPT-4o-mini)</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                              <span className="text-sm">Mensajes ilimitados</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                              <span className="text-sm">Número profesional dedicado</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                              <span className="text-sm">Sin riesgo de bloqueo</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                              <span className="text-sm">Plantillas pre-aprobadas</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                              <span className="text-sm">Soporte prioritario 24/7</span>
+                            </div>
                           </div>
                         </div>
 
-                        {isBasic ? (
-                          <div className="bg-bg-tertiary border border-border rounded-lg p-4">
-                            <p className="text-sm text-text-secondary">
-                              Estado: <strong className="text-success">Conectado</strong>
-                            </p>
-                            <p className="text-xs text-text-muted mt-1">
-                              Tu WhatsApp está funcionando correctamente con WAHA
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="bg-info/10 border border-info/20 rounded-lg p-4">
-                            <p className="text-sm text-text-secondary">
-                              ℹ️ Este plan usa el sistema WAHA que ya tienes configurado
-                            </p>
+                        {/* Trial Info */}
+                        {(isNone || isTrial) && (
+                          <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                                <Clock className="w-5 h-5 text-white" />
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-semibold mb-1">
+                                  {isNone ? '7 días de prueba gratis' : 'En período de prueba'}
+                                </h4>
+                                <p className="text-sm text-text-secondary">
+                                  {isNone && 'Prueba todas las funciones sin costo. Usa WAHA durante la prueba, luego migra a API Oficial.'}
+                                  {isTrial && 'Estás usando WAHA. Activa tu suscripción para migrar a WhatsApp Business API Oficial.'}
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         )}
-                      </CardContent>
-                    </Card>
 
-                    {/* Plan Premium - Twilio */}
-                    <Card className={`mb-6 ${isPremium ? 'border-warning/50 bg-warning/5' : 'border-border'}`}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            <Star className="w-6 h-6 text-warning" />
-                            <div>
-                              <CardTitle>Plan Premium - WhatsApp Business API</CardTitle>
-                              <CardDescription>
-                                API oficial de Meta con Twilio
-                              </CardDescription>
+                        {/* Active Subscription Info */}
+                        {isActive && messagingConfig?.whatsapp_api_number && (
+                          <div className="bg-green-50 dark:bg-green-950 rounded-lg p-4 border border-green-200 dark:border-green-800">
+                            <div className="flex items-start gap-3">
+                              <Shield className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-green-900 dark:text-green-100 mb-1">
+                                  Número WhatsApp Business
+                                </h4>
+                                <p className="text-sm text-green-700 dark:text-green-300 font-mono">
+                                  {messagingConfig.whatsapp_api_number}
+                                </p>
+                                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                  API Oficial activa y verificada ✓
+                                </p>
+                              </div>
                             </div>
                           </div>
-                          {isPremium && (
-                            <StatusBadge status="warning" label="⭐ Premium" />
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm text-text-secondary">
-                            <Check className="w-4 h-4 text-success" />
-                            <span>100% estable, nunca se desconecta</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-text-secondary">
-                            <Check className="w-4 h-4 text-success" />
-                            <span>Botones y listas interactivas</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-text-secondary">
-                            <Check className="w-4 h-4 text-success" />
-                            <span>Templates pre-aprobados por Meta</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-text-secondary">
-                            <Check className="w-4 h-4 text-success" />
-                            <span>Sin riesgo de baneo</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-text-secondary">
-                            <Check className="w-4 h-4 text-success" />
-                            <span>Chatbot con IA mejorado</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-text-secondary">
-                            <AlertCircle className="w-4 h-4 text-warning" />
-                            <span>Requiere verificación de Meta (1-2 semanas)</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-text-secondary">
-                            <span className="text-warning">💰</span>
-                            <span>Costo: +$200 MXN/mes</span>
-                          </div>
-                        </div>
+                        )}
 
-                        {isPremium ? (
-                          <div className="bg-bg-tertiary border border-border rounded-lg p-4">
-                            <p className="text-sm text-text-secondary">
-                              Número: <strong className="text-text-primary">{messagingConfig?.whatsappTwilioNumber || 'No configurado'}</strong>
-                            </p>
-                            <p className="text-xs text-text-muted mt-1">
-                              WhatsApp Business API activo
-                              {messagingConfig?.whatsappVerified && (
-                                <span className="text-success ml-2">✓ Verificado</span>
+                        {/* CTA Button */}
+                        <div className="pt-4">
+                          {isNone && (
+                            <Button 
+                              className="w-full h-12 text-base bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
+                              onClick={handleStartTrial}
+                              disabled={activatingTrial}
+                            >
+                              {activatingTrial ? (
+                                <>
+                                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                  Procesando...
+                                </>
+                              ) : (
+                                <>
+                                  <Zap className="w-5 h-5 mr-2" />
+                                  Iniciar Prueba Gratis (7 días)
+                                </>
                               )}
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="bg-info/10 border border-info/20 rounded-lg p-4">
-                            <p className="text-sm font-medium text-text-primary mb-2">
-                              🚀 ¿Quieres hacer upgrade a Premium?
-                            </p>
-                            <p className="text-xs text-text-secondary">
-                              Contacta al soporte para iniciar el proceso de verificación con Meta y configurar tu número empresarial.
-                            </p>
-                          </div>
-                        )}
+                            </Button>
+                          )}
+                          {isExpired && (
+                            <Button 
+                              className="w-full h-12 text-base bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
+                              onClick={handleActivateSubscription}
+                            >
+                              <CreditCard className="w-5 h-5 mr-2" />
+                              Activar Suscripción
+                            </Button>
+                          )}
 
-                        <Button
-                          disabled={!isPremium}
-                          variant={isPremium ? 'primary' : 'outline'}
-                        >
-                          {isPremium ? 'Gestionar Premium' : 'Solicitar Upgrade'}
-                        </Button>
-                      </CardContent>
-                    </Card>
+                          {isTrial && (
+                            <Button 
+                              className="w-full h-12 text-base bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
+                              onClick={handleActivateSubscription}
+                            >
+                              <CreditCard className="w-5 h-5 mr-2" />
+                              Activar Suscripción Ahora
+                            </Button>
+                          )}
 
-                    {/* Comparación de Planes */}
-                    <Card className="border-info/50 bg-info/5">
-                      <CardHeader>
-                        <CardTitle className="text-info">ℹ️ Comparación de Planes</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                          <div>
-                            <h3 className="font-semibold text-text-primary mb-3">Plan Básico (WAHA)</h3>
-                            <ul className="space-y-2 text-text-secondary">
-                              <li className="flex items-start gap-2">
-                                <span>•</span>
-                                <span>Gratis, siempre incluido</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span>•</span>
-                                <span>Perfecto para empezar</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span>•</span>
-                                <span>Usa tu número actual</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span>•</span>
-                                <span>Setup rápido con QR</span>
-                              </li>
-                            </ul>
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-text-primary mb-3">Plan Premium (Twilio)</h3>
-                            <ul className="space-y-2 text-text-secondary">
-                              <li className="flex items-start gap-2">
-                                <span>•</span>
-                                <span>Máxima confiabilidad</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span>•</span>
-                                <span>Funciones avanzadas</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span>•</span>
-                                <span>Número empresarial dedicado</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span>•</span>
-                                <span>Sin límites de cuenta</span>
-                              </li>
-                            </ul>
-                          </div>
+                          {isActive && (
+                            <Button 
+                              variant="outline"
+                              className="w-full h-12 text-base"
+                              onClick={() => router.push('/configuracion/facturacion')}
+                            >
+                              <CreditCard className="w-5 h-5 mr-2" />
+                              Gestionar Suscripción
+                            </Button>
+                          )}
                         </div>
+
+                        {/* Footer Note */}
+                        <p className="text-xs text-center text-text-secondary pt-2">
+                          {(isNone || isExpired) && 'Sin permanencia. Cancela cuando quieras.'}
+                          {isTrial && 'Puedes cancelar durante la prueba sin cargo alguno.'}
+                          {isActive && 'Facturación mensual automática.'}
+                        </p>
                       </CardContent>
                     </Card>
+
+                    {/* Benefits Section */}
+                    <div className="grid md:grid-cols-3 gap-6">
+                      <Card className="text-center">
+                        <CardContent className="pt-6">
+                          <div className="flex justify-center mb-3">
+                            <div className="p-3 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg">
+                              <Shield className="w-8 h-8 text-blue-500" />
+                            </div>
+                          </div>
+                          <h3 className="font-semibold mb-2">100% Seguro</h3>
+                          <p className="text-sm text-text-secondary">API oficial de Meta. Sin riesgo de bloqueo de cuenta.</p>
+                        </CardContent>
+                      </Card>
+                      <Card className="text-center">
+                        <CardContent className="pt-6">
+                          <div className="flex justify-center mb-3">
+                            <div className="p-3 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg">
+                              <Sparkles className="w-8 h-8 text-purple-500" />
+                            </div>
+                          </div>
+                          <h3 className="font-semibold mb-2">IA Avanzada</h3>
+                          <p className="text-sm text-text-secondary">Respuestas inteligentes con contexto completo del cliente.</p>
+                        </CardContent>
+                      </Card>
+                      <Card className="text-center">
+                        <CardContent className="pt-6">
+                          <div className="flex justify-center mb-3">
+                            <div className="p-3 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg">
+                              <Zap className="w-8 h-8 text-yellow-500" />
+                            </div>
+                          </div>
+                          <h3 className="font-semibold mb-2">Sin Límites</h3>
+                          <p className="text-sm text-text-secondary">Envía todos los mensajes que necesites, sin restricciones.</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Help Section */}
+                    <div className="mt-8 text-center">
+                      <p className="text-sm text-text-secondary">
+                        ¿Tienes dudas? {' '}
+                        <a href="/soporte" className="text-primary hover:underline font-medium">
+                          Contacta a soporte
+                        </a>
+                      </p>
+                    </div>
                   </>
                 )
               })()}

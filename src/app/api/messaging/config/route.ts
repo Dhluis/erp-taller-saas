@@ -60,7 +60,51 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 5. Retornar configuración (solo campos seguros)
+    // 5. Obtener datos adicionales de BD para calcular subscription_status
+    const { data: messagingConfig } = await supabaseAdmin
+      .from('organization_messaging_config')
+      .select('subscription_status, trial_ends_at, subscription_started_at, created_at, whatsapp_api_provider, whatsapp_api_number, whatsapp_api_status, tier')
+      .eq('organization_id', profile.organization_id)
+      .single();
+
+    // 6. Calcular subscription_status si no existe
+    let subscriptionStatus = (messagingConfig as any)?.subscription_status || 'none';
+    let trialEndsAt = (messagingConfig as any)?.trial_ends_at || null;
+    
+    // Si no tiene status pero tiene whatsapp habilitado, iniciar trial
+    if (subscriptionStatus === 'none' && config.whatsappEnabled && (messagingConfig as any)?.tier === 'basic') {
+      if (!trialEndsAt && (messagingConfig as any)?.created_at) {
+        // Calcular fecha de fin de trial (7 días desde creación)
+        const createdDate = new Date((messagingConfig as any).created_at);
+        trialEndsAt = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        
+        // Actualizar en BD
+        await supabaseAdmin
+          .from('organization_messaging_config')
+          .update({ 
+            subscription_status: 'trial',
+            trial_ends_at: trialEndsAt 
+          })
+          .eq('organization_id', profile.organization_id);
+        
+        subscriptionStatus = 'trial';
+      } else if (trialEndsAt) {
+        const now = new Date();
+        const trialEnd = new Date(trialEndsAt);
+        
+        if (now < trialEnd) {
+          subscriptionStatus = 'trial';
+        } else if ((messagingConfig as any)?.whatsapp_api_provider === 'twilio') {
+          subscriptionStatus = 'active';
+        } else {
+          subscriptionStatus = 'expired';
+        }
+      }
+    } else if ((messagingConfig as any)?.whatsapp_api_provider === 'twilio' && (messagingConfig as any)?.whatsapp_api_status === 'active') {
+      subscriptionStatus = 'active';
+    }
+
+    // 7. Retornar configuración (solo campos seguros)
     return NextResponse.json({
       success: true,
       config: {
@@ -77,6 +121,10 @@ export async function GET(request: NextRequest) {
         monthlyEmailLimit: config.monthlyEmailLimit,
         monthlyWhatsappLimit: config.monthlyWhatsappLimit,
         tier: (config as any).tier || 'basic',
+        subscription_status: subscriptionStatus,
+        trial_ends_at: trialEndsAt,
+        whatsapp_api_provider: (messagingConfig as any)?.whatsapp_api_provider || null,
+        whatsapp_api_number: (messagingConfig as any)?.whatsapp_api_number || null,
       }
     });
   } catch (error: any) {
