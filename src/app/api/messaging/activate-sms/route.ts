@@ -266,21 +266,46 @@ export async function POST(req: NextRequest) {
       console.log('🔍 [SMS Activation] PASO 1: Verificando números existentes en cuenta...');
       const existingNumbers = await twilioClient.incomingPhoneNumbers.list({ limit: 100 });
       
-      console.log(`📋 [SMS Activation] Total números en cuenta: ${existingNumbers.length}`);
+      console.log(`📋 [SMS Activation] Total números en cuenta Twilio: ${existingNumbers.length}`);
       
-      // Filtrar números disponibles del país correcto
+      // Obtener números ya asignados en BD para evitar duplicados
+      const { data: assignedNumbers } = await supabaseAdmin
+        .from('organization_messaging_config')
+        .select('sms_twilio_number, sms_twilio_sid, organization_id')
+        .not('sms_twilio_number', 'is', null);
+      
+      const assignedPhoneNumbers = new Set(
+        (assignedNumbers || [])
+          .filter(n => n.sms_twilio_number)
+          .map(n => n.sms_twilio_number)
+      );
+      
+      const assignedSids = new Set(
+        (assignedNumbers || [])
+          .filter(n => n.sms_twilio_sid)
+          .map(n => n.sms_twilio_sid)
+      );
+      
+      console.log(`📋 [SMS Activation] Números asignados en BD: ${assignedPhoneNumbers.size}`);
+      
+      // Filtrar números disponibles del país correcto y NO asignados
       const countryPrefix = getCountryPhonePrefix(countryCode);
       const availableInAccount = existingNumbers.filter(num => {
         // Número del país correcto
         const isCorrectCountry = num.phoneNumber.startsWith(countryPrefix);
         
-        // NO está asignado a otra organización (verificar en BD)
-        // TODO: Implementar verificación en BD si quieres reutilizar números
+        // NO está asignado a otra organización
+        const isNotAssigned = !assignedPhoneNumbers.has(num.phoneNumber) && 
+                              !assignedSids.has(num.sid);
         
-        return isCorrectCountry;
+        return isCorrectCountry && isNotAssigned;
       });
       
-      console.log(`📱 [SMS Activation] Números de ${countryInfo.name} en cuenta: ${availableInAccount.length}`);
+      console.log(`📱 [SMS Activation] Números disponibles de ${countryInfo.name} (no asignados): ${availableInAccount.length}`);
+      
+      if (availableInAccount.length > 0) {
+        console.log(`📱 [SMS Activation] Números disponibles:`, availableInAccount.map(n => n.phoneNumber).join(', '));
+      }
       
       // OPCIÓN A: Reutilizar número existente (si tienes pool)
       if (availableInAccount.length > 0) {
