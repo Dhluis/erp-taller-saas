@@ -122,7 +122,23 @@ export async function POST(req: NextRequest) {
     const authToken = cleanEnvVar(process.env.TWILIO_AUTH_TOKEN);
     
     // Obtener Bundle SID específico para el país de la organización
+    const bundleEnvVar = `TWILIO_REGULATORY_BUNDLE_${countryCode.toUpperCase()}`;
+    
+    // 🔍 DEBUG: Verificar variables de entorno disponibles
+    console.log(`🔍 [Activate SMS] DEBUG - Verificando variables de entorno...`);
+    console.log(`🔍 [Activate SMS] DEBUG - País: ${countryCode}`);
+    console.log(`🔍 [Activate SMS] DEBUG - Variable buscada: ${bundleEnvVar}`);
+    console.log(`🔍 [Activate SMS] DEBUG - Variable existe: ${!!process.env[bundleEnvVar]}`);
+    console.log(`🔍 [Activate SMS] DEBUG - Variable valor (primeros 10 chars): ${process.env[bundleEnvVar]?.substring(0, 10) || 'NO DEFINIDA'}`);
+    console.log(`🔍 [Activate SMS] DEBUG - TWILIO_REGULATORY_BUNDLE_SID existe: ${!!process.env.TWILIO_REGULATORY_BUNDLE_SID}`);
+    
+    // Listar todas las variables que empiezan con TWILIO_REGULATORY_BUNDLE
+    const allTwilioVars = Object.keys(process.env).filter(key => key.startsWith('TWILIO_REGULATORY_BUNDLE'));
+    console.log(`🔍 [Activate SMS] DEBUG - Variables TWILIO_REGULATORY_BUNDLE encontradas: ${allTwilioVars.join(', ') || 'NINGUNA'}`);
+    
     const bundleSid = getBundleSidForCountry(countryCode);
+    
+    console.log(`🔍 [Activate SMS] DEBUG - Bundle SID obtenido: ${bundleSid ? bundleSid.substring(0, 10) + '...' : 'NULL'}`);
     
     if (!accountSid || !authToken) {
       return NextResponse.json({ success: false, error: 'Servicio SMS no configurado' }, { status: 500 });
