@@ -373,8 +373,23 @@ export default function NewPurchaseOrderPage() {
                           type="number"
                           min="0"
                           step="0.01"
-                          value={item.unit_cost}
-                          onChange={(e) => updateItem(item.id, 'unit_cost', parseFloat(e.target.value) || 0)}
+                          value={item.unit_cost === 0 ? '' : item.unit_cost}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Si está vacío o solo tiene signos, usar 0
+                            if (value === '' || value === '-' || value === '+') {
+                              updateItem(item.id, 'unit_cost', 0);
+                            } else {
+                              const numValue = parseFloat(value);
+                              updateItem(item.id, 'unit_cost', isNaN(numValue) ? 0 : numValue);
+                            }
+                          }}
+                          onFocus={(e) => {
+                            // Si el valor es 0, seleccionar todo el texto para reemplazarlo fácilmente
+                            if (item.unit_cost === 0) {
+                              e.target.select();
+                            }
+                          }}
                         />
                       </div>
                       
