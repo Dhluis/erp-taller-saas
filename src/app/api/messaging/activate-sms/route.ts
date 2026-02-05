@@ -299,30 +299,10 @@ export async function POST(req: NextRequest) {
               country: newAddress.isoCountry
             });
             
-            // Asignar Address al Bundle
-            console.log('🔗 [Activate SMS] Asignando Address al Bundle...');
-            
-            const assignment = await twilioClient.numbers.v2
-              .regulatoryCompliance
-              .bundles(bundleSid)
-              .itemAssignments
-              .create({
-                objectSid: addressSid
-              });
-            
-            console.log('✅ [Activate SMS] Address asignado al Bundle:', assignment.sid);
-            
-            // Enviar Bundle para re-evaluación (Twilio lo re-aprueba automáticamente)
-            console.log('📤 [Activate SMS] Re-evaluando Bundle con nuevo Address...');
-            
-            await twilioClient.numbers.v2
-              .regulatoryCompliance
-              .bundles(bundleSid)
-              .update({
-                status: 'pending-review'
-              });
-            
-            console.log('✅ [Activate SMS] Bundle actualizado, continuando con compra...');
+            // NOTA: No se puede asignar Address al Bundle después de creado
+            // El Address debe agregarse durante la creación/actualización del Bundle en Twilio Console
+            // Por ahora, usaremos el Address directamente en la compra del número
+            console.log('ℹ️ [Activate SMS] Address creado. Nota: Debe agregarse al Bundle manualmente en Twilio Console si es necesario.');
             
           } catch (createAddressError: any) {
             console.error('❌ [Activate SMS] Error creando/asignando Address:', createAddressError);
@@ -395,6 +375,8 @@ export async function POST(req: NextRequest) {
     
     // 5. ESTRATEGIA DE COMPRA INTELIGENTE
     let selectedNumber;
+    let numberType = 'local'; // Inicializar fuera del try para que esté disponible en catch
+    let numbersToBuy: any[] = []; // Inicializar fuera del try
     
     try {
       console.log('🔍 [SMS Activation] PASO 1: Verificando números existentes en cuenta...');
@@ -461,8 +443,8 @@ export async function POST(req: NextRequest) {
         console.log('🛒 [SMS Activation] PASO 2: Comprando número nuevo...');
         console.log(`🌍 [SMS Activation] País objetivo: ${countryInfo.name} (${countryCode})`);
         
-        let numbersToBuy: any[] = [];
-        let numberType = 'local';
+        numbersToBuy = []; // Resetear array
+        numberType = 'local'; // Resetear tipo
         let foundInArea = '';
         
         // Obtener área codes para este país
@@ -550,9 +532,11 @@ export async function POST(req: NextRequest) {
         }
         
         // ESTRATEGIA 4: Mobile como ÚLTIMO recurso (requiere Bundle tipo Mobile diferente)
-        if (numbersToBuy.length === 0) {
+        // SOLO intentar si el Bundle NO es tipo Local (para evitar error 21649)
+        const isLocalBundle = bundleInfo?.friendlyName?.includes('Local') || bundleInfo?.friendlyName?.includes('local');
+        
+        if (numbersToBuy.length === 0 && !isLocalBundle) {
           console.log(`📱 [SMS Activation] ESTRATEGIA 4: Intentando números Mobile...`);
-          console.log(`⚠️ [SMS Activation] ADVERTENCIA: Bundle actual es tipo Local, Mobile puede fallar`);
           
           try {
             numbersToBuy = await twilioClient
@@ -572,6 +556,8 @@ export async function POST(req: NextRequest) {
           } catch (mobileError: any) {
             console.log(`⚠️ [SMS Activation] No hay números Mobile:`, mobileError.message);
           }
+        } else if (numbersToBuy.length === 0 && isLocalBundle) {
+          console.log(`⏭️ [SMS Activation] Saltando Mobile - Bundle es tipo Local y no es compatible con números Mobile`);
         }
         
         // Verificar si se encontraron números
@@ -768,21 +754,24 @@ export async function POST(req: NextRequest) {
         }, { status: 503 });
       }
       
-      // Error: Bundle tipo incorrecto para el número
-      if (error.code === 21617 || error.message?.includes('regulation type') || error.message?.includes('correct regulation')) {
+      // Error: Bundle tipo incorrecto para el número (21649 o 21617)
+      if (error.code === 21649 || error.code === 21617 || error.message?.includes('regulation type') || error.message?.includes('correct regulation')) {
         console.error('❌ [Activate SMS] Bundle tipo incorrecto para este número');
+        const bundleName = bundleInfo?.friendlyName || bundleSid || 'Bundle desconocido';
+        const currentNumberType = numberType || 'desconocido';
         return NextResponse.json({
           success: false,
           error: 'Bundle tipo incorrecto',
-          details: `El Bundle "${bundleInfo?.friendlyName || bundleSid}" es tipo "Local" pero el número requiere Bundle tipo "${numberType === 'mobile' ? 'Mobile' : numberType}".`,
-          suggestion: numberType === 'mobile' 
-            ? 'El sistema buscará números Local que son compatibles con tu Bundle actual.'
+          details: `El Bundle "${bundleName}" es tipo "Local" pero el número requiere Bundle tipo "${currentNumberType === 'mobile' ? 'Mobile' : currentNumberType}".`,
+          suggestion: currentNumberType === 'mobile' 
+            ? 'El sistema buscará números Local que son compatibles con tu Bundle actual. Si no hay números Local disponibles, necesitarás crear un Bundle tipo Mobile en Twilio.'
             : 'Contacta a soporte para obtener el Bundle correcto.',
           twilioError: error.message,
           code: error.code,
           bundleType: 'local',
-          requiredType: numberType,
-          action: 'retry_with_local_numbers'
+          requiredType: currentNumberType,
+          action: 'retry_with_local_numbers',
+          twilioDocs: 'https://www.twilio.com/docs/phone-numbers/regulatory/bundles'
         }, { status: 400 });
       }
       
