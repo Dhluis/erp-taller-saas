@@ -46,10 +46,6 @@ export async function GET(request: NextRequest) {
           emailEnabled: true,
           emailFromName: process.env.SMTP_FROM_NAME || 'Eagles ERP',
           emailReplyTo: process.env.SMTP_FROM_EMAIL || 'servicios@eaglessystem.io',
-          smsEnabled: false,
-          smsFromNumber: process.env.TWILIO_PHONE_NUMBER || null,
-          smsAutoNotifications: false,
-          smsNotificationStatuses: ['completed', 'ready'],
           whatsappProvider: 'waha',
           whatsappEnabled: false,
           whatsappTwilioNumber: null,
@@ -58,30 +54,19 @@ export async function GET(request: NextRequest) {
           chatbotEnabled: true,
           chatbotSystemPrompt: null,
           monthlyEmailLimit: 1000,
-          monthlySmsLimit: 100,
           monthlyWhatsappLimit: 500,
+          tier: 'basic',
         }
       });
     }
 
-    // 5. Obtener campos adicionales de SMS automático
-    const { data: messagingConfig } = await supabaseAdmin
-      .from('organization_messaging_config')
-      .select('sms_auto_notifications, sms_notification_statuses')
-      .eq('organization_id', profile.organization_id)
-      .single();
-
-    // 6. Retornar configuración (solo campos seguros)
+    // 5. Retornar configuración (solo campos seguros)
     return NextResponse.json({
       success: true,
       config: {
         emailEnabled: config.emailEnabled,
         emailFromName: config.emailFromName,
         emailReplyTo: config.emailReplyTo,
-        smsEnabled: config.smsEnabled,
-        smsFromNumber: config.smsFromNumber,
-        smsAutoNotifications: (messagingConfig as any)?.sms_auto_notifications ?? false,
-        smsNotificationStatuses: (messagingConfig as any)?.sms_notification_statuses || ['completed', 'ready'],
         whatsappProvider: config.whatsappProvider,
         whatsappEnabled: config.whatsappEnabled,
         whatsappTwilioNumber: config.whatsappTwilioNumber,
@@ -90,8 +75,8 @@ export async function GET(request: NextRequest) {
         chatbotEnabled: config.chatbotEnabled,
         chatbotSystemPrompt: config.chatbotSystemPrompt,
         monthlyEmailLimit: config.monthlyEmailLimit,
-        monthlySmsLimit: config.monthlySmsLimit,
         monthlyWhatsappLimit: config.monthlyWhatsappLimit,
+        tier: (config as any).tier || 'basic',
       }
     });
   } catch (error: any) {
@@ -152,18 +137,14 @@ export async function PUT(request: NextRequest) {
       'email_enabled',
       'email_from_name',
       'email_reply_to',
-      'sms_enabled',
-      'sms_from_number',
-      'sms_auto_notifications',
-      'sms_notification_statuses',
       'whatsapp_provider',
       'whatsapp_enabled',
       'whatsapp_twilio_number',
       'chatbot_enabled',
       'chatbot_system_prompt',
       'monthly_email_limit',
-      'monthly_sms_limit',
       'monthly_whatsapp_limit',
+      'tier',
     ];
 
     const updates: any = {};
@@ -206,10 +187,6 @@ export async function PUT(request: NextRequest) {
       emailEnabled: configData.email_enabled ?? true,
       emailFromName: configData.email_from_name || 'Eagles ERP',
       emailReplyTo: configData.email_reply_to,
-      smsEnabled: configData.sms_enabled ?? false,
-      smsFromNumber: configData.sms_from_number,
-      smsAutoNotifications: configData.sms_auto_notifications ?? false,
-      smsNotificationStatuses: configData.sms_notification_statuses || ['completed', 'ready'],
       whatsappProvider: configData.whatsapp_provider || 'waha',
       whatsappEnabled: configData.whatsapp_enabled ?? false,
       whatsappTwilioNumber: configData.whatsapp_twilio_number,
@@ -217,8 +194,8 @@ export async function PUT(request: NextRequest) {
       chatbotEnabled: configData.chatbot_enabled ?? false,
       chatbotSystemPrompt: configData.chatbot_system_prompt,
       monthlyEmailLimit: configData.monthly_email_limit ?? 1000,
-      monthlySmsLimit: configData.monthly_sms_limit ?? 100,
       monthlyWhatsappLimit: configData.monthly_whatsapp_limit ?? 500,
+      tier: configData.tier || 'basic',
     };
 
     return NextResponse.json({

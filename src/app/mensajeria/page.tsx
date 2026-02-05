@@ -11,9 +11,9 @@ export const dynamic = 'force-dynamic';
 
 interface MessagingConfig {
   emailEnabled: boolean;
-  smsEnabled: boolean;
   whatsappProvider: 'waha' | 'twilio';
   whatsappEnabled: boolean;
+  tier?: 'basic' | 'premium';
 }
 
 export default function MessagingPage() {
@@ -51,11 +51,6 @@ export default function MessagingPage() {
     return config.emailEnabled ? 'active' : 'inactive';
   };
 
-  const getSMSStatus = () => {
-    if (!config) return 'not-configured';
-    return config.smsEnabled ? 'active' : 'inactive';
-  };
-
   const getWhatsAppStatus = () => {
     if (!config) return 'not-configured';
     if (config.whatsappProvider === 'twilio' && config.whatsappEnabled) return 'active';
@@ -77,7 +72,7 @@ export default function MessagingPage() {
       <div className="mb-8 mt-4">
         <h1 className="text-3xl font-bold text-text-primary mb-2">💬 Mensajería</h1>
         <p className="text-text-secondary">
-          Gestiona cómo te comunicas con tus clientes a través de Email, SMS y WhatsApp
+          Gestiona cómo te comunicas con tus clientes a través de Email y WhatsApp
         </p>
       </div>
 
@@ -89,14 +84,6 @@ export default function MessagingPage() {
           description="Envía cotizaciones y notificaciones por correo electrónico"
           status={getEmailStatus()}
           href="/mensajeria/email"
-        />
-
-        <ChannelCard
-          icon="📱"
-          title="SMS"
-          description="Notificaciones rápidas por mensaje de texto"
-          status={getSMSStatus()}
-          href="/mensajeria/sms"
         />
 
         <ChannelCard
@@ -114,30 +101,21 @@ export default function MessagingPage() {
           <CardTitle className="text-info">ℹ️ Información sobre Mensajería</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-text-secondary">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-text-secondary">
             <div>
               <h3 className="font-semibold text-text-primary mb-2">📧 Email</h3>
               <ul className="space-y-1">
                 <li>• Ideal para cotizaciones detalladas</li>
                 <li>• Sin límites de caracteres</li>
                 <li>• Incluye archivos adjuntos</li>
-                <li>• Gratis con SendGrid</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-text-primary mb-2">📱 SMS</h3>
-              <ul className="space-y-1">
-                <li>• Notificaciones urgentes</li>
-                <li>• Máximo 1600 caracteres</li>
-                <li>• Formato automático +52</li>
-                <li>• ~$0.15 MXN por mensaje</li>
+                <li>• Gratis con Resend</li>
               </ul>
             </div>
             <div>
               <h3 className="font-semibold text-text-primary mb-2">💬 WhatsApp</h3>
               <ul className="space-y-1">
-                <li>• Plan Básico (WAHA) gratis</li>
-                <li>• Plan Premium (Twilio) +$200/mes</li>
+                <li>• Plan Básico (WAHA) - Gratis</li>
+                <li>• Plan Premium (Twilio API) - $200/mes</li>
                 <li>• Chatbot con IA incluido</li>
                 <li>• Máxima confiabilidad</li>
               </ul>

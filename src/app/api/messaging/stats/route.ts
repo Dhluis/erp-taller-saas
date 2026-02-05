@@ -40,10 +40,6 @@ export async function GET(request: NextRequest) {
           enabled: true,
           configured: !!process.env.SENDGRID_API_KEY,
         },
-        sms: {
-          enabled: !!process.env.TWILIO_PHONE_NUMBER,
-          configured: !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN),
-        },
         whatsapp: {
           provider: 'waha',
           enabled: true,
@@ -55,7 +51,6 @@ export async function GET(request: NextRequest) {
       },
       usage: {
         emailsSent: 0,
-        smsSent: 0,
         whatsappSent: 0,
       }
     };
