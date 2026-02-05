@@ -364,7 +364,7 @@ export async function POST(req: NextRequest) {
                 .local
                 .list({ 
                   smsEnabled: true, 
-                  areaCode: areaCode,
+                  areaCode: parseInt(areaCode),
                   limit: 5 
                 });
               
@@ -479,16 +479,18 @@ export async function POST(req: NextRequest) {
           statusCallbackMethod: 'POST'
         };
         
-        // Agregar Bundle SID si es número local (Toll-Free no lo necesita)
-        if (numberType === 'local') {
+        // Agregar Bundle SID para Local y Mobile (Toll-Free no lo necesita)
+        if (numberType === 'local' || numberType === 'mobile') {
           if (!bundleSid) {
-            throw new Error('Bundle regulatorio requerido para números locales pero no está configurado');
+            throw new Error(`Bundle regulatorio requerido para números ${numberType} pero no está configurado`);
           }
           if (bundleStatus !== 'twilio-approved' && bundleStatus !== 'approved') {
-            throw new Error('Bundle regulatorio requerido para números locales pero no está aprobado');
+            throw new Error(`Bundle regulatorio requerido para números ${numberType} pero no está aprobado`);
           }
           purchaseParams.bundleSid = bundleSid;
-          console.log(`📋 [Activate SMS] Usando Bundle: ${bundleSid} (Status: ${bundleStatus})`);
+          console.log(`📋 [Activate SMS] Usando Bundle para ${numberType}: ${bundleSid} (Status: ${bundleStatus})`);
+        } else if (numberType === 'toll-free') {
+          console.log(`📋 [Activate SMS] Toll-Free no requiere Bundle`);
         }
         
         // COMPRAR NÚMERO
