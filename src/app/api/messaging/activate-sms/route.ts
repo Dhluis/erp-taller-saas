@@ -88,11 +88,11 @@ export async function POST(req: NextRequest) {
     // 2. Obtener datos de la organización
     const { data: organization } = await supabaseAdmin
       .from('organizations')
-      .select('id, name, country, address')
+      .select('id, name, country, address, phone, email')
       .eq('id', organizationId)
       .single();
     
-    const orgData = organization as { id: string; name: string; country?: string; address?: string; city?: string } | null;
+    const orgData = organization as { id: string; name: string; country?: string; address?: string; phone?: string; email?: string; city?: string } | null;
     
     if (!orgData) {
       return NextResponse.json({ success: false, error: 'Organización no encontrada' }, { status: 404 });
@@ -261,6 +261,91 @@ export async function POST(req: NextRequest) {
             sid: i.sid,
             objectSid: i.objectSid
           })));
+          
+          // Crear Address automáticamente usando datos de la organización
+          console.log('🏗️ [Activate SMS] Creando Address desde datos de la organización...');
+          
+          try {
+            // Validar que tengamos los datos necesarios
+            if (!orgData?.address || !orgData?.name) {
+              throw new Error('La organización necesita tener dirección y nombre configurados');
+            }
+            
+            // Crear Address en Twilio
+            console.log('📝 [Activate SMS] Datos de la organización:', {
+              name: orgData.name,
+              address: orgData.address,
+              country: countryCode
+            });
+            
+            const newAddress = await twilioClient.addresses.create({
+              customerName: orgData.name,
+              street: orgData.address,
+              city: 'Ciudad', // Twilio requiere ciudad, usar placeholder si no existe
+              region: countryCode === 'MX' ? 'AGS' : 'N/A', // Estado/Región
+              postalCode: '20000', // Placeholder, Twilio lo requiere
+              isoCountry: countryCode,
+              autoCorrectAddress: true, // Twilio auto-corrige formato
+              friendlyName: `${orgData.name} - Auto-created for SMS`
+            });
+            
+            addressSid = newAddress.sid;
+            console.log('✅ [Activate SMS] Address creado:', addressSid);
+            console.log('📋 [Activate SMS] Address details:', {
+              sid: newAddress.sid,
+              street: newAddress.street,
+              city: newAddress.city,
+              region: newAddress.region,
+              country: newAddress.isoCountry
+            });
+            
+            // Asignar Address al Bundle
+            console.log('🔗 [Activate SMS] Asignando Address al Bundle...');
+            
+            const assignment = await twilioClient.numbers.v2
+              .regulatoryCompliance
+              .bundles(bundleSid)
+              .itemAssignments
+              .create({
+                objectSid: addressSid
+              });
+            
+            console.log('✅ [Activate SMS] Address asignado al Bundle:', assignment.sid);
+            
+            // Enviar Bundle para re-evaluación (Twilio lo re-aprueba automáticamente)
+            console.log('📤 [Activate SMS] Re-evaluando Bundle con nuevo Address...');
+            
+            await twilioClient.numbers.v2
+              .regulatoryCompliance
+              .bundles(bundleSid)
+              .update({
+                status: 'pending-review'
+              });
+            
+            console.log('✅ [Activate SMS] Bundle actualizado, continuando con compra...');
+            
+          } catch (createAddressError: any) {
+            console.error('❌ [Activate SMS] Error creando/asignando Address:', createAddressError);
+            console.error('📋 [Activate SMS] Error details:', {
+              code: createAddressError.code,
+              message: createAddressError.message,
+              status: createAddressError.status
+            });
+            
+            // Si falla, informar al usuario que necesita configurar dirección manualmente
+            if (!orgData?.address) {
+              return NextResponse.json({
+                success: false,
+                error: 'Dirección de la organización no configurada',
+                details: 'Por favor configura la dirección de tu organización en la configuración del perfil.',
+                action: 'update_organization_address',
+                redirectTo: '/configuracion/organizacion'
+              }, { status: 400 });
+            }
+            
+            // Si falla por otra razón, continuar sin addressSid e informar
+            console.log('⚠️ [Activate SMS] Continuando sin Address - puede fallar en números Mobile');
+          }
         }
         
       } catch (addressError: any) {
@@ -647,6 +732,23 @@ export async function POST(req: NextRequest) {
           details: 'La cuenta de Twilio ha alcanzado el límite de números.',
           adminAction: 'Actualizar plan de Twilio o liberar números no usados',
           twilioUrl: 'https://console.twilio.com/billing/upgrade',
+          code: error.code
+        }, { status: 400 });
+      }
+      
+      if (error.code === 21631) {
+        console.error('❌ [Activate SMS] Address requerido pero no disponible');
+        return NextResponse.json({
+          success: false,
+          error: 'Número requiere dirección verificada',
+          details: 'Los números Mobile en México requieren una dirección verificada en el Regulatory Bundle.',
+          action: 'configure_address',
+          steps: [
+            '1. Verifica que tu organización tenga dirección configurada',
+            '2. El sistema intentará crear el Address automáticamente',
+            '3. Si persiste el error, contacta a soporte'
+          ],
+          twilioError: error.message,
           code: error.code
         }, { status: 400 });
       }
