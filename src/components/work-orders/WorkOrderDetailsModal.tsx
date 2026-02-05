@@ -25,17 +25,18 @@ interface WorkOrderDetailsModalProps {
   onUpdate?: () => void
 }
 
+// ✅ Estados oficiales según BD (11 estados)
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   reception: { label: 'Recepción', color: 'bg-gray-500' },
   diagnosis: { label: 'Diagnóstico', color: 'bg-purple-500' },
   initial_quote: { label: 'Cotización', color: 'bg-blue-500' },
   waiting_approval: { label: 'Esperando Aprobación', color: 'bg-yellow-500' },
-  disassembly: { label: 'Desarmado', color: 'bg-pink-500' },
-  waiting_parts: { label: 'Esperando Piezas', color: 'bg-orange-500' },
-  assembly: { label: 'Armado', color: 'bg-cyan-500' },
-  testing: { label: 'Pruebas', color: 'bg-teal-500' },
-  ready: { label: 'Listo', color: 'bg-lime-500' },
-  completed: { label: 'Completado', color: 'bg-green-500' },
+  disassembly: { label: 'Desarmado', color: 'bg-orange-500' },
+  waiting_parts: { label: 'Esperando Piezas', color: 'bg-amber-500' },
+  assembly: { label: 'Armado', color: 'bg-indigo-500' },
+  testing: { label: 'Pruebas', color: 'bg-cyan-500' },
+  ready: { label: 'Listo', color: 'bg-green-500' },
+  completed: { label: 'Completado', color: 'bg-emerald-500' },
   cancelled: { label: 'Cancelado', color: 'bg-red-500' }
 }
 

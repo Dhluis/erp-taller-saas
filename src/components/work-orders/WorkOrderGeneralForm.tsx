@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -70,6 +71,7 @@ export function WorkOrderGeneralForm({
         description: '',
         estimated_cost: '',
         assigned_to: '',
+        status: 'reception',
         fluids: {
           aceite_motor: false,
           aceite_transmision: false,
@@ -144,6 +146,7 @@ export function WorkOrderGeneralForm({
       description: orderData.description || '',
       estimated_cost: orderData.estimated_cost ? orderData.estimated_cost.toString() : '',
       assigned_to: orderData.assigned_user?.id || orderData.assigned_to || '',
+      status: orderData.status || 'reception',
       
       // Inspección
       fluids,
@@ -290,6 +293,7 @@ export function WorkOrderGeneralForm({
       const orderUpdate: any = {
         description: formData.description,
         estimated_cost: formData.estimated_cost ? parseFloat(formData.estimated_cost) : null,
+        status: formData.status,
       }
       
       if (formData.assigned_to) {
@@ -902,41 +906,127 @@ export function WorkOrderGeneralForm({
         </div>
       </div>
 
-      {/* Asignar o Reasignar Empleado */}
-      <div className="space-y-4">
-        <Label htmlFor="assigned_to">Asignar o Reasignar Empleado</Label>
-        {isEditing ? (
-          <Select
-            name="assigned_to"
-            value={formData.assigned_to && formData.assigned_to !== '' ? formData.assigned_to : 'none'}
-            onValueChange={(value) => {
-              setFormData(prev => ({ ...prev, assigned_to: value === 'none' ? '' : value }))
-            }}
-            disabled={loadingEmployees}
-          >
-            <SelectTrigger className="bg-slate-900/50 border-slate-700 text-white hover:bg-slate-800 focus:bg-primary/25 w-full">
-              <SelectValue placeholder="Seleccionar empleado..." />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-900 border-slate-700 text-white">
-              <SelectItem value="none" className="hover:bg-slate-800 focus:bg-slate-800 text-white">
-                Sin asignar
-              </SelectItem>
-              {employees.map((employee) => (
-                <SelectItem 
-                  key={employee.id} 
-                  value={employee.id}
-                  className="hover:bg-slate-800 focus:bg-slate-800 text-white"
-                >
-                  {employee.full_name} ({employee.role === 'MECANICO' ? 'Mecánico' : 'Asesor'})
+      {/* Estado y Asignación */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Estado de la Orden */}
+        <div className="space-y-2">
+          <Label htmlFor="status">Estado de la Orden</Label>
+          {isEditing ? (
+            <Select
+              name="status"
+              value={formData.status}
+              onValueChange={(value) => {
+                setFormData(prev => ({ ...prev, status: value }))
+              }}
+            >
+              <SelectTrigger className="bg-slate-900/50 border-slate-700 text-white hover:bg-slate-800 focus:bg-primary/25 w-full">
+                <SelectValue placeholder="Seleccionar estado..." />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                <SelectItem value="reception" className="hover:bg-slate-800 focus:bg-slate-800 text-white">
+                  Recepción
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {(order as any)?.assigned_user?.full_name || 'Sin asignar'}
-          </p>
-        )}
+                <SelectItem value="diagnosis" className="hover:bg-slate-800 focus:bg-slate-800 text-white">
+                  Diagnóstico
+                </SelectItem>
+                <SelectItem value="initial_quote" className="hover:bg-slate-800 focus:bg-slate-800 text-white">
+                  Cotización
+                </SelectItem>
+                <SelectItem value="waiting_approval" className="hover:bg-slate-800 focus:bg-slate-800 text-white">
+                  Esperando Aprobación
+                </SelectItem>
+                <SelectItem value="disassembly" className="hover:bg-slate-800 focus:bg-slate-800 text-white">
+                  Desarmado
+                </SelectItem>
+                <SelectItem value="waiting_parts" className="hover:bg-slate-800 focus:bg-slate-800 text-white">
+                  Esperando Piezas
+                </SelectItem>
+                <SelectItem value="assembly" className="hover:bg-slate-800 focus:bg-slate-800 text-white">
+                  Armado
+                </SelectItem>
+                <SelectItem value="testing" className="hover:bg-slate-800 focus:bg-slate-800 text-white">
+                  Pruebas
+                </SelectItem>
+                <SelectItem value="ready" className="hover:bg-slate-800 focus:bg-slate-800 text-white">
+                  Listo
+                </SelectItem>
+                <SelectItem value="completed" className="hover:bg-slate-800 focus:bg-slate-800 text-white">
+                  Completado
+                </SelectItem>
+                <SelectItem value="cancelled" className="hover:bg-slate-800 focus:bg-slate-800 text-white">
+                  Cancelado
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Badge className={`${
+                formData.status === 'reception' ? 'bg-gray-500' :
+                formData.status === 'diagnosis' ? 'bg-purple-500' :
+                formData.status === 'initial_quote' ? 'bg-blue-500' :
+                formData.status === 'waiting_approval' ? 'bg-yellow-500' :
+                formData.status === 'disassembly' ? 'bg-orange-500' :
+                formData.status === 'waiting_parts' ? 'bg-amber-500' :
+                formData.status === 'assembly' ? 'bg-indigo-500' :
+                formData.status === 'testing' ? 'bg-cyan-500' :
+                formData.status === 'ready' ? 'bg-green-500' :
+                formData.status === 'completed' ? 'bg-emerald-500' :
+                formData.status === 'cancelled' ? 'bg-red-500' :
+                'bg-gray-500'
+              } text-white`}>
+                {formData.status === 'reception' ? 'Recepción' :
+                 formData.status === 'diagnosis' ? 'Diagnóstico' :
+                 formData.status === 'initial_quote' ? 'Cotización' :
+                 formData.status === 'waiting_approval' ? 'Esperando Aprobación' :
+                 formData.status === 'disassembly' ? 'Desarmado' :
+                 formData.status === 'waiting_parts' ? 'Esperando Piezas' :
+                 formData.status === 'assembly' ? 'Armado' :
+                 formData.status === 'testing' ? 'Pruebas' :
+                 formData.status === 'ready' ? 'Listo' :
+                 formData.status === 'completed' ? 'Completado' :
+                 formData.status === 'cancelled' ? 'Cancelado' :
+                 formData.status}
+              </Badge>
+            </div>
+          )}
+        </div>
+
+        {/* Asignar o Reasignar Empleado */}
+        <div className="space-y-2">
+          <Label htmlFor="assigned_to">Asignar o Reasignar Empleado</Label>
+          {isEditing ? (
+            <Select
+              name="assigned_to"
+              value={formData.assigned_to && formData.assigned_to !== '' ? formData.assigned_to : 'none'}
+              onValueChange={(value) => {
+                setFormData(prev => ({ ...prev, assigned_to: value === 'none' ? '' : value }))
+              }}
+              disabled={loadingEmployees}
+            >
+              <SelectTrigger className="bg-slate-900/50 border-slate-700 text-white hover:bg-slate-800 focus:bg-primary/25 w-full">
+                <SelectValue placeholder="Seleccionar empleado..." />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                <SelectItem value="none" className="hover:bg-slate-800 focus:bg-slate-800 text-white">
+                  Sin asignar
+                </SelectItem>
+                {employees.map((employee) => (
+                  <SelectItem 
+                    key={employee.id} 
+                    value={employee.id}
+                    className="hover:bg-slate-800 focus:bg-slate-800 text-white"
+                  >
+                    {employee.full_name} ({employee.role === 'MECANICO' ? 'Mecánico' : 'Asesor'})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {(order as any)?.assigned_user?.full_name || 'Sin asignar'}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   )

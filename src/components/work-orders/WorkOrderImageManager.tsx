@@ -600,9 +600,13 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                     </div>
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-slate-900 border-slate-700 text-white">
                   {Object.entries(CATEGORY_LABELS).map(([key, { label, color }]) => (
-                    <SelectItem key={key} value={key}>
+                    <SelectItem 
+                      key={key} 
+                      value={key}
+                      className="hover:bg-slate-800 focus:bg-slate-800 text-white"
+                    >
                       <div className="flex items-center gap-2">
                         <div className={`w-3 h-3 rounded-full ${color}`} />
                         {label}
