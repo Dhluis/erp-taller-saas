@@ -824,8 +824,23 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                                 e.stopPropagation()
                                 openImageDetail(image)
                               }}
+                              title="Ver detalles"
                             >
                               <ZoomIn className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="h-8 w-8 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openImageDetail(image)
+                                setEditingCategory(true)
+                                setEditingDescription(true)
+                              }}
+                              title="Editar categoría y descripción"
+                            >
+                              <Edit className="h-4 w-4" />
                             </Button>
                             <Button
                               size="sm"
@@ -836,6 +851,7 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                                 handleDelete(globalIndex)
                               }}
                               disabled={deletingIndex === globalIndex}
+                              title="Eliminar"
                             >
                               {deletingIndex === globalIndex ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
