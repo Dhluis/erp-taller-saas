@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAllWorkOrders, createWorkOrder } from '@/lib/database/queries/work-orders'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
+import { checkResourceLimit } from '@/lib/billing/check-limits'
+import { createClientFromRequest } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,8 +41,35 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    // ✅ Obtener usuario autenticado para verificar límites
+    const supabase = createClientFromRequest(request)
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'No autorizado' },
+        { status: 401 }
+      )
+    }
+
+    // ✅ VERIFICAR LÍMITES ANTES DE CREAR
+    const limitCheck = await checkResourceLimit(user.id, 'work_order')
+    
+    if (!limitCheck.canCreate) {
+      return NextResponse.json(
+        { 
+          error: limitCheck.error?.message || 'Límite de órdenes alcanzado',
+          limit_reached: true,
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+          upgrade_url: limitCheck.error?.upgrade_url || '/dashboard/billing'
+        },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const order = await createWorkOrder(body)
     return NextResponse.json(order, { status: 201 })

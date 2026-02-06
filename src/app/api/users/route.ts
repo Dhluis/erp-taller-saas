@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { hasPermission, UserRole } from '@/lib/auth/permissions'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import type { CreateUserRequest } from '@/types/user'
+import { checkResourceLimit } from '@/lib/billing/check-limits'
 
 // Usa Service Role Client para bypass RLS en todas las operaciones
 
@@ -164,6 +165,23 @@ export async function POST(request: NextRequest) {
     if (!currentUser || !hasPermission(currentUser.role as UserRole, 'users', 'create')) {
       console.log('[POST /api/users] Sin permisos:', currentUser?.role)
       return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
+    }
+
+    // ✅ VERIFICAR LÍMITES ANTES DE CREAR
+    const limitCheck = await checkResourceLimit(userId, 'user')
+    
+    if (!limitCheck.canCreate) {
+      console.log('[POST /api/users] Límite alcanzado:', limitCheck.error?.message)
+      return NextResponse.json(
+        { 
+          error: limitCheck.error?.message || 'Límite de usuarios alcanzado',
+          limit_reached: true,
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+          upgrade_url: limitCheck.error?.upgrade_url || '/dashboard/billing'
+        },
+        { status: 403 }
+      )
     }
 
     const body: CreateUserRequest = await request.json()

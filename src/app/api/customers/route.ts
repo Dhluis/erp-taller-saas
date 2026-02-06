@@ -268,6 +268,22 @@ export async function POST(request: NextRequest) {
     
     const organizationId = userProfile.organization_id
 
+    // ✅ VERIFICAR LÍMITES ANTES DE CREAR
+    const { checkResourceLimit } = await import('@/lib/billing/check-limits')
+    const limitCheck = await checkResourceLimit(authUser.id, 'customer')
+    
+    if (!limitCheck.canCreate) {
+      console.log('❌ Límite de clientes alcanzado:', limitCheck.error?.message)
+      return NextResponse.json({ 
+        success: false, 
+        error: limitCheck.error?.message || 'Límite de clientes alcanzado',
+        limit_reached: true,
+        current: limitCheck.current,
+        limit: limitCheck.limit,
+        upgrade_url: limitCheck.error?.upgrade_url || '/dashboard/billing'
+      }, { status: 403 })
+    }
+
     // Obtener datos del body
     const body = await request.json()
     console.log('📦 Datos recibidos:', body)

@@ -260,6 +260,26 @@ export async function POST(request: NextRequest) {
     }
 
     const organizationId = userProfile.organization_id;
+    
+    // ✅ VERIFICAR LÍMITES ANTES DE CREAR
+    const { checkResourceLimit } = await import('@/lib/billing/check-limits');
+    const limitCheck = await checkResourceLimit(user.id, 'inventory_item');
+    
+    if (!limitCheck.canCreate) {
+      console.log('[POST /api/inventory] Límite alcanzado:', limitCheck.error?.message);
+      return NextResponse.json(
+        {
+          success: false,
+          error: limitCheck.error?.message || 'Límite de items de inventario alcanzado',
+          limit_reached: true,
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+          upgrade_url: limitCheck.error?.upgrade_url || '/dashboard/billing'
+        },
+        { status: 403 }
+      );
+    }
+    
     const body = await request.json();
 
     // ✅ VALIDACIÓN CRÍTICA: Si viene organization_id en el body, debe coincidir con el del usuario
