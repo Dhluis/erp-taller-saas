@@ -24,9 +24,16 @@ interface UseBillingReturn {
   error: Error | null
   canCreateCustomer: boolean
   canCreateOrder: boolean
+  canCreateInventoryItem: boolean
   canCreateUser: boolean
   canUseWhatsApp: boolean
   canUseAI: boolean
+  isNearCustomerLimit: boolean
+  isNearOrderLimit: boolean
+  isNearInventoryLimit: boolean
+  isNearUserLimit: boolean
+  daysLeftInTrial: number
+  isTrialActive: boolean
   refresh: () => Promise<void>
 }
 
@@ -91,7 +98,31 @@ export function useBilling(): UseBillingReturn {
       }
 
       const planTier = (org.plan_tier || 'free') as PlanTier
-      const limits = PLAN_LIMITS[planTier]
+
+      // 2.5. Obtener límites desde la base de datos
+      const { data: planLimitsData, error: limitsError } = await supabase
+        .from('plan_limits')
+        .select('feature_key, limit_value')
+        .eq('plan_tier', planTier)
+
+      if (limitsError) {
+        console.warn('[useBilling] Error obteniendo límites, usando valores por defecto:', limitsError)
+      }
+
+      // Construir objeto PlanLimits desde la BD
+      const limitsMap = new Map(
+        (planLimitsData || []).map(item => [item.feature_key, item.limit_value])
+      )
+
+      const limits: PlanLimits = {
+        max_customers: limitsMap.get('max_customers') ?? PLAN_LIMITS[planTier].max_customers,
+        max_orders_per_month: limitsMap.get('max_orders_per_month') ?? PLAN_LIMITS[planTier].max_orders_per_month,
+        max_inventory_items: limitsMap.get('max_inventory_items') ?? PLAN_LIMITS[planTier].max_inventory_items,
+        max_users: limitsMap.get('max_users') ?? PLAN_LIMITS[planTier].max_users,
+        whatsapp_enabled: (limitsMap.get('whatsapp_enabled') ?? 0) > 0,
+        ai_enabled: (limitsMap.get('ai_enabled') ?? 0) > 0,
+        advanced_reports: (limitsMap.get('advanced_reports') ?? 0) > 0,
+      }
 
       // 3. Calcular uso actual
       const currentMonthStart = new Date()
@@ -194,9 +225,16 @@ export function useBilling(): UseBillingReturn {
     ? plan.limits.whatsapp_enabled
     : false
 
+  const canCreateInventoryItem = usage && plan
+    ? plan.limits.max_inventory_items === null || usage.inventory.current < plan.limits.max_inventory_items
+    : true
+
   const canUseAI = plan
     ? plan.limits.ai_enabled
     : false
+
+  const daysLeftInTrial = plan ? getDaysLeftInTrial(plan.trial_ends_at) : 0
+  const trialActive = plan ? isTrialActive(plan.trial_ends_at) : false
 
   return {
     plan,
@@ -205,9 +243,16 @@ export function useBilling(): UseBillingReturn {
     error,
     canCreateCustomer,
     canCreateOrder,
+    canCreateInventoryItem,
     canCreateUser,
     canUseWhatsApp,
     canUseAI,
+    isNearCustomerLimit: usage && plan ? isNearLimit(usage.customers.current, plan.limits.max_customers) : false,
+    isNearOrderLimit: usage && plan ? isNearLimit(usage.orders.current, plan.limits.max_orders_per_month) : false,
+    isNearInventoryLimit: usage && plan ? isNearLimit(usage.inventory.current, plan.limits.max_inventory_items) : false,
+    isNearUserLimit: usage && plan ? isNearLimit(usage.users.current, plan.limits.max_users) : false,
+    daysLeftInTrial,
+    isTrialActive: trialActive,
     refresh: fetchBillingData,
   }
 }
