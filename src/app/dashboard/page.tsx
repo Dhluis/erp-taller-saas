@@ -16,6 +16,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { getAlertasInventario } from '@/lib/database/queries/dashboard';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PlanUsage } from '@/components/billing/plan-usage';
 import {
   LineChart,
   Line,
@@ -893,6 +894,9 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* Plan Usage - Mostrar uso del plan y límites */}
+        <PlanUsage />
       </div>
     </AppLayout>
   );
