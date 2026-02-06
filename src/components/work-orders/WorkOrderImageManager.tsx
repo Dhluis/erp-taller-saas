@@ -487,7 +487,7 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
       }
 
       if (successfulUploads.length === filesArray.length) {
-        toast.success(`${successfulUploads.length} imagen${successfulUploads.length > 1 ? 'es' : ''} subida${successfulUploads.length > 1 ? 's' : ''} exitosamente`)
+        toast.success(`${successfulUploads.length} imagen${successfulUploads.length > 1 ? 'es' : ''} subida${successfulUploads.length > 1 ? 's' : ''} exitosamente. Puedes editar categoría y descripción.`)
       } else {
         toast.warning(`${successfulUploads.length} de ${filesArray.length} imagen${filesArray.length > 1 ? 'es' : ''} subida${successfulUploads.length > 1 ? 's' : ''} exitosamente`)
       }
