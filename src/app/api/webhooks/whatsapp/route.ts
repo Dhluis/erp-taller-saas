@@ -295,7 +295,22 @@ async function handleMessageEvent(body: any) {
     // 8. Usar número resuelto (ya validado en resolveRealPhoneNumber)
     const customerPhone = fromNumber;
 
-    // 9. Buscar o crear conversación (pasando sessionName para obtener nombre real)
+    // 8.5. ✅ Verificar límites antes de crear conversación
+    const { checkResourceLimit } = await import('@/lib/billing/check-limits');
+    const limitCheck = await checkResourceLimit(organizationId, 'whatsapp_conversation', { useOrganizationId: true });
+    
+    if (!limitCheck.canCreate) {
+      console.warn('[WAHA Webhook] ⚠️ Límite de WhatsApp alcanzado o feature deshabilitada:', limitCheck.error?.message);
+      // No retornar error, solo loguear y continuar (el mensaje se guarda pero no se procesa con AI)
+      // Esto permite que el mensaje se reciba pero no se cree conversación nueva
+      return NextResponse.json({ 
+        success: false, 
+        error: limitCheck.error?.message || 'WhatsApp no está habilitado en tu plan',
+        limit_reached: true
+      }, { status: 403 });
+    }
+
+  // 9. Buscar o crear conversación (pasando sessionName para obtener nombre real)
     const { conversationId, isNewConversation } = await getOrCreateConversation(
       supabase,
       organizationId,

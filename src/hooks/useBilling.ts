@@ -26,6 +26,7 @@ interface UseBillingReturn {
   canCreateOrder: boolean
   canCreateInventoryItem: boolean
   canCreateUser: boolean
+  canCreateConversation: boolean
   canUseWhatsApp: boolean
   canUseAI: boolean
   isNearCustomerLimit: boolean
@@ -225,6 +226,10 @@ export function useBilling(): UseBillingReturn {
     ? plan.limits.whatsapp_enabled
     : false
 
+  const canCreateConversation = plan
+    ? plan.limits.whatsapp_enabled
+    : false
+
   const canCreateInventoryItem = usage && plan
     ? plan.limits.max_inventory_items === null || usage.inventory.current < plan.limits.max_inventory_items
     : true
@@ -245,6 +250,7 @@ export function useBilling(): UseBillingReturn {
     canCreateOrder,
     canCreateInventoryItem,
     canCreateUser,
+    canCreateConversation,
     canUseWhatsApp,
     canUseAI,
     isNearCustomerLimit: usage && plan ? isNearLimit(usage.customers.current, plan.limits.max_customers) : false,

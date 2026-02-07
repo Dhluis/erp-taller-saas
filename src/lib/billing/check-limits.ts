@@ -16,6 +16,7 @@ export type ResourceType =
   | 'work_order' 
   | 'inventory_item' 
   | 'user'
+  | 'whatsapp_conversation'
 
 interface CheckLimitResult {
   canCreate: boolean
@@ -144,6 +145,16 @@ async function getCurrentUsage(
       return count || 0
     }
     
+    case 'whatsapp_conversation': {
+      // Para conversaciones, contamos conversaciones activas
+      const { count } = await supabase
+        .from('whatsapp_conversations')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+        .eq('status', 'active')
+      return count || 0
+    }
+    
     default:
       return 0
   }
@@ -165,31 +176,42 @@ function getFeatureInfo(resourceType: ResourceType): {
       return { featureKey: 'max_inventory_items', featureName: FEATURE_NAMES.max_inventory_items }
     case 'user':
       return { featureKey: 'max_users', featureName: FEATURE_NAMES.max_users }
+    case 'whatsapp_conversation':
+      return { featureKey: 'whatsapp_enabled', featureName: FEATURE_NAMES.whatsapp_enabled }
   }
 }
 
 /**
  * Verifica si la organización puede crear un recurso según su plan
  * 
- * @param userId - ID del usuario autenticado (de Supabase Auth)
+ * @param userIdOrOrgId - ID del usuario autenticado (de Supabase Auth) o organizationId directamente
  * @param resourceType - Tipo de recurso a verificar
+ * @param options - Opciones adicionales (useOrganizationId: true si el primer parámetro es organizationId)
  * @returns Resultado con canCreate, error (si aplica), current y limit
  * 
  * @example
  * ```ts
+ * // Con userId
  * const { canCreate, error } = await checkResourceLimit(userId, 'customer')
- * if (!canCreate) {
- *   throw new Error(error.message)
- * }
+ * 
+ * // Con organizationId directamente
+ * const { canCreate, error } = await checkResourceLimit(organizationId, 'customer', { useOrganizationId: true })
  * ```
  */
 export async function checkResourceLimit(
-  userId: string,
-  resourceType: ResourceType
+  userIdOrOrgId: string,
+  resourceType: ResourceType,
+  options?: { useOrganizationId?: boolean }
 ): Promise<CheckLimitResult> {
   try {
     // 1. Obtener organization_id
-    const organizationId = await getOrganizationIdFromUser(userId)
+    let organizationId: string | null
+    if (options?.useOrganizationId) {
+      organizationId = userIdOrOrgId
+    } else {
+      organizationId = await getOrganizationIdFromUser(userIdOrOrgId)
+    }
+    
     if (!organizationId) {
       return {
         canCreate: false,
@@ -213,9 +235,39 @@ export async function checkResourceLimit(
     
     // 4. Obtener feature info
     const { featureKey, featureName } = getFeatureInfo(resourceType)
+    
+    // 5. Manejo especial para whatsapp_conversation (es un feature, no un límite numérico)
+    if (resourceType === 'whatsapp_conversation') {
+      const whatsappEnabled = limits.whatsapp_enabled === true
+      
+      if (!whatsappEnabled) {
+        return {
+          canCreate: false,
+          current: 0,
+          limit: 0,
+          error: {
+            error: 'limit_reached',
+            message: `La función de ${featureName} no está habilitada en tu plan ${planTier === 'free' ? 'Free' : 'Premium'}. Actualiza a Premium para habilitar WhatsApp.`,
+            current: 0,
+            limit: 0,
+            feature: featureKey,
+            upgrade_url: '/dashboard/billing',
+            plan_required: 'premium'
+          }
+        }
+      }
+      
+      // Si WhatsApp está habilitado, permitir crear conversaciones (ilimitado)
+      return {
+        canCreate: true,
+        current: await getCurrentUsage(organizationId, resourceType),
+        limit: null // Ilimitado si está habilitado
+      }
+    }
+    
     const limit = limits[featureKey]
     
-    // 5. Si el límite es null (ilimitado), permitir
+    // 6. Si el límite es null (ilimitado), permitir
     if (limit === null) {
       return {
         canCreate: true,
@@ -224,10 +276,10 @@ export async function checkResourceLimit(
       }
     }
     
-    // 6. Obtener uso actual
+    // 7. Obtener uso actual
     const current = await getCurrentUsage(organizationId, resourceType)
     
-    // 7. Verificar si puede crear
+    // 8. Verificar si puede crear
     const canCreate = current < limit
     
     if (!canCreate) {
