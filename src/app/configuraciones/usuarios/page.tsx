@@ -39,6 +39,9 @@ import type { User, CreateUserRequest } from "@/types/user"
 import { UserRole, ROLE_NAMES } from "@/lib/auth/permissions"
 import { usePermissions } from "@/hooks/usePermissions"
 import { useSession } from "@/lib/context/SessionContext"
+import { useBilling } from "@/hooks/useBilling"
+import { useLimitCheck } from "@/hooks/useLimitCheck"
+import { UpgradeModal } from "@/components/billing/upgrade-modal"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -76,6 +79,11 @@ export default function UsuariosPage() {
   const router = useRouter()
   const { profile, isLoading: sessionLoading } = useSession()
   const permissions = usePermissions()
+  
+  // ✅ Verificación de límites de plan
+  const { canCreateUser, plan, usage } = useBilling()
+  const { limitError, showUpgradeModal, handleApiError, closeUpgradeModal, showUpgrade } = useLimitCheck()
+  
   const [searchTerm, setSearchTerm] = useState("")
   const [users, setUsers] = useState<User[]>([])
   const [stats, setStats] = useState({
@@ -281,6 +289,12 @@ export default function UsuariosPage() {
       const result = await response.json()
 
       if (!response.ok) {
+        // ✅ Verificar si es error de límite alcanzado (solo en modo crear)
+        if (!isEditMode && handleApiError({ status: response.status, ...result })) {
+          // Se mostró el modal de upgrade, no mostrar otro error
+          return
+        }
+        
         throw new Error(result.error || 'Error al guardar usuario')
       }
 
@@ -379,6 +393,21 @@ export default function UsuariosPage() {
   }
 
   const handleOpenCreateModal = () => {
+    // ✅ Verificar límite antes de abrir el modal (solo en modo crear, no editar)
+    if (!canCreateUser && usage && plan) {
+      // Mostrar modal de upgrade preventivamente
+      showUpgrade({
+        error: 'limit_reached',
+        message: `Has alcanzado el límite de ${usage.users.limit || 1} usuario${(usage.users.limit || 1) > 1 ? 's' : ''} para tu plan ${plan.plan_tier === 'free' ? 'Free' : 'Premium'}. Actualiza a Premium para crear usuarios ilimitados.`,
+        current: usage.users.current || 0,
+        limit: usage.users.limit || 1,
+        feature: 'max_users',
+        upgrade_url: '/dashboard/billing',
+        plan_required: 'premium'
+      })
+      return
+    }
+    
     setEditingUser(null)
     setIsEditMode(false)
     reset({
@@ -505,8 +534,13 @@ export default function UsuariosPage() {
         <h2 className="text-3xl font-bold tracking-tight">Gestión de Usuarios</h2>
         <div className="flex items-center space-x-2">
           {profile?.role === 'ADMIN' && (
-            <Button onClick={handleOpenCreateModal}>
-              <Plus className="mr-2 h-4 w-4" /> Agregar Usuario
+            <Button 
+              onClick={handleOpenCreateModal}
+              disabled={!canCreateUser}
+              title={!canCreateUser ? 'Has alcanzado el límite de usuarios de tu plan. Actualiza a Premium para crear más.' : undefined}
+            >
+              <Plus className="mr-2 h-4 w-4" /> 
+              {canCreateUser ? 'Agregar Usuario' : 'Límite alcanzado'}
             </Button>
           )}
         </div>
@@ -789,11 +823,19 @@ export default function UsuariosPage() {
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting || (!isEditMode && !canCreateUser)}
+                title={!isEditMode && !canCreateUser ? 'Has alcanzado el límite de usuarios de tu plan. Actualiza a Premium para crear más.' : undefined}
+              >
                 {isSubmitting && (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 )}
-                {isEditMode ? 'Guardar Cambios' : 'Crear Usuario'}
+                {isEditMode 
+                  ? 'Guardar Cambios' 
+                  : !canCreateUser 
+                    ? 'Límite alcanzado' 
+                    : 'Crear Usuario'}
               </Button>
             </DialogFooter>
           </form>
@@ -990,6 +1032,13 @@ export default function UsuariosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ✅ Modal de upgrade cuando se alcanza el límite */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={closeUpgradeModal}
+        limitError={limitError || undefined}
+      />
     </div>
   )
 }
