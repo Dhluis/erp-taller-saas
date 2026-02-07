@@ -25,6 +25,9 @@ import { useAuth } from '@/hooks/useAuth'
 import { useSession } from '@/lib/context/SessionContext'
 import { createClient } from '@/lib/supabase/client'
 import { AlertCircle, CheckCircle2, User } from 'lucide-react'
+import { useBilling } from '@/hooks/useBilling'
+import { useLimitCheck } from '@/hooks/useLimitCheck'
+import { UpgradeModal } from '@/components/billing/upgrade-modal'
 
 interface CreateWorkOrderModalProps {
   open: boolean
@@ -94,6 +97,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const [loadingMechanics, setLoadingMechanics] = useState(false)
   
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
+
+  // ✅ Verificación de límites de plan
+  const { canCreateOrder } = useBilling()
+  const { limitError, showUpgradeModal, handleApiError, closeUpgradeModal } = useLimitCheck()
 
   const validateField = (name: string, value: string): string => {
     switch (name) {
@@ -596,6 +603,13 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       if (!response.ok) {
         const errorData = await response.json();
         console.error('❌ [CreateOrder] Error completo:', errorData);
+        
+        // ✅ Verificar si es error de límite alcanzado
+        if (handleApiError({ status: response.status, ...errorData })) {
+          // Se mostró el modal de upgrade, no mostrar otro error
+          return;
+        }
+        
         throw new Error(errorData.error || 'Error al crear orden');
       }
 
@@ -963,12 +977,23 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Creando...' : 'Crear Orden'}
+            <Button 
+              type="submit" 
+              disabled={loading || !canCreateOrder}
+              title={!canCreateOrder ? 'Has alcanzado el límite de órdenes de tu plan. Actualiza a Premium para crear más.' : undefined}
+            >
+              {loading ? 'Creando...' : !canCreateOrder ? 'Límite alcanzado' : 'Crear Orden'}
             </Button>
           </div>
         </form>
       </DialogContent>
+
+      {/* ✅ Modal de upgrade cuando se alcanza el límite */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={closeUpgradeModal}
+        limitError={limitError || undefined}
+      />
     </Dialog>
   )
 })
