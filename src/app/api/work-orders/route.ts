@@ -411,6 +411,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ✅ VERIFICAR LÍMITES ANTES DE CREAR
+    const { checkResourceLimit } = await import('@/lib/billing/check-limits');
+    const limitCheck = await checkResourceLimit(user.id, 'work_order');
+    
+    if (!limitCheck.canCreate) {
+      console.log('[POST /api/work-orders] Límite alcanzado:', limitCheck.error?.message);
+      return NextResponse.json(
+        {
+          success: false,
+          error: limitCheck.error?.message || 'Límite de órdenes alcanzado',
+          limit_reached: true,
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+          upgrade_url: limitCheck.error?.upgrade_url || '/dashboard/billing',
+          feature: limitCheck.error?.feature || 'max_orders_per_month'
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
 
     // Validaciones básicas
