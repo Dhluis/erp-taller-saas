@@ -374,8 +374,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // ✅ Verificar límite ANTES de todo — mostrar modal de upgrade preventivamente
+    // ✅ Verificar límite ANTES de todo — cerrar este diálogo y mostrar modal de upgrade
     if (!canCreateOrder && usage && plan) {
+      onOpenChange(false) // Cerrar el diálogo de crear orden PRIMERO
       showUpgrade({
         type: 'limit_exceeded',
         resource: 'work_order',
@@ -622,7 +623,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         // ✅ Verificar si es error de límite alcanzado
         const isLimitError = await handleApiError({ status: response.status, ...errorData });
         if (isLimitError) {
-          // Se mostró el modal de upgrade, no mostrar otro error ni toast
+          // Cerrar el diálogo de crear orden y mostrar modal de upgrade
+          onOpenChange(false);
           setLoading(false);
           return;
         }
@@ -646,12 +648,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
     } catch (error: any) {
       console.error('❌ [CreateOrder] Error:', error)
-      // ✅ No mostrar toast si ya se mostró el modal de upgrade
-      if (!showUpgradeModal) {
-        toast.error('Error al crear la orden', {
-          description: error.message || 'Verifica los datos e intenta nuevamente'
-        })
-      }
+      toast.error('Error al crear la orden', {
+        description: error.message || 'Verifica los datos e intenta nuevamente'
+      })
     } finally {
       setLoading(false)
     }

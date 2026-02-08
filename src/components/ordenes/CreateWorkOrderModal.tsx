@@ -51,6 +51,9 @@ import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wren
 import SignatureCanvas from 'react-signature-canvas'
 import { OrderCreationImageCapture, TemporaryImage } from './OrderCreationImageCapture'
 import { uploadWorkOrderImage } from '@/lib/supabase/work-order-storage'
+import { useBilling } from '@/hooks/useBilling'
+import { useLimitCheck } from '@/hooks/useLimitCheck'
+import { UpgradeModal } from '@/components/billing/upgrade-modal'
 
 interface CreateWorkOrderModalProps {
 
@@ -226,6 +229,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   
   // ✅ Cargar clientes existentes
   const { customers } = useCustomers()
+
+  // ✅ Verificación de límites de plan
+  const { canCreateOrder, usage, plan } = useBilling()
+  const { limitError, showUpgradeModal, handleApiError, closeUpgradeModal, showUpgrade } = useLimitCheck()
 
   const [loading, setLoading] = useState(false)
 
@@ -806,7 +813,21 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
     e.preventDefault()
 
-    
+    // ✅ Verificar límite ANTES de todo — cerrar diálogo y mostrar modal de upgrade
+    if (!canCreateOrder && usage && plan) {
+      onOpenChange(false)
+      showUpgrade({
+        type: 'limit_exceeded',
+        resource: 'work_order',
+        message: `Has alcanzado el límite de ${usage.orders.limit || 20} órdenes mensuales para tu plan ${plan.plan_tier === 'free' ? 'Free' : 'Premium'}. Actualiza a Premium para límites ilimitados.`,
+        current: usage.orders.current,
+        limit: usage.orders.limit,
+        feature: 'max_orders_per_month',
+        upgrade_url: '/dashboard/billing',
+        plan_required: 'premium'
+      })
+      return
+    }
 
     const newErrors: Record<string, string> = {}
 
@@ -1201,6 +1222,15 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       if (!response.ok) {
         const errorData = await response.json();
         console.error('❌ [CreateWorkOrderModal] Error al crear orden:', errorData);
+        
+        // ✅ Verificar si es error de límite alcanzado
+        const isLimitError = await handleApiError({ status: response.status, ...errorData });
+        if (isLimitError) {
+          onOpenChange(false); // Cerrar diálogo de crear orden
+          setLoading(false);
+          return;
+        }
+        
         throw new Error(errorData.error || 'Error al crear orden');
       }
 
@@ -1401,7 +1431,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   }
 
   return (
-
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
 
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -2592,6 +2622,15 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
     </Dialog>
 
+    {/* ✅ Modal de upgrade FUERA del Dialog para evitar conflictos de overlay */}
+    <UpgradeModal
+      isOpen={showUpgradeModal}
+      onClose={closeUpgradeModal}
+      limitError={limitError || undefined}
+      featureName="Órdenes de trabajo"
+    />
+
+  </>
   )
 
 })
