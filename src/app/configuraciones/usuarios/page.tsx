@@ -81,7 +81,7 @@ export default function UsuariosPage() {
   const permissions = usePermissions()
   
   // ✅ Verificación de límites de plan
-  const { canCreateUser, plan, usage } = useBilling()
+  const { canCreateUser, plan, usage, refresh: refreshBilling } = useBilling()
   const { limitError, showUpgradeModal, handleApiError, closeUpgradeModal, showUpgrade } = useLimitCheck()
   
   const [searchTerm, setSearchTerm] = useState("")
@@ -382,6 +382,8 @@ export default function UsuariosPage() {
       setToggleActiveDialogOpen(false)
       setUserToToggle(null)
       await loadData()
+      // ✅ Actualizar límites de billing para que el botón se actualice inmediatamente
+      await refreshBilling()
     } catch (error: any) {
       console.error('Error actualizando usuario:', error)
       toast.error('Error al actualizar usuario', {
@@ -479,6 +481,8 @@ export default function UsuariosPage() {
       }
 
       await loadData()
+      // ✅ Actualizar límites de billing para que el botón se actualice inmediatamente
+      await refreshBilling()
       toast.success('Usuario eliminado exitosamente', {
         description: `El usuario ${(userToDelete as any)?.name || (userToDelete as any)?.full_name || userToDelete?.email} ha sido eliminado permanentemente.`,
         duration: 5000,
