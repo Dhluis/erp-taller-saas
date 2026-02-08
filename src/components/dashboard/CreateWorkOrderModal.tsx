@@ -99,8 +99,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
 
   // ✅ Verificación de límites de plan
-  const { canCreateOrder } = useBilling()
-  const { limitError, showUpgradeModal, handleApiError, closeUpgradeModal } = useLimitCheck()
+  const { canCreateOrder, usage, plan } = useBilling()
+  const { limitError, showUpgradeModal, handleApiError, closeUpgradeModal, showUpgrade } = useLimitCheck()
 
   const validateField = (name: string, value: string): string => {
     switch (name) {
@@ -373,6 +373,21 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // ✅ Verificar límite ANTES de todo — mostrar modal de upgrade preventivamente
+    if (!canCreateOrder && usage && plan) {
+      showUpgrade({
+        type: 'limit_exceeded',
+        resource: 'work_order',
+        message: `Has alcanzado el límite de ${usage.orders.limit || 20} órdenes mensuales para tu plan ${plan.plan_tier === 'free' ? 'Free' : 'Premium'}. Actualiza a Premium para límites ilimitados.`,
+        current: usage.orders.current,
+        limit: usage.orders.limit,
+        feature: 'max_orders_per_month',
+        upgrade_url: '/dashboard/billing',
+        plan_required: 'premium'
+      })
+      return
+    }
     
     // Validar todos los campos
     const newErrors: Record<string, string> = {}
@@ -653,6 +668,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -985,22 +1001,23 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             </Button>
             <Button 
               type="submit" 
-              disabled={loading || !canCreateOrder}
-              title={!canCreateOrder ? 'Has alcanzado el límite de órdenes de tu plan. Actualiza a Premium para crear más.' : undefined}
+              disabled={loading}
             >
-              {loading ? 'Creando...' : !canCreateOrder ? 'Límite alcanzado' : 'Crear Orden'}
+              {loading ? 'Creando...' : 'Crear Orden'}
             </Button>
           </div>
         </form>
       </DialogContent>
-
-      {/* ✅ Modal de upgrade cuando se alcanza el límite */}
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={closeUpgradeModal}
-        limitError={limitError || undefined}
-      />
     </Dialog>
+
+    {/* ✅ Modal de upgrade FUERA del Dialog para evitar conflictos de z-index */}
+    <UpgradeModal
+      isOpen={showUpgradeModal}
+      onClose={closeUpgradeModal}
+      limitError={limitError || undefined}
+      featureName="Órdenes de trabajo"
+    />
+  </>
   )
 })
 

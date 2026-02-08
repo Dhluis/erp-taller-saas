@@ -41,11 +41,6 @@ export default function WhatsAppPage() {
   const { canUseWhatsApp, plan, usage } = useBilling()
   const { limitError, showUpgradeModal, handleApiError, closeUpgradeModal, showUpgrade } = useLimitCheck()
   
-  // Debug: Verificar valores de billing
-  useEffect(() => {
-    console.log('[WhatsAppPage] Billing state:', { canUseWhatsApp, plan: plan?.plan_tier, usage: usage?.users })
-  }, [canUseWhatsApp, plan, usage])
-
   useEffect(() => {
     if (!organizationId) return
     loadConfig()
@@ -98,18 +93,6 @@ export default function WhatsAppPage() {
 
       {/* Subscription Status */}
       <div className="mb-6">
-        {status === 'none' && !canUseWhatsApp && plan && (
-          <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950">
-            <Info className="h-4 w-4 text-blue-600" />
-            <AlertDescription>
-              <span className="font-medium">WhatsApp no está disponible en tu plan actual</span>
-              <p className="text-sm mt-1">
-                Actualiza a Premium para habilitar WhatsApp Business con IA
-              </p>
-            </AlertDescription>
-          </Alert>
-        )}
-        
         {status === 'none' && canUseWhatsApp && (
           <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950">
             <Info className="h-4 w-4 text-blue-600" />
@@ -152,37 +135,48 @@ export default function WhatsAppPage() {
       </div>
 
       {/* Main Content */}
-      {!hasActiveSubscription ? (
-        // No tiene suscripción activa - mostrar plan o modal de upgrade
+      {!hasActiveSubscription && !canUseWhatsApp && plan ? (
+        // Plan no permite WhatsApp — mostrar directamente el modal de upgrade
+        <Card className="border-2 border-yellow-500/30 bg-gradient-to-br from-slate-900 to-slate-800">
+          <CardContent className="p-8 text-center space-y-6">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 to-orange-500">
+              <Smartphone className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white mb-2">WhatsApp Business</h3>
+              <p className="text-slate-400 max-w-md mx-auto">
+                WhatsApp Business con IA no está disponible en tu plan {plan.plan_tier === 'free' ? 'Free' : 'actual'}. 
+                Actualiza a Premium para habilitar esta funcionalidad.
+              </p>
+            </div>
+            <Button 
+              className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white px-8 h-12 text-lg"
+              onClick={() => {
+                showUpgrade({
+                  type: 'limit_exceeded',
+                  resource: 'whatsapp_conversation',
+                  message: `WhatsApp Business no está disponible en tu plan ${plan.plan_tier === 'free' ? 'Free' : 'actual'}. Actualiza a Premium para habilitar WhatsApp con IA.`,
+                  feature: 'whatsapp_enabled',
+                  upgrade_url: '/dashboard/billing',
+                  plan_required: 'premium'
+                })
+              }}
+            >
+              <CreditCard className="w-5 h-5 mr-2" />
+              Actualizar a Premium
+            </Button>
+          </CardContent>
+        </Card>
+      ) : !hasActiveSubscription ? (
+        // Plan permite WhatsApp pero no tiene suscripción activa
         <PricingCard onActivate={async () => {
-          console.log('[WhatsAppPage] Botón activado, verificando límites...', { canUseWhatsApp, plan: plan?.plan_tier })
-          
-          // ✅ Verificar si WhatsApp está habilitado en el plan
-          if (!canUseWhatsApp && plan && usage) {
-            console.log('[WhatsAppPage] WhatsApp no habilitado, mostrando modal de upgrade')
-            // Mostrar modal de upgrade preventivamente
-            showUpgrade({
-              type: 'limit_exceeded',
-              resource: 'whatsapp_conversation',
-              message: `WhatsApp no está habilitado en tu plan ${plan.plan_tier === 'free' ? 'Free' : 'Premium'}. Actualiza a Premium para habilitar WhatsApp.`,
-              feature: 'whatsapp_enabled',
-              upgrade_url: '/dashboard/billing',
-              plan_required: 'premium'
-            })
-            return
-          }
-          
-          console.log('[WhatsAppPage] WhatsApp habilitado, procediendo con activación...')
-          
           setActivating(true)
           try {
             const res = await fetch('/api/messaging/start-trial', { method: 'POST' })
             const data = await res.json()
             if (!res.ok) {
-              // ✅ Verificar si es error de límite alcanzado
               const isLimitError = await handleApiError({ status: res.status, ...data })
               if (isLimitError) {
-                // Se mostró el modal de upgrade, no mostrar otro error
                 setActivating(false)
                 return
               }
