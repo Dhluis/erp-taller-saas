@@ -40,6 +40,11 @@ export default function WhatsAppPage() {
   // ✅ Verificación de límites de plan
   const { canUseWhatsApp, plan, usage } = useBilling()
   const { limitError, showUpgradeModal, handleApiError, closeUpgradeModal, showUpgrade } = useLimitCheck()
+  
+  // Debug: Verificar valores de billing
+  useEffect(() => {
+    console.log('[WhatsAppPage] Billing state:', { canUseWhatsApp, plan: plan?.plan_tier, usage: usage?.users })
+  }, [canUseWhatsApp, plan, usage])
 
   useEffect(() => {
     if (!organizationId) return
@@ -138,8 +143,11 @@ export default function WhatsAppPage() {
       {!hasActiveSubscription ? (
         // No tiene suscripción activa - mostrar plan o modal de upgrade
         <PricingCard onActivate={async () => {
+          console.log('[WhatsAppPage] Botón activado, verificando límites...', { canUseWhatsApp, plan: plan?.plan_tier })
+          
           // ✅ Verificar si WhatsApp está habilitado en el plan
           if (!canUseWhatsApp && plan && usage) {
+            console.log('[WhatsAppPage] WhatsApp no habilitado, mostrando modal de upgrade')
             // Mostrar modal de upgrade preventivamente
             showUpgrade({
               type: 'limit_exceeded',
@@ -151,6 +159,8 @@ export default function WhatsAppPage() {
             })
             return
           }
+          
+          console.log('[WhatsAppPage] WhatsApp habilitado, procediendo con activación...')
           
           setActivating(true)
           try {
