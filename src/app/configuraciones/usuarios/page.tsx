@@ -399,10 +399,11 @@ export default function UsuariosPage() {
     if (!canCreateUser && usage && plan) {
       // Mostrar modal de upgrade preventivamente
       showUpgrade({
-        error: 'limit_reached',
-        message: `Has alcanzado el límite de ${usage.users.limit || 1} usuario${(usage.users.limit || 1) > 1 ? 's' : ''} para tu plan ${plan.plan_tier === 'free' ? 'Free' : 'Premium'}. Actualiza a Premium para crear usuarios ilimitados.`,
-        current: usage.users.current || 0,
-        limit: usage.users.limit || 1,
+        type: 'limit_exceeded',
+        resource: 'user',
+        message: `Has alcanzado el límite de ${usage.users.limit || 2} usuario${(usage.users.limit || 2) > 1 ? 's' : ''} para tu plan ${plan.plan_tier === 'free' ? 'Free' : 'Premium'}. Actualiza a Premium para crear usuarios ilimitados.`,
+        current: usage.users.current,
+        limit: usage.users.limit,
         feature: 'max_users',
         upgrade_url: '/dashboard/billing',
         plan_required: 'premium'
@@ -540,11 +541,10 @@ export default function UsuariosPage() {
           {profile?.role === 'ADMIN' && (
             <Button 
               onClick={handleOpenCreateModal}
-              disabled={!canCreateUser}
               title={!canCreateUser ? 'Has alcanzado el límite de usuarios de tu plan. Actualiza a Premium para crear más.' : undefined}
             >
               <Plus className="mr-2 h-4 w-4" /> 
-              {canCreateUser ? 'Agregar Usuario' : 'Límite alcanzado'}
+              Agregar Usuario
             </Button>
           )}
         </div>
@@ -829,7 +829,7 @@ export default function UsuariosPage() {
               </Button>
               <Button 
                 type="submit" 
-                disabled={isSubmitting || (!isEditMode && !canCreateUser)}
+                disabled={isSubmitting}
                 title={!isEditMode && !canCreateUser ? 'Has alcanzado el límite de usuarios de tu plan. Actualiza a Premium para crear más.' : undefined}
               >
                 {isSubmitting && (
@@ -837,9 +837,7 @@ export default function UsuariosPage() {
                 )}
                 {isEditMode 
                   ? 'Guardar Cambios' 
-                  : !canCreateUser 
-                    ? 'Límite alcanzado' 
-                    : 'Crear Usuario'}
+                  : 'Crear Usuario'}
               </Button>
             </DialogFooter>
           </form>

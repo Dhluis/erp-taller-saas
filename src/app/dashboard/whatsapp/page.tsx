@@ -98,7 +98,19 @@ export default function WhatsAppPage() {
 
       {/* Subscription Status */}
       <div className="mb-6">
-        {status === 'none' && (
+        {status === 'none' && !canUseWhatsApp && plan && (
+          <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950">
+            <Info className="h-4 w-4 text-blue-600" />
+            <AlertDescription>
+              <span className="font-medium">WhatsApp no está disponible en tu plan actual</span>
+              <p className="text-sm mt-1">
+                Actualiza a Premium para habilitar WhatsApp Business con IA
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {status === 'none' && canUseWhatsApp && (
           <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950">
             <Info className="h-4 w-4 text-blue-600" />
             <AlertDescription>

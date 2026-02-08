@@ -631,9 +631,12 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
     } catch (error: any) {
       console.error('❌ [CreateOrder] Error:', error)
-      toast.error('Error al crear la orden', {
-        description: error.message || 'Verifica los datos e intenta nuevamente'
-      })
+      // ✅ No mostrar toast si ya se mostró el modal de upgrade
+      if (!showUpgradeModal) {
+        toast.error('Error al crear la orden', {
+          description: error.message || 'Verifica los datos e intenta nuevamente'
+        })
+      }
     } finally {
       setLoading(false)
     }
