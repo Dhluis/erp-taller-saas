@@ -142,16 +142,23 @@ export interface FeatureAccess {
 }
 
 /**
+ * Tipos de recursos limitados
+ */
+export type LimitedResource = 'customer' | 'work_order' | 'inventory_item' | 'user' | 'whatsapp_conversation'
+
+/**
  * Error de límite alcanzado
  */
 export interface LimitError {
-  error: 'limit_reached'
+  type: 'limit_exceeded'
+  resource: LimitedResource
   message: string
-  current: number
-  limit: number
-  feature: string
-  upgrade_url: string
-  plan_required: PlanTier
+  current?: number
+  limit?: number
+  // Campos adicionales para compatibilidad con endpoints existentes
+  feature?: string
+  upgrade_url?: string
+  plan_required?: PlanTier
 }
 
 /**
@@ -162,7 +169,7 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     max_customers: 50,
     max_orders_per_month: 20,
     max_inventory_items: 100,
-    max_users: 1,
+    max_users: 2,
     whatsapp_enabled: false,
     ai_enabled: false,
     advanced_reports: false
@@ -179,9 +186,37 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
 }
 
 /**
+ * Features habilitadas por plan
+ */
+export const PLAN_FEATURES: Record<PlanTier, FeatureAccess> = {
+  free: {
+    whatsapp: false,
+    ai_conversations: false,
+    advanced_reports: false,
+    integrations: false,
+    multi_user: false,
+    white_label: false,
+    priority_support: false
+  },
+  premium: {
+    whatsapp: true,
+    ai_conversations: true,
+    advanced_reports: true,
+    integrations: true,
+    multi_user: true,
+    white_label: true,
+    priority_support: true
+  }
+}
+
+/**
  * Nombres legibles de features
  */
 export const FEATURE_NAMES: Record<string, string> = {
+  customers: 'Clientes',
+  workOrders: 'Órdenes de trabajo',
+  inventoryItems: 'Productos en inventario',
+  activeUsers: 'Usuarios activos',
   max_customers: 'Clientes',
   max_orders_per_month: 'Órdenes mensuales',
   max_inventory_items: 'Productos en inventario',
@@ -198,8 +233,8 @@ export function isLimitError(error: unknown): error is LimitError {
   return (
     typeof error === 'object' &&
     error !== null &&
-    'error' in error &&
-    (error as any).error === 'limit_reached'
+    'type' in error &&
+    (error as any).type === 'limit_exceeded'
   )
 }
 

@@ -79,7 +79,7 @@ INSERT INTO plan_limits (plan_tier, feature_key, limit_value, description) VALUE
 ('free', 'max_customers', 50, 'Máximo de clientes en plan gratis'),
 ('free', 'max_orders_per_month', 20, 'Máximo de órdenes por mes en plan gratis'),
 ('free', 'max_inventory_items', 100, 'Máximo de productos en inventario'),
-('free', 'max_users', 1, 'Máximo de usuarios (solo dueño)'),
+('free', 'max_users', 2, 'Máximo de usuarios en plan gratis'),
 ('free', 'whatsapp_enabled', 0, 'WhatsApp deshabilitado en gratis'),
 ('free', 'ai_enabled', 0, 'IA conversacional deshabilitada en gratis'),
 ('free', 'advanced_reports', 0, 'Reportes avanzados deshabilitados'),

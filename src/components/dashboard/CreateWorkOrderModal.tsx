@@ -605,11 +605,14 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         console.error('❌ [CreateOrder] Error completo:', errorData);
         
         // ✅ Verificar si es error de límite alcanzado
-        if (handleApiError({ status: response.status, ...errorData })) {
-          // Se mostró el modal de upgrade, no mostrar otro error
+        const isLimitError = await handleApiError({ status: response.status, ...errorData });
+        if (isLimitError) {
+          // Se mostró el modal de upgrade, no mostrar otro error ni toast
+          setLoading(false);
           return;
         }
         
+        // Si no es error de límite, lanzar error para que se muestre en el catch
         throw new Error(errorData.error || 'Error al crear orden');
       }
 

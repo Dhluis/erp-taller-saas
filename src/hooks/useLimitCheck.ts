@@ -38,25 +38,29 @@ export function useLimitCheck() {
    * @param error - Error de la API (puede ser objeto o Response)
    * @returns true si fue un error de límite, false si fue otro tipo de error
    */
-  const handleApiError = useCallback((error: ApiErrorResponse | Response | Error): boolean => {
+  const handleApiError = useCallback(async (error: ApiErrorResponse | Response | Error): Promise<boolean> => {
     // Si es un Response, extraer datos
     if (error instanceof Response) {
       if (error.status === 403) {
-        error.json().then((data: ApiErrorResponse) => {
+        try {
+          const data: ApiErrorResponse = await error.json()
           if (data.limit_reached || data.upgrade_url) {
             setLimitError({
-              error: 'limit_reached',
+              type: 'limit_exceeded',
+              resource: 'work_order', // Se puede inferir del contexto o pasar como parámetro
               message: data.error || 'Has alcanzado el límite de tu plan',
-              current: data.current || 0,
-              limit: data.limit || 0,
-              feature: data.feature || 'unknown',
+              current: data.current,
+              limit: data.limit,
+              feature: data.feature || 'max_orders_per_month',
               upgrade_url: data.upgrade_url || '/dashboard/billing',
               plan_required: 'premium'
             })
             setShowUpgradeModal(true)
+            return true
           }
-        })
-        return true
+        } catch (e) {
+          console.error('[useLimitCheck] Error parsing response:', e)
+        }
       }
       return false
     }
@@ -69,11 +73,19 @@ export function useLimitCheck() {
     // Si es un objeto con status 403 o upgrade_url, es error de límite
     const apiError = error as ApiErrorResponse
     if (apiError.status === 403 || apiError.limit_reached || apiError.upgrade_url) {
+      // Determinar el tipo de recurso basado en el feature
+      let resource: LimitError['resource'] = 'work_order'
+      if (apiError.feature?.includes('users')) resource = 'user'
+      else if (apiError.feature?.includes('customers')) resource = 'customer'
+      else if (apiError.feature?.includes('inventory')) resource = 'inventory_item'
+      else if (apiError.feature?.includes('whatsapp')) resource = 'whatsapp_conversation'
+      
       setLimitError({
-        error: 'limit_reached',
+        type: 'limit_exceeded',
+        resource,
         message: apiError.error || 'Has alcanzado el límite de tu plan',
-        current: apiError.current || 0,
-        limit: apiError.limit || 0,
+        current: apiError.current,
+        limit: apiError.limit,
         feature: apiError.feature || 'unknown',
         upgrade_url: apiError.upgrade_url || '/dashboard/billing',
         plan_required: 'premium'
