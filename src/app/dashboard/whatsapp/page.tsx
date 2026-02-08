@@ -17,6 +17,9 @@ import {
 import { useToast } from '@/components/ui/use-toast'
 import { useSession } from '@/lib/context/SessionContext'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useBilling } from '@/hooks/useBilling'
+import { useLimitCheck } from '@/hooks/useLimitCheck'
+import { UpgradeModal } from '@/components/billing/upgrade-modal'
 
 interface SubscriptionConfig {
   subscription_status: 'trial' | 'active' | 'expired' | 'none'
@@ -33,6 +36,10 @@ export default function WhatsAppPage() {
   const [loading, setLoading] = useState(true)
   const [selectedMethod, setSelectedMethod] = useState<'waha' | 'twilio'>('waha')
   const [activating, setActivating] = useState(false)
+  
+  // ✅ Verificación de límites de plan
+  const { canUseWhatsApp, plan, usage } = useBilling()
+  const { limitError, showUpgradeModal, handleApiError, closeUpgradeModal, showUpgrade } = useLimitCheck()
 
   useEffect(() => {
     if (!organizationId) return
@@ -129,20 +136,46 @@ export default function WhatsAppPage() {
 
       {/* Main Content */}
       {!hasActiveSubscription ? (
-        // No tiene suscripción activa - mostrar plan
+        // No tiene suscripción activa - mostrar plan o modal de upgrade
         <PricingCard onActivate={async () => {
+          // ✅ Verificar si WhatsApp está habilitado en el plan
+          if (!canUseWhatsApp && plan && usage) {
+            // Mostrar modal de upgrade preventivamente
+            showUpgrade({
+              type: 'limit_exceeded',
+              resource: 'whatsapp_conversation',
+              message: `WhatsApp no está habilitado en tu plan ${plan.plan_tier === 'free' ? 'Free' : 'Premium'}. Actualiza a Premium para habilitar WhatsApp.`,
+              feature: 'whatsapp_enabled',
+              upgrade_url: '/dashboard/billing',
+              plan_required: 'premium'
+            })
+            return
+          }
+          
           setActivating(true)
           try {
             const res = await fetch('/api/messaging/start-trial', { method: 'POST' })
             const data = await res.json()
+            if (!res.ok) {
+              // ✅ Verificar si es error de límite alcanzado
+              const isLimitError = await handleApiError({ status: res.status, ...data })
+              if (isLimitError) {
+                // Se mostró el modal de upgrade, no mostrar otro error
+                setActivating(false)
+                return
+              }
+              throw new Error(data.error || 'No se pudo iniciar la prueba')
+            }
+            
             if (data.success) {
               toast({ title: '✅ Prueba gratis iniciada', description: 'Disfruta 7 días sin costo' })
               loadConfig()
             } else {
               toast({ title: 'Error', description: data.error || 'No se pudo iniciar la prueba', variant: 'destructive' })
             }
-          } catch (error) {
-            toast({ title: 'Error', description: 'Error al iniciar prueba', variant: 'destructive' })
+          } catch (error: any) {
+            console.error('Error iniciando prueba:', error)
+            toast({ title: 'Error', description: error.message || 'Error al iniciar prueba', variant: 'destructive' })
           } finally {
             setActivating(false)
           }
@@ -260,6 +293,14 @@ export default function WhatsAppPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* ✅ Modal de upgrade cuando WhatsApp no está habilitado */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={closeUpgradeModal}
+        limitError={limitError || undefined}
+        featureName="WhatsApp Business"
+      />
     </div>
   )
 }
