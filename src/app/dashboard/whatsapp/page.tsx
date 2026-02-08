@@ -38,7 +38,7 @@ export default function WhatsAppPage() {
   const [activating, setActivating] = useState(false)
   
   // ✅ Verificación de límites de plan
-  const { canUseWhatsApp, plan, usage } = useBilling()
+  const { canUseWhatsApp, plan, usage, isLoading: billingLoading } = useBilling()
   const { limitError, showUpgradeModal, handleApiError, closeUpgradeModal, showUpgrade } = useLimitCheck()
   
   useEffect(() => {
@@ -75,7 +75,8 @@ export default function WhatsAppPage() {
     daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
   }
 
-  if (loading) {
+  // ✅ Esperar a que carguen tanto la config como el billing para evitar parpadeo
+  if (loading || billingLoading) {
     return <div className="flex items-center justify-center min-h-screen">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
     </div>
@@ -135,8 +136,8 @@ export default function WhatsAppPage() {
       </div>
 
       {/* Main Content */}
-      {!hasActiveSubscription && !canUseWhatsApp && plan ? (
-        // Plan no permite WhatsApp — mostrar directamente el modal de upgrade
+      {!hasActiveSubscription && plan && !canUseWhatsApp ? (
+        // Plan no permite WhatsApp — mostrar card de upgrade
         <Card className="border-2 border-yellow-500/30 bg-gradient-to-br from-slate-900 to-slate-800">
           <CardContent className="p-8 text-center space-y-6">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 to-orange-500">
@@ -167,7 +168,7 @@ export default function WhatsAppPage() {
             </Button>
           </CardContent>
         </Card>
-      ) : !hasActiveSubscription ? (
+      ) : !hasActiveSubscription && plan && canUseWhatsApp ? (
         // Plan permite WhatsApp pero no tiene suscripción activa
         <PricingCard onActivate={async () => {
           setActivating(true)
