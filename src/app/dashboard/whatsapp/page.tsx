@@ -13,7 +13,8 @@ import {
   Info,
   CreditCard,
   Clock,
-  Loader2
+  Loader2,
+  HelpCircle
 } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { useSession } from '@/lib/context/SessionContext'
@@ -21,6 +22,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useBilling } from '@/hooks/useBilling'
 import { useLimitCheck } from '@/hooks/useLimitCheck'
 import { UpgradeModal } from '@/components/billing/upgrade-modal'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 
 interface SubscriptionConfig {
   subscription_status: 'trial' | 'active' | 'expired' | 'none'
@@ -38,6 +47,7 @@ export default function WhatsAppPage() {
   const [loading, setLoading] = useState(true)
   const [selectedMethod, setSelectedMethod] = useState<'waha' | 'twilio'>('waha')
   const [activating, setActivating] = useState(false)
+  const [showApiInstructions, setShowApiInstructions] = useState(false)
   
   // ✅ Verificación de límites de plan
   const { canUseWhatsApp, plan, usage, isLoading: billingLoading } = useBilling()
@@ -218,12 +228,18 @@ export default function WhatsAppPage() {
           </CardHeader>
           <CardContent>
             <Tabs value={selectedMethod} onValueChange={(v) => setSelectedMethod(v as 'waha' | 'twilio')}>
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="waha">
+              <TabsList className="grid w-full grid-cols-2 mb-6 border-2 border-green-500 rounded-lg p-1 gap-1 bg-transparent">
+                <TabsTrigger 
+                  value="waha"
+                  className="border-2 border-green-500/50 data-[state=active]:border-green-500 data-[state=active]:bg-green-500/15 data-[state=active]:text-green-700 dark:data-[state=active]:text-green-300 active:scale-[0.98] transition-all focus-visible:ring-green-500"
+                >
                   <Smartphone className="w-4 h-4 mr-2" />
                   Mi Número Personal
                 </TabsTrigger>
-                <TabsTrigger value="twilio">
+                <TabsTrigger 
+                  value="twilio"
+                  className="border-2 border-green-500/50 data-[state=active]:border-green-500 data-[state=active]:bg-green-500/15 data-[state=active]:text-green-700 dark:data-[state=active]:text-green-300 active:scale-[0.98] transition-all focus-visible:ring-green-500"
+                >
                   <Building2 className="w-4 h-4 mr-2" />
                   Número Profesional
                 </TabsTrigger>
@@ -259,6 +275,9 @@ export default function WhatsAppPage() {
                           description: data.error || 'No se pudo activar', 
                           variant: 'destructive' 
                         })
+                        if (data.error?.includes('Twilio') || data.error?.includes('credentials')) {
+                          setShowApiInstructions(true)
+                        }
                       }
                     } catch (error) {
                       toast({ 
@@ -266,11 +285,17 @@ export default function WhatsAppPage() {
                         description: 'Error al activar API Oficial', 
                         variant: 'destructive' 
                       })
+                      setShowApiInstructions(true)
                     } finally {
                       setActivating(false)
                     }
                   }}
                   activating={activating}
+                  onOpenInstructions={() => setShowApiInstructions(true)}
+                />
+                <ApiOficialInstructionsDialog 
+                  open={showApiInstructions} 
+                  onOpenChange={setShowApiInstructions} 
                 />
               </TabsContent>
             </Tabs>
@@ -449,16 +474,78 @@ function WAHAOption({
   )
 }
 
+function ApiOficialInstructionsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-purple-500" />
+            Configurar WhatsApp API Oficial (Twilio)
+          </DialogTitle>
+          <DialogDescription>
+            Pasos para que el botón "Activar API Oficial" funcione correctamente.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 text-sm">
+          <div>
+            <h4 className="font-semibold mb-2 text-foreground">1. Crear cuenta en Twilio</h4>
+            <p className="text-muted-foreground">
+              Ve a <a href="https://www.twilio.com/try-twilio" target="_blank" rel="noopener noreferrer" className="text-primary underline">twilio.com/try-twilio</a> y crea una cuenta. Twilio ofrece créditos de prueba.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-2 text-foreground">2. Obtener credenciales</h4>
+            <p className="text-muted-foreground mb-2">
+              En el <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">Twilio Console</a>, copia:
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
+              <li><strong>Account SID</strong> (empieza con AC...)</li>
+              <li><strong>Auth Token</strong> (clic en "Show" para verlo)</li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-2 text-foreground">3. Configurar variables en Vercel</h4>
+            <p className="text-muted-foreground mb-2">
+              En tu proyecto en Vercel → Settings → Environment Variables, agrega:
+            </p>
+            <ul className="space-y-1 text-muted-foreground font-mono text-xs bg-muted p-3 rounded-lg">
+              <li><code>TWILIO_ACCOUNT_SID</code> = tu Account SID</li>
+              <li><code>TWILIO_AUTH_TOKEN</code> = tu Auth Token</li>
+            </ul>
+            <p className="text-muted-foreground mt-2">
+              Asigna estas variables a <strong>Production</strong> (y Preview si usas deploys de preview).
+            </p>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-2 text-foreground">4. Redeploy</h4>
+            <p className="text-muted-foreground">
+              Después de agregar las variables, haz un nuevo deploy para que surtan efecto. Luego vuelve a pulsar "Activar API Oficial".
+            </p>
+          </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3">
+            <p className="text-sm">
+              <strong>Nota:</strong> Al activar, el sistema comprará automáticamente un número de WhatsApp en Twilio para tu organización. Twilio cobra un monto mensual por el número (suele ser ~$1-2 USD/mes según el país).
+            </p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function TwilioOption({ 
   isActive,
   phoneNumber,
   onActivate,
-  activating
+  activating,
+  onOpenInstructions
 }: { 
   isActive: boolean
   phoneNumber: string | null
   onActivate: () => void
   activating: boolean
+  onOpenInstructions?: () => void
 }) {
   return (
     <div className="space-y-4">
@@ -481,20 +568,31 @@ function TwilioOption({
               </div>
             </div>
           ) : (
-            <Button 
-              variant="primary" 
-              onClick={onActivate}
-              disabled={activating}
-            >
-              {activating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Activando...
-                </>
-              ) : (
-                'Activar API Oficial'
-              )}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button 
+                variant="primary" 
+                onClick={onActivate}
+                disabled={activating}
+              >
+                {activating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Activando...
+                  </>
+                ) : (
+                  'Activar API Oficial'
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onOpenInstructions}
+                className="text-muted-foreground"
+              >
+                <HelpCircle className="w-4 h-4 mr-1" />
+                ¿Cómo configurar?
+              </Button>
+            </div>
           )}
         </div>
       </div>
