@@ -265,27 +265,28 @@ export default function WhatsAppPage() {
                       const data = await res.json()
                       if (data.success) {
                         toast({ 
-                          title: '✅ API Oficial activada', 
-                          description: `Número: ${data.data?.phone_number || 'Activado'}` 
+                          title: '✅ Número profesional activado', 
+                          description: `Tu nuevo número: ${data.data?.phone_number || 'Activado'}. ¡Compártelo con tus clientes!` 
                         })
                         loadConfig()
                       } else {
+                        const userMessage = data.error?.includes('Twilio') || data.error?.includes('credentials')
+                          ? 'Esta función no está disponible en este momento. Contacta a soporte para habilitarla.'
+                          : data.error?.includes('números disponibles')
+                          ? 'No hay números disponibles para tu país en este momento. Intenta más tarde o contacta a soporte.'
+                          : data.error || 'No se pudo activar. Intenta de nuevo o contacta a soporte.'
                         toast({ 
-                          title: 'Error', 
-                          description: data.error || 'No se pudo activar', 
+                          title: 'No se pudo activar', 
+                          description: userMessage, 
                           variant: 'destructive' 
                         })
-                        if (data.error?.includes('Twilio') || data.error?.includes('credentials')) {
-                          setShowApiInstructions(true)
-                        }
                       }
                     } catch (error) {
                       toast({ 
-                        title: 'Error', 
-                        description: 'Error al activar API Oficial', 
+                        title: 'Error de conexión', 
+                        description: 'No se pudo conectar con el servidor. Revisa tu conexión a internet e intenta de nuevo.', 
                         variant: 'destructive' 
                       })
-                      setShowApiInstructions(true)
                     } finally {
                       setActivating(false)
                     }
@@ -481,51 +482,75 @@ function ApiOficialInstructionsDialog({ open, onOpenChange }: { open: boolean; o
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-purple-500" />
-            Configurar WhatsApp API Oficial (Twilio)
+            Número Profesional con API Oficial
           </DialogTitle>
           <DialogDescription>
-            Pasos para que el botón "Activar API Oficial" funcione correctamente.
+            Todo lo que necesitas saber antes de activar tu número profesional de WhatsApp.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 text-sm">
+        <div className="space-y-5 text-sm">
+          {/* Qué es */}
           <div>
-            <h4 className="font-semibold mb-2 text-foreground">1. Crear cuenta en Twilio</h4>
+            <h4 className="font-semibold mb-2 text-foreground">¿Qué es?</h4>
             <p className="text-muted-foreground">
-              Ve a <a href="https://www.twilio.com/try-twilio" target="_blank" rel="noopener noreferrer" className="text-primary underline">twilio.com/try-twilio</a> y crea una cuenta. Twilio ofrece créditos de prueba.
+              Recibirás un <strong>número de teléfono dedicado</strong> exclusivo para tu negocio, con el badge de verificación oficial de WhatsApp Business. Este número funciona de forma independiente a tu WhatsApp personal.
             </p>
           </div>
+
+          {/* Qué pasa al activar */}
           <div>
-            <h4 className="font-semibold mb-2 text-foreground">2. Obtener credenciales</h4>
-            <p className="text-muted-foreground mb-2">
-              En el <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">Twilio Console</a>, copia:
-            </p>
-            <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
-              <li><strong>Account SID</strong> (empieza con AC...)</li>
-              <li><strong>Auth Token</strong> (clic en "Show" para verlo)</li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-semibold mb-2 text-foreground">3. Configurar variables en Vercel</h4>
-            <p className="text-muted-foreground mb-2">
-              En tu proyecto en Vercel → Settings → Environment Variables, agrega:
-            </p>
-            <ul className="space-y-1 text-muted-foreground font-mono text-xs bg-muted p-3 rounded-lg">
-              <li><code>TWILIO_ACCOUNT_SID</code> = tu Account SID</li>
-              <li><code>TWILIO_AUTH_TOKEN</code> = tu Auth Token</li>
+            <h4 className="font-semibold mb-2 text-foreground">¿Qué pasa al presionar "Activar"?</h4>
+            <ul className="space-y-2 text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <span className="text-green-500 mt-0.5">1.</span>
+                Se te asigna un número de teléfono nuevo automáticamente
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-500 mt-0.5">2.</span>
+                El asistente de IA se conecta a ese número
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-500 mt-0.5">3.</span>
+                Tus clientes podrán escribirte a ese número y recibir respuestas automáticas
+              </li>
             </ul>
             <p className="text-muted-foreground mt-2">
-              Asigna estas variables a <strong>Production</strong> (y Preview si usas deploys de preview).
+              Todo el proceso es automático y toma aproximadamente <strong>2 minutos</strong>.
             </p>
           </div>
+
+          {/* Qué hacer después */}
           <div>
-            <h4 className="font-semibold mb-2 text-foreground">4. Redeploy</h4>
-            <p className="text-muted-foreground">
-              Después de agregar las variables, haz un nuevo deploy para que surtan efecto. Luego vuelve a pulsar "Activar API Oficial".
+            <h4 className="font-semibold mb-2 text-foreground">¿Qué hago después de activar?</h4>
+            <ul className="space-y-2 text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <span>Comparte tu nuevo número con tus clientes</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <span>Entrena tu bot desde la sección <strong>"Entrenar Bot"</strong> para personalizar las respuestas</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <span>Revisa las conversaciones desde <strong>"Conversaciones"</strong></span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Diferencia vs Personal */}
+          <div className="rounded-lg border border-purple-200 bg-purple-50 dark:bg-purple-950/30 dark:border-purple-800 p-3">
+            <h4 className="font-semibold mb-1 text-foreground text-sm">¿Cuál es la diferencia con "Mi Número Personal"?</h4>
+            <p className="text-muted-foreground text-xs">
+              Con <strong>Número Personal</strong> usas tu propio WhatsApp escaneando un QR (gratis, pero con límite de 100 mensajes/día). 
+              Con <strong>Número Profesional</strong> recibes un número dedicado sin límites y con badge oficial, ideal para negocios con alto volumen de mensajes.
             </p>
           </div>
+
+          {/* Nota de error */}
           <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3">
-            <p className="text-sm">
-              <strong>Nota:</strong> Al activar, el sistema comprará automáticamente un número de WhatsApp en Twilio para tu organización. Twilio cobra un monto mensual por el número (suele ser ~$1-2 USD/mes según el país).
+            <p className="text-sm text-muted-foreground">
+              <strong>¿El botón no funciona?</strong> Contacta a soporte en <a href="mailto:soporte@eaglessystem.io" className="text-primary underline">soporte@eaglessystem.io</a> y te ayudaremos a activarlo.
             </p>
           </div>
         </div>
@@ -590,7 +615,7 @@ function TwilioOption({
                 className="text-muted-foreground"
               >
                 <HelpCircle className="w-4 h-4 mr-1" />
-                ¿Cómo configurar?
+                ¿Cómo funciona?
               </Button>
             </div>
           )}
