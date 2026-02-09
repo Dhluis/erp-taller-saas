@@ -258,40 +258,10 @@ export default function WhatsAppPage() {
                 <TwilioOption 
                   isActive={config?.whatsapp_api_provider === 'twilio'}
                   phoneNumber={config?.whatsapp_api_number}
-                  onActivate={async () => {
-                    setActivating(true)
-                    try {
-                      const res = await fetch('/api/messaging/activate-premium', { method: 'POST' })
-                      const data = await res.json()
-                      if (data.success) {
-                        toast({ 
-                          title: '✅ Número profesional activado', 
-                          description: `Tu nuevo número: ${data.data?.phone_number || 'Activado'}. ¡Compártelo con tus clientes!` 
-                        })
-                        loadConfig()
-                      } else {
-                        const userMessage = data.error?.includes('Twilio') || data.error?.includes('credentials')
-                          ? 'Esta función no está disponible en este momento. Contacta a soporte para habilitarla.'
-                          : data.error?.includes('números disponibles')
-                          ? 'No hay números disponibles para tu país en este momento. Intenta más tarde o contacta a soporte.'
-                          : data.error || 'No se pudo activar. Intenta de nuevo o contacta a soporte.'
-                        toast({ 
-                          title: 'No se pudo activar', 
-                          description: userMessage, 
-                          variant: 'destructive' 
-                        })
-                      }
-                    } catch (error) {
-                      toast({ 
-                        title: 'Error de conexión', 
-                        description: 'No se pudo conectar con el servidor. Revisa tu conexión a internet e intenta de nuevo.', 
-                        variant: 'destructive' 
-                      })
-                    } finally {
-                      setActivating(false)
-                    }
+                  onActivate={() => {
+                    router.push('/dashboard/whatsapp/setup-api')
                   }}
-                  activating={activating}
+                  activating={false}
                   onOpenInstructions={() => setShowApiInstructions(true)}
                 />
                 <ApiOficialInstructionsDialog 
@@ -599,14 +569,16 @@ function TwilioOption({
                 onClick={onActivate}
                 disabled={activating}
               >
-                {activating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Activando...
-                  </>
-                ) : (
-                  'Activar API Oficial'
-                )}
+              {activating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Activando...
+                </>
+              ) : (
+                <>
+                  Configurar Número Profesional →
+                </>
+              )}
               </Button>
               <Button
                 variant="outline"
