@@ -33,6 +33,7 @@ import {
   Building2,
   Users,
   Settings,
+  CreditCard,
   Loader2,
   Eye,
   EyeOff
@@ -278,6 +279,13 @@ export function SidebarUserProfile({ className = '' }: SidebarUserProfileProps) 
                 <Link href="/configuraciones/sistema" className="flex items-center cursor-pointer">
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Sistema</span>
+                </Link>
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem asChild>
+                <Link href="/settings/billing" className="flex items-center cursor-pointer">
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  <span>Facturación</span>
                 </Link>
               </DropdownMenuItem>
               

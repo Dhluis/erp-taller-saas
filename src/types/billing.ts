@@ -19,8 +19,9 @@ export type SubscriptionStatus =
   | 'none'      // Sin configurar
   | 'trial'     // En período de prueba (7 días)
   | 'active'    // Suscripción activa y pagando
-  | 'expired'   // Trial expirado sin pago
+  | 'expired'   // Trial expirado o pago fallido
   | 'canceled'  // Cancelado por usuario
+  | 'past_due'  // Pago vencido (Stripe)
 
 /**
  * Límite de un plan para una feature específica
@@ -90,6 +91,7 @@ export interface OrganizationPlan {
   subscription_status: SubscriptionStatus
   plan_started_at: string | null
   trial_ends_at: string | null
+  current_period_end?: string | null
   limits: PlanLimits
   usage: UsageMetrics
 }

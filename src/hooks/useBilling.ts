@@ -7,6 +7,7 @@ import type {
   OrganizationPlan, 
   UsageMetrics, 
   PlanTier,
+  PlanLimits,
   SubscriptionStatus 
 } from '@/types/billing'
 import { 
@@ -70,25 +71,39 @@ export function useBilling(): UseBillingReturn {
       const supabase = createClient()
 
       // 1. Obtener plan de la organización
-      const { data: org, error: orgError } = await supabase
+      const { data: orgData, error: orgError } = await supabase
         .from('organizations')
-        .select('id, plan_tier, plan_started_at, trial_ends_at')
+        .select('id, plan_tier, plan_started_at, trial_ends_at, subscription_status, current_period_end')
         .eq('id', organizationId)
         .single()
 
       if (orgError) throw orgError
-      if (!org) throw new Error('Organización no encontrada')
+      if (!orgData) throw new Error('Organización no encontrada')
+
+      const org = orgData as {
+        id: string
+        plan_tier: string | null
+        plan_started_at: string | null
+        trial_ends_at: string | null
+        subscription_status?: string | null
+        current_period_end?: string | null
+      }
 
       // 2. Obtener subscription_status desde organization_messaging_config
-      const { data: messagingConfig } = await supabase
+      const { data: messagingConfigData } = await supabase
         .from('organization_messaging_config')
         .select('subscription_status, trial_ends_at')
         .eq('organization_id', organizationId)
         .single()
 
-      // Usar subscription_status de messaging_config si existe, sino calcular
+      type MessagingConfig = { subscription_status?: string; trial_ends_at?: string | null } | null
+      const messagingConfig: MessagingConfig = messagingConfigData
+
+      // Usar subscription_status de organizations (Stripe) si existe, luego messaging_config, sino calcular
       let subscriptionStatus: SubscriptionStatus = 'none'
-      if (messagingConfig?.subscription_status) {
+      if (org.subscription_status && ['active', 'canceled', 'expired', 'past_due'].includes(org.subscription_status)) {
+        subscriptionStatus = org.subscription_status as SubscriptionStatus
+      } else if (messagingConfig?.subscription_status) {
         subscriptionStatus = messagingConfig.subscription_status as SubscriptionStatus
       } else if (org.plan_tier === 'premium') {
         subscriptionStatus = 'active'
@@ -112,7 +127,7 @@ export function useBilling(): UseBillingReturn {
 
       // Construir objeto PlanLimits desde la BD
       const limitsMap = new Map(
-        (planLimitsData || []).map(item => [item.feature_key, item.limit_value])
+        (planLimitsData || []).map((item: { feature_key: string; limit_value: number | null }) => [item.feature_key, item.limit_value])
       )
 
       const limits: PlanLimits = {
@@ -189,8 +204,9 @@ export function useBilling(): UseBillingReturn {
         organization_id: organizationId,
         plan_tier: planTier,
         subscription_status: subscriptionStatus,
-        plan_started_at: org.plan_started_at || null,
-        trial_ends_at: org.trial_ends_at || messagingConfig?.trial_ends_at || null,
+        plan_started_at: org.plan_started_at ?? null,
+        trial_ends_at: org.trial_ends_at ?? messagingConfig?.trial_ends_at ?? null,
+        current_period_end: org.current_period_end ?? null,
         limits,
         usage: usageMetrics
       }

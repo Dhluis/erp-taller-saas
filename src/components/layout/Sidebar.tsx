@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Plus,
   Search,
-  LogOut
+  LogOut,
+  CreditCard
 } from "lucide-react"
 import { useSidebar } from '@/contexts/SidebarContext'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -45,7 +46,7 @@ export function Sidebar({ className }: SidebarProps) {
         'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/reportes'],
         'compras': ['/compras', '/compras/proveedores', '/compras/pagos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/inventario', '/reportes/financieros'],
-        'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/mensajeria', '/mensajeria/email', '/mensajeria/whatsapp', '/perfil']
+        'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/mensajeria', '/mensajeria/email', '/mensajeria/whatsapp', '/perfil']
       }
       
       if (sectionRoutes[section]?.some(route => pathname.startsWith(route))) {
@@ -187,6 +188,7 @@ export function Sidebar({ className }: SidebarProps) {
       items: [
         { href: "/configuraciones/usuarios", label: "Usuarios", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageUsers() },
         { href: "/configuraciones/empresa", label: "Empresa", icon: () => <ModernIcons.Dashboard size={18} />, visible: permissions.canManageSettings() },
+        { href: "/settings/billing", label: "Facturación", icon: () => <CreditCard size={18} />, visible: permissions.canManageSettings() },
         { href: "/mensajeria", label: "Mensajería", icon: () => <ModernIcons.Conversaciones size={18} />, visible: permissions.canManageSettings() }
       ].filter(item => item.visible)
     }
@@ -257,7 +259,7 @@ export function Sidebar({ className }: SidebarProps) {
         'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/reportes'],
         'compras': ['/compras', '/compras/proveedores', '/compras/pagos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/inventario', '/reportes/financieros'],
-        'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/mensajeria', '/mensajeria/email', '/mensajeria/whatsapp', '/perfil']
+        'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/mensajeria', '/mensajeria/email', '/mensajeria/whatsapp', '/perfil']
       }
       const sectionRoutesList = sectionRoutes[section.key] || []
       return sectionRoutesList.includes(href) && sectionRoutesList.some(route => 

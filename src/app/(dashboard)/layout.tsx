@@ -5,7 +5,8 @@ import { useRouter, usePathname } from 'next/navigation'
 import { AppLayout } from "@/components/layout/AppLayout"
 import { useSession } from '@/lib/context/SessionContext'
 import { Loader2 } from 'lucide-react'
-import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
+// TODO: react-joyride no es compatible con React 18. Reactivar cuando se migre a driver.js u otra lib.
+// import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
 
 /**
  * Layout del Dashboard con redirección automática
@@ -254,8 +255,8 @@ export default function DashboardLayout({
       <AppLayout>
         {children}
       </AppLayout>
-      {/* Tour de onboarding - solo se muestra la primera vez */}
-      <OnboardingTour />
+      {/* Tour de onboarding deshabilitado: react-joyride incompatible con React 18. Ver TODO arriba. */}
+      {/* <OnboardingTour /> */}
     </>
   )
 }
