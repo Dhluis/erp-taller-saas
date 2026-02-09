@@ -188,7 +188,7 @@ export function Sidebar({ className }: SidebarProps) {
       items: [
         { href: "/configuraciones/usuarios", label: "Usuarios", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageUsers() },
         { href: "/configuraciones/empresa", label: "Empresa", icon: () => <ModernIcons.Dashboard size={18} />, visible: permissions.canManageSettings() },
-        { href: "/settings/billing", label: "Facturación", icon: () => <CreditCard size={18} />, visible: permissions.canManageSettings() },
+        { href: "/settings/billing", label: "Planes", icon: () => <CreditCard size={18} />, visible: permissions.canManageSettings() },
         { href: "/mensajeria", label: "Mensajería", icon: () => <ModernIcons.Conversaciones size={18} />, visible: permissions.canManageSettings() }
       ].filter(item => item.visible)
     }

@@ -285,7 +285,7 @@ export function SidebarUserProfile({ className = '' }: SidebarUserProfileProps) 
               <DropdownMenuItem asChild>
                 <Link href="/settings/billing" className="flex items-center cursor-pointer">
                   <CreditCard className="mr-2 h-4 w-4" />
-                  <span>Facturación</span>
+                  <span>Planes</span>
                 </Link>
               </DropdownMenuItem>
               

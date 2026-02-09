@@ -73,9 +73,9 @@ export default function BillingPage() {
 
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Planes y Facturación</h1>
+        <h1 className="text-3xl font-bold">Planes y Suscripciones</h1>
         <p className="text-muted-foreground mt-2">
-          Gestiona tu suscripción y métodos de pago
+          Gestiona tu plan y métodos de pago
         </p>
       </div>
 
