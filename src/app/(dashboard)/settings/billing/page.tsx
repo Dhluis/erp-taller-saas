@@ -13,6 +13,13 @@ import { useSearchParams } from 'next/navigation'
 export default function BillingPage() {
   const searchParams = useSearchParams()
   const { plan, usage, isLoading } = useBilling()
+  console.log('[Billing Page] Debug:', {
+    plan: plan,
+    isPremium: plan?.plan_tier === 'premium',
+    isActive: plan?.subscription_status === 'active',
+    usage: usage,
+    isLoading: isLoading
+  })
   const [showSuccess, setShowSuccess] = useState(false)
   const [showCanceled, setShowCanceled] = useState(false)
 
@@ -40,6 +47,8 @@ export default function BillingPage() {
 
   const isPremium = plan?.plan_tier === 'premium'
   const isActive = plan?.subscription_status === 'active'
+
+  console.log('[Billing Page] Rendering with isPremium:', isPremium, 'isActive:', isActive)
 
   return (
     <div className="space-y-8 p-8 max-w-7xl mx-auto">
