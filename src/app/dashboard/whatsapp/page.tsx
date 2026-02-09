@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -30,6 +31,7 @@ interface SubscriptionConfig {
 }
 
 export default function WhatsAppPage() {
+  const router = useRouter()
   const { organizationId } = useSession()
   const { toast } = useToast()
   const [config, setConfig] = useState<SubscriptionConfig | null>(null)
@@ -64,7 +66,9 @@ export default function WhatsAppPage() {
   }
 
   const status = config?.subscription_status || 'none'
-  const hasActiveSubscription = status === 'trial' || status === 'active'
+  // Si el plan de la organización es premium (Stripe), considerar suscripción activa automáticamente
+  const isPremiumPlan = plan?.plan_tier === 'premium' && (plan?.subscription_status === 'active' || plan?.subscription_status === 'trial')
+  const hasActiveSubscription = status === 'trial' || status === 'active' || isPremiumPlan
 
   // Calcular días restantes si está en trial
   let daysLeft = 0
@@ -94,7 +98,7 @@ export default function WhatsAppPage() {
 
       {/* Subscription Status */}
       <div className="mb-6">
-        {status === 'none' && canUseWhatsApp && (
+        {status === 'none' && canUseWhatsApp && !isPremiumPlan && (
           <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950">
             <Info className="h-4 w-4 text-blue-600" />
             <AlertDescription>
@@ -106,27 +110,33 @@ export default function WhatsAppPage() {
           </Alert>
         )}
 
-        {status === 'trial' && (
+        {isPremiumPlan && (
+          <Badge className="bg-green-500 text-white">
+            ✓ Plan Premium - WhatsApp incluido
+          </Badge>
+        )}
+
+        {!isPremiumPlan && status === 'trial' && (
           <Alert className="border-green-200 bg-green-50 dark:bg-green-950">
             <Clock className="h-4 w-4 text-green-600" />
             <AlertDescription>
               <span className="font-medium text-green-900 dark:text-green-100">
-                🎁 Prueba gratis activa - {daysLeft} días restantes
+                Prueba gratis activa - {daysLeft} días restantes
               </span>
               <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                Disfruta todas las funciones sin costo. Facturación inicia después del período de prueba.
+                Disfruta todas las funciones sin costo.
               </p>
             </AlertDescription>
           </Alert>
         )}
 
-        {status === 'active' && (
+        {!isPremiumPlan && status === 'active' && (
           <Badge className="bg-green-500 text-white">
             ✓ Suscripción Activa
           </Badge>
         )}
 
-        {status === 'expired' && (
+        {!isPremiumPlan && status === 'expired' && (
           <Alert variant="destructive">
             <AlertDescription>
               Tu prueba gratis ha finalizado. Reactiva tu suscripción para continuar usando WhatsApp.
@@ -223,8 +233,7 @@ export default function WhatsAppPage() {
                 <WAHAOption 
                   isActive={config?.whatsapp_api_provider === 'waha'}
                   onActivate={() => {
-                    // TODO: Mostrar QR para conectar WAHA
-                    toast({ title: 'Info', description: 'Funcionalidad de QR próximamente' })
+                    router.push('/dashboard/whatsapp/train-agent')
                   }}
                 />
               </TabsContent>
@@ -412,8 +421,8 @@ function WAHAOption({
               <span className="text-sm font-medium">Conectado y activo</span>
             </div>
           ) : (
-            <Button variant="default" onClick={onActivate}>
-              Conectar con QR
+            <Button variant="primary" onClick={onActivate}>
+              Conectar con QR →
             </Button>
           )}
         </div>
@@ -473,7 +482,7 @@ function TwilioOption({
             </div>
           ) : (
             <Button 
-              variant="default" 
+              variant="primary" 
               onClick={onActivate}
               disabled={activating}
             >
