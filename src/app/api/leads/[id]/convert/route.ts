@@ -2,14 +2,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+const ALLOWED_CONVERT_STATUSES = ['qualified', 'appointment'] as const
+
 /**
  * POST /api/leads/:id/convert
- * Convertir un lead a cliente
- * 
+ * Convertir un lead a cliente (solo status qualified o appointment).
+ *
  * Body (opcional):
- * - additional_notes?: string (notas adicionales al convertir)
- * - override_name?: string (nombre diferente al del lead)
- * - override_email?: string (email diferente al del lead)
+ * - additional_notes?: string
+ * - override_name?: string
+ * - override_email?: string
+ * - vehicle?: { brand: string; model: string; year: number; plate: string; vin?: string }
  */
 export async function POST(
   request: NextRequest,
@@ -18,7 +21,6 @@ export async function POST(
   try {
     const supabase = await createClient()
 
-    // Verificar autenticación
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json(
@@ -27,7 +29,6 @@ export async function POST(
       )
     }
 
-    // Obtener organization_id del usuario
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('organization_id, id')
@@ -44,13 +45,6 @@ export async function POST(
     const organizationId = userData.organization_id
     const leadId = params.id
 
-    console.log('[Leads API] Iniciando conversión de lead a cliente:', {
-      lead_id: leadId,
-      organization_id: organizationId,
-      user_id: userData.id
-    })
-
-    // Obtener lead completo
     const { data: lead, error: leadError } = await supabase
       .from('leads')
       .select('*')
@@ -59,31 +53,55 @@ export async function POST(
       .single()
 
     if (leadError || !lead) {
-      console.error('[Leads API] Lead no encontrado:', leadError)
       return NextResponse.json(
         { error: 'Lead no encontrado' },
         { status: 404 }
       )
     }
 
-    // Verificar que el lead no esté ya convertido
     if (lead.status === 'converted') {
       return NextResponse.json(
-        { 
+        {
           error: 'Este lead ya fue convertido a cliente',
           customer_id: lead.customer_id
         },
-        { status: 409 }
+        { status: 400 }
       )
     }
 
-    // Obtener body (opcional)
+    if (!ALLOWED_CONVERT_STATUSES.includes(lead.status as typeof ALLOWED_CONVERT_STATUSES[number])) {
+      return NextResponse.json(
+        {
+          error: 'Solo se pueden convertir leads en estado "Calificado" o "Cita agendada"',
+          current_status: lead.status
+        },
+        { status: 400 }
+      )
+    }
+
     const body = await request.json().catch(() => ({}))
     const {
       additional_notes,
       override_name,
-      override_email
+      override_email,
+      vehicle: vehicleInput
     } = body
+
+    if (vehicleInput) {
+      const { brand, model, year, plate, vin } = vehicleInput
+      if (!brand || !model || year == null || !plate) {
+        return NextResponse.json(
+          { error: 'Vehículo inválido: se requieren marca, modelo, año y placas' },
+          { status: 400 }
+        )
+      }
+      const y = Number(year)
+      if (Number.isNaN(y) || y < 1950 || y > 2027) {
+        return NextResponse.json(
+          { error: 'Año del vehículo debe estar entre 1950 y 2027' },
+          { status: 400 }
+        )
+    }
 
     // Preparar datos del cliente
     const customerName = override_name || lead.name
@@ -113,7 +131,7 @@ export async function POST(
         .update({
           lead_id: leadId,
           from_lead: true,
-          converted_from_whatsapp: lead.lead_source === 'whatsapp',
+          converted_from_whatsapp: lead.lead_source === 'whatsapp' || lead.lead_source === 'whatsapp_inbound',
           notes: customerNotes
         })
         .eq('id', customerId)
@@ -132,7 +150,7 @@ export async function POST(
           company: lead.company,
           lead_id: leadId,
           from_lead: true,
-          converted_from_whatsapp: lead.lead_source === 'whatsapp',
+          converted_from_whatsapp: lead.lead_source === 'whatsapp' || lead.lead_source === 'whatsapp_inbound',
           notes: customerNotes
         })
         .select('id')
@@ -173,29 +191,53 @@ export async function POST(
       )
     }
 
-    // Actualizar conversación de WhatsApp si existe
+    // Crear vehículo opcional
+    let createdVehicle: { id: string; brand: string; model: string; year: number; license_plate: string; vin?: string } | null = null
+    if (vehicleInput && customerId) {
+      const { brand, model, year, plate, vin } = vehicleInput
+      const y = Number(year)
+      const { data: newVehicle, error: vehicleError } = await supabase
+        .from('vehicles')
+        .insert({
+          customer_id: customerId,
+          brand: String(brand).trim(),
+          model: String(model).trim(),
+          year: y,
+          license_plate: String(plate).trim(),
+          vin: vin ? String(vin).trim() : null
+        })
+        .select('id, brand, model, year, license_plate, vin')
+        .single()
+
+      if (vehicleError) {
+        console.error('[Leads API] Error creando vehículo:', vehicleError)
+        return NextResponse.json(
+          { error: 'Error creando vehículo', details: vehicleError.message },
+          { status: 400 }
+        )
+      }
+      createdVehicle = newVehicle
+    }
+
+    // Actualizar conversación de WhatsApp: vincular customer_id y mantener lead_id
     if (lead.whatsapp_conversation_id) {
       await supabase
         .from('whatsapp_conversations')
         .update({
+          customer_id: customerId,
           lead_status: 'converted',
-          lead_updated_at: new Date().toISOString()
+          lead_updated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .eq('id', lead.whatsapp_conversation_id)
-
-      console.log('[Leads API] Conversación actualizada:', lead.whatsapp_conversation_id)
     }
-
-    console.log('[Leads API] ✅ Lead convertido exitosamente:', {
-      lead_id: leadId,
-      customer_id: customerId
-    })
 
     return NextResponse.json({
       success: true,
       data: {
         lead: updatedLead,
-        customer_id: customerId
+        customer_id: customerId,
+        vehicle: createdVehicle ?? undefined
       },
       message: 'Lead convertido a cliente exitosamente'
     }, { status: 200 })

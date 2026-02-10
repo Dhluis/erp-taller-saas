@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -11,10 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
-import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Users, Target, UserPlus, UserCheck, Calendar } from "lucide-react"
+import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Users, Target, UserPlus, UserCheck, Calendar, MessageSquare, Car } from "lucide-react"
 import { LeadStatusBadge, type LeadStatus } from '@/components/whatsapp/LeadStatusBadge'
 import { toast } from 'sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface Lead {
   id: string
@@ -23,17 +24,34 @@ interface Lead {
   phone: string
   email: string
   source: string
+  lead_source?: string
   status: LeadStatus
   value: number | null
+  estimated_value?: number | null
   notes: string
   last_contact: string
   assigned_to: string
   created_at: string
   customer_id?: string | null
   lead_score?: number
+  whatsapp_conversation_id?: string | null
+  whatsapp_conversation?: {
+    id: string
+    last_message?: string | null
+    messages_count?: number | null
+  } | null
 }
 
-export default function TestComercialPage() {
+function OriginBadge({ lead }: { lead: Lead }) {
+  if (lead.whatsapp_conversation_id) {
+    return <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/50">WhatsApp</Badge>
+  }
+  const src = (lead.lead_source || lead.source || '').toLowerCase()
+  if (src === 'web' || src === 'landing') return <Badge variant="secondary" className="bg-blue-500/20 text-blue-400 border-blue-500/50">Web</Badge>
+  return <Badge variant="secondary" className="bg-gray-500/20 text-gray-400 border-gray-500/50">Manual</Badge>
+}
+
+export default function ComercialPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -41,6 +59,12 @@ export default function TestComercialPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
   const [isConverting, setIsConverting] = useState(false)
+  const [conversationModalId, setConversationModalId] = useState<string | null>(null)
+  const [conversationMessages, setConversationMessages] = useState<{ direction: string; content: string; created_at: string }[]>([])
+  const [conversationLoading, setConversationLoading] = useState(false)
+  const [convertModalLead, setConvertModalLead] = useState<Lead | null>(null)
+  const [convertVehicle, setConvertVehicle] = useState({ add: false, brand: '', model: '', year: '', plate: '', vin: '' })
+  const [convertSubmitting, setConvertSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     company: "",
@@ -63,11 +87,12 @@ export default function TestComercialPage() {
         const data = await response.json()
         
         if (data.success && data.data) {
-          // Adaptar datos de API al formato local si es necesario
-          const leadsData = data.data.items || data.data || []
+          const leadsData = Array.isArray(data.data) ? data.data : (data.data?.items ?? [])
           setLeads(leadsData.map((lead: any) => ({
             ...lead,
             company: lead.company || '',
+            source: lead.source ?? lead.lead_source ?? '',
+            value: lead.value ?? lead.estimated_value ?? null,
             last_contact: lead.last_contact || lead.created_at || '',
             assigned_to: lead.assigned_to || lead.assigned_user?.full_name || ''
           })))
@@ -189,34 +214,68 @@ export default function TestComercialPage() {
     )
   }
 
-  const handleConvertToCustomer = async (lead: Lead) => {
-    if (!lead || !lead.id) {
+  const loadConversationMessages = useCallback(async (conversationId: string) => {
+    setConversationLoading(true)
+    try {
+      const res = await fetch(`/api/whatsapp/conversations/${conversationId}/messages?limit=100`)
+      const json = await res.json()
+      if (json.success && Array.isArray(json.data)) {
+        setConversationMessages(json.data)
+      } else {
+        setConversationMessages([])
+      }
+    } catch {
+      setConversationMessages([])
+      toast.error('Error al cargar mensajes')
+    } finally {
+      setConversationLoading(false)
+    }
+  }, [])
+
+  const openConversationModal = (convId: string) => {
+    setConversationModalId(convId)
+    setConversationMessages([])
+    loadConversationMessages(convId)
+  }
+
+  const handleConvertToCustomer = async (lead: Lead, vehiclePayload?: { brand: string; model: string; year: number; plate: string; vin?: string }) => {
+    if (!lead?.id) {
       toast.error('No se puede convertir: lead inválido')
       return
     }
-
     setIsConverting(true)
     try {
+      const body: Record<string, unknown> = { additional_notes: 'Convertido desde página Comercial' }
+      if (vehiclePayload) {
+        body.vehicle = {
+          brand: vehiclePayload.brand,
+          model: vehiclePayload.model,
+          year: vehiclePayload.year,
+          plate: vehiclePayload.plate,
+          ...(vehiclePayload.vin ? { vin: vehiclePayload.vin } : {})
+        }
+      }
       const response = await fetch(`/api/leads/${lead.id}/convert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          additional_notes: 'Convertido desde página Comercial'
-        })
+        body: JSON.stringify(body)
       })
-
       const data = await response.json()
-
       if (data.success) {
-        // Actualizar lead en la lista
-        setLeads(leads.map(l => 
-          l.id === lead.id 
+        setLeads(leads.map(l =>
+          l.id === lead.id
             ? { ...l, status: 'converted' as LeadStatus, customer_id: data.data.customer_id }
             : l
         ))
         setIsDialogOpen(false)
         setEditingLead(null)
+        setConvertModalLead(null)
+        setConvertVehicle({ add: false, brand: '', model: '', year: '', plate: '', vin: '' })
         toast.success('Lead convertido a cliente exitosamente')
+        if (data.data?.customer_id) {
+          // Opcional: redirigir a cliente
+          // router.push(`/clientes/${data.data.customer_id}`)
+        }
       } else {
         toast.error(data.error || 'Error al convertir lead')
       }
@@ -225,6 +284,39 @@ export default function TestComercialPage() {
       toast.error('Error al convertir lead')
     } finally {
       setIsConverting(false)
+      setConvertSubmitting(false)
+    }
+  }
+
+  const openConvertModal = (lead: Lead) => {
+    setConvertModalLead(lead)
+    setConvertVehicle({ add: false, brand: '', model: '', year: '', plate: '', vin: '' })
+  }
+
+  const submitConvertModal = async () => {
+    if (!convertModalLead) return
+    setConvertSubmitting(true)
+    if (convertVehicle.add) {
+      const y = parseInt(convertVehicle.year, 10)
+      if (Number.isNaN(y) || y < 1950 || y > 2027) {
+        toast.error('Año debe estar entre 1950 y 2027')
+        setConvertSubmitting(false)
+        return
+      }
+      if (!convertVehicle.brand.trim() || !convertVehicle.model.trim() || !convertVehicle.plate.trim()) {
+        toast.error('Marca, modelo y placas son requeridos')
+        setConvertSubmitting(false)
+        return
+      }
+      await handleConvertToCustomer(convertModalLead, {
+        brand: convertVehicle.brand.trim(),
+        model: convertVehicle.model.trim(),
+        year: y,
+        plate: convertVehicle.plate.trim(),
+        vin: convertVehicle.vin.trim() || undefined
+      })
+    } else {
+      await handleConvertToCustomer(convertModalLead)
     }
   }
 
@@ -434,19 +526,15 @@ export default function TestComercialPage() {
                   {canConvert && (
                     <div className="py-4 border-t">
                       <Button
-                        onClick={() => handleConvertToCustomer(editingLead)}
+                        onClick={() => {
+                          setIsDialogOpen(false)
+                          openConvertModal(editingLead)
+                        }}
                         className="w-full"
-                        variant="default"
-                        disabled={isConverting}
+                        variant="primary"
                       >
-                        {isConverting ? (
-                          <>Cargando...</>
-                        ) : (
-                          <>
-                            <UserPlus className="h-4 w-4 mr-2" />
-                            Convertir a Cliente
-                          </>
-                        )}
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Convertir a Cliente
                       </Button>
                     </div>
                   )}
@@ -646,6 +734,7 @@ export default function TestComercialPage() {
                 <TableHead className="text-gray-300">Nombre</TableHead>
                 <TableHead className="text-gray-300">Empresa</TableHead>
                 <TableHead className="text-gray-300">Contacto</TableHead>
+                <TableHead className="text-gray-300">Origen</TableHead>
                 <TableHead className="text-gray-300">Estado</TableHead>
                 <TableHead className="text-gray-300">Valor</TableHead>
                 <TableHead className="text-gray-300">Asignado</TableHead>
@@ -662,6 +751,9 @@ export default function TestComercialPage() {
                       <div className="text-sm text-white">{lead.phone}</div>
                       <div className="text-sm text-gray-400">{lead.email || '-'}</div>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <OriginBadge lead={lead} />
                   </TableCell>
                   <TableCell>
                     {lead.status === 'converted' || lead.customer_id ? (
@@ -700,10 +792,32 @@ export default function TestComercialPage() {
                     <span className="text-sm text-gray-300">{lead.assigned_to || '-'}</span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-2 flex-wrap">
+                      {lead.whatsapp_conversation_id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-green-500/50 text-green-400 hover:bg-green-500/10"
+                          onClick={() => openConversationModal(lead.whatsapp_conversation_id!)}
+                        >
+                          <MessageSquare className="h-4 w-4 mr-1" />
+                          Ver conversación
+                        </Button>
+                      )}
+                      {['qualified', 'appointment'].includes(lead.status) && !lead.customer_id && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => openConvertModal(lead)}
+                        >
+                          <UserPlus className="h-4 w-4 mr-1" />
+                          Convertir a Cliente
+                        </Button>
+                      )}
                       <Button 
                         variant="ghost" 
-                        size="icon"
+                        size="sm"
                         className="hover:bg-gray-700 text-gray-300 hover:text-white"
                         onClick={() => {
                           setEditingLead(lead)
@@ -712,9 +826,9 @@ export default function TestComercialPage() {
                             company: lead.company,
                             phone: lead.phone,
                             email: lead.email,
-                            source: lead.source,
+                            source: lead.source || lead.lead_source || '',
                             status: lead.status,
-                            value: lead.value || 0,
+                            value: lead.value ?? lead.estimated_value ?? 0,
                             notes: lead.notes,
                             last_contact: lead.last_contact,
                             assigned_to: lead.assigned_to
@@ -726,7 +840,7 @@ export default function TestComercialPage() {
                       </Button>
                       <Button 
                         variant="ghost" 
-                        size="icon"
+                        size="sm"
                         className="hover:bg-gray-700 text-gray-300 hover:text-red-400"
                         onClick={() => handleDeleteLead(lead)}
                       >
@@ -740,6 +854,144 @@ export default function TestComercialPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Modal: historial de conversación WhatsApp */}
+      <Dialog open={!!conversationModalId} onOpenChange={(open) => !open && setConversationModalId(null)}>
+        <DialogContent className="max-w-lg bg-slate-800 border-cyan-500/50 text-white max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Conversación WhatsApp</DialogTitle>
+            <DialogDescription className="text-slate-400">Historial de mensajes</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-2 min-h-[200px]">
+            {conversationLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500" />
+              </div>
+            ) : (
+              conversationMessages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`rounded-lg p-3 text-sm ${
+                    msg.direction === 'outgoing' || msg.direction === 'outbound'
+                      ? 'ml-8 bg-cyan-500/20 border border-cyan-500/50'
+                      : 'mr-8 bg-gray-700/50 border border-gray-600'
+                  }`}
+                >
+                  <div className="text-xs text-slate-400 mb-1">
+                    {msg.direction === 'incoming' || msg.direction === 'inbound' ? 'Cliente' : 'Taller'} · {new Date(msg.created_at).toLocaleString()}
+                  </div>
+                  <div className="text-white">{msg.content || '(sin texto)'}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Convertir Lead a Cliente (con vehículo opcional) */}
+      <Dialog open={!!convertModalLead} onOpenChange={(open) => !open && setConvertModalLead(null)}>
+        <DialogContent className="max-w-md bg-slate-800 border-cyan-500/50 text-white">
+          <DialogHeader>
+            <DialogTitle>Convertir a Cliente</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              {convertModalLead && (
+                <>Resumen: {convertModalLead.name} · {convertModalLead.phone}{convertModalLead.email ? ` · ${convertModalLead.email}` : ''}</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {convertModalLead && (
+            <div className="space-y-4 py-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="add-vehicle"
+                  checked={convertVehicle.add}
+                  onCheckedChange={(checked) => setConvertVehicle((v) => ({ ...v, add: !!checked }))}
+                  className="border-gray-600 data-[state=checked]:bg-cyan-600 data-[state=checked]:border-cyan-500"
+                />
+                <Label htmlFor="add-vehicle" className="text-slate-300 cursor-pointer">Agregar vehículo</Label>
+              </div>
+              {convertVehicle.add && (
+                <div className="grid grid-cols-2 gap-3 rounded-lg border border-gray-700 p-3">
+                  <div>
+                    <Label className="text-slate-400 text-xs">Marca</Label>
+                    <Input
+                      value={convertVehicle.brand}
+                      onChange={(e) => setConvertVehicle((v) => ({ ...v, brand: e.target.value }))}
+                      className="bg-gray-800 border-gray-700 text-white mt-1"
+                      placeholder="Ej. Toyota"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-slate-400 text-xs">Modelo</Label>
+                    <Input
+                      value={convertVehicle.model}
+                      onChange={(e) => setConvertVehicle((v) => ({ ...v, model: e.target.value }))}
+                      className="bg-gray-800 border-gray-700 text-white mt-1"
+                      placeholder="Ej. Corolla"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-slate-400 text-xs">Año (1950-2027)</Label>
+                    <Input
+                      type="number"
+                      min={1950}
+                      max={2027}
+                      value={convertVehicle.year}
+                      onChange={(e) => setConvertVehicle((v) => ({ ...v, year: e.target.value }))}
+                      className="bg-gray-800 border-gray-700 text-white mt-1"
+                      placeholder="2024"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-slate-400 text-xs">Placas</Label>
+                    <Input
+                      value={convertVehicle.plate}
+                      onChange={(e) => setConvertVehicle((v) => ({ ...v, plate: e.target.value }))}
+                      className="bg-gray-800 border-gray-700 text-white mt-1"
+                      placeholder="ABC-123"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-slate-400 text-xs">VIN (opcional)</Label>
+                    <Input
+                      value={convertVehicle.vin}
+                      onChange={(e) => setConvertVehicle((v) => ({ ...v, vin: e.target.value }))}
+                      className="bg-gray-800 border-gray-700 text-white mt-1"
+                      placeholder="Opcional"
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  onClick={() => setConvertModalLead(null)}
+                >
+                  Cancelar
+                </Button>
+                {convertVehicle.add ? (
+                  <Button
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={convertSubmitting}
+                    onClick={submitConvertModal}
+                  >
+                    {convertSubmitting ? 'Convirtiendo...' : 'Convertir con vehículo'}
+                  </Button>
+                ) : (
+                  <Button
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    disabled={convertSubmitting}
+                    onClick={submitConvertModal}
+                  >
+                    {convertSubmitting ? 'Convirtiendo...' : 'Convertir sin vehículo'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

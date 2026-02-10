@@ -47,7 +47,7 @@ import { useOrganization, useSession } from '@/lib/context/SessionContext'
 import { createClient } from '@/lib/supabase/client'
 import { useCustomers } from '@/hooks/useCustomers'
 
-import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown, FileText, Upload, X, Check } from 'lucide-react'
+import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown, FileText, Upload, X, Check, ClipboardCheck, DollarSign, FileSignature, ArrowLeft, ArrowRight } from 'lucide-react'
 import SignatureCanvas from 'react-signature-canvas'
 import { OrderCreationImageCapture, TemporaryImage } from './OrderCreationImageCapture'
 import { uploadWorkOrderImage } from '@/lib/supabase/work-order-storage'
@@ -203,6 +203,47 @@ const INITIAL_FORM_DATA = {
 
 }
 
+// Wizard: indicador de pasos (1=Cliente/Vehículo, 2=Inspección, 3=Costos, 4=Términos/Firma)
+const STEP_ICONS = [User, ClipboardCheck, DollarSign, FileSignature]
+function StepIndicator({ currentStep, completedSteps }: { currentStep: number; completedSteps: number[] }) {
+  const labels = ['Cliente y Vehículo', 'Inspección', 'Servicios y Costos', 'Términos y Firma']
+  return (
+    <div className="flex items-center justify-between gap-2 py-3 px-4 bg-slate-900/80 rounded-lg border border-slate-700 mb-4">
+      {[1, 2, 3, 4].map((step) => {
+        const Icon = STEP_ICONS[step - 1]
+        const isActive = currentStep === step
+        const isCompleted = completedSteps.includes(step)
+        return (
+          <div
+            key={step}
+            className={`flex items-center gap-2 flex-1 min-w-0 ${
+              step < 4 ? 'border-r border-slate-700 pr-2' : ''
+            }`}
+          >
+            <div
+              className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+                isActive
+                  ? 'bg-cyan-500 text-white ring-2 ring-cyan-400'
+                  : isCompleted
+                    ? 'bg-green-600 text-white'
+                    : 'bg-slate-700 text-slate-400'
+              }`}
+            >
+              {isCompleted ? <Check className="h-5 w-5" /> : <Icon className="h-4 w-4" />}
+            </div>
+            <div className="min-w-0 flex-1 hidden sm:block">
+              <span className={`text-xs font-medium block truncate ${isActive ? 'text-cyan-400' : 'text-slate-400'}`}>
+                {labels[step - 1]}
+              </span>
+              <span className="text-xs text-slate-500">{step}/4</span>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 const CreateWorkOrderModal = memo(function CreateWorkOrderModal({ 
 
   open, 
@@ -269,6 +310,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
   // ✅ Estado para fotos temporales durante la creación
   const [temporaryImages, setTemporaryImages] = useState<TemporaryImage[]>([])
+
+  // Wizard: paso actual (1-4) y pasos completados
+  const [currentStep, setCurrentStep] = useState(1)
+  const [completedSteps, setCompletedSteps] = useState<number[]>([])
 
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
 
@@ -728,6 +773,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       // ✅ Limpiar IDs de la cita cuando se cierra el modal
       setAppointmentCustomerId(null)
       setAppointmentVehicleId(null)
+
+      // Wizard: reset pasos
+      setCurrentStep(1)
+      setCompletedSteps([])
 
     }
 
@@ -1409,6 +1458,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     setAppointmentCustomerId(null)
     setAppointmentVehicleId(null)
 
+    // Wizard: reset pasos
+    setCurrentStep(1)
+    setCompletedSteps([])
+
     // Limpiar fotos temporales
     temporaryImages.forEach(img => {
       if (img.preview) {
@@ -1424,6 +1477,35 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
   }
 
+  const handleNext = () => {
+    const stepValidations: Record<number, string[]> = {
+      1: ['customerName', 'customerPhone', 'customerEmail', 'vehicleBrand', 'vehicleModel', 'vehicleYear', 'vehiclePlate'],
+      2: [],
+      3: []
+    }
+    const fieldsToValidate = stepValidations[currentStep] || []
+    const stepErrors: Record<string, string> = {}
+    fieldsToValidate.forEach((field) => {
+      const value = formData[field as keyof typeof formData]
+      const strValue = typeof value === 'string' ? value : (value != null ? String(value) : '')
+      const error = validateField(field, strValue)
+      if (error) stepErrors[field] = error
+    })
+    if (Object.keys(stepErrors).length > 0) {
+      setErrors((prev) => ({ ...prev, ...stepErrors }))
+      setTouched((prev) => ({
+        ...prev,
+        ...Object.keys(stepErrors).reduce((acc, key) => ({ ...acc, [key]: true }), {})
+      }))
+      toast.error('Por favor completa los campos requeridos')
+      return
+    }
+    if (!completedSteps.includes(currentStep)) {
+      setCompletedSteps([...completedSteps, currentStep])
+    }
+    setCurrentStep(currentStep + 1)
+  }
+
   if (!user || !profile) {
 
     return null
@@ -1434,7 +1516,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
 
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
 
         <DialogHeader>
 
@@ -1448,10 +1530,20 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <StepIndicator currentStep={currentStep} completedSteps={completedSteps} />
 
-          {/* Datos del Cliente */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (currentStep === 4) handleSubmit(e)
+          }}
+          className="space-y-6 flex flex-col max-h-[calc(90vh-12rem)]"
+        >
 
+          <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+          {currentStep === 1 && (
+          <>
+          {/* PASO 1: Datos del Cliente */}
           <div className="space-y-4">
 
             <h3 className="font-semibold text-sm border-b pb-2">
@@ -1925,7 +2017,12 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           </div>
 
-          {/* ========== ✅ NUEVO: INSPECCIÓN DEL VEHÍCULO ========== */}
+          </>
+          )}
+
+          {currentStep === 2 && (
+          <>
+          {/* ========== PASO 2: INSPECCIÓN DEL VEHÍCULO ========== */}
 
           <div className="space-y-4 bg-slate-900 p-4 rounded-lg border border-slate-700">
 
@@ -2215,7 +2312,22 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           </div>
 
-          {/* ========== ✅ COSTO ESTIMADO (OPCIONAL) ========== */}
+            {/* ✅ Fotos del Vehículo - Paso 2 */}
+            <div className="pt-4 border-t border-slate-700">
+              <OrderCreationImageCapture
+                images={temporaryImages}
+                onImagesChange={setTemporaryImages}
+                maxImages={20}
+                disabled={loading}
+              />
+            </div>
+
+          </>
+          )}
+
+          {currentStep === 3 && (
+          <>
+          {/* ========== PASO 3: COSTO ESTIMADO Y ASIGNACIÓN ========== */}
           <div className="space-y-4 bg-slate-900 p-4 rounded-lg border border-slate-700">
             <div>
               <Label htmlFor="estimated_cost" className="text-slate-300">
@@ -2247,17 +2359,71 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             </div>
           </div>
 
-            {/* ✅ Fotos del Vehículo */}
-            <div className="pt-4 border-t border-slate-700">
-              <OrderCreationImageCapture
-                images={temporaryImages}
-                onImagesChange={setTemporaryImages}
-                maxImages={20}
-                disabled={loading}
-              />
-            </div>
+            <Label htmlFor="assigned_to">Asignar Empleado (opcional)</Label>
+            <Select
+              name="assigned_to"
+              value={formData.assigned_to && formData.assigned_to !== '' ? formData.assigned_to : 'none'}
+              onValueChange={(value) => {
+                setFormData(prev => ({ ...prev, assigned_to: value === 'none' ? '' : value }))
+              }}
+              disabled={loading || loadingEmployees}
+            >
+              <SelectTrigger className="w-full h-11 bg-slate-900 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
+                <SelectValue
+                  placeholder={
+                    loadingEmployees
+                      ? "Cargando empleados..."
+                      : employees.length === 0
+                        ? "No hay empleados disponibles"
+                        : "Sin asignar"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent className="z-[9999] bg-slate-900 text-white border border-slate-600 shadow-2xl" sideOffset={4} position="popper">
+                <SelectItem value="none" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
+                  Sin asignar
+                </SelectItem>
+                {employees.length > 0 ? (
+                  employees
+                    .filter(emp => emp.id && emp.id.trim() !== '')
+                    .map((employee) => (
+                      <SelectItem key={employee.id} value={employee.id} className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4" />
+                            <span className="font-medium">{employee.name}</span>
+                            {employee.role && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
+                                {employee.role}
+                              </span>
+                            )}
+                          </div>
+                          {employee.email && (
+                            <span className="text-xs text-muted-foreground ml-6">{employee.email}</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))
+                ) : (
+                  !loadingEmployees && (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No hay empleados disponibles
+                    </div>
+                  )
+                )}
+              </SelectContent>
+            </Select>
+            {employees.length === 0 && !loadingEmployees && (
+              <p className="text-xs text-gray-500 mt-1">
+                No hay empleados disponibles. Los empleados deben tener rol MECANICO o ASESOR en la tabla users.
+              </p>
+            )}
 
-            {/* ✅ Términos y Condiciones - DESPUÉS de las fotos */}
+          </>
+          )}
+
+          {currentStep === 4 && (
+          <>
             <div className="space-y-4 pt-4 border-t border-slate-700">
               <h3 className="font-semibold text-sm border-b pb-2">
                 Términos y Condiciones
@@ -2267,7 +2433,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
               <div className="flex gap-4 mb-4">
                 <Button
                   type="button"
-                  variant={formData.terms_type === 'text' ? 'default' : 'outline'}
+                  variant={formData.terms_type === 'text' ? 'primary' : 'outline'}
                   onClick={() => setFormData(prev => ({ ...prev, terms_type: 'text', terms_file: null }))}
                   disabled={loading}
                   className="flex items-center gap-2"
@@ -2277,7 +2443,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 </Button>
                 <Button
                   type="button"
-                  variant={formData.terms_type === 'file' ? 'default' : 'outline'}
+                  variant={formData.terms_type === 'file' ? 'primary' : 'outline'}
                   onClick={() => setFormData(prev => ({ ...prev, terms_type: 'file', terms_text: '' }))}
                   disabled={loading}
                   className="flex items-center gap-2"
@@ -2406,133 +2572,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
               )}
             </div>
 
-            <div>
-
-              <Label htmlFor="assigned_to">Asignar Empleado (opcional)</Label>
-
-              <Select
-
-                name="assigned_to"
-
-                value={formData.assigned_to && formData.assigned_to !== '' ? formData.assigned_to : 'none'}
-
-                onValueChange={(value) => {
-
-                  console.log('✏️ [Select] Cambio detectado: assigned_to →', value)
-
-                  // Si se selecciona "Sin asignar" (valor "none"), limpiar el campo
-
-                  setFormData(prev => ({ ...prev, assigned_to: value === 'none' ? '' : value }))
-
-                }}
-
-                disabled={loading || loadingEmployees}
-
-              >
-
-                <SelectTrigger className="w-full h-11 bg-slate-900 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
-
-                  <SelectValue 
-
-                    placeholder={
-
-                      loadingEmployees 
-
-                        ? "Cargando empleados..." 
-
-                        : employees.length === 0 
-
-                          ? "No hay empleados disponibles" 
-
-                          : "Sin asignar"
-
-                    } 
-
-                  />
-
-                </SelectTrigger>
-
-                <SelectContent className="z-[9999] bg-slate-900 text-white border border-slate-600 shadow-2xl" sideOffset={4} position="popper">
-
-                  <SelectItem value="none" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
-
-                    Sin asignar
-
-                  </SelectItem>
-
-                  {employees.length > 0 ? (
-
-                    employees
-
-                      .filter(emp => emp.id && emp.id.trim() !== '')
-
-                      .map((employee) => (
-
-                        <SelectItem key={employee.id} value={employee.id} className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
-
-                          <div className="flex flex-col gap-1">
-
-                            <div className="flex items-center gap-2">
-
-                              <User className="h-4 w-4" />
-
-                              <span className="font-medium">{employee.name}</span>
-
-                              {employee.role && (
-
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
-
-                                  {employee.role}
-
-                                </span>
-
-                              )}
-
-                            </div>
-
-                            {employee.email && (
-
-                              <span className="text-xs text-muted-foreground ml-6">{employee.email}</span>
-
-                            )}
-
-                          </div>
-
-                        </SelectItem>
-
-                      ))
-
-                  ) : (
-
-                    !loadingEmployees && (
-
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
-
-                        No hay empleados disponibles
-
-                      </div>
-
-                    )
-
-                  )}
-
-                </SelectContent>
-
-              </Select>
-
-              {employees.length === 0 && !loadingEmployees && (
-
-                <p className="text-xs text-gray-500 mt-1">
-
-                  No hay empleados disponibles. Los empleados deben tener rol MECANICO o ASESOR en la tabla users.
-
-                </p>
-
-              )}
-
-            </div>
-
-          {/* ✅ Firma digital del cliente - AL FINAL, antes de los botones */}
+          {/* Firma digital del cliente - Paso 4 */}
           <div className="pt-4 border-t border-slate-700">
             <Label className="text-sm font-medium mb-3 block">
               Firma Digital del Cliente *
@@ -2588,32 +2628,66 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             </p>
           </div>
 
-          {/* Botones */}
+          </>
+          )}
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          </div>
 
-            <Button
-
-              type="button"
-
-              variant="outline"
-
-              onClick={() => onOpenChange(false)}
-
-              disabled={loading}
-
-            >
-
-              Cancelar
-
-            </Button>
-
-            <Button type="submit" disabled={loading}>
-
-              {loading ? 'Creando...' : 'Crear Orden'}
-
-            </Button>
-
+          {/* Botones de navegación del wizard */}
+          <div className="flex justify-between gap-3 pt-4 border-t flex-shrink-0">
+            {currentStep === 4 ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCurrentStep(3)}
+                  disabled={loading}
+                  className="gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Anterior
+                </Button>
+                <Button type="submit" disabled={loading} className="gap-2">
+                  {loading ? 'Creando...' : 'Crear Orden'}
+                  <Check className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <div>
+                  {currentStep > 1 ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setCurrentStep(currentStep - 1)}
+                      disabled={loading}
+                      className="gap-2"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                      Anterior
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => onOpenChange(false)}
+                      disabled={loading}
+                    >
+                      Cancelar
+                    </Button>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={loading}
+                  className="gap-2"
+                >
+                  Siguiente
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </>
+            )}
           </div>
 
         </form>

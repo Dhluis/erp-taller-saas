@@ -95,91 +95,133 @@ export async function handleIncomingMessage(
 }
 
 /**
- * Obtiene o crea una conversación de WhatsApp
- * REUTILIZA lógica existente del webhook WAHA
+ * Obtiene o crea una conversación de WhatsApp.
+ * Crea LEAD (no cliente) para contactos nuevos; usa cliente existente si ya existe por teléfono.
  */
 async function getOrCreateConversation(
   organizationId: string,
   customerPhone: string,
-  messageId: string
+  _messageId: string
 ): Promise<{ id: string; is_bot_active: boolean } | null> {
   try {
     const supabase = getSupabaseServiceClient();
-    
-    // Normalizar número de teléfono
     const normalizedPhone = normalizePhoneNumber(customerPhone);
-    
-    // 1. Buscar conversación existente
+    const lastFour = normalizedPhone.slice(-4);
+
+    // 1. Conversación existente → retornar (compatibilidad hacia atrás)
     const { data: existingConversation } = await supabase
       .from('whatsapp_conversations')
-      .select('id, is_bot_active, customer_id')
+      .select('id, is_bot_active, customer_id, lead_id')
       .eq('organization_id', organizationId)
       .eq('customer_phone', normalizedPhone)
-      .single();
-    
+      .maybeSingle();
+
     if (existingConversation) {
       return {
         id: existingConversation.id,
-        is_bot_active: existingConversation.is_bot_active || false,
+        is_bot_active: existingConversation.is_bot_active ?? false,
       };
     }
-    
-    // 2. Buscar cliente existente por teléfono
+
+    // 2. Cliente existente con ese teléfono → conversación con customer_id (no crear lead duplicado)
     const { data: customer } = await supabase
       .from('customers')
-      .select('id, name')
+      .select('id')
       .eq('organization_id', organizationId)
       .eq('phone', normalizedPhone)
-      .single();
-    
-    let customerId = customer?.id;
-    
-    // 3. Si no existe cliente, crear uno básico
-    if (!customerId) {
-      const { data: newCustomer, error: customerError } = await supabase
-        .from('customers')
+      .maybeSingle();
+
+    if (customer) {
+      const { data: newConv, error: convErr } = await supabase
+        .from('whatsapp_conversations')
         .insert({
           organization_id: organizationId,
-          name: `Cliente ${normalizedPhone.substring(normalizedPhone.length - 4)}`,
-          phone: normalizedPhone,
+          customer_id: customer.id,
+          customer_phone: normalizedPhone,
+          is_bot_active: true,
+          messages_count: 0,
+          is_lead: false,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select('id, is_bot_active')
+        .single();
+
+      if (convErr || !newConv) {
+        console.error('[Unified Webhook] Error creando conversación (cliente existente):', convErr);
+        return null;
+      }
+      return { id: newConv.id, is_bot_active: newConv.is_bot_active ?? false };
+    }
+
+    // 3. Buscar lead existente por teléfono en esta org
+    const { data: existingLead } = await supabase
+      .from('leads')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('phone', normalizedPhone)
+      .maybeSingle();
+
+    let leadId: string | null = existingLead?.id ?? null;
+
+    if (!leadId) {
+      const { data: newLead, error: leadError } = await supabase
+        .from('leads')
+        .insert({
+          organization_id: organizationId,
+          name: `Lead WhatsApp ${lastFour}`,
+          phone: normalizedPhone,
+          source: 'whatsapp',
+          status: 'new',
+          lead_source: 'whatsapp_inbound',
         })
         .select('id')
         .single();
-      
-      if (customerError || !newCustomer) {
-        console.error('[Unified Webhook] Error creando cliente:', customerError);
+
+      if (leadError || !newLead) {
+        console.error('[Unified Webhook] Error creando lead:', leadError);
         return null;
       }
-      
-      customerId = newCustomer.id;
+      leadId = newLead.id;
     }
-    
-    // 4. Crear nueva conversación
+
+    // 4. Crear conversación vinculada al lead (sin customer_id)
     const { data: newConversation, error: convError } = await supabase
       .from('whatsapp_conversations')
       .insert({
         organization_id: organizationId,
-        customer_id: customerId,
+        customer_id: null,
         customer_phone: normalizedPhone,
-        is_bot_active: true, // Activar bot por defecto
+        is_bot_active: true,
         messages_count: 0,
+        lead_id: leadId,
+        is_lead: true,
+        lead_status: 'new',
+        lead_updated_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .select('id, is_bot_active')
       .single();
-    
+
     if (convError || !newConversation) {
-      console.error('[Unified Webhook] Error creando conversación:', convError);
+      console.error('[Unified Webhook] Error creando conversación (lead):', convError);
       return null;
     }
-    
+
+    // 5. Actualizar lead con whatsapp_conversation_id
+    await supabase
+      .from('leads')
+      .update({
+        whatsapp_conversation_id: newConversation.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', leadId);
+
     return {
       id: newConversation.id,
-      is_bot_active: newConversation.is_bot_active || false,
+      is_bot_active: newConversation.is_bot_active ?? false,
     };
-    
   } catch (error: any) {
     console.error('[Unified Webhook] Error en getOrCreateConversation:', error);
     return null;
