@@ -11,6 +11,9 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { useState } from 'react'
+import { PRICING } from '@/lib/billing/constants'
+import { useCurrencyConverter } from '@/lib/utils/currency-converter'
+import { CurrencySelector } from '@/components/billing/currency-selector'
 
 const AnimatedCard = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => (
   <motion.div
@@ -24,6 +27,7 @@ const AnimatedCard = ({ children, delay = 0 }: { children: React.ReactNode; dela
 
 export default function LandingPage() {
   const [openFAQ, setOpenFAQ] = useState<number | null>(null)
+  const { selectedCurrency, setSelectedCurrency, convertUSD, formatLocalCurrency } = useCurrencyConverter()
 
   const toggleFAQ = (index: number) => {
     setOpenFAQ(openFAQ === index ? null : index)
@@ -332,26 +336,33 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing Section */}
-      <section className="py-20 bg-gradient-to-br from-cyan-500 via-blue-500 to-blue-600 text-white">
+      <section className="py-20 bg-gradient-to-br from-cyan-500 via-blue-500 to-blue-600 text-white relative">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl lg:text-5xl font-bold mb-4 text-balance">Planes diseñados para tu negocio</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+            <div className="text-center sm:text-left">
+              <h2 className="text-4xl lg:text-5xl font-bold mb-4 text-balance">Planes diseñados para tu negocio</h2>
+              <p className="text-cyan-50 text-sm">Precios en USD. Selecciona tu moneda para ver el equivalente aproximado.</p>
+            </div>
+            <div className="flex items-center justify-center sm:justify-end gap-2">
+              <span className="text-sm text-cyan-50">Moneda:</span>
+              <CurrencySelector value={selectedCurrency} onChange={setSelectedCurrency} />
+            </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             {[
               {
                 name: "Básico",
-                price: "$499",
-                period: "MXN/mes",
+                amountUSD: 0,
+                period: "/mes",
                 features: ["Hasta 3 usuarios", "100 órdenes/mes", "Inventario básico", "Soporte por email", "Dashboard básico"],
                 cta: "Probar Gratis",
                 popular: false,
               },
               {
                 name: "Profesional",
-                price: "$999",
-                period: "MXN/mes",
+                amountUSD: PRICING.monthly.amount,
+                period: "/mes",
                 features: [
                   "Usuarios ilimitados",
                   "Órdenes ilimitadas",
@@ -382,9 +393,18 @@ export default function LandingPage() {
 
                   <div className="text-center mb-8">
                     <h3 className="text-2xl font-bold mb-4">{plan.name}</h3>
-                    <div className="flex items-baseline justify-center gap-2">
-                      <span className="text-5xl font-bold">{plan.price}</span>
-                      <span className={plan.popular ? "text-slate-600" : "text-white/80"}>{plan.period}</span>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <div className="flex items-baseline justify-center gap-2">
+                        <span className="text-5xl font-bold">
+                          {plan.amountUSD === 0 ? '$0' : `$${plan.amountUSD}`} USD
+                        </span>
+                        <span className={plan.popular ? "text-slate-600" : "text-white/80"}>{plan.period}</span>
+                      </div>
+                      {selectedCurrency !== 'USD' && plan.amountUSD > 0 && (
+                        <p className={plan.popular ? "text-slate-500 text-sm mt-1" : "text-cyan-100/90 text-sm mt-1"}>
+                          ≈ {formatLocalCurrency(convertUSD(plan.amountUSD, selectedCurrency), selectedCurrency)}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -416,8 +436,11 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <p className="text-center mt-8 text-cyan-50">
+          <p className="text-center mt-6 text-cyan-50">
             Todos los planes incluyen 7 días de prueba gratis. Sin tarjeta de crédito.
+          </p>
+          <p className="text-center mt-2 text-cyan-100/70 text-xs">
+            Tipo de cambio aproximado. El cargo se realiza en USD.
           </p>
         </div>
       </section>

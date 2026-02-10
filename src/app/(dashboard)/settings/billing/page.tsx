@@ -12,6 +12,8 @@ import { PRICING, FEATURES } from '@/lib/billing/constants'
 import { useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
+import { useCurrencyConverter } from '@/lib/utils/currency-converter'
+import { CurrencySelector } from '@/components/billing/currency-selector'
 
 const BILLING_FAQS = [
   {
@@ -48,6 +50,7 @@ export default function BillingPage() {
   const [portalLoading, setPortalLoading] = useState(false)
   const [faqOpenIndex, setFaqOpenIndex] = useState<number | null>(null)
   const { toast } = useToast()
+  const { selectedCurrency, setSelectedCurrency, convertUSD, formatLocalCurrency } = useCurrencyConverter()
 
   useEffect(() => {
     if (searchParams.get('success') === 'true') {
@@ -95,12 +98,18 @@ export default function BillingPage() {
         </Alert>
       )}
 
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Planes y Suscripciones</h1>
-        <p className="text-muted-foreground mt-2">
-          Gestiona tu plan y métodos de pago
-        </p>
+      {/* Header + Selector de moneda */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Planes y Suscripciones</h1>
+          <p className="text-muted-foreground mt-2">
+            Gestiona tu plan y métodos de pago
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Ver precios en:</span>
+          <CurrencySelector value={selectedCurrency} onChange={setSelectedCurrency} />
+        </div>
       </div>
 
       {/* Plan Actual */}
@@ -211,9 +220,16 @@ export default function BillingPage() {
                 <Badge className="absolute -top-3 left-4 bg-emerald-600 text-white border-0">
                   ¡AHORRA 31%!
                 </Badge>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <span className="text-3xl font-bold text-foreground">{PRICING.annual.displayPrice}</span>
-                  <span className="text-foreground/70">/año</span>
+                <div className="mt-2">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-foreground">{PRICING.annual.displayPrice}</span>
+                    <span className="text-foreground/70">/año</span>
+                  </div>
+                  {selectedCurrency !== 'USD' && (
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      ≈ {formatLocalCurrency(convertUSD(PRICING.annual.amount, selectedCurrency), selectedCurrency)}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 mt-2 text-sm text-emerald-700 dark:text-emerald-300">
                   <TrendingDown className="h-4 w-4" />
@@ -222,6 +238,11 @@ export default function BillingPage() {
                 <p className="text-xs text-foreground/60 mt-1">
                   Equivalente a ${PRICING.annual.monthlyEquivalent.toFixed(2)} USD/mes
                 </p>
+                {selectedCurrency !== 'USD' && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Ahorro anual ≈ {formatLocalCurrency(convertUSD(PRICING.annual.savings.amount, selectedCurrency), selectedCurrency)}
+                  </p>
+                )}
                 {!isPremium && (
                   <UpgradeButton plan="annual" size="lg" className="w-full mt-4 min-h-[3.75rem] text-lg px-6 py-4" />
                 )}
@@ -229,9 +250,16 @@ export default function BillingPage() {
 
               {/* Plan Mensual */}
               <div className="border border-border rounded-lg p-4">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-foreground">{PRICING.monthly.displayPrice}</span>
-                  <span className="text-foreground/70">/mes</span>
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-foreground">{PRICING.monthly.displayPrice}</span>
+                    <span className="text-foreground/70">/mes</span>
+                  </div>
+                  {selectedCurrency !== 'USD' && (
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      ≈ {formatLocalCurrency(convertUSD(PRICING.monthly.amount, selectedCurrency), selectedCurrency)}
+                    </p>
+                  )}
                 </div>
                 <p className="text-xs text-foreground/60 mt-1">
                   Facturación mensual
