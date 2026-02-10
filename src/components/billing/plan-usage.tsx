@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { AlertCircle, Crown, Zap, Loader2, ArrowRight } from 'lucide-react'
+import { AlertCircle, Crown, Zap, Loader2, ArrowRight, Users, ShoppingCart, Package, Wrench } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
 export function PlanUsage() {
@@ -40,7 +41,12 @@ export function PlanUsage() {
   const isPremium = plan.plan_tier === 'premium'
 
   return (
-    <Card>
+    <Card className={cn(
+      'transition-all duration-300',
+      isPremium
+        ? 'border-yellow-500/30 shadow-sm shadow-yellow-500/5'
+        : 'border-border'
+    )}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -66,15 +72,21 @@ export function PlanUsage() {
               {plan.subscription_status === 'none' && <>Sin suscripción activa</>}
             </CardDescription>
           </div>
-          <Badge variant={isPremium ? 'default' : 'secondary'}>
+          <Badge
+            variant={isPremium ? 'default' : 'secondary'}
+            className={cn(
+              isPremium && 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0'
+            )}
+          >
             {plan.plan_tier.toUpperCase()}
           </Badge>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-3">
         {/* Clientes */}
         <UsageItem
+          icon={<Users className="h-4 w-4" />}
           label={FEATURE_NAMES.max_customers}
           current={usage.customers.current}
           limit={usage.customers.limit}
@@ -85,6 +97,7 @@ export function PlanUsage() {
 
         {/* Órdenes del Mes */}
         <UsageItem
+          icon={<Wrench className="h-4 w-4" />}
           label={FEATURE_NAMES.max_orders_per_month}
           current={usage.orders.current}
           limit={usage.orders.limit}
@@ -95,6 +108,7 @@ export function PlanUsage() {
 
         {/* Items de Inventario */}
         <UsageItem
+          icon={<Package className="h-4 w-4" />}
           label={FEATURE_NAMES.max_inventory_items}
           current={usage.inventory.current}
           limit={usage.inventory.limit}
@@ -105,6 +119,7 @@ export function PlanUsage() {
 
         {/* Usuarios Activos */}
         <UsageItem
+          icon={<ShoppingCart className="h-4 w-4" />}
           label={FEATURE_NAMES.max_users}
           current={usage.users.current}
           limit={usage.users.limit}
@@ -115,7 +130,7 @@ export function PlanUsage() {
 
         {/* Upgrade CTA solo para Free */}
         {!isPremium && (
-          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-4">
+          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-4 mt-2">
             <div className="flex items-start gap-3">
               <Crown className="h-5 w-5 text-yellow-500 mt-0.5 shrink-0" />
               <div className="flex-1 space-y-2">
@@ -141,6 +156,7 @@ export function PlanUsage() {
 }
 
 interface UsageItemProps {
+  icon: React.ReactNode
   label: string
   current: number
   limit: number | null
@@ -149,15 +165,36 @@ interface UsageItemProps {
   isNearLimit: boolean
 }
 
-function UsageItem({ label, current, limit, percentage, isPremium, isNearLimit }: UsageItemProps) {
+function UsageItem({ icon, label, current, limit, percentage, isPremium, isNearLimit: nearLimit }: UsageItemProps) {
+  const getBarColor = () => {
+    if (nearLimit) return 'text-red-500'
+    if (percentage !== null && percentage >= 60) return 'text-orange-400'
+    return 'text-primary'
+  }
+
   return (
-    <div className="space-y-2">
+    <div
+      className={cn(
+        'rounded-lg border p-3 transition-all duration-200',
+        nearLimit
+          ? 'border-red-500/30 bg-red-500/5'
+          : isPremium
+            ? 'border-yellow-500/10 bg-yellow-500/[0.02] hover:border-yellow-500/20'
+            : 'border-border hover:border-primary/20 hover:bg-muted/30'
+      )}
+    >
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{label}</span>
-        <span className="text-muted-foreground">
-          {current} {limit !== null ? `/ ${limit}` : ''}
+        <span className="font-medium flex items-center gap-2">
+          <span className={cn('shrink-0', getBarColor())}>{icon}</span>
+          {label}
+        </span>
+        <span className="flex items-center gap-2 text-muted-foreground">
+          <span className="tabular-nums">{current}</span>
+          {limit !== null && (
+            <span className="tabular-nums">/ {limit}</span>
+          )}
           {isPremium && limit === null && (
-            <Badge variant="outline" className="ml-2">
+            <Badge variant="outline" className="ml-1 border-yellow-500/30 text-yellow-500 text-[10px] px-1.5 py-0">
               Ilimitado
             </Badge>
           )}
@@ -165,22 +202,25 @@ function UsageItem({ label, current, limit, percentage, isPremium, isNearLimit }
       </div>
 
       {limit !== null && percentage !== null && (
-        <>
-          <Progress 
-            value={percentage} 
-            className={isNearLimit ? 'bg-red-100' : ''}
+        <div className="mt-2 space-y-1">
+          <Progress
+            value={percentage}
+            className={cn(
+              'h-2',
+              nearLimit ? '[&>div]:bg-red-500' : percentage >= 60 ? '[&>div]:bg-orange-400' : ''
+            )}
           />
-          {isNearLimit && (
-            <p className="text-xs text-orange-600">
-              ⚠️ Cerca del límite ({percentage}%)
+          {nearLimit && (
+            <p className="text-[11px] text-red-400 font-medium">
+              Cerca del límite ({percentage}%)
             </p>
           )}
-        </>
+        </div>
       )}
 
       {limit === null && isPremium && (
-        <p className="text-xs text-muted-foreground">
-          ✓ Sin límites en plan Premium
+        <p className="text-[11px] text-yellow-500/70 mt-1.5">
+          Sin restricciones en tu plan
         </p>
       )}
     </div>
