@@ -13,7 +13,8 @@ import {
   DollarSign,
   AlertTriangle
 } from 'lucide-react'
-import { formatCurrency, formatRelativeTime } from '@/lib/utils'
+import { formatRelativeTime } from '@/lib/utils'
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 interface DashboardStatsProps {
   data?: {
@@ -86,8 +87,8 @@ export function DashboardStats({ data, loading = false }: DashboardStatsProps) {
     },
     {
       title: 'Ingresos',
-      value: formatCurrency(stats.revenue.current),
-      previous: formatCurrency(stats.revenue.previous),
+      value: formatMoney(stats.revenue.current),
+      previous: formatMoney(stats.revenue.previous),
       change: stats.revenue.percentageChange,
       icon: DollarSign,
       color: 'text-success',

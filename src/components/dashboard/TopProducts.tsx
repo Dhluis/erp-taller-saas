@@ -15,15 +15,7 @@ interface TopProductsProps {
 }
 
 export function TopProducts({ data, loading = false }: TopProductsProps) {
-  const { currency } = useOrgCurrency();
-  
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 0,
-    }).format(value);
-  };
+  const { formatMoney } = useOrgCurrency();
 
   if (loading) {
     return (
@@ -96,7 +88,7 @@ export function TopProducts({ data, loading = false }: TopProductsProps) {
                 
                 <div className="text-right ml-4">
                   <p className="text-text-primary font-bold">
-                    {formatCurrency(product.revenue)}
+                    {formatMoney(product.revenue)}
                   </p>
                 </div>
               </div>

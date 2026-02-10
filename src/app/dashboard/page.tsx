@@ -18,6 +18,7 @@ import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PlanUsage } from '@/components/billing/plan-usage';
 import { CurrencySelectorGlobal } from '@/components/currency/CurrencySelectorGlobal';
+import { useOrgCurrency } from '@/lib/context/CurrencyContext';
 import {
   LineChart,
   Line,
@@ -37,7 +38,8 @@ export default function DashboardPage() {
   const { organizationId, isLoading: sessionLoading, isReady: sessionReady } = useOrganization();
   const { user } = useSession();
   const permissions = usePermissions();
-  
+  const { formatMoney } = useOrgCurrency();
+
   // Compatibilidad: obtener organization para componentes que lo necesitan
   const organization = organizationId ? { id: organizationId, organization_id: organizationId } : null;
   const [dateRange, setDateRange] = useState('all'); // ✅ Cambiar a 'all' por defecto para mostrar todas las órdenes
@@ -503,7 +505,7 @@ export default function DashboardPage() {
     // ✅ Solo mostrar ingresos si puede ver reportes financieros
     ...(permissions.canViewFinancialReports() ? [{
       title: 'Ingresos del Mes',
-      value: `$${stats.ingresos.toLocaleString()}`,
+      value: formatMoney(stats.ingresos),
       description: 'Total facturado',
       trend: '↓ 15.1% vs mes anterior',
       icon: () => <ModernIcons.Finanzas size={32} />,

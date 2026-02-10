@@ -1,6 +1,11 @@
+'use client'
+
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
+
 type RevenuePoint = { month: string; total: number }
 
 export function Overview({ data }: { data: RevenuePoint[] }) {
+  const { formatMoney } = useOrgCurrency()
   return (
     <div className="text-sm text-muted-foreground">
       {/* Placeholder del gráfico: lista simple */}
@@ -8,7 +13,7 @@ export function Overview({ data }: { data: RevenuePoint[] }) {
         {data.map((p) => (
           <li key={p.month} className="flex justify-between">
             <span>{p.month}</span>
-            <span>${p.total.toLocaleString()}</span>
+            <span>{formatMoney(p.total)}</span>
           </li>
         ))}
       </ul>

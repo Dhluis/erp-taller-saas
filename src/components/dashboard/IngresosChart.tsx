@@ -9,16 +9,7 @@ interface IngresosChartProps {
 }
 
 export function IngresosChart({ data }: IngresosChartProps) {
-  const { currency } = useOrgCurrency();
-  
-  // Formato de moneda para tooltip
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 0
-    }).format(value);
-  };
+  const { formatMoney } = useOrgCurrency();
 
   // Componente personalizado para tooltip
   const CustomTooltip = ({ active, payload }: any) => {
@@ -28,7 +19,7 @@ export function IngresosChart({ data }: IngresosChartProps) {
           <p className="text-sm font-medium text-white mb-2">{payload[0].payload.fecha}</p>
           <div className="space-y-1">
             <p className="text-sm text-cyan-400">
-              Ingresos: <span className="font-bold">{formatCurrency(payload[0].value)}</span>
+              Ingresos: <span className="font-bold">{formatMoney(payload[0].value)}</span>
             </p>
             <p className="text-sm text-blue-400">
               Órdenes: <span className="font-bold">{payload[1].value}</span>
@@ -59,7 +50,7 @@ export function IngresosChart({ data }: IngresosChartProps) {
             yAxisId="left"
             stroke="#06b6d4"
             style={{ fontSize: '12px' }}
-            tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+            tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
           />
           <YAxis 
             yAxisId="right"

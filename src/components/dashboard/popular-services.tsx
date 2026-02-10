@@ -21,8 +21,8 @@ interface PopularServicesProps {
 }
 
 export function PopularServices({ services }: PopularServicesProps) {
-  const { currency } = useOrgCurrency();
-  
+  const { formatMoney } = useOrgCurrency();
+
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'maintenance':
@@ -76,13 +76,6 @@ export function PopularServices({ services }: PopularServicesProps) {
     }
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency
-    }).format(amount)
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -113,7 +106,7 @@ export function PopularServices({ services }: PopularServicesProps) {
                         {getCategoryLabel(item.service.category)}
                       </Badge>
                       <span className="text-sm text-muted-foreground">
-                        {formatCurrency(item.service.base_price)}
+                        {formatMoney(item.service.base_price)}
                       </span>
                     </div>
                   </div>

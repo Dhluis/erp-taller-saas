@@ -26,15 +26,7 @@ interface PerformanceMetricsProps {
 }
 
 export function PerformanceMetrics({ data, loading = false }: PerformanceMetricsProps) {
-  const { currency } = useOrgCurrency();
-  
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 0,
-    }).format(value)
-  }
+  const { formatMoney } = useOrgCurrency();
 
   const formatPercentage = (value: number) => {
     return `${value.toFixed(1)}%`
@@ -81,7 +73,7 @@ export function PerformanceMetrics({ data, loading = false }: PerformanceMetrics
   const metrics = [
     {
       title: 'Valor Promedio de Orden',
-      value: formatCurrency(data.averageOrderValue),
+      value: formatMoney(data.averageOrderValue),
       icon: CurrencyDollarIcon,
       color: 'text-primary',
       bgColor: 'bg-primary/10',

@@ -22,14 +22,7 @@ export function QuotationsMetrics({
   totalQuotationValue,
   approvedQuotationValue
 }: QuotationsMetricsProps) {
-  const { currency } = useOrgCurrency();
-  
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency
-    }).format(amount)
-  }
+  const { formatMoney } = useOrgCurrency();
 
   const getConversionRateColor = (rate: string) => {
     const numRate = parseFloat(rate)
@@ -105,7 +98,7 @@ export function QuotationsMetrics({
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(totalQuotationValue)}</div>
+          <div className="text-2xl font-bold">{formatMoney(totalQuotationValue)}</div>
           <p className="text-xs text-muted-foreground">
             Valor total de todas las cotizaciones
           </p>
@@ -119,7 +112,7 @@ export function QuotationsMetrics({
           <CheckCircle className="h-4 w-4 text-green-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-green-600">{formatCurrency(approvedQuotationValue)}</div>
+          <div className="text-2xl font-bold text-green-600">{formatMoney(approvedQuotationValue)}</div>
           <p className="text-xs text-muted-foreground">
             Valor de cotizaciones aprobadas
           </p>

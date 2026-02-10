@@ -28,15 +28,7 @@ interface LowStockAlertProps {
 }
 
 export function LowStockAlert({ items, loading = false }: LowStockAlertProps) {
-  const { currency } = useOrgCurrency();
-  
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 2,
-    }).format(value);
-  };
+  const { formatMoney } = useOrgCurrency();
 
   if (loading) {
     return (
@@ -211,7 +203,7 @@ export function LowStockAlert({ items, loading = false }: LowStockAlertProps) {
                       <div>
                         <p className="text-xs text-text-secondary">Costo Reposición</p>
                         <p className="text-lg font-bold text-text-primary">
-                          {formatCurrency(item.deficit * item.unit_price)}
+                          {formatMoney(item.deficit * item.unit_price)}
                         </p>
                       </div>
                     </div>
@@ -233,7 +225,7 @@ export function LowStockAlert({ items, loading = false }: LowStockAlertProps) {
           <p className="text-sm text-text-secondary">
             Costo total estimado de reposición: 
             <span className="ml-2 text-text-primary font-bold">
-              {formatCurrency(
+              {formatMoney(
                 items.reduce((sum, item) => sum + (item.deficit * item.unit_price), 0)
               )}
             </span>
