@@ -59,6 +59,7 @@ export async function POST(
       )
     }
 
+    // Lead ya convertido → 400
     if (lead.status === 'converted') {
       return NextResponse.json(
         {
@@ -69,6 +70,7 @@ export async function POST(
       )
     }
 
+    // Solo qualified o appointment pueden convertirse
     if (!ALLOWED_CONVERT_STATUSES.includes(lead.status as typeof ALLOWED_CONVERT_STATUSES[number])) {
       return NextResponse.json(
         {
@@ -87,8 +89,9 @@ export async function POST(
       vehicle: vehicleInput
     } = body
 
+    // Validar vehículo si se envía
     if (vehicleInput) {
-      const { brand, model, year, plate, vin } = vehicleInput
+      const { brand, model, year, plate } = vehicleInput
       if (!brand || !model || year == null || !plate) {
         return NextResponse.json(
           { error: 'Vehículo inválido: se requieren marca, modelo, año y placas' },
@@ -101,17 +104,18 @@ export async function POST(
           { error: 'Año del vehículo debe estar entre 1950 y 2027' },
           { status: 400 }
         )
+      }
     }
 
     // Preparar datos del cliente
     const customerName = override_name || lead.name
     const customerEmail = override_email || lead.email
-    const customerNotes = additional_notes 
+    const customerNotes = additional_notes
       ? `${lead.notes || ''}\n\n[Convertido desde lead]\n${additional_notes}`
       : lead.notes
 
     // Verificar si ya existe un cliente con este teléfono
-    const { data: existingCustomer, error: checkError } = await supabase
+    const { data: existingCustomer } = await supabase
       .from('customers')
       .select('id, name')
       .eq('organization_id', organizationId)
@@ -125,7 +129,6 @@ export async function POST(
       console.log('[Leads API] Cliente ya existe, vinculando:', existingCustomer.id)
       customerId = existingCustomer.id
 
-      // Actualizar campos del cliente existente
       await supabase
         .from('customers')
         .update({
@@ -135,7 +138,6 @@ export async function POST(
           notes: customerNotes
         })
         .eq('id', customerId)
-
     } else {
       // Crear nuevo cliente
       console.log('[Leads API] Creando nuevo cliente desde lead')
@@ -192,7 +194,15 @@ export async function POST(
     }
 
     // Crear vehículo opcional
-    let createdVehicle: { id: string; brand: string; model: string; year: number; license_plate: string; vin?: string } | null = null
+    let createdVehicle: {
+      id: string
+      brand: string
+      model: string
+      year: number
+      license_plate: string
+      vin?: string
+    } | null = null
+
     if (vehicleInput && customerId) {
       const { brand, model, year, plate, vin } = vehicleInput
       const y = Number(year)
@@ -240,13 +250,13 @@ export async function POST(
         vehicle: createdVehicle ?? undefined
       },
       message: 'Lead convertido a cliente exitosamente'
-    }, { status: 200 });
+    }, { status: 200 })
 
   } catch (error: any) {
-    console.error('[Leads API] Error inesperado:', error);
+    console.error('[Leads API] Error inesperado:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor', details: error.message },
       { status: 500 }
-    );
+    )
   }
 }
