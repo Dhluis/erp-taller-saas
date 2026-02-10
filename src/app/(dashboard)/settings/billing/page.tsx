@@ -193,7 +193,7 @@ export default function BillingPage() {
                   Equivalente a ${PRICING.annual.monthlyEquivalent.toFixed(2)} USD/mes
                 </p>
                 {!isPremium && (
-                  <UpgradeButton plan="annual" className="w-full mt-4" />
+                  <UpgradeButton plan="annual" size="lg" className="w-full mt-4 min-h-[3.75rem] text-lg px-6 py-4" />
                 )}
               </div>
 
@@ -207,7 +207,7 @@ export default function BillingPage() {
                   Facturación mensual
                 </p>
                 {!isPremium && (
-                  <UpgradeButton plan="monthly" variant="outline" className="w-full mt-4 border-primary text-primary hover:bg-primary/10 hover:text-primary" />
+                  <UpgradeButton plan="monthly" variant="outline" size="lg" className="w-full mt-4 min-h-[3.75rem] text-lg px-6 py-4 border-primary text-primary hover:bg-primary/10 hover:text-primary" />
                 )}
               </div>
             </div>
