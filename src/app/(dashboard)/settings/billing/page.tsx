@@ -4,24 +4,21 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Check, Crown, Zap, TrendingDown, AlertCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Check, Crown, Zap, TrendingDown, AlertCircle, Settings, Loader2 } from 'lucide-react'
 import { UpgradeButton } from '@/components/billing/upgrade-button'
 import { useBilling } from '@/hooks/useBilling'
 import { PRICING, FEATURES } from '@/lib/billing/constants'
 import { useSearchParams } from 'next/navigation'
+import { useToast } from '@/components/ui/use-toast'
 
 export default function BillingPage() {
   const searchParams = useSearchParams()
   const { plan, usage, isLoading } = useBilling()
-  console.log('[Billing Page] Debug:', {
-    plan: plan,
-    isPremium: plan?.plan_tier === 'premium',
-    isActive: plan?.subscription_status === 'active',
-    usage: usage,
-    isLoading: isLoading
-  })
   const [showSuccess, setShowSuccess] = useState(false)
   const [showCanceled, setShowCanceled] = useState(false)
+  const [portalLoading, setPortalLoading] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     if (searchParams.get('success') === 'true') {
@@ -47,8 +44,6 @@ export default function BillingPage() {
 
   const isPremium = plan?.plan_tier === 'premium'
   const isActive = plan?.subscription_status === 'active'
-
-  console.log('[Billing Page] Rendering with isPremium:', isPremium, 'isActive:', isActive)
 
   return (
     <div className="space-y-8 p-8 max-w-7xl mx-auto">
@@ -88,13 +83,48 @@ export default function BillingPage() {
                 <Crown className="h-5 w-5 text-yellow-500" />
                 <CardTitle>Plan Premium Activo</CardTitle>
               </div>
-              <Badge variant="default">ACTIVO</Badge>
+              <Badge variant="success">ACTIVO</Badge>
             </div>
             <CardDescription>
               {plan.current_period_end && (
                 <>Próxima renovación: {new Date(plan.current_period_end).toLocaleDateString('es-MX')}</>
               )}
             </CardDescription>
+            <div className="mt-4">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  setPortalLoading(true)
+                  try {
+                    const res = await fetch('/api/billing/portal', { method: 'POST' })
+                    if (!res.ok) {
+                      const data = await res.json()
+                      throw new Error(data.error || 'Error al abrir el portal')
+                    }
+                    const { url } = await res.json()
+                    if (url) window.location.href = url
+                  } catch (e) {
+                    const message = e instanceof Error ? e.message : 'Error al abrir el portal'
+                    console.error('[Billing Portal]', e)
+                    toast({ title: 'Error', description: message, variant: 'destructive' })
+                    setPortalLoading(false)
+                  }
+                }}
+                disabled={portalLoading}
+              >
+                {portalLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Abriendo portal...
+                  </>
+                ) : (
+                  <>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Administrar Suscripción
+                  </>
+                )}
+              </Button>
+            </div>
           </CardHeader>
         </Card>
       )}
@@ -147,19 +177,19 @@ export default function BillingPage() {
             {/* Pricing Tabs */}
             <div className="space-y-4">
               {/* Plan Anual */}
-              <div className="border-2 border-green-500 rounded-lg p-4 bg-green-50 relative">
-                <Badge className="absolute -top-3 left-4 bg-green-500">
+              <div className="border-2 border-emerald-500/60 rounded-lg p-4 bg-emerald-500/10 dark:bg-emerald-500/15 relative">
+                <Badge className="absolute -top-3 left-4 bg-emerald-600 text-white border-0">
                   ¡AHORRA 31%!
                 </Badge>
                 <div className="flex items-baseline gap-2 mt-2">
-                  <span className="text-3xl font-bold">{PRICING.annual.displayPrice}</span>
-                  <span className="text-muted-foreground">/año</span>
+                  <span className="text-3xl font-bold text-foreground">{PRICING.annual.displayPrice}</span>
+                  <span className="text-foreground/70">/año</span>
                 </div>
-                <div className="flex items-center gap-2 mt-2 text-sm text-green-700">
+                <div className="flex items-center gap-2 mt-2 text-sm text-emerald-700 dark:text-emerald-300">
                   <TrendingDown className="h-4 w-4" />
                   <span className="font-medium">{PRICING.annual.savings.monthsFree}</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-foreground/60 mt-1">
                   Equivalente a ${PRICING.annual.monthlyEquivalent.toFixed(2)} USD/mes
                 </p>
                 {!isPremium && (
@@ -168,16 +198,16 @@ export default function BillingPage() {
               </div>
 
               {/* Plan Mensual */}
-              <div className="border rounded-lg p-4">
+              <div className="border border-border rounded-lg p-4">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold">{PRICING.monthly.displayPrice}</span>
-                  <span className="text-muted-foreground">/mes</span>
+                  <span className="text-2xl font-bold text-foreground">{PRICING.monthly.displayPrice}</span>
+                  <span className="text-foreground/70">/mes</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-foreground/60 mt-1">
                   Facturación mensual
                 </p>
                 {!isPremium && (
-                  <UpgradeButton plan="monthly" variant="outline" className="w-full mt-4" />
+                  <UpgradeButton plan="monthly" variant="outline" className="w-full mt-4 border-primary text-primary hover:bg-primary/10 hover:text-primary" />
                 )}
               </div>
             </div>

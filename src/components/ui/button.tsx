@@ -57,12 +57,13 @@ export function Button({
   const baseClasses = 'inline-flex items-center justify-center rounded-md font-medium transition-all duration-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50'
   
   const variants = {
-    primary: 'bg-primary text-bg-primary hover:bg-primary-dark shadow-primary',
+    primary: 'bg-primary text-primary-foreground hover:opacity-90 shadow-sm',
     secondary: 'bg-bg-tertiary text-text-primary border border-border hover:bg-bg-quaternary hover:border-primary/50',
     ghost: 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary',
     danger: 'bg-error text-white hover:bg-error-dark',
     success: 'bg-success text-white hover:bg-success-dark',
     warning: 'bg-warning text-white hover:bg-warning-dark',
+    outline: 'border border-primary/50 bg-transparent text-primary hover:bg-primary/10 hover:border-primary',
   }
   
   const sizes = {

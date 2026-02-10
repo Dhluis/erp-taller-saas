@@ -93,13 +93,54 @@ export async function POST(request: NextRequest) {
         console.log('[Webhook] Subscription updated:', {
           organizationId,
           subscriptionId: subscription.id,
-          status: subscription.status
+          status: subscription.status,
+          cancel_at_period_end: subscription.cancel_at_period_end,
         })
 
-        const status = subscription.status === 'active' ? 'active' :
-          subscription.status === 'canceled' ? 'canceled' :
-            subscription.status === 'past_due' ? 'past_due' : 'expired'
+        // Si está programado para cancelar al final del período, no hacer downgrade aún
+        if (subscription.cancel_at_period_end) {
+          await supabase
+            .from('organizations')
+            .update({
+              subscription_status: 'active',
+              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            })
+            .eq('id', organizationId)
+          console.log('[Webhook] Cancel at period end: actualizando fechas, sin downgrade')
+          break
+        }
 
+        if (subscription.status === 'canceled') {
+          await supabase
+            .from('organizations')
+            .update({
+              plan_tier: 'free',
+              subscription_status: 'canceled',
+              subscription_id: null,
+              current_period_start: null,
+              current_period_end: null,
+            })
+            .eq('id', organizationId)
+          console.log('[Webhook] Subscription canceled: organization downgraded to free:', organizationId)
+          break
+        }
+
+        if (subscription.status === 'past_due') {
+          await supabase
+            .from('organizations')
+            .update({
+              subscription_status: 'past_due',
+              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            })
+            .eq('id', organizationId)
+          console.log('[Webhook] Subscription past_due: subscription_status actualizado')
+          break
+        }
+
+        // active o otros
+        const status = subscription.status === 'active' ? 'active' : 'expired'
         await supabase
           .from('organizations')
           .update({
@@ -108,7 +149,6 @@ export async function POST(request: NextRequest) {
             current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
           })
           .eq('id', organizationId)
-
         break
       }
 

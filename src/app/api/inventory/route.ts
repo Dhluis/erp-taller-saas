@@ -269,12 +269,11 @@ export async function POST(request: NextRequest) {
       console.log('[POST /api/inventory] Límite alcanzado:', limitCheck.error?.message);
       return NextResponse.json(
         {
-          success: false,
           error: limitCheck.error?.message || 'Límite de items de inventario alcanzado',
           limit_reached: true,
           current: limitCheck.current,
           limit: limitCheck.limit,
-          upgrade_url: limitCheck.error?.upgrade_url || '/settings/billing'
+          upgrade_url: limitCheck.error?.upgrade_url || '/settings/billing',
         },
         { status: 403 }
       );

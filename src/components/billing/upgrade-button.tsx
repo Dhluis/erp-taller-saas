@@ -56,7 +56,7 @@ export function UpgradeButton({ plan, variant = 'default', size = 'default', cla
     <Button
       onClick={handleUpgrade}
       disabled={loading}
-      variant={variant}
+      variant={variant === 'outline' ? 'outline' : 'primary'}
       size={size}
       className={className}
     >

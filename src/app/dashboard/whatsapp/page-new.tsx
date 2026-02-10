@@ -92,7 +92,7 @@ export default function WhatsAppPage() {
             <AlertDescription>
               <span className="font-medium">Activa tu suscripción para usar WhatsApp</span>
               <p className="text-sm mt-1">
-                $2,900 MXN/mes • Incluye 7 días de prueba gratis
+                $170 USD/mes • Incluye 7 días de prueba gratis
               </p>
             </AlertDescription>
           </Alert>
@@ -279,7 +279,7 @@ function PricingCard({ onActivate, activating }: { onActivate: () => void, activ
         </div>
         
         <div className="text-3xl font-bold">
-          $2,900 <span className="text-lg font-normal text-muted-foreground">MXN/mes</span>
+          $170 <span className="text-lg font-normal text-muted-foreground">USD/mes</span>
         </div>
         <p className="text-sm text-muted-foreground">
           7 días de prueba gratis • Cancela cuando quieras

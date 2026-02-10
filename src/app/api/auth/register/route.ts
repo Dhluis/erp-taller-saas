@@ -123,7 +123,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 2. Crear organización
+    // 2. Crear organización con trial gratuito de 7 días
+    const now = new Date()
+    const trialEndsAt = new Date(now)
+    trialEndsAt.setDate(trialEndsAt.getDate() + 7)
+
     const { data: orgData, error: orgError } = await supabaseAdmin
       .from('organizations')
       .insert({
@@ -131,8 +135,11 @@ export async function POST(request: NextRequest) {
         address: `Dirección del taller de ${body.fullName}`,
         phone: body.phone || '',
         email: body.email,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        plan_tier: 'free',
+        subscription_status: 'trial',
+        trial_ends_at: trialEndsAt.toISOString(),
+        created_at: now.toISOString(),
+        updated_at: now.toISOString()
       })
       .select()
       .single()

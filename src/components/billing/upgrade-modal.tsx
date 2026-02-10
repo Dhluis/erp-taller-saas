@@ -81,8 +81,8 @@ export function UpgradeModal({ isOpen, onClose, limitError, featureName }: Upgra
                 Plan Premium
               </h3>
               <div className="text-right">
-                <div className="text-3xl font-bold text-yellow-400">$2,900</div>
-                <div className="text-sm text-slate-300">MXN/mes</div>
+                <div className="text-3xl font-bold text-yellow-400">$170 USD</div>
+                <div className="text-sm text-slate-300">/mes</div>
               </div>
             </div>
 

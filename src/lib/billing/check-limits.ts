@@ -39,14 +39,15 @@ async function getOrganizationIdFromUser(userId: string): Promise<string | null>
 }
 
 /**
- * Obtiene el plan tier de la organización
+ * Obtiene el plan tier efectivo de la organización.
+ * Durante trial activo (7 días), retorna 'premium' para dar acceso a features Premium.
  */
 async function getPlanTier(organizationId: string): Promise<PlanTier> {
   const supabase = getSupabaseServiceClient()
   
   const { data: org, error } = await supabase
     .from('organizations')
-    .select('plan_tier')
+    .select('plan_tier, subscription_status, trial_ends_at')
     .eq('id', organizationId)
     .single()
   
@@ -54,8 +55,30 @@ async function getPlanTier(organizationId: string): Promise<PlanTier> {
     console.error('[getPlanTier] Error:', error)
     return 'free' // Default a free si hay error
   }
-  
-  return ((org as any).plan_tier || 'free') as PlanTier
+
+  const o = org as { plan_tier?: string; subscription_status?: string; trial_ends_at?: string | null }
+  const planTier = (o.plan_tier || 'free') as PlanTier
+
+  // Si ya es premium por pago, retornar premium
+  if (planTier === 'premium') return 'premium'
+
+  // Durante trial activo: dar acceso Premium
+  if (o.subscription_status === 'trial' && o.trial_ends_at) {
+    const trialEnd = new Date(o.trial_ends_at)
+    if (trialEnd > new Date()) {
+      return 'premium' // Trial activo → acceso Premium
+    }
+    // Trial expirado: lazy update a expired (opcional, no bloqueante)
+    supabase
+      .from('organizations')
+      .update({ subscription_status: 'expired' })
+      .eq('id', organizationId)
+      .then(({ error: updateErr }) => {
+        if (updateErr) console.warn('[getPlanTier] Lazy update expired:', updateErr)
+      })
+  }
+
+  return planTier
 }
 
 

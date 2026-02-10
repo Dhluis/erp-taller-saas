@@ -274,13 +274,12 @@ export async function POST(request: NextRequest) {
     
     if (!limitCheck.canCreate) {
       console.log('❌ Límite de clientes alcanzado:', limitCheck.error?.message)
-      return NextResponse.json({ 
-        success: false, 
+      return NextResponse.json({
         error: limitCheck.error?.message || 'Límite de clientes alcanzado',
         limit_reached: true,
         current: limitCheck.current,
         limit: limitCheck.limit,
-        upgrade_url: limitCheck.error?.upgrade_url || '/settings/billing'
+        upgrade_url: limitCheck.error?.upgrade_url || '/settings/billing',
       }, { status: 403 })
     }
 
