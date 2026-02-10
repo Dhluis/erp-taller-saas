@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Loader2, Crown } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
+import { cn } from '@/lib/utils'
 
 interface UpgradeButtonProps {
   plan: 'monthly' | 'annual'
@@ -52,13 +53,19 @@ export function UpgradeButton({ plan, variant = 'default', size = 'default', cla
     }
   }
 
+  const isOutline = variant === 'outline'
+
   return (
     <Button
       onClick={handleUpgrade}
       disabled={loading}
-      variant={variant === 'outline' ? 'outline' : 'primary'}
+      variant={isOutline ? 'outline' : 'primary'}
       size={size}
-      className={className}
+      className={cn(
+        'transition-transform duration-200 hover:scale-[1.03]',
+        !isOutline && 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white border-0 shadow-sm',
+        className,
+      )}
     >
       {loading ? (
         <>

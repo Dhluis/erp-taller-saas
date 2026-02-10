@@ -140,6 +140,7 @@ export default function BillingPage() {
                   }
                 }}
                 disabled={portalLoading}
+                className="border-yellow-500/40 text-yellow-500 hover:bg-yellow-500/10 hover:border-yellow-500 transition-transform duration-200 hover:scale-[1.03]"
               >
                 {portalLoading ? (
                   <>
@@ -148,7 +149,7 @@ export default function BillingPage() {
                   </>
                 ) : (
                   <>
-                    <Settings className="mr-2 h-4 w-4" />
+                    <Crown className="mr-2 h-4 w-4" />
                     Administrar Suscripción
                   </>
                 )}

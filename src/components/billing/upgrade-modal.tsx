@@ -132,7 +132,7 @@ export function UpgradeModal({ isOpen, onClose, limitError, featureName }: Upgra
             Ahora no
           </Button>
           <Button 
-            className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
+            className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white shadow-sm transition-transform duration-200 hover:scale-105"
             onClick={handleUpgrade}
           >
             <Crown className="mr-2 h-4 w-4" />

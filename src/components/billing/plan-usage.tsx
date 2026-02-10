@@ -141,9 +141,9 @@ export function PlanUsage() {
                   Con Premium desbloqueas clientes, órdenes, inventario y usuarios sin restricciones, además de WhatsApp, IA y reportes avanzados.
                 </p>
                 <Link href="/settings/billing">
-                  <Button size="sm" className="mt-1 gap-1.5">
+                  <Button size="sm" className="mt-1 gap-1.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white border-0 shadow-sm transition-transform duration-200 hover:scale-105">
+                    <Crown className="h-3.5 w-3.5" />
                     Ver planes
-                    <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 </Link>
               </div>
