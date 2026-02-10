@@ -12,13 +12,20 @@ import { cn } from '@/lib/utils'
 export function CurrencySelectorGlobal({ className }: { className?: string }) {
   const { currency, setCurrency } = useOrgCurrency()
 
+  // 🔍 DEBUG
+  console.log('💱 [Selector] Renderizado con moneda:', currency)
+  console.log('💱 [Selector] setCurrency es función:', typeof setCurrency === 'function')
+
   return (
-    <div className={cn('flex items-center', className)}>
+    <div className={cn('flex flex-col items-end gap-1', className)}>
       <Select
         value={currency}
-        onValueChange={(v) => setCurrency(v as OrgCurrencyCode)}
+        onValueChange={(value) => {
+          console.log('🔔 [Selector] Usuario seleccionó:', value)
+          setCurrency(value as OrgCurrencyCode)
+        }}
       >
-        <SelectTrigger className="w-[200px] h-9 text-xs bg-gray-800 border-gray-600 text-white hover:bg-gray-700 transition-colors">
+        <SelectTrigger className="w-[200px] h-9 text-xs bg-gray-800 border-gray-600 text-white hover:bg-gray-700 focus:ring-2 focus:ring-cyan-500 cursor-pointer transition-colors">
           <Globe className="h-3.5 w-3.5 mr-1.5 text-cyan-400" />
           <SelectValue />
         </SelectTrigger>
@@ -27,13 +34,17 @@ export function CurrencySelectorGlobal({ className }: { className?: string }) {
             <SelectItem
               key={code}
               value={code}
-              className="text-xs text-gray-100 focus:bg-gray-700 focus:text-white cursor-pointer"
+              className="text-xs text-gray-100 hover:bg-gray-700 focus:bg-gray-700 focus:text-white cursor-pointer"
             >
               {info.flag} {info.name} ({code})
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
+      {/* 🔍 DEBUG visual temporal */}
+      <div className="text-[10px] text-gray-500">
+        Debug: {currency} | Click: {typeof setCurrency === 'function' ? '✅' : '❌'}
+      </div>
     </div>
   )
 }

@@ -63,9 +63,15 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const [currency, _setCurrency] = useState<OrgCurrencyCode>('MXN')
   const [isLoading, setIsLoading] = useState(true)
 
+  // 🔍 DEBUG: Estado del provider
+  console.log('🌍 [CurrencyContext] Provider render → moneda:', currency, '| orgId:', organizationId, '| isReady:', isReady, '| isLoading:', isLoading)
+
   // Cargar la moneda de la org desde company_settings
   useEffect(() => {
+    console.log('🌍 [CurrencyContext] useEffect disparado → isReady:', isReady, '| orgId:', organizationId)
+
     if (!isReady || !organizationId) {
+      console.log('🌍 [CurrencyContext] ⏸️ Sesión no lista o sin orgId, saltando carga')
       setIsLoading(false)
       return
     }
@@ -74,6 +80,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
       try {
         // 1. Intentar leer de localStorage para carga instantánea
         const cached = localStorage.getItem(`${STORAGE_KEY}_${organizationId}`)
+        console.log('🌍 [CurrencyContext] Cache localStorage:', cached)
         if (cached && cached in SUPPORTED_CURRENCIES) {
           _setCurrency(cached as OrgCurrencyCode)
         }
@@ -86,10 +93,15 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
           .eq('organization_id', organizationId)
           .single()
 
+        console.log('🌍 [CurrencyContext] BD response → data:', data, '| error:', error)
+
         if (!error && data?.currency && data.currency in SUPPORTED_CURRENCIES) {
           const dbCurrency = data.currency as OrgCurrencyCode
+          console.log('🌍 [CurrencyContext] ✅ Moneda desde BD:', dbCurrency)
           _setCurrency(dbCurrency)
           localStorage.setItem(`${STORAGE_KEY}_${organizationId}`, dbCurrency)
+        } else {
+          console.log('🌍 [CurrencyContext] ⚠️ No se pudo leer moneda de BD, usando default')
         }
       } catch (err) {
         console.warn('[CurrencyProvider] Error cargando moneda:', err)
@@ -103,7 +115,11 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
 
   // Cambiar moneda (persiste en BD + localStorage)
   const setCurrency = useCallback(async (code: OrgCurrencyCode) => {
-    if (!organizationId) return
+    console.log('🔄 [CurrencyContext] Cambiando moneda de', currency, 'a', code, '| orgId:', organizationId)
+    if (!organizationId) {
+      console.error('🔄 [CurrencyContext] ❌ No hay organizationId, no se puede guardar')
+      return
+    }
 
     _setCurrency(code)
     localStorage.setItem(`${STORAGE_KEY}_${organizationId}`, code)
@@ -117,11 +133,13 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('[CurrencyProvider] Error guardando moneda:', error)
+      } else {
+        console.log('🔄 [CurrencyContext] ✅ Moneda guardada en BD:', code)
       }
     } catch (err) {
       console.error('[CurrencyProvider] Error al guardar moneda:', err)
     }
-  }, [organizationId])
+  }, [organizationId, currency])
 
   const currencyInfo = SUPPORTED_CURRENCIES[currency]
 
