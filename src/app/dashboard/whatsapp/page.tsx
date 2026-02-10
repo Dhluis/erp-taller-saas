@@ -181,7 +181,7 @@ export default function WhatsAppPage() {
                   resource: 'whatsapp_conversation',
                   message: `WhatsApp Business no está disponible en tu plan ${plan.plan_tier === 'free' ? 'Free' : 'actual'}. Actualiza a Premium para habilitar WhatsApp con IA.`,
                   feature: 'whatsapp_enabled',
-                  upgrade_url: '/dashboard/billing',
+                  upgrade_url: '/settings/billing',
                   plan_required: 'premium'
                 })
               }}

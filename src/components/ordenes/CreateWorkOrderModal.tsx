@@ -823,7 +823,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         current: usage.orders.current,
         limit: usage.orders.limit,
         feature: 'max_orders_per_month',
-        upgrade_url: '/dashboard/billing',
+        upgrade_url: '/settings/billing',
         plan_required: 'premium'
       })
       return

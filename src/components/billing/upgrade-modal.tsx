@@ -42,7 +42,7 @@ export function UpgradeModal({ isOpen, onClose, limitError, featureName }: Upgra
 
   const handleUpgrade = () => {
     onClose()
-    router.push(limitError?.upgrade_url || '/dashboard/billing')
+    router.push(limitError?.upgrade_url || '/settings/billing')
   }
 
   return (

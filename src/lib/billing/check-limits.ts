@@ -207,7 +207,7 @@ export async function checkResourceLimit(
           resource: resourceType,
           message: `La función de WhatsApp no está habilitada en tu plan ${planTier === 'free' ? 'Free' : 'Premium'}. Actualiza a Premium para habilitar WhatsApp.`,
           feature: 'whatsapp_enabled',
-          upgrade_url: '/dashboard/billing',
+          upgrade_url: '/settings/billing',
           plan_required: 'premium'
         }
         }
@@ -277,7 +277,7 @@ export async function checkResourceLimit(
           limit,
           message: `Has alcanzado el límite de ${limit} ${featureName.toLowerCase()} para tu plan ${planTier === 'free' ? 'Free' : 'Premium'}. ${planTier === 'free' ? 'Actualiza a Premium para límites ilimitados.' : ''}`,
           feature: `max_${resourceType === 'work_order' ? 'orders_per_month' : resourceType === 'inventory_item' ? 'inventory_items' : resourceType === 'user' ? 'users' : 'customers'}`,
-          upgrade_url: '/dashboard/billing',
+          upgrade_url: '/settings/billing',
           plan_required: 'premium'
         }
       }

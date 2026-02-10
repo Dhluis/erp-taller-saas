@@ -52,7 +52,7 @@ export function useLimitCheck() {
               current: data.current,
               limit: data.limit,
               feature: data.feature || 'max_orders_per_month',
-              upgrade_url: data.upgrade_url || '/dashboard/billing',
+              upgrade_url: data.upgrade_url || '/settings/billing',
               plan_required: 'premium'
             })
             setShowUpgradeModal(true)
@@ -87,7 +87,7 @@ export function useLimitCheck() {
         current: apiError.current,
         limit: apiError.limit,
         feature: apiError.feature || 'unknown',
-        upgrade_url: apiError.upgrade_url || '/dashboard/billing',
+        upgrade_url: apiError.upgrade_url || '/settings/billing',
         plan_required: 'premium'
       })
       setShowUpgradeModal(true)

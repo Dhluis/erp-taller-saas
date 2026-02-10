@@ -274,7 +274,7 @@ export async function POST(request: NextRequest) {
           limit_reached: true,
           current: limitCheck.current,
           limit: limitCheck.limit,
-          upgrade_url: limitCheck.error?.upgrade_url || '/dashboard/billing'
+          upgrade_url: limitCheck.error?.upgrade_url || '/settings/billing'
         },
         { status: 403 }
       );

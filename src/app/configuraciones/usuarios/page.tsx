@@ -405,7 +405,7 @@ export default function UsuariosPage() {
         current: usage.users.current,
         limit: usage.users.limit,
         feature: 'max_users',
-        upgrade_url: '/dashboard/billing',
+        upgrade_url: '/settings/billing',
         plan_required: 'premium'
       })
       return
