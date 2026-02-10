@@ -240,14 +240,13 @@ export async function POST(
         vehicle: createdVehicle ?? undefined
       },
       message: 'Lead convertido a cliente exitosamente'
-    }, { status: 200 })
+    }, { status: 200 });
 
   } catch (error: any) {
-    console.error('[Leads API] Error inesperado:', error)
+    console.error('[Leads API] Error inesperado:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor', details: error.message },
       { status: 500 }
-    )
+    );
   }
 }
-
