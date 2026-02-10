@@ -39,16 +39,32 @@ export function formatInCurrency(amount: number, code: OrgCurrencyCode): string 
   }).format(amount)
 }
 
+/** Convierte entre dos monedas pasando por USD como intermedia */
+export function convertBetweenCurrencies(
+  amount: number,
+  from: OrgCurrencyCode,
+  to: OrgCurrencyCode
+): number {
+  if (from === to) return amount
+  const amountInUSD = amount / SUPPORTED_CURRENCIES[from].rateFromUSD
+  const convertedAmount = amountInUSD * SUPPORTED_CURRENCIES[to].rateFromUSD
+  return Math.round(convertedAmount * 100) / 100
+}
+
 interface CurrencyContextType {
-  /** Código ISO de la moneda de la organización (ej. 'MXN') */
+  /** Moneda seleccionada para visualización */
   currency: OrgCurrencyCode
+  /** Moneda base del taller (en la que están almacenados los montos) */
+  baseCurrency: OrgCurrencyCode
   /** Info de la moneda actual */
   currencyInfo: (typeof SUPPORTED_CURRENCIES)[OrgCurrencyCode]
-  /** Cambiar la moneda de la organización (persiste en BD) */
+  /** Cambiar la moneda de visualización (persiste en BD) */
   setCurrency: (code: OrgCurrencyCode) => Promise<void>
-  /** Formatear un monto con la moneda de la org */
-  formatMoney: (amount: number) => string
-  /** Convierte USD a la moneda de la org y formatea */
+  /** Formatear un monto: convierte de fromCurrency (o baseCurrency) a currency y formatea */
+  formatMoney: (amount: number, fromCurrency?: OrgCurrencyCode) => string
+  /** Convierte entre monedas (from → to vía USD) */
+  convertBetweenCurrencies: (amount: number, from: OrgCurrencyCode, to: OrgCurrencyCode) => number
+  /** Convierte USD a la moneda de visualización y formatea */
   convertAndFormat: (amountUSD: number) => string
   /** Si está cargando la moneda */
   isLoading: boolean
@@ -61,47 +77,40 @@ const STORAGE_KEY = 'org_currency'
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const { organizationId, isReady } = useSession()
   const [currency, _setCurrency] = useState<OrgCurrencyCode>('MXN')
+  const [baseCurrency, setBaseCurrency] = useState<OrgCurrencyCode>('MXN')
   const [isLoading, setIsLoading] = useState(true)
 
-  // 🔍 DEBUG: Estado del provider
-  console.log('🌍 [CurrencyContext] Provider render → moneda:', currency, '| orgId:', organizationId, '| isReady:', isReady, '| isLoading:', isLoading)
-
-  // Cargar la moneda de la org desde company_settings
+  // Cargar moneda de visualización y moneda base desde company_settings
   useEffect(() => {
-    console.log('🌍 [CurrencyContext] useEffect disparado → isReady:', isReady, '| orgId:', organizationId)
-
     if (!isReady || !organizationId) {
-      console.log('🌍 [CurrencyContext] ⏸️ Sesión no lista o sin orgId, saltando carga')
       setIsLoading(false)
       return
     }
 
     const loadCurrency = async () => {
       try {
-        // 1. Intentar leer de localStorage para carga instantánea
         const cached = localStorage.getItem(`${STORAGE_KEY}_${organizationId}`)
-        console.log('🌍 [CurrencyContext] Cache localStorage:', cached)
         if (cached && cached in SUPPORTED_CURRENCIES) {
           _setCurrency(cached as OrgCurrencyCode)
         }
 
-        // 2. Leer de la BD (fuente de verdad)
         const supabase = createClient()
         const { data, error } = await supabase
           .from('company_settings')
-          .select('currency')
+          .select('currency, base_currency')
           .eq('organization_id', organizationId)
           .single()
 
-        console.log('🌍 [CurrencyContext] BD response → data:', data, '| error:', error)
-
-        if (!error && data?.currency && data.currency in SUPPORTED_CURRENCIES) {
-          const dbCurrency = data.currency as OrgCurrencyCode
-          console.log('🌍 [CurrencyContext] ✅ Moneda desde BD:', dbCurrency)
-          _setCurrency(dbCurrency)
-          localStorage.setItem(`${STORAGE_KEY}_${organizationId}`, dbCurrency)
-        } else {
-          console.log('🌍 [CurrencyContext] ⚠️ No se pudo leer moneda de BD, usando default')
+        if (!error && data) {
+          if (data.currency && data.currency in SUPPORTED_CURRENCIES) {
+            const dbCurrency = data.currency as OrgCurrencyCode
+            _setCurrency(dbCurrency)
+            localStorage.setItem(`${STORAGE_KEY}_${organizationId}`, dbCurrency)
+          }
+          const base = (data as { base_currency?: string }).base_currency
+          if (base && base in SUPPORTED_CURRENCIES) {
+            setBaseCurrency(base as OrgCurrencyCode)
+          }
         }
       } catch (err) {
         console.warn('[CurrencyProvider] Error cargando moneda:', err)
@@ -113,44 +122,29 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     loadCurrency()
   }, [organizationId, isReady])
 
-  // Cambiar moneda (persiste en BD + localStorage)
   const setCurrency = useCallback(async (code: OrgCurrencyCode) => {
-    console.log('🔄 [CurrencyContext] Cambiando moneda de', currency, 'a', code, '| orgId:', organizationId)
-    if (!organizationId) {
-      console.error('🔄 [CurrencyContext] ❌ No hay organizationId, no se puede guardar')
-      return
-    }
-
+    if (!organizationId) return
     _setCurrency(code)
     localStorage.setItem(`${STORAGE_KEY}_${organizationId}`, code)
-
     try {
       const supabase = createClient()
-      const { error } = await supabase
+      await supabase
         .from('company_settings')
         .update({ currency: code })
         .eq('organization_id', organizationId)
-
-      if (error) {
-        console.error('[CurrencyProvider] Error guardando moneda:', error)
-      } else {
-        console.log('🔄 [CurrencyContext] ✅ Moneda guardada en BD:', code)
-      }
     } catch (err) {
       console.error('[CurrencyProvider] Error al guardar moneda:', err)
     }
-  }, [organizationId, currency])
+  }, [organizationId])
 
   const currencyInfo = SUPPORTED_CURRENCIES[currency]
 
-  const formatMoney = useCallback((amount: number) => {
-    return new Intl.NumberFormat(currencyInfo.locale, {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(amount)
-  }, [currency, currencyInfo.locale])
+  /** Convierte de fromCurrency (o baseCurrency) a moneda de visualización y formatea */
+  const formatMoney = useCallback((amount: number, fromCurrency?: OrgCurrencyCode) => {
+    const from = fromCurrency ?? baseCurrency
+    const converted = convertBetweenCurrencies(amount, from, currency)
+    return formatInCurrency(converted, currency)
+  }, [currency, baseCurrency])
 
   const convertAndFormat = useCallback((amountUSD: number) => {
     const converted = convertFromUSD(amountUSD, currency)
@@ -158,7 +152,18 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   }, [currency])
 
   return (
-    <CurrencyContext.Provider value={{ currency, currencyInfo, setCurrency, formatMoney, convertAndFormat, isLoading }}>
+    <CurrencyContext.Provider
+      value={{
+        currency,
+        baseCurrency,
+        currencyInfo,
+        setCurrency,
+        formatMoney,
+        convertBetweenCurrencies,
+        convertAndFormat,
+        isLoading,
+      }}
+    >
       {children}
     </CurrencyContext.Provider>
   )
@@ -176,13 +181,14 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
 export function useOrgCurrency() {
   const context = useContext(CurrencyContext)
   if (!context) {
-    // Fallback seguro si se usa fuera del provider (ej. landing page)
     return {
       currency: 'MXN' as OrgCurrencyCode,
+      baseCurrency: 'MXN' as OrgCurrencyCode,
       currencyInfo: SUPPORTED_CURRENCIES.MXN,
       setCurrency: async () => {},
-      formatMoney: (amount: number) =>
+      formatMoney: (amount: number, _from?: OrgCurrencyCode) =>
         new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount),
+      convertBetweenCurrencies,
       convertAndFormat: (amountUSD: number) =>
         formatInCurrency(convertFromUSD(amountUSD, 'MXN'), 'MXN'),
       isLoading: false,

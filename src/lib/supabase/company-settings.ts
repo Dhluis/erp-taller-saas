@@ -19,6 +19,7 @@ const companySettingsSchema = z.object({
   email: z.string().email('Debe ser un email válido').optional().nullable(),
   logo_url: z.string().url('Debe ser una URL válida para el logo').optional().nullable(),
   currency: z.string().length(3, 'La moneda debe ser un código de 3 letras (ej. USD)').default('MXN'),
+  base_currency: z.string().length(3).optional().nullable(),
   tax_rate: z.number().min(0, 'La tasa de impuestos no puede ser negativa').max(100, 'La tasa de impuestos no puede ser mayor a 100').default(16.00),
   working_hours: z.record(z.string(), z.string()).default({}), // Ejemplo: { "monday": "9-5", "tuesday": "9-5" }
   invoice_terms: z.string().optional().nullable(),

@@ -12,7 +12,7 @@ import { PRICING, FEATURES } from '@/lib/billing/constants'
 import { useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
-import { useOrgCurrency, convertFromUSD, formatInCurrency } from '@/lib/context/CurrencyContext'
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 import { CurrencySelectorGlobal } from '@/components/currency/CurrencySelectorGlobal'
 
 const BILLING_FAQS = [
@@ -50,7 +50,7 @@ export default function BillingPage() {
   const [portalLoading, setPortalLoading] = useState(false)
   const [faqOpenIndex, setFaqOpenIndex] = useState<number | null>(null)
   const { toast } = useToast()
-  const { currency: selectedCurrency } = useOrgCurrency()
+  const { formatMoney } = useOrgCurrency()
 
   useEffect(() => {
     if (searchParams.get('success') === 'true') {
@@ -225,11 +225,9 @@ export default function BillingPage() {
                     <span className="text-3xl font-bold text-foreground">{PRICING.annual.displayPrice}</span>
                     <span className="text-foreground/70">/año</span>
                   </div>
-                  {selectedCurrency !== 'USD' && (
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      ≈ {formatInCurrency(convertFromUSD(PRICING.annual.amount, selectedCurrency), selectedCurrency)}
-                    </p>
-                  )}
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    ≈ {formatMoney(PRICING.annual.amount, 'USD')}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2 mt-2 text-sm text-emerald-700 dark:text-emerald-300">
                   <TrendingDown className="h-4 w-4" />
@@ -238,11 +236,9 @@ export default function BillingPage() {
                 <p className="text-xs text-foreground/60 mt-1">
                   Equivalente a ${PRICING.annual.monthlyEquivalent.toFixed(2)} USD/mes
                 </p>
-                {selectedCurrency !== 'USD' && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Ahorro anual ≈ {formatInCurrency(convertFromUSD(PRICING.annual.savings.amount, selectedCurrency), selectedCurrency)}
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Ahorro anual ≈ {formatMoney(PRICING.annual.savings.amount, 'USD')}
+                </p>
                 {!isPremium && (
                   <UpgradeButton plan="annual" size="lg" className="w-full mt-4 min-h-[3.75rem] text-lg px-6 py-4" />
                 )}
@@ -255,11 +251,9 @@ export default function BillingPage() {
                     <span className="text-2xl font-bold text-foreground">{PRICING.monthly.displayPrice}</span>
                     <span className="text-foreground/70">/mes</span>
                   </div>
-                  {selectedCurrency !== 'USD' && (
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      ≈ {formatInCurrency(convertFromUSD(PRICING.monthly.amount, selectedCurrency), selectedCurrency)}
-                    </p>
-                  )}
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    ≈ {formatMoney(PRICING.monthly.amount, 'USD')}
+                  </p>
                 </div>
                 <p className="text-xs text-foreground/60 mt-1">
                   Facturación mensual
