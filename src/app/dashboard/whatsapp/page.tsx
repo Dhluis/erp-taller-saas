@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useBilling } from '@/hooks/useBilling'
 import { useLimitCheck } from '@/hooks/useLimitCheck'
 import { UpgradeModal } from '@/components/billing/upgrade-modal'
+import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import {
   Dialog,
   DialogContent,
@@ -98,6 +99,8 @@ export default function WhatsAppPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-5xl">
+      <StandardBreadcrumbs currentPage="WhatsApp Business" className="mb-6" />
+
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">WhatsApp Business</h1>
