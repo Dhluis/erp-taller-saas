@@ -407,12 +407,18 @@ export const DateUtils = {
 /**
  * Utilidades para monedas
  */
+const CURRENCY_LOCALE: Record<string, string> = {
+  MXN: 'es-MX', USD: 'en-US', COP: 'es-CO', ARS: 'es-AR',
+  CLP: 'es-CL', PEN: 'es-PE', BRL: 'pt-BR', UYU: 'es-UY', EUR: 'es-ES',
+}
+
 export const CurrencyUtils = {
   /**
-   * Formatea una cantidad como moneda
+   * Formatea una cantidad como moneda (locale dinámico según moneda)
    */
   formatCurrency: (amount: number, currency: string = 'MXN'): string => {
-    return new Intl.NumberFormat('es-MX', {
+    const locale = CURRENCY_LOCALE[currency] || 'es-MX'
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency
     }).format(amount);
@@ -421,8 +427,9 @@ export const CurrencyUtils = {
   /**
    * Formatea una cantidad sin símbolo de moneda
    */
-  formatAmount: (amount: number): string => {
-    return new Intl.NumberFormat('es-MX', {
+  formatAmount: (amount: number, currency: string = 'MXN'): string => {
+    const locale = CURRENCY_LOCALE[currency] || 'es-MX'
+    return new Intl.NumberFormat(locale, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(amount);

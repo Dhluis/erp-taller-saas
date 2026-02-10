@@ -10,6 +10,7 @@ import { AddItemModal } from "./add-item-modal"
 import { Plus, Edit, Trash2, Wrench, Package, User } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { safeFetch, safeDelete } from "@/lib/api"
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 interface OrderItem {
   id: string
@@ -52,6 +53,7 @@ interface OrderItemsManagerProps {
 }
 
 export function OrderItemsManager({ orderId, onTotalChange }: OrderItemsManagerProps) {
+  const { currency } = useOrgCurrency()
   const [items, setItems] = useState<OrderItem[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<OrderItem | null>(null)
@@ -152,7 +154,7 @@ export function OrderItemsManager({ orderId, onTotalChange }: OrderItemsManagerP
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN'
+      currency
     }).format(amount)
   }
 

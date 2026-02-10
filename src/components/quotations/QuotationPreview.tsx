@@ -20,6 +20,7 @@ import {
 import { Printer, Download, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 interface Quotation {
   id: string
@@ -94,10 +95,12 @@ export function QuotationPreview({
   open,
   onOpenChange,
 }: QuotationPreviewProps) {
+  const { currency } = useOrgCurrency()
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
     }).format(amount)
   }
 

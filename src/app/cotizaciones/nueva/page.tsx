@@ -32,6 +32,7 @@ import {
   Trash2
 } from "lucide-react"
 import { TruckIcon } from '@heroicons/react/24/outline'
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 interface Customer {
   id: string
@@ -109,6 +110,8 @@ export default function NuevaCotizacionPage() {
       setVehicles([])
     }
   }, [selectedCustomer])
+
+  const { currency } = useOrgCurrency()
 
   const loadCustomers = async () => {
     try {
@@ -345,7 +348,7 @@ export default function NuevaCotizacionPage() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN'
+      currency
     }).format(amount)
   }
 

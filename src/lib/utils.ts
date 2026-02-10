@@ -13,10 +13,28 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Formatear números como moneda
+ * Mapa de locales para cada moneda soportada.
+ * Se usa para formateo correcto de separadores decimales y de miles.
+ */
+const CURRENCY_LOCALE_MAP: Record<string, string> = {
+  MXN: 'es-MX',
+  USD: 'en-US',
+  COP: 'es-CO',
+  ARS: 'es-AR',
+  CLP: 'es-CL',
+  PEN: 'es-PE',
+  BRL: 'pt-BR',
+  UYU: 'es-UY',
+  EUR: 'es-ES',
+}
+
+/**
+ * Formatear números como moneda.
+ * El locale se determina automáticamente según la moneda.
  */
 export function formatCurrency(amount: number, currency = 'MXN'): string {
-  return new Intl.NumberFormat('es-MX', {
+  const locale = CURRENCY_LOCALE_MAP[currency] || 'es-MX'
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
   }).format(amount)

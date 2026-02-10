@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ShoppingCart, Clock, CheckCircle, DollarSign, Plus, Package } from 'lucide-react';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
+import { useOrgCurrency } from '@/lib/context/CurrencyContext';
 
 interface PurchaseOrder {
   id: string;
@@ -22,6 +23,7 @@ interface PurchaseOrder {
 
 export default function PurchaseOrdersPage() {
   const router = useRouter();
+  const { currency } = useOrgCurrency();
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -78,7 +80,7 @@ export default function PurchaseOrdersPage() {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : (amount || 0);
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN'
+      currency
     }).format(numAmount);
   };
 

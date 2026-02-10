@@ -20,6 +20,7 @@ import {
   DocumentArrowDownIcon,
   EyeIcon
 } from '@heroicons/react/24/outline'
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 interface InventoryMovement {
   id: string
@@ -62,6 +63,7 @@ interface MovementStats {
 }
 
 export default function MovimientosInventarioPage() {
+  const { currency } = useOrgCurrency()
   const [movements, setMovements] = useState<InventoryMovement[]>([])
   const [stats, setStats] = useState<MovementStats>({
     general: {
@@ -248,7 +250,7 @@ export default function MovimientosInventarioPage() {
     if (!amount) return '-'
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN'
+      currency
     }).format(amount)
   }
 

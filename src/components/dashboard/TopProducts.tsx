@@ -1,6 +1,7 @@
 'use client';
 
 import { CubeIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline';
+import { useOrgCurrency } from '@/lib/context/CurrencyContext';
 
 interface Product {
   name: string;
@@ -14,10 +15,12 @@ interface TopProductsProps {
 }
 
 export function TopProducts({ data, loading = false }: TopProductsProps) {
+  const { currency } = useOrgCurrency();
+  
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
       minimumFractionDigits: 0,
     }).format(value);
   };

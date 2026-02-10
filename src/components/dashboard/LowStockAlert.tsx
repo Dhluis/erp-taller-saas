@@ -6,6 +6,7 @@ import {
   XCircleIcon 
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+import { useOrgCurrency } from '@/lib/context/CurrencyContext';
 
 interface LowStockItem {
   id: string;
@@ -27,10 +28,12 @@ interface LowStockAlertProps {
 }
 
 export function LowStockAlert({ items, loading = false }: LowStockAlertProps) {
+  const { currency } = useOrgCurrency();
+  
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
       minimumFractionDigits: 2,
     }).format(value);
   };

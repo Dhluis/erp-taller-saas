@@ -22,10 +22,12 @@ import {
 import { getCompanySettings, updateCompanySettings, CompanySettings } from "@/lib/supabase/company-settings"
 import { useAuth } from "@/hooks/useAuth"
 import { useOrganization } from "@/lib/context/SessionContext"
+import { SUPPORTED_CURRENCIES, useOrgCurrency, type OrgCurrencyCode } from "@/lib/context/CurrencyContext"
 
 export default function EmpresaPage() {
   const { organization } = useAuth()
   const { organizationId } = useOrganization()
+  const { setCurrency: setGlobalCurrency } = useOrgCurrency()
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -127,6 +129,10 @@ export default function EmpresaPage() {
       if (!organizationId) throw new Error('organizationId no disponible')
       const success = await updateCompanySettings(organizationId, formData)
       if (success) {
+        // Sincronizar la moneda seleccionada con el contexto global
+        if (formData.billing?.currency && formData.billing.currency in SUPPORTED_CURRENCIES) {
+          await setGlobalCurrency(formData.billing.currency as OrgCurrencyCode)
+        }
         setIsEditing(false)
         alert('Configuración guardada exitosamente')
       } else {
@@ -366,9 +372,11 @@ export default function EmpresaPage() {
                   disabled={!isEditing}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="MXN">MXN - Peso Mexicano</option>
-                  <option value="USD">USD - Dólar Americano</option>
-                  <option value="EUR">EUR - Euro</option>
+                  {Object.entries(SUPPORTED_CURRENCIES).map(([code, info]) => (
+                    <option key={code} value={code}>
+                      {info.flag} {code} - {info.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>

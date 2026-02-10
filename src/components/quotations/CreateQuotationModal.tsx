@@ -38,6 +38,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 interface Customer {
   id: string
@@ -100,6 +101,7 @@ export function CreateQuotationModal({
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [items, setItems] = useState<QuotationItem[]>([])
+  const { currency } = useOrgCurrency()
 
   const [formData, setFormData] = useState({
     customer_id: '',
@@ -595,19 +597,19 @@ export function CreateQuotationModal({
                         <TableCell className="font-medium">
                           {new Intl.NumberFormat('es-MX', {
                             style: 'currency',
-                            currency: 'MXN',
+                            currency,
                           }).format(item.subtotal)}
                         </TableCell>
                         <TableCell>
                           {new Intl.NumberFormat('es-MX', {
                             style: 'currency',
-                            currency: 'MXN',
+                            currency,
                           }).format(item.tax_amount)}
                         </TableCell>
                         <TableCell className="font-semibold">
                           {new Intl.NumberFormat('es-MX', {
                             style: 'currency',
-                            currency: 'MXN',
+                            currency,
                           }).format(item.total)}
                         </TableCell>
                         {(!quotation || quotation.status === 'draft') && (
@@ -638,7 +640,7 @@ export function CreateQuotationModal({
                     <span className="font-medium">
                       {new Intl.NumberFormat('es-MX', {
                         style: 'currency',
-                        currency: 'MXN',
+                        currency,
                       }).format(totals.subtotal)}
                     </span>
                   </div>
@@ -647,7 +649,7 @@ export function CreateQuotationModal({
                     <span>
                       {new Intl.NumberFormat('es-MX', {
                         style: 'currency',
-                        currency: 'MXN',
+                        currency,
                       }).format(totals.discount)}
                     </span>
                   </div>
@@ -656,7 +658,7 @@ export function CreateQuotationModal({
                     <span className="font-medium">
                       {new Intl.NumberFormat('es-MX', {
                         style: 'currency',
-                        currency: 'MXN',
+                        currency,
                       }).format(totals.tax)}
                     </span>
                   </div>
@@ -665,7 +667,7 @@ export function CreateQuotationModal({
                     <span>
                       {new Intl.NumberFormat('es-MX', {
                         style: 'currency',
-                        currency: 'MXN',
+                        currency,
                       }).format(totals.total)}
                     </span>
                   </div>

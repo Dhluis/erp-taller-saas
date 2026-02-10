@@ -28,6 +28,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useQuotations, type Quotation } from '@/hooks/useQuotations'
 import { CreateQuotationModal } from '@/components/quotations/CreateQuotationModal'
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -125,11 +126,13 @@ export default function QuotationsPage() {
     }
   }, [statusFilter, setFilters])
 
+  const { currency } = useOrgCurrency()
+
   // Formatear moneda
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
     }).format(amount)
   }
 

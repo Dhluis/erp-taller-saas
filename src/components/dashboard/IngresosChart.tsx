@@ -2,17 +2,20 @@
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { IngresoDiario } from '@/lib/database/queries/dashboard';
+import { useOrgCurrency } from '@/lib/context/CurrencyContext';
 
 interface IngresosChartProps {
   data: IngresoDiario[];
 }
 
 export function IngresosChart({ data }: IngresosChartProps) {
+  const { currency } = useOrgCurrency();
+  
   // Formato de moneda para tooltip
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
       minimumFractionDigits: 0
     }).format(value);
   };

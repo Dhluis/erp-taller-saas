@@ -209,21 +209,35 @@ export async function POST(
               .eq('id', userProfile.organization_id)
               .single()
 
+            // Leer moneda de la organización
+            const { data: companySettings } = await supabase
+              .from('company_settings')
+              .select('currency')
+              .eq('organization_id', userProfile.organization_id)
+              .single()
+
+            const orgCurrency = companySettings?.currency || 'MXN'
+            const CURRENCY_LOCALE: Record<string, string> = {
+              MXN: 'es-MX', USD: 'en-US', COP: 'es-CO', ARS: 'es-AR',
+              CLP: 'es-CL', PEN: 'es-PE', BRL: 'pt-BR', UYU: 'es-UY', EUR: 'es-ES',
+            }
+            const locale = CURRENCY_LOCALE[orgCurrency] || 'es-MX'
+
             const organizationName = organization?.name || 'Nuestra organización'
 
             // Preparar datos para el email
             const items = (sentQuotation.quotation_items || []).map((item: any) => ({
               description: item.description || 'Item sin descripción',
               quantity: item.quantity || 1,
-              price: new Intl.NumberFormat('es-MX', {
+              price: new Intl.NumberFormat(locale, {
                 style: 'currency',
-                currency: 'MXN',
+                currency: orgCurrency,
               }).format((item.price || 0) * (item.quantity || 1)),
             }))
 
-            const totalAmount = new Intl.NumberFormat('es-MX', {
+            const totalAmount = new Intl.NumberFormat(locale, {
               style: 'currency',
-              currency: 'MXN',
+              currency: orgCurrency,
             }).format(sentQuotation.total_amount || 0)
 
             const vehicleInfo = sentQuotation.vehicles

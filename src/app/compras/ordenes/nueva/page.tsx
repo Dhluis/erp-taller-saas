@@ -17,6 +17,7 @@ import {
 import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
+import { useOrgCurrency } from '@/lib/context/CurrencyContext';
 
 interface Supplier {
   id: string;
@@ -39,6 +40,7 @@ interface OrderItem {
 
 export default function NewPurchaseOrderPage() {
   const router = useRouter();
+  const { currency } = useOrgCurrency();
   
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -205,7 +207,7 @@ export default function NewPurchaseOrderPage() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN'
+      currency
     }).format(amount);
   };
 

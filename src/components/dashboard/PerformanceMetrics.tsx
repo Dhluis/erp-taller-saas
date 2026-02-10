@@ -9,6 +9,7 @@ import {
   UserGroupIcon,
   CubeIcon
 } from '@heroicons/react/24/outline'
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 interface PerformanceMetrics {
   averageOrderValue: number
@@ -25,10 +26,12 @@ interface PerformanceMetricsProps {
 }
 
 export function PerformanceMetrics({ data, loading = false }: PerformanceMetricsProps) {
+  const { currency } = useOrgCurrency();
+  
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
       minimumFractionDigits: 0,
     }).format(value)
   }

@@ -17,6 +17,7 @@ import { getAlertasInventario } from '@/lib/database/queries/dashboard';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PlanUsage } from '@/components/billing/plan-usage';
+import { CurrencySelectorGlobal } from '@/components/currency/CurrencySelectorGlobal';
 import {
   LineChart,
   Line,
@@ -567,6 +568,8 @@ export default function DashboardPage() {
               {permissions.isMechanic ? 'Mis órdenes asignadas' : 'Resumen general de tu taller'}
             </p>
           </div>
+          {/* Selector de divisa global */}
+          <CurrencySelectorGlobal />
         </div>
 
         {/* Filtros de fecha - Responsive para mobile */}

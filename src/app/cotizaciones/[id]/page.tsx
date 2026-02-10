@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { PageHeader } from '@/components/navigation/page-header'
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 import { 
   ArrowLeft, 
   Download, 
@@ -92,6 +93,7 @@ export default function CotizacionDetailPage() {
   const params = useParams()
   const router = useRouter()
   const quotationId = params.id as string
+  const { currency } = useOrgCurrency()
 
   const [quotation, setQuotation] = useState<Quotation | null>(null)
   const [loading, setLoading] = useState(true)
@@ -154,7 +156,7 @@ export default function CotizacionDetailPage() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN'
+      currency
     }).format(amount)
   }
 

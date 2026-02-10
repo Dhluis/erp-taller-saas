@@ -36,6 +36,7 @@ import { useWorkOrders, type WorkOrder } from '@/hooks/useWorkOrders';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useOrganization, useSession } from '@/lib/context/SessionContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useOrgCurrency } from '@/lib/context/CurrencyContext';
 import type { OrderStatus } from '@/types/orders';
 
 // Mapeo de estados con colores
@@ -60,6 +61,7 @@ export default function OrdenesPage() {
   const { organizationId, loading: orgLoading, ready } = useOrganization();
   const { profile } = useSession();
   const permissions = usePermissions();
+  const { currency } = useOrgCurrency();
 
   // ==========================================
   // STATE LOCAL
@@ -270,7 +272,7 @@ export default function OrdenesPage() {
     if (!amount) return '$0.00';
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
       minimumFractionDigits: 0,
     }).format(amount);
   };

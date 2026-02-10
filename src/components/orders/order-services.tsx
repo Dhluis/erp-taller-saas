@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Trash2, Edit, Package, Wrench } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 interface Service {
   id: string
@@ -78,6 +79,7 @@ interface OrderServicesProps {
 }
 
 export function OrderServices({ orderId, orderStatus, onTotalChange }: OrderServicesProps) {
+  const { currency } = useOrgCurrency()
   const [items, setItems] = useState<OrderItem[]>([])
   const [services, setServices] = useState<Service[]>([])
   const [inventory, setInventory] = useState<InventoryItem[]>([])
@@ -279,7 +281,7 @@ export function OrderServices({ orderId, orderStatus, onTotalChange }: OrderServ
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN'
+      currency
     }).format(amount)
   }
 

@@ -18,10 +18,12 @@ export default function InventoryTable({
   onDelete,
   onViewMovements,
 }: InventoryTableProps) {
+  const { currency } = useOrgCurrency();
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
     }).format(value);
   };
 

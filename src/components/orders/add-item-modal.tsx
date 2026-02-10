@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Wrench, Package, User, Calculator } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { safeFetch, safePost, safePut } from "@/lib/api"
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 interface Service {
   id: string
@@ -65,6 +66,7 @@ interface AddItemModalProps {
 }
 
 export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalProps) {
+  const { currency } = useOrgCurrency()
   const [formData, setFormData] = useState({
     item_type: 'service' as 'service' | 'product',
     service_id: '',
@@ -254,7 +256,7 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN'
+      currency
     }).format(amount)
   }
 

@@ -5,6 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { WorkOrder } from '@/types/orders';
 import { Car, User, Calendar, DollarSign, GripVertical, Camera } from 'lucide-react';
 import Image from 'next/image';
+import { useOrgCurrency } from '@/lib/context/CurrencyContext';
 
 interface OrderCardProps {
   order: WorkOrder;
@@ -12,6 +13,7 @@ interface OrderCardProps {
 }
 
 export function OrderCard({ order, onClick }: OrderCardProps) {
+  const { currency } = useOrgCurrency()
   const {
     attributes,
     listeners,
@@ -46,7 +48,7 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
     if (!amount) return 'Por cotizar';
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
       minimumFractionDigits: 0
     }).format(amount);
   };

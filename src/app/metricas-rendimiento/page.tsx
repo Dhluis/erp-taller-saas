@@ -16,8 +16,10 @@ import {
   PieChart,
   Activity
 } from 'lucide-react'
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 export default function MetricasRendimientoPage() {
+  const { currency } = useOrgCurrency()
   const [loading, setLoading] = useState(true)
   const [metrics, setMetrics] = useState({
     customerRetention: {
@@ -101,7 +103,7 @@ export default function MetricasRendimientoPage() {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
     }).format(value)
   }
 

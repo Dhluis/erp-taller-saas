@@ -38,10 +38,12 @@ import {
 } from "lucide-react"
 import { getCollections, getCollectionStats, createCollection, Collection, CreateCollectionData } from "@/lib/supabase/collections"
 import { useErrorHandler } from "@/lib/utils/error-handler"
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 export default function CobrosPage() {
   const router = useRouter()
   const permissions = usePermissions()
+  const { currency } = useOrgCurrency()
   
   // ✅ PROTECCIÓN: Solo ADMIN puede acceder a Cobros
   useEffect(() => {
@@ -76,7 +78,7 @@ export default function CobrosPage() {
     reference_number: '',
     status: 'pending',
     notes: '',
-    currency: 'MXN'
+    currency
   })
   
   // Usar el nuevo sistema de manejo de errores
@@ -104,7 +106,7 @@ export default function CobrosPage() {
             id: '1',
             customer_id: 'C001',
             amount: 2500,
-            currency: 'MXN',
+            currency,
             status: 'paid' as const,
             due_date: '2024-01-15T00:00:00Z',
             created_at: '2024-01-15T00:00:00Z',
@@ -118,7 +120,7 @@ export default function CobrosPage() {
             id: '2',
             customer_id: 'C002',
             amount: 1800,
-            currency: 'MXN',
+            currency,
             status: 'pending' as const,
             due_date: '2024-01-16T00:00:00Z',
             created_at: '2024-01-16T00:00:00Z',
@@ -156,7 +158,7 @@ export default function CobrosPage() {
           id: '1',
           customer_id: 'C001',
           amount: 2500,
-          currency: 'MXN',
+          currency,
           status: 'paid' as const,
           due_date: '2024-01-15T00:00:00Z',
           created_at: '2024-01-15T00:00:00Z',
@@ -200,7 +202,7 @@ export default function CobrosPage() {
           reference_number: '',
           status: 'pending',
           notes: '',
-          currency: 'MXN'
+          currency
         })
         alert('Cobro registrado exitosamente!')
       } else {

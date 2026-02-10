@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { FileText, CheckCircle, ArrowRight, TrendingUp, DollarSign } from "lucide-react"
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 interface QuotationsMetricsProps {
   quotationsMonth: number
@@ -21,10 +22,12 @@ export function QuotationsMetrics({
   totalQuotationValue,
   approvedQuotationValue
 }: QuotationsMetricsProps) {
+  const { currency } = useOrgCurrency();
+  
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN'
+      currency
     }).format(amount)
   }
 

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Package, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
+import { useOrgCurrency } from '@/lib/context/CurrencyContext';
 
 interface PurchaseOrderItem {
   id: string;
@@ -35,6 +36,7 @@ export default function ReceivePurchaseOrderPage() {
   const router = useRouter();
   const params = useParams();
   const orderId = params.id as string;
+  const { currency } = useOrgCurrency();
   
   const [order, setOrder] = useState<PurchaseOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -217,7 +219,7 @@ export default function ReceivePurchaseOrderPage() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN'
+      currency
     }).format(amount);
   };
 

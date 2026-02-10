@@ -17,6 +17,7 @@ import {
   AlertCircle,
   CheckCircle
 } from 'lucide-react'
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 export default function AnalisisFinancieroPage() {
   const [loading, setLoading] = useState(true)
@@ -102,7 +103,7 @@ export default function AnalisisFinancieroPage() {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
     }).format(value)
   }
 

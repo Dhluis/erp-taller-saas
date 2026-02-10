@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import AssignMechanicModal from '@/components/mecanicos/AssignMechanicModal';
 import { useSession } from '@/lib/context/SessionContext';
+import { useOrgCurrency } from '@/lib/context/CurrencyContext';
 import { toast } from 'sonner';
 import type { WorkOrder } from '@/types/orders';
 import { 
@@ -31,6 +32,7 @@ interface OrderDetailModalProps {
 
 export function OrderDetailModal({ isOpen, onClose, order, onUpdate }: OrderDetailModalProps) {
   const { profile } = useSession()
+  const { currency } = useOrgCurrency()
   const [showAssignMechanic, setShowAssignMechanic] = useState(false);
 
   // ✅ Validar permisos para reasignar órdenes
@@ -56,7 +58,7 @@ export function OrderDetailModal({ isOpen, onClose, order, onUpdate }: OrderDeta
     if (!amount) return 'N/A';
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
       minimumFractionDigits: 2
     }).format(amount);
   };

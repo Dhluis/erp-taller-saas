@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp, Wrench, Package, Settings, Car, Zap } from "lucide-react"
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 interface Service {
   name: string
@@ -20,6 +21,8 @@ interface PopularServicesProps {
 }
 
 export function PopularServices({ services }: PopularServicesProps) {
+  const { currency } = useOrgCurrency();
+  
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'maintenance':
@@ -76,7 +79,7 @@ export function PopularServices({ services }: PopularServicesProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN'
+      currency
     }).format(amount)
   }
 

@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, DollarSign, Car, User, Wrench } from 'lucide-react';
 import type { WorkOrder, Customer, Vehicle } from '@/hooks/useWorkOrders';
+import { useOrgCurrency } from '@/lib/context/CurrencyContext';
 
 interface OrderCardProps {
   order: WorkOrder;
@@ -24,6 +25,7 @@ export function OrderCard({
   isDragging = false,
   onClick,
 }: OrderCardProps) {
+  const { currency } = useOrgCurrency()
   const {
     attributes,
     listeners,
@@ -55,7 +57,7 @@ export function OrderCard({
     if (!amount) return 'Sin estimar';
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
     }).format(amount);
   };
 

@@ -10,6 +10,7 @@ import { OrderItemsManager } from "@/components/orders/order-items-manager"
 import { useToast } from "@/components/ui/use-toast"
 import { safeFetch, safePatch } from "@/lib/api"
 import { PageHeader } from '@/components/navigation/page-header'
+import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 import { 
   ArrowLeft, 
   Calendar, 
@@ -67,6 +68,7 @@ export default function OrderDetailPage() {
   const router = useRouter()
   const { toast } = useToast()
   const orderId = params.id as string
+  const { currency } = useOrgCurrency()
 
   const [order, setOrder] = useState<WorkOrder | null>(null)
   const [loading, setLoading] = useState(true)
@@ -213,7 +215,7 @@ export default function OrderDetailPage() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN'
+      currency
     }).format(amount)
   }
 
