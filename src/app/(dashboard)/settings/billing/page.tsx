@@ -5,12 +5,40 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Check, Crown, Zap, TrendingDown, AlertCircle, Settings, Loader2 } from 'lucide-react'
+import { Check, Crown, Zap, TrendingDown, AlertCircle, Settings, Loader2, ChevronDown } from 'lucide-react'
 import { UpgradeButton } from '@/components/billing/upgrade-button'
 import { useBilling } from '@/hooks/useBilling'
 import { PRICING, FEATURES } from '@/lib/billing/constants'
 import { useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/use-toast'
+import { cn } from '@/lib/utils'
+
+const BILLING_FAQS = [
+  {
+    question: '¿Puedo cambiar de plan en cualquier momento?',
+    answer: 'Sí, puedes actualizar o cancelar tu suscripción cuando quieras. Los cambios se aplicarán en el próximo período de facturación.',
+  },
+  {
+    question: '¿Qué sucede si cancelo mi suscripción?',
+    answer: 'Mantendrás acceso a Premium hasta el final de tu período pagado, luego volverás automáticamente al plan Free.',
+  },
+  {
+    question: '¿Aceptan otros métodos de pago?',
+    answer: 'Actualmente aceptamos todas las tarjetas de crédito y débito principales a través de Stripe.',
+  },
+  {
+    question: '¿Cómo funciona el período de prueba de 7 días?',
+    answer: 'Al crear tu cuenta tienes 7 días de trial con acceso a todas las funciones Premium. Al finalizar, si no te suscribes, pasarás al plan Free con sus límites. No se requiere tarjeta para probar.',
+  },
+  {
+    question: '¿Puedo tener varios usuarios en mi taller?',
+    answer: 'Sí. El plan Free incluye hasta 2 usuarios activos. Con Premium tienes usuarios ilimitados para tu equipo.',
+  },
+  {
+    question: '¿Qué incluye el soporte prioritario?',
+    answer: 'Prioridad en respuestas por email y canal dedicado. Incluye ayuda con configuración, integraciones y mejores prácticas para tu taller.',
+  },
+] as const
 
 export default function BillingPage() {
   const searchParams = useSearchParams()
@@ -18,6 +46,7 @@ export default function BillingPage() {
   const [showSuccess, setShowSuccess] = useState(false)
   const [showCanceled, setShowCanceled] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
+  const [faqOpenIndex, setFaqOpenIndex] = useState<number | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -225,29 +254,52 @@ export default function BillingPage() {
         </Card>
       </div>
 
-      {/* FAQ o Información adicional */}
+      {/* FAQ Acordeón */}
       <Card>
         <CardHeader>
           <CardTitle>Preguntas Frecuentes</CardTitle>
+          <CardDescription>Haz clic en una pregunta para ver la respuesta</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <h4 className="font-medium mb-1">¿Puedo cambiar de plan en cualquier momento?</h4>
-            <p className="text-sm text-muted-foreground">
-              Sí, puedes actualizar o cancelar tu suscripción cuando quieras. Los cambios se aplicarán en el próximo período de facturación.
-            </p>
-          </div>
-          <div>
-            <h4 className="font-medium mb-1">¿Qué sucede si cancelo mi suscripción?</h4>
-            <p className="text-sm text-muted-foreground">
-              Mantendrás acceso a Premium hasta el final de tu período pagado, luego volverás automáticamente al plan Free.
-            </p>
-          </div>
-          <div>
-            <h4 className="font-medium mb-1">¿Aceptan otros métodos de pago?</h4>
-            <p className="text-sm text-muted-foreground">
-              Actualmente aceptamos todas las tarjetas de crédito y débito principales a través de Stripe.
-            </p>
+        <CardContent>
+          <div className="divide-y divide-border rounded-lg border">
+            {BILLING_FAQS.map((faq, index) => {
+              const isOpen = faqOpenIndex === index
+              return (
+                <div key={index} className="overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setFaqOpenIndex(isOpen ? null : index)}
+                    className={cn(
+                      'flex w-full items-center justify-between gap-4 py-4 px-4 text-left transition-colors',
+                      'hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
+                      isOpen && 'bg-muted/30'
+                    )}
+                    aria-expanded={isOpen}
+                    aria-controls={`faq-answer-${index}`}
+                    id={`faq-trigger-${index}`}
+                  >
+                    <span className="font-medium text-foreground pr-2">{faq.question}</span>
+                    <ChevronDown
+                      className={cn('h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')}
+                      aria-hidden
+                    />
+                  </button>
+                  <div
+                    id={`faq-answer-${index}`}
+                    role="region"
+                    aria-labelledby={`faq-trigger-${index}`}
+                    className={cn(
+                      'grid transition-[grid-template-rows] duration-200 ease-out',
+                      isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                    )}
+                  >
+                    <div className="overflow-hidden">
+                      <p className="text-sm text-muted-foreground pb-4 px-4 pt-0">{faq.answer}</p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </CardContent>
       </Card>
