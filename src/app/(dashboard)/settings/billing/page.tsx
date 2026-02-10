@@ -261,26 +261,39 @@ export default function BillingPage() {
           <CardDescription>Haz clic en una pregunta para ver la respuesta</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="divide-y divide-border rounded-lg border">
+          <div className="space-y-3">
             {BILLING_FAQS.map((faq, index) => {
               const isOpen = faqOpenIndex === index
               return (
-                <div key={index} className="overflow-hidden">
+                <div
+                  key={index}
+                  className={cn(
+                    'rounded-lg border overflow-hidden transition-all duration-300',
+                    isOpen
+                      ? 'border-primary/40 shadow-sm shadow-primary/5'
+                      : 'border-border hover:border-primary/20'
+                  )}
+                >
                   <button
                     type="button"
                     onClick={() => setFaqOpenIndex(isOpen ? null : index)}
                     className={cn(
-                      'flex w-full items-center justify-between gap-4 py-4 px-4 text-left transition-colors',
-                      'hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
-                      isOpen && 'bg-muted/30'
+                      'flex w-full items-center justify-between gap-4 py-3.5 px-4 text-left transition-all duration-200',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
+                      isOpen
+                        ? 'bg-primary/10 text-primary'
+                        : 'hover:bg-muted/40 text-foreground'
                     )}
                     aria-expanded={isOpen}
                     aria-controls={`faq-answer-${index}`}
                     id={`faq-trigger-${index}`}
                   >
-                    <span className="font-medium text-foreground pr-2">{faq.question}</span>
+                    <span className="font-medium pr-2">{faq.question}</span>
                     <ChevronDown
-                      className={cn('h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')}
+                      className={cn(
+                        'h-5 w-5 shrink-0 transition-transform duration-300',
+                        isOpen ? 'rotate-180 text-primary' : 'text-muted-foreground'
+                      )}
                       aria-hidden
                     />
                   </button>
@@ -289,12 +302,15 @@ export default function BillingPage() {
                     role="region"
                     aria-labelledby={`faq-trigger-${index}`}
                     className={cn(
-                      'grid transition-[grid-template-rows] duration-200 ease-out',
+                      'grid transition-[grid-template-rows] duration-300 ease-out',
                       isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
                     )}
                   >
                     <div className="overflow-hidden">
-                      <p className="text-sm text-muted-foreground pb-4 px-4 pt-0">{faq.answer}</p>
+                      <div className="border-t border-border/50 mx-4" />
+                      <p className="text-sm text-muted-foreground py-3.5 px-4 leading-relaxed bg-muted/20">
+                        {faq.answer}
+                      </p>
                     </div>
                   </div>
                 </div>

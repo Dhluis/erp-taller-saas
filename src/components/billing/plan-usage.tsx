@@ -5,8 +5,10 @@ import { calculateUsagePercentage, isNearLimit, FEATURE_NAMES } from '@/types/bi
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
-import { AlertCircle, Crown, Zap, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { AlertCircle, Crown, Zap, Loader2, ArrowRight } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import Link from 'next/link'
 
 export function PlanUsage() {
   const { plan, usage, isLoading, error } = useBilling()
@@ -111,14 +113,27 @@ export function PlanUsage() {
           isNearLimit={usage.users.percentage !== null && usage.users.percentage >= 80}
         />
 
-        {/* Upgrade CTA si es Free */}
+        {/* Upgrade CTA solo para Free */}
         {!isPremium && (
-          <Alert>
-            <Crown className="h-4 w-4" />
-            <AlertDescription>
-              <strong>¿Necesitas más?</strong> Actualiza a Premium para límites ilimitados y acceso a todas las funcionalidades.
-            </AlertDescription>
-          </Alert>
+          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-4">
+            <div className="flex items-start gap-3">
+              <Crown className="h-5 w-5 text-yellow-500 mt-0.5 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <p className="text-sm font-medium text-foreground">
+                  ¿Necesitas más capacidad?
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Con Premium desbloqueas clientes, órdenes, inventario y usuarios sin restricciones, además de WhatsApp, IA y reportes avanzados.
+                </p>
+                <Link href="/settings/billing">
+                  <Button size="sm" className="mt-1 gap-1.5">
+                    Ver planes
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>
