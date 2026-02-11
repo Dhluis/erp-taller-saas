@@ -28,12 +28,15 @@ interface SessionContextType extends SessionState {
 
 const SessionContext = createContext<SessionContextType | null>(null)
 
+const SESSION_VERSION_LOGGED = { current: false }
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  // 🔥 DEPLOYMENT TRACKER: v4.0.0 - 2025-12-09-04:00 - FORCE REBUILD
-  // ✅ Usar console.debug para logs de versión (reducir ruido en consola)
-  console.debug('🚀 [Session] VERSION 4.0.0 - TODOS LOS BUGS CORREGIDOS')
-  console.debug('📦 [Session] Deployment timestamp: 2025-12-09T04:00:00Z')
-  
+  // Log de versión una sola vez por carga de la app (evita cientos de líneas en consola)
+  if (typeof window !== 'undefined' && !SESSION_VERSION_LOGGED.current) {
+    SESSION_VERSION_LOGGED.current = true
+    console.debug('🚀 [Session] v4.0.0 | 2025-12-09')
+  }
+
   const initialState: SessionState = {
     user: null,
     organizationId: null,

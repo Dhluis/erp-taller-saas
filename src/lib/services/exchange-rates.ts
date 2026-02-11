@@ -1,13 +1,5 @@
 import { LATAM_CURRENCIES, type CurrencyCode } from '@/lib/utils/currency-converter'
 
-interface ExchangeRateResponse {
-  result: string
-  base_code: string
-  conversion_rates: Record<string, number>
-  time_last_update_unix: number
-  time_next_update_unix: number
-}
-
 interface CachedRates {
   rates: Record<string, number>
   lastUpdate: number
@@ -15,12 +7,11 @@ interface CachedRates {
 }
 
 const CACHE_KEY = 'exchange_rates_cache'
-const API_KEY = process.env.EXCHANGE_RATE_API_KEY
 const CACHE_HOURS = parseInt(process.env.NEXT_PUBLIC_EXCHANGE_RATE_CACHE_HOURS || '24', 10)
 
 /**
  * Obtiene tasas de cambio actualizadas (con caché de 24h por defecto).
- * En servidor no usa localStorage; en cliente usa caché local + fallbacks.
+ * En el cliente llama a /api/exchange-rates para no exponer la API key.
  */
 export async function getExchangeRates(): Promise<Record<CurrencyCode, number>> {
   try {
@@ -31,60 +22,41 @@ export async function getExchangeRates(): Promise<Record<CurrencyCode, number>> 
       return cached.rates as Record<CurrencyCode, number>
     }
 
-    // 2. Fetch de API
+    // 2. Cliente: llamar a nuestra API (la key está solo en servidor)
     console.log('🌐 [ExchangeRates] Obteniendo tasas actualizadas...')
 
-    if (!API_KEY) {
-      console.warn('⚠️ [ExchangeRates] API key no configurada, usando tasas por defecto')
+    const isClient = typeof window !== 'undefined'
+    const url = isClient ? '/api/exchange-rates' : undefined
+
+    if (!url) {
       return getDefaultRates()
     }
 
-    const response = await fetch(
-      `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`,
-      { next: { revalidate: CACHE_HOURS * 3600 } }
-    )
-
+    const response = await fetch(url)
     if (!response.ok) {
       throw new Error(`API respondió con status ${response.status}`)
     }
 
-    const data: ExchangeRateResponse = await response.json()
-
-    if (data.result !== 'success') {
-      throw new Error('API retornó resultado no exitoso')
+    const json: { rates: Record<string, number>; lastUpdate?: number } = await response.json()
+    const rates = json.rates as Record<CurrencyCode, number>
+    if (!rates || typeof rates.USD !== 'number') {
+      throw new Error('Respuesta inválida de exchange-rates')
     }
 
-    const cr = data.conversion_rates || {}
-
-    // 3. Mapear a nuestras monedas (solo LATAM; EUR eliminado)
-    const rates: Record<string, number> = {
-      USD: 1,
-      MXN: cr.MXN || 17.5,
-      COP: cr.COP || 4200,
-      ARS: cr.ARS || 850,
-      CLP: cr.CLP || 950,
-      PEN: cr.PEN || 3.7,
-      BRL: cr.BRL || 5.8,
-      UYU: cr.UYU || 42,
-    }
-
-    // 4. Guardar en caché (solo en cliente)
+    // 3. Guardar en caché (solo en cliente)
     const cacheData: CachedRates = {
       rates,
-      lastUpdate: (data.time_last_update_unix || Math.floor(Date.now() / 1000)) * 1000,
-      nextUpdate: (data.time_next_update_unix || 0) * 1000,
+      lastUpdate: json.lastUpdate || Date.now(),
+      nextUpdate: (json.lastUpdate || Date.now()) + CACHE_HOURS * 3600 * 1000,
     }
-
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData))
-      } catch (e) {
-        console.warn('⚠️ [ExchangeRates] No se pudo guardar en localStorage:', e)
-      }
+    try {
+      if (isClient) localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData))
+    } catch (e) {
+      console.warn('⚠️ [ExchangeRates] No se pudo guardar en localStorage:', e)
     }
 
     console.log('✅ [ExchangeRates] Tasas actualizadas:', rates)
-    return rates as Record<CurrencyCode, number>
+    return rates
   } catch (error) {
     console.error('❌ [ExchangeRates] Error obteniendo tasas:', error)
 
