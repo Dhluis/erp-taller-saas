@@ -449,7 +449,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
     
 
-    const processedValue = name === 'vehiclePlate' ? value.toUpperCase() : value
+    const processedValue = (name === 'vehiclePlate' || name === 'vehicleVin') ? value.toUpperCase() : value
 
     
 
@@ -1096,6 +1096,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             year: formData.vehicleYear ? parseInt(formData.vehicleYear) : null,
             license_plate: formData.vehiclePlate.toUpperCase(),
             color: formData.vehicleColor || null,
+            vin: formData.vehicleVin?.trim().toUpperCase() || null,
             mileage: formData.vehicleMileage ? parseInt(formData.vehicleMileage) : null
           };
           
@@ -1972,7 +1973,37 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             </div>
 
-            <div>
+            <div className="grid grid-cols-2 gap-4">
+
+              <div>
+
+                <Label htmlFor="vehicle_vin">VIN / No. Serie</Label>
+
+                <Input
+
+                  id="vehicle_vin"
+
+                  name="vehicleVin"
+
+                  value={formData.vehicleVin}
+
+                  onChange={handleChange}
+
+                  placeholder="1HGCM82633A004352"
+
+                  disabled={loading}
+
+                  className="uppercase"
+
+                  maxLength={17}
+
+                />
+
+                <p className="text-xs text-slate-500 mt-1">Opcional - 17 caracteres</p>
+
+              </div>
+
+              <div>
 
               <Label htmlFor="mileage">Kilometraje</Label>
 
@@ -2017,6 +2048,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 <p className="text-xs text-red-500 mt-1">{errors.vehicleMileage}</p>
 
               )}
+
+              </div>
 
             </div>
 
