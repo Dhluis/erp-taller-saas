@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSession } from './SessionContext'
+import { getExchangeRates } from '@/lib/services/exchange-rates'
 
 /**
  * Monedas soportadas por la plataforma.
@@ -18,10 +19,17 @@ export const SUPPORTED_CURRENCIES = {
   PEN: { symbol: 'S/', name: 'Sol Peruano', flag: '🇵🇪', locale: 'es-PE', rateFromUSD: 3.7 },
   BRL: { symbol: 'R$', name: 'Real Brasileño', flag: '🇧🇷', locale: 'pt-BR', rateFromUSD: 5.8 },
   UYU: { symbol: '$', name: 'Peso Uruguayo', flag: '🇺🇾', locale: 'es-UY', rateFromUSD: 42 },
-  EUR: { symbol: '€', name: 'Euro', flag: '🇪🇺', locale: 'es-ES', rateFromUSD: 0.92 },
 } as const
 
 export type OrgCurrencyCode = keyof typeof SUPPORTED_CURRENCIES
+
+/** Tasas por defecto (fallback cuando la API no está disponible) */
+function getDefaultRates(): Record<OrgCurrencyCode, number> {
+  return Object.fromEntries(
+    (Object.entries(SUPPORTED_CURRENCIES) as [OrgCurrencyCode, (typeof SUPPORTED_CURRENCIES)[OrgCurrencyCode]][])
+      .map(([code, info]) => [code, info.rateFromUSD])
+  ) as Record<OrgCurrencyCode, number>
+}
 
 /** Convierte un monto de USD a la moneda indicada usando las tasas locales */
 export function convertFromUSD(amountUSD: number, target: OrgCurrencyCode): number {
@@ -62,10 +70,12 @@ interface CurrencyContextType {
   setCurrency: (code: OrgCurrencyCode) => Promise<void>
   /** Formatear un monto: convierte de fromCurrency (o baseCurrency) a currency y formatea */
   formatMoney: (amount: number, fromCurrency?: OrgCurrencyCode) => string
-  /** Convierte entre monedas (from → to vía USD) */
+  /** Convierte entre monedas (from → to vía USD) con tasas en tiempo real */
   convertBetweenCurrencies: (amount: number, from: OrgCurrencyCode, to: OrgCurrencyCode) => number
   /** Convierte USD a la moneda de visualización y formatea */
   convertAndFormat: (amountUSD: number) => string
+  /** Actualizar tasas de cambio manualmente */
+  refreshRates: () => Promise<void>
   /** Si está cargando la moneda */
   isLoading: boolean
 }
@@ -79,6 +89,25 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const [currency, _setCurrency] = useState<OrgCurrencyCode>('MXN')
   const [baseCurrency, setBaseCurrency] = useState<OrgCurrencyCode>('MXN')
   const [isLoading, setIsLoading] = useState(true)
+  const [exchangeRates, setExchangeRates] = useState<Record<OrgCurrencyCode, number> | null>(null)
+
+  // Cargar tasas de cambio al montar (si la API falla se usan tasas por defecto)
+  useEffect(() => {
+    let cancelled = false
+    async function loadRates() {
+      try {
+        const raw = await getExchangeRates()
+        if (!cancelled) {
+          setExchangeRates({ ...getDefaultRates(), ...raw } as Record<OrgCurrencyCode, number>)
+        }
+      } catch (err) {
+        console.warn('[CurrencyProvider] Error cargando tasas, usando por defecto:', err)
+        if (!cancelled) setExchangeRates(null)
+      }
+    }
+    loadRates()
+    return () => { cancelled = true }
+  }, [])
 
   // Cargar moneda de visualización y moneda base desde company_settings
   useEffect(() => {
@@ -137,19 +166,52 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     }
   }, [organizationId])
 
+  const refreshRates = useCallback(async () => {
+    try {
+      const raw = await getExchangeRates()
+      setExchangeRates({ ...getDefaultRates(), ...raw } as Record<OrgCurrencyCode, number>)
+    } catch (err) {
+      console.warn('[CurrencyProvider] Error actualizando tasas:', err)
+    }
+  }, [])
+
+  const rates = exchangeRates ?? getDefaultRates()
+
+  const convertBetweenCurrenciesLive = useCallback(
+    (amount: number, from: OrgCurrencyCode, to: OrgCurrencyCode): number => {
+      if (from === to) return amount
+      const amountInUSD = amount / rates[from]
+      const convertedAmount = amountInUSD * rates[to]
+      return Math.round(convertedAmount * 100) / 100
+    },
+    [rates]
+  )
+
+  const convertFromUSDLive = useCallback(
+    (amountUSD: number, target: OrgCurrencyCode): number =>
+      Math.round(amountUSD * rates[target] * 100) / 100,
+    [rates]
+  )
+
   const currencyInfo = SUPPORTED_CURRENCIES[currency]
 
   /** Convierte de fromCurrency (o baseCurrency) a moneda de visualización y formatea */
-  const formatMoney = useCallback((amount: number, fromCurrency?: OrgCurrencyCode) => {
-    const from = fromCurrency ?? baseCurrency
-    const converted = convertBetweenCurrencies(amount, from, currency)
-    return formatInCurrency(converted, currency)
-  }, [currency, baseCurrency])
+  const formatMoney = useCallback(
+    (amount: number, fromCurrency?: OrgCurrencyCode) => {
+      const from = fromCurrency ?? baseCurrency
+      const converted = convertBetweenCurrenciesLive(amount, from, currency)
+      return formatInCurrency(converted, currency)
+    },
+    [currency, baseCurrency, convertBetweenCurrenciesLive]
+  )
 
-  const convertAndFormat = useCallback((amountUSD: number) => {
-    const converted = convertFromUSD(amountUSD, currency)
-    return formatInCurrency(converted, currency)
-  }, [currency])
+  const convertAndFormat = useCallback(
+    (amountUSD: number) => {
+      const converted = convertFromUSDLive(amountUSD, currency)
+      return formatInCurrency(converted, currency)
+    },
+    [currency, convertFromUSDLive]
+  )
 
   return (
     <CurrencyContext.Provider
@@ -159,8 +221,9 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
         currencyInfo,
         setCurrency,
         formatMoney,
-        convertBetweenCurrencies,
+        convertBetweenCurrencies: convertBetweenCurrenciesLive,
         convertAndFormat,
+        refreshRates,
         isLoading,
       }}
     >
@@ -191,6 +254,7 @@ export function useOrgCurrency() {
       convertBetweenCurrencies,
       convertAndFormat: (amountUSD: number) =>
         formatInCurrency(convertFromUSD(amountUSD, 'MXN'), 'MXN'),
+      refreshRates: async () => {},
       isLoading: false,
     }
   }

@@ -409,7 +409,7 @@ export const DateUtils = {
  */
 const CURRENCY_LOCALE: Record<string, string> = {
   MXN: 'es-MX', USD: 'en-US', COP: 'es-CO', ARS: 'es-AR',
-  CLP: 'es-CL', PEN: 'es-PE', BRL: 'pt-BR', UYU: 'es-UY', EUR: 'es-ES',
+  CLP: 'es-CL', PEN: 'es-PE', BRL: 'pt-BR', UYU: 'es-UY',
 }
 
 export const CurrencyUtils = {

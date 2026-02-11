@@ -192,10 +192,9 @@ export const CONFIG_CONSTANTS = {
     EN: 'en'
   } as const,
   
-  // Monedas
+  // Monedas (solo LATAM)
   CURRENCIES: {
     USD: 'USD',
-    EUR: 'EUR',
     MXN: 'MXN'
   } as const,
   

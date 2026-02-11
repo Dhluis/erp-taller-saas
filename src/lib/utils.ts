@@ -25,7 +25,6 @@ const CURRENCY_LOCALE_MAP: Record<string, string> = {
   PEN: 'es-PE',
   BRL: 'pt-BR',
   UYU: 'es-UY',
-  EUR: 'es-ES',
 }
 
 /**

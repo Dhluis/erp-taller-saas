@@ -219,7 +219,7 @@ export async function POST(
             const orgCurrency = companySettings?.currency || 'MXN'
             const CURRENCY_LOCALE: Record<string, string> = {
               MXN: 'es-MX', USD: 'en-US', COP: 'es-CO', ARS: 'es-AR',
-              CLP: 'es-CL', PEN: 'es-PE', BRL: 'pt-BR', UYU: 'es-UY', EUR: 'es-ES',
+              CLP: 'es-CL', PEN: 'es-PE', BRL: 'pt-BR', UYU: 'es-UY',
             }
             const locale = CURRENCY_LOCALE[orgCurrency] || 'es-MX'
 
