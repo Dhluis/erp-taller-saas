@@ -203,36 +203,41 @@ const INITIAL_FORM_DATA = {
 
 }
 
-// Wizard: indicador de pasos (1=Cliente/Vehículo, 2=Inspección, 3=Costos, 4=Términos/Firma)
+// Wizard: indicador de pasos con color por paso (1=Cliente, 2=Inspección, 3=Costos, 4=Términos)
 const STEP_ICONS = [User, ClipboardCheck, DollarSign, FileSignature]
+const STEP_COLORS = [
+  { active: 'bg-cyan-500 ring-cyan-400 text-white', label: 'text-cyan-400', pending: 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' },
+  { active: 'bg-amber-500 ring-amber-400 text-white', label: 'text-amber-400', pending: 'bg-amber-500/20 text-amber-400 border border-amber-500/50' },
+  { active: 'bg-emerald-500 ring-emerald-400 text-white', label: 'text-emerald-400', pending: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' },
+  { active: 'bg-violet-500 ring-violet-400 text-white', label: 'text-violet-400', pending: 'bg-violet-500/20 text-violet-400 border border-violet-500/50' },
+]
 function StepIndicator({ currentStep, completedSteps }: { currentStep: number; completedSteps: number[] }) {
   const labels = ['Cliente y Vehículo', 'Inspección', 'Servicios y Costos', 'Términos y Firma']
   return (
-    <div className="flex items-center justify-between gap-2 py-3 px-4 bg-slate-900/80 rounded-lg border border-slate-700 mb-4">
+    <div className="flex items-center justify-between gap-2 py-3 px-4 bg-slate-900/90 rounded-lg border border-slate-600 mb-4 shadow-inner">
       {[1, 2, 3, 4].map((step) => {
         const Icon = STEP_ICONS[step - 1]
+        const colors = STEP_COLORS[step - 1]
         const isActive = currentStep === step
         const isCompleted = completedSteps.includes(step)
+        const circleClass = isActive
+          ? `${colors.active} ring-2 ring-offset-2 ring-offset-slate-900`
+          : isCompleted
+            ? 'bg-green-500 text-white border-2 border-green-400'
+            : `${colors.pending}`
+        const labelClass = isActive ? colors.label : isCompleted ? 'text-green-400' : 'text-slate-400'
         return (
           <div
             key={step}
-            className={`flex items-center gap-2 flex-1 min-w-0 ${
-              step < 4 ? 'border-r border-slate-700 pr-2' : ''
-            }`}
+            className={`flex items-center gap-2 flex-1 min-w-0 ${step < 4 ? 'border-r border-slate-600 pr-2' : ''}`}
           >
             <div
-              className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
-                isActive
-                  ? 'bg-cyan-500 text-white ring-2 ring-cyan-400'
-                  : isCompleted
-                    ? 'bg-green-600 text-white'
-                    : 'bg-slate-700 text-slate-400'
-              }`}
+              className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${circleClass}`}
             >
-              {isCompleted ? <Check className="h-5 w-5" /> : <Icon className="h-4 w-4" />}
+              {isCompleted ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
             </div>
             <div className="min-w-0 flex-1 hidden sm:block">
-              <span className={`text-xs font-medium block truncate ${isActive ? 'text-cyan-400' : 'text-slate-400'}`}>
+              <span className={`text-xs font-medium block truncate ${labelClass}`}>
                 {labels[step - 1]}
               </span>
               <span className="text-xs text-slate-500">{step}/4</span>
@@ -1516,9 +1521,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
 
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-3xl min-h-[80vh] max-h-[95vh] h-[85vh] overflow-hidden flex flex-col md:h-[88vh]">
 
-        <DialogHeader>
+        <DialogHeader className="flex-shrink-0">
 
           <DialogTitle>Nueva Orden de Trabajo</DialogTitle>
 
@@ -1537,10 +1542,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             e.preventDefault()
             if (currentStep === 4) handleSubmit(e)
           }}
-          className="space-y-6 flex flex-col max-h-[calc(90vh-12rem)]"
+          className="flex flex-col flex-1 min-h-0 space-y-0"
         >
 
-          <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+          <div className="flex-1 overflow-y-auto min-h-[320px] pr-2 pb-4 space-y-6">
           {currentStep === 1 && (
           <>
           {/* PASO 1: Datos del Cliente */}
@@ -2633,8 +2638,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           </div>
 
-          {/* Botones de navegación del wizard */}
-          <div className="flex justify-between gap-3 pt-4 border-t flex-shrink-0">
+          {/* Botones de navegación del wizard - siempre visibles al pie */}
+          <div className="flex justify-between gap-3 pt-4 pb-1 border-t border-slate-700 flex-shrink-0 bg-slate-900/50 -mx-6 px-6 -mb-1 rounded-b-lg">
             {currentStep === 4 ? (
               <>
                 <Button
