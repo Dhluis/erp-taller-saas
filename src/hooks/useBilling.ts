@@ -89,15 +89,23 @@ export function useBilling(): UseBillingReturn {
         current_period_end?: string | null
       }
 
-      // 2. Obtener subscription_status desde organization_messaging_config
-      const { data: messagingConfigData } = await supabase
-        .from('organization_messaging_config')
-        .select('subscription_status, trial_ends_at')
-        .eq('organization_id', organizationId)
-        .single()
-
+      // 2. Obtener subscription_status desde organization_messaging_config solo si organizations no lo trae
+      // (evita 400 cuando la tabla/columnas no existen o no están migradas)
       type MessagingConfig = { subscription_status?: string; trial_ends_at?: string | null } | null
-      const messagingConfig: MessagingConfig = messagingConfigData
+      let messagingConfig: MessagingConfig = null
+      const orgHasBillingData = org.subscription_status != null || org.trial_ends_at != null
+      if (!orgHasBillingData) {
+        try {
+          const { data: messagingConfigData } = await supabase
+            .from('organization_messaging_config')
+            .select('subscription_status, trial_ends_at')
+            .eq('organization_id', organizationId)
+            .maybeSingle()
+          messagingConfig = messagingConfigData ?? null
+        } catch {
+          // Ignorar si tabla/columnas no existen (migración 030)
+        }
+      }
 
       // Usar subscription_status de organizations (Stripe) si existe, luego messaging_config, sino calcular
       let subscriptionStatus: SubscriptionStatus = 'none'

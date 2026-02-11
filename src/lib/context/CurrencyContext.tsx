@@ -124,21 +124,37 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
         }
 
         const supabase = createClient()
-        const { data, error } = await supabase
+        // Intentar con ambas columnas; si falla (ej. 406 por base_currency no migrada), solo currency
+        let data: { currency?: string; base_currency?: string } | null = null
+
+        const res = await supabase
           .from('company_settings')
           .select('currency, base_currency')
           .eq('organization_id', organizationId)
           .single()
 
-        if (!error && data) {
+        if (!res.error && res.data) {
+          data = res.data as { currency?: string; base_currency?: string }
+        } else if (res.error) {
+          // Fallback: solo currency (por si base_currency no existe aún o 406)
+          const fallback = await supabase
+            .from('company_settings')
+            .select('currency')
+            .eq('organization_id', organizationId)
+            .single()
+          if (!fallback.error && fallback.data) {
+            data = fallback.data as { currency?: string }
+          }
+        }
+
+        if (data) {
           if (data.currency && data.currency in SUPPORTED_CURRENCIES) {
             const dbCurrency = data.currency as OrgCurrencyCode
             _setCurrency(dbCurrency)
             localStorage.setItem(`${STORAGE_KEY}_${organizationId}`, dbCurrency)
           }
-          const base = (data as { base_currency?: string }).base_currency
-          if (base && base in SUPPORTED_CURRENCIES) {
-            setBaseCurrency(base as OrgCurrencyCode)
+          if (data.base_currency && data.base_currency in SUPPORTED_CURRENCIES) {
+            setBaseCurrency(data.base_currency as OrgCurrencyCode)
           }
         }
       } catch (err) {
