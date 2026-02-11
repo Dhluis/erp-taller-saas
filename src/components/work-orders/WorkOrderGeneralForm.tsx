@@ -289,7 +289,7 @@ export function WorkOrderGeneralForm({
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      // Actualizar orden
+      // 1. Actualizar orden
       const orderUpdate: any = {
         description: formData.description,
         estimated_cost: formData.estimated_cost ? parseFloat(formData.estimated_cost) : null,
@@ -311,8 +311,52 @@ export function WorkOrderGeneralForm({
         const error = await orderResponse.json()
         throw new Error(error.error || 'Error al actualizar orden')
       }
+
+      // 2. Actualizar vehículo (placa, marca, modelo, año, color, km)
+      if (order.vehicle_id) {
+        const vehicleUpdate: Record<string, unknown> = {}
+        if (formData.vehicleBrand)   vehicleUpdate.brand = formData.vehicleBrand
+        if (formData.vehicleModel)   vehicleUpdate.model = formData.vehicleModel
+        if (formData.vehicleYear)    vehicleUpdate.year = parseInt(formData.vehicleYear) || null
+        if (formData.vehiclePlate)   vehicleUpdate.license_plate = formData.vehiclePlate.toUpperCase()
+        if (formData.vehicleColor !== undefined) vehicleUpdate.color = formData.vehicleColor || null
+        if (formData.vehicleMileage) vehicleUpdate.mileage = parseInt(formData.vehicleMileage) || null
+
+        if (Object.keys(vehicleUpdate).length > 0) {
+          const { error: vehicleError } = await supabase
+            .from('vehicles')
+            .update(vehicleUpdate)
+            .eq('id', order.vehicle_id)
+
+          if (vehicleError) {
+            console.error('[WorkOrderGeneralForm] Error actualizando vehículo:', vehicleError)
+            toast.error('Error al actualizar datos del vehículo', { description: vehicleError.message })
+          }
+        }
+      }
+
+      // 3. Actualizar cliente (nombre, teléfono, email, dirección)
+      if (order.customer_id) {
+        const customerUpdate: Record<string, unknown> = {}
+        if (formData.customerName)  customerUpdate.name = formData.customerName
+        if (formData.customerPhone) customerUpdate.phone = formData.customerPhone
+        if (formData.customerEmail) customerUpdate.email = formData.customerEmail
+        if (formData.customerAddress !== undefined) customerUpdate.address = formData.customerAddress || null
+
+        if (Object.keys(customerUpdate).length > 0) {
+          const { error: customerError } = await supabase
+            .from('customers')
+            .update(customerUpdate)
+            .eq('id', order.customer_id)
+
+          if (customerError) {
+            console.error('[WorkOrderGeneralForm] Error actualizando cliente:', customerError)
+            toast.error('Error al actualizar datos del cliente', { description: customerError.message })
+          }
+        }
+      }
       
-      // Actualizar inspección (crear o actualizar)
+      // 4. Actualizar inspección (crear o actualizar)
       const inspectionData = {
         order_id: order.id,
         organization_id: organizationId,
