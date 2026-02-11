@@ -306,7 +306,6 @@ export function Sidebar({ className }: SidebarProps) {
         isCollapsed ? "w-20" : "w-64",
         className
       )}
-      data-tour="sidebar"
     >
       {/* Header */}
       <div className={cn(

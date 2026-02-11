@@ -32,7 +32,7 @@ export function AppLayout({ children, title, breadcrumbs }: AppLayoutProps) {
     <div className={`min-h-screen ${isDark ? 'dark' : ''}`}>
       <div className="flex h-screen bg-bg-primary">
         {/* Sidebar */}
-        <aside data-tour="sidebar">
+        <aside>
           <Sidebar />
         </aside>
         

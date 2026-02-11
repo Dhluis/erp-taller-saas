@@ -312,7 +312,7 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[
-              { number: "1", title: "Regístrate en 2 minutos", description: "Simple onboarding" },
+              { number: "1", title: "Regístrate en 2 minutos", description: "Configuración simple" },
               { number: "2", title: "Configura tu taller", description: "Quick setup wizard" },
               { number: "3", title: "Empieza a trabajar", description: "Immediate productivity" },
             ].map((step, index) => (

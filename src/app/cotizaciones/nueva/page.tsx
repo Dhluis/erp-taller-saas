@@ -3,9 +3,8 @@
 // Disable static generation
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -29,26 +28,13 @@ import {
   Plus,
   Calculator,
   Edit,
-  Trash2
+  Trash2,
+  Loader2
 } from "lucide-react"
 import { TruckIcon } from '@heroicons/react/24/outline'
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
-
-interface Customer {
-  id: string
-  name: string
-  email: string
-  phone: string
-}
-
-interface Vehicle {
-  id: string
-  brand: string
-  model: string
-  year: number
-  license_plate: string
-  customer_id: string
-}
+import { useCustomers } from '@/hooks/useCustomers'
+import { useVehicles } from '@/hooks/useVehicles'
 
 interface QuotationItem {
   id?: string
@@ -80,12 +66,15 @@ interface QuotationFormData {
 export default function NuevaCotizacionPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [vehicles, setVehicles] = useState<Vehicle[]>([])
-  const [selectedCustomer, setSelectedCustomer] = useState("")
+  const [vehiclesForCustomer, setVehiclesForCustomer] = useState<Array<{ id: string; brand: string; model: string; year: number | null; license_plate: string | null; customer_id: string }>>([])
+  const [loadingVehicles, setLoadingVehicles] = useState(false)
   const [items, setItems] = useState<QuotationItem[]>([])
   const [isItemModalOpen, setIsItemModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<QuotationItem | null>(null)
+
+  const { customers, loading: loadingCustomers } = useCustomers({ pageSize: 200, autoLoad: true })
+  const { fetchVehiclesByCustomer } = useVehicles()
+  const { currency } = useOrgCurrency()
 
   const [formData, setFormData] = useState<QuotationFormData>({
     client_id: "",
@@ -98,166 +87,33 @@ export default function NuevaCotizacionPage() {
     status: "draft"
   })
 
-  useEffect(() => {
-    loadCustomers()
-    setDefaultValidUntil()
-  }, [])
-
-  useEffect(() => {
-    if (selectedCustomer) {
-      loadVehiclesByCustomer(selectedCustomer)
-    } else {
-      setVehicles([])
-    }
-  }, [selectedCustomer])
-
-  const { currency } = useOrgCurrency()
-
-  const loadCustomers = async () => {
-    try {
-      // Datos mock para desarrollo
-      const mockCustomers = [
-        {
-          id: "C001",
-          name: "Juan Pérez",
-          email: "juan.perez@email.com",
-          phone: "+1 555-0123",
-          company: "Empresa ABC"
-        },
-        {
-          id: "C002", 
-          name: "María García",
-          email: "maria.garcia@email.com",
-          phone: "+1 555-0124",
-          company: "Taller XYZ"
-        },
-        {
-          id: "C003",
-          name: "Carlos López",
-          email: "carlos.lopez@email.com", 
-          phone: "+1 555-0125",
-          company: "Auto Service"
-        },
-        {
-          id: "C004",
-          name: "Ana Martínez",
-          email: "ana.martinez@email.com",
-          phone: "+1 555-0126", 
-          company: "Mecánica Central"
-        },
-        {
-          id: "C005",
-          name: "Roberto Silva",
-          email: "roberto.silva@email.com",
-          phone: "+1 555-0127",
-          company: "Garage Moderno"
-        }
-      ]
-      
-      setCustomers(mockCustomers)
-    } catch (error) {
-      console.error('Error loading customers:', error)
-      // Datos de fallback
-      setCustomers([
-        {
-          id: "C001",
-          name: "Cliente Demo",
-          email: "demo@email.com",
-          phone: "+1 555-0000",
-          company: "Empresa Demo"
-        }
-      ])
-    }
-  }
-
-  const loadVehiclesByCustomer = async (customerId: string) => {
-    try {
-      // Datos mock para vehículos por cliente
-      const mockVehicles = {
-        "C001": [
-          {
-            id: "V001",
-            brand: "Toyota",
-            model: "Corolla",
-            year: 2020,
-            plate: "ABC-123",
-            color: "Blanco"
-          },
-          {
-            id: "V002", 
-            brand: "Honda",
-            model: "Civic",
-            year: 2019,
-            plate: "DEF-456",
-            color: "Azul"
-          }
-        ],
-        "C002": [
-          {
-            id: "V003",
-            brand: "Ford",
-            model: "Focus",
-            year: 2021,
-            plate: "GHI-789",
-            color: "Rojo"
-          }
-        ],
-        "C003": [
-          {
-            id: "V004",
-            brand: "Nissan",
-            model: "Sentra",
-            year: 2018,
-            plate: "JKL-012",
-            color: "Gris"
-          },
-          {
-            id: "V005",
-            brand: "Chevrolet",
-            model: "Cruze", 
-            year: 2020,
-            plate: "MNO-345",
-            color: "Negro"
-          }
-        ],
-        "C004": [
-          {
-            id: "V006",
-            brand: "Volkswagen",
-            model: "Jetta",
-            year: 2019,
-            plate: "PQR-678",
-            color: "Plata"
-          }
-        ],
-        "C005": [
-          {
-            id: "V007",
-            brand: "Hyundai",
-            model: "Elantra",
-            year: 2022,
-            plate: "STU-901",
-            color: "Blanco"
-          }
-        ]
-      }
-      
-      const customerVehicles = mockVehicles[customerId as keyof typeof mockVehicles] || []
-      setVehicles(customerVehicles)
-    } catch (error) {
-      console.error('Error loading vehicles:', error)
-      setVehicles([])
-    }
-  }
-
-  const setDefaultValidUntil = () => {
+  const setDefaultValidUntil = useCallback(() => {
     const date = new Date()
-    date.setDate(date.getDate() + 15) // 15 días por defecto
+    date.setDate(date.getDate() + 15)
     setFormData(prev => ({
       ...prev,
       valid_until: date.toISOString().split('T')[0]
     }))
-  }
+  }, [])
+
+  useEffect(() => {
+    setDefaultValidUntil()
+  }, [setDefaultValidUntil])
+
+  useEffect(() => {
+    if (formData.client_id) {
+      setLoadingVehicles(true)
+      setFormData(prev => ({ ...prev, vehicle_id: '' }))
+      fetchVehiclesByCustomer(formData.client_id)
+        .then((list) => {
+          setVehiclesForCustomer(list ?? [])
+        })
+        .catch(() => setVehiclesForCustomer([]))
+        .finally(() => setLoadingVehicles(false))
+    } else {
+      setVehiclesForCustomer([])
+    }
+  }, [formData.client_id, fetchVehiclesByCustomer])
 
   const handleAddItem = () => {
     setEditingItem(null)
@@ -352,8 +208,8 @@ export default function NuevaCotizacionPage() {
     }).format(amount)
   }
 
-  const selectedCustomerData = customers.find(c => c.id === selectedCustomer)
-  const selectedVehicleData = vehicles.find(v => v.id === formData.vehicle_id)
+  const selectedCustomerData = customers.find(c => c.id === formData.client_id)
+  const selectedVehicleData = vehiclesForCustomer.find(v => v.id === formData.vehicle_id)
   const totals = calculateTotals()
 
   return (
@@ -404,29 +260,37 @@ export default function NuevaCotizacionPage() {
               <div>
                 <Label htmlFor="client_id">Cliente *</Label>
                 <Select 
-                  value={selectedCustomer} 
-                  onValueChange={(value) => {
-                    setSelectedCustomer(value)
-                    setFormData(prev => ({ ...prev, client_id: value, vehicle_id: "" }))
-                  }}
+                  value={formData.client_id} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, client_id: value, vehicle_id: "" }))}
+                  disabled={loadingCustomers}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar cliente" />
+                    <SelectValue placeholder={loadingCustomers ? "Cargando clientes..." : "Seleccionar cliente"} />
                   </SelectTrigger>
                   <SelectContent>
+                    {!loadingCustomers && customers.length === 0 && (
+                      <div className="py-6 text-center text-sm text-muted-foreground">
+                        No hay clientes. Crea clientes en la sección Clientes.
+                      </div>
+                    )}
                     {customers.map((customer) => (
                       <SelectItem key={customer.id} value={customer.id}>
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4" />
                           <div>
                             <p className="font-medium">{customer.name}</p>
-                            <p className="text-sm text-muted-foreground">{customer.email}</p>
+                            <p className="text-sm text-muted-foreground">{customer.email ?? customer.phone ?? ''}</p>
                           </div>
                         </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {loadingCustomers && (
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Cargando...
+                  </p>
+                )}
               </div>
 
               <div>
@@ -434,27 +298,45 @@ export default function NuevaCotizacionPage() {
                 <Select 
                   value={formData.vehicle_id} 
                   onValueChange={(value) => setFormData(prev => ({ ...prev, vehicle_id: value }))}
-                  disabled={!selectedCustomer}
+                  disabled={!formData.client_id || loadingVehicles}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={selectedCustomer ? "Seleccionar vehículo" : "Primero selecciona un cliente"} />
+                    <SelectValue
+                      placeholder={
+                        !formData.client_id
+                          ? "Primero selecciona un cliente"
+                          : loadingVehicles
+                            ? "Cargando vehículos..."
+                            : "Seleccionar vehículo"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    {vehicles.map((vehicle) => (
+                    {!loadingVehicles && formData.client_id && vehiclesForCustomer.length === 0 && (
+                      <div className="py-6 text-center text-sm text-muted-foreground">
+                        Este cliente no tiene vehículos registrados.
+                      </div>
+                    )}
+                    {vehiclesForCustomer.map((vehicle) => (
                       <SelectItem key={vehicle.id} value={vehicle.id}>
                         <div className="flex items-center gap-2">
                           <TruckIcon className="h-4 w-4" />
                           <div>
                             <p className="font-medium">
-                              {vehicle.brand} {vehicle.model} {vehicle.year}
+                              {vehicle.brand} {vehicle.model} {vehicle.year ?? '—'}
                             </p>
-                            <p className="text-sm text-muted-foreground">{vehicle.license_plate}</p>
+                            <p className="text-sm text-muted-foreground">{vehicle.license_plate ?? 'Sin placa'}</p>
                           </div>
                         </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {loadingVehicles && formData.client_id && (
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Cargando vehículos...
+                  </p>
+                )}
               </div>
             </div>
 
@@ -523,7 +405,7 @@ export default function NuevaCotizacionPage() {
               <div>
                 <Label className="text-sm font-medium">Cliente</Label>
                 <p className="text-sm">{selectedCustomerData.name}</p>
-                <p className="text-xs text-muted-foreground">{selectedCustomerData.email}</p>
+                <p className="text-xs text-muted-foreground">{selectedCustomerData.email ?? selectedCustomerData.phone ?? '—'}</p>
               </div>
             )}
 
@@ -531,9 +413,9 @@ export default function NuevaCotizacionPage() {
               <div>
                 <Label className="text-sm font-medium">Vehículo</Label>
                 <p className="text-sm">
-                  {selectedVehicleData.brand} {selectedVehicleData.model} {selectedVehicleData.year}
+                  {selectedVehicleData.brand} {selectedVehicleData.model} {selectedVehicleData.year ?? '—'}
                 </p>
-                <p className="text-xs text-muted-foreground">{selectedVehicleData.license_plate}</p>
+                <p className="text-xs text-muted-foreground">{selectedVehicleData.license_plate ?? 'Sin placa'}</p>
               </div>
             )}
 

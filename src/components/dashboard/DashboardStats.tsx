@@ -115,7 +115,7 @@ export function DashboardStats({ data, loading = false }: DashboardStatsProps) {
   ]
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" data-tour="stats">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {statsData.map((stat, index) => (
         <Card key={index} hover glow={stat.change > 0}>
           <CardContent className="p-6">

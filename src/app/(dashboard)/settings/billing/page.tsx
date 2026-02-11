@@ -6,9 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Check, Crown, Zap, TrendingDown, AlertCircle, Settings, Loader2, ChevronDown } from 'lucide-react'
-import { UpgradeButton } from '@/components/billing/upgrade-button'
 import { useBilling } from '@/hooks/useBilling'
-import { PRICING, FEATURES } from '@/lib/billing/constants'
+import { PRICING, FEATURES, detectUserCountry, getPricingByCountry, shouldUseMercadoPago, type CountryCode } from '@/lib/billing/constants'
 import { useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
@@ -49,8 +48,14 @@ export default function BillingPage() {
   const [showCanceled, setShowCanceled] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [faqOpenIndex, setFaqOpenIndex] = useState<number | null>(null)
+  const [userCountry, setUserCountry] = useState<CountryCode>('US')
+  const [isLoadingCheckout, setIsLoadingCheckout] = useState(false)
   const { toast } = useToast()
   const { formatMoney } = useOrgCurrency()
+
+  useEffect(() => {
+    setUserCountry(detectUserCountry())
+  }, [])
 
   useEffect(() => {
     if (searchParams.get('success') === 'true') {
@@ -76,6 +81,40 @@ export default function BillingPage() {
 
   const isPremium = plan?.plan_tier === 'premium'
   const isActive = plan?.subscription_status === 'active'
+  const pricing = getPricingByCountry(userCountry)
+  const useMercadoPago = shouldUseMercadoPago(userCountry)
+
+  const handleCheckout = async (planType: 'monthly' | 'annual') => {
+    setIsLoadingCheckout(true)
+    try {
+      if (useMercadoPago) {
+        const response = await fetch('/api/billing/mercadopago/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan: planType, country: userCountry }),
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Error al crear checkout')
+        if (data.checkoutUrl) window.location.href = data.checkoutUrl
+        else throw new Error('No se recibió URL de checkout')
+      } else {
+        const response = await fetch('/api/billing/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan: planType }),
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Error al crear sesión de pago')
+        if (data.url) window.location.href = data.url
+        else throw new Error('No se recibió URL de checkout')
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo procesar el pago'
+      toast({ title: 'Error', description: message, variant: 'destructive' })
+    } finally {
+      setIsLoadingCheckout(false)
+    }
+  }
 
   return (
     <div className="space-y-8 p-8 max-w-7xl mx-auto">
@@ -222,25 +261,50 @@ export default function BillingPage() {
                 </Badge>
                 <div className="mt-2">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-foreground">{PRICING.annual.displayPrice}</span>
+                    <span className="text-3xl font-bold text-foreground">{pricing.annual.displayPrice}</span>
                     <span className="text-foreground/70">/año</span>
                   </div>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    ≈ {formatMoney(PRICING.annual.amount, 'USD')}
+                    ≈ {formatMoney(pricing.annual.amount, pricing.annual.currency)}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 mt-2 text-sm text-emerald-700 dark:text-emerald-300">
-                  <TrendingDown className="h-4 w-4" />
-                  <span className="font-medium">{PRICING.annual.savings.monthsFree}</span>
-                </div>
-                <p className="text-xs text-foreground/60 mt-1">
-                  Equivalente a ${PRICING.annual.monthlyEquivalent.toFixed(2)} USD/mes
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Ahorro anual ≈ {formatMoney(PRICING.annual.savings.amount, 'USD')}
-                </p>
+                {'savings' in pricing.annual && pricing.annual.savings && (
+                  <>
+                    <div className="flex items-center gap-2 mt-2 text-sm text-emerald-700 dark:text-emerald-300">
+                      <TrendingDown className="h-4 w-4" />
+                      <span className="font-medium">
+                        {'monthsFree' in pricing.annual.savings ? pricing.annual.savings.monthsFree : `Ahorra ${pricing.annual.savings.percentage}%`}
+                      </span>
+                    </div>
+                    {'monthlyEquivalent' in pricing.annual && pricing.annual.monthlyEquivalent != null && (
+                      <p className="text-xs text-foreground/60 mt-1">
+                        Equivalente a ${Number(pricing.annual.monthlyEquivalent).toFixed(2)} USD/mes
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Ahorro anual ≈ {formatMoney(pricing.annual.savings.amount, pricing.annual.currency)}
+                    </p>
+                  </>
+                )}
                 {!isPremium && (
-                  <UpgradeButton plan="annual" size="lg" className="w-full mt-4 min-h-[3.75rem] text-lg px-6 py-4" />
+                  <Button
+                    onClick={() => handleCheckout('annual')}
+                    disabled={isLoadingCheckout}
+                    size="lg"
+                    className="w-full mt-4 min-h-[3.75rem] text-lg px-6 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white border-0 shadow-sm transition-transform duration-200 hover:scale-[1.03]"
+                  >
+                    {isLoadingCheckout ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Procesando...
+                      </>
+                    ) : (
+                      <>
+                        <Crown className="mr-2 h-4 w-4" />
+                        Suscribirse - {pricing.annual.displayPrice}
+                      </>
+                    )}
+                  </Button>
                 )}
               </div>
 
@@ -248,22 +312,45 @@ export default function BillingPage() {
               <div className="border border-border rounded-lg p-4">
                 <div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-foreground">{PRICING.monthly.displayPrice}</span>
+                    <span className="text-2xl font-bold text-foreground">{pricing.monthly.displayPrice}</span>
                     <span className="text-foreground/70">/mes</span>
                   </div>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    ≈ {formatMoney(PRICING.monthly.amount, 'USD')}
+                    ≈ {formatMoney(pricing.monthly.amount, pricing.monthly.currency)}
                   </p>
                 </div>
                 <p className="text-xs text-foreground/60 mt-1">
                   Facturación mensual
                 </p>
                 {!isPremium && (
-                  <UpgradeButton plan="monthly" variant="outline" size="lg" className="w-full mt-4 min-h-[3.75rem] text-lg px-6 py-4 border-primary text-primary hover:bg-primary/10 hover:text-primary" />
+                  <Button
+                    onClick={() => handleCheckout('monthly')}
+                    disabled={isLoadingCheckout}
+                    variant="outline"
+                    size="lg"
+                    className="w-full mt-4 min-h-[3.75rem] text-lg px-6 py-4 border-primary text-primary hover:bg-primary/10 hover:text-primary"
+                  >
+                    {isLoadingCheckout ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Procesando...
+                      </>
+                    ) : (
+                      <>
+                        <Crown className="mr-2 h-4 w-4" />
+                        Suscribirse - {pricing.monthly.displayPrice}
+                      </>
+                    )}
+                  </Button>
                 )}
               </div>
             </div>
 
+            {!isPremium && (
+              <p className="text-xs text-muted-foreground mt-2">
+                💳 Pago procesado por {useMercadoPago ? 'MercadoPago' : 'Stripe'}
+              </p>
+            )}
             {/* Features */}
             <ul className="space-y-3 pt-4 border-t">
               {FEATURES.premium.map((feature, i) => (

@@ -62,7 +62,7 @@ export function QuickActions({ onOrderCreated }: QuickActionsProps) {
 
   return (
     <>
-      <Card className="shadow-sm hover:shadow-md transition-shadow" data-tour="quick-actions">
+      <Card className="shadow-sm hover:shadow-md transition-shadow">
         <CardHeader className="border-b bg-gradient-to-r from-blue-50 to-indigo-50">
           <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <span className="text-xl">⚡</span>
