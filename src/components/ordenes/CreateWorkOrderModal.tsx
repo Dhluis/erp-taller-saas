@@ -1521,7 +1521,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
 
-      <DialogContent className="max-w-3xl min-h-[80vh] max-h-[95vh] h-[85vh] overflow-hidden flex flex-col md:h-[88vh]">
+      <DialogContent className="w-[95vw] max-w-[95vw] sm:w-[90vw] sm:max-w-4xl min-h-[80vh] max-h-[95vh] h-[85vh] overflow-hidden flex flex-col md:h-[88vh]">
 
         <DialogHeader className="flex-shrink-0">
 
@@ -1542,10 +1542,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             e.preventDefault()
             if (currentStep === 4) handleSubmit(e)
           }}
-          className="flex flex-col flex-1 min-h-0 space-y-0"
+          className="flex flex-col flex-1 min-h-0 min-w-0 space-y-0"
         >
 
-          <div className="flex-1 overflow-y-auto min-h-[320px] pr-2 pb-4 space-y-6">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-[320px] min-w-0 pr-2 pb-4 space-y-6">
           {currentStep === 1 && (
           <>
           {/* PASO 1: Datos del Cliente */}
@@ -2639,7 +2639,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           </div>
 
           {/* Botones de navegación del wizard - siempre visibles al pie */}
-          <div className="flex justify-between gap-3 pt-4 pb-1 border-t border-slate-700 flex-shrink-0 bg-slate-900/50 -mx-6 px-6 -mb-1 rounded-b-lg">
+          <div className="flex justify-between gap-3 pt-4 pb-1 border-t border-slate-700 flex-shrink-0 bg-slate-900/50 -mx-6 px-6 -mb-1 rounded-b-lg min-w-0">
             {currentStep === 4 ? (
               <>
                 <Button
