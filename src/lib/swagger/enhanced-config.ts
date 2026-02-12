@@ -14,10 +14,10 @@ export const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'ERP Taller SaaS API',
+      title: 'Eagles System API',
       version: '1.0.0',
       description: `
-        # ERP Taller SaaS API
+        # Eagles System API
         
         API completa para el sistema ERP de taller automotriz con gestión integral de:
         

@@ -1,7 +1,7 @@
 /**
  * =====================================================
  * TYPES: Sistema de Planes Free/Premium
- * Autor: Eagles ERP
+ * Autor: Eagles System
  * Fecha: 2026-02-06
  * Descripción: Tipos TypeScript para modelo freemium
  * =====================================================
@@ -168,9 +168,9 @@ export interface LimitError {
  */
 export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
   free: {
-    max_customers: 50,
+    max_customers: 20,
     max_orders_per_month: 20,
-    max_inventory_items: 100,
+    max_inventory_items: 30,
     max_users: 2,
     whatsapp_enabled: false,
     ai_enabled: false,

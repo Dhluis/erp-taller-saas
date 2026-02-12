@@ -22,7 +22,7 @@ export function Navbar() {
     <nav className="border-b bg-white">
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-16">
-          <h2 className="text-xl font-bold">ERP Taller</h2>
+          <h2 className="text-xl font-bold">Eagles System</h2>
           <div className="flex space-x-2">
             {navItems.map((item) => {
               const Icon = item.icon

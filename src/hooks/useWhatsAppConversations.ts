@@ -1,6 +1,6 @@
 /**
  * useWhatsAppConversations Hook con Paginación
- * Eagles ERP - Hook para gestión de conversaciones de WhatsApp con paginación completa
+ * Eagles System - Hook para gestión de conversaciones de WhatsApp con paginación completa
  */
 
 'use client'

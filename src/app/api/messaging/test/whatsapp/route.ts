@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     // 5. Enviar WhatsApp de prueba
     const result = await sendWhatsAppMessage(profile.organization_id, {
       to: testPhone,
-      message: `✅ *WhatsApp de Prueba - Eagles ERP*
+      message: `✅ *WhatsApp de Prueba - Eagles System*
 
 Tu configuración está funcionando correctamente.
 

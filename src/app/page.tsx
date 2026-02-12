@@ -56,7 +56,7 @@ export default function LandingPage() {
             </Link>
             <Link href="/auth/register">
               <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                Probar Gratis - 7 días
+                Empieza gratis hoy
               </Button>
             </Link>
           </div>
@@ -79,7 +79,7 @@ export default function LandingPage() {
                 Gestiona tu Taller Mecánico de manera Profesional
               </h1>
               <p className="text-xl lg:text-2xl text-cyan-50 leading-relaxed text-pretty">
-                Eagles Sistem es un software completo: órdenes de trabajo, inventario, clientes, facturación y más. Todo en la nube.
+                Eagles System es un software completo: órdenes de trabajo, inventario, clientes, facturación y más. Todo en la nube.
               </p>
 
               {/* CTAs */}
@@ -89,7 +89,7 @@ export default function LandingPage() {
                     size="lg"
                     className="bg-white text-cyan-600 hover:bg-cyan-50 text-lg px-8 py-6 h-auto font-semibold shadow-xl"
                   >
-                    Comenzar Gratis - 7 Días
+                    Empieza gratis hoy
                   </Button>
                 </Link>
                 <Button
@@ -100,20 +100,25 @@ export default function LandingPage() {
                   Ver Demo
                 </Button>
               </div>
+              <p className="text-cyan-50 text-sm">Sin tarjeta de crédito. Sin límite de tiempo.</p>
 
               {/* Trust badges */}
-              <div className="grid grid-cols-3 gap-4 pt-8">
-                <div className="flex flex-col items-center text-center gap-2">
-                  <Cloud className="w-8 h-8" />
-                  <span className="text-sm font-medium">100% en la nube</span>
-                </div>
-                <div className="flex flex-col items-center text-center gap-2">
-                  <Headphones className="w-8 h-8" />
-                  <span className="text-sm font-medium">Soporte 24/7</span>
-                </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-8">
                 <div className="flex flex-col items-center text-center gap-2">
                   <Shield className="w-8 h-8" />
-                  <span className="text-sm font-medium">Datos seguros</span>
+                  <span className="text-sm font-medium">Sin tarjeta de crédito</span>
+                </div>
+                <div className="flex flex-col items-center text-center gap-2">
+                  <Zap className="w-8 h-8" />
+                  <span className="text-sm font-medium">Sin vencimiento</span>
+                </div>
+                <div className="flex flex-col items-center text-center gap-2">
+                  <TrendingUp className="w-8 h-8" />
+                  <span className="text-sm font-medium">Listo en 2 minutos</span>
+                </div>
+                <div className="flex flex-col items-center text-center gap-2">
+                  <BarChart3 className="w-8 h-8" />
+                  <span className="text-sm font-medium">Cancela o mejora cuando quieras</span>
                 </div>
               </div>
             </div>
@@ -132,7 +137,7 @@ export default function LandingPage() {
                 <div className="relative w-full flex items-center justify-center">
                   <Image
                     src="https://i.ibb.co/ZzFzkkRZ/Captura-de-pantalla-2026-01-05-223640.png"
-                    alt="EAGLES ERP Taller Dashboard - Sistema de gestión completo para talleres mecánicos"
+                    alt="EAGLES SYSTEM - Dashboard Taller - Sistema de gestión completo para talleres mecánicos"
                     width={1920}
                     height={1080}
                     className="w-full h-auto rounded-lg object-contain"
@@ -352,15 +357,27 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             {[
               {
-                name: "Básico",
+                name: "Plan Free",
+                subtitle: "Para siempre gratis",
+                tagline: "No es una prueba. Es tu punto de partida.",
                 amountUSD: 0,
-                period: "/mes",
-                features: ["Hasta 3 usuarios", "100 órdenes/mes", "Inventario básico", "Soporte por email", "Dashboard básico"],
-                cta: "Probar Gratis",
+                period: "",
+                features: [
+                  "Gestión de hasta 20 clientes",
+                  "20 órdenes de trabajo por mes",
+                  "Control de inventario (hasta 30 productos)",
+                  "2 usuarios activos",
+                  "Dashboard con métricas del negocio",
+                  "Historial de vehículos por cliente",
+                  "Sin anuncios. Sin vencimiento.",
+                ],
+                cta: "Crear cuenta gratis",
                 popular: false,
               },
               {
                 name: "Profesional",
+                subtitle: null,
+                tagline: null,
                 amountUSD: PRICING.monthly.amount,
                 period: "/mes",
                 features: [
@@ -392,13 +409,19 @@ export default function LandingPage() {
                   )}
 
                   <div className="text-center mb-8">
-                    <h3 className="text-2xl font-bold mb-4">{plan.name}</h3>
+                    <h3 className="text-2xl font-bold mb-1">{plan.name}</h3>
+                    {'subtitle' in plan && plan.subtitle && (
+                      <p className={plan.popular ? "text-slate-600 text-sm mb-2" : "text-cyan-200/90 text-sm mb-2"}>{plan.subtitle}</p>
+                    )}
+                    {'tagline' in plan && plan.tagline && (
+                      <p className={plan.popular ? "text-slate-500 text-xs mb-4" : "text-white/80 text-xs italic mb-4"}>{plan.tagline}</p>
+                    )}
                     <div className="flex flex-col items-center gap-0.5">
                       <div className="flex items-baseline justify-center gap-2">
                         <span className="text-5xl font-bold">
-                          {plan.amountUSD === 0 ? '$0' : `$${plan.amountUSD}`} USD
+                          {plan.amountUSD === 0 ? 'Gratis' : `$${plan.amountUSD}`} USD
                         </span>
-                        <span className={plan.popular ? "text-slate-600" : "text-white/80"}>{plan.period}</span>
+                        {plan.period && <span className={plan.popular ? "text-slate-600" : "text-white/80"}>{plan.period}</span>}
                       </div>
                       {selectedCurrency !== 'USD' && plan.amountUSD > 0 && (
                         <p className={plan.popular ? "text-slate-500 text-sm mt-1" : "text-cyan-100/90 text-sm mt-1"}>
@@ -437,11 +460,27 @@ export default function LandingPage() {
           </div>
 
           <p className="text-center mt-6 text-cyan-50">
-            Todos los planes incluyen 7 días de prueba gratis. Sin tarjeta de crédito.
+            Acceso gratuito permanente al Plan Free. Sin tarjeta de crédito.
           </p>
           <p className="text-center mt-2 text-cyan-100/70 text-xs">
             Tipo de cambio aproximado. El cargo se realiza en USD.
           </p>
+
+          {/* Valor freemium */}
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mt-16 text-left">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-8">
+              <h3 className="text-xl font-bold text-white mb-3">Empieza hoy, paga solo si creces</h3>
+              <p className="text-cyan-50 text-sm leading-relaxed">
+                Eagles System es tuyo desde el primer día, sin compromisos. Administra tu taller, conoce la plataforma y mejora al plan Premium solo cuando lo necesites.
+              </p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-8">
+              <h3 className="text-xl font-bold text-white mb-3">¿Por qué freemium?</h3>
+              <p className="text-cyan-50 text-sm leading-relaxed">
+                Porque sabemos que un taller no debería pagar por un software antes de confiar en él. Úsalo, comprueba el valor y decide tú cuándo dar el siguiente paso.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -457,7 +496,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-3 gap-8">
             {[
               {
-                quote: "Desde que uso ERP Taller, he reducido el papeleo en 90%. Todo está organizado y mis clientes están más contentos.",
+                quote: "Desde que uso Eagles System, he reducido el papeleo en 90%. Todo está organizado y mis clientes están más contentos.",
                 author: "Carlos Méndez",
                 business: "Taller Méndez",
                 location: "CDMX",
@@ -513,7 +552,7 @@ export default function LandingPage() {
               {[
                 {
                   question: "¿Necesito instalar software?",
-                  answer: "No, ERP Taller es 100% en la nube. Solo necesitas un navegador web y conexión a internet. Funciona en cualquier dispositivo: computadora, tablet o celular.",
+                  answer: "No, Eagles System es 100% en la nube. Solo necesitas un navegador web y conexión a internet. Funciona en cualquier dispositivo: computadora, tablet o celular.",
                 },
                 {
                   question: "¿Mis datos están seguros?",
@@ -529,7 +568,7 @@ export default function LandingPage() {
                 },
                 {
                   question: "¿Funciona sin internet?",
-                  answer: "ERP Taller requiere conexión a internet para funcionar. Sin embargo, la app móvil puede guardar datos temporalmente y sincronizarlos cuando recuperes la conexión.",
+                  answer: "Eagles System requiere conexión a internet para funcionar. Sin embargo, la app móvil puede guardar datos temporalmente y sincronizarlos cuando recuperes la conexión.",
                 },
                 {
                   question: "¿Incluye facturación electrónica?",
@@ -572,10 +611,10 @@ export default function LandingPage() {
                   size="lg"
                   className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white text-xl px-12 py-8 h-auto font-bold shadow-2xl"
                 >
-                  Comenzar Gratis - 7 Días
+                  Empieza gratis hoy
                 </Button>
               </Link>
-              <p className="text-sm text-slate-400 mt-4">No se requiere tarjeta de crédito</p>
+              <p className="text-sm text-slate-400 mt-4">Sin tarjeta de crédito. Sin límite de tiempo.</p>
             </div>
           </div>
         </div>
@@ -587,7 +626,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-4 gap-8 mb-12">
             {/* Brand */}
             <div>
-              <h3 className="text-white font-bold text-xl mb-4">ERP Taller SaaS</h3>
+              <h3 className="text-white font-bold text-xl mb-4">Eagles System</h3>
               <p className="text-sm leading-relaxed">
                 La solución completa para gestionar tu taller mecánico de manera profesional.
               </p>
@@ -638,7 +677,7 @@ export default function LandingPage() {
 
           {/* Bottom section */}
           <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm">© 2026 Eagles Sistems. Hecho en México.</p>
+            <p className="text-sm">© 2026 Eagles System. Hecho en México.</p>
           </div>
         </div>
       </footer>

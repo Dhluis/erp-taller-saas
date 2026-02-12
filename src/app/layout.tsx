@@ -11,7 +11,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "EAGLES - ERP Taller Automotriz",
+  title: "EAGLES SYSTEM - Taller Automotriz",
   description: "Sistema de gestión integral para talleres automotrices con tema oscuro moderno",
   keywords: ["ERP", "Taller", "Automotriz", "Gestión", "Sistema"],
   authors: [{ name: "EAGLES Team" }],

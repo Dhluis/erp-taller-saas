@@ -2,7 +2,7 @@
 
 ## 🎯 Descripción
 
-Sistema completo de documentación automática para la API del ERP Taller SaaS, generando especificaciones OpenAPI 3.0.0 desde comentarios JSDoc en el código.
+Sistema completo de documentación automática para la API del Eagles System, generando especificaciones OpenAPI 3.0.0 desde comentarios JSDoc en el código.
 
 ## 🚀 Características
 

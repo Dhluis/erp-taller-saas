@@ -1,6 +1,6 @@
 /**
  * useInvoices Hook con Paginación
- * Eagles ERP - Hook para gestión de notas de venta (invoices) con paginación completa
+ * Eagles System - Hook para gestión de notas de venta (invoices) con paginación completa
  */
 
 'use client'

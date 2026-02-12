@@ -58,7 +58,7 @@ export async function getMessagingConfig(
       id: configData.id,
       organizationId: configData.organization_id,
       emailEnabled: configData.email_enabled ?? true,
-      emailFromName: configData.email_from_name || 'Eagles ERP',
+      emailFromName: configData.email_from_name || 'Eagles System',
       emailReplyTo: configData.email_reply_to,
       smsEnabled: configData.sms_enabled ?? false,
       smsFromNumber: configData.sms_from_number,

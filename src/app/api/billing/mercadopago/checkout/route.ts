@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     const title = 'mercadopagoTitle' in pricing
       ? pricing.mercadopagoTitle
-      : `Eagles ERP - ${plan === 'monthly' ? 'Mensual' : 'Anual'}`
+      : `Eagles System - ${plan === 'monthly' ? 'Mensual' : 'Anual'}`
 
     const preference = await preferenceClient.create({
       body: {
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
           {
             id: `eagles-erp-${plan}`,
             title,
-            description: `Suscripción ${plan === 'monthly' ? 'mensual' : 'anual'} a Eagles ERP`,
+            description: `Suscripción ${plan === 'monthly' ? 'mensual' : 'anual'} a Eagles System`,
             quantity: 1,
             unit_price: pricing.amount,
             currency_id: pricing.currency,
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
           country: countryCode,
         },
         notification_url: `${siteUrl}/api/billing/mercadopago/webhook`,
-        statement_descriptor: 'EAGLES ERP',
+        statement_descriptor: 'EAGLES SYSTEM',
       },
     })
 

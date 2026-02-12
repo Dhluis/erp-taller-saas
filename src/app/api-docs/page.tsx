@@ -33,7 +33,7 @@ export default function ApiDocs() {
     <div className="min-h-screen bg-white">
       <div className="bg-blue-600 text-white py-4 px-6">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold">ERP Taller SaaS - Documentación de API</h1>
+          <h1 className="text-3xl font-bold">Eagles System - Documentación de API</h1>
           <p className="mt-2 text-blue-100">
             Documentación completa de todos los endpoints del sistema ERP
           </p>
@@ -76,7 +76,7 @@ export default function ApiDocs() {
       <footer className="bg-gray-100 py-6 mt-8">
         <div className="max-w-7xl mx-auto px-6 text-center text-gray-600">
           <p>
-            ERP Taller SaaS API v1.0.0 | 
+            Eagles System API v1.0.0 | 
             <a href="/api/swagger.json" className="text-blue-600 hover:text-blue-800 ml-2">
               Descargar especificación OpenAPI
             </a>

@@ -33,7 +33,7 @@ export async function sendEmailViaSendGrid(
     // 3. Preparar email
     const from = {
       email: process.env.SMTP_FROM_EMAIL || 'noreply@eaglessystem.io',
-      name: options.fromName || config.emailFromName || 'Eagles ERP'
+      name: options.fromName || config.emailFromName || 'Eagles System'
     };
 
     const replyTo = options.replyTo || config.emailReplyTo || undefined;

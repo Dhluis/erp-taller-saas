@@ -1,6 +1,6 @@
 /**
  * Types for Pagination System
- * Eagles ERP - Sistema de paginación completo
+ * Eagles System - Sistema de paginación completo
  */
 
 export interface PaginationParams {

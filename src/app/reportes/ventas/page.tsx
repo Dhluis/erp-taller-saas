@@ -243,7 +243,7 @@ export default function ReportesVentasPage() {
           </div>
 
           <div class="footer">
-            <p>Generado por EAGLES ERP Taller SaaS</p>
+            <p>Generado por Eagles System</p>
             <p>${currentDate}</p>
           </div>
         </body>

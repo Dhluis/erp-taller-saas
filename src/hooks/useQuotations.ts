@@ -1,6 +1,6 @@
 /**
  * useQuotations Hook con Paginación
- * Eagles ERP - Hook para gestión de cotizaciones con paginación completa
+ * Eagles System - Hook para gestión de cotizaciones con paginación completa
  */
 
 'use client'

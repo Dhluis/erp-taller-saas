@@ -47,7 +47,7 @@ export function LogoWithText({ size = 'md', variant = 'default', className }: Lo
           EAGLES
         </span>
         <span className={cn('text-xs text-text-secondary', size === 'sm' ? 'text-xs' : 'text-xs')}>
-          ERP Taller SaaS
+          Eagles System
         </span>
       </div>
     </div>

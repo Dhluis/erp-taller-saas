@@ -1,6 +1,6 @@
 /**
  * useDebouncedValue Hook
- * Eagles ERP - Debounce para inputs de búsqueda
+ * Eagles System - Debounce para inputs de búsqueda
  */
 
 import { useState, useEffect } from 'react'

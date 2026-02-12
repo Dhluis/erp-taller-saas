@@ -131,7 +131,7 @@ export function PageLayout({
         sidebarClassName
       )}>
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-          <h1 className="text-xl font-semibold text-gray-900">ERP Taller</h1>
+          <h1 className="text-xl font-semibold text-gray-900">Eagles System</h1>
           <Button
             variant="ghost"
             size="sm"
@@ -315,7 +315,7 @@ export function PageLayout({
         footerClassName
       )}>
         <div className="flex items-center justify-between text-sm text-gray-600">
-          <p>&copy; 2024 ERP Taller. Todos los derechos reservados.</p>
+          <p>&copy; 2024 Eagles System. Todos los derechos reservados.</p>
           <div className="flex items-center gap-4">
             <a href="#" className="hover:text-gray-900">Política de privacidad</a>
             <a href="#" className="hover:text-gray-900">Términos de servicio</a>

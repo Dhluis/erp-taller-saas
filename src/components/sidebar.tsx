@@ -215,7 +215,7 @@ export function Sidebar({ className }: SidebarProps) {
           <div className="flex items-center gap-3">
             <Image
               src="/eagles-logo-new.png"
-              alt="EAGLES ERP"
+              alt="EAGLES SYSTEM"
               width={40}
               height={40}
               className="object-contain"
@@ -224,7 +224,7 @@ export function Sidebar({ className }: SidebarProps) {
               <h1 className="text-xl font-bold text-foreground">
                 EAGLES
               </h1>
-              <p className="text-xs text-muted-foreground">ERP Taller SaaS</p>
+              <p className="text-xs text-muted-foreground">Eagles System</p>
             </div>
           </div>
           <Button variant="ghost" size="sm" className="text-foreground hover:text-primary">

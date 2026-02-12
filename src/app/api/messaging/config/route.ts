@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         success: true,
         config: {
           emailEnabled: true,
-          emailFromName: process.env.SMTP_FROM_NAME || 'Eagles ERP',
+          emailFromName: process.env.SMTP_FROM_NAME || 'Eagles System',
           emailReplyTo: process.env.SMTP_FROM_EMAIL || 'servicios@eaglessystem.io',
           whatsappProvider: 'waha',
           whatsappEnabled: false,
@@ -233,7 +233,7 @@ export async function PUT(request: NextRequest) {
     const configData = data as any;
     const responseConfig = {
       emailEnabled: configData.email_enabled ?? true,
-      emailFromName: configData.email_from_name || 'Eagles ERP',
+      emailFromName: configData.email_from_name || 'Eagles System',
       emailReplyTo: configData.email_reply_to,
       whatsappProvider: configData.whatsapp_provider || 'waha',
       whatsappEnabled: configData.whatsapp_enabled ?? false,

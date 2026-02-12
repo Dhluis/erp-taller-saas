@@ -2,7 +2,7 @@
 -- OPTIMIZACIÓN DE CONSULTAS FRECUENTES
 -- =====================================================
 -- Consultas optimizadas para mejorar el rendimiento
--- del ERP Taller SaaS
+-- Eagles System
 
 -- =====================================================
 -- CONSULTA OPTIMIZADA: ÓRDENES EN PROGRESO

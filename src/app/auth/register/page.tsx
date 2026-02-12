@@ -685,10 +685,10 @@ export default function RegisterPage() {
                 </p>
                 <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 mb-6">
                   <p className="text-cyan-300 text-sm font-medium mb-2">
-                    🎉 Estás en tu período de prueba gratuito de 7 días
+                    🎉 Tu cuenta está lista. Empieza a usar Eagles System gratis.
                   </p>
                   <p className="text-slate-300 text-sm">
-                    Explora todas las funcionalidades del ERP sin compromiso. Podrás gestionar tu taller de manera completa.
+                    Tu plan Free es permanente: hasta 20 clientes, 20 órdenes al mes, inventario y 2 usuarios. Sin tarjeta ni vencimiento. Mejora a Premium cuando lo necesites.
                   </p>
                 </div>
               </div>

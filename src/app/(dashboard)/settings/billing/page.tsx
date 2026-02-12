@@ -28,8 +28,8 @@ const BILLING_FAQS = [
     answer: 'Actualmente aceptamos todas las tarjetas de crédito y débito principales a través de Stripe.',
   },
   {
-    question: '¿Cómo funciona el período de prueba de 7 días?',
-    answer: 'Al crear tu cuenta tienes 7 días de trial con acceso a todas las funciones Premium. Al finalizar, si no te suscribes, pasarás al plan Free con sus límites. No se requiere tarjeta para probar.',
+    question: '¿Cómo funciona el plan Free?',
+    answer: 'El plan Free es gratuito para siempre. Incluye hasta 20 clientes, 20 órdenes por mes, 30 productos en inventario y 2 usuarios. Sin tarjeta de crédito. Cuando quieras más capacidad o funciones Premium (WhatsApp, reportes avanzados, etc.), puedes actualizar en cualquier momento.',
   },
   {
     question: '¿Puedo tener varios usuarios en mi taller?',

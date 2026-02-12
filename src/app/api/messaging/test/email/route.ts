@@ -84,14 +84,14 @@ export async function POST(request: NextRequest) {
     // 5. Preparar email
     const from = {
       email: (process.env.SMTP_FROM_EMAIL || 'servicios@eaglessystem.io').trim(),
-      name: (process.env.SMTP_FROM_NAME || 'Eagles ERP').trim(),
+      name: (process.env.SMTP_FROM_NAME || 'Eagles System').trim(),
     };
 
     // 6. Enviar email
     await (sgMail as any).send({
       to: testEmail,
       from,
-      subject: '✅ Email de Prueba - Eagles ERP',
+      subject: '✅ Email de Prueba - Eagles System',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
             <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">Hola,</p>
             
             <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">
-              Este es un email de prueba desde <strong>Eagles ERP</strong>.
+              Este es un email de prueba desde <strong>Eagles System</strong>.
             </p>
             
             <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 15px; margin: 20px 0; border-radius: 4px;">
@@ -121,17 +121,17 @@ export async function POST(request: NextRequest) {
           
           <div style="text-align: center; margin-top: 20px; padding: 20px;">
             <p style="font-size: 12px; color: #9ca3af; margin: 0;">
-              Eagles ERP - Sistema de Gestión para Talleres Automotrices
+              Eagles System - Sistema de Gestión para Talleres Automotrices
             </p>
           </div>
         </div>
       `,
       text: `
-        ✅ Email de Prueba - Eagles ERP
+        ✅ Email de Prueba - Eagles System
         
         Hola,
         
-        Este es un email de prueba desde Eagles ERP.
+        Este es un email de prueba desde Eagles System.
         
         ✓ Tu configuración de email está funcionando correctamente
         

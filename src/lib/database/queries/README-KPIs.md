@@ -2,7 +2,7 @@
 
 ## 🎯 Descripción
 
-Sistema completo de KPIs (Key Performance Indicators) y métricas para el dashboard del ERP Taller SaaS, proporcionando análisis en tiempo real del rendimiento del taller.
+Sistema completo de KPIs (Key Performance Indicators) y métricas para el dashboard del Eagles System, proporcionando análisis en tiempo real del rendimiento del taller.
 
 ## 🚀 Características
 

@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
         smsMethod: 'POST',
         statusCallback: webhookUrl,
         statusCallbackMethod: 'POST',
-        friendlyName: `Eagles ERP - ${organization.name} - WhatsApp Premium`,
+        friendlyName: `Eagles System - ${organization.name} - WhatsApp Premium`,
       });
       
       console.log('[Activate Premium] ✅ Número comprado:', purchasedNumber.phoneNumber);

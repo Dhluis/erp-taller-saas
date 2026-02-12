@@ -1,6 +1,6 @@
 /**
  * Types para Purchase Orders Module
- * Eagles ERP - Tipos TypeScript para órdenes de compra
+ * Eagles System - Tipos TypeScript para órdenes de compra
  */
 
 export interface Supplier {

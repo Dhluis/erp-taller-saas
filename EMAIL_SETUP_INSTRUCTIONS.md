@@ -11,7 +11,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=servicio@eaglessystem.io
 SMTP_PASS=Eagles26@%
-SMTP_FROM_NAME=Eagles ERP
+SMTP_FROM_NAME=Eagles System
 SMTP_FROM_EMAIL=servicio@eaglessystem.io
 
 # App URL (para links en emails)
@@ -37,7 +37,7 @@ NEXT_PUBLIC_APP_URL=https://eaglessystem.io
    - `SMTP_SECURE` = `false`
    - `SMTP_USER` = `servicio@eaglessystem.io`
    - `SMTP_PASS` = `Eagles26@%`
-   - `SMTP_FROM_NAME` = `Eagles ERP`
+   - `SMTP_FROM_NAME` = `Eagles System`
    - `SMTP_FROM_EMAIL` = `servicio@eaglessystem.io`
    - `NEXT_PUBLIC_APP_URL` = `https://eaglessystem.io`
 4. Guarda y redeploya

@@ -337,7 +337,7 @@ Para agregar nuevas funcionalidades:
 
 ## 📄 Licencia
 
-Este módulo es parte del proyecto ERP Taller SaaS.
+Este módulo es parte del proyecto Eagles System.
 
 
 

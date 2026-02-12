@@ -1,6 +1,6 @@
 /**
  * Pagination Component
- * Eagles ERP - Componente de paginación completo y reutilizable
+ * Eagles System - Componente de paginación completo y reutilizable
  */
 
 'use client'

@@ -31,7 +31,7 @@ export default function ConfiguracionesSistemaPage() {
   
   const [settings, setSettings] = useState({
     // Configuración general
-    systemName: "EAGLES ERP",
+    systemName: "EAGLES SYSTEM",
     systemVersion: "1.0.0",
     timezone: "America/Mexico_City",
     language: "es",
@@ -78,7 +78,7 @@ export default function ConfiguracionesSistemaPage() {
   const handleReset = () => {
     // Resetear a valores por defecto
     setSettings({
-      systemName: "EAGLES ERP",
+      systemName: "EAGLES SYSTEM",
       systemVersion: "1.0.0",
       timezone: "America/Mexico_City",
       language: "es",

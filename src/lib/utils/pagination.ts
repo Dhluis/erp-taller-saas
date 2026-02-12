@@ -1,6 +1,6 @@
 /**
  * Pagination Utilities
- * Eagles ERP - Funciones helper para paginación
+ * Eagles System - Funciones helper para paginación
  */
 
 import { PaginationParams, PaginationMeta } from '@/types/pagination'

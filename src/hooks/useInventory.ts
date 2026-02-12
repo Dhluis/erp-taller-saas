@@ -1,6 +1,6 @@
 /**
  * useInventory Hook con Paginación
- * Eagles ERP - Hook para gestión de inventario con paginación
+ * Eagles System - Hook para gestión de inventario con paginación
  */
 
 'use client';
