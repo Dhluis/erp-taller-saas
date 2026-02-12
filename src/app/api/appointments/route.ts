@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         customer:customers(id, name, phone, email),
-        vehicle:vehicles(id, brand, model, license_plate)
+        vehicle:vehicles(id, brand, model, year, license_plate)
       `)
       .eq('organization_id', organizationId);
 

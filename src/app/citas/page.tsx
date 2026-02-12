@@ -78,6 +78,7 @@ interface Appointment extends BaseAppointment {
     id: string
     brand: string
     model: string
+    year?: number
     license_plate?: string
   }
 }
@@ -90,6 +91,7 @@ interface CreateAppointmentData {
   vehicle_info: string
   vehicle_brand: string
   vehicle_model: string
+  vehicle_year: string
   vehicle_plate: string
   service_type: string
   appointment_date: string
@@ -135,6 +137,7 @@ export default function CitasPage() {
     vehicle_info: '',
     vehicle_brand: '',
     vehicle_model: '',
+    vehicle_year: '',
     vehicle_plate: '',
     service_type: '',
     appointment_date: '',
@@ -330,6 +333,8 @@ export default function CitasPage() {
       }
     }
 
+    const vehicleYear = appointment.vehicle?.year ? String(appointment.vehicle.year) : ''
+
     setFormData({
       customer_name: customerName,
       customer_phone: customerPhone,
@@ -337,6 +342,7 @@ export default function CitasPage() {
       vehicle_info: vehicleInfo,
       vehicle_brand: vehicleBrand === 'Desconocido' ? '' : vehicleBrand,
       vehicle_model: vehicleModel === 'Desconocido' ? '' : vehicleModel,
+      vehicle_year: vehicleYear,
       vehicle_plate: vehiclePlate,
       service_type: appointment.service_type,
       appointment_date: dateOnly,
@@ -474,7 +480,7 @@ export default function CitasPage() {
               brand,
               model,
               license_plate: plate || null,
-              year: null
+              year: formData.vehicle_year ? parseInt(formData.vehicle_year) : null
             }),
           })
 
@@ -601,18 +607,28 @@ export default function CitasPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('¿Estás seguro de eliminar esta cita?')) return
-
-    try {
-      await deleteAppointment(id)
-      console.log('Cita eliminada')
-      toast.success('Cita eliminada correctamente')
-      loadData()
-    } catch (error) {
-      console.error('Error deleting appointment:', error)
-      toast.error('Error al eliminar cita')
-    }
+  const handleDelete = (id: string) => {
+    toast('¿Estás seguro de eliminar esta cita?', {
+      description: 'Esta acción no se puede deshacer.',
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await deleteAppointment(id)
+            toast.success('Cita eliminada correctamente')
+            loadData()
+          } catch (error) {
+            console.error('Error deleting appointment:', error)
+            toast.error('Error al eliminar cita')
+          }
+        },
+      },
+      cancel: {
+        label: 'Cancelar',
+        onClick: () => {},
+      },
+      duration: 10000,
+    })
   }
 
   // Función para obtener los días del calendario
@@ -729,7 +745,7 @@ export default function CitasPage() {
                 />
               </div>
               
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="vehicle_brand">Marca</Label>
                   <Input 
@@ -745,7 +761,21 @@ export default function CitasPage() {
                     id="vehicle_model" 
                     value={formData.vehicle_model}
                     onChange={(e) => setFormData({...formData, vehicle_model: e.target.value})}
-                    placeholder="Corolla 2020"
+                    placeholder="Corolla"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="vehicle_year">Año</Label>
+                  <Input 
+                    id="vehicle_year" 
+                    type="number"
+                    value={formData.vehicle_year}
+                    onChange={(e) => setFormData({...formData, vehicle_year: e.target.value})}
+                    placeholder="2020"
+                    min="1900"
+                    max={new Date().getFullYear() + 1}
                   />
                 </div>
                 <div>
