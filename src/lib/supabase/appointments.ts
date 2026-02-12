@@ -24,7 +24,7 @@ export interface AppointmentStats {
 
 export interface CreateAppointment {
   customer_id: string
-  vehicle_id: string  // ✅ Ahora obligatorio - siempre se crea un vehículo
+  vehicle_id?: string | null  // Opcional — no siempre se tiene un vehículo al agendar
   service_type: string
   appointment_date: string
   duration?: number
@@ -177,18 +177,23 @@ export async function createAppointment(appointment: CreateAppointment): Promise
       console.log('🔍 [createAppointment] Datos recibidos:', appointment)
       
       // ✅ Crear cita sin appointment_number (esa columna no existe en la tabla)
-      const { data, error } = await client
-        .from('appointments')
-        .insert({
+      const insertData: Record<string, any> = {
           customer_id: appointment.customer_id,
-          vehicle_id: appointment.vehicle_id,
           service_type: appointment.service_type,
           appointment_date: appointment.appointment_date,
           duration: appointment.duration || 60,
           organization_id: appointment.organization_id,
           status: appointment.status || 'scheduled',
           notes: appointment.notes
-        } as any)
+        }
+      // Solo incluir vehicle_id si tiene valor real (no null/undefined)
+      if (appointment.vehicle_id) {
+        insertData.vehicle_id = appointment.vehicle_id
+      }
+
+      const { data, error } = await client
+        .from('appointments')
+        .insert(insertData as any)
         .select()
         .single()
       

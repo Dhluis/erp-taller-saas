@@ -88,6 +88,9 @@ interface CreateAppointmentData {
   customer_phone: string
   customer_email?: string
   vehicle_info: string
+  vehicle_brand: string
+  vehicle_model: string
+  vehicle_plate: string
   service_type: string
   appointment_date: string
   appointment_time: string
@@ -125,18 +128,22 @@ export default function CitasPage() {
   })
 
   // Form data
-  const [formData, setFormData] = useState<CreateAppointmentData>({
+  const emptyForm: CreateAppointmentData = {
     customer_name: '',
     customer_phone: '',
     customer_email: '',
     vehicle_info: '',
+    vehicle_brand: '',
+    vehicle_model: '',
+    vehicle_plate: '',
     service_type: '',
     appointment_date: '',
     appointment_time: '',
     status: 'scheduled',
     notes: '',
     estimated_duration: 60
-  })
+  }
+  const [formData, setFormData] = useState<CreateAppointmentData>(emptyForm)
 
   // Monitorear cuando organizationId y workshopId cargan
   useEffect(() => {
@@ -286,26 +293,29 @@ export default function CitasPage() {
     const customerPhone = appointment.customer?.phone || appointment.customer_phone || ''
     const customerEmail = appointment.customer?.email || appointment.customer_email || ''
     
-    // Construir vehicle_info si viene de la relación vehicle
+    // Extraer datos del vehículo de la relación (campos separados)
+    const vehicleBrand = appointment.vehicle?.brand || ''
+    const vehicleModel = appointment.vehicle?.model || ''
+    const rawPlate = appointment.vehicle?.license_plate || ''
+    // No mostrar placas temporales (TEMP-XXXXXX) al usuario
+    const vehiclePlate = rawPlate.startsWith('TEMP-') ? '' : rawPlate
+    
+    // vehicle_info solo como texto legible (no se usa para crear vehículos)
     let vehicleInfo = appointment.vehicle_info || ''
     if (appointment.vehicle && !vehicleInfo) {
-      vehicleInfo = `${appointment.vehicle.brand} ${appointment.vehicle.model}${
-        appointment.vehicle.license_plate ? ` - ${appointment.vehicle.license_plate}` : ''
-      }`
+      const parts = [appointment.vehicle.brand, appointment.vehicle.model].filter(Boolean)
+      if (vehiclePlate) parts.push(vehiclePlate)
+      vehicleInfo = parts.join(' ')
     }
-    
-    console.log('📝 [handleEdit] Datos del formulario:', {
-      customerName,
-      customerPhone,
-      customerEmail,
-      vehicleInfo
-    })
     
     setFormData({
       customer_name: customerName,
       customer_phone: customerPhone,
       customer_email: customerEmail,
       vehicle_info: vehicleInfo,
+      vehicle_brand: vehicleBrand === 'Desconocido' ? '' : vehicleBrand,
+      vehicle_model: vehicleModel === 'Desconocido' ? '' : vehicleModel,
+      vehicle_plate: vehiclePlate,
       service_type: appointment.service_type,
       appointment_date: appointment.appointment_date,
       appointment_time: appointment.appointment_time || '',
@@ -319,18 +329,7 @@ export default function CitasPage() {
   const handleClose = () => {
     setIsDialogOpen(false)
     setEditingAppointment(null)
-    setFormData({
-      customer_name: '',
-      customer_phone: '',
-      customer_email: '',
-      vehicle_info: '',
-      service_type: '',
-      appointment_date: '',
-      appointment_time: '',
-      status: 'scheduled',
-      notes: '',
-      estimated_duration: 60
-    })
+    setFormData(emptyForm)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -359,10 +358,9 @@ export default function CitasPage() {
     
     console.log('✅ Organization ID validado:', { organizationId, workshopId })
     
-    if (!formData.customer_name.trim() || !formData.customer_phone.trim() || 
-        !formData.vehicle_info.trim() || !formData.service_type.trim()) {
+    if (!formData.customer_name.trim() || !formData.customer_phone.trim() || !formData.service_type.trim()) {
       toast.error('Campos requeridos', {
-        description: 'Por favor completa todos los campos obligatorios'
+        description: 'Por favor completa nombre, teléfono y tipo de servicio'
       })
       return
     }
@@ -410,105 +408,70 @@ export default function CitasPage() {
         console.log('✅ Cliente creado:', customerId)
       }
       
-      // 2. BUSCAR O CREAR VEHÍCULO (SIEMPRE CREAR UNO) - USAR API ENDPOINT
-      let vehicleId: string
+      // 2. BUSCAR O CREAR VEHÍCULO — solo si hay datos reales del vehículo
+      let vehicleId: string | null = null
       console.log('🚗 Procesando información del vehículo...')
 
-      const vehicleInfo = formData.vehicle_info?.trim() || 'Vehículo sin especificar'
-      const vehicleParts = vehicleInfo.split('-')
-      const vehicleData = vehicleParts[0]?.trim() || vehicleInfo
-      const licensePlate = vehicleParts[1]?.trim() || ''
+      const brand = formData.vehicle_brand?.trim() || ''
+      const model = formData.vehicle_model?.trim() || ''
+      const plate = formData.vehicle_plate?.trim().toUpperCase() || ''
+      const hasVehicleData = brand || model || plate
 
-      if (licensePlate) {
-        // BUSCAR POR PLACA usando API endpoint
-        const searchResponse = await fetch(`/api/vehicles?search=${encodeURIComponent(licensePlate.toUpperCase())}&filter_customer_id=${customerId}`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          cache: 'no-store',
-        })
+      if (hasVehicleData) {
+        // Solo crear/buscar vehículo si el usuario proporcionó datos reales
+        if (plate) {
+          // Buscar vehículo existente por placa
+          const searchResponse = await fetch(`/api/vehicles?search=${encodeURIComponent(plate)}&filter_customer_id=${customerId}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            cache: 'no-store',
+          })
 
-        if (searchResponse.ok) {
-          const searchResult = await searchResponse.json()
-          const existingVehicles = searchResult.data?.items || []
-          const existingVehicle = existingVehicles.find((v: any) => 
-            v.license_plate?.toUpperCase() === licensePlate.toUpperCase() &&
-            v.customer_id === customerId
-          )
-          
-          if (existingVehicle) {
-            vehicleId = existingVehicle.id
-            console.log('✅ Vehículo encontrado por placa:', vehicleId)
-          } else {
-            // CREAR CON PLACA usando API endpoint
-            const vehicleWords = vehicleData.split(' ')
-            const brand = vehicleWords[0] || 'Desconocido'
-            const model = vehicleWords.slice(1).join(' ') || 'Desconocido'
+          if (searchResponse.ok) {
+            const searchResult = await searchResponse.json()
+            const existingVehicles = searchResult.data?.items || []
+            const existingVehicle = existingVehicles.find((v: any) => 
+              v.license_plate?.toUpperCase() === plate && v.customer_id === customerId
+            )
             
-            const createResponse = await fetch('/api/vehicles', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                customer_id: customerId,
-                workshop_id: workshopId || null,
-                brand: brand,
-                model: model,
-                license_plate: licensePlate.toUpperCase(),
-                year: null
-              }),
-            })
-
-            if (!createResponse.ok) {
-              const errorData = await createResponse.json()
-              throw new Error(`Error creando vehículo: ${errorData.error || 'No se pudo crear el vehículo'}`)
+            if (existingVehicle) {
+              vehicleId = existingVehicle.id
+              console.log('✅ Vehículo encontrado por placa:', vehicleId)
             }
-
-            const createResult = await createResponse.json()
-            if (!createResult.success || !createResult.data) {
-              throw new Error(`Error creando vehículo: ${createResult.error || 'No se pudo crear el vehículo'}`)
-            }
-            
-            vehicleId = createResult.data.id
-            console.log('✅ Vehículo creado con placa:', vehicleId)
           }
-        } else {
-          throw new Error('Error al buscar vehículo existente')
+        }
+
+        // Si no encontramos uno existente, crear uno nuevo (solo si hay marca y modelo)
+        if (!vehicleId && brand && model) {
+          const createResponse = await fetch('/api/vehicles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              customer_id: customerId,
+              workshop_id: workshopId || null,
+              brand,
+              model,
+              license_plate: plate || null,
+              year: null
+            }),
+          })
+
+          if (createResponse.ok) {
+            const createResult = await createResponse.json()
+            if (createResult.success && createResult.data) {
+              vehicleId = createResult.data.id
+              console.log('✅ Vehículo creado:', vehicleId)
+            }
+          }
+
+          if (!vehicleId) {
+            console.warn('⚠️ No se pudo crear el vehículo, se creará la cita sin vehículo')
+          }
+        } else if (!vehicleId) {
+          console.log('ℹ️ Se necesitan marca y modelo para crear el vehículo, la cita se creará sin vehículo')
         }
       } else {
-        // NO HAY PLACA - CREAR VEHÍCULO GENÉRICO usando API endpoint
-        console.log('⚠️ No hay placa, creando vehículo genérico...')
-        
-        const vehicleWords = vehicleData.split(' ')
-        const brand = vehicleWords[0] || 'Desconocido'
-        const model = vehicleWords.slice(1).join(' ') || 'Desconocido'
-        
-        // Generar placa temporal única
-        const tempPlate = `TEMP-${Date.now().toString().slice(-6)}`
-        
-        const createResponse = await fetch('/api/vehicles', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customer_id: customerId,
-            workshop_id: workshopId || null,
-            brand: brand,
-            model: model,
-            license_plate: tempPlate,
-            year: null
-          }),
-        })
-
-        if (!createResponse.ok) {
-          const errorData = await createResponse.json()
-          throw new Error(`Error creando vehículo: ${errorData.error || 'No se pudo crear el vehículo'}`)
-        }
-
-        const createResult = await createResponse.json()
-        if (!createResult.success || !createResult.data) {
-          throw new Error(`Error creando vehículo: ${createResult.error || 'No se pudo crear el vehículo'}`)
-        }
-        
-        vehicleId = createResult.data.id
-        console.log('✅ Vehículo genérico creado:', vehicleId, 'con placa:', tempPlate)
+        console.log('ℹ️ No se proporcionaron datos de vehículo, la cita se creará sin vehículo')
       }
       
       // 3. CREAR LA CITA
@@ -536,11 +499,10 @@ export default function CitasPage() {
         notes: formData.notes
       })
       
-      // Validar que todos los campos requeridos estén presentes
-      if (!customerId || !vehicleId || !organizationId || !formData.service_type || !appointmentDateTime) {
+      // Validar campos requeridos (vehicle_id es opcional)
+      if (!customerId || !organizationId || !formData.service_type || !appointmentDateTime) {
         console.error('❌ Campos faltantes:', {
           customer_id: !!customerId,
-          vehicle_id: !!vehicleId,
           organization_id: !!organizationId,
           service_type: !!formData.service_type,
           appointment_date: !!appointmentDateTime
@@ -548,15 +510,18 @@ export default function CitasPage() {
         throw new Error('Faltan campos requeridos para crear la cita')
       }
       
-      const appointmentData = {
+      const appointmentData: Record<string, any> = {
         customer_id: customerId,
-        vehicle_id: vehicleId,
         service_type: formData.service_type,
         appointment_date: appointmentDateTime,
         duration: formData.estimated_duration,
         notes: formData.notes || null,
         organization_id: organizationId,
-        status: 'scheduled' // ✅ Asegurar que siempre tenga un status
+        status: 'scheduled'
+      }
+      // Solo incluir vehicle_id si se logró crear/encontrar un vehículo
+      if (vehicleId) {
+        appointmentData.vehicle_id = vehicleId
       }
       
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
@@ -566,7 +531,7 @@ export default function CitasPage() {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
       
       try {
-        const result = await createAppointment(appointmentData)
+        const result = await createAppointment(appointmentData as any)
         
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
         console.log('📥 [Citas] Resultado de createAppointment:')
@@ -686,18 +651,7 @@ export default function CitasPage() {
             <Button 
               onClick={() => {
                 setEditingAppointment(null)
-                setFormData({
-                  customer_name: '',
-                  customer_phone: '',
-                  customer_email: '',
-                  vehicle_info: '',
-                  service_type: '',
-                  appointment_date: '',
-                  appointment_time: '',
-                  status: 'scheduled',
-                  notes: '',
-                  estimated_duration: 60
-                })
+                setFormData(emptyForm)
               }}
               disabled={!organizationId || orgLoading}
             >
@@ -751,14 +705,34 @@ export default function CitasPage() {
                 />
               </div>
               
-              <div>
-                <Label htmlFor="vehicle_info">Información del Vehículo *</Label>
-                <Input 
-                  id="vehicle_info" 
-                  value={formData.vehicle_info}
-                  onChange={(e) => setFormData({...formData, vehicle_info: e.target.value})}
-                  placeholder="Toyota Corolla 2020 - ABC123"
-                />
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="vehicle_brand">Marca</Label>
+                  <Input 
+                    id="vehicle_brand" 
+                    value={formData.vehicle_brand}
+                    onChange={(e) => setFormData({...formData, vehicle_brand: e.target.value})}
+                    placeholder="Toyota"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="vehicle_model">Modelo</Label>
+                  <Input 
+                    id="vehicle_model" 
+                    value={formData.vehicle_model}
+                    onChange={(e) => setFormData({...formData, vehicle_model: e.target.value})}
+                    placeholder="Corolla 2020"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="vehicle_plate">Placa</Label>
+                  <Input 
+                    id="vehicle_plate" 
+                    value={formData.vehicle_plate}
+                    onChange={(e) => setFormData({...formData, vehicle_plate: e.target.value.toUpperCase()})}
+                    placeholder="ABC-123"
+                  />
+                </div>
               </div>
               
               <div>
@@ -817,7 +791,7 @@ export default function CitasPage() {
               <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
                 Cancelar
               </Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting || !formData.customer_name.trim() || !formData.customer_phone.trim() || !formData.vehicle_info.trim() || !formData.service_type.trim()}>
+              <Button onClick={handleSubmit} disabled={isSubmitting || !formData.customer_name.trim() || !formData.customer_phone.trim() || !formData.service_type.trim()}>
                 {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {editingAppointment ? 'Actualizar' : 'Crear'}
               </Button>
