@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
 
     const preference = await preferenceClient.create({
       body: {
+        locale: 'es-MX',
         items: [
           {
             id: `eagles-erp-${plan}`,

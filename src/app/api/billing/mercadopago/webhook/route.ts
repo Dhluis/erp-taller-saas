@@ -14,21 +14,34 @@ const mercadopago = new MercadoPagoConfig({
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    // Leer query params (formato IPN: ?topic=payment&id=123456)
+    const { searchParams } = new URL(request.url)
+    const topicParam = searchParams.get('topic')
+    const idParam = searchParams.get('id')
 
-    console.log('[MP Webhook] Notificación recibida:', JSON.stringify(body))
+    // Leer body (formato Webhook: { type: 'payment', data: { id: '...' } })
+    let body: Record<string, unknown> = {}
+    try {
+      body = (await request.json()) as Record<string, unknown>
+    } catch {
+      body = {}
+    }
 
-    // MercadoPago envía: { type: 'payment', data: { id: '123456' } }
-    if (body.type !== 'payment') {
-      console.log('[MP Webhook] Ignorando tipo:', body.type)
+    // Determinar tipo y paymentId desde cualquiera de los dos formatos
+    const type = (body.type as string) ?? topicParam
+    const paymentId = (body.data as { id?: string } | undefined)?.id ?? idParam
+
+    console.log('[MP Webhook] Notificación recibida:', { type, paymentId, body: Object.keys(body).length ? body : undefined })
+
+    if (type !== 'payment') {
+      console.log('[MP Webhook] Ignorando tipo:', type)
       return NextResponse.json({ received: true })
     }
 
-    const paymentId = body.data?.id
-
-    if (!paymentId) {
-      console.error('[MP Webhook] No hay paymentId')
-      return NextResponse.json({ error: 'No paymentId' }, { status: 400 })
+    if (!paymentId || paymentId === '123456') {
+      // 123456 es ID de prueba de MercadoPago, ignorar
+      console.log('[MP Webhook] ID de prueba o sin paymentId, ignorando')
+      return NextResponse.json({ received: true })
     }
 
     // Obtener detalles del pago desde MercadoPago
