@@ -308,6 +308,28 @@ export default function CitasPage() {
       vehicleInfo = parts.join(' ')
     }
     
+    // Extraer fecha (yyyy-MM-dd) y hora (HH:mm) del timestamp ISO o campo separado
+    let dateOnly = ''
+    let timeOnly = appointment.appointment_time || ''
+    if (appointment.appointment_date) {
+      const raw = appointment.appointment_date
+      // Si es un ISO timestamp (contiene 'T'), extraer partes
+      if (raw.includes('T')) {
+        const dt = new Date(raw)
+        if (!isNaN(dt.getTime())) {
+          dateOnly = dt.toISOString().split('T')[0]                    // yyyy-MM-dd
+          if (!timeOnly) {
+            timeOnly = dt.toISOString().split('T')[1].substring(0, 5)  // HH:mm
+          }
+        } else {
+          dateOnly = raw.split('T')[0]
+        }
+      } else {
+        // Ya es solo fecha (yyyy-MM-dd)
+        dateOnly = raw.split(' ')[0]
+      }
+    }
+
     setFormData({
       customer_name: customerName,
       customer_phone: customerPhone,
@@ -317,8 +339,8 @@ export default function CitasPage() {
       vehicle_model: vehicleModel === 'Desconocido' ? '' : vehicleModel,
       vehicle_plate: vehiclePlate,
       service_type: appointment.service_type,
-      appointment_date: appointment.appointment_date,
-      appointment_time: appointment.appointment_time || '',
+      appointment_date: dateOnly,
+      appointment_time: timeOnly,
       status: (appointment.status as 'scheduled' | 'confirmed' | 'completed' | 'cancelled') || 'scheduled',
       notes: appointment.notes || '',
       estimated_duration: appointment.estimated_duration || appointment.duration || 60
@@ -475,19 +497,26 @@ export default function CitasPage() {
       }
       
       // 3. CREAR LA CITA
-      // Combinar fecha y hora en un solo timestamp ISO
-      // Asegurar que appointment_time tenga formato correcto
+      // Normalizar fecha: asegurar que sea solo yyyy-MM-dd (sin timestamp)
+      let dateOnly = formData.appointment_date || ''
+      if (dateOnly.includes('T')) {
+        // Si por alguna razón ya viene como ISO timestamp, extraer solo la fecha
+        const parsed = new Date(dateOnly)
+        dateOnly = !isNaN(parsed.getTime())
+          ? parsed.toISOString().split('T')[0]
+          : dateOnly.split('T')[0]
+      }
+      
+      // Normalizar hora: asegurar formato HH:mm:ss
       let appointmentTime = formData.appointment_time || '09:00'
       if (!appointmentTime.includes(':')) {
-        // Si solo viene la hora sin minutos, agregar :00
         appointmentTime = `${appointmentTime}:00`
       }
       if (appointmentTime.split(':').length === 2) {
-        // Asegurar que tenga segundos
         appointmentTime = `${appointmentTime}:00`
       }
       
-      const appointmentDateTime = `${formData.appointment_date}T${appointmentTime}`
+      const appointmentDateTime = `${dateOnly}T${appointmentTime}`
       
       console.log('📅 Creando cita con datos:', {
         customer_id: customerId,
