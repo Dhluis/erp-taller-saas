@@ -228,13 +228,31 @@ export async function GET(request: NextRequest) {
           query = query.eq('assigned_to', '00000000-0000-0000-0000-000000000000'); // ID imposible = 0 resultados
         }
 
-        // ✅ Filtros de búsqueda: columnas directas de work_orders (evita 500 por sintaxis o columnas inexistentes)
-        // Escapar comilla simple para no romper el filter de PostgREST
+        // ✅ Búsqueda: número/folio, descripción, notas, nombre cliente, placa vehículo
         if (search && search.trim()) {
           const term = String(search).trim().replace(/'/g, "''");
           const pattern = `%${term}%`;
-          // description y notes existen en work_orders; order_number en migraciones recientes
-          query = query.or(`description.ilike.${pattern},notes.ilike.${pattern}`);
+          const orParts: string[] = [
+            `description.ilike.${pattern}`,
+            `notes.ilike.${pattern}`,
+            `order_number.ilike.${pattern}`,
+          ];
+          const { data: customersMatch } = await supabaseAdmin
+            .from('customers')
+            .select('id')
+            .eq('organization_id', organizationId)
+            .ilike('name', pattern);
+          if (customersMatch?.length) {
+            orParts.push(`customer_id.in.(${customersMatch.map((c: any) => c.id).join(',')})`);
+          }
+          const { data: vehiclesMatch } = await supabaseAdmin
+            .from('vehicles')
+            .select('id')
+            .ilike('license_plate', pattern);
+          if (vehiclesMatch?.length) {
+            orParts.push(`vehicle_id.in.(${vehiclesMatch.map((v: any) => v.id).join(',')})`);
+          }
+          query = query.or(orParts.join(','));
         }
 
         if (status) {

@@ -731,19 +731,23 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
           open={detailsModalOpen}
           onOpenChange={setDetailsModalOpen}
           onUpdate={async () => {
-            console.log('🔄 [KanbanBoard] onUpdate llamado - recargando órdenes después de asignar mecánico...')
-            // Recargar órdenes después de actualizar
-            const reloadedOrders = await loadOrders()
-            
-            // ✅ Actualizar selectedOrder con la orden recargada
-            if (selectedOrder?.id && reloadedOrders) {
-              const updatedOrder = reloadedOrders.find(order => order.id === selectedOrder.id)
-              
-              if (updatedOrder) {
-                console.log('✅ [KanbanBoard] Actualizando selectedOrder con orden recargada')
-                setSelectedOrder(updatedOrder)
-              } else {
-                console.warn('⚠️ [KanbanBoard] Orden no encontrada después de recargar')
+            console.log('🔄 [KanbanBoard] onUpdate llamado - recargando órdenes y detalle...')
+            const orderId = selectedOrder?.id
+            // 1) Refrescar lista de órdenes (columnas del Kanban)
+            await loadOrders()
+            // 2) OPCIÓN A: Obtener la orden individual completa (joins + inspección) para el formulario
+            if (orderId) {
+              try {
+                const res = await fetch(`/api/work-orders/${orderId}`, { credentials: 'include' })
+                if (res.ok) {
+                  const json = await res.json()
+                  if (json.success && json.data) {
+                    setSelectedOrder(json.data)
+                    console.log('✅ [KanbanBoard] selectedOrder actualizado con GET /api/work-orders/[id] (datos completos)')
+                  }
+                }
+              } catch (e) {
+                console.warn('⚠️ [KanbanBoard] Error al cargar orden individual:', e)
               }
             }
             console.log('✅ [KanbanBoard] onUpdate completado')
