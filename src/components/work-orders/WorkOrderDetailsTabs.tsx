@@ -7,6 +7,7 @@ import { WorkOrderNotes } from '@/components/work-orders/WorkOrderNotes'
 import { WorkOrderItems } from '@/components/work-orders/WorkOrderItems'
 import WorkOrderDocuments from '@/components/work-orders/WorkOrderDocuments'
 import { WorkOrderGeneralForm } from '@/components/work-orders/WorkOrderGeneralForm'
+import { WorkOrderHistory } from '@/components/work-orders/WorkOrderHistory'
 import { WorkOrderImage } from '@/lib/supabase/work-order-storage'
 import { WorkOrderNote } from '@/lib/types/work-orders'
 import { useSession } from '@/lib/context/SessionContext'
@@ -300,11 +301,7 @@ export function WorkOrderDetailsTabs({
 
       {/* TAB HISTORIA */}
       <TabsContent value="history" className="mt-6">
-        <div className="text-center text-muted-foreground py-12">
-          <History className="mx-auto h-12 w-12 mb-4" />
-          <p className="text-lg">Historial de cambios</p>
-          <p className="text-sm">(Por implementar)</p>
-        </div>
+        <WorkOrderHistory orderId={order.id} />
       </TabsContent>
     </Tabs>
   )

@@ -17,6 +17,13 @@ import { useCustomers } from '@/hooks/useCustomers'
 import { useOrganization } from '@/lib/context/SessionContext'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import {
+  logStatusChange,
+  logFieldUpdate,
+  logVehicleUpdate,
+  logCustomerUpdate,
+  logWorkOrderHistory,
+} from '@/lib/utils/work-order-history'
 import { 
   User, 
   Droplet, 
@@ -384,16 +391,78 @@ export function WorkOrderGeneralForm({
           .update(inspectionData)
           .eq('id', existingInspection.id)
         
-        if (updateError) throw updateError
+        if (updateError) {
+          console.error('[WorkOrderGeneralForm] Error actualizando inspección:', updateError)
+          toast.error('Error al actualizar inspección', { description: updateError.message })
+        }
       } else {
         // Crear
         const { error: insertError } = await supabase
           .from('vehicle_inspections')
           .insert(inspectionData)
         
-        if (insertError) throw insertError
+        if (insertError) {
+          console.error('[WorkOrderGeneralForm] Error creando inspección:', insertError)
+          toast.error('Error al guardar inspección', { description: insertError.message })
+        }
       }
       
+      // ✅ Registrar historial de cambios (fire-and-forget, no bloquea el flujo)
+      // Los cambios de estado y asignación ya se registran desde el API PUT handler
+      // Aquí registramos cambios de vehículo, cliente e inspección
+      try {
+        // Detectar cambios de vehículo
+        const vehicleChanges: Record<string, { old: unknown; new: unknown }> = {}
+        if (order.vehicle) {
+          if (formData.vehicleBrand && formData.vehicleBrand !== (order.vehicle.brand || ''))
+            vehicleChanges.brand = { old: order.vehicle.brand, new: formData.vehicleBrand }
+          if (formData.vehicleModel && formData.vehicleModel !== (order.vehicle.model || ''))
+            vehicleChanges.model = { old: order.vehicle.model, new: formData.vehicleModel }
+          if (formData.vehicleYear && String(formData.vehicleYear) !== String(order.vehicle.year || ''))
+            vehicleChanges.year = { old: order.vehicle.year, new: formData.vehicleYear }
+          if (formData.vehiclePlate && formData.vehiclePlate.toUpperCase() !== (order.vehicle.license_plate || '').toUpperCase())
+            vehicleChanges.license_plate = { old: order.vehicle.license_plate, new: formData.vehiclePlate.toUpperCase() }
+          if (formData.vehicleColor !== undefined && formData.vehicleColor !== (order.vehicle.color || ''))
+            vehicleChanges.color = { old: order.vehicle.color, new: formData.vehicleColor }
+          if (formData.vehicleMileage && String(formData.vehicleMileage) !== String(order.vehicle.mileage || ''))
+            vehicleChanges.mileage = { old: order.vehicle.mileage, new: formData.vehicleMileage }
+        }
+        if (Object.keys(vehicleChanges).length > 0) {
+          logVehicleUpdate(order.id, vehicleChanges)
+        }
+
+        // Detectar cambios de cliente
+        const customerChanges: Record<string, { old: unknown; new: unknown }> = {}
+        if (order.customer) {
+          if (formData.customerName && formData.customerName !== (order.customer.name || ''))
+            customerChanges.name = { old: order.customer.name, new: formData.customerName }
+          if (formData.customerPhone && formData.customerPhone !== (order.customer.phone || ''))
+            customerChanges.phone = { old: order.customer.phone, new: formData.customerPhone }
+          if (formData.customerEmail && formData.customerEmail !== (order.customer.email || ''))
+            customerChanges.email = { old: order.customer.email, new: formData.customerEmail }
+          if (formData.customerAddress !== undefined && formData.customerAddress !== (order.customer.address || ''))
+            customerChanges.address = { old: order.customer.address, new: formData.customerAddress }
+        }
+        if (Object.keys(customerChanges).length > 0) {
+          logCustomerUpdate(order.id, customerChanges)
+        }
+
+        // Detectar cambios de descripción/costo (campos generales no manejados por el API)
+        const fieldChanges: Record<string, { old: unknown; new: unknown }> = {}
+        if (formData.description && formData.description !== (order.description || ''))
+          fieldChanges.description = { old: order.description, new: formData.description }
+        const newCost = formData.estimated_cost ? parseFloat(formData.estimated_cost) : null
+        const oldCost = order.estimated_cost || null
+        if (newCost !== oldCost)
+          fieldChanges.estimated_cost = { old: oldCost, new: newCost }
+        if (Object.keys(fieldChanges).length > 0) {
+          logFieldUpdate(order.id, fieldChanges)
+        }
+      } catch (historyError) {
+        // No bloquear el flujo principal si el historial falla
+        console.warn('[WorkOrderGeneralForm] Error registrando historial:', historyError)
+      }
+
       toast.success('Orden actualizada exitosamente')
       onEditChange(false)
       onSave()
@@ -420,53 +489,6 @@ export function WorkOrderGeneralForm({
 
   return (
     <div className="space-y-6">
-      {/* Botón Editar/Guardar */}
-      <div className="flex justify-end gap-2">
-        {!isEditing ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onEditChange(true)}
-          >
-            <Edit className="h-4 w-4 mr-1" />
-            Editar
-          </Button>
-        ) : (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                onEditChange(false)
-                // ✅ Resetear formData a valores originales usando la función helper
-                setFormData(initializeFormData(order))
-              }}
-              disabled={isSaving}
-            >
-              <X className="h-4 w-4 mr-1" />
-              Cancelar
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-1" />
-                  Guardar Cambios
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-      </div>
-
       {/* Datos del Cliente */}
       <div className="space-y-4">
         <h3 className="font-semibold text-sm border-b pb-2">
@@ -1071,6 +1093,52 @@ export function WorkOrderGeneralForm({
             </p>
           )}
         </div>
+      </div>
+
+      {/* Botón Editar/Guardar - Al final del formulario */}
+      <div className="flex justify-end gap-2 pt-4 border-t border-slate-700">
+        {!isEditing ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onEditChange(true)}
+          >
+            <Edit className="h-4 w-4 mr-1" />
+            Editar
+          </Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                onEditChange(false)
+                setFormData(initializeFormData(order))
+              }}
+              disabled={isSaving}
+            >
+              <X className="h-4 w-4 mr-1" />
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-1" />
+                  Guardar Cambios
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

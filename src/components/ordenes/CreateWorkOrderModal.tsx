@@ -1086,7 +1086,29 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
         vehicleId = (existingVehicle as any)?.id
 
-        if (!vehicleId) {
+        if (vehicleId) {
+          // ✅ FIX: Actualizar campos del vehículo existente (color, km, VIN, etc.)
+          const vehicleUpdateData: Record<string, unknown> = {}
+          if (formData.vehicleBrand)   vehicleUpdateData.brand = formData.vehicleBrand
+          if (formData.vehicleModel)   vehicleUpdateData.model = formData.vehicleModel
+          if (formData.vehicleYear)    vehicleUpdateData.year = parseInt(formData.vehicleYear) || null
+          if (formData.vehicleColor)   vehicleUpdateData.color = formData.vehicleColor
+          if (formData.vehicleVin?.trim()) vehicleUpdateData.vin = formData.vehicleVin.trim().toUpperCase()
+          if (formData.vehicleMileage) vehicleUpdateData.mileage = parseInt(formData.vehicleMileage) || null
+
+          if (Object.keys(vehicleUpdateData).length > 0) {
+            const { error: vehicleUpdateError } = await supabase
+              .from('vehicles')
+              .update(vehicleUpdateData as any)
+              .eq('id', vehicleId)
+
+            if (vehicleUpdateError) {
+              console.warn('⚠️ [CreateWorkOrderModal] Error actualizando vehículo existente:', vehicleUpdateError)
+            } else {
+              console.log('✅ [CreateWorkOrderModal] Vehículo existente actualizado con nuevos datos')
+            }
+          }
+        } else if (!vehicleId) {
           // ✅ Crear vehículo con workshop_id opcional
           const vehicleData: any = {
             customer_id: customerId,

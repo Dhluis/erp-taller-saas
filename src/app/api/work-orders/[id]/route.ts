@@ -307,9 +307,13 @@ export async function PUT(
 
     // ✅ Actualizar directamente usando supabaseAdmin (no usar updateWorkOrder que usa funciones del cliente)
     // Primero validar que la orden pertenezca a la organización del usuario
+    // Capturar campos previos para historial de cambios
     const { data: existingOrder, error: fetchError } = await supabaseAdmin
       .from('work_orders')
-      .select('id, organization_id')
+      .select(`
+        id, organization_id, status, description, estimated_cost, assigned_to,
+        assigned_user:users!work_orders_assigned_to_fkey(id, full_name)
+      `)
       .eq('id', params.id)
       .eq('organization_id', organizationId)
       .is('deleted_at', null) // ✅ SOFT DELETE: Solo actualizar órdenes activas
@@ -372,13 +376,100 @@ export async function PUT(
       );
     }
 
-    // ✅ Enviar SMS automático si el status cambió
-    if (body.status && updatedOrder) {
-      const orderData = updatedOrder as any;
-      const customer = orderData.customer as any;
-      const total = orderData.total || orderData.final_cost || orderData.estimated_cost;
+    // ✅ Registrar historial de cambios (fire-and-forget, no bloquea la respuesta)
+    if (updatedOrder && existingOrder) {
+      const historyEntries: Array<{
+        organization_id: string;
+        work_order_id: string;
+        user_id: string | null;
+        user_name: string;
+        action: string;
+        description: string;
+        old_value: Record<string, unknown> | null;
+        new_value: Record<string, unknown> | null;
+      }> = [];
 
-      // Notificaciones automáticas eliminadas (SMS removido del sistema)
+      // Obtener el user_id interno y nombre
+      const { data: internalUser } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      const internalUserData = internalUser as any;
+      const userName = internalUserData?.full_name || user.email || 'Usuario';
+      const internalUserId = internalUserData?.id || null;
+
+      const STATUS_LABELS: Record<string, string> = {
+        reception: 'Recepción', diagnosis: 'Diagnóstico', initial_quote: 'Cotización Inicial',
+        waiting_approval: 'Esperando Aprobación', disassembly: 'Desarme', waiting_parts: 'Espera de Piezas',
+        assembly: 'Armado', testing: 'Pruebas', ready: 'Listo para Entrega',
+        completed: 'Completada', cancelled: 'Cancelada', pending: 'Pendiente', in_progress: 'En Progreso',
+      };
+
+      // Cast para acceder a propiedades de la orden existente
+      const prevOrder = existingOrder as any;
+
+      // Cambio de estado
+      if (body.status && body.status !== prevOrder.status) {
+        const oldLabel = STATUS_LABELS[prevOrder.status] || prevOrder.status;
+        const newLabel = STATUS_LABELS[body.status] || body.status;
+        historyEntries.push({
+          organization_id: organizationId,
+          work_order_id: params.id,
+          user_id: internalUserId,
+          user_name: userName,
+          action: 'status_change',
+          description: `Estado cambiado de "${oldLabel}" a "${newLabel}"`,
+          old_value: { status: prevOrder.status },
+          new_value: { status: body.status },
+        });
+      }
+
+      // Cambio de asignación
+      if (body.assigned_to !== undefined && body.assigned_to !== prevOrder.assigned_to) {
+        const oldMechanicName = prevOrder.assigned_user?.full_name || null;
+        
+        // Obtener nombre del nuevo mecánico
+        let newMechanicName = 'Sin asignar';
+        if (body.assigned_to) {
+          const { data: newMechanic } = await supabaseAdmin
+            .from('users')
+            .select('full_name')
+            .eq('id', body.assigned_to)
+            .single();
+          newMechanicName = (newMechanic as any)?.full_name || 'Mecánico';
+        }
+
+        const description = oldMechanicName
+          ? `Reasignado de "${oldMechanicName}" a "${newMechanicName}"`
+          : `Asignado a "${newMechanicName}"`;
+
+        historyEntries.push({
+          organization_id: organizationId,
+          work_order_id: params.id,
+          user_id: internalUserId,
+          user_name: userName,
+          action: 'assignment',
+          description,
+          old_value: oldMechanicName ? { assigned_to: oldMechanicName } : null,
+          new_value: { assigned_to: newMechanicName },
+        });
+      }
+
+      // Insertar todas las entradas de historial (fire-and-forget)
+      if (historyEntries.length > 0) {
+        supabaseAdmin
+          .from('work_order_history')
+          .insert(historyEntries as any)
+          .then(({ error: historyError }) => {
+            if (historyError) {
+              console.error('⚠️ [API PUT /work-orders/[id]] Error registrando historial:', historyError);
+            } else {
+              console.log(`✅ [API PUT /work-orders/[id]] ${historyEntries.length} entradas de historial registradas`);
+            }
+          });
+      }
     }
 
     return NextResponse.json({
