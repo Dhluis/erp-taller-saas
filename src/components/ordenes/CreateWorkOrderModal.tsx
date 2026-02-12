@@ -50,7 +50,6 @@ import { useCustomers } from '@/hooks/useCustomers'
 import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown, FileText, Upload, X, Check, ClipboardCheck, DollarSign, FileSignature, ArrowLeft, ArrowRight } from 'lucide-react'
 import SignatureCanvas from 'react-signature-canvas'
 import { OrderCreationImageCapture, TemporaryImage } from './OrderCreationImageCapture'
-import { uploadWorkOrderImage } from '@/lib/supabase/work-order-storage'
 import { useBilling } from '@/hooks/useBilling'
 import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
 import { useLimitCheck } from '@/hooks/useLimitCheck'
@@ -1353,55 +1352,44 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         vehicle: `${formData.vehicleBrand} ${formData.vehicleModel}`
       });
 
-      // ✅ NUEVO: Subir fotos temporales después de crear la orden
+      // ✅ Subir fotos con service role (API) y persistir en work_orders.images
       const orderId = (newOrder as any).id
-      if (temporaryImages.length > 0 && orderId && organizationId && user?.id) {
-        console.log('📸 [CreateWorkOrderModal] Subiendo fotos temporales:', temporaryImages.length)
-        
+      if (temporaryImages.length > 0 && orderId) {
+        console.log('📸 [CreateWorkOrderModal] Subiendo fotos vía API:', temporaryImages.length)
         try {
-          // Obtener token de sesión
-          const { data: { session } } = await supabase.auth.getSession()
-          const accessToken = session?.access_token
+          const formDataUpload = new FormData()
+          temporaryImages.forEach((img) => {
+            formDataUpload.append('files', img.file)
+          })
 
-          if (!accessToken) {
-            console.warn('⚠️ [CreateWorkOrderModal] No hay token de sesión para subir fotos')
-          } else {
-            // Subir cada foto
-            for (const tempImage of temporaryImages) {
-              try {
-                const uploadResult = await uploadWorkOrderImage(
-                  tempImage.file,
-                  orderId,
-                  organizationId,
-                  user.id,
-                  'reception', // Categoría: recepción
-                  tempImage.description || 'Foto de recepción',
-                  'reception', // Estado de la orden
-                  accessToken
-                )
+          const res = await fetch(`/api/work-orders/${orderId}/images/upload`, {
+            method: 'POST',
+            body: formDataUpload,
+          })
+          const data = await res.json()
 
-                if (!uploadResult.success) {
-                  console.error('❌ [CreateWorkOrderModal] Error subiendo foto:', uploadResult.error)
-                } else {
-                  console.log('✅ [CreateWorkOrderModal] Foto subida exitosamente')
-                }
-              } catch (photoError: any) {
-                console.error('❌ [CreateWorkOrderModal] Error subiendo foto individual:', photoError)
-              }
+          if (res.ok && data.success) {
+            if (data.failed > 0) {
+              toast.warning(data.message || `Se subieron ${data.count} de ${temporaryImages.length} fotos.`)
+            } else {
+              toast.success(`Orden creada con ${data.count} foto(s) guardadas.`)
             }
-
-            // Limpiar fotos temporales
-            temporaryImages.forEach(img => {
-              if (img.preview) {
-                URL.revokeObjectURL(img.preview)
-              }
-            })
-            setTemporaryImages([])
+            console.log('✅ [CreateWorkOrderModal] Fotos guardadas en Storage y BD:', data.count)
+          } else {
+            toast.warning(data.error || 'Orden creada. No se pudieron subir las fotos. Agrégalas desde la orden.')
           }
+
+          temporaryImages.forEach((img) => {
+            if (img.preview) URL.revokeObjectURL(img.preview)
+          })
+          setTemporaryImages([])
         } catch (uploadError: any) {
-          console.error('❌ [CreateWorkOrderModal] Error general subiendo fotos:', uploadError)
-          // No fallar toda la creación por errores de fotos
-          toast.error('Orden creada, pero hubo un error al subir algunas fotos')
+          console.error('❌ [CreateWorkOrderModal] Error subiendo fotos:', uploadError)
+          toast.warning('Orden creada. Hubo un error al subir las fotos. Agrégalas desde la orden.')
+          temporaryImages.forEach((img) => {
+            if (img.preview) URL.revokeObjectURL(img.preview)
+          })
+          setTemporaryImages([])
         }
       }
 
