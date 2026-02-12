@@ -64,6 +64,13 @@ function LoginContent() {
     return () => clearTimeout(checkAuth)
   }, [session, router, searchParams])
 
+  // Mostrar error de sesión (ej. timeout de conexión con Supabase)
+  React.useEffect(() => {
+    if (session?.error) {
+      setError(session.error)
+    }
+  }, [session?.error])
+
   // Verificar si hay errores del callback o mensajes
   React.useEffect(() => {
     const errorParam = searchParams?.get('error')

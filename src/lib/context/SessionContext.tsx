@@ -145,8 +145,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           return
         }
         
-        // Es un error real (red, servidor, etc.)
-        // ✅ FIX: No bloquear la aplicación por errores de autenticación
+        // Es un error real (red, servidor, timeout, etc.)
+        const isTimeout = errorMessage?.toLowerCase().includes('timeout') || errorMessage?.toLowerCase().includes('connection timeout')
+        const friendlyError = isTimeout
+          ? 'No se pudo conectar con el servidor (timeout). Revisa tu internet. Si usas Supabase en plan gratuito, el proyecto puede estar en pausa: entra al dashboard de Supabase y reactívalo.'
+          : null
         console.warn('⚠️ [Session] Error obteniendo usuario (continuando sin bloquear):', errorMessage)
         
         lastUserId.current = null
@@ -158,7 +161,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           workshop: null,
           isLoading: false,
           isReady: true,
-          error: null, // No mostrar error para permitir acceso
+          error: friendlyError,
           hasMultipleWorkshops: false
         }
         currentStateRef.current = noUserState

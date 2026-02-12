@@ -49,9 +49,12 @@ export function getSupabaseClient(): SupabaseClient {
         },
         fetch: async (url, options = {}) => {
           const controller = new AbortController()
+          // Auth (refresh token, etc.) puede tardar más: red lenta o proyecto Supabase en pausa
+          const isAuthRequest = typeof url === 'string' && url.includes('/auth/')
+          const timeoutMs = isAuthRequest ? 25000 : 10000
           const timeoutId = setTimeout(() => {
             controller.abort()
-          }, 10000) // Timeout de 10 segundos
+          }, timeoutMs)
 
           try {
             const response = await fetch(url, {
@@ -65,8 +68,11 @@ export function getSupabaseClient(): SupabaseClient {
             
             // Manejar errores de conexión específicos
             if (error.name === 'AbortError') {
-              console.error('❌ Supabase request timeout after 10s:', url)
-              throw new Error('Connection timeout. Please check your internet connection and try again.')
+              console.error(`❌ Supabase request timeout after ${timeoutMs / 1000}s:`, url)
+              const hint = isAuthRequest
+                ? ' Revisa tu conexión. Si usas Supabase gratis, el proyecto puede estar en pausa: reactívalo en el dashboard.'
+                : ''
+              throw new Error('Connection timeout. Please check your internet connection and try again.' + hint)
             }
             
             if (error.message?.includes('ERR_CONNECTION_CLOSED') || 
