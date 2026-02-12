@@ -496,11 +496,10 @@ export default function CitasPage() {
         console.log('ℹ️ No se proporcionaron datos de vehículo, la cita se creará sin vehículo')
       }
       
-      // 3. CREAR LA CITA
+      // 3. CREAR O ACTUALIZAR LA CITA
       // Normalizar fecha: asegurar que sea solo yyyy-MM-dd (sin timestamp)
       let dateOnly = formData.appointment_date || ''
       if (dateOnly.includes('T')) {
-        // Si por alguna razón ya viene como ISO timestamp, extraer solo la fecha
         const parsed = new Date(dateOnly)
         dateOnly = !isNaN(parsed.getTime())
           ? parsed.toISOString().split('T')[0]
@@ -518,81 +517,77 @@ export default function CitasPage() {
       
       const appointmentDateTime = `${dateOnly}T${appointmentTime}`
       
-      console.log('📅 Creando cita con datos:', {
-        customer_id: customerId,
-        vehicle_id: vehicleId,
-        organization_id: organizationId,
-        appointment_date: appointmentDateTime,
-        service_type: formData.service_type,
-        duration: formData.estimated_duration,
-        notes: formData.notes
-      })
-      
-      // Validar campos requeridos (vehicle_id es opcional)
-      if (!customerId || !organizationId || !formData.service_type || !appointmentDateTime) {
-        console.error('❌ Campos faltantes:', {
-          customer_id: !!customerId,
-          organization_id: !!organizationId,
-          service_type: !!formData.service_type,
-          appointment_date: !!appointmentDateTime
-        })
-        throw new Error('Faltan campos requeridos para crear la cita')
+      // Validar campos requeridos
+      if (!customerId || !organizationId || !formData.service_type || !dateOnly) {
+        throw new Error('Faltan campos requeridos para guardar la cita')
       }
-      
-      const appointmentData: Record<string, any> = {
-        customer_id: customerId,
-        service_type: formData.service_type,
-        appointment_date: appointmentDateTime,
-        duration: formData.estimated_duration,
-        notes: formData.notes || null,
-        organization_id: organizationId,
-        status: 'scheduled'
-      }
-      // Solo incluir vehicle_id si se logró crear/encontrar un vehículo
-      if (vehicleId) {
-        appointmentData.vehicle_id = vehicleId
-      }
-      
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      console.log('📤 [Citas] Enviando datos de cita a createAppointment:')
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      console.log(JSON.stringify(appointmentData, null, 2))
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      
-      try {
-        const result = await createAppointment(appointmentData as any)
+
+      // ━━━━━━━━━━━━ MODO EDICIÓN: actualizar cita existente ━━━━━━━━━━━━
+      if (editingAppointment) {
+        console.log('📝 [Citas] Actualizando cita existente:', editingAppointment.id)
         
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        console.log('📥 [Citas] Resultado de createAppointment:')
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        console.log(result)
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        
-        if (result && result.id) {
-          console.log('✅ [Citas] Cita creada exitosamente:', result.id)
-          toast.success('¡Cita creada exitosamente!')
-          handleClose()
-          // Esperar un momento antes de recargar para asegurar que la DB esté actualizada
-          setTimeout(async () => {
-            console.log('🔄 [Citas] Recargando datos después de crear cita...')
-            await loadData()
-            console.log('✅ [Citas] Datos recargados')
-          }, 500)
-        } else {
-          console.error('❌ [Citas] createAppointment no devolvió resultado válido:', result)
-          console.error('❌ [Citas] Tipo de resultado:', typeof result)
-          console.error('❌ [Citas] Resultado completo:', JSON.stringify(result, null, 2))
-          throw new Error('No se pudo crear la cita: respuesta inválida del servidor')
+        const updateData: Record<string, any> = {
+          customer_id: customerId,
+          service_type: formData.service_type,
+          appointment_date: appointmentDateTime,
+          duration: formData.estimated_duration,
+          notes: formData.notes || null,
+          status: formData.status || editingAppointment.status,
+          vehicle_id: vehicleId || null,
         }
-      } catch (createError) {
-        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        console.error('❌ [Citas] Error al llamar createAppointment:')
-        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        console.error('Error:', createError)
-        console.error('Error message:', createError instanceof Error ? createError.message : String(createError))
-        console.error('Error stack:', createError instanceof Error ? createError.stack : 'No stack')
-        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        throw createError // Re-lanzar para que se maneje en el catch externo
+        
+        console.log('📤 [Citas] Datos de actualización:', JSON.stringify(updateData, null, 2))
+        
+        try {
+          const result = await updateAppointment(editingAppointment.id, updateData as any)
+          
+          if (result && result.id) {
+            console.log('✅ [Citas] Cita actualizada exitosamente:', result.id)
+            toast.success('Cita actualizada exitosamente')
+            handleClose()
+            await loadData()
+          } else {
+            throw new Error('No se pudo actualizar la cita: respuesta inválida')
+          }
+        } catch (updateError) {
+          console.error('❌ [Citas] Error al actualizar cita:', updateError)
+          throw updateError
+        }
+
+      // ━━━━━━━━━━━━ MODO CREACIÓN: crear cita nueva ━━━━━━━━━━━━
+      } else {
+        console.log('➕ [Citas] Creando cita nueva')
+        
+        const appointmentData: Record<string, any> = {
+          customer_id: customerId,
+          service_type: formData.service_type,
+          appointment_date: appointmentDateTime,
+          duration: formData.estimated_duration,
+          notes: formData.notes || null,
+          organization_id: organizationId,
+          status: 'scheduled'
+        }
+        if (vehicleId) {
+          appointmentData.vehicle_id = vehicleId
+        }
+        
+        console.log('📤 [Citas] Datos de creación:', JSON.stringify(appointmentData, null, 2))
+        
+        try {
+          const result = await createAppointment(appointmentData as any)
+          
+          if (result && result.id) {
+            console.log('✅ [Citas] Cita creada exitosamente:', result.id)
+            toast.success('¡Cita creada exitosamente!')
+            handleClose()
+            await loadData()
+          } else {
+            throw new Error('No se pudo crear la cita: respuesta inválida del servidor')
+          }
+        } catch (createError) {
+          console.error('❌ [Citas] Error al crear cita:', createError)
+          throw createError
+        }
       }
       
     } catch (error) {

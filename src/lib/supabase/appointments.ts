@@ -34,6 +34,8 @@ export interface CreateAppointment {
 }
 
 export interface UpdateAppointment {
+  customer_id?: string
+  vehicle_id?: string | null
   service_type?: string
   appointment_date?: string
   duration?: number

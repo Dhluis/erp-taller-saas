@@ -690,38 +690,43 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             console.log('✅ [Cita] vehicle_id guardado:', appointmentData.vehicle_id)
           }
 
-          // Pre-llenar datos del cliente
+          // Pre-llenar todos los datos disponibles de la cita en un solo setFormData
+          const prefill: Partial<typeof INITIAL_FORM_DATA> = {}
+
+          // — Cliente —
           if (appointmentData.customer) {
-            setFormData(prev => ({
-              ...prev,
-              customerName: appointmentData.customer.name || '',
-              customerPhone: appointmentData.customer.phone || '',
-              customerEmail: appointmentData.customer.email || ''
-            }))
+            prefill.customerName = appointmentData.customer.name || ''
+            prefill.customerPhone = appointmentData.customer.phone || ''
+            prefill.customerEmail = appointmentData.customer.email || ''
           }
 
-          // Pre-llenar datos del vehículo
+          // — Vehículo (filtrar placeholders "Desconocido" y "TEMP-") —
           if (appointmentData.vehicle) {
-            const vehicle = appointmentData.vehicle
-            setFormData(prev => ({
-              ...prev,
-              vehicleBrand: vehicle.brand || '',
-              vehicleModel: vehicle.model || '',
-              vehicleYear: vehicle.year?.toString() || '',
-              vehiclePlate: vehicle.license_plate || '',
-              vehicleColor: vehicle.color || '',
-              vehicleVin: vehicle.vin || '',
-              vehicleMileage: vehicle.mileage?.toString() || ''
-            }))
+            const v = appointmentData.vehicle
+            const cleanVal = (val: string | null | undefined, placeholder: string) =>
+              val && val !== placeholder ? val : ''
+
+            prefill.vehicleBrand = cleanVal(v.brand, 'Desconocido')
+            prefill.vehicleModel = cleanVal(v.model, 'Desconocido')
+            prefill.vehicleYear = v.year ? String(v.year) : ''
+            prefill.vehiclePlate = v.license_plate?.startsWith('TEMP-') ? '' : (v.license_plate || '')
+            prefill.vehicleColor = v.color || ''
+            prefill.vehicleVin = v.vin || ''
+            prefill.vehicleMileage = v.mileage ? String(v.mileage) : ''
           }
 
-          // Pre-llenar descripción con el tipo de servicio de la cita
+          // — Servicio → descripción + motivo de ingreso —
           if (appointmentData.service_type) {
-            setFormData(prev => ({
-              ...prev,
-              description: `Servicio: ${appointmentData.service_type}${appointmentData.notes ? ` - ${appointmentData.notes}` : ''}`
-            }))
+            prefill.description = `Servicio: ${appointmentData.service_type}`
+            prefill.entry_reason = appointmentData.service_type
           }
+          if (appointmentData.notes) {
+            prefill.description = (prefill.description || '') + ` - ${appointmentData.notes}`
+            prefill.procedures = appointmentData.notes
+          }
+
+          setFormData(prev => ({ ...prev, ...prefill }))
+          console.log('✅ [Cita→Orden] Datos pre-llenados:', Object.keys(prefill))
 
           console.log('✅ Datos de cita cargados y pre-llenados')
         } catch (error) {
