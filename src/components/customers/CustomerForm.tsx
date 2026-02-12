@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { Customer } from '@/lib/database/queries/customers';
+import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers';
 
 interface CustomerFormProps {
   customer?: Customer | null;
@@ -61,8 +62,8 @@ export function CustomerForm({ customer, onSubmit, onCancel, isOpen }: CustomerF
 
     if (!formData.phone.trim()) {
       newErrors.phone = 'El teléfono es requerido';
-    } else if (!/^[\d\s\-\+\(\)]+$/.test(formData.phone)) {
-      newErrors.phone = 'El teléfono no es válido';
+    } else if (formData.phone.length !== 10) {
+      newErrors.phone = 'El teléfono debe tener 10 dígitos';
     }
 
     setErrors(newErrors);
@@ -89,7 +90,10 @@ export function CustomerForm({ customer, onSubmit, onCancel, isOpen }: CustomerF
   };
 
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    let processed = value;
+    if (field === 'phone') processed = sanitize.phone(value);
+    
+    setFormData(prev => ({ ...prev, [field]: processed }));
     // Limpiar error del campo al escribir
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -207,8 +211,10 @@ export function CustomerForm({ customer, onSubmit, onCancel, isOpen }: CustomerF
                   </label>
                   <input
                     type="tel"
+                    inputMode="numeric"
                     value={formData.phone}
                     onChange={(e) => handleChange('phone', e.target.value)}
+                    maxLength={INPUT_LIMITS.PHONE_MAX}
                     className={`
                       w-full px-4 py-2.5 bg-bg-tertiary border rounded-lg
                       text-text-primary placeholder-text-muted
@@ -216,7 +222,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isOpen }: CustomerF
                       transition-all
                       ${errors.phone ? 'border-error' : 'border-border'}
                     `}
-                    placeholder="449-123-4567"
+                    placeholder="4491234567"
                   />
                   {errors.phone && (
                     <p className="text-error text-sm mt-1">{errors.phone}</p>

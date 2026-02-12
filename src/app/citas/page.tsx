@@ -47,6 +47,7 @@ import {
   Wrench
 } from "lucide-react"
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal'
+import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
 // ✅ Removido: getAppointmentStats - ahora se usa API route
 import {
   createAppointment,
@@ -727,9 +728,12 @@ export default function CitasPage() {
                   <Label htmlFor="customer_phone">Teléfono *</Label>
                   <Input 
                     id="customer_phone" 
+                    type="tel"
+                    inputMode="numeric"
                     value={formData.customer_phone}
-                    onChange={(e) => setFormData({...formData, customer_phone: e.target.value})}
-                    placeholder="+52 81 1234 5678"
+                    onChange={(e) => setFormData({...formData, customer_phone: sanitize.phone(e.target.value)})}
+                    placeholder="4491234567"
+                    maxLength={INPUT_LIMITS.PHONE_MAX}
                   />
                 </div>
               </div>
@@ -770,12 +774,11 @@ export default function CitasPage() {
                   <Label htmlFor="vehicle_year">Año</Label>
                   <Input 
                     id="vehicle_year" 
-                    type="number"
+                    inputMode="numeric"
                     value={formData.vehicle_year}
-                    onChange={(e) => setFormData({...formData, vehicle_year: e.target.value})}
+                    onChange={(e) => setFormData({...formData, vehicle_year: sanitize.year(e.target.value)})}
                     placeholder="2020"
-                    min="1900"
-                    max={new Date().getFullYear() + 1}
+                    maxLength={4}
                   />
                 </div>
                 <div>
@@ -783,8 +786,9 @@ export default function CitasPage() {
                   <Input 
                     id="vehicle_plate" 
                     value={formData.vehicle_plate}
-                    onChange={(e) => setFormData({...formData, vehicle_plate: e.target.value.toUpperCase()})}
+                    onChange={(e) => setFormData({...formData, vehicle_plate: sanitize.plate(e.target.value)})}
                     placeholder="ABC-123"
+                    maxLength={INPUT_LIMITS.PLATE_MAX}
                   />
                 </div>
               </div>
@@ -823,8 +827,14 @@ export default function CitasPage() {
                   <Input 
                     id="estimated_duration" 
                     type="number"
+                    inputMode="numeric"
                     value={formData.estimated_duration}
-                    onChange={(e) => setFormData({...formData, estimated_duration: parseInt(e.target.value) || 60})}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0
+                      setFormData({...formData, estimated_duration: Math.min(Math.max(val, 0), INPUT_LIMITS.DURATION_MAX)})
+                    }}
+                    min={INPUT_LIMITS.DURATION_MIN}
+                    max={INPUT_LIMITS.DURATION_MAX}
                   />
                 </div>
               </div>

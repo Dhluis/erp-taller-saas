@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Users, Target, UserPlus, UserCheck, Calendar, MessageSquare, Car } from "lucide-react"
 import { LeadStatusBadge, type LeadStatus } from '@/components/whatsapp/LeadStatusBadge'
+import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
 import { toast } from 'sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Checkbox } from "@/components/ui/checkbox"
@@ -452,8 +453,12 @@ export default function ComercialPage() {
                   <Label htmlFor="phone" className="text-slate-300">Teléfono</Label>
                   <Input
                     id="phone"
+                    type="tel"
+                    inputMode="numeric"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, phone: sanitize.phone(e.target.value) })}
+                    maxLength={INPUT_LIMITS.PHONE_MAX}
+                    placeholder="4491234567"
                     className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
                   />
                 </div>
@@ -461,8 +466,10 @@ export default function ComercialPage() {
                   <Label htmlFor="email" className="text-slate-300">Email</Label>
                   <Input
                     id="email"
+                    type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="correo@ejemplo.com"
                     className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
                   />
                 </div>
@@ -504,8 +511,10 @@ export default function ComercialPage() {
                 <Input
                   id="value"
                   type="number"
+                  min="0"
+                  step="0.01"
                   value={formData.value}
-                  onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, value: Math.max(0, Number(e.target.value)) })}
                   className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
                 />
               </div>
@@ -933,11 +942,10 @@ export default function ComercialPage() {
                   <div>
                     <Label className="text-slate-400 text-xs">Año (1950-2027)</Label>
                     <Input
-                      type="number"
-                      min={1950}
-                      max={2027}
+                      inputMode="numeric"
                       value={convertVehicle.year}
-                      onChange={(e) => setConvertVehicle((v) => ({ ...v, year: e.target.value }))}
+                      onChange={(e) => setConvertVehicle((v) => ({ ...v, year: sanitize.year(e.target.value) }))}
+                      maxLength={4}
                       className="bg-gray-800 border-gray-700 text-white mt-1"
                       placeholder="2024"
                     />
@@ -946,7 +954,8 @@ export default function ComercialPage() {
                     <Label className="text-slate-400 text-xs">Placas</Label>
                     <Input
                       value={convertVehicle.plate}
-                      onChange={(e) => setConvertVehicle((v) => ({ ...v, plate: e.target.value }))}
+                      onChange={(e) => setConvertVehicle((v) => ({ ...v, plate: sanitize.plate(e.target.value) }))}
+                      maxLength={INPUT_LIMITS.PLATE_MAX}
                       className="bg-gray-800 border-gray-700 text-white mt-1"
                       placeholder="ABC-123"
                     />
@@ -955,9 +964,10 @@ export default function ComercialPage() {
                     <Label className="text-slate-400 text-xs">VIN (opcional)</Label>
                     <Input
                       value={convertVehicle.vin}
-                      onChange={(e) => setConvertVehicle((v) => ({ ...v, vin: e.target.value }))}
+                      onChange={(e) => setConvertVehicle((v) => ({ ...v, vin: sanitize.vin(e.target.value) }))}
+                      maxLength={INPUT_LIMITS.VIN_MAX}
                       className="bg-gray-800 border-gray-700 text-white mt-1"
-                      placeholder="Opcional"
+                      placeholder="17 caracteres"
                     />
                   </div>
                 </div>

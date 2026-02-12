@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select'
 import { useCustomers } from '@/hooks/useCustomers'
 import { useOrganization } from '@/lib/context/SessionContext'
+import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import {
@@ -456,7 +457,28 @@ export function WorkOrderGeneralForm({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    const processedValue = name === 'vehiclePlate' ? value.toUpperCase() : value
+    let processedValue = value
+
+    // Sanitizar según el campo
+    switch (name) {
+      case 'customerPhone':
+        processedValue = sanitize.phone(value)
+        break
+      case 'vehiclePlate':
+        processedValue = sanitize.plate(value)
+        break
+      case 'vehicleYear':
+        processedValue = sanitize.year(value)
+        break
+      case 'vehicleMileage':
+        processedValue = sanitize.mileage(value)
+        break
+      case 'vehicleVin':
+        processedValue = sanitize.vin(value)
+        break
+      default:
+        break
+    }
     
     setFormData(prev => ({
       ...prev,
@@ -624,10 +646,11 @@ export function WorkOrderGeneralForm({
                 <Input
                   id="vehicle_year"
                   name="vehicleYear"
-                  type="number"
+                  inputMode="numeric"
                   value={formData.vehicleYear}
                   onChange={handleChange}
                   placeholder="2020"
+                  maxLength={4}
                   className="pr-10"
                 />
                 {formData.vehicleYear && (
@@ -648,6 +671,7 @@ export function WorkOrderGeneralForm({
                 value={formData.vehiclePlate}
                 onChange={handleChange}
                 placeholder="ABC-123-D"
+                maxLength={INPUT_LIMITS.PLATE_MAX}
                 className="uppercase"
               />
             ) : (
@@ -678,7 +702,7 @@ export function WorkOrderGeneralForm({
               <Input
                 id="mileage"
                 name="vehicleMileage"
-                type="number"
+                inputMode="numeric"
                 value={formData.vehicleMileage}
                 onChange={handleChange}
                 placeholder="50000"

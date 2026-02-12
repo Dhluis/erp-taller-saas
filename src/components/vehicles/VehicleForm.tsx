@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { Vehicle, CreateVehicleData } from '@/lib/database/queries/vehicles';
 import { useCustomers } from '@/hooks/useCustomers';
+import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers';
 
 interface VehicleFormProps {
   vehicle?: Vehicle | null;
@@ -100,7 +101,16 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
   };
 
   const handleChange = (field: string, value: string | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    let processed = value;
+    if (typeof value === 'string') {
+      switch (field) {
+        case 'license_plate': processed = sanitize.plate(value); break;
+        case 'vin': processed = sanitize.vin(value); break;
+        case 'mileage': processed = sanitize.mileage(value); break;
+      }
+    }
+    
+    setFormData(prev => ({ ...prev, [field]: processed }));
     // Limpiar error del campo al escribir
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -196,14 +206,18 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
                     Año
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.year}
-                    onChange={(e) => handleChange('year', parseInt(e.target.value))}
-                    min="1900"
-                    max={new Date().getFullYear() + 1}
+                    onChange={(e) => {
+                      const cleaned = sanitize.year(e.target.value)
+                      handleChange('year', cleaned ? parseInt(cleaned) : 0)
+                    }}
+                    maxLength={4}
                     className="w-full px-4 py-2.5 bg-bg-tertiary border border-border rounded-lg
                              text-text-primary
                              focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    placeholder="2024"
                   />
                 </div>
               </div>
@@ -266,9 +280,10 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
                   <input
                     type="text"
                     value={formData.license_plate}
-                    onChange={(e) => handleChange('license_plate', e.target.value.toUpperCase())}
+                    onChange={(e) => handleChange('license_plate', e.target.value)}
+                    maxLength={INPUT_LIMITS.PLATE_MAX}
                     className="w-full px-4 py-2.5 bg-bg-tertiary border border-border rounded-lg
-                             text-text-primary placeholder-text-muted
+                             text-text-primary placeholder-text-muted uppercase
                              focus:outline-none focus:ring-2 focus:ring-primary/50"
                     placeholder="ABC-123"
                   />
@@ -304,9 +319,10 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
                   <input
                     type="text"
                     value={formData.vin}
-                    onChange={(e) => handleChange('vin', e.target.value.toUpperCase())}
+                    onChange={(e) => handleChange('vin', e.target.value)}
+                    maxLength={INPUT_LIMITS.VIN_MAX}
                     className="w-full px-4 py-2.5 bg-bg-tertiary border border-border rounded-lg
-                             text-text-primary placeholder-text-muted
+                             text-text-primary placeholder-text-muted uppercase
                              focus:outline-none focus:ring-2 focus:ring-primary/50"
                     placeholder="1HGBH41JXMN109186"
                   />
@@ -317,7 +333,8 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
                     Kilometraje
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.mileage}
                     onChange={(e) => handleChange('mileage', e.target.value)}
                     className="w-full px-4 py-2.5 bg-bg-tertiary border border-border rounded-lg

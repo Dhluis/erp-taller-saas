@@ -52,6 +52,7 @@ import SignatureCanvas from 'react-signature-canvas'
 import { OrderCreationImageCapture, TemporaryImage } from './OrderCreationImageCapture'
 import { uploadWorkOrderImage } from '@/lib/supabase/work-order-storage'
 import { useBilling } from '@/hooks/useBilling'
+import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
 import { useLimitCheck } from '@/hooks/useLimitCheck'
 import { UpgradeModal } from '@/components/billing/upgrade-modal'
 
@@ -449,7 +450,15 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
     
 
-    const processedValue = (name === 'vehiclePlate' || name === 'vehicleVin') ? value.toUpperCase() : value
+    let processedValue = value
+    switch (name) {
+      case 'customerPhone': processedValue = sanitize.phone(value); break
+      case 'vehiclePlate': processedValue = sanitize.plate(value); break
+      case 'vehicleVin': processedValue = sanitize.vin(value); break
+      case 'vehicleYear': processedValue = sanitize.year(value); break
+      case 'vehicleMileage': processedValue = sanitize.mileage(value); break
+      default: break
+    }
 
     
 
@@ -1720,6 +1729,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                     type="tel"
 
+                    inputMode="numeric"
+
                     value={formData.customerPhone}
 
                     onChange={handleChange}
@@ -1728,7 +1739,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                     disabled={loading}
 
-                    maxLength={10}
+                    maxLength={INPUT_LIMITS.PHONE_MAX}
 
                     className={`${errors.customerPhone ? 'border-red-500' : 'border-gray-700'} pr-10`}
 
@@ -1906,7 +1917,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                     required
 
-                    type="number"
+                    inputMode="numeric"
 
                     value={formData.vehicleYear}
 
@@ -1915,6 +1926,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                     placeholder="2020"
 
                     disabled={loading}
+
+                    maxLength={4}
 
                     className={`${errors.vehicleYear ? 'border-red-500' : 'border-gray-700'} pr-10`}
 
@@ -1961,6 +1974,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   onChange={handleChange}
 
                   placeholder="ABC-123-D"
+
+                  maxLength={INPUT_LIMITS.PLATE_MAX}
 
                   className={`uppercase ${errors.vehiclePlate ? 'border-red-500' : ''}`}
 
@@ -2042,7 +2057,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                   name="vehicleMileage"
 
-                  type="number"
+                  inputMode="numeric"
 
                   value={formData.vehicleMileage}
 
