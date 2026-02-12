@@ -249,6 +249,7 @@ export async function PUT(
     }
     
     const body = await request.json();
+    console.log('📥 [API PUT /work-orders/[id]] Body recibido:', JSON.stringify({ ...body, description: body.description?.substring?.(0, 80) }));
 
     // ✅ VALIDACIÓN: Verificar permisos para reasignar órdenes
     if (body.assigned_to !== undefined) {

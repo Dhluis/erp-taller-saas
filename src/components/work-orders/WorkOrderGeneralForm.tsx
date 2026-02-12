@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -199,6 +199,10 @@ export function WorkOrderGeneralForm({
   // ✅ Estados para todos los campos editables (replicando CreateWorkOrderModal)
   const [formData, setFormData] = useState(() => initializeFormData(order))
 
+  // ✅ Refs para NO resetear formData cuando solo cambia isEditing (evita perder cambios tras Guardar)
+  const lastSyncedOrderIdRef = useRef<string | null>(null)
+  const lastSyncedUpdatedAtRef = useRef<string | null>(null)
+
   // ✅ Filtrar clientes por búsqueda
   const filteredCustomers = useMemo(() => {
     if (!formData.customerName || formData.customerName.length < 2) {
@@ -242,14 +246,18 @@ export function WorkOrderGeneralForm({
     loadEmployees()
   }, [organizationId, supabase])
   
-  // ✅ SINCRONIZAR ESTADO CON LA PROPIEDAD order cuando cambia
-  // IMPORTANTE: NO resetear el formData si el usuario está editando
+  // ✅ SINCRONIZAR formData con order solo cuando la orden realmente cambió (otra orden o datos refrescados)
+  // NO sincronizar al solo poner isEditing=false tras Guardar, para no sobrescribir con datos viejos antes del refetch
   useEffect(() => {
-    if (order && !isEditing) {
-      console.log('🔄 [WorkOrderGeneralForm] Sincronizando formData desde order (no está editando)')
-      const initializedData = initializeFormData(order)
-      setFormData(initializedData)
+    if (!order || isEditing) return
+    const orderId = order.id
+    const updatedAt = order.updated_at ?? null
+    if (lastSyncedOrderIdRef.current === orderId && lastSyncedUpdatedAtRef.current === updatedAt) {
+      return
     }
+    lastSyncedOrderIdRef.current = orderId
+    lastSyncedUpdatedAtRef.current = updatedAt
+    setFormData(initializeFormData(order))
   }, [order, isEditing])
 
   const handleSave = async () => {

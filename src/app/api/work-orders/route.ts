@@ -228,9 +228,13 @@ export async function GET(request: NextRequest) {
           query = query.eq('assigned_to', '00000000-0000-0000-0000-000000000000'); // ID imposible = 0 resultados
         }
 
-        // ✅ Filtros
-        if (search) {
-          query = query.or(`id.ilike.%${search}%,description.ilike.%${search}%,notes.ilike.%${search}%`);
+        // ✅ Filtros de búsqueda: columnas directas de work_orders (evita 500 por sintaxis o columnas inexistentes)
+        // Escapar comilla simple para no romper el filter de PostgREST
+        if (search && search.trim()) {
+          const term = String(search).trim().replace(/'/g, "''");
+          const pattern = `%${term}%`;
+          // description y notes existen en work_orders; order_number en migraciones recientes
+          query = query.or(`description.ilike.${pattern},notes.ilike.${pattern}`);
         }
 
         if (status) {
