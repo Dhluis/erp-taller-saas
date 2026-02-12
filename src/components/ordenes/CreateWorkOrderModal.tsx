@@ -345,7 +345,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
         if (!/^\d+$/.test(value)) return 'Solo números permitidos'
 
-        if (value.length !== 10) return 'Debe tener 10 dígitos'
+        if (value.length !== 10) return `Debe tener 10 dígitos (tiene ${value.length})`
 
         return ''
 
@@ -355,7 +355,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
         if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
 
-          return 'Email inválido'
+          return 'Formato de email inválido (ej: correo@ejemplo.com)'
 
         }
 
@@ -958,7 +958,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
     if (Object.keys(newErrors).length > 0) {
 
-      toast.error('Por favor corrige los errores en el formulario')
+      const errorList = Object.values(newErrors).slice(0, 3).join('. ')
+      toast.error('No se puede crear la orden', {
+        description: errorList + (Object.keys(newErrors).length > 3 ? ' ...' : ''),
+        duration: 6000,
+      })
 
       return
 

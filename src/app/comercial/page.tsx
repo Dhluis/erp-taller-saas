@@ -66,6 +66,7 @@ export default function ComercialPage() {
   const [convertModalLead, setConvertModalLead] = useState<Lead | null>(null)
   const [convertVehicle, setConvertVehicle] = useState({ add: false, brand: '', model: '', year: '', plate: '', vin: '' })
   const [convertSubmitting, setConvertSubmitting] = useState(false)
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [formData, setFormData] = useState({
     name: "",
     company: "",
@@ -299,13 +300,18 @@ export default function ComercialPage() {
     setConvertSubmitting(true)
     if (convertVehicle.add) {
       const y = parseInt(convertVehicle.year, 10)
-      if (Number.isNaN(y) || y < 1950 || y > 2027) {
-        toast.error('Año debe estar entre 1950 y 2027')
+      if (Number.isNaN(y) || y < INPUT_LIMITS.YEAR_MIN || y > INPUT_LIMITS.YEAR_MAX) {
+        toast.error(`El año del vehículo debe estar entre ${INPUT_LIMITS.YEAR_MIN} y ${INPUT_LIMITS.YEAR_MAX}`)
         setConvertSubmitting(false)
         return
       }
       if (!convertVehicle.brand.trim() || !convertVehicle.model.trim() || !convertVehicle.plate.trim()) {
-        toast.error('Marca, modelo y placas son requeridos')
+        toast.error('Marca, modelo y placas son requeridos para agregar un vehículo')
+        setConvertSubmitting(false)
+        return
+      }
+      if (convertVehicle.vin && convertVehicle.vin.length !== 17) {
+        toast.error(`El VIN debe tener exactamente 17 caracteres (tiene ${convertVehicle.vin.length})`)
         setConvertSubmitting(false)
         return
       }
@@ -321,7 +327,38 @@ export default function ComercialPage() {
     }
   }
 
+  const validateLeadForm = (): boolean => {
+    const errors: Record<string, string> = {}
+
+    if (!formData.name.trim()) {
+      errors.name = 'El nombre es requerido'
+    }
+    if (formData.phone && formData.phone.length < 10) {
+      errors.phone = `El teléfono debe tener 10 dígitos (tiene ${formData.phone.length})`
+    }
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = 'El formato de email no es válido'
+    }
+
+    setFormErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      toast.error('Revisa los campos marcados en rojo')
+    }
+    return Object.keys(errors).length === 0
+  }
+
+  const clearLeadFieldError = (field: string) => {
+    if (formErrors[field]) {
+      setFormErrors(prev => {
+        const next = { ...prev }
+        delete next[field]
+        return next
+      })
+    }
+  }
+
   const handleSaveLead = async () => {
+    if (!validateLeadForm()) return
     try {
       const url = editingLead ? `/api/leads/${editingLead.id}` : '/api/leads'
       const method = editingLead ? 'PATCH' : 'POST'
@@ -351,6 +388,7 @@ export default function ComercialPage() {
         }
         setIsDialogOpen(false)
         setEditingLead(null)
+        setFormErrors({})
         setFormData({
           name: "",
           company: "",
@@ -430,13 +468,14 @@ export default function ComercialPage() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="name" className="text-slate-300">Nombre</Label>
+                  <Label htmlFor="name" className="text-slate-300">Nombre *</Label>
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+                    onChange={(e) => { setFormData({ ...formData, name: e.target.value }); clearLeadFieldError('name') }}
+                    className={`bg-gray-800 text-white placeholder:text-gray-500 ${formErrors.name ? 'border-red-500' : 'border-gray-700'}`}
                   />
+                  {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
                 </div>
                 <div>
                   <Label htmlFor="company" className="text-slate-300">Empresa</Label>
@@ -456,11 +495,12 @@ export default function ComercialPage() {
                     type="tel"
                     inputMode="numeric"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: sanitize.phone(e.target.value) })}
+                    onChange={(e) => { setFormData({ ...formData, phone: sanitize.phone(e.target.value) }); clearLeadFieldError('phone') }}
                     maxLength={INPUT_LIMITS.PHONE_MAX}
                     placeholder="4491234567"
-                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+                    className={`bg-gray-800 text-white placeholder:text-gray-500 ${formErrors.phone ? 'border-red-500' : 'border-gray-700'}`}
                   />
+                  {formErrors.phone && <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>}
                 </div>
                 <div>
                   <Label htmlFor="email" className="text-slate-300">Email</Label>
@@ -468,10 +508,11 @@ export default function ComercialPage() {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => { setFormData({ ...formData, email: e.target.value }); clearLeadFieldError('email') }}
                     placeholder="correo@ejemplo.com"
-                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+                    className={`bg-gray-800 text-white placeholder:text-gray-500 ${formErrors.email ? 'border-red-500' : 'border-gray-700'}`}
                   />
+                  {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">

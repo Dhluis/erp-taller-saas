@@ -117,6 +117,7 @@ export default function CitasPage() {
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month')
   const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false)
   const [selectedAppointmentForOrder, setSelectedAppointmentForOrder] = useState<Appointment | null>(null)
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [stats, setStats] = useState<AppointmentStats>({
     total: 0,
     scheduled: 0,
@@ -359,40 +360,67 @@ export default function CitasPage() {
     setIsDialogOpen(false)
     setEditingAppointment(null)
     setFormData(emptyForm)
+    setFormErrors({})
+  }
+
+  const validateAppointmentForm = (): boolean => {
+    const errors: Record<string, string> = {}
+
+    if (!formData.customer_name.trim()) {
+      errors.customer_name = 'El nombre del cliente es requerido'
+    }
+    if (!formData.customer_phone.trim()) {
+      errors.customer_phone = 'El teléfono es requerido'
+    } else if (formData.customer_phone.length < 10) {
+      errors.customer_phone = `El teléfono debe tener 10 dígitos (tiene ${formData.customer_phone.length})`
+    }
+    if (formData.customer_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.customer_email)) {
+      errors.customer_email = 'El formato de email no es válido'
+    }
+    if (!formData.service_type.trim()) {
+      errors.service_type = 'El tipo de servicio es requerido'
+    }
+    if (!formData.appointment_date) {
+      errors.appointment_date = 'La fecha es requerida'
+    }
+    if (!formData.appointment_time) {
+      errors.appointment_time = 'La hora es requerida'
+    }
+    if (formData.vehicle_year) {
+      const year = parseInt(formData.vehicle_year)
+      if (isNaN(year) || year < INPUT_LIMITS.YEAR_MIN || year > INPUT_LIMITS.YEAR_MAX) {
+        errors.vehicle_year = `El año debe estar entre ${INPUT_LIMITS.YEAR_MIN} y ${INPUT_LIMITS.YEAR_MAX}`
+      }
+    }
+
+    setFormErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      toast.error('Revisa los campos marcados en rojo')
+    }
+    return Object.keys(errors).length === 0
+  }
+
+  const clearFieldError = (field: string) => {
+    if (formErrors[field]) {
+      setFormErrors(prev => {
+        const next = { ...prev }
+        delete next[field]
+        return next
+      })
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // ✅ VALIDACIÓN MEJORADA CON LOGGING DETALLADO
-    console.log('📋 handleSubmit iniciado')
-    console.log('📦 organizationId del context:', organizationId)
-    console.log('📦 workshopId del context:', workshopId)
-    
-    // ✅ USAR organizationId del OrganizationContext (más confiable)
     if (!organizationId) {
-      console.error('❌ organizationId no disponible del context')
       toast.error('Error al crear cita', {
         description: 'Esperando información de la organización. Por favor intenta de nuevo.'
       })
       return
     }
     
-    // ✅ workshopId es opcional según el schema, pero recomendado para mejor organización
-    // Si no hay workshopId, podemos continuar (el campo es nullable en customers y vehicles)
-    console.log('🔍 IDs disponibles:', { 
-      organizationId,  // ✅ Requerido
-      workshopId,      // ⚠️ Opcional pero recomendado
-    })
-    
-    console.log('✅ Organization ID validado:', { organizationId, workshopId })
-    
-    if (!formData.customer_name.trim() || !formData.customer_phone.trim() || !formData.service_type.trim()) {
-      toast.error('Campos requeridos', {
-        description: 'Por favor completa nombre, teléfono y tipo de servicio'
-      })
-      return
-    }
+    if (!validateAppointmentForm()) return
     
     setIsSubmitting(true)
     
@@ -693,6 +721,7 @@ export default function CitasPage() {
               onClick={() => {
                 setEditingAppointment(null)
                 setFormData(emptyForm)
+                setFormErrors({})
               }}
               disabled={!organizationId || orgLoading}
             >
@@ -720,9 +749,11 @@ export default function CitasPage() {
                   <Input 
                     id="customer_name" 
                     value={formData.customer_name}
-                    onChange={(e) => setFormData({...formData, customer_name: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, customer_name: e.target.value}); clearFieldError('customer_name') }}
                     placeholder="Juan Pérez"
+                    className={formErrors.customer_name ? 'border-red-500' : ''}
                   />
+                  {formErrors.customer_name && <p className="text-red-500 text-xs mt-1">{formErrors.customer_name}</p>}
                 </div>
                 <div>
                   <Label htmlFor="customer_phone">Teléfono *</Label>
@@ -731,10 +762,12 @@ export default function CitasPage() {
                     type="tel"
                     inputMode="numeric"
                     value={formData.customer_phone}
-                    onChange={(e) => setFormData({...formData, customer_phone: sanitize.phone(e.target.value)})}
+                    onChange={(e) => { setFormData({...formData, customer_phone: sanitize.phone(e.target.value)}); clearFieldError('customer_phone') }}
                     placeholder="4491234567"
                     maxLength={INPUT_LIMITS.PHONE_MAX}
+                    className={formErrors.customer_phone ? 'border-red-500' : ''}
                   />
+                  {formErrors.customer_phone && <p className="text-red-500 text-xs mt-1">{formErrors.customer_phone}</p>}
                 </div>
               </div>
               
@@ -744,9 +777,11 @@ export default function CitasPage() {
                   id="customer_email" 
                   type="email"
                   value={formData.customer_email}
-                  onChange={(e) => setFormData({...formData, customer_email: e.target.value})}
+                  onChange={(e) => { setFormData({...formData, customer_email: e.target.value}); clearFieldError('customer_email') }}
                   placeholder="cliente@email.com"
+                  className={formErrors.customer_email ? 'border-red-500' : ''}
                 />
+                {formErrors.customer_email && <p className="text-red-500 text-xs mt-1">{formErrors.customer_email}</p>}
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -776,10 +811,12 @@ export default function CitasPage() {
                     id="vehicle_year" 
                     inputMode="numeric"
                     value={formData.vehicle_year}
-                    onChange={(e) => setFormData({...formData, vehicle_year: sanitize.year(e.target.value)})}
+                    onChange={(e) => { setFormData({...formData, vehicle_year: sanitize.year(e.target.value)}); clearFieldError('vehicle_year') }}
                     placeholder="2020"
                     maxLength={4}
+                    className={formErrors.vehicle_year ? 'border-red-500' : ''}
                   />
+                  {formErrors.vehicle_year && <p className="text-red-500 text-xs mt-1">{formErrors.vehicle_year}</p>}
                 </div>
                 <div>
                   <Label htmlFor="vehicle_plate">Placa</Label>
@@ -798,9 +835,11 @@ export default function CitasPage() {
                 <Input 
                   id="service_type" 
                   value={formData.service_type}
-                  onChange={(e) => setFormData({...formData, service_type: e.target.value})}
+                  onChange={(e) => { setFormData({...formData, service_type: e.target.value}); clearFieldError('service_type') }}
                   placeholder="Cambio de aceite, Revisión general, etc."
+                  className={formErrors.service_type ? 'border-red-500' : ''}
                 />
+                {formErrors.service_type && <p className="text-red-500 text-xs mt-1">{formErrors.service_type}</p>}
               </div>
               
               <div className="grid grid-cols-3 gap-4">
@@ -810,8 +849,10 @@ export default function CitasPage() {
                     id="appointment_date" 
                     type="date"
                     value={formData.appointment_date}
-                    onChange={(e) => setFormData({...formData, appointment_date: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, appointment_date: e.target.value}); clearFieldError('appointment_date') }}
+                    className={formErrors.appointment_date ? 'border-red-500' : ''}
                   />
+                  {formErrors.appointment_date && <p className="text-red-500 text-xs mt-1">{formErrors.appointment_date}</p>}
                 </div>
                 <div>
                   <Label htmlFor="appointment_time">Hora *</Label>
@@ -819,8 +860,10 @@ export default function CitasPage() {
                     id="appointment_time" 
                     type="time"
                     value={formData.appointment_time}
-                    onChange={(e) => setFormData({...formData, appointment_time: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, appointment_time: e.target.value}); clearFieldError('appointment_time') }}
+                    className={formErrors.appointment_time ? 'border-red-500' : ''}
                   />
+                  {formErrors.appointment_time && <p className="text-red-500 text-xs mt-1">{formErrors.appointment_time}</p>}
                 </div>
                 <div>
                   <Label htmlFor="estimated_duration">Duración (min)</Label>

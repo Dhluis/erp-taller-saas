@@ -262,6 +262,36 @@ export function WorkOrderGeneralForm({
   }, [order, isEditing])
 
   const handleSave = async () => {
+    // Validación pre-guardado con mensajes claros
+    const validationErrors: string[] = []
+    
+    if (formData.customerPhone && formData.customerPhone.length > 0 && formData.customerPhone.length < 10) {
+      validationErrors.push(`El teléfono debe tener 10 dígitos (tiene ${formData.customerPhone.length})`)
+    }
+    if (formData.customerEmail && formData.customerEmail.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.customerEmail)) {
+      validationErrors.push('El formato de email no es válido')
+    }
+    if (formData.vehicleYear) {
+      const year = parseInt(formData.vehicleYear)
+      if (isNaN(year) || year < INPUT_LIMITS.YEAR_MIN || year > INPUT_LIMITS.YEAR_MAX) {
+        validationErrors.push(`El año del vehículo debe estar entre ${INPUT_LIMITS.YEAR_MIN} y ${INPUT_LIMITS.YEAR_MAX}`)
+      }
+    }
+    if (formData.vehicleMileage) {
+      const km = parseInt(formData.vehicleMileage)
+      if (isNaN(km) || km < 0) {
+        validationErrors.push('El kilometraje debe ser un número positivo')
+      }
+    }
+
+    if (validationErrors.length > 0) {
+      toast.error('Revisa los datos antes de guardar', {
+        description: validationErrors.join('. '),
+        duration: 6000,
+      })
+      return
+    }
+
     setIsSaving(true)
     const errors: string[] = []
 

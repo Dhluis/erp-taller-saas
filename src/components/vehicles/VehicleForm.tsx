@@ -61,6 +61,7 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
+    const currentYear = new Date().getFullYear();
 
     if (!formData.customer_id.trim()) {
       newErrors.customer_id = 'El cliente es requerido';
@@ -74,8 +75,12 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
       newErrors.model = 'El modelo es requerido';
     }
 
-    if (formData.year && (formData.year < 1900 || formData.year > new Date().getFullYear() + 1)) {
-      newErrors.year = 'El año debe ser válido';
+    if (formData.year && (formData.year < INPUT_LIMITS.YEAR_MIN || formData.year > INPUT_LIMITS.YEAR_MAX)) {
+      newErrors.year = `El año debe estar entre ${INPUT_LIMITS.YEAR_MIN} y ${INPUT_LIMITS.YEAR_MAX}`;
+    }
+
+    if (formData.vin && formData.vin.length > 0 && formData.vin.length !== 17) {
+      newErrors.vin = `El VIN debe tener exactamente 17 caracteres (tiene ${formData.vin.length})`;
     }
 
     setErrors(newErrors);
@@ -214,11 +219,15 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
                       handleChange('year', cleaned ? parseInt(cleaned) : 0)
                     }}
                     maxLength={4}
-                    className="w-full px-4 py-2.5 bg-bg-tertiary border border-border rounded-lg
+                    className={`w-full px-4 py-2.5 bg-bg-tertiary border rounded-lg
                              text-text-primary
-                             focus:outline-none focus:ring-2 focus:ring-primary/50"
+                             focus:outline-none focus:ring-2 focus:ring-primary/50
+                             ${errors.year ? 'border-error' : 'border-border'}`}
                     placeholder="2024"
                   />
+                  {errors.year && (
+                    <p className="text-error text-sm mt-1">{errors.year}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -321,11 +330,15 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
                     value={formData.vin}
                     onChange={(e) => handleChange('vin', e.target.value)}
                     maxLength={INPUT_LIMITS.VIN_MAX}
-                    className="w-full px-4 py-2.5 bg-bg-tertiary border border-border rounded-lg
+                    className={`w-full px-4 py-2.5 bg-bg-tertiary border rounded-lg
                              text-text-primary placeholder-text-muted uppercase
-                             focus:outline-none focus:ring-2 focus:ring-primary/50"
+                             focus:outline-none focus:ring-2 focus:ring-primary/50
+                             ${errors.vin ? 'border-error' : 'border-border'}`}
                     placeholder="1HGBH41JXMN109186"
                   />
+                  {errors.vin && (
+                    <p className="text-error text-sm mt-1">{errors.vin}</p>
+                  )}
                 </div>
 
                 <div>
