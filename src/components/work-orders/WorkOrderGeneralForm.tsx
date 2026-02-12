@@ -243,62 +243,25 @@ export function WorkOrderGeneralForm({
   }, [organizationId, supabase])
   
   // ✅ SINCRONIZAR ESTADO CON LA PROPIEDAD order cuando cambia
+  // IMPORTANTE: NO resetear el formData si el usuario está editando
   useEffect(() => {
-    if (order) {
-      // ✅ DEBUG: Log para verificar qué datos estamos recibiendo
-      console.log('🔍 [WorkOrderGeneralForm] Order recibida:', {
-        id: order.id,
-        hasCustomer: !!order.customer,
-        customer: order.customer ? {
-          id: order.customer.id,
-          name: order.customer.name,
-          phone: order.customer.phone,
-          email: order.customer.email,
-          address: order.customer.address,
-        } : null,
-        hasVehicle: !!order.vehicle,
-        vehicle: order.vehicle ? {
-          id: order.vehicle.id,
-          brand: order.vehicle.brand,
-          model: order.vehicle.model,
-          year: order.vehicle.year,
-          license_plate: order.vehicle.license_plate,
-          color: order.vehicle.color,
-          mileage: order.vehicle.mileage,
-        } : null,
-        hasInspection: !!(order as any).inspection,
-        inspection: (order as any).inspection ? {
-          id: (order as any).inspection.id,
-          fluids_check: (order as any).inspection.fluids_check,
-          fuel_level: (order as any).inspection.fuel_level,
-          valuable_items: (order as any).inspection.valuable_items,
-          entry_reason: (order as any).inspection.entry_reason,
-          procedures: (order as any).inspection.procedures,
-        } : null,
-        hasVehicleInspections: !!(order as any).vehicle_inspections,
-        vehicle_inspections: (order as any).vehicle_inspections,
-        description: order.description,
-        estimated_cost: order.estimated_cost,
-        assigned_to: order.assigned_to,
-        assigned_user: (order as any).assigned_user ? {
-          id: (order as any).assigned_user.id,
-          full_name: (order as any).assigned_user.full_name,
-        } : null,
-      })
-      
-      // ✅ Usar la función helper para inicializar formData consistentemente
+    if (order && !isEditing) {
+      console.log('🔄 [WorkOrderGeneralForm] Sincronizando formData desde order (no está editando)')
       const initializedData = initializeFormData(order)
-      console.log('📋 [WorkOrderGeneralForm] FormData inicializado:', initializedData)
       setFormData(initializedData)
     }
-  }, [order])
+  }, [order, isEditing])
 
   const handleSave = async () => {
     setIsSaving(true)
+    const errors: string[] = []
+
+    // ✅ Todas las operaciones son INDEPENDIENTES - si una falla, las demás continúan
+
+    // 1. Actualizar orden (status, descripción, costo, asignación)
     try {
-      // 1. Actualizar orden
       const orderUpdate: any = {
-        description: formData.description,
+        description: formData.description || null,
         estimated_cost: formData.estimated_cost ? parseFloat(formData.estimated_cost) : null,
         status: formData.status,
       }
@@ -316,10 +279,16 @@ export function WorkOrderGeneralForm({
       
       if (!orderResponse.ok) {
         const error = await orderResponse.json()
-        throw new Error(error.error || 'Error al actualizar orden')
+        console.error('[WorkOrderGeneralForm] Error actualizando orden:', error)
+        errors.push(`Orden: ${error.error || 'Error desconocido'}`)
       }
+    } catch (err: any) {
+      console.error('[WorkOrderGeneralForm] Error actualizando orden:', err)
+      errors.push(`Orden: ${err.message}`)
+    }
 
-      // 2. Actualizar vehículo (placa, marca, modelo, año, color, km)
+    // 2. Actualizar vehículo (placa, marca, modelo, año, color, km)
+    try {
       if (order.vehicle_id) {
         const vehicleUpdate: Record<string, unknown> = {}
         if (formData.vehicleBrand)   vehicleUpdate.brand = formData.vehicleBrand
@@ -332,17 +301,22 @@ export function WorkOrderGeneralForm({
         if (Object.keys(vehicleUpdate).length > 0) {
           const { error: vehicleError } = await supabase
             .from('vehicles')
-            .update(vehicleUpdate)
+            .update(vehicleUpdate as any)
             .eq('id', order.vehicle_id)
 
           if (vehicleError) {
             console.error('[WorkOrderGeneralForm] Error actualizando vehículo:', vehicleError)
-            toast.error('Error al actualizar datos del vehículo', { description: vehicleError.message })
+            errors.push(`Vehículo: ${vehicleError.message}`)
           }
         }
       }
+    } catch (err: any) {
+      console.error('[WorkOrderGeneralForm] Error actualizando vehículo:', err)
+      errors.push(`Vehículo: ${err.message}`)
+    }
 
-      // 3. Actualizar cliente (nombre, teléfono, email, dirección)
+    // 3. Actualizar cliente (nombre, teléfono, email, dirección)
+    try {
       if (order.customer_id) {
         const customerUpdate: Record<string, unknown> = {}
         if (formData.customerName)  customerUpdate.name = formData.customerName
@@ -353,17 +327,22 @@ export function WorkOrderGeneralForm({
         if (Object.keys(customerUpdate).length > 0) {
           const { error: customerError } = await supabase
             .from('customers')
-            .update(customerUpdate)
+            .update(customerUpdate as any)
             .eq('id', order.customer_id)
 
           if (customerError) {
             console.error('[WorkOrderGeneralForm] Error actualizando cliente:', customerError)
-            toast.error('Error al actualizar datos del cliente', { description: customerError.message })
+            errors.push(`Cliente: ${customerError.message}`)
           }
         }
       }
-      
-      // 4. Actualizar inspección (crear o actualizar)
+    } catch (err: any) {
+      console.error('[WorkOrderGeneralForm] Error actualizando cliente:', err)
+      errors.push(`Cliente: ${err.message}`)
+    }
+    
+    // 4. Actualizar inspección (crear o actualizar)
+    try {
       const inspectionData = {
         order_id: order.id,
         organization_id: organizationId,
@@ -385,94 +364,88 @@ export function WorkOrderGeneralForm({
         .maybeSingle()
       
       if (existingInspection) {
-        // Actualizar
         const { error: updateError } = await supabase
           .from('vehicle_inspections')
-          .update(inspectionData)
-          .eq('id', existingInspection.id)
+          .update(inspectionData as any)
+          .eq('id', (existingInspection as any).id)
         
         if (updateError) {
           console.error('[WorkOrderGeneralForm] Error actualizando inspección:', updateError)
-          toast.error('Error al actualizar inspección', { description: updateError.message })
+          errors.push(`Inspección: ${updateError.message}`)
         }
       } else {
-        // Crear
         const { error: insertError } = await supabase
           .from('vehicle_inspections')
-          .insert(inspectionData)
+          .insert(inspectionData as any)
         
         if (insertError) {
           console.error('[WorkOrderGeneralForm] Error creando inspección:', insertError)
-          toast.error('Error al guardar inspección', { description: insertError.message })
+          errors.push(`Inspección: ${insertError.message}`)
         }
       }
-      
-      // ✅ Registrar historial de cambios (fire-and-forget, no bloquea el flujo)
-      // Los cambios de estado y asignación ya se registran desde el API PUT handler
-      // Aquí registramos cambios de vehículo, cliente e inspección
-      try {
-        // Detectar cambios de vehículo
-        const vehicleChanges: Record<string, { old: unknown; new: unknown }> = {}
-        if (order.vehicle) {
-          if (formData.vehicleBrand && formData.vehicleBrand !== (order.vehicle.brand || ''))
-            vehicleChanges.brand = { old: order.vehicle.brand, new: formData.vehicleBrand }
-          if (formData.vehicleModel && formData.vehicleModel !== (order.vehicle.model || ''))
-            vehicleChanges.model = { old: order.vehicle.model, new: formData.vehicleModel }
-          if (formData.vehicleYear && String(formData.vehicleYear) !== String(order.vehicle.year || ''))
-            vehicleChanges.year = { old: order.vehicle.year, new: formData.vehicleYear }
-          if (formData.vehiclePlate && formData.vehiclePlate.toUpperCase() !== (order.vehicle.license_plate || '').toUpperCase())
-            vehicleChanges.license_plate = { old: order.vehicle.license_plate, new: formData.vehiclePlate.toUpperCase() }
-          if (formData.vehicleColor !== undefined && formData.vehicleColor !== (order.vehicle.color || ''))
-            vehicleChanges.color = { old: order.vehicle.color, new: formData.vehicleColor }
-          if (formData.vehicleMileage && String(formData.vehicleMileage) !== String(order.vehicle.mileage || ''))
-            vehicleChanges.mileage = { old: order.vehicle.mileage, new: formData.vehicleMileage }
-        }
-        if (Object.keys(vehicleChanges).length > 0) {
-          logVehicleUpdate(order.id, vehicleChanges)
-        }
-
-        // Detectar cambios de cliente
-        const customerChanges: Record<string, { old: unknown; new: unknown }> = {}
-        if (order.customer) {
-          if (formData.customerName && formData.customerName !== (order.customer.name || ''))
-            customerChanges.name = { old: order.customer.name, new: formData.customerName }
-          if (formData.customerPhone && formData.customerPhone !== (order.customer.phone || ''))
-            customerChanges.phone = { old: order.customer.phone, new: formData.customerPhone }
-          if (formData.customerEmail && formData.customerEmail !== (order.customer.email || ''))
-            customerChanges.email = { old: order.customer.email, new: formData.customerEmail }
-          if (formData.customerAddress !== undefined && formData.customerAddress !== (order.customer.address || ''))
-            customerChanges.address = { old: order.customer.address, new: formData.customerAddress }
-        }
-        if (Object.keys(customerChanges).length > 0) {
-          logCustomerUpdate(order.id, customerChanges)
-        }
-
-        // Detectar cambios de descripción/costo (campos generales no manejados por el API)
-        const fieldChanges: Record<string, { old: unknown; new: unknown }> = {}
-        if (formData.description && formData.description !== (order.description || ''))
-          fieldChanges.description = { old: order.description, new: formData.description }
-        const newCost = formData.estimated_cost ? parseFloat(formData.estimated_cost) : null
-        const oldCost = order.estimated_cost || null
-        if (newCost !== oldCost)
-          fieldChanges.estimated_cost = { old: oldCost, new: newCost }
-        if (Object.keys(fieldChanges).length > 0) {
-          logFieldUpdate(order.id, fieldChanges)
-        }
-      } catch (historyError) {
-        // No bloquear el flujo principal si el historial falla
-        console.warn('[WorkOrderGeneralForm] Error registrando historial:', historyError)
-      }
-
-      toast.success('Orden actualizada exitosamente')
-      onEditChange(false)
-      onSave()
-    } catch (error: any) {
-      toast.error('Error al actualizar orden', {
-        description: error.message
-      })
-    } finally {
-      setIsSaving(false)
+    } catch (err: any) {
+      console.error('[WorkOrderGeneralForm] Error en inspección:', err)
+      errors.push(`Inspección: ${err.message}`)
     }
+    
+    // ✅ Registrar historial de cambios (fire-and-forget)
+    try {
+      const vehicleChanges: Record<string, { old: unknown; new: unknown }> = {}
+      if (order.vehicle) {
+        if (formData.vehicleBrand && formData.vehicleBrand !== (order.vehicle.brand || ''))
+          vehicleChanges.brand = { old: order.vehicle.brand, new: formData.vehicleBrand }
+        if (formData.vehicleModel && formData.vehicleModel !== (order.vehicle.model || ''))
+          vehicleChanges.model = { old: order.vehicle.model, new: formData.vehicleModel }
+        if (formData.vehicleYear && String(formData.vehicleYear) !== String(order.vehicle.year || ''))
+          vehicleChanges.year = { old: order.vehicle.year, new: formData.vehicleYear }
+        if (formData.vehiclePlate && formData.vehiclePlate.toUpperCase() !== (order.vehicle.license_plate || '').toUpperCase())
+          vehicleChanges.license_plate = { old: order.vehicle.license_plate, new: formData.vehiclePlate.toUpperCase() }
+        if (formData.vehicleColor !== undefined && formData.vehicleColor !== (order.vehicle.color || ''))
+          vehicleChanges.color = { old: order.vehicle.color, new: formData.vehicleColor }
+        if (formData.vehicleMileage && String(formData.vehicleMileage) !== String(order.vehicle.mileage || ''))
+          vehicleChanges.mileage = { old: order.vehicle.mileage, new: formData.vehicleMileage }
+      }
+      if (Object.keys(vehicleChanges).length > 0) logVehicleUpdate(order.id, vehicleChanges)
+
+      const customerChanges: Record<string, { old: unknown; new: unknown }> = {}
+      if (order.customer) {
+        if (formData.customerName && formData.customerName !== (order.customer.name || ''))
+          customerChanges.name = { old: order.customer.name, new: formData.customerName }
+        if (formData.customerPhone && formData.customerPhone !== (order.customer.phone || ''))
+          customerChanges.phone = { old: order.customer.phone, new: formData.customerPhone }
+        if (formData.customerEmail && formData.customerEmail !== (order.customer.email || ''))
+          customerChanges.email = { old: order.customer.email, new: formData.customerEmail }
+        if (formData.customerAddress !== undefined && formData.customerAddress !== (order.customer.address || ''))
+          customerChanges.address = { old: order.customer.address, new: formData.customerAddress }
+      }
+      if (Object.keys(customerChanges).length > 0) logCustomerUpdate(order.id, customerChanges)
+
+      const fieldChanges: Record<string, { old: unknown; new: unknown }> = {}
+      if (formData.description && formData.description !== (order.description || ''))
+        fieldChanges.description = { old: order.description, new: formData.description }
+      const newCost = formData.estimated_cost ? parseFloat(formData.estimated_cost) : null
+      const oldCost = order.estimated_cost || null
+      if (newCost !== oldCost)
+        fieldChanges.estimated_cost = { old: oldCost, new: newCost }
+      if (Object.keys(fieldChanges).length > 0) logFieldUpdate(order.id, fieldChanges)
+    } catch (historyError) {
+      console.warn('[WorkOrderGeneralForm] Error registrando historial:', historyError)
+    }
+
+    // ✅ Mostrar resultado
+    if (errors.length === 0) {
+      toast.success('Orden actualizada exitosamente')
+    } else {
+      toast.error(`Hubo ${errors.length} error(es) al guardar`, {
+        description: errors.join('. '),
+        duration: 6000,
+      })
+      // Aún así salir del modo edición y refrescar, ya que algunas operaciones pudieron funcionar
+    }
+
+    onEditChange(false)
+    onSave()
+    setIsSaving(false)
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

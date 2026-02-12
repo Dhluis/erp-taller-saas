@@ -270,11 +270,13 @@ export async function PUT(
     }
 
     // Validaciones opcionales
-    if (body.description !== undefined && body.description.trim().length < 10) {
+    // Permitir descripciones vacías/nulas (muchas órdenes existentes las tienen)
+    // Solo validar si el usuario escribe algo y es muy corto (>0 y <10)
+    if (body.description !== undefined && body.description !== null && body.description.trim().length > 0 && body.description.trim().length < 10) {
       return NextResponse.json(
         {
           success: false,
-          error: 'La descripción debe tener al menos 10 caracteres',
+          error: 'La descripción debe tener al menos 10 caracteres o estar vacía',
         },
         { status: 400 }
       );
