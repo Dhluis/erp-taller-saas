@@ -264,10 +264,8 @@ export function WorkOrderGeneralForm({
         description: formData.description || null,
         estimated_cost: formData.estimated_cost ? parseFloat(formData.estimated_cost) : null,
         status: formData.status,
-      }
-      
-      if (formData.assigned_to) {
-        orderUpdate.assigned_to = formData.assigned_to
+        // Enviar assigned_to explícitamente: null cuando "Sin asignar", id cuando hay asignación
+        assigned_to: formData.assigned_to && formData.assigned_to !== '' ? formData.assigned_to : null,
       }
       
       const orderResponse = await fetch(`/api/work-orders/${order.id}`, {
@@ -432,19 +430,19 @@ export function WorkOrderGeneralForm({
       console.warn('[WorkOrderGeneralForm] Error registrando historial:', historyError)
     }
 
-    // ✅ Mostrar resultado
+    // ✅ Mostrar resultado y cerrar/refrescar SOLO si todo fue exitoso
     if (errors.length === 0) {
       toast.success('Orden actualizada exitosamente')
+      onEditChange(false)
+      onSave()
     } else {
       toast.error(`Hubo ${errors.length} error(es) al guardar`, {
         description: errors.join('. '),
         duration: 6000,
       })
-      // Aún así salir del modo edición y refrescar, ya que algunas operaciones pudieron funcionar
+      // Mantener modo edición y no refetch para que el usuario vea sus datos y pueda reintentar
     }
 
-    onEditChange(false)
-    onSave()
     setIsSaving(false)
   }
 
