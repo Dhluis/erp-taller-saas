@@ -65,6 +65,13 @@ const CATEGORY_LABELS: Record<ImageCategory, { label: string; color: string }> =
   other: { label: 'Otro', color: 'bg-gray-500' }
 }
 
+/** Evita "Cannot read properties of undefined (reading 'color')" cuando category no está en CATEGORY_LABELS */
+function getCategoryInfo(category: string | undefined | null): { label: string; color: string } {
+  if (!category) return CATEGORY_LABELS.other
+  const info = CATEGORY_LABELS[category as ImageCategory]
+  return info ?? CATEGORY_LABELS.other
+}
+
 /**
  * Comprime imagen y genera thumbnail
  * ✅ OPTIMIZADO PARA MÓVIL: Reduce tamaño más agresivamente
@@ -650,8 +657,8 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                 <SelectTrigger id="category">
                   <SelectValue>
                     <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[selectedCategory].color}`} />
-                      {CATEGORY_LABELS[selectedCategory].label}
+                      <div className={`w-3 h-3 rounded-full ${getCategoryInfo(selectedCategory).color}`} />
+                      {getCategoryInfo(selectedCategory).label}
                     </div>
                   </SelectValue>
                 </SelectTrigger>
@@ -685,7 +692,7 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                       setSelectedCategory(suggestedCategory)
                     }}
                   >
-                    💡 Sugerir: {CATEGORY_LABELS[suggestedCategory].label}
+                    💡 Sugerir: {getCategoryInfo(suggestedCategory).label}
                   </Button>
                 )}
               </div>
@@ -804,9 +811,9 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
             return (
               <div key={category} className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[category as ImageCategory].color}`} />
+                  <div className={`w-3 h-3 rounded-full ${getCategoryInfo(category).color}`} />
                   <h4 className="font-semibold">
-                    {CATEGORY_LABELS[category as ImageCategory].label} ({categoryImages.length})
+                    {getCategoryInfo(category).label} ({categoryImages.length})
                   </h4>
                 </div>
 
@@ -921,8 +928,8 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[editingCategory ? newCategory : selectedImage.category].color}`} />
-                  {CATEGORY_LABELS[editingCategory ? newCategory : selectedImage.category].label}
+                  <div className={`w-3 h-3 rounded-full ${getCategoryInfo(editingCategory ? newCategory : selectedImage.category).color}`} />
+                  {getCategoryInfo(editingCategory ? newCategory : selectedImage.category).label}
                 </DialogTitle>
                 <DialogDescription>
                   Subida el {format(new Date(selectedImage.uploadedAt), "d 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
@@ -975,8 +982,8 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                         <SelectTrigger>
                           <SelectValue>
                             <div className="flex items-center gap-2">
-                              <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[newCategory].color}`} />
-                              {CATEGORY_LABELS[newCategory].label}
+                              <div className={`w-3 h-3 rounded-full ${getCategoryInfo(newCategory).color}`} />
+                              {getCategoryInfo(newCategory).label}
                             </div>
                           </SelectValue>
                         </SelectTrigger>
@@ -997,9 +1004,9 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                       </Select>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[selectedImage.category].color}`} />
+                        <div className={`w-3 h-3 rounded-full ${getCategoryInfo(selectedImage.category).color}`} />
                         <p className="text-sm font-medium">
-                          {CATEGORY_LABELS[selectedImage.category].label}
+                          {getCategoryInfo(selectedImage.category).label}
                         </p>
                       </div>
                     )}
