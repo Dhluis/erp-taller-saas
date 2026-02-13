@@ -298,3 +298,90 @@ export async function DELETE(
     )
   }
 }
+
+// PATCH: Actualizar categoría y/o descripción de una imagen (evita RLS del cliente)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const orderId = params.id
+
+    const supabase = createClientFromRequest(request)
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    const supabaseAdmin = getSupabaseServiceClient()
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single()
+
+    if (profileError || !userProfile?.organization_id) {
+      return NextResponse.json({ error: 'No se pudo obtener la organización' }, { status: 403 })
+    }
+
+    const organizationId = userProfile.organization_id
+
+    let body: { imagePath: string; category?: string; description?: string }
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Formato de datos inválido' }, { status: 400 })
+    }
+
+    const { imagePath, category, description } = body
+    if (!imagePath) {
+      return NextResponse.json({ error: 'Se requiere imagePath' }, { status: 400 })
+    }
+    if (!category && description === undefined) {
+      return NextResponse.json({ error: 'Se requiere category o description' }, { status: 400 })
+    }
+
+    const { data: order, error: fetchError } = await supabaseAdmin
+      .from('work_orders')
+      .select('images, organization_id')
+      .eq('id', orderId)
+      .eq('organization_id', organizationId)
+      .single()
+
+    if (fetchError || !order) {
+      return NextResponse.json(
+        { error: fetchError?.message || 'Orden no encontrada' },
+        { status: fetchError ? 500 : 404 }
+      )
+    }
+
+    const currentImages: any[] = order?.images || []
+    const updatedImages = currentImages.map((img: any) => {
+      if (img.path !== imagePath) return img
+      return {
+        ...img,
+        ...(category !== undefined && { category }),
+        ...(description !== undefined && { description })
+      }
+    })
+
+    const { error: updateError } = await supabaseAdmin
+      .from('work_orders')
+      .update({
+        images: updatedImages,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId)
+      .eq('organization_id', organizationId)
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error('❌ [API PATCH] Exception:', error)
+    return NextResponse.json({ error: error.message || 'Error al actualizar imagen' }, { status: 500 })
+  }
+}

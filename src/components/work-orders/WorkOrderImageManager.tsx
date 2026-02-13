@@ -34,8 +34,6 @@ import {
 import { toast } from 'sonner'
 import {
   uploadWorkOrderImage,
-  updateImageDescription,
-  updateImageCategory,
   WorkOrderImage,
   ImageCategory
 } from '@/lib/supabase/work-order-storage'
@@ -549,34 +547,24 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
     }
   }
 
-  const handleUpdateDescription = async () => {
-    if (!selectedImage) return
-    const result = await updateImageDescription(
-      orderId,
-      selectedImage.path,
-      newDescription
-    )
-    if (!result.success) throw new Error(result.error)
+  const patchImageMetadata = async (updates: { category?: ImageCategory; description?: string }) => {
+    const res = await fetch(`/api/work-orders/${orderId}/images`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        imagePath: selectedImage!.path,
+        ...updates
+      })
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.error || 'Error al actualizar')
+    }
     const updatedImages = images.map(img =>
-      img.path === selectedImage.path ? { ...img, description: newDescription } : img
-    )
+      img.path === selectedImage!.path ? { ...img, ...updates } : img
+    ) as WorkOrderImage[]
     onImagesChange(updatedImages)
-    setSelectedImage({ ...selectedImage, description: newDescription })
-  }
-
-  const handleUpdateCategory = async () => {
-    if (!selectedImage) return
-    const result = await updateImageCategory(
-      orderId,
-      selectedImage.path,
-      newCategory
-    )
-    if (!result.success) throw new Error(result.error)
-    const updatedImages = images.map(img =>
-      img.path === selectedImage.path ? { ...img, category: newCategory } : img
-    )
-    onImagesChange(updatedImages)
-    setSelectedImage({ ...selectedImage, category: newCategory })
+    setSelectedImage({ ...selectedImage!, ...updates } as WorkOrderImage)
   }
 
   /** Un solo guardado: persiste categoría y/o descripción si cambiaron y cierra edición */
@@ -590,8 +578,10 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
       return
     }
     try {
-      if (categoryChanged) await handleUpdateCategory()
-      if (descriptionChanged) await handleUpdateDescription()
+      await patchImageMetadata({
+        ...(categoryChanged && { category: newCategory as ImageCategory }),
+        ...(descriptionChanged && { description: newDescription })
+      })
       setEditingCategory(false)
       setEditingDescription(false)
       toast.success('Cambios guardados')
@@ -1020,6 +1010,7 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                         onChange={(e) => setNewDescription(e.target.value)}
                         placeholder="Describe qué se muestra en la foto..."
                         rows={3}
+                        className="bg-slate-800/80 text-slate-100 placeholder:text-slate-400 border-slate-600"
                       />
                     ) : (
                       <p className="text-sm text-muted-foreground">
@@ -1053,7 +1044,9 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                   <div>
                     <p className="font-medium">Tamaño</p>
                     <p className="text-muted-foreground">
-                      {(selectedImage.size / 1024 / 1024).toFixed(2)} MB
+                      {selectedImage.size != null
+                        ? ((selectedImage.size / 1024 / 1024).toFixed(2) + ' MB')
+                        : '—'}
                     </p>
                   </div>
                   <div>
