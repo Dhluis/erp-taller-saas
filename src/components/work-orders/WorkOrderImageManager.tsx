@@ -49,7 +49,7 @@ import { useImagePagination } from '@/hooks/useImagePagination'
 interface WorkOrderImageManagerProps {
   orderId: string
   images: WorkOrderImage[]
-  onImagesChange: (images: WorkOrderImage[]) => void
+  onImagesChange: (images: WorkOrderImage[], options?: { skipRefetch?: boolean }) => void
   currentStatus: string
   userId?: string
   maxImages?: number
@@ -59,15 +59,14 @@ const CATEGORY_LABELS: Record<ImageCategory, { label: string; color: string }> =
   reception: { label: 'Recepción', color: 'bg-blue-500' },
   damage: { label: 'Daño', color: 'bg-red-500' },
   process: { label: 'Proceso', color: 'bg-yellow-500' },
-  completed: { label: 'Completado', color: 'bg-green-500' },
-  other: { label: 'Otro', color: 'bg-gray-500' }
+  completed: { label: 'Completado', color: 'bg-green-500' }
 }
 
-/** Evita "Cannot read properties of undefined (reading 'color')" cuando category no está en CATEGORY_LABELS */
+/** Evita "Cannot read properties of undefined (reading 'color')" — categorías desconocidas → Recepción */
 function getCategoryInfo(category: string | undefined | null): { label: string; color: string } {
-  if (!category) return CATEGORY_LABELS.other
+  if (!category) return CATEGORY_LABELS.reception
   const info = CATEGORY_LABELS[category as ImageCategory]
-  return info ?? CATEGORY_LABELS.other
+  return info ?? CATEGORY_LABELS.reception
 }
 
 /**
@@ -273,7 +272,7 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
       case 'testing': return 'process'
       case 'completed': return 'completed'
       case 'ready': return 'completed'
-      default: return 'other'
+      default: return 'reception'
     }
   }
   
@@ -291,7 +290,7 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
       console.log('❌ [handleFileChange] No se seleccionaron archivos')
       return
     }
-
+    const categoryForUpload: ImageCategory = (e.target.getAttribute('data-category') as ImageCategory) || selectedCategory
     const filesArray = Array.from(files)
     console.log('🔄 [handleFileChange] Archivos seleccionados:', filesArray.length)
 
@@ -373,7 +372,7 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                 orderId,
                 organizationId,
                 userId,
-                `${selectedCategory}_thumb`,
+                `${categoryForUpload}_thumb`,
                 uploadDescription || undefined,
                 currentStatus,
                 session.access_token
@@ -401,7 +400,7 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
             orderId,
             organizationId,
             userId,
-            selectedCategory,
+            categoryForUpload,
             uploadDescription || undefined,
             currentStatus,
             session.access_token
@@ -563,7 +562,7 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
     const updatedImages = images.map(img =>
       img.path === selectedImage!.path ? { ...img, ...updates } : img
     ) as WorkOrderImage[]
-    onImagesChange(updatedImages)
+    onImagesChange(updatedImages, { skipRefetch: true })
     setSelectedImage({ ...selectedImage!, ...updates } as WorkOrderImage)
   }
 
@@ -610,10 +609,11 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
     })
   }
 
-  // Agrupar por categoría
+  // Agrupar por categoría (legacy 'other' → 'reception')
   const imagesByCategory = images.reduce((acc, img) => {
-    if (!acc[img.category]) acc[img.category] = []
-    acc[img.category].push(img)
+    const cat = (String(img.category) === 'other' ? 'reception' : img.category) as ImageCategory
+    if (!acc[cat]) acc[cat] = []
+    acc[cat].push(img)
     return acc
   }, {} as Record<ImageCategory, WorkOrderImage[]>)
 
@@ -706,12 +706,13 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
               </div>
             </div>
 
-            {/* Input oculto para CÁMARA */}
+            {/* Input oculto para CÁMARA — siempre usa Recepción */}
             <input
               ref={cameraInputRef}
               type="file"
               accept="image/*"
               capture="environment"
+              data-category="reception"
               onChange={handleFileChange}
               className="hidden"
               disabled={uploading || images.length >= maxImages}
@@ -732,18 +733,11 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
 
             {/* Botones de acción */}
             <div className="grid grid-cols-2 gap-3">
-              {/* Botón: Tomar Foto */}
+              {/* Botón: Tomar Foto — siempre categoría Recepción */}
               <Button
                 onClick={() => {
-                  console.log('📸 [Tomar Foto] Botón clickeado - usando ref')
-                  console.log('🔍 Ref actual:', cameraInputRef.current)
-                  console.log('🔍 Atributos del input:', {
-                    type: cameraInputRef.current?.type,
-                    accept: cameraInputRef.current?.accept,
-                    capture: cameraInputRef.current?.getAttribute('capture')
-                  })
+                  setSelectedCategory('reception')
                   cameraInputRef.current?.click()
-                  console.log('✅ Click ejecutado en input de cámara')
                 }}
                 disabled={uploading || images.length >= maxImages}
                 className="w-full"
@@ -1010,7 +1004,7 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                         onChange={(e) => setNewDescription(e.target.value)}
                         placeholder="Describe qué se muestra en la foto..."
                         rows={3}
-                        className="bg-slate-800/80 text-slate-100 placeholder:text-slate-400 border-slate-600"
+                        className="bg-slate-950 text-slate-100 placeholder:text-slate-500 border-slate-700"
                       />
                     ) : (
                       <p className="text-sm text-muted-foreground">

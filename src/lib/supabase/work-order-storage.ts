@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/client'
 
 const supabase = createClient()
 
-export type ImageCategory = 'reception' | 'damage' | 'process' | 'completed' | 'other'
+export type ImageCategory = 'reception' | 'damage' | 'process' | 'completed'
 
 export interface WorkOrderImage {
   url: string

@@ -149,16 +149,13 @@ export function WorkOrderDetailsTabs({
   }, [order?.documents])
 
 
-  const handleImagesChange = async (newImages: WorkOrderImage[]) => {
+  const handleImagesChange = async (newImages: WorkOrderImage[], options?: { skipRefetch?: boolean }) => {
     console.log('🔄 [WorkOrderDetailsTabs] Imágenes actualizadas:', newImages.length)
-    // Actualizar estado local inmediatamente para que se vea en la UI
     setImages(newImages)
-    
-    // ✅ Notificar al padre para que recargue la orden completa desde el servidor
-    // Esto asegura que la orden se sincronice correctamente
-    onUpdate?.()
-    
-    console.log('✅ [WorkOrderDetailsTabs] Imagen agregada y orden refrescada')
+    if (!options?.skipRefetch) {
+      onUpdate?.()
+      console.log('✅ [WorkOrderDetailsTabs] Imagen agregada y orden refrescada')
+    }
   }
 
   const handleNotesChange = async (newNotes: WorkOrderNote[]) => {
