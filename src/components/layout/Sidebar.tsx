@@ -42,7 +42,7 @@ export function Sidebar({ className }: SidebarProps) {
     // Verificar si la ruta actual está dentro de alguna sección
     sections.forEach(section => {
       const sectionRoutes: Record<string, string[]> = {
-        'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos'],
+        'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos', '/service-packages'],
         'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/reportes'],
         'compras': ['/compras', '/compras/proveedores', '/compras/pagos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/inventario', '/reportes/financieros'],
@@ -145,7 +145,8 @@ export function Sidebar({ className }: SidebarProps) {
       items: [
         { href: "/inventarios", label: "Productos", icon: () => <ModernIcons.Productos size={18} /> },
         { href: "/inventarios/categorias", label: "Categorías", icon: () => <ModernIcons.Categorias size={18} /> },
-        { href: "/inventarios/movimientos", label: "Movimientos", icon: () => <ModernIcons.Reportes size={18} /> }
+        { href: "/inventarios/movimientos", label: "Movimientos", icon: () => <ModernIcons.Reportes size={18} /> },
+        { href: "/service-packages", label: "Paquetes de Servicio", icon: () => <ModernIcons.Package size={18} /> }
       ]
     },
     {
@@ -255,7 +256,7 @@ export function Sidebar({ className }: SidebarProps) {
     // NO activar si hay un sub-item más específico activo
     const isParentOfCollapsibleSection = collapsibleSections.some(section => {
       const sectionRoutes: Record<string, string[]> = {
-        'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos'],
+        'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos', '/service-packages'],
         'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/reportes'],
         'compras': ['/compras', '/compras/proveedores', '/compras/pagos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/inventario', '/reportes/financieros'],

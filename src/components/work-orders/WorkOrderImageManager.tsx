@@ -235,6 +235,7 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
   // Log cuando cambie la categoría
   console.log('🔄 [CategoryState] Categoría actual:', selectedCategory)
   const [uploadDescription, setUploadDescription] = useState('')
+  const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set())
   
   // Refs para inputs de archivo
   const cameraInputRef = useRef<HTMLInputElement>(null)
@@ -543,61 +544,52 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
 
   const handleUpdateDescription = async () => {
     if (!selectedImage) return
-
-    try {
-      const result = await updateImageDescription(
-        orderId,
-        selectedImage.path,
-        newDescription
-      )
-
-      if (!result.success) {
-        toast.error(result.error || 'Error al actualizar descripción')
-        return
-      }
-
-      const updatedImages = images.map(img =>
-        img.path === selectedImage.path
-          ? { ...img, description: newDescription }
-          : img
-      )
-      onImagesChange(updatedImages)
-
-      setSelectedImage({ ...selectedImage, description: newDescription })
-      setEditingDescription(false)
-      toast.success('Descripción actualizada')
-    } catch (error: any) {
-      toast.error(error.message || 'Error al actualizar')
-    }
+    const result = await updateImageDescription(
+      orderId,
+      selectedImage.path,
+      newDescription
+    )
+    if (!result.success) throw new Error(result.error)
+    const updatedImages = images.map(img =>
+      img.path === selectedImage.path ? { ...img, description: newDescription } : img
+    )
+    onImagesChange(updatedImages)
+    setSelectedImage({ ...selectedImage, description: newDescription })
   }
 
   const handleUpdateCategory = async () => {
     if (!selectedImage) return
+    const result = await updateImageCategory(
+      orderId,
+      selectedImage.path,
+      newCategory
+    )
+    if (!result.success) throw new Error(result.error)
+    const updatedImages = images.map(img =>
+      img.path === selectedImage.path ? { ...img, category: newCategory } : img
+    )
+    onImagesChange(updatedImages)
+    setSelectedImage({ ...selectedImage, category: newCategory })
+  }
 
-    try {
-      const result = await updateImageCategory(
-        orderId,
-        selectedImage.path,
-        newCategory
-      )
-
-      if (!result.success) {
-        toast.error(result.error || 'Error al actualizar categoría')
-        return
-      }
-
-      const updatedImages = images.map(img =>
-        img.path === selectedImage.path
-          ? { ...img, category: newCategory }
-          : img
-      )
-      onImagesChange(updatedImages)
-
-      setSelectedImage({ ...selectedImage, category: newCategory })
+  /** Un solo guardado: persiste categoría y/o descripción si cambiaron y cierra edición */
+  const handleSaveChanges = async () => {
+    if (!selectedImage) return
+    const categoryChanged = newCategory !== selectedImage.category
+    const descriptionChanged = newDescription !== (selectedImage.description || '')
+    if (!categoryChanged && !descriptionChanged) {
       setEditingCategory(false)
-      toast.success('Categoría actualizada')
+      setEditingDescription(false)
+      return
+    }
+    try {
+      if (categoryChanged) await handleUpdateCategory()
+      if (descriptionChanged) await handleUpdateDescription()
+      setEditingCategory(false)
+      setEditingDescription(false)
+      toast.success('Cambios guardados')
     } catch (error: any) {
-      toast.error(error.message || 'Error al actualizar categoría')
+      toast.error(error.message || 'Error al guardar')
     }
   }
 
@@ -607,6 +599,18 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
     setNewCategory(image.category)
     setEditingDescription(false)
     setEditingCategory(false)
+    clearImageError(image.path)
+  }
+
+  const markImageError = (path: string) => {
+    setImageLoadErrors(prev => new Set(prev).add(path))
+  }
+  const clearImageError = (path: string) => {
+    setImageLoadErrors(prev => {
+      const next = new Set(prev)
+      next.delete(path)
+      return next
+    })
   }
 
   // Agrupar por categoría
@@ -816,16 +820,23 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                         className="relative group overflow-hidden cursor-pointer"
                       >
                         <div className="aspect-square relative" onClick={() => openImageDetail(image)}>
-                          <Image
-                            src={image.url} // ✅ Usar URL completa (thumbnailUrl es opcional)
-                            alt={image.description || image.name}
-                            fill
-                            className="object-cover"
-                            sizes="(max-width: 768px) 50vw, 20vw"
-                            loading="lazy"  // ✅ OPTIMIZACIÓN: Lazy loading
-                            placeholder="blur"
-                            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
-                          />
+                          {imageLoadErrors.has(image.path) ? (
+                            <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-lg text-muted-foreground text-xs text-center p-2">
+                              No se pudo cargar la imagen
+                            </div>
+                          ) : (
+                            <Image
+                              src={image.thumbnailUrl || image.url}
+                              alt={image.description || image.name}
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 768px) 50vw, 20vw"
+                              loading="lazy"
+                              placeholder="blur"
+                              blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
+                              onError={() => markImageError(image.path)}
+                            />
+                          )}
                         </div>
 
                         {/* Overlay con info */}
@@ -921,33 +932,42 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
               <div className="space-y-4">
                 {/* Imagen grande */}
                 <div className="relative w-full h-96 bg-muted rounded-lg overflow-hidden">
-                  <Image
-                    src={selectedImage.url}
-                    alt={selectedImage.description || selectedImage.name}
-                    fill
-                    className="object-contain"
-                    sizes="100vw"
-                  />
+                  {imageLoadErrors.has(selectedImage.path) ? (
+                    <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                      No se pudo cargar la imagen. Revisa permisos del almacenamiento.
+                    </div>
+                  ) : (
+                    <Image
+                      src={selectedImage.url}
+                      alt={selectedImage.description || selectedImage.name}
+                      fill
+                      className="object-contain"
+                      sizes="100vw"
+                      onError={() => markImageError(selectedImage.path)}
+                    />
+                  )}
                 </div>
 
-                {/* Categoría */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Categoría</Label>
-                    {!editingCategory && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setEditingCategory(true)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Cambiar
-                      </Button>
-                    )}
-                  </div>
-
-                  {editingCategory ? (
-                    <div className="space-y-2">
+                {/* Categoría y Descripción: un solo flujo de edición con un Guardar */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Categoría</Label>
+                      {!editingCategory && !editingDescription && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingCategory(true)
+                            setEditingDescription(true)
+                          }}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar categoría y descripción
+                        </Button>
+                      )}
+                    </div>
+                    {editingCategory ? (
                       <Select
                         value={newCategory}
                         onValueChange={(value) => setNewCategory(value as ImageCategory)}
@@ -962,8 +982,8 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                         </SelectTrigger>
                         <SelectContent className="bg-slate-900 border-slate-700 text-white">
                           {Object.entries(CATEGORY_LABELS).map(([key, { label, color }]) => (
-                            <SelectItem 
-                              key={key} 
+                            <SelectItem
+                              key={key}
                               value={key}
                               className="hover:bg-slate-800 focus:bg-slate-800 text-white"
                             >
@@ -975,74 +995,49 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
                           ))}
                         </SelectContent>
                       </Select>
-                      <div className="flex gap-2">
-                        <Button onClick={handleUpdateCategory}>
-                          Guardar
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          onClick={() => {
-                            setEditingCategory(false)
-                            setNewCategory(selectedImage.category)
-                          }}
-                        >
-                          Cancelar
-                        </Button>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[selectedImage.category].color}`} />
+                        <p className="text-sm font-medium">
+                          {CATEGORY_LABELS[selectedImage.category].label}
+                        </p>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${CATEGORY_LABELS[selectedImage.category].color}`} />
-                      <p className="text-sm font-medium">
-                        {CATEGORY_LABELS[selectedImage.category].label}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Descripción */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Descripción</Label>
-                    {!editingDescription && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setEditingDescription(true)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Editar
-                      </Button>
                     )}
                   </div>
 
-                  {editingDescription ? (
-                    <div className="space-y-2">
+                  <div className="space-y-2">
+                    <Label>Descripción</Label>
+                    {editingDescription ? (
                       <Textarea
                         value={newDescription}
                         onChange={(e) => setNewDescription(e.target.value)}
                         placeholder="Describe qué se muestra en la foto..."
                         rows={3}
                       />
-                      <div className="flex gap-2">
-                        <Button onClick={handleUpdateDescription}>
-                          Guardar
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          onClick={() => {
-                            setEditingDescription(false)
-                            setNewDescription(selectedImage.description || '')
-                          }}
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        {selectedImage.description || 'Sin descripción'}
+                      </p>
+                    )}
+                  </div>
+
+                  {(editingCategory || editingDescription) && (
+                    <div className="flex gap-2 pt-2">
+                      <Button onClick={handleSaveChanges}>
+                        Guardar cambios
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setEditingCategory(false)
+                          setEditingDescription(false)
+                          setNewCategory(selectedImage.category)
+                          setNewDescription(selectedImage.description || '')
+                        }}
+                      >
+                        Cancelar
+                      </Button>
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      {selectedImage.description || 'Sin descripción'}
-                    </p>
                   )}
                 </div>
 

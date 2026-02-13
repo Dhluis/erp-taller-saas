@@ -3,7 +3,7 @@
  * Diseño consistente para todo el sistema
  */
 
-import { Wrench, FileText } from 'lucide-react'
+import { Wrench, FileText, Package } from 'lucide-react'
 
 interface IconProps {
   className?: string
@@ -320,6 +320,11 @@ export const SearchIcon = ({ className = '', size = 24 }: IconProps) => (
   </svg>
 )
 
+// Paquetes de Servicio (Package)
+export const PackageIcon = ({ className = '', size = 24 }: IconProps) => (
+  <Package size={size} className={className} style={{ color: '#06B6D4', strokeWidth: 2.5 }} />
+)
+
 export default {
   Dashboard: DashboardIcon,
   WhatsApp: WhatsAppIcon,
@@ -351,5 +356,6 @@ export default {
   Warning: WarningIcon,
   Perfil: PerfilIcon,
   Search: SearchIcon,
+  Package: PackageIcon,
 }
 
