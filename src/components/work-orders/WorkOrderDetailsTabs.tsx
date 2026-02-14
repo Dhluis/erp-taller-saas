@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { WorkOrderImageManager } from '@/components/work-orders/WorkOrderImageManager'
 import { WorkOrderNotes } from '@/components/work-orders/WorkOrderNotes'
 import { WorkOrderItems } from '@/components/work-orders/WorkOrderItems'
+import { WorkOrderServices } from '@/components/work-orders/WorkOrderServices'
 import WorkOrderDocuments from '@/components/work-orders/WorkOrderDocuments'
 import { WorkOrderGeneralForm } from '@/components/work-orders/WorkOrderGeneralForm'
 import { WorkOrderHistory } from '@/components/work-orders/WorkOrderHistory'
@@ -25,7 +26,8 @@ import {
   Edit,
   Save,
   X,
-  Loader2
+  Loader2,
+  Package
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -47,7 +49,6 @@ import {
   Fuel, 
   Shield, 
   Clipboard, 
-  Wrench, 
   ChevronDown,
   CheckCircle2,
   AlertCircle
@@ -168,7 +169,7 @@ export function WorkOrderDetailsTabs({
 
   return (
     <Tabs defaultValue="general" className="w-full">
-      <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-1 p-1">
+      <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-1 p-1">
         {/* Tab: General */}
         <TabsTrigger 
           value="general" 
@@ -199,6 +200,15 @@ export function WorkOrderDetailsTabs({
         >
           <Receipt className="h-4 w-4" />
           <span className="hidden sm:inline">Items</span>
+        </TabsTrigger>
+
+        {/* Tab: Servicios */}
+        <TabsTrigger 
+          value="services" 
+          className="flex items-center justify-center gap-1 px-2 py-2.5 text-xs sm:text-sm"
+        >
+          <Package className="h-4 w-4" />
+          <span className="hidden sm:inline">Servicios</span>
         </TabsTrigger>
 
         {/* Tab: Notas */}
@@ -273,6 +283,11 @@ export function WorkOrderDetailsTabs({
             onUpdate?.()
           }}
         />
+      </TabsContent>
+
+      {/* TAB SERVICIOS */}
+      <TabsContent value="services" className="mt-6">
+        <WorkOrderServices orderId={order.id} onUpdate={onUpdate} />
       </TabsContent>
 
       {/* TAB NOTAS */}

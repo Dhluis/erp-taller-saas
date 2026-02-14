@@ -7,6 +7,7 @@ import {
 import { hasPermission, canAccessWorkOrder, UserRole } from '@/lib/auth/permissions';
 import { createClientFromRequest } from '@/lib/supabase/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
+import { deductInventoryOnOrderComplete } from '@/lib/work-orders/deduct-inventory-on-complete';
 
 // GET: Obtener una orden por ID
 export async function GET(
@@ -379,6 +380,32 @@ export async function PUT(
       );
     }
 
+    const prevOrder = existingOrder as any;
+    let lowStockAlerts: Array<{ name: string; current_stock: number; min_stock?: number }> | undefined;
+
+    if (body.status === 'completed' && prevOrder.status !== 'completed') {
+      try {
+        const result = await deductInventoryOnOrderComplete(supabaseAdmin, params.id, organizationId);
+        if (result.lowStockAlerts.length > 0) {
+          lowStockAlerts = result.lowStockAlerts;
+        }
+        const historyDesc = 'Inventario descontado automáticamente al completar la orden.';
+        const { data: u } = await supabaseAdmin.from('users').select('id, full_name').eq('auth_user_id', user.id).single();
+        await supabaseAdmin.from('work_order_history').insert({
+          organization_id: organizationId,
+          work_order_id: params.id,
+          user_id: (u as any)?.id ?? null,
+          user_name: (u as any)?.full_name || 'Sistema',
+          action: 'field_update',
+          description: historyDesc,
+          old_value: null,
+          new_value: null,
+        } as any).then(({ error: he }) => { if (he) console.warn('⚠️ work_order_history insert:', he); });
+      } catch (deductErr) {
+        console.error('❌ [API PUT /work-orders/[id]] Error descontando inventario:', deductErr);
+      }
+    }
+
     // ✅ Registrar historial de cambios (fire-and-forget, no bloquea la respuesta)
     if (updatedOrder && existingOrder) {
       const historyEntries: Array<{
@@ -410,8 +437,7 @@ export async function PUT(
         completed: 'Completada', cancelled: 'Cancelada', pending: 'Pendiente', in_progress: 'En Progreso',
       };
 
-      // Cast para acceder a propiedades de la orden existente
-      const prevOrder = existingOrder as any;
+      // Cast para acceder a propiedades de la orden existente (prevOrder ya definido arriba)
 
       // Cambio de estado
       if (body.status && body.status !== prevOrder.status) {
@@ -479,6 +505,7 @@ export async function PUT(
       success: true,
       data: updatedOrder,
       message: 'Orden de trabajo actualizada exitosamente',
+      ...(lowStockAlerts && lowStockAlerts.length > 0 && { low_stock_alerts: lowStockAlerts }),
     });
   } catch (error) {
     console.error('Error updating work order:', error);
