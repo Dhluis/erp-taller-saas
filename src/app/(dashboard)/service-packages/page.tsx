@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -329,14 +328,7 @@ export default function ServicePackagesPage() {
   };
 
   return (
-    <AppLayout
-      title="Paquetes de Servicio"
-      breadcrumbs={[
-        { label: 'Inventarios', href: '/inventarios' },
-        { label: 'Paquetes de Servicio', href: '/service-packages' },
-      ]}
-    >
-      <div className="space-y-6">
+    <div className="space-y-6">
         <PageHeader
           title="Paquetes de Servicio"
           description="Catálogo de paquetes con receta de productos"
@@ -650,7 +642,6 @@ export default function ServicePackagesPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
-    </AppLayout>
+    </div>
   );
 }
