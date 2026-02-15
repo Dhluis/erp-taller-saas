@@ -431,7 +431,7 @@ export async function createInvoiceFromWorkOrder(
       customer_id: workOrder.customer_id,
       vehicle_id: workOrder.vehicle_id,
       invoice_number: invoiceNumber,
-      status: 'pending',
+      status: 'draft',
       due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       subtotal: itemsTotal,
       tax_amount: 0,
