@@ -431,23 +431,20 @@ export async function createInvoiceFromWorkOrder(
     dueDate.setDate(dueDate.getDate() + 30)
 
     // 8. Crear factura (totales desde items)
+    const issueDate = new Date().toISOString().split('T')[0]
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
       .insert({
         organization_id: workOrder.organization_id,
         customer_id: workOrder.customer_id,
-        vehicle_id: workOrder.vehicle_id,
-        work_order_id: workOrderId,
         invoice_number: invoiceNumber,
         status: 'draft',
-        description: workOrder.description,
+        issue_date: issueDate,
         due_date: dueDate.toISOString().split('T')[0],
         subtotal: useServices ? itemsSubtotal : (workOrder.subtotal ?? itemsSubtotal),
         tax_amount: useServices ? 0 : (workOrder.tax_amount ?? itemsTaxAmount),
-        discount_amount: useServices ? 0 : (workOrder.discount_amount ?? itemsDiscountAmount),
-        total: itemsTotal,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        total_amount: itemsTotal,
+        work_order_id: workOrderId,
       })
       .select(`
         *,
