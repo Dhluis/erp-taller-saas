@@ -104,6 +104,13 @@ const KANBAN_COLUMNS: Omit<KanbanColumnType, 'orders'>[] = [
     bgColor: 'bg-emerald-500/10',
     borderColor: 'border-emerald-500/30',
   },
+  {
+    id: 'cancelled',
+    title: 'Canceladas',
+    color: 'text-red-400',
+    bgColor: 'bg-red-500/10',
+    borderColor: 'border-red-500/30',
+  },
 ];
 
 export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCreateOrder, canCreate = true }: KanbanBoardProps) {
@@ -303,10 +310,19 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
         console.log('Órdenes después de filtros:', filteredOrders.length);
       }
       
+      // Mapear status que no tienen columna al primero (reception)
+      const kanbanStatusIds = new Set(KANBAN_COLUMNS.map(c => c.id));
+      const getColumnForOrder = (order: any) => {
+        const status = order.status;
+        if (kanbanStatusIds.has(status)) return status;
+        if (status === 'pending' || status === 'in_progress') return 'reception';
+        return 'reception';
+      };
+
       // Organizar órdenes por columna
       const newColumns = KANBAN_COLUMNS.map(col => ({
         ...col,
-        orders: filteredOrders.filter(order => order.status === col.id),
+        orders: filteredOrders.filter(order => getColumnForOrder(order) === col.id),
       }));
       
       setColumns(newColumns);
