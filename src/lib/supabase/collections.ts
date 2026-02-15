@@ -45,9 +45,9 @@ export interface UpdateCollectionData {
 }
 
 /**
- * Obtener cobros
+ * Obtener cobros (requiere organization_id para filtrado multi-tenant)
  */
-export async function getCollections(filters?: {
+export async function getCollections(organizationId: string | null, filters?: {
   customer_id?: string
   status?: string
   date_from?: string
@@ -58,6 +58,10 @@ export async function getCollections(filters?: {
       const client = getSupabaseClient()
       
       let query = client.from('collections').select('*')
+      
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId)
+      }
       
       if (filters) {
         if (filters.customer_id) {
@@ -96,9 +100,9 @@ export async function getCollections(filters?: {
 }
 
 /**
- * Obtener estadísticas de cobros
+ * Obtener estadísticas de cobros (requiere organization_id para filtrado multi-tenant)
  */
-export async function getCollectionStats(): Promise<{
+export async function getCollectionStats(organizationId: string | null): Promise<{
   total: number
   pending: number
   paid: number
@@ -111,9 +115,11 @@ export async function getCollectionStats(): Promise<{
     async () => {
       const client = getSupabaseClient()
       
-      const { data, error } = await client
-        .from('collections')
-        .select('status, amount')
+      let query = client.from('collections').select('status, amount')
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId)
+      }
+      const { data, error } = await query
       
       if (error) {
         // Si la tabla no existe, retornar datos vacíos en lugar de lanzar error
@@ -190,9 +196,9 @@ export async function getCollectionById(id: string): Promise<Collection | null> 
 }
 
 /**
- * Crear cobro
+ * Crear cobro (requiere organization_id para multi-tenant)
  */
-export async function createCollection(collection: CreateCollectionData): Promise<Collection> {
+export async function createCollection(organizationId: string, collection: CreateCollectionData): Promise<Collection> {
   return executeWithErrorHandling(
     async () => {
       const client = getSupabaseClient()
@@ -201,6 +207,7 @@ export async function createCollection(collection: CreateCollectionData): Promis
         .from('collections')
         .insert({
           ...collection,
+          organization_id: organizationId,
           status: 'pending'
         })
         .select()

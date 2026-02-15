@@ -58,21 +58,27 @@ export default function IngresosPage() {
   }
 
   useEffect(() => {
-    // Simular carga de datos
     const loadStats = async () => {
       setLoading(true);
-      // Aquí se cargarían los datos reales desde la API
-      setTimeout(() => {
-        setStats({
-          totalRevenue: 125000,
-          monthlyRevenue: 15000,
-          pendingInvoices: 8,
-          paidInvoices: 45,
-          overdueInvoices: 3,
-          averageInvoiceValue: 2500,
-        });
+      try {
+        const res = await fetch('/api/ingresos/stats', { credentials: 'include' });
+        const json = await res.json();
+        if (json.success && json.data) {
+          const d = json.data;
+          setStats({
+            totalRevenue: d.totalRevenue ?? 0,
+            monthlyRevenue: d.monthlyRevenue ?? 0,
+            pendingInvoices: d.pendingInvoices ?? 0,
+            paidInvoices: d.paidInvoices ?? 0,
+            overdueInvoices: d.overdueInvoices ?? 0,
+            averageInvoiceValue: d.averageInvoiceValue ?? 0,
+          });
+        }
+      } catch (e) {
+        console.error('Error loading income stats:', e);
+      } finally {
         setLoading(false);
-      }, 1000);
+      }
     };
 
     loadStats();
@@ -159,7 +165,9 @@ export default function IngresosPage() {
             </CardHeader>
             <CardContent className="p-6">
               <div className="text-2xl font-bold text-text-primary">${stats.monthlyRevenue.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Octubre 2024</p>
+              <p className="text-xs text-muted-foreground">
+                {new Date().toLocaleDateString('es', { month: 'long', year: 'numeric' })}
+              </p>
             </CardContent>
           </Card>
 

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, type SupabaseServerClient } from '@/lib/supabase/server'
 import { executeWithErrorHandling } from '@/lib/core/errors'
 
 /**
@@ -280,12 +280,16 @@ export async function createInvoice(data: {
 
 /**
  * Crear factura desde orden de trabajo completada
+ * Usa work_order_services si existen, sino order_items como fallback
  */
-export async function createInvoiceFromWorkOrder(workOrderId: string) {
+export async function createInvoiceFromWorkOrder(
+  workOrderId: string,
+  supabaseClient?: SupabaseServerClient
+) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const supabase = supabaseClient ?? (await createClient())
 
-    // 1. Obtener work_order con items
+    // 1. Obtener work_order
     const { data: workOrder, error: orderError } = await supabase
       .from('work_orders')
       .select(`
@@ -326,14 +330,74 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
       throw new Error('Esta orden ya tiene una factura asociada')
     }
 
-    // 4. Generar número de factura
+    // 4. Buscar work_order_services de la orden
+    const { data: workOrderServices } = await supabase
+      .from('work_order_services')
+      .select('*')
+      .eq('work_order_id', workOrderId)
+      .eq('organization_id', workOrder.organization_id)
+
+    const useServices = workOrderServices && workOrderServices.length > 0
+
+    // 5. Construir invoice_items y totales según la fuente
+    let invoiceItems: Array<Record<string, unknown>>
+    let itemsSubtotal = 0
+    let itemsTaxAmount = 0
+    let itemsDiscountAmount = 0
+    let itemsTotal = 0
+
+    if (useServices) {
+      invoiceItems = workOrderServices.map((service: any) => {
+        const total = Number(service.total_price ?? service.unit_price * service.quantity) || 0
+        itemsTotal += total
+        return {
+          item_type: 'service',
+          product_id: null,
+          service_id: null,
+          description: service.name || service.description || 'Servicio',
+          quantity: service.quantity ?? 1,
+          unit_price: service.unit_price ?? 0,
+          discount_percent: 0,
+          discount_amount: 0,
+          tax_percent: 0,
+          tax_amount: 0,
+          total,
+        }
+      })
+      itemsSubtotal = itemsTotal
+    } else {
+      // Fallback a order_items
+      const orderItems = workOrder.order_items || []
+      invoiceItems = orderItems.map((item: any) => {
+        const total = Number(item.total) || 0
+        itemsTotal += total
+        itemsTaxAmount += Number(item.tax_amount) || 0
+        itemsDiscountAmount += Number(item.discount_amount) || 0
+        return {
+          item_type: item.item_type,
+          product_id: item.product_id,
+          service_id: item.service_id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_percent: item.discount_percent || 0,
+          discount_amount: item.discount_amount || 0,
+          tax_percent: item.tax_percent || 0,
+          tax_amount: item.tax_amount || 0,
+          total,
+        }
+      })
+      itemsSubtotal = itemsTotal - itemsTaxAmount + itemsDiscountAmount
+    }
+
+    // 6. Generar número de factura
     const invoiceNumber = await generateInvoiceNumber(workOrder.organization_id)
 
-    // 5. Calcular due_date (30 días desde hoy)
+    // 7. Calcular due_date (30 días desde hoy)
     const dueDate = new Date()
     dueDate.setDate(dueDate.getDate() + 30)
 
-    // 6. Crear factura
+    // 8. Crear factura (totales desde items)
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
       .insert({
@@ -345,10 +409,10 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
         status: 'draft',
         description: workOrder.description,
         due_date: dueDate.toISOString().split('T')[0],
-        subtotal: workOrder.subtotal || 0,
-        tax_amount: workOrder.tax_amount || 0,
-        discount_amount: workOrder.discount_amount || 0,
-        total: workOrder.total_amount || 0,
+        subtotal: useServices ? itemsSubtotal : (workOrder.subtotal ?? itemsSubtotal),
+        tax_amount: useServices ? 0 : (workOrder.tax_amount ?? itemsTaxAmount),
+        discount_amount: useServices ? 0 : (workOrder.discount_amount ?? itemsDiscountAmount),
+        total: itemsTotal,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -371,29 +435,20 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
 
     if (invoiceError) throw invoiceError
 
-    // 7. Copiar order_items a invoice_items
-    if (workOrder.order_items && workOrder.order_items.length > 0) {
-      const invoiceItems = workOrder.order_items.map((item: any) => ({
-        invoice_id: invoice.id,
-        item_type: item.item_type,
-        product_id: item.product_id,
-        service_id: item.service_id,
-        description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        discount_percent: item.discount_percent || 0,
-        discount_amount: item.discount_amount || 0,
-        tax_percent: item.tax_percent || 0,
-        tax_amount: item.tax_amount || 0,
-        total: item.total || 0
-      }))
+    // 9. Agregar invoice_id y organization_id a items para insert
+    const itemsToInsert = invoiceItems.map((it) => ({
+      ...it,
+      invoice_id: invoice.id,
+      organization_id: workOrder.organization_id,
+    }))
 
+    // 10. Insertar invoice_items
+    if (itemsToInsert.length > 0) {
       const { error: itemsError } = await supabase
         .from('invoice_items')
-        .insert(invoiceItems)
+        .insert(itemsToInsert)
 
       if (itemsError) {
-        // Rollback: eliminar factura creada
         await supabase.from('invoices').delete().eq('id', invoice.id)
         throw new Error('Error al copiar items de la orden: ' + itemsError.message)
       }
@@ -622,4 +677,52 @@ export async function checkAndUpdateOverdueInvoices(organizationId: string) {
 
     return []
   }, { operation: 'checkAndUpdateOverdueInvoices', table: 'invoices' })
+}
+
+/**
+ * Estadísticas para dashboard de ingresos
+ */
+export async function getIncomeStats(organizationId: string) {
+  return executeWithErrorHandling(async () => {
+    const supabase = await createClient()
+
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('status, total_amount, total, due_date, paid_date, created_at')
+      .eq('organization_id', organizationId)
+
+    if (error) throw error
+
+    const today = new Date()
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
+    const todayStr = today.toISOString().split('T')[0]
+
+    const amt = (i: { total_amount?: number; total?: number }) => Number(i.total_amount ?? i.total ?? 0)
+
+    const paid = (data || []).filter((i) => i.status === 'paid')
+    const pending = (data || []).filter((i) => i.status === 'pending' || i.status === 'draft' || i.status === 'sent')
+    const overdue = (data || []).filter(
+      (i) => i.status === 'overdue' || (i.due_date && i.due_date < todayStr && i.status !== 'paid' && i.status !== 'cancelled')
+    )
+
+    const totalRevenue = (data || [])
+      .filter((i) => i.status !== 'cancelled')
+      .reduce((sum, i) => sum + amt(i), 0)
+    const monthlyRevenue = paid
+      .filter((i) => (i.paid_date || i.created_at || '').slice(0, 10) >= firstDayOfMonth)
+      .reduce((sum, i) => sum + amt(i), 0)
+    const paidCount = paid.length
+    const paidThisMonth = paid.filter((i) => (i.paid_date || i.created_at || '').slice(0, 10) >= firstDayOfMonth).length
+    const totalInvoices = (data || []).filter((i) => i.status !== 'cancelled').length
+    const averageInvoiceValue = totalInvoices > 0 ? totalRevenue / totalInvoices : 0
+
+    return {
+      totalRevenue,
+      monthlyRevenue,
+      pendingInvoices: pending.length,
+      paidInvoices: paidThisMonth,
+      overdueInvoices: overdue.length,
+      averageInvoiceValue,
+    }
+  }, { operation: 'getIncomeStats', table: 'invoices' })
 }

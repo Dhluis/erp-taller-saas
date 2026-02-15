@@ -62,7 +62,7 @@ export async function deductInventoryOnOrderComplete(
           try {
             const { error: movErr } = await supabaseAdmin.from('inventory_movements').insert({
               organization_id: organizationId,
-              product_id: it.inventory_item_id,
+              inventory_id: it.inventory_item_id,
               movement_type: 'exit',
               quantity: Math.round(deductQty),
               previous_stock: current,
@@ -108,7 +108,7 @@ export async function deductInventoryOnOrderComplete(
       try {
         const { error: movErr } = await supabaseAdmin.from('inventory_movements').insert({
           organization_id: organizationId,
-          product_id: svc.inventory_item_id,
+          inventory_id: svc.inventory_item_id,
           movement_type: 'exit',
           quantity: qty,
           previous_stock: current,

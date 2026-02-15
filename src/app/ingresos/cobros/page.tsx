@@ -39,11 +39,13 @@ import {
 import { getCollections, getCollectionStats, createCollection, Collection, CreateCollectionData } from "@/lib/supabase/collections"
 import { useErrorHandler } from "@/lib/utils/error-handler"
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
+import { useSession } from '@/lib/context/SessionContext'
 
 export default function CobrosPage() {
   const router = useRouter()
   const permissions = usePermissions()
   const { currency } = useOrgCurrency()
+  const { organizationId } = useSession()
   
   // ✅ PROTECCIÓN: Solo ADMIN puede acceder a Cobros
   useEffect(() => {
@@ -86,108 +88,56 @@ export default function CobrosPage() {
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [organizationId])
 
   const loadData = async () => {
+    if (!organizationId) {
+      setIsLoading(false)
+      return
+    }
     setIsLoading(true)
     clearError()
     
     try {
       const [collectionsData, statsData] = await Promise.all([
-        getCollections(),
-        getCollectionStats()
+        getCollections(organizationId),
+        getCollectionStats(organizationId)
       ])
       
-      // Si no hay cobros, usar datos mock
-      if (collectionsData.length === 0) {
-        console.log('Using mock data for collections')
-        const mockCollections = [
-          {
-            id: '1',
-            customer_id: 'C001',
-            amount: 2500,
-            currency,
-            status: 'paid' as const,
-            due_date: '2024-01-15T00:00:00Z',
-            created_at: '2024-01-15T00:00:00Z',
-            updated_at: '2024-01-15T00:00:00Z',
-            notes: 'Pago completado',
-            payment_method: 'transfer',
-            paid_date: '2024-01-15T00:00:00Z',
-            reference_number: 'REF-001'
-          },
-          {
-            id: '2',
-            customer_id: 'C002',
-            amount: 1800,
-            currency,
-            status: 'pending' as const,
-            due_date: '2024-01-16T00:00:00Z',
-            created_at: '2024-01-16T00:00:00Z',
-            updated_at: '2024-01-16T00:00:00Z',
-            notes: 'Pendiente de confirmación',
-            payment_method: 'cash',
-            reference_number: 'REF-002'
-          }
-        ]
-        setCollections(mockCollections)
-        setStats({
-          totalCollections: mockCollections.length,
-          completedCollections: mockCollections.filter(c => c.status === 'paid').length,
-          pendingCollections: mockCollections.filter(c => c.status === 'pending').length,
-          totalCollected: mockCollections.filter(c => c.status === 'paid').reduce((sum, c) => sum + c.amount, 0),
-          pendingAmount: mockCollections.filter(c => c.status === 'pending').reduce((sum, c) => sum + c.amount, 0)
-        })
-      } else {
-        setCollections(collectionsData)
-        setStats({
-          totalCollections: statsData.total,
-          completedCollections: statsData.paid,
-          pendingCollections: statsData.pending,
-          totalCollected: statsData.totalPaid,
-          pendingAmount: statsData.totalPending
-        })
-      }
+      setCollections(collectionsData || [])
+      setStats({
+        totalCollections: statsData.total,
+        completedCollections: statsData.paid,
+        pendingCollections: statsData.pending,
+        totalCollected: statsData.totalPaid,
+        pendingAmount: statsData.totalPending
+      })
     } catch (error) {
       console.error('Error loading collections:', error)
       handleError(error instanceof Error ? error : new Error('Error loading data'))
-      
-      // En caso de error, usar datos mock
-      const mockCollections = [
-        {
-          id: '1',
-          customer_id: 'C001',
-          amount: 2500,
-          currency,
-          status: 'paid' as const,
-          due_date: '2024-01-15T00:00:00Z',
-          created_at: '2024-01-15T00:00:00Z',
-          updated_at: '2024-01-15T00:00:00Z',
-          notes: 'Pago completado',
-          payment_method: 'transfer',
-          paid_date: '2024-01-15T00:00:00Z',
-          reference_number: 'REF-001'
-        }
-      ]
-      setCollections(mockCollections)
+      setCollections([])
       setStats({
-        totalCollections: 1,
-        completedCollections: 1,
+        totalCollections: 0,
+        completedCollections: 0,
         pendingCollections: 0,
-        totalCollected: 2500,
+        totalCollected: 0,
         pendingAmount: 0
       })
+    } finally {
+      setIsLoading(false)
     }
-    
-    setIsLoading(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!organizationId) {
+      alert('No se pudo obtener la organización. Intenta recargar la página.')
+      return
+    }
     setIsSubmitting(true)
     
     try {
-      const newCollection = await createCollection(formData)
+      const newCollection = await createCollection(organizationId, formData)
       if (newCollection) {
         // Recargar datos
         await loadData()

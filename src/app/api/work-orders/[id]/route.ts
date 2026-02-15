@@ -4,6 +4,7 @@ import {
   updateWorkOrder,
   deleteWorkOrder,
 } from '@/lib/database/queries/work-orders';
+import { createInvoiceFromWorkOrder } from '@/lib/database/queries/invoices';
 import { hasPermission, canAccessWorkOrder, UserRole } from '@/lib/auth/permissions';
 import { createClientFromRequest } from '@/lib/supabase/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
@@ -403,6 +404,32 @@ export async function PUT(
         } as any).then(({ error: he }) => { if (he) console.warn('⚠️ work_order_history insert:', he); });
       } catch (deductErr) {
         console.error('❌ [API PUT /work-orders/[id]] Error descontando inventario:', deductErr);
+      }
+
+      // Crear factura automáticamente si no existe
+      try {
+        console.log('[Invoice] 🔍 Buscando factura existente para orden:', params.id);
+        const { data: existingInvoice } = await supabaseAdmin
+          .from('invoices')
+          .select('id')
+          .eq('work_order_id', params.id)
+          .maybeSingle();
+        if (existingInvoice) {
+          console.log('[Invoice] ⚠️ Ya existe factura:', existingInvoice.id, '- No se crea duplicado');
+        } else {
+          const { data: services } = await supabaseAdmin
+            .from('work_order_services')
+            .select('id, total_price')
+            .eq('work_order_id', params.id);
+          const servicesList = services || [];
+          const total = servicesList.reduce((sum: number, s: any) => sum + (Number(s?.total_price) || 0), 0);
+          console.log('[Invoice] 📋 Servicios encontrados:', servicesList.length);
+          console.log('[Invoice] 💰 Total calculado:', total);
+          const newInvoice = await createInvoiceFromWorkOrder(params.id, supabaseAdmin);
+          console.log('[Invoice] ✅ Factura creada:', (newInvoice as any)?.id, 'para orden:', params.id);
+        }
+      } catch (invoiceErr: any) {
+        console.error('[Invoice] ❌ Error creando factura:', invoiceErr?.message ?? invoiceErr);
       }
     }
 
