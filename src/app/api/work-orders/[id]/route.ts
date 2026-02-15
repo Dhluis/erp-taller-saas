@@ -425,7 +425,17 @@ export async function PUT(
           const total = servicesList.reduce((sum: number, s: any) => sum + (Number(s?.total_price) || 0), 0);
           console.log('[Invoice] 📋 Servicios encontrados:', servicesList.length);
           console.log('[Invoice] 💰 Total calculado:', total);
-          const newInvoice = await createInvoiceFromWorkOrder(params.id, supabaseAdmin);
+          const newInvoice = await createInvoiceFromWorkOrder(params.id, supabaseAdmin, {
+            organization_id: (updatedOrder as any).organization_id,
+            customer_id: (updatedOrder as any).customer_id,
+            status: 'completed',
+            vehicle_id: (updatedOrder as any).vehicle_id,
+            description: (updatedOrder as any).description,
+            subtotal: (updatedOrder as any).subtotal,
+            tax_amount: (updatedOrder as any).tax_amount,
+            discount_amount: (updatedOrder as any).discount_amount,
+            order_items: (updatedOrder as any).order_items,
+          });
           console.log('[Invoice] ✅ Factura creada:', (newInvoice as any)?.id, 'para orden:', params.id);
         }
       } catch (invoiceErr: any) {

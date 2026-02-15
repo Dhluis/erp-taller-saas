@@ -278,45 +278,78 @@ export async function createInvoice(data: {
   }, { operation: 'createInvoice', table: 'invoices' })
 }
 
+export type CreateInvoiceWorkOrderData = {
+  organization_id: string
+  customer_id: string
+  status: string
+  vehicle_id?: string | null
+  description?: string | null
+  subtotal?: number | null
+  tax_amount?: number | null
+  discount_amount?: number | null
+  order_items?: Array<any>
+}
+
 /**
  * Crear factura desde orden de trabajo completada
  * Usa work_order_services si existen, sino order_items como fallback
  */
 export async function createInvoiceFromWorkOrder(
   workOrderId: string,
-  supabaseClient?: SupabaseServerClient
+  supabaseClient: SupabaseServerClient,
+  workOrderData?: CreateInvoiceWorkOrderData
 ) {
   return executeWithErrorHandling(async () => {
-    const supabase = supabaseClient ?? (await createClient())
+    const supabase = supabaseClient
+    let workOrder: any
 
-    // 1. Obtener work_order
-    const { data: workOrder, error: orderError } = await supabase
-      .from('work_orders')
-      .select(`
-        *,
-        order_items (
-          item_type,
-          product_id,
-          service_id,
-          description,
-          quantity,
-          unit_price,
-          discount_percent,
-          discount_amount,
-          tax_percent,
-          tax_amount,
-          total
-        )
-      `)
-      .eq('id', workOrderId)
-      .single()
+    if (workOrderData) {
+      console.log('[Invoice] 🏢 workOrderData recibido:', workOrderData)
+      // Usar datos pasados directamente, saltar query
+      if (workOrderData.status !== 'completed') {
+        throw new Error('Solo se pueden facturar órdenes completadas')
+      }
+      workOrder = {
+        organization_id: workOrderData.organization_id,
+        customer_id: workOrderData.customer_id,
+        vehicle_id: workOrderData.vehicle_id ?? null,
+        description: workOrderData.description ?? '',
+        subtotal: workOrderData.subtotal ?? 0,
+        tax_amount: workOrderData.tax_amount ?? 0,
+        discount_amount: workOrderData.discount_amount ?? 0,
+        order_items: workOrderData.order_items ?? [],
+      }
+    } else {
+      // Fallback: query a work_orders
+      console.log('[Invoice] 🏢 workOrderData recibido:', workOrderData)
+      const { data, error: orderError } = await supabase
+        .from('work_orders')
+        .select(`
+          *,
+          order_items (
+            item_type,
+            product_id,
+            service_id,
+            description,
+            quantity,
+            unit_price,
+            discount_percent,
+            discount_amount,
+            tax_percent,
+            tax_amount,
+            total
+          )
+        `)
+        .eq('id', workOrderId)
+        .single()
 
-    if (orderError) throw new Error('Orden de trabajo no encontrada')
-    if (!workOrder) throw new Error('Orden de trabajo no encontrada')
+      if (orderError) throw new Error('Orden de trabajo no encontrada')
+      if (!data) throw new Error('Orden de trabajo no encontrada')
+      workOrder = data
 
-    // 2. Verificar que esté completada
-    if (workOrder.status !== 'completed') {
-      throw new Error('Solo se pueden facturar órdenes completadas')
+      if (workOrder.status !== 'completed') {
+        throw new Error('Solo se pueden facturar órdenes completadas')
+      }
     }
 
     // 3. Verificar que no tenga factura ya

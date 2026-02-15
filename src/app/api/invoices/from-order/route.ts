@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createInvoiceFromWorkOrder } from '@/lib/database/queries/invoices'
+import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
 // POST /api/invoices/from-order - Crear factura desde orden de trabajo
 export async function POST(request: NextRequest) {
@@ -17,7 +18,8 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const invoice = await createInvoiceFromWorkOrder(body.work_order_id)
+    const supabaseAdmin = getSupabaseServiceClient()
+    const invoice = await createInvoiceFromWorkOrder(body.work_order_id, supabaseAdmin)
     
     return NextResponse.json(
       {
