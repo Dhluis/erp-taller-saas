@@ -352,14 +352,13 @@ export async function createInvoiceFromWorkOrder(
       }
     }
 
-    // 3. Verificar que no tenga factura ya
-    const { data: existingInvoice } = await supabase
+    // 3. Verificar que no tenga factura ya (por notes, work_order_id no existe en invoices)
+    const { data: existingInvoices } = await supabase
       .from('invoices')
       .select('id')
-      .eq('work_order_id', workOrderId)
-      .single()
+      .ilike('notes', `%${workOrderId}%`)
 
-    if (existingInvoice) {
+    if (existingInvoices && existingInvoices.length > 0) {
       throw new Error('Esta orden ya tiene una factura asociada')
     }
 
@@ -426,26 +425,23 @@ export async function createInvoiceFromWorkOrder(
     // 6. Generar número de factura
     const invoiceNumber = await generateInvoiceNumber(workOrder.organization_id)
 
-    // 7. Calcular due_date (30 días desde hoy)
-    const dueDate = new Date()
-    dueDate.setDate(dueDate.getDate() + 30)
-
-    // 8. Crear factura (totales desde items)
-    const issueDate = new Date().toISOString().split('T')[0]
+    // 8. Crear factura
+    const invoiceData = {
+      organization_id: workOrder.organization_id,
+      customer_id: workOrder.customer_id,
+      vehicle_id: workOrder.vehicle_id,
+      invoice_number: invoiceNumber,
+      status: 'pending',
+      due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      subtotal: itemsTotal,
+      tax_amount: 0,
+      discount_amount: 0,
+      total: itemsTotal,
+      notes: `Generado automáticamente desde orden ${workOrderId}`,
+    }
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
-      .insert({
-        organization_id: workOrder.organization_id,
-        customer_id: workOrder.customer_id,
-        invoice_number: invoiceNumber,
-        status: 'draft',
-        issue_date: issueDate,
-        due_date: dueDate.toISOString().split('T')[0],
-        subtotal: useServices ? itemsSubtotal : (workOrder.subtotal ?? itemsSubtotal),
-        tax_amount: useServices ? 0 : (workOrder.tax_amount ?? itemsTaxAmount),
-        total_amount: itemsTotal,
-        work_order_id: workOrderId,
-      })
+      .insert(invoiceData)
       .select(`
         *,
         customers (
@@ -465,11 +461,18 @@ export async function createInvoiceFromWorkOrder(
 
     if (invoiceError) throw invoiceError
 
-    // 9. Agregar invoice_id y organization_id a items para insert
-    const itemsToInsert = invoiceItems.map((it) => ({
-      ...it,
+    // 9. Mapear items a columnas válidas de invoice_items
+    // (invoice_id, organization_id, description, quantity, unit_price, discount_percent, subtotal, tax_amount, total)
+    const itemsToInsert = invoiceItems.map((it: any) => ({
       invoice_id: invoice.id,
       organization_id: workOrder.organization_id,
+      description: it.description || 'Item',
+      quantity: it.quantity ?? 1,
+      unit_price: it.unit_price ?? 0,
+      discount_percent: it.discount_percent ?? 0,
+      subtotal: it.total ?? 0,
+      tax_amount: it.tax_amount ?? 0,
+      total: it.total ?? 0,
     }))
 
     // 10. Insertar invoice_items
