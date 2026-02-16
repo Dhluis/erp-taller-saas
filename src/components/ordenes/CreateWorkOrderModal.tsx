@@ -312,6 +312,26 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   // Estados para términos y condiciones
   const [termsFilePreview, setTermsFilePreview] = useState<string | null>(null) // URL del preview del PDF
   const signatureRef = useRef<SignatureCanvas>(null) // Referencia para el canvas de firma
+  const signatureContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const adjustCanvas = () => {
+      if (signatureContainerRef.current && signatureRef.current) {
+        const container = signatureContainerRef.current
+        const canvas = signatureRef.current.getCanvas()
+        const rect = container.getBoundingClientRect()
+        canvas.width = rect.width
+        canvas.height = 150
+        signatureRef.current.clear()
+      }
+    }
+    const timer = setTimeout(adjustCanvas, 100)
+    window.addEventListener('resize', adjustCanvas)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('resize', adjustCanvas)
+    }
+  }, [])
 
   // ✅ Estado para fotos temporales durante la creación
   const [temporaryImages, setTemporaryImages] = useState<TemporaryImage[]>([])
@@ -2649,13 +2669,12 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             <Label className="text-sm font-medium mb-3 block">
               Firma Digital del Cliente *
             </Label>
-            <div className="bg-white rounded-lg p-4 border border-slate-600">
+            <div ref={signatureContainerRef} className="bg-white rounded-lg p-4 border border-slate-600">
               <SignatureCanvas
                 ref={signatureRef}
                 canvasProps={{
-                  width: 500,
                   height: 150,
-                  className: 'signature-canvas w-full'
+                  className: 'signature-canvas w-full block'
                 }}
                 onEnd={handleSignatureEnd}
                 backgroundColor="white"

@@ -104,13 +104,6 @@ const KANBAN_COLUMNS: Omit<KanbanColumnType, 'orders'>[] = [
     bgColor: 'bg-emerald-500/10',
     borderColor: 'border-emerald-500/30',
   },
-  {
-    id: 'cancelled',
-    title: 'Canceladas',
-    color: 'text-red-400',
-    bgColor: 'bg-red-500/10',
-    borderColor: 'border-red-500/30',
-  },
 ];
 
 export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCreateOrder, canCreate = true }: KanbanBoardProps) {
