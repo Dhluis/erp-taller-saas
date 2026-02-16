@@ -277,45 +277,52 @@ export async function getSalesReport(
 
 /**
  * Obtener reporte de inventario
+ * Usa tabla 'inventory' (no products)
  */
 export async function getInventoryReport(organizationId: string) {
   return executeWithErrorHandling(async () => {
     const supabase = await createClient()
 
-    // 1. Valor total del inventario
-    const { data: productsData } = await supabase
-      .from('products')
-      .select('stock_quantity, price, cost')
+    // 1. Obtener inventario (tabla inventory)
+    const { data: inventoryData } = await supabase
+      .from('inventory')
+      .select('id, name, code, sku, category, unit, current_stock, min_stock, max_stock, unit_price, status')
       .eq('organization_id', organizationId)
-      .eq('is_active', true)
+      .neq('status', 'inactive')
 
-    const totalValue = productsData?.reduce((sum, product) => 
-      sum + (product.stock_quantity * product.price), 0) || 0
+    const allItems = inventoryData || []
+    const totalValue = allItems.reduce((sum, item) =>
+      sum + ((item.current_stock || 0) * (item.unit_price || 0)), 0)
+    const totalCost = 0 // no existe columna cost en inventory
 
-    const totalCost = productsData?.reduce((sum, product) => 
-      sum + (product.stock_quantity * product.cost), 0) || 0
+    const lowStockProducts = allItems.filter(item =>
+      (item.current_stock || 0) <= (item.min_stock ?? 0)
+    ).map(item => ({
+      id: item.id,
+      name: item.name,
+      code: item.code,
+      current_stock: item.current_stock ?? 0,
+      min_stock: item.min_stock ?? 0,
+      category: item.category
+    }))
 
-    // 2. Productos bajo mínimo y sobre stock máximo
-    const { data: allProducts } = await supabase
-      .from('products')
-      .select('id, name, code, stock_quantity, min_stock, max_stock, price, cost')
-      .eq('organization_id', organizationId)
-      .eq('is_active', true)
+    const overStockProducts = allItems.filter(item =>
+      (item.max_stock ?? 0) > 0 && (item.current_stock || 0) >= (item.max_stock ?? 0)
+    ).map(item => ({
+      id: item.id,
+      name: item.name,
+      code: item.code,
+      current_stock: item.current_stock ?? 0,
+      max_stock: item.max_stock ?? 0,
+      category: item.category
+    }))
 
-    const lowStockProducts = allProducts?.filter(product => 
-      product.stock_quantity <= product.min_stock
-    ) || []
-
-    const overStockProducts = allProducts?.filter(product => 
-      product.stock_quantity >= product.max_stock
-    ) || []
-
-    // 4. Movimientos recientes (últimos 30 días)
+    // 2. Movimientos recientes (inventory_movements con FK inventory_id)
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     const startDate = thirtyDaysAgo.toISOString().split('T')[0]
 
-    const { data: recentMovements } = await supabase
+    const { data: recentMovementsRaw } = await supabase
       .from('inventory_movements')
       .select(`
         id,
@@ -324,39 +331,38 @@ export async function getInventoryReport(organizationId: string) {
         reference,
         notes,
         created_at,
-        products!inner(name, code)
+        inventory!inventory_id(name, code)
       `)
+      .eq('organization_id', organizationId)
       .gte('created_at', startDate)
       .order('created_at', { ascending: false })
       .limit(50)
 
-    // 5. Categorías de productos
-    const { data: categoriesData } = await supabase
-      .from('products')
-      .select('category, stock_quantity, price')
-      .eq('organization_id', organizationId)
-      .eq('is_active', true)
-      .not('category', 'is', null)
+    const recentMovements = (recentMovementsRaw || []).map((m: { inventory?: { name?: string; code?: string } }) => ({
+      ...m,
+      inventory: m.inventory || { name: '-', code: '-' }
+    }))
 
-    const categoriesMap = new Map()
-    categoriesData?.forEach(product => {
-      const category = product.category || 'Sin categoría'
+    // 3. Categorías agrupadas por category de inventory
+    const categoriesMap = new Map<string, { count: number; value: number }>()
+    allItems.forEach(item => {
+      const category = item.category || 'Sin categoría'
       const current = categoriesMap.get(category) || { count: 0, value: 0 }
       categoriesMap.set(category, {
         count: current.count + 1,
-        value: current.value + (product.stock_quantity * product.price)
+        value: current.value + ((item.current_stock || 0) * (item.unit_price || 0))
       })
     })
 
     const categoriesBreakdown = Array.from(categoriesMap.entries())
-      .map(([category, data]) => ({ category, ...data }))
+      .map(([category, data]) => ({ category, count: data.count, value: data.value }))
       .sort((a, b) => b.value - a.value)
 
-    // 6. Estadísticas generales
-    const totalProducts = productsData?.length || 0
-    const totalStock = productsData?.reduce((sum, product) => sum + product.stock_quantity, 0) || 0
-    const lowStockCount = lowStockProducts?.length || 0
-    const overStockCount = overStockProducts?.length || 0
+    // 4. Estadísticas
+    const totalProducts = allItems.length
+    const totalStock = allItems.reduce((sum, item) => sum + (item.current_stock || 0), 0)
+    const lowStockCount = lowStockProducts.length
+    const overStockCount = overStockProducts.length
 
     return {
       summary: {
@@ -368,13 +374,13 @@ export async function getInventoryReport(organizationId: string) {
         low_stock_count: lowStockCount,
         over_stock_count: overStockCount
       },
-      low_stock_products: lowStockProducts || [],
-      over_stock_products: overStockProducts || [],
-      recent_movements: recentMovements || [],
+      low_stock_products: lowStockProducts,
+      over_stock_products: overStockProducts,
+      recent_movements,
       categories_breakdown: categoriesBreakdown,
       alerts: {
-        low_stock_alerts: lowStockProducts?.length || 0,
-        over_stock_alerts: overStockProducts?.length || 0
+        low_stock_alerts: lowStockCount,
+        over_stock_alerts: overStockCount
       }
     }
   }, { operation: 'getInventoryReport', table: 'multiple' })

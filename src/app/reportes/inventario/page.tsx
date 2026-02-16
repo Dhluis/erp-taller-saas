@@ -21,10 +21,16 @@ import {
   TrendingDown,
   BarChart3
 } from "lucide-react"
-import { getInventoryReport, InventoryReport } from "@/lib/supabase/reports"
+interface ReportState {
+  totalProducts: number
+  lowStockProducts: number
+  totalValue: number
+  categories: Array<{ name: string; count: number; value: number }>
+  lowStockItems: Array<{ id?: string; name: string; current_stock: number; min_stock: number; category?: string }>
+}
 
 export default function ReportesInventarioPage() {
-  const [report, setReport] = useState<InventoryReport>({
+  const [report, setReport] = useState<ReportState>({
     totalProducts: 0,
     lowStockProducts: 0,
     totalValue: 0,
@@ -42,50 +48,38 @@ export default function ReportesInventarioPage() {
     setSelectedPeriod(period)
   }
 
-  // Función helper para datos mock (definida antes de loadReport)
-  const getMockReport = (): InventoryReport => ({
-    totalProducts: 13,
-    lowStockProducts: 4,
-    totalValue: 0,
-    categories: [
-      { name: 'Repuestos', count: 5, value: 0 },
-      { name: 'Herramientas', count: 6, value: 0 },
-      { name: 'Consumibles', count: 2, value: 0 }
-    ],
-    lowStockItems: [
-      { name: 'filtro de aceite', current_stock: 2, min_stock: 5, category: 'Filtros' },
-      { name: 'transmision', current_stock: 1, min_stock: 3, category: 'Transmisión' },
-      { name: 'filtro de transmisión', current_stock: 0, min_stock: 2, category: 'Filtros' },
-      { name: 'filtro de transmisión', current_stock: 1, min_stock: 4, category: 'Filtros' }
-    ]
-  })
-
   const loadReport = async () => {
     setIsLoading(true)
-    
-    // Mostrar datos mock inmediatamente para evitar loading infinito
-    setReport(getMockReport())
-    setIsLoading(false)
-    
-    // Intentar cargar datos reales en segundo plano (sin bloquear la UI)
     try {
-      const timeoutPromise = new Promise<null>((_, reject) => {
-        setTimeout(() => reject(new Error('Timeout')), 3000)
-      })
-      
-      const reportData = await Promise.race([
-        getInventoryReport().catch(() => null),
-        timeoutPromise
-      ]) as InventoryReport | null
-      
-      // Si hay datos válidos, actualizar (sin mostrar loading)
-      if (reportData && reportData.totalProducts > 0) {
-        setReport(reportData)
-        console.log('✅ Datos reales cargados')
+      const res = await fetch('/api/reports/inventory')
+      const json = await res.json()
+      const data = json.data
+      if (!res.ok || !data) {
+        setReport({ totalProducts: 0, lowStockProducts: 0, totalValue: 0, categories: [], lowStockItems: [] })
+        return
       }
+      setReport({
+        totalProducts: data.summary?.total_products ?? 0,
+        lowStockProducts: data.summary?.low_stock_count ?? 0,
+        totalValue: data.summary?.total_value ?? 0,
+        categories: (data.categories_breakdown ?? []).map((c: { category: string; count: number; value: number }) => ({
+          name: c.category,
+          count: c.count,
+          value: c.value
+        })),
+        lowStockItems: (data.low_stock_products ?? []).map((p: { id?: string; name?: string; current_stock?: number; min_stock?: number; category?: string }) => ({
+          id: p.id,
+          name: p.name ?? '-',
+          current_stock: p.current_stock ?? 0,
+          min_stock: p.min_stock ?? 0,
+          category: p.category
+        }))
+      })
     } catch (error) {
-      // Silenciosamente fallar - ya tenemos datos mock mostrados
-      console.log('⚠️ Usando datos mock (API no disponible)')
+      console.error('Error cargando reporte de inventario:', error)
+      setReport({ totalProducts: 0, lowStockProducts: 0, totalValue: 0, categories: [], lowStockItems: [] })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -198,14 +192,14 @@ export default function ReportesInventarioPage() {
             <div className="space-y-4">
               {report.lowStockItems.length > 0 ? (
                 report.lowStockItems.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+                  <div key={item.id ?? index} className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg">
                     <div>
                       <p className="font-medium text-gray-900">{item.name}</p>
                       <p className="text-sm text-gray-700">{item.category}</p>
                     </div>
                     <div className="text-right">
                       <Badge variant="outline" className="bg-orange-500 text-white">
-                        {(item as any).current_stock || (item as any).currentStock}/{(item as any).min_stock || (item as any).minStock}
+                        {item.current_stock}/{item.min_stock}
                       </Badge>
                     </div>
                   </div>
