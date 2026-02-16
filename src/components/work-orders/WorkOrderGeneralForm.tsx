@@ -326,6 +326,16 @@ export function WorkOrderGeneralForm({
 
     // 2. Actualizar vehículo (placa, marca, modelo, año, color, km)
     try {
+      console.log('🔍 [DEBUG] order.vehicle_id:', order.vehicle_id)
+      console.log('🔍 [DEBUG] formData vehículo:', {
+        brand: formData.vehicleBrand,
+        model: formData.vehicleModel,
+        year: formData.vehicleYear,
+        plate: formData.vehiclePlate,
+        color: formData.vehicleColor,
+        mileage: formData.vehicleMileage
+      })
+
       if (order.vehicle_id) {
         const vehicleUpdate: Record<string, unknown> = {}
         if (formData.vehicleBrand)   vehicleUpdate.brand = formData.vehicleBrand
@@ -335,17 +345,30 @@ export function WorkOrderGeneralForm({
         if (formData.vehicleColor !== undefined) vehicleUpdate.color = formData.vehicleColor || null
         if (formData.vehicleMileage) vehicleUpdate.mileage = parseInt(formData.vehicleMileage) || null
 
+        console.log('📊 [DEBUG] vehicleUpdate a enviar:', vehicleUpdate)
+        console.log('📊 [DEBUG] Cantidad de campos a actualizar:', Object.keys(vehicleUpdate).length)
+
         if (Object.keys(vehicleUpdate).length > 0) {
-          const { error: vehicleError } = await supabase
+          const { data: vehicleData, error: vehicleError } = await supabase
             .from('vehicles')
             .update(vehicleUpdate as any)
             .eq('id', order.vehicle_id)
+            .select()
+
+          console.log('✅ [DEBUG] Respuesta de Supabase vehicles:', vehicleData)
+          console.log('❌ [DEBUG] Error de Supabase vehicles:', vehicleError)
 
           if (vehicleError) {
             console.error('[WorkOrderGeneralForm] Error actualizando vehículo:', vehicleError)
             errors.push(`Vehículo: ${vehicleError.message}`)
+          } else {
+            console.log('✅ [DEBUG] Vehículo actualizado exitosamente')
           }
+        } else {
+          console.warn('⚠️ [DEBUG] No hay campos de vehículo para actualizar')
         }
+      } else {
+        console.error('❌ [DEBUG] No hay vehicle_id en la orden')
       }
     } catch (err: any) {
       console.error('[WorkOrderGeneralForm] Error actualizando vehículo:', err)

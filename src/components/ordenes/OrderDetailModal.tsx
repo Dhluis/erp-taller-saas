@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import AssignMechanicModal from '@/components/mecanicos/AssignMechanicModal';
+import { EditWorkOrderModal } from './EditWorkOrderModal';
 import { useSession } from '@/lib/context/SessionContext';
 import { useOrgCurrency } from '@/lib/context/CurrencyContext';
 import { toast } from 'sonner';
@@ -34,6 +35,7 @@ export function OrderDetailModal({ isOpen, onClose, order, onUpdate }: OrderDeta
   const { profile } = useSession()
   const { currency } = useOrgCurrency()
   const [showAssignMechanic, setShowAssignMechanic] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // ✅ Validar permisos para reasignar órdenes
   const canReassignOrders = profile?.role === 'ADMIN' || profile?.role === 'ASESOR'
@@ -361,7 +363,7 @@ export function OrderDetailModal({ isOpen, onClose, order, onUpdate }: OrderDeta
               Cerrar
             </button>
             <button
-              onClick={() => console.log('Editar orden:', order.id)}
+              onClick={() => setIsEditModalOpen(true)}
               className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors"
             >
               Editar Orden
@@ -377,6 +379,16 @@ export function OrderDetailModal({ isOpen, onClose, order, onUpdate }: OrderDeta
         orderId={order.id}
         currentMechanicId={((order as any).assigned_user as any)?.id || (order as any).assigned_to || null}
         onSuccess={handleAssignSuccess}
+      />
+
+      {/* Modal de edición de orden */}
+      <EditWorkOrderModal
+        open={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        order={order}
+        onSuccess={async () => {
+          if (onUpdate) await onUpdate();
+        }}
       />
     </>
   );
