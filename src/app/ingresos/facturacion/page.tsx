@@ -1,702 +1,673 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { MainLayout } from "@/components/main-layout"
-import { Button } from "@/components/ui/button"
-import { usePermissions } from '@/hooks/usePermissions'
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { PageHeader } from '@/components/navigation/page-header'
-import ModernIcons from '@/components/icons/ModernIcons'
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Button } from '@/components/ui/button';
+import { usePermissions } from '@/hooks/usePermissions';
+import { useOrganization } from '@/lib/context/SessionContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
-  Plus,
-  Search,
-  Edit,
-  Trash2,
-  Loader2,
-  CalendarDays
-} from "lucide-react"
-import { 
-  getInvoiceStats, 
-  createInvoice,
-  updateInvoice,
-  deleteInvoice,
-  SalesInvoice
-} from "@/lib/supabase/quotations-invoices"
-import { useInvoices } from '@/hooks/useInvoices'
-import { Pagination } from '@/components/ui/pagination'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { PageHeader } from '@/components/navigation/page-header';
+import { Pagination } from '@/components/ui/pagination';
+import { Plus, Search, Eye, DollarSign, XCircle, Loader2, CalendarDays } from 'lucide-react';
+import { useInvoices } from '@/hooks/useInvoices';
+import { toast } from 'sonner';
 
-// Alias para compatibilidad
-type Invoice = SalesInvoice & {
-  vehicle_info?: string
-  service_description?: string
-  total?: number
-  tax_amount?: number
-  paid_date?: string
-  payment_method?: string
-}
+type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+type StatusFilter = 'all' | 'pending' | 'paid' | 'overdue';
 
-// Interfaz para el formulario de factura
-interface CreateInvoiceFormData {
+interface Invoice {
+  id: string;
   invoice_number: string;
-  customer_id: string;
-  vehicle_id: string;
-  status: string;
-  subtotal: number;
-  tax_amount: number;
-  total: number;
+  status: InvoiceStatus;
+  total?: number;
+  total_amount?: number;
+  subtotal?: number;
+  tax_amount?: number;
+  discount_amount?: number;
   due_date: string;
+  paid_date?: string;
+  created_at: string;
   notes?: string;
-  service_description?: string;
-  payment_method?: string;
+  customer_id?: string;
+  vehicle_id?: string;
+  customer?: { id: string; name: string; email?: string; phone?: string };
+  vehicle?: { id: string; brand: string; model: string; year?: number; license_plate?: string };
+  invoice_items?: Array<{
+    id: string;
+    description?: string;
+    quantity: number;
+    unit_price: number;
+    total: number;
+  }>;
 }
-import { getCustomers } from "@/lib/supabase/customers"
+
+interface Payment {
+  id: string;
+  amount: number;
+  payment_method: string;
+  payment_date: string;
+  reference?: string;
+  notes?: string;
+}
+
+const STATUS_BADGES: Record<InvoiceStatus, { label: string; className: string }> = {
+  draft: { label: 'Borrador', className: 'bg-gray-500/20 text-gray-400 border-gray-500/40' },
+  sent: { label: 'Enviada', className: 'bg-blue-500/20 text-blue-400 border-blue-500/40' },
+  paid: { label: 'Pagada', className: 'bg-green-500/20 text-green-400 border-green-500/40' },
+  overdue: { label: 'Vencida', className: 'bg-red-500/20 text-red-400 border-red-500/40' },
+  cancelled: { label: 'Cancelada', className: 'bg-gray-500/20 text-gray-400 border-gray-500/40' },
+};
+
+const PAYMENT_METHODS = [
+  { value: 'cash', label: 'Efectivo' },
+  { value: 'card', label: 'Tarjeta' },
+  { value: 'transfer', label: 'Transferencia/SPEI' },
+  { value: 'check', label: 'Cheque' },
+  { value: 'other', label: 'Otro' },
+];
 
 export default function FacturacionPage() {
-  const permissions = usePermissions()
-  const router = useRouter()
-  
-  // ✅ PROTECCIÓN: Solo ADMIN puede acceder a Facturación
+  const router = useRouter();
+  const permissions = usePermissions();
+  const { organizationId, ready } = useOrganization();
+  const hasLoadedRef = useRef(false);
+
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    monthlyRevenue: 0,
+    pendingInvoices: 0,
+    paidInvoices: 0,
+    overdueInvoices: 0,
+    averageInvoiceValue: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null);
+  const [viewPayments, setViewPayments] = useState<Payment[]>([]);
+  const [viewTotalPaid, setViewTotalPaid] = useState(0);
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  const [payInvoice, setPayInvoice] = useState<Invoice | null>(null);
+  const [payInvoiceTotalPaid, setPayInvoiceTotalPaid] = useState(0);
+  const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
+
+  const statusParam =
+    statusFilter === 'all' ? undefined : statusFilter;
+  const { invoices, pagination, isLoading, mutate } = useInvoices(
+    page,
+    pageSize,
+    statusParam,
+    searchQuery
+  );
+
+  const filteredInvoices = invoices;
+
   useEffect(() => {
     if (!permissions.isAdmin && !permissions.canRead('invoices')) {
       router.push('/dashboard');
     }
   }, [permissions, router]);
-  
-  const canPay = permissions.canPayInvoices()
-  const canCreate = permissions.canCreate('invoices')
-  const canDelete = permissions.canDelete('invoices')
-  const canUpdate = permissions.canUpdate('invoices')
-  
-  // Si no tiene permisos, no renderizar nada
+
+  useEffect(() => {
+    if (hasLoadedRef.current || !ready || !organizationId) return;
+    hasLoadedRef.current = true;
+
+    const loadStats = async () => {
+      setStatsLoading(true);
+      try {
+        const res = await fetch('/api/ingresos/stats', { credentials: 'include' });
+        const json = await res.json();
+        if (json.success && json.data) {
+          const d = json.data;
+          setStats({
+            totalRevenue: d.totalRevenue ?? d.total_cobrado ?? 0,
+            monthlyRevenue: d.monthlyRevenue ?? d.ingresos_este_mes ?? 0,
+            pendingInvoices: d.pendingInvoices ?? d.facturas_pendientes ?? 0,
+            paidInvoices: d.paidInvoices ?? d.facturas_pagadas ?? 0,
+            overdueInvoices: d.overdueInvoices ?? d.facturas_vencidas ?? 0,
+            averageInvoiceValue: d.averageInvoiceValue ?? 0,
+          });
+        }
+      } catch (e) {
+        console.error('Error loading stats:', e);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    loadStats();
+  }, [organizationId, ready]);
+
+  const canPay = permissions.canPayInvoices();
+  const canCreate = permissions.canCreate('invoices');
+  const canDelete = permissions.canDelete('invoices');
+
   if (!permissions.isAdmin && !permissions.canRead('invoices')) {
     return null;
   }
-  
-  const [searchTerm, setSearchTerm] = useState("")
-  const [page, setPage] = useState(1)
-  const [pageSize] = useState(20)
-  const [customers, setCustomers] = useState<any[]>([])
-  const [stats, setStats] = useState({
-    totalInvoices: 0,
-    pendingInvoices: 0,
-    paidInvoices: 0,
-    overdueInvoices: 0,
-    totalAmount: 0,
-    totalPaid: 0,
-    totalPending: 0
-  })
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  
-  // Hook de invoices con paginación
-  const { invoices, pagination, isLoading, error, mutate } = useInvoices(page, pageSize)
-  
-  // Form data
-  const [formData, setFormData] = useState<CreateInvoiceFormData>({
-    invoice_number: '',
-    customer_id: '',
-    vehicle_id: '',
-    status: 'draft',
-    subtotal: 0,
-    tax_amount: 0,
-    total: 0,
-    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 días desde hoy
-    notes: ''
-  })
 
-  // Cargar estadísticas y clientes al montar (no paginados)
-  useEffect(() => {
-    const loadStatsAndCustomers = async () => {
-      try {
-        const [statsData, customersData] = await Promise.all([
-          getInvoiceStats(),
-          getCustomers()
-        ])
-        
-        setStats(statsData)
-        
-        // Si no hay clientes, usar datos mock
-        if (customersData.length === 0) {
-          console.log('Using mock data for customers')
-          const mockCustomers = [
-            { id: '1', name: 'Juan Pérez', email: 'juan@email.com', phone: '+52 81 1111 2222' },
-            { id: '2', name: 'María García', email: 'maria@email.com', phone: '+52 55 3333 4444' },
-            { id: '3', name: 'Carlos Ruiz', email: 'carlos@email.com', phone: '+52 33 5555 6666' }
-          ]
-          setCustomers(mockCustomers)
-        } else {
-          setCustomers(customersData)
-        }
-      } catch (error) {
-        console.error('Error loading stats and customers:', error)
-      }
-    }
-    
-    loadStatsAndCustomers()
-  }, [])
-
-  const filteredInvoices = invoices.filter(
-    (invoice) =>
-      (invoice.invoice_number || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (invoice.notes || '').toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "draft":
-        return <Badge variant="outline" className="bg-gray-500 text-white">Borrador</Badge>
-      case "sent":
-        return <Badge variant="outline" className="bg-yellow-500 text-white">Enviada</Badge>
-      case "paid":
-        return <Badge variant="outline" className="bg-green-500 text-white">Pagada</Badge>
-      case "overdue":
-        return <Badge variant="outline" className="bg-red-500 text-white">Vencida</Badge>
-      case "cancelled":
-        return <Badge variant="outline" className="bg-gray-500 text-white">Cancelada</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
-    }
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { id, value } = e.target
-    setFormData(prev => ({ ...prev, [id]: value }))
-  }
-
-  const handleSelectChange = (id: string, value: string) => {
-    setFormData(prev => ({ ...prev, [id]: value }))
-  }
-
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = e.target
-    const numValue = parseFloat(value) || 0
-    setFormData(prev => {
-      const updated = { ...prev, [id]: numValue }
-      // Recalcular total si cambia subtotal o tax_amount
-      if (id === 'subtotal' || id === 'tax_amount') {
-        updated.total = updated.subtotal + updated.tax_amount
-      }
-      return updated
-    })
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-
-    try {
-      let result
-      if (editingInvoice) {
-        result = await updateInvoice(editingInvoice.id, formData)
-      } else {
-        result = await createInvoice({
-          customer_id: formData.customer_id,
-          vehicle_id: formData.vehicle_id,
-          description: formData.notes || '',
-          due_date: formData.due_date,
-          notes: formData.notes
-        })
-      }
-      
-      if (result) {
-        setIsDialogOpen(false)
-        setEditingInvoice(null)
-        setFormData({
-          invoice_number: '',
-          customer_id: '',
-          vehicle_id: '',
-          status: 'draft',
-          subtotal: 0,
-          tax_amount: 0,
-          total: 0,
-          due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          notes: ''
-        })
-        
-        // Recargar invoices y estadísticas
-        await mutate()
-        const statsData = await getInvoiceStats()
-        setStats(statsData)
-        
-        alert(editingInvoice ? 'Factura actualizada exitosamente' : 'Factura creada exitosamente')
-      } else {
-        alert('Error al procesar la factura')
-      }
-    } catch (error) {
-      console.error('Error processing invoice:', error)
-      alert('Error al procesar la factura')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleEdit = (invoice: Invoice) => {
-    setEditingInvoice(invoice)
-    setFormData({
-      invoice_number: invoice.invoice_number,
-      customer_id: invoice.customer_id,
-      vehicle_id: invoice.vehicle_id,
-      status: invoice.status,
-      subtotal: invoice.subtotal || 0,
-      tax_amount: invoice.tax_amount || invoice.tax || 0,
-      total: invoice.total || invoice.total_amount || 0,
-      due_date: invoice.due_date ? (typeof invoice.due_date === 'string' ? invoice.due_date.split('T')[0] : invoice.due_date) : new Date().toISOString().split('T')[0],
-      notes: invoice.notes || ''
-    })
-    setIsDialogOpen(true)
-  }
-
-  const handleMarkAsPaid = async (invoice: Invoice) => {
-    if (confirm(`¿Marcar factura ${invoice.invoice_number} como pagada?`)) {
-      try {
-        const success = await updateInvoice(invoice.id, { ...invoice, status: 'paid' })
-        if (success) {
-          // Recargar invoices y estadísticas
-          await mutate()
-          const statsData = await getInvoiceStats()
-          setStats(statsData)
-          alert('Factura marcada como pagada')
-        } else {
-          alert('Error al marcar la factura como pagada')
-        }
-      } catch (error) {
-        console.error('Error marking invoice as paid:', error)
-        alert('Error al marcar la factura como pagada')
-      }
-    }
-  }
-
-  const handleDelete = async (id: string) => {
-    if (confirm('¿Estás seguro de que quieres eliminar esta factura?')) {
-      try {
-        const success = await deleteInvoice(id)
-        if (success) {
-          // Recargar invoices y estadísticas
-          await mutate()
-          const statsData = await getInvoiceStats()
-          setStats(statsData)
-          alert('Factura eliminada exitosamente')
-        } else {
-          alert('Error al eliminar la factura')
-        }
-      } catch (error) {
-        console.error('Error deleting invoice:', error)
-        alert('Error al eliminar la factura')
-      }
-    }
-  }
-
-  const handleNewInvoice = () => {
-    setEditingInvoice(null)
-    setFormData({
-      invoice_number: `INV-${Date.now()}`,
-      customer_id: '',
-      vehicle_id: '',
-      status: 'draft',
-      subtotal: 0,
-      tax_amount: 0,
-      total: 0,
-      due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      notes: ''
-    })
-    setIsDialogOpen(true)
-  }
-
-  if (isLoading) {
+  const getStatusBadge = (status: InvoiceStatus) => {
+    const config = STATUS_BADGES[status] ?? { label: status, className: '' };
     return (
-      <div className="flex-1 space-y-4 p-8 pt-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Cargando facturas...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
+      <Badge variant="outline" className={config.className}>
+        {config.label}
+      </Badge>
+    );
+  };
+
+  const openViewModal = async (invoice: Invoice) => {
+    setViewInvoice(invoice);
+    setViewPayments([]);
+    setViewTotalPaid(0);
+    try {
+      const [detailRes, paymentsRes] = await Promise.all([
+        fetch(`/api/invoices/${invoice.id}`, { credentials: 'include' }),
+        fetch(`/api/invoices/${invoice.id}/payments`, { credentials: 'include' }),
+      ]);
+      const detailJson = await detailRes.json();
+      const paymentsJson = await paymentsRes.json();
+      if (detailJson.success && detailJson.data) {
+        setViewInvoice(detailJson.data);
+      }
+      if (paymentsJson.success && paymentsJson.data) {
+        setViewPayments(paymentsJson.data.payments || []);
+        setViewTotalPaid(paymentsJson.data.total_paid || 0);
+      }
+    } catch (e) {
+      console.error('Error loading invoice detail:', e);
+    }
+  };
+
+  const handleCancelInvoice = async (id: string) => {
+    try {
+      const res = await fetch(`/api/invoices/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success('Factura cancelada');
+        setCancelConfirm(null);
+        mutate();
+      } else {
+        toast.error(json.error || 'Error al cancelar');
+      }
+    } catch (e) {
+      toast.error('Error al cancelar factura');
+    }
+  };
+
+  const breadcrumbs = [
+    { label: 'Ingresos', href: '/ingresos' },
+    { label: 'Facturación', href: '/ingresos/facturacion' },
+  ];
 
   return (
-    <MainLayout
-      title="Gestión de Facturación"
-      breadcrumbs={[
-        { label: 'Ingresos', href: '/ingresos' },
-        { label: 'Facturación', href: '/ingresos/facturacion' }
-      ]}
-    >
-      <div className="flex-1 space-y-4 p-8 pt-6">
-      {/* Page Header con Breadcrumbs */}
-      <PageHeader
-        title="Gestión de Facturación"
-        description="Administra las facturas y cobros del taller"
-        breadcrumbs={[
-          { label: 'Ingresos', href: '/ingresos' },
-          { label: 'Facturación', href: '/ingresos/facturacion' }
-        ]}
-        actions={
-          canCreate && (
-            <Button onClick={handleNewInvoice}>
-              <Plus className="mr-2 h-4 w-4" /> Crear Nueva Factura
-            </Button>
-          )
-        }
-      />
-      </div>
+    <AppLayout title="Facturación" breadcrumbs={breadcrumbs}>
+      <div className="space-y-6 p-6">
+        <PageHeader
+          title="Facturación"
+          description="Administra las facturas y cobros del taller"
+          breadcrumbs={breadcrumbs}
+          actions={
+            canCreate && (
+              <Button onClick={() => toast.info('Crear factura manual: use la conversión desde orden completada o cotización')}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nueva factura
+              </Button>
+            )
+          }
+        />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Facturas</CardTitle>
-            <ModernIcons.Ordenes size={16} />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalInvoices}</div>
-            <p className="text-xs text-muted-foreground">Facturas emitidas</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Facturas Pendientes</CardTitle>
-            <ModernIcons.Warning size={16} />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingInvoices}</div>
-            <p className="text-xs text-muted-foreground">Por cobrar</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Facturas Pagadas</CardTitle>
-            <ModernIcons.Check size={16} />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.paidInvoices}</div>
-            <p className="text-xs text-muted-foreground">Cobradas</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monto Total</CardTitle>
-            <ModernIcons.Finanzas size={16} />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${(stats.totalAmount || 0).toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Valor total facturado</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="space-y-4 mt-8">
-        <h3 className="text-xl font-semibold">Historial de Facturas</h3>
-        <div className="flex items-center py-4">
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+        {/* Filtros */}
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex gap-2">
+            {(['all', 'pending', 'paid', 'overdue'] as const).map((f) => (
+              <Button
+                key={f}
+                variant={statusFilter === f ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setStatusFilter(f);
+                  setPage(1);
+                }}
+              >
+                {f === 'all' ? 'Todas' : f === 'pending' ? 'Pendientes' : f === 'paid' ? 'Pagadas' : 'Vencidas'}
+              </Button>
+            ))}
+          </div>
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por cliente o ID..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Buscar por folio o notas..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               className="pl-8"
             />
           </div>
         </div>
-        <div className="rounded-md border">
-          <div className="w-full">
-            <table className="w-full text-left">
-              <thead className="[&_tr]:border-b">
-                <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Número</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Cliente</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Vehículo</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Monto</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Estado</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Vencimiento</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="[&_tr:last-child]:border-0">
-                {filteredInvoices.map((invoice) => (
-                  <tr key={invoice.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
-                      <div className="flex items-center gap-2">
-                        <ModernIcons.Ordenes size={16} />
-                        {invoice.invoice_number}
-                      </div>
-                    </td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
-                      <div className="flex items-center gap-2">
-                        <ModernIcons.Clientes size={16} />
-                        <div>
-                          <div className="font-medium">Cliente ID: {invoice.customer_id}</div>
-                          <div className="text-sm text-muted-foreground">Vehículo ID: {invoice.vehicle_id}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
-                      <div className="text-sm">
-                        <div className="font-medium">{invoice.vehicle_info || invoice.vehicle?.brand || 'N/A'}</div>
-                        <div className="text-muted-foreground">{invoice.service_description || invoice.description || 'Sin descripción'}</div>
-                      </div>
-                    </td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
-                      <span className="font-medium">${(invoice.total || invoice.total_amount || 0).toLocaleString()}</span>
-                    </td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{getStatusBadge(invoice.status)}</td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
-                      <div className="flex items-center gap-2">
-                        <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                        {new Date(invoice.due_date).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
-                      <div className="flex space-x-2">
-                        {/* ✅ Botón cobrar solo si tiene permisos y la factura no está pagada */}
-                        {canPay && invoice.status !== 'paid' && (
-                          <Button 
-                            variant="default" 
-                            size="sm"
-                            onClick={() => handleMarkAsPaid(invoice)}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            Cobrar
-                          </Button>
-                        )}
-                        {canUpdate && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleEdit(invoice)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {canDelete && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleDelete(invoice.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        
-        {/* Pagination Component */}
-        {!isLoading && invoices.length > 0 && pagination && (
+
+        {/* Tabla */}
+        <Card className="border border-border bg-bg-secondary">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead># Folio</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Vehículo</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : filteredInvoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                      No hay facturas
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredInvoices.map((inv) => {
+                    const total = inv.total ?? inv.total_amount ?? 0;
+                    const customerName = inv.customer?.name ?? inv.customer_id ?? '-';
+                    const vehicleInfo = inv.vehicle
+                      ? `${inv.vehicle.brand} ${inv.vehicle.model} ${inv.vehicle.license_plate || ''}`
+                      : '-';
+                    const showCobrar = canPay && inv.status !== 'paid' && inv.status !== 'cancelled';
+                    return (
+                      <TableRow key={inv.id}>
+                        <TableCell className="font-mono">{inv.invoice_number}</TableCell>
+                        <TableCell>{customerName}</TableCell>
+                        <TableCell>{vehicleInfo}</TableCell>
+                        <TableCell>${total.toLocaleString()}</TableCell>
+                        <TableCell>{getStatusBadge(inv.status as InvoiceStatus)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                            {new Date(inv.due_date || inv.created_at).toLocaleDateString('es')}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openViewModal(inv as Invoice)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {showCobrar && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-green-500 hover:text-green-400"
+                                onClick={() => {
+                                  setPayInvoice(inv as Invoice);
+                                  setIsPayModalOpen(true);
+                                }}
+                              >
+                                <DollarSign className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canDelete && inv.status !== 'paid' && inv.status !== 'cancelled' && (
+                              cancelConfirm === inv.id ? (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleCancelInvoice(inv.id)}
+                                >
+                                  Confirmar
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-500"
+                                  onClick={() => setCancelConfirm(inv.id)}
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              )
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {pagination && pagination.totalPages > 1 && (
           <Pagination
-            currentPage={pagination.page || 1}
-            totalPages={pagination.totalPages || 1}
-            pageSize={pagination.pageSize || pageSize}
-            total={pagination.total || 0}
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            pageSize={pagination.pageSize}
+            total={pagination.total}
             onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              // El pageSize está fijo en 20, pero podemos actualizar si es necesario
-              console.log('Page size change requested:', size)
-            }}
+            onPageSizeChange={() => {}}
             loading={isLoading}
             showPageSizeSelector={false}
           />
         )}
       </div>
 
-      {/* Modal de Creación/Edición de Factura */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto border border-border shadow-lg bg-card">
+      {/* Modal Ver Factura */}
+      <Dialog open={!!viewInvoice} onOpenChange={() => setViewInvoice(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border border-border bg-card">
           <DialogHeader>
-            <DialogTitle>
-              {editingInvoice ? 'Editar Factura' : 'Crear Nueva Factura'}
-            </DialogTitle>
-            <DialogDescription>
-              {editingInvoice 
-                ? 'Modifica la información de la factura.'
-                : 'Completa los datos para crear una nueva factura.'
-              }
-            </DialogDescription>
+            <DialogTitle>Factura {viewInvoice?.invoice_number}</DialogTitle>
+            <DialogDescription>Detalle y historial de pagos</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="invoice_number">Número de Factura *</Label>
-                <Input
-                  id="invoice_number"
-                  value={formData.invoice_number}
-                  onChange={handleInputChange}
-                  placeholder="INV-001"
-                  required
-                />
+          {viewInvoice && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Cliente</p>
+                  <p className="font-medium">{viewInvoice.customer?.name ?? viewInvoice.customer_id}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Vehículo</p>
+                  <p className="font-medium">
+                    {viewInvoice.vehicle
+                      ? `${viewInvoice.vehicle.brand} ${viewInvoice.vehicle.model}`
+                      : '-'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Fecha</p>
+                  <p className="font-medium">
+                    {new Date(viewInvoice.created_at).toLocaleDateString('es')}
+                  </p>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="customer_id">ID del Cliente *</Label>
-                <Input
-                  id="customer_id"
-                  value={formData.customer_id}
-                  onChange={handleInputChange}
-                  placeholder="1"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="vehicle_id">ID del Vehículo *</Label>
-                <Input
-                  id="vehicle_id"
-                  value={formData.vehicle_id}
-                  onChange={handleInputChange}
-                  placeholder="1"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notas del Servicio *</Label>
-                <Input
-                  id="notes"
-                  value={formData.notes}
-                  onChange={handleInputChange}
-                  placeholder="Cambio de aceite y filtro"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="service_description">Descripción del Servicio *</Label>
-              <Textarea
-                id="service_description"
-                value={formData.service_description}
-                onChange={handleInputChange}
-                placeholder="Cambio de aceite, filtro de aire y revisión general"
-                required
-                rows={2}
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="status">Estado *</Label>
-                <Select value={formData.status} onValueChange={(value) => handleSelectChange('status', value)} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Borrador</SelectItem>
-                    <SelectItem value="sent">Enviada</SelectItem>
-                    <SelectItem value="paid">Pagada</SelectItem>
-                    <SelectItem value="overdue">Vencida</SelectItem>
-                    <SelectItem value="cancelled">Cancelada</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="due_date">Fecha de Vencimiento *</Label>
-                <Input
-                  id="due_date"
-                  type="date"
-                  value={formData.due_date}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="payment_method">Método de Pago</Label>
-                <Select value={formData.payment_method} onValueChange={(value) => handleSelectChange('payment_method', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar método" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Sin especificar">Sin especificar</SelectItem>
-                    <SelectItem value="Efectivo">Efectivo</SelectItem>
-                    <SelectItem value="Transferencia">Transferencia</SelectItem>
-                    <SelectItem value="Tarjeta">Tarjeta</SelectItem>
-                    <SelectItem value="Cheque">Cheque</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="subtotal">Subtotal *</Label>
-                <Input
-                  id="subtotal"
-                  type="number"
-                  value={formData.subtotal}
-                  onChange={handleAmountChange}
-                  placeholder="0.00"
-                  step="0.01"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tax_amount">Impuestos</Label>
-                <Input
-                  id="tax_amount"
-                  type="number"
-                  value={formData.tax_amount}
-                  onChange={handleAmountChange}
-                  placeholder="0.00"
-                  step="0.01"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="total">Total</Label>
-                <Input
-                  id="total"
-                  type="number"
-                  value={formData.total}
-                  disabled
-                  className="bg-muted"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notas</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={handleInputChange}
-                placeholder="Observaciones adicionales..."
-                rows={3}
-              />
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {editingInvoice ? 'Actualizando...' : 'Creando...'}
-                  </>
-                ) : (
-                  <>
-                    <ModernIcons.Ordenes size={16} className="mr-2" />
-                    {editingInvoice ? 'Actualizar Factura' : 'Crear Factura'}
-                  </>
+              {(viewInvoice.invoice_items && viewInvoice.invoice_items.length > 0) && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Conceptos</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Descripción</TableHead>
+                        <TableHead>Cant.</TableHead>
+                        <TableHead>P.Unit</TableHead>
+                        <TableHead>Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {viewInvoice.invoice_items.map((it) => (
+                        <TableRow key={it.id}>
+                          <TableCell>{it.description ?? '-'}</TableCell>
+                          <TableCell>{it.quantity}</TableCell>
+                          <TableCell>${Number(it.unit_price).toLocaleString()}</TableCell>
+                          <TableCell>${Number(it.total).toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              <div className="border-t pt-4 space-y-1 text-sm">
+                <p>
+                  Subtotal: $
+                  {(viewInvoice.subtotal ?? viewInvoice.total ?? 0).toLocaleString()}
+                </p>
+                {(viewInvoice.tax_amount ?? 0) > 0 && (
+                  <p>Impuestos: ${Number(viewInvoice.tax_amount).toLocaleString()}</p>
                 )}
-              </Button>
-            </DialogFooter>
-          </form>
+                <p className="font-semibold">
+                  Total: $
+                  {(viewInvoice.total ?? viewInvoice.total_amount ?? 0).toLocaleString()}
+                </p>
+              </div>
+              {viewPayments.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Historial de pagos</p>
+                  <ul className="space-y-2 text-sm">
+                    {viewPayments.map((p) => (
+                      <li key={p.id} className="flex justify-between">
+                        <span>
+                          ${p.amount.toLocaleString()} - {p.payment_method} ({p.payment_date})
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 font-medium">
+                    Total pagado: ${viewTotalPaid.toLocaleString()}
+                  </p>
+                </div>
+              )}
+              {viewInvoice.status !== 'paid' && viewInvoice.status !== 'cancelled' && canPay && (
+                <Button
+                  onClick={() => {
+                    setPayInvoice(viewInvoice);
+                    setPayInvoiceTotalPaid(viewTotalPaid);
+                    setViewInvoice(null);
+                    setIsPayModalOpen(true);
+                  }}
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Registrar pago
+                </Button>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
-    </MainLayout>
-  )
+
+      {/* Modal Registrar Pago */}
+      <RegisterPaymentModal
+        open={isPayModalOpen}
+        onClose={() => {
+          setIsPayModalOpen(false);
+          setPayInvoice(null);
+        }}
+        invoice={payInvoice}
+        totalPaid={payInvoiceTotalPaid}
+        onSuccess={() => {
+          mutate();
+          setIsPayModalOpen(false);
+          setPayInvoice(null);
+          toast.success('Pago registrado');
+        }}
+      />
+    </AppLayout>
+  );
+}
+
+function RegisterPaymentModal({
+  open,
+  onClose,
+  invoice,
+  totalPaid,
+  onSuccess,
+}: {
+  open: boolean;
+  onClose: () => void;
+  invoice: Invoice | null;
+  totalPaid: number;
+  onSuccess: () => void;
+}) {
+  const [amount, setAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [reference, setReference] = useState('');
+  const [paymentDate, setPaymentDate] = useState(
+    () => new Date().toISOString().split('T')[0]
+  );
+  const [notes, setNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const invoiceTotal = invoice ? (invoice.total ?? invoice.total_amount ?? 0) : 0;
+  const remaining = Math.max(0, invoiceTotal - totalPaid);
+
+  useEffect(() => {
+    if (open && invoice) {
+      setAmount(remaining > 0 ? String(remaining) : '0');
+      setPaymentDate(new Date().toISOString().split('T')[0]);
+      setReference('');
+      setNotes('');
+    }
+  }, [open, invoice, remaining]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!invoice) return;
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt <= 0 || amt > remaining) {
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/invoices/${invoice.id}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          amount: amt,
+          payment_method: paymentMethod,
+          payment_date: paymentDate,
+          reference: reference || undefined,
+          notes: notes || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        onSuccess();
+      } else {
+        toast.error(json.error || 'Error al registrar pago');
+      }
+    } catch (e) {
+      toast.error('Error al registrar pago');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!invoice) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md border border-border bg-card">
+        <DialogHeader>
+          <DialogTitle>Registrar pago</DialogTitle>
+          <DialogDescription>Factura {invoice.invoice_number}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 text-sm mb-4">
+          <p>Total factura: ${invoiceTotal.toLocaleString()}</p>
+          <p>Ya pagado: ${totalPaid.toLocaleString()}</p>
+          <p className="font-semibold">Pendiente: ${remaining.toLocaleString()}</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label>Monto a pagar *</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min={0}
+              max={remaining}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Label>Forma de pago *</Label>
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAYMENT_METHODS.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Referencia (transferencia, últimos 4 tarjeta)</Label>
+            <Input
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="Ej: SPEI 1234"
+            />
+          </div>
+          <div>
+            <Label>Fecha de pago *</Label>
+            <Input
+              type="date"
+              value={paymentDate}
+              onChange={(e) => setPaymentDate(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Label>Notas</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 }

@@ -20,8 +20,9 @@ interface UseInvoicesOptions {
   page?: number
   pageSize?: number
   status?: string // 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled' | undefined
-  autoLoad?: boolean // Si debe cargar automáticamente al montar
-  enableCache?: boolean // Habilitar cache simple
+  search?: string
+  autoLoad?: boolean
+  enableCache?: boolean
 }
 
 interface UseInvoicesReturn {
@@ -53,7 +54,8 @@ export function useInvoices(
   page: number = 1,
   pageSize: number = 20,
   status?: string,
-  options: Omit<UseInvoicesOptions, 'page' | 'pageSize' | 'status'> = {}
+  search?: string,
+  options: Omit<UseInvoicesOptions, 'page' | 'pageSize' | 'status' | 'search'> = {}
 ): UseInvoicesReturn {
   const {
     autoLoad = true,
@@ -113,9 +115,8 @@ export function useInvoices(
       const params = new URLSearchParams()
       params.set('page', page.toString())
       params.set('pageSize', pageSize.toString())
-      if (status) {
-        params.set('status', status)
-      }
+      if (status) params.set('status', status)
+      if (search?.trim()) params.set('search', search.trim())
 
       const url = `/api/invoices?${params.toString()}`
       console.log('🔄 [useInvoices] Fetching:', url)
@@ -181,7 +182,7 @@ export function useInvoices(
       setIsLoading(false)
       isFetching.current = false
     }
-  }, [organizationId, ready, page, pageSize, status, enableCache])
+  }, [organizationId, ready, page, pageSize, status, search, enableCache])
 
   // ==========================================
   // EFFECTS

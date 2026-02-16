@@ -68,37 +68,50 @@ export interface SalesReport {
 
 /**
  * Obtener reporte financiero
+ * @param organizationId - ID de la organización (obligatorio, el cliente browser no tiene contexto)
+ * @param startDate - Fecha inicio (YYYY-MM-DD)
+ * @param endDate - Fecha fin (YYYY-MM-DD)
  */
-export async function getFinancialReport(startDate?: string, endDate?: string): Promise<FinancialReport> {
+export async function getFinancialReport(
+  organizationId: string,
+  startDate?: string,
+  endDate?: string
+): Promise<FinancialReport> {
   return executeWithErrorHandling(
     async () => {
       const client = getSupabaseClient()
+      const end = endDate || new Date().toISOString().split('T')[0]
+      const start = startDate || '2024-01-01'
       
-      // Obtener ingresos
+      // Obtener ingresos - usar total y paid_date (columnas reales de invoices)
       const { data: revenueData } = await client
         .from('invoices')
-        .select('total_amount, issue_date')
+        .select('total, paid_date')
+        .eq('organization_id', organizationId)
         .eq('status', 'paid')
-        .gte('issue_date', startDate || '2024-01-01')
-        .lte('issue_date', endDate || new Date().toISOString())
+        .gte('paid_date', start)
+        .lte('paid_date', end)
       
-      const totalRevenue = revenueData?.reduce((sum, invoice) => sum + invoice.total_amount, 0) || 0
+      const totalRevenue = revenueData?.reduce((sum, invoice) => sum + (invoice.total || 0), 0) || 0
       
-      // Obtener gastos
+      // Obtener gastos - purchase_orders usa total y order_date
       const { data: expensesData } = await client
         .from('purchase_orders')
-        .select('total_amount, order_date')
+        .select('total, order_date')
+        .eq('organization_id', organizationId)
         .eq('status', 'received')
-        .gte('order_date', startDate || '2024-01-01')
-        .lte('order_date', endDate || new Date().toISOString())
+        .gte('order_date', start)
+        .lte('order_date', end)
       
-      const totalExpenses = expensesData?.reduce((sum, order) => sum + order.total_amount, 0) || 0
+      const totalExpenses = expensesData?.reduce((sum, order) => sum + (order.total || 0), 0) || 0
       const netProfit = totalRevenue - totalExpenses
       
-      // Ingresos por mes
-      const revenueByMonth = revenueData?.reduce((acc: any, invoice: any) => {
-        const month = new Date(invoice.issue_date).toISOString().slice(0, 7)
-        acc[month] = (acc[month] || 0) + invoice.total_amount
+      // Ingresos por mes - usar paid_date y total
+      const revenueByMonth = revenueData?.reduce((acc: Record<string, number>, invoice: { paid_date?: string | null; total?: number | null }) => {
+        const date = invoice.paid_date
+        if (!date) return acc
+        const month = new Date(date).toISOString().slice(0, 7)
+        acc[month] = (acc[month] || 0) + (invoice.total || 0)
         return acc
       }, {}) || {}
       
@@ -114,20 +127,21 @@ export async function getFinancialReport(startDate?: string, endDate?: string): 
         { category: 'Otros', amount: totalExpenses * 0.1 }
       ]
       
-      // Top clientes
+      // Top clientes - usar total y paid_date
       const { data: topCustomersData } = await client
         .from('invoices')
-        .select('total_amount, customers(name)')
+        .select('total, paid_date, customers(name)')
+        .eq('organization_id', organizationId)
         .eq('status', 'paid')
-        .gte('issue_date', startDate || '2024-01-01')
-        .lte('issue_date', endDate || new Date().toISOString())
+        .gte('paid_date', start)
+        .lte('paid_date', end)
       
-      const customerRevenue = topCustomersData?.reduce((acc: any, invoice: any) => {
+      const customerRevenue = topCustomersData?.reduce((acc: Record<string, { revenue: number; orders: number }>, invoice: { total?: number | null; customers?: { name?: string } | null }) => {
         const customerName = invoice.customers?.name || 'Cliente'
         if (!acc[customerName]) {
           acc[customerName] = { revenue: 0, orders: 0 }
         }
-        acc[customerName].revenue += invoice.total_amount
+        acc[customerName].revenue += invoice.total || 0
         acc[customerName].orders += 1
         return acc
       }, {}) || {}

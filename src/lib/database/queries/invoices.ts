@@ -82,14 +82,13 @@ export async function getInvoiceById(id: string) {
       .from('invoices')
       .select(`
         *,
-        customers (
+        customer:customers (
           id,
           name,
           email,
-          phone,
-          address
+          phone
         ),
-        vehicles (
+        vehicle:vehicles (
           id,
           brand,
           model,
@@ -99,26 +98,10 @@ export async function getInvoiceById(id: string) {
         ),
         invoice_items (
           id,
-          item_type,
-          product_id,
-          service_id,
           description,
           quantity,
           unit_price,
-          discount_percent,
-          discount_amount,
-          tax_percent,
-          tax_amount,
-          total,
-          products (
-            id,
-            name,
-            sku
-          ),
-          services (
-            id,
-            name
-          )
+          total
         )
       `)
       .eq('id', id)
@@ -714,6 +697,7 @@ export async function checkAndUpdateOverdueInvoices(organizationId: string) {
 
 /**
  * Estadísticas para dashboard de ingresos
+ * Usa columna 'total' (no total_amount)
  */
 export async function getIncomeStats(organizationId: string) {
   return executeWithErrorHandling(async () => {
@@ -721,7 +705,7 @@ export async function getIncomeStats(organizationId: string) {
 
     const { data, error } = await supabase
       .from('invoices')
-      .select('status, total_amount, total, due_date, paid_date, created_at')
+      .select('status, total, due_date, paid_date, created_at')
       .eq('organization_id', organizationId)
 
     if (error) throw error
@@ -730,31 +714,38 @@ export async function getIncomeStats(organizationId: string) {
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
     const todayStr = today.toISOString().split('T')[0]
 
-    const amt = (i: { total_amount?: number; total?: number }) => Number(i.total_amount ?? i.total ?? 0)
+    const amt = (i: { total?: number }) => Number(i.total ?? 0)
 
     const paid = (data || []).filter((i) => i.status === 'paid')
-    const pending = (data || []).filter((i) => i.status === 'pending' || i.status === 'draft' || i.status === 'sent')
+    const pending = (data || []).filter((i) => i.status === 'draft' || i.status === 'sent')
     const overdue = (data || []).filter(
-      (i) => i.status === 'overdue' || (i.due_date && i.due_date < todayStr && i.status !== 'paid' && i.status !== 'cancelled')
+      (i) => i.status === 'overdue' || (i.due_date && String(i.due_date).slice(0, 10) < todayStr && i.status !== 'paid' && i.status !== 'cancelled')
     )
 
-    const totalRevenue = (data || [])
-      .filter((i) => i.status !== 'cancelled')
+    const total_cobrado = paid.reduce((sum, i) => sum + amt(i), 0)
+    const total_pendiente = pending.reduce((sum, i) => sum + amt(i), 0)
+    const total_vencido = overdue.reduce((sum, i) => sum + amt(i), 0)
+    const ingresos_este_mes = paid
+      .filter((i) => (i.paid_date || i.created_at || '').toString().slice(0, 10) >= firstDayOfMonth)
       .reduce((sum, i) => sum + amt(i), 0)
-    const monthlyRevenue = paid
-      .filter((i) => (i.paid_date || i.created_at || '').slice(0, 10) >= firstDayOfMonth)
-      .reduce((sum, i) => sum + amt(i), 0)
-    const paidCount = paid.length
-    const paidThisMonth = paid.filter((i) => (i.paid_date || i.created_at || '').slice(0, 10) >= firstDayOfMonth).length
-    const totalInvoices = (data || []).filter((i) => i.status !== 'cancelled').length
-    const averageInvoiceValue = totalInvoices > 0 ? totalRevenue / totalInvoices : 0
+    const facturas_pagadas = paid.length
+    const facturas_pendientes = pending.length
+    const facturas_vencidas = overdue.length
+    const averageInvoiceValue = facturas_pagadas > 0 ? total_cobrado / facturas_pagadas : 0
 
     return {
-      totalRevenue,
-      monthlyRevenue,
-      pendingInvoices: pending.length,
-      paidInvoices: paidThisMonth,
-      overdueInvoices: overdue.length,
+      totalRevenue: total_cobrado,
+      monthlyRevenue: ingresos_este_mes,
+      total_cobrado,
+      total_pendiente,
+      total_vencido,
+      facturas_pagadas,
+      facturas_pendientes,
+      facturas_vencidas,
+      ingresos_este_mes,
+      pendingInvoices: facturas_pendientes,
+      paidInvoices: facturas_pagadas,
+      overdueInvoices: facturas_vencidas,
       averageInvoiceValue,
     }
   }, { operation: 'getIncomeStats', table: 'invoices' })

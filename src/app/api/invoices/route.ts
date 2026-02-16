@@ -5,11 +5,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  getAllInvoices,
   createInvoice,
   createInvoiceFromWorkOrder,
   createInvoiceFromQuotation,
-  searchInvoices,
   getInvoiceStats,
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
@@ -44,33 +42,22 @@ export async function GET(request: NextRequest) {
     
     const url = new URL(request.url);
     const { searchParams } = url;
-    const status = searchParams.get('status');
+    const status = searchParams.get('status') as 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled' | null;
     const search = searchParams.get('search');
     const stats = searchParams.get('stats') === 'true';
 
     logger.info('Obteniendo notas de venta', context, { status, search, stats });
 
-    let result;
-
     if (stats) {
-      // Obtener estadísticas (no necesita paginación)
-      result = await getInvoiceStats(organizationId);
+      const result = await getInvoiceStats(organizationId);
       logger.info('Estadísticas de notas de venta obtenidas', context);
-      
       return NextResponse.json({
         success: true,
         data: result,
       });
-    } else if (search) {
-      // Buscar notas de venta (no necesita paginación)
-      result = await searchInvoices(organizationId, search);
-      logger.info(`Resultados de búsqueda: ${result.length} notas de venta`, context);
+    }
 
-    return NextResponse.json({
-      success: true,
-      data: result,
-    });
-    } else {
+    {
       // ✅ Obtener todas las notas de venta CON PAGINACIÓN
       const { page, pageSize } = extractPaginationFromURL(url);
       const offset = calculateOffset(page, pageSize);
@@ -95,9 +82,19 @@ export async function GET(request: NextRequest) {
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
 
-      // Aplicar filtro de status si se proporciona
+      // Aplicar filtro de status (pending = draft + sent)
       if (status) {
-        query = query.eq('status', status);
+        if (status === 'pending') {
+          query = query.in('status', ['draft', 'sent']);
+        } else {
+          query = query.eq('status', status);
+        }
+      }
+
+      // Búsqueda en invoice_number y notes
+      if (search && search.trim()) {
+        const term = search.trim();
+        query = query.or(`invoice_number.ilike.%${term}%,notes.ilike.%${term}%`);
       }
 
       // Aplicar paginación

@@ -5,13 +5,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  getInvoiceById,
   updateInvoice,
-  deleteInvoice,
   updateInvoiceDiscount,
   updateInvoicePaidAmount,
   recalculateInvoiceTotals,
 } from '@/lib/supabase/quotations-invoices';
+import { getInvoiceById, updateInvoice as updateInvoiceDb } from '@/lib/database/queries/invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
 import { hasPermission, UserRole } from '@/lib/auth/permissions';
@@ -51,10 +50,15 @@ export async function GET(
     if (!invoice) {
       logger.warn('Nota de venta no encontrada', context);
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Nota de venta no encontrada',
-        },
+        { success: false, error: 'Nota de venta no encontrada' },
+        { status: 404 }
+      );
+    }
+
+    if ((invoice as any).organization_id !== organizationId) {
+      logger.warn('Intento de acceder a factura de otra organización', context);
+      return NextResponse.json(
+        { success: false, error: 'Nota de venta no encontrada' },
         { status: 404 }
       );
     }
@@ -153,7 +157,7 @@ export async function PUT(
       );
     }
 
-    const invoice = await updateInvoice(params.id, body);
+    const invoice = await updateInvoiceDb(params.id, body);
 
     // Si se actualizaron items, recalcular totales
     if (body.items || body.subtotal || body.tax || body.discount) {
@@ -222,8 +226,8 @@ export async function DELETE(
       );
     }
 
-    // Verificar si la nota de venta puede ser eliminada
-    if (existingInvoice.status === 'paid' && existingInvoice.paid_amount > 0) {
+    // Verificar si la nota de venta puede ser eliminada (paid_amount se calcula de payments)
+    if (existingInvoice.status === 'paid') {
       logger.warn('Intento de eliminar nota de venta con pagos', context);
       return NextResponse.json(
         {

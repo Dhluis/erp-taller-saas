@@ -19,10 +19,68 @@ import {
   Download,
   Calendar
 } from "lucide-react"
-import { getFinancialReport, FinancialReport } from "@/lib/supabase/reports"
+import { getFinancialReport } from "@/lib/supabase/reports"
+import { useOrganization } from "@/lib/context/SessionContext"
+
+/** Mapea período seleccionado a fechas ISO (YYYY-MM-DD) */
+function getPeriodDates(period: string): { startDate: string; endDate: string } {
+  const now = new Date()
+  const endDate = now.toISOString().split('T')[0]
+  let startDate: string
+
+  switch (period) {
+    case "today":
+      startDate = endDate
+      break
+    case "this_week": {
+      const d = new Date(now)
+      d.setDate(d.getDate() - 7)
+      startDate = d.toISOString().split('T')[0]
+      break
+    }
+    case "this_month": {
+      const d = new Date(now.getFullYear(), now.getMonth(), 1)
+      startDate = d.toISOString().split('T')[0]
+      break
+    }
+    case "last_month": {
+      const d = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      startDate = d.toISOString().split('T')[0]
+      const end = new Date(now.getFullYear(), now.getMonth(), 0)
+      return { startDate, endDate: end.toISOString().split('T')[0] }
+    }
+    case "this_quarter": {
+      const q = Math.floor(now.getMonth() / 3) + 1
+      const d = new Date(now.getFullYear(), (q - 1) * 3, 1)
+      startDate = d.toISOString().split('T')[0]
+      break
+    }
+    case "this_year": {
+      startDate = `${now.getFullYear()}-01-01`
+      break
+    }
+    case "last_year": {
+      startDate = `${now.getFullYear() - 1}-01-01`
+      return { startDate, endDate: `${now.getFullYear() - 1}-12-31` }
+    }
+    default:
+      startDate = `${now.getFullYear()}-01-01`
+  }
+  return { startDate, endDate }
+}
+
+type ReportDisplay = {
+  totalRevenue: number
+  totalExpenses: number
+  netProfit: number
+  revenueGrowth: number
+  expenseGrowth: number
+  profitMargin: number
+}
 
 export default function ReportesFinancierosPage() {
-  const [report, setReport] = useState<FinancialReport>({
+  const { organizationId, ready } = useOrganization()
+  const [report, setReport] = useState<ReportDisplay>({
     totalRevenue: 0,
     totalExpenses: 0,
     netProfit: 0,
@@ -34,109 +92,39 @@ export default function ReportesFinancierosPage() {
   const [selectedPeriod, setSelectedPeriod] = useState("this_month")
 
   useEffect(() => {
+    if (!ready || !organizationId) {
+      if (ready && !organizationId) setIsLoading(false)
+      return
+    }
     loadReport()
-  }, [selectedPeriod])
+  }, [ready, organizationId, selectedPeriod])
 
   const handlePeriodChange = (period: string) => {
     setSelectedPeriod(period)
   }
 
   const loadReport = async () => {
+    if (!organizationId) return
     setIsLoading(true)
     try {
-      // Simular datos basados en el período seleccionado
-      const periodData = getPeriodData(selectedPeriod)
-      setReport(periodData)
+      const { startDate, endDate } = getPeriodDates(selectedPeriod)
+      const data = await getFinancialReport(organizationId, startDate, endDate)
+      const profitMargin = data.totalRevenue > 0
+        ? (data.netProfit / data.totalRevenue) * 100
+        : 0
+      setReport({
+        totalRevenue: data.totalRevenue,
+        totalExpenses: data.totalExpenses,
+        netProfit: data.netProfit,
+        revenueGrowth: 0,
+        expenseGrowth: 0,
+        profitMargin
+      })
     } catch (error) {
       console.error('Error loading financial report:', error)
-      // Datos de ejemplo en caso de error
-      setReport({
-        totalRevenue: 250000,
-        totalExpenses: 180000,
-        netProfit: 70000,
-        revenueGrowth: 15.5,
-        expenseGrowth: 8.2,
-        profitMargin: 28.0
-      })
+      setReport(prev => ({ ...prev, totalRevenue: 0, totalExpenses: 0, netProfit: 0, profitMargin: 0 }))
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const getPeriodData = (period: string) => {
-    switch (period) {
-      case "today":
-        return {
-          totalRevenue: 5000,
-          totalExpenses: 3000,
-          netProfit: 2000,
-          revenueGrowth: 25.0,
-          expenseGrowth: 15.0,
-          profitMargin: 40.0
-        }
-      case "this_week":
-        return {
-          totalRevenue: 25000,
-          totalExpenses: 15000,
-          netProfit: 10000,
-          revenueGrowth: 20.0,
-          expenseGrowth: 12.0,
-          profitMargin: 40.0
-        }
-      case "this_month":
-        return {
-          totalRevenue: 250000,
-          totalExpenses: 180000,
-          netProfit: 70000,
-          revenueGrowth: 15.5,
-          expenseGrowth: 8.2,
-          profitMargin: 28.0
-        }
-      case "last_month":
-        return {
-          totalRevenue: 200000,
-          totalExpenses: 150000,
-          netProfit: 50000,
-          revenueGrowth: 10.0,
-          expenseGrowth: 5.0,
-          profitMargin: 25.0
-        }
-      case "this_quarter":
-        return {
-          totalRevenue: 750000,
-          totalExpenses: 540000,
-          netProfit: 210000,
-          revenueGrowth: 18.0,
-          expenseGrowth: 12.0,
-          profitMargin: 28.0
-        }
-      case "this_year":
-        return {
-          totalRevenue: 3000000,
-          totalExpenses: 2100000,
-          netProfit: 900000,
-          revenueGrowth: 22.0,
-          expenseGrowth: 15.0,
-          profitMargin: 30.0
-        }
-      case "last_year":
-        return {
-          totalRevenue: 2500000,
-          totalExpenses: 1800000,
-          netProfit: 700000,
-          revenueGrowth: 8.0,
-          expenseGrowth: 6.0,
-          profitMargin: 28.0
-        }
-      default:
-        return {
-          totalRevenue: 250000,
-          totalExpenses: 180000,
-          netProfit: 70000,
-          revenueGrowth: 15.5,
-          expenseGrowth: 8.2,
-          profitMargin: 28.0
-        }
     }
   }
 

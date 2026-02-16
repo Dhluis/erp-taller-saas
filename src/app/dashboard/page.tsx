@@ -196,11 +196,27 @@ export default function DashboardPage() {
     loadOrdersByStatus();
   }, [loadOrdersByStatus]);
 
-  // Función para cargar ingresos y clientes atendidos desde órdenes completadas
+  // Función para cargar ingresos (desde invoices) y clientes atendidos (desde work_orders)
   const loadIncomeAndCustomers = useCallback(async () => {
     if (!organizationId || sessionLoading || !sessionReady) return;
 
     try {
+      // ✅ CARD "Ingresos del Mes": datos reales desde invoices (status='paid', paid_date este mes)
+      if (permissions.canViewFinancialReports()) {
+        try {
+          const ingresosRes = await fetch('/api/ingresos/stats', { credentials: 'include', cache: 'no-store' });
+          const ingresosJson = await ingresosRes.json();
+          if (ingresosJson.success && ingresosJson.data) {
+            const d = ingresosJson.data;
+            const ingresosMes = d.monthlyRevenue ?? d.ingresos_este_mes ?? 0;
+            setIngresos(ingresosMes);
+          }
+        } catch (e) {
+          console.error('Error cargando ingresos desde invoices:', e);
+          setIngresos(0);
+        }
+      }
+
       // Calcular rango de fechas según el filtro actual
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
@@ -310,17 +326,11 @@ export default function DashboardPage() {
           return orderDate >= from && orderDate <= to;
         });
         
-        // Calcular ingresos totales
-        const totalIngresos = filteredOrders.reduce((sum: number, order: any) => {
-          return sum + (parseFloat(order.total_amount) || 0);
-        }, 0);
-        
-        // Contar clientes únicos
+        // Contar clientes únicos (ingresos del mes viene de /api/ingresos/stats - invoices pagadas)
         const uniqueCustomers = new Set(
           filteredOrders.map((order: any) => order.customer_id).filter(Boolean)
         );
         
-        setIngresos(totalIngresos);
         setClientesAtendidos(uniqueCustomers.size);
         
         // Cargar alertas de inventario
@@ -391,19 +401,17 @@ export default function DashboardPage() {
         
         setIncomeData(chartData);
         
-        console.log('💰 Ingresos calculados:', {
-          totalIngresos,
+        console.log('💰 Datos dashboard:', {
           clientesAtendidos: uniqueCustomers.size,
           ordenesFiltradas: filteredOrders.length,
           rango: { from: fromDate.toISOString(), to: toDate.toISOString() },
-          // ✅ Multi-tenancy: Verificar que todas las órdenes pertenezcan a la organización
           todasOrdenesConOrgId: filteredOrders.every((o: any) => o.organization_id === organizationId)
         });
       }
     } catch (error) {
       console.error('Error cargando ingresos:', error);
     }
-  }, [organizationId, dateRange, customDateRange, sessionLoading, sessionReady]);
+  }, [organizationId, dateRange, customDateRange, sessionLoading, sessionReady, permissions]);
 
   // Cargar ingresos cuando cambia el filtro
   useEffect(() => {

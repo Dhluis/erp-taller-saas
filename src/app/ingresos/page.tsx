@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/navigation/page-header';
@@ -51,6 +51,7 @@ export default function IngresosPage() {
     averageInvoiceValue: 0,
   });
   const [loading, setLoading] = useState(true);
+  const hasLoadedRef = useRef(false);
   
   // Si no tiene permisos, no renderizar nada
   if (!permissions.isAdmin && !permissions.canRead('invoices') && !permissions.canPayInvoices()) {
@@ -58,6 +59,9 @@ export default function IngresosPage() {
   }
 
   useEffect(() => {
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+
     const loadStats = async () => {
       setLoading(true);
       try {
@@ -66,11 +70,11 @@ export default function IngresosPage() {
         if (json.success && json.data) {
           const d = json.data;
           setStats({
-            totalRevenue: d.totalRevenue ?? 0,
-            monthlyRevenue: d.monthlyRevenue ?? 0,
-            pendingInvoices: d.pendingInvoices ?? 0,
-            paidInvoices: d.paidInvoices ?? 0,
-            overdueInvoices: d.overdueInvoices ?? 0,
+            totalRevenue: d.totalRevenue ?? d.total_cobrado ?? 0,
+            monthlyRevenue: d.monthlyRevenue ?? d.ingresos_este_mes ?? 0,
+            pendingInvoices: d.pendingInvoices ?? d.facturas_pendientes ?? 0,
+            paidInvoices: d.paidInvoices ?? d.facturas_pagadas ?? 0,
+            overdueInvoices: d.overdueInvoices ?? d.facturas_vencidas ?? 0,
             averageInvoiceValue: d.averageInvoiceValue ?? 0,
           });
         }
@@ -205,7 +209,7 @@ export default function IngresosPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-green-600 mb-2">{stats.paidInvoices}</div>
-              <p className="text-sm text-text-secondary">Facturas cobradas este mes</p>
+              <p className="text-sm text-text-secondary">Total facturas pagadas</p>
               <Badge variant="success" className="mt-2">Al día</Badge>
             </CardContent>
           </Card>

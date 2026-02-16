@@ -174,20 +174,18 @@ export async function getSalesReport(
     const totalSales = invoicesData?.reduce((sum, invoice) => sum + (invoice.total || 0), 0) || 0
     const paidSales = invoicesData?.filter(inv => inv.status === 'paid').reduce((sum, invoice) => sum + (invoice.total || 0), 0) || 0
 
-    // 2. Servicios más vendidos
+    // 2. Servicios más vendidos - usar work_order_services (order_items/services no existe o difiere)
     const { data: servicesData } = await supabase
-      .from('order_items')
-      .select(`
-        quantity,
-        services!inner(name)
-      `)
-      .eq('item_type', 'service')
+      .from('work_order_services')
+      .select('name, quantity, total_price')
+      .eq('organization_id', organizationId)
+      .in('line_type', ['package', 'free_service'])
       .gte('created_at', startDate)
       .lte('created_at', endDate)
 
-    const servicesMap = new Map()
+    const servicesMap = new Map<string, number>()
     servicesData?.forEach(item => {
-      const serviceName = item.services?.name || 'Servicio'
+      const serviceName = item.name || 'Servicio'
       const current = servicesMap.get(serviceName) || 0
       servicesMap.set(serviceName, current + (item.quantity || 0))
     })
@@ -197,20 +195,18 @@ export async function getSalesReport(
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 10)
 
-    // 3. Productos más vendidos
+    // 3. Productos más vendidos - work_order_services con line_type loose_product
     const { data: productsData } = await supabase
-      .from('order_items')
-      .select(`
-        quantity,
-        products!inner(name)
-      `)
-      .eq('item_type', 'product')
+      .from('work_order_services')
+      .select('name, quantity, total_price')
+      .eq('organization_id', organizationId)
+      .eq('line_type', 'loose_product')
       .gte('created_at', startDate)
       .lte('created_at', endDate)
 
-    const productsMap = new Map()
+    const productsMap = new Map<string, number>()
     productsData?.forEach(item => {
-      const productName = item.products?.name || 'Producto'
+      const productName = item.name || 'Producto'
       const current = productsMap.get(productName) || 0
       productsMap.set(productName, current + (item.quantity || 0))
     })
