@@ -281,14 +281,15 @@ export async function getSalesReport(
  */
 export async function getInventoryReport(organizationId: string) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server')
+    const supabase = getSupabaseServiceClient()
 
     // 1. Obtener inventario (tabla inventory)
     const { data: inventoryData } = await supabase
       .from('inventory')
       .select('id, name, code, sku, category, unit, current_stock, min_stock, max_stock, unit_price, status')
       .eq('organization_id', organizationId)
-      .neq('status', 'inactive')
+      .eq('status', 'active')
 
     const allItems = inventoryData || []
     const totalValue = allItems.reduce((sum, item) =>
