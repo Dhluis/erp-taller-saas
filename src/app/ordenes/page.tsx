@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Search, FileText, Edit, Trash2, Eye, Plus, Download, RefreshCw, User } from 'lucide-react';
 import {
   Select,
@@ -76,6 +77,7 @@ export default function OrdenesPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [assignedUsersMap, setAssignedUsersMap] = useState<Record<string, any>>({});
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // ==========================================
   // ✅ DEBOUNCE DE BÚSQUEDA
@@ -343,13 +345,7 @@ export default function OrdenesPage() {
     toast.success(`${workOrders.length} órdenes exportadas a PDF`);
   };
 
-  const handleExport = () => {
-    exportToCSV();
-  };
-
-  const handleExportPDF = () => {
-    exportToPDF();
-  };
+  const handleExport = () => setShowExportModal(true);
 
   const formatCurrency = (amount?: number | null) => {
     if (!amount) return '$0.00';
@@ -425,20 +421,10 @@ export default function OrdenesPage() {
             Actualizar
           </Button>
 
-          <div className="relative group">
-            <Button variant="outline" className="gap-2">
-              <Download className="w-4 h-4" />
-              Exportar
-            </Button>
-            <div className="absolute right-0 mt-1 w-40 bg-slate-800 border border-slate-700 rounded-lg shadow-lg hidden group-hover:block z-10">
-              <button type="button" onClick={handleExport} className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-t-lg">
-                CSV / Excel
-              </button>
-              <button type="button" onClick={handleExportPDF} className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-b-lg">
-                PDF
-              </button>
-            </div>
-          </div>
+          <Button variant="outline" onClick={handleExport} className="gap-2">
+            <Download className="w-4 h-4" />
+            Exportar
+          </Button>
 
           {permissions.canCreate('work_orders') && (
             <Button 
@@ -573,20 +559,10 @@ export default function OrdenesPage() {
           )}
 
           {/* Exportar */}
-          <div className="relative group">
-            <Button variant="outline" className="gap-2">
-              <Download className="w-4 h-4" />
-              Exportar
-            </Button>
-            <div className="absolute right-0 mt-1 w-40 bg-slate-800 border border-slate-700 rounded-lg shadow-lg hidden group-hover:block z-10">
-              <button type="button" onClick={handleExport} className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-t-lg">
-                CSV / Excel
-              </button>
-              <button type="button" onClick={handleExportPDF} className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-b-lg">
-                PDF
-              </button>
-            </div>
-          </div>
+          <Button variant="outline" onClick={handleExport} className="gap-2">
+            <Download className="w-4 h-4" />
+            Exportar
+          </Button>
         </div>
 
         {/* Resultados */}
@@ -874,6 +850,41 @@ export default function OrdenesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={showExportModal} onOpenChange={setShowExportModal}>
+        <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white">Exportar Órdenes</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {workOrders.length} órdenes con los filtros actuales
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 pt-2">
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 border-gray-600 hover:bg-gray-700 text-white"
+              onClick={() => { exportToCSV(); setShowExportModal(false); }}
+            >
+              <Download className="w-4 h-4 text-green-400" />
+              <div className="text-left">
+                <div className="font-medium">CSV / Excel</div>
+                <div className="text-xs text-gray-400">Compatible con Excel, Google Sheets</div>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 border-gray-600 hover:bg-gray-700 text-white"
+              onClick={() => { exportToPDF(); setShowExportModal(false); }}
+            >
+              <Download className="w-4 h-4 text-red-400" />
+              <div className="text-left">
+                <div className="font-medium">PDF</div>
+                <div className="text-xs text-gray-400">Reporte en formato PDF landscape</div>
+              </div>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
