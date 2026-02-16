@@ -314,22 +314,42 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const signatureRef = useRef<SignatureCanvas>(null) // Referencia para el canvas de firma
   const signatureContainerRef = useRef<HTMLDivElement>(null)
 
+  // Altura del área de firma: más grande en móvil para mejor usabilidad
+  const SIGNATURE_HEIGHT = typeof window !== 'undefined' && window.innerWidth < 640 ? 220 : 180
+
   useEffect(() => {
     const adjustCanvas = () => {
-      if (signatureContainerRef.current && signatureRef.current) {
-        const container = signatureContainerRef.current
-        const canvas = signatureRef.current.getCanvas()
-        const rect = container.getBoundingClientRect()
-        canvas.width = rect.width
-        canvas.height = 150
-        signatureRef.current.clear()
+      if (!signatureContainerRef.current || !signatureRef.current) return
+      const container = signatureContainerRef.current
+      const canvas = signatureRef.current.getCanvas()
+      const rect = container.getBoundingClientRect()
+      const w = Math.floor(rect.width)
+      const h = typeof window !== 'undefined' && window.innerWidth < 640 ? 220 : 180
+      const dpr = Math.max(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 1)
+
+      // Tamaño de visualización (coord. táctiles = CSS pixels)
+      canvas.style.width = `${w}px`
+      canvas.style.height = `${h}px`
+      // Resolución interna para pantallas retina/móvil (trazo nítido)
+      canvas.width = w * dpr
+      canvas.height = h * dpr
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.scale(dpr, dpr)
       }
+      signatureRef.current.clear()
     }
-    const timer = setTimeout(adjustCanvas, 100)
-    window.addEventListener('resize', adjustCanvas)
+    const t = setTimeout(adjustCanvas, 150)
+    let resizeTimer: ReturnType<typeof setTimeout>
+    const onResize = () => {
+      clearTimeout(resizeTimer)
+      resizeTimer = setTimeout(adjustCanvas, 120)
+    }
+    window.addEventListener('resize', onResize)
     return () => {
-      clearTimeout(timer)
-      window.removeEventListener('resize', adjustCanvas)
+      clearTimeout(t)
+      clearTimeout(resizeTimer)
+      window.removeEventListener('resize', onResize)
     }
   }, [])
 
@@ -339,6 +359,28 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   // Wizard: paso actual (1-4) y pasos completados
   const [currentStep, setCurrentStep] = useState(1)
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
+
+  // Recalibrar canvas cuando el usuario llega al paso de firma (contenedor ya en DOM)
+  useEffect(() => {
+    if (!open || currentStep !== 4) return
+    const timer = setTimeout(() => {
+      if (signatureContainerRef.current && signatureRef.current) {
+        const container = signatureContainerRef.current
+        const canvas = signatureRef.current.getCanvas()
+        const rect = container.getBoundingClientRect()
+        const w = Math.floor(rect.width)
+        const h = typeof window !== 'undefined' && window.innerWidth < 640 ? 220 : 180
+        const dpr = Math.max(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 1)
+        canvas.style.width = `${w}px`
+        canvas.style.height = `${h}px`
+        canvas.width = w * dpr
+        canvas.height = h * dpr
+        const ctx = canvas.getContext('2d')
+        if (ctx) ctx.scale(dpr, dpr)
+      }
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [open, currentStep])
 
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
 
@@ -2669,12 +2711,16 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             <Label className="text-sm font-medium mb-3 block">
               Firma Digital del Cliente *
             </Label>
-            <div ref={signatureContainerRef} className="bg-white rounded-lg p-4 border border-slate-600">
+            <div
+              ref={signatureContainerRef}
+              className="bg-white rounded-lg p-3 sm:p-4 border border-slate-600 min-h-[220px] sm:min-h-[180px] touch-none select-none"
+              style={{ touchAction: 'none' }}
+            >
               <SignatureCanvas
                 ref={signatureRef}
                 canvasProps={{
-                  height: 150,
-                  className: 'signature-canvas w-full block'
+                  height: SIGNATURE_HEIGHT,
+                  className: 'signature-canvas w-full block border-0'
                 }}
                 onEnd={handleSignatureEnd}
                 backgroundColor="white"
