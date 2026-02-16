@@ -323,26 +323,25 @@ export async function getInventoryReport(organizationId: string) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     const startDate = thirtyDaysAgo.toISOString().split('T')[0]
 
-    const { data: recentMovementsRaw } = await supabase
-      .from('inventory_movements')
-      .select(`
-        id,
-        movement_type,
-        quantity,
-        reference,
-        notes,
-        created_at,
-        inventory!inventory_id(name, code)
-      `)
-      .eq('organization_id', organizationId)
-      .gte('created_at', startDate)
-      .order('created_at', { ascending: false })
-      .limit(50)
-
-    const recentMovements = (recentMovementsRaw || []).map((m: { inventory?: { name?: string; code?: string } }) => ({
-      ...m,
-      inventory: m.inventory || { name: '-', code: '-' }
-    }))
+    let recentMovements: any[] = []
+    try {
+      const { data: movementsData } = await supabase
+        .from('inventory_movements')
+        .select(`
+          id, movement_type, quantity, reference, notes, created_at,
+          inventory!inventory_id(name, code)
+        `)
+        .eq('organization_id', organizationId)
+        .gte('created_at', startDate)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      recentMovements = (movementsData || []).map((m: { inventory?: { name?: string; code?: string } }) => ({
+        ...m,
+        inventory: m.inventory || { name: '-', code: '-' }
+      }))
+    } catch (e) {
+      recentMovements = []
+    }
 
     // 3. Categorías agrupadas por category de inventory
     const categoriesMap = new Map<string, { count: number; value: number }>()
@@ -377,7 +376,7 @@ export async function getInventoryReport(organizationId: string) {
       },
       low_stock_products: lowStockProducts,
       over_stock_products: overStockProducts,
-      recent_movements,
+      recent_movements: recentMovements,
       categories_breakdown: categoriesBreakdown,
       alerts: {
         low_stock_alerts: lowStockCount,
