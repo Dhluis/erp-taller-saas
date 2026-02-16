@@ -264,8 +264,91 @@ export default function OrdenesPage() {
     toast.success('Lista actualizada');
   };
 
+  const exportToCSV = () => {
+    if (!workOrders.length) {
+      toast.error('No hay órdenes para exportar');
+      return;
+    }
+
+    const headers = ['# Orden', 'Cliente', 'Vehículo', 'Estado', 'Fecha Entrada', 'Total', 'Descripción'];
+    const statusMap: Record<string, string> = {
+      reception: 'Recepción', diagnosis: 'Diagnóstico', initial_quote: 'Cotización',
+      waiting_approval: 'Esp. Aprobación', disassembly: 'Desarmado', waiting_parts: 'Esp. Piezas',
+      assembly: 'Armado', testing: 'Pruebas', ready: 'Listo', completed: 'Completado', cancelled: 'Cancelado'
+    };
+
+    const rows = workOrders.map(o => [
+      (o as any).order_number || o.id.slice(0, 8),
+      o.customer?.name || '',
+      o.vehicle ? `${o.vehicle.brand} ${o.vehicle.model} ${o.vehicle.year || ''}`.trim() : '',
+      statusMap[o.status] || o.status,
+      new Date(o.entry_date).toLocaleDateString('es-MX'),
+      `$${(o.total_amount || 0).toFixed(2)}`,
+      o.description || ''
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ordenes_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${workOrders.length} órdenes exportadas a CSV`);
+  };
+
+  const exportToPDF = async () => {
+    if (!workOrders.length) {
+      toast.error('No hay órdenes para exportar');
+      return;
+    }
+
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+
+    const statusMap: Record<string, string> = {
+      reception: 'Recepción', diagnosis: 'Diagnóstico', initial_quote: 'Cotización',
+      waiting_approval: 'Esp. Aprobación', disassembly: 'Desarmado', waiting_parts: 'Esp. Piezas',
+      assembly: 'Armado', testing: 'Pruebas', ready: 'Listo', completed: 'Completado', cancelled: 'Cancelado'
+    };
+
+    const doc = new jsPDF({ orientation: 'landscape' });
+
+    doc.setFontSize(18);
+    doc.text('Reporte de Órdenes de Trabajo', 14, 16);
+    doc.setFontSize(10);
+    doc.text(`Generado: ${new Date().toLocaleDateString('es-MX')}  |  Total: ${workOrders.length} órdenes`, 14, 24);
+
+    autoTable(doc, {
+      startY: 30,
+      head: [['# Orden', 'Cliente', 'Vehículo', 'Estado', 'Fecha Entrada', 'Total']],
+      body: workOrders.map(o => [
+        (o as any).order_number || o.id.slice(0, 8),
+        o.customer?.name || '',
+        o.vehicle ? `${o.vehicle.brand} ${o.vehicle.model} ${o.vehicle.year || ''}`.trim() : '',
+        statusMap[o.status] || o.status,
+        new Date(o.entry_date).toLocaleDateString('es-MX'),
+        `$${(o.total_amount || 0).toFixed(2)}`
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [37, 99, 235] },
+      alternateRowStyles: { fillColor: [245, 247, 250] }
+    });
+
+    doc.save(`ordenes_${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success(`${workOrders.length} órdenes exportadas a PDF`);
+  };
+
   const handleExport = () => {
-    toast.info('Función de exportación en desarrollo');
+    exportToCSV();
+  };
+
+  const handleExportPDF = () => {
+    exportToPDF();
   };
 
   const formatCurrency = (amount?: number | null) => {
@@ -342,10 +425,20 @@ export default function OrdenesPage() {
             Actualizar
           </Button>
 
-          <Button variant="outline" onClick={handleExport} className="gap-2">
-            <Download className="w-4 h-4" />
-            Exportar
-          </Button>
+          <div className="relative group">
+            <Button variant="outline" className="gap-2">
+              <Download className="w-4 h-4" />
+              Exportar
+            </Button>
+            <div className="absolute right-0 mt-1 w-40 bg-slate-800 border border-slate-700 rounded-lg shadow-lg hidden group-hover:block z-10">
+              <button type="button" onClick={handleExport} className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-t-lg">
+                CSV / Excel
+              </button>
+              <button type="button" onClick={handleExportPDF} className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-b-lg">
+                PDF
+              </button>
+            </div>
+          </div>
 
           {permissions.canCreate('work_orders') && (
             <Button 
@@ -480,10 +573,20 @@ export default function OrdenesPage() {
           )}
 
           {/* Exportar */}
-          <Button variant="outline" onClick={handleExport} className="gap-2">
-            <Download className="w-4 h-4" />
-            Exportar
-          </Button>
+          <div className="relative group">
+            <Button variant="outline" className="gap-2">
+              <Download className="w-4 h-4" />
+              Exportar
+            </Button>
+            <div className="absolute right-0 mt-1 w-40 bg-slate-800 border border-slate-700 rounded-lg shadow-lg hidden group-hover:block z-10">
+              <button type="button" onClick={handleExport} className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-t-lg">
+                CSV / Excel
+              </button>
+              <button type="button" onClick={handleExportPDF} className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-b-lg">
+                PDF
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Resultados */}

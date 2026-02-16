@@ -3,13 +3,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { 
-  getUnreadNotifications, 
-  getAllNotifications, 
-  markNotificationAsRead, 
-  markAllNotificationsAsRead,
-  type Notification 
-} from '@/lib/supabase/notifications'
+import type { Notification } from '@/lib/supabase/notifications'
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -19,16 +13,17 @@ export function useNotifications() {
   const loadNotifications = useCallback(async () => {
     try {
       setIsLoading(true)
-      const [unread, all] = await Promise.all([
-        getUnreadNotifications(),
-        getAllNotifications(20)
+      const [allRes, unreadRes] = await Promise.all([
+        fetch('/api/notifications?limit=20'),
+        fetch('/api/notifications?is_read=false&limit=50')
       ])
-      
-      setNotifications(all)
-      setUnreadCount(unread.length)
+      const allJson = await allRes.json()
+      const unreadJson = await unreadRes.json()
+
+      setNotifications(allJson.data || [])
+      setUnreadCount((unreadJson.data || []).length)
     } catch (error) {
       console.error('Error loading notifications:', error)
-      // Fallback a datos mock en caso de error
       setNotifications([])
       setUnreadCount(0)
     } finally {
@@ -38,7 +33,11 @@ export function useNotifications() {
 
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
-      await markNotificationAsRead(notificationId)
+      await fetch(`/api/notifications/${notificationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ read: true })
+      })
       await loadNotifications()
     } catch (error) {
       console.error('Error marking notification as read:', error)
@@ -47,7 +46,7 @@ export function useNotifications() {
 
   const markAllAsRead = useCallback(async () => {
     try {
-      await markAllNotificationsAsRead()
+      await fetch('/api/notifications/mark-all-read', { method: 'POST' })
       await loadNotifications()
     } catch (error) {
       console.error('Error marking all notifications as read:', error)

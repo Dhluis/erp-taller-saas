@@ -107,11 +107,15 @@ export async function changeUserPassword(passwordData: ChangePasswordData): Prom
         throw new Error('La nueva contraseña debe ser diferente a la actual')
       }
       
-      // TEMPORAL: Simular cambio de contraseña exitoso
+      const supabase = getSupabaseClient()
+      const newPassword = passwordData.newPassword
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+
+      if (error) {
+        throw new Error('Error al cambiar la contraseña: ' + error.message)
+      }
+
       console.log('✅ Contraseña cambiada exitosamente')
-      
-      // Simular delay de red
-      await new Promise(resolve => setTimeout(resolve, 800))
     },
     {
       operation: 'changeUserPassword',

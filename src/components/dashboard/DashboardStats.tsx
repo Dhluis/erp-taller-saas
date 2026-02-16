@@ -251,42 +251,7 @@ interface RecentActivityProps {
 }
 
 export function RecentActivity({ activities = [] }: RecentActivityProps) {
-  const mockActivities = [
-    {
-      id: '1',
-      type: 'order' as const,
-      title: 'Orden #1234 completada',
-      description: 'Reparación de motor - Toyota Corolla',
-      time: '2 min',
-      status: 'completed' as const,
-    },
-    {
-      id: '2',
-      type: 'customer' as const,
-      title: 'Nuevo cliente registrado',
-      description: 'Juan Pérez - Honda Civic 2020',
-      time: '15 min',
-      status: 'completed' as const,
-    },
-    {
-      id: '3',
-      type: 'quotation' as const,
-      title: 'Cotización #5678 enviada',
-      description: 'Cambio de aceite y filtros',
-      time: '1 hora',
-      status: 'pending' as const,
-    },
-    {
-      id: '4',
-      type: 'invoice' as const,
-      title: 'Factura #9012 generada',
-      description: 'Servicio completo - $2,500',
-      time: '2 horas',
-      status: 'completed' as const,
-    },
-  ]
-
-  const displayActivities = activities.length > 0 ? activities : mockActivities
+  const displayActivities = activities
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -325,7 +290,9 @@ export function RecentActivity({ activities = [] }: RecentActivityProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {displayActivities.map((activity) => {
+          {displayActivities.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No hay actividad reciente</p>
+          ) : displayActivities.map((activity) => {
             const Icon = getActivityIcon(activity.type)
             return (
               <div
@@ -361,6 +328,7 @@ export function RecentActivity({ activities = [] }: RecentActivityProps) {
               </div>
             )
           })}
+          {displayActivities.length > 0 && null}
         </div>
       </CardContent>
     </Card>

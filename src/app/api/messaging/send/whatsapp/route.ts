@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. TODO: Guardar en historial (implementar después)
+    // 5. Historial: whatsapp_messages requiere conversation_id; envíos directos sin conversación no se persisten
     console.log('[POST /api/messaging/send/whatsapp] WhatsApp enviado:', {
       to,
       messageLength: message.length,

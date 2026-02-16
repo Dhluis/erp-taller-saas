@@ -120,12 +120,27 @@ export async function getFinancialReport(
         revenue: revenue as number
       }))
       
-      // Gastos por categoría (simulado)
-      const expensesByCategory = [
-        { category: 'Inventario', amount: totalExpenses * 0.6 },
-        { category: 'Servicios', amount: totalExpenses * 0.3 },
-        { category: 'Otros', amount: totalExpenses * 0.1 }
-      ]
+      // Gastos por proveedor (datos reales)
+      const { data: expensesBySupplierData } = await client
+        .from('purchase_orders')
+        .select('total, supplier_id, suppliers(name)')
+        .eq('organization_id', organizationId)
+        .eq('status', 'received')
+        .gte('order_date', start)
+        .lte('order_date', end)
+
+      const supplierTotals = (expensesBySupplierData || []).reduce(
+        (acc: Record<string, number>, row: { total?: number; suppliers?: { name?: string } | null }) => {
+          const name = row.suppliers?.name || 'Sin proveedor'
+          acc[name] = (acc[name] || 0) + (row.total || 0)
+          return acc
+        },
+        {}
+      )
+      const expensesByCategory = Object.entries(supplierTotals).map(([category, amount]) => ({
+        category,
+        amount
+      })).sort((a, b) => b.amount - a.amount)
       
       // Top clientes - usar total y paid_date
       const { data: topCustomersData } = await client
@@ -236,10 +251,10 @@ export async function getSalesReport(startDate?: string, endDate?: string): Prom
     async () => {
       const client = getSupabaseClient()
       
-      // Obtener órdenes
+      // Obtener órdenes con servicios
       const { data: ordersData } = await client
         .from('work_orders')
-        .select('total_amount, created_at, status, employees(name)')
+        .select('total_amount, created_at, status, employees(name), work_order_services(name, total_price, quantity)')
         .eq('status', 'completed')
         .gte('created_at', startDate || '2024-01-01')
         .lte('created_at', endDate || new Date().toISOString())
@@ -265,13 +280,25 @@ export async function getSalesReport(startDate?: string, endDate?: string): Prom
         orders: data.orders
       }))
       
-      // Top servicios (simulado)
-      const topServices = [
-        { name: 'Reparación Motor', sales: totalSales * 0.3, orders: Math.floor(totalOrders * 0.2) },
-        { name: 'Mantenimiento', sales: totalSales * 0.25, orders: Math.floor(totalOrders * 0.3) },
-        { name: 'Diagnóstico', sales: totalSales * 0.2, orders: Math.floor(totalOrders * 0.4) },
-        { name: 'Otros', sales: totalSales * 0.25, orders: Math.floor(totalOrders * 0.1) }
-      ]
+      // Top servicios (datos reales desde work_order_services)
+      const serviceTotals: Record<string, { sales: number; orders: number }> = {}
+      ordersData?.forEach((order: { work_order_services?: Array<{ name?: string; total_price?: number }> }) => {
+        const services = order.work_order_services || []
+        const orderAdded = new Set<string>()
+        services.forEach((s: { name?: string; total_price?: number }) => {
+          const name = s.name || 'Servicio'
+          if (!serviceTotals[name]) serviceTotals[name] = { sales: 0, orders: 0 }
+          serviceTotals[name].sales += s.total_price || 0
+          if (!orderAdded.has(name)) {
+            serviceTotals[name].orders += 1
+            orderAdded.add(name)
+          }
+        })
+      })
+      const topServices = Object.entries(serviceTotals)
+        .map(([name, data]) => ({ name, sales: data.sales, orders: data.orders }))
+        .sort((a, b) => b.sales - a.sales)
+        .slice(0, 10)
       
       // Ventas por empleado
       const salesByEmployee = ordersData?.reduce((acc: any, order: any) => {

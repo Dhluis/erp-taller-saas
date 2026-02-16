@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const { organizationId, isLoading: sessionLoading, isReady: sessionReady } = useOrganization();
   const { user } = useSession();
   const permissions = usePermissions();
+  const canViewFinancial = permissions.canViewFinancialReports();
   const { formatMoney } = useOrgCurrency();
 
   // Compatibilidad: obtener organization para componentes que lo necesitan
@@ -202,7 +203,7 @@ export default function DashboardPage() {
 
     try {
       // ✅ CARD "Ingresos del Mes": datos reales desde invoices (status='paid', paid_date este mes)
-      if (permissions.canViewFinancialReports()) {
+      if (canViewFinancial) {
         try {
           const ingresosRes = await fetch('/api/ingresos/stats', { credentials: 'include', cache: 'no-store' });
           const ingresosJson = await ingresosRes.json();
@@ -411,7 +412,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error cargando ingresos:', error);
     }
-  }, [organizationId, dateRange, customDateRange, sessionLoading, sessionReady, permissions]);
+  }, [organizationId, dateRange, customDateRange, sessionLoading, sessionReady, canViewFinancial]);
 
   // Cargar ingresos cuando cambia el filtro
   useEffect(() => {

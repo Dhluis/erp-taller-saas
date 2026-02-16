@@ -1215,8 +1215,7 @@ export default function ConversacionesPage() {
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (file) {
-        toast.success(`Archivo "${file.name}" seleccionado (simulado)`)
-        // Aquí se podría agregar la lógica real de subida
+        toast.success(`Archivo "${file.name}" seleccionado. La subida de medios está en desarrollo.`)
       }
     }
     input.click()

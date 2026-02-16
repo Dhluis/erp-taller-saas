@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. TODO: Guardar en historial (implementar después)
+    // 5. Historial: no existe tabla email_messages; se implementará en futura migración
     console.log('[POST /api/messaging/send/email] Email enviado:', {
       to,
       subject,
