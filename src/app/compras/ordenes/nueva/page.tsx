@@ -51,8 +51,10 @@ export default function NewPurchaseOrderPage() {
   const [supplierId, setSupplierId] = useState('');
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<OrderItem[]>([]);
+  const [productSearch, setProductSearch] = useState('');
 
   useEffect(() => {
     loadData();
@@ -154,10 +156,17 @@ export default function NewPurchaseOrderPage() {
     try {
       setSaving(true);
       
+      const paymentMethodMap: Record<string, string> = {
+        cash: 'cash',
+        card: 'card',
+        transfer: 'transfer',
+        credit: 'credit'
+      };
       const payload = {
         supplier_id: supplierId,
         order_date: orderDate,
         expected_delivery_date: expectedDeliveryDate || undefined,
+        payment_method: paymentMethod ? paymentMethodMap[paymentMethod] || paymentMethod : undefined,
         notes: notes || undefined,
         items: items.map(item => ({
           product_id: item.product_id,
@@ -291,6 +300,22 @@ export default function NewPurchaseOrderPage() {
                   onChange={(e) => setExpectedDeliveryDate(e.target.value)}
                 />
               </div>
+              
+              {/* Payment Method */}
+              <div className="space-y-2">
+                <Label htmlFor="paymentMethod">Método de pago</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Seleccionar" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700">
+                    <SelectItem value="cash" className="text-white hover:bg-gray-800">Efectivo</SelectItem>
+                    <SelectItem value="card" className="text-white hover:bg-gray-800">Tarjeta</SelectItem>
+                    <SelectItem value="transfer" className="text-white hover:bg-gray-800">Transferencia</SelectItem>
+                    <SelectItem value="credit" className="text-white hover:bg-gray-800">Crédito</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             
             {/* Notes */}
@@ -310,10 +335,18 @@ export default function NewPurchaseOrderPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Items de la Orden</CardTitle>
-            <Button onClick={addItem} variant="outline" size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Agregar Item
-            </Button>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Buscar producto..."
+                className="max-w-xs"
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+              />
+              <Button onClick={addItem} variant="outline" size="sm">
+                <Plus className="mr-2 h-4 w-4" />
+                Agregar Item
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {items.length === 0 ? (
@@ -348,11 +381,16 @@ export default function NewPurchaseOrderPage() {
                             <SelectValue placeholder="Selecciona producto" />
                           </SelectTrigger>
                           <SelectContent>
-                            {products.map(product => (
-                              <SelectItem key={product.id} value={product.id}>
-                                {product.name}
-                              </SelectItem>
-                            ))}
+                            {products
+                              .filter((p) =>
+                                !productSearch ||
+                                p.name.toLowerCase().includes(productSearch.toLowerCase())
+                              )
+                              .map((product) => (
+                                <SelectItem key={product.id} value={product.id}>
+                                  {product.name}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       </div>

@@ -101,6 +101,7 @@ const createPurchaseOrderSchema = z.object({
   supplier_id: z.string().uuid(),
   order_date: z.string(), // ISO date
   expected_delivery_date: z.string().optional(),
+  payment_method: z.enum(['cash', 'card', 'transfer', 'credit']).optional(),
   notes: z.string().optional(),
   items: z.array(purchaseOrderItemSchema).min(1, 'Debe incluir al menos un item')
 });
@@ -188,6 +189,12 @@ export async function POST(request: NextRequest) {
     const total = subtotal + tax;
     
     // 8. Crear purchase order (el trigger generará order_number automáticamente)
+    const paymentMethodMap: Record<string, string> = {
+      cash: 'Efectivo',
+      card: 'Tarjeta',
+      transfer: 'Transferencia',
+      credit: 'Crédito'
+    };
     const { data: order, error: orderError } = await supabaseAdmin
       .from('purchase_orders')
       .insert({
@@ -199,6 +206,7 @@ export async function POST(request: NextRequest) {
         subtotal,
         tax,
         total,
+        payment_method: validatedData.payment_method ? paymentMethodMap[validatedData.payment_method] || validatedData.payment_method : null,
         notes: validatedData.notes || null,
         created_by: userId
       })

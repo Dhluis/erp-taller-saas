@@ -344,8 +344,9 @@ export default function ReceivePurchaseOrderPage() {
                         <p className="font-medium text-orange-600">{pending}</p>
                       </div>
                       
-                      {/* Input */}
+                      {/* Cantidad a Recibir ahora */}
                       <div className="md:col-span-2">
+                        <p className="text-sm text-muted-foreground mb-1">A recibir</p>
                         {canReceive ? (
                           <Input
                             type="number"
