@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { 
   Select,
   SelectContent,
@@ -13,30 +12,79 @@ import {
 } from "@/components/ui/select"
 import { 
   TrendingUp, 
-  Users, 
   DollarSign,
   Download,
   Calendar,
   Star,
   User
 } from "lucide-react"
-import { getSalesReport, SalesReport } from "@/lib/supabase/reports"
+import { useOrganization } from "@/lib/context/SessionContext"
 import { StandardBreadcrumbs } from "@/components/ui/breadcrumbs"
 
+/** Mapea período seleccionado a fechas ISO (YYYY-MM-DD) */
+function getPeriodDates(period: string): { startDate: string; endDate: string } {
+  const now = new Date()
+  const endDate = now.toISOString().split('T')[0]
+  let startDate: string
+  switch (period) {
+    case 'today':
+      startDate = endDate
+      break
+    case 'this_week': {
+      const weekAgo = new Date(now)
+      weekAgo.setDate(now.getDate() - 7)
+      startDate = weekAgo.toISOString().split('T')[0]
+      break
+    }
+    case 'this_month':
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+      break
+    case 'last_month': {
+      const d = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      startDate = d.toISOString().split('T')[0]
+      const end = new Date(now.getFullYear(), now.getMonth(), 0)
+      return { startDate, endDate: end.toISOString().split('T')[0] }
+    }
+    case 'this_quarter': {
+      const quarterStart = new Date(now)
+      quarterStart.setMonth(now.getMonth() - 3)
+      startDate = quarterStart.toISOString().split('T')[0]
+      break
+    }
+    case 'this_year':
+      startDate = `${now.getFullYear()}-01-01`
+      break
+    case 'last_year':
+      startDate = `${now.getFullYear() - 1}-01-01`
+      return { startDate, endDate: `${now.getFullYear() - 1}-12-31` }
+    default:
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+  }
+  return { startDate, endDate }
+}
+
 export default function ReportesVentasPage() {
-  const [report, setReport] = useState<SalesReport>({
-    totalSales: 0,
-    totalOrders: 0,
-    averageOrderValue: 0,
-    topServices: [],
-    salesByEmployee: []
+  const { organizationId, ready } = useOrganization()
+  const [report, setReport] = useState({
+    summary: {
+      total_sales: 0,
+      paid_sales: 0,
+      pending_sales: 0,
+      total_invoices: 0,
+      average_ticket: 0
+    },
+    top_services: [] as { name: string; quantity: number }[],
+    top_products: [] as { name: string; quantity: number }[],
+    frequent_customers: [] as { name: string; orders: number }[],
+    daily_sales: [] as { date: string; amount: number }[]
   })
   const [isLoading, setIsLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState("this_month")
 
   useEffect(() => {
-    loadReport()
-  }, [selectedPeriod])
+    if (ready && !organizationId) setIsLoading(false)
+    if (organizationId) loadReport()
+  }, [selectedPeriod, organizationId, ready])
 
   const handlePeriodChange = (period: string) => {
     setSelectedPeriod(period)
@@ -157,23 +205,23 @@ export default function ReportesVentasPage() {
             <div class="metrics">
               <div class="metric-card">
                 <div class="metric-label">Ventas Totales</div>
-                <div class="metric-value">$${(report.totalSales || 0).toLocaleString()}</div>
-                <div class="metric-label">+12.5% del mes anterior</div>
+                <div class="metric-value">$${(report.summary?.total_sales || 0).toLocaleString()}</div>
+                <div class="metric-label">Total del período</div>
               </div>
               <div class="metric-card">
-                <div class="metric-label">Total Órdenes</div>
-                <div class="metric-value">${report.totalOrders}</div>
-                <div class="metric-label">Órdenes completadas</div>
+                <div class="metric-label">Total Facturas</div>
+                <div class="metric-value">${report.summary?.total_invoices || 0}</div>
+                <div class="metric-label">Facturas del período</div>
               </div>
               <div class="metric-card">
                 <div class="metric-label">Ticket Promedio</div>
-                <div class="metric-value">$${(report.averageOrderValue || 0).toLocaleString()}</div>
-                <div class="metric-label">Por orden de trabajo</div>
+                <div class="metric-value">$${(report.summary?.average_ticket || 0).toLocaleString()}</div>
+                <div class="metric-label">Por factura</div>
               </div>
               <div class="metric-card">
-                <div class="metric-label">Crecimiento</div>
-                <div class="metric-value" style="color: #10b981;">+12.5%</div>
-                <div class="metric-label">vs mes anterior</div>
+                <div class="metric-label">Cobrado</div>
+                <div class="metric-value" style="color: #10b981;">$${(report.summary?.paid_sales || 0).toLocaleString()}</div>
+                <div class="metric-label">Facturas pagadas</div>
               </div>
             </div>
           </div>
@@ -185,17 +233,15 @@ export default function ReportesVentasPage() {
                 <tr>
                   <th>#</th>
                   <th>Servicio</th>
-                  <th>Ingresos</th>
-                  <th>Órdenes</th>
+                  <th>Cantidad</th>
                 </tr>
               </thead>
               <tbody>
-                ${report.topServices.map((service, index) => `
+                ${(report.top_services || []).map((service, index) => `
                   <tr>
                     <td>${index + 1}</td>
                     <td>${service.name}</td>
-                    <td>$${(service.revenue || 0).toLocaleString()}</td>
-                    <td>${service.orders || 0}</td>
+                    <td>${service.quantity || 0}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -203,21 +249,19 @@ export default function ReportesVentasPage() {
           </div>
 
           <div class="section">
-            <h2>Ventas por Empleado</h2>
+            <h2>Clientes Frecuentes</h2>
             <table>
               <thead>
                 <tr>
-                  <th>Empleado</th>
-                  <th>Total Vendido</th>
+                  <th>Cliente</th>
                   <th>Órdenes</th>
                 </tr>
               </thead>
               <tbody>
-                ${report.salesByEmployee.map((employee) => `
+                ${(report.frequent_customers || []).map((c) => `
                   <tr>
-                    <td>${employee.name || employee.employee_name || 'N/A'}</td>
-                    <td>$${(employee.total_revenue || 0).toLocaleString()}</td>
-                    <td>${employee.orders || employee.sales_count || 0}</td>
+                    <td>${c.name || 'N/A'}</td>
+                    <td>${c.orders || 0}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -228,15 +272,15 @@ export default function ReportesVentasPage() {
             <h2>Análisis de Rendimiento</h2>
             <div class="metrics">
               <div class="metric-card">
-                <div class="metric-value" style="color: #10b981;">${report.totalOrders}</div>
-                <div class="metric-label">Órdenes Completadas</div>
+                <div class="metric-value" style="color: #10b981;">${report.summary?.total_invoices || 0}</div>
+                <div class="metric-label">Total Facturas</div>
               </div>
               <div class="metric-card">
-                <div class="metric-value" style="color: #3b82f6;">$${(report.averageOrderValue || 0).toLocaleString()}</div>
+                <div class="metric-value" style="color: #3b82f6;">$${(report.summary?.average_ticket || 0).toLocaleString()}</div>
                 <div class="metric-label">Ticket Promedio</div>
               </div>
               <div class="metric-card">
-                <div class="metric-value" style="color: #8b5cf6;">${report.topServices.length}</div>
+                <div class="metric-value" style="color: #8b5cf6;">${(report.top_services || []).length}</div>
                 <div class="metric-label">Servicios Activos</div>
               </div>
             </div>
@@ -272,109 +316,20 @@ export default function ReportesVentasPage() {
   }
 
   const loadReport = async () => {
+    if (!organizationId) return
     setIsLoading(true)
     try {
-      // Simular datos basados en el período seleccionado
-      const periodData = getPeriodData(selectedPeriod)
-      setReport(periodData)
+      const { startDate, endDate } = getPeriodDates(selectedPeriod)
+      const res = await fetch(
+        `/api/reports/sales?start_date=${startDate}&end_date=${endDate}`,
+        { credentials: 'include' }
+      )
+      const json = await res.json()
+      if (json.data) setReport(json.data)
     } catch (error) {
-      console.error('Error loading sales report:', error)
-      // Datos de ejemplo en caso de error
-      setReport({
-        totalSales: 125000,
-        totalOrders: 45,
-        averageOrderValue: 2778,
-        topServices: [
-          { name: "Reparación Motor", revenue: 45000, orders: 15 },
-          { name: "Mantenimiento", revenue: 35000, orders: 20 },
-          { name: "Diagnóstico", revenue: 25000, orders: 8 },
-          { name: "Otros", revenue: 20000, orders: 2 }
-        ],
-        salesByEmployee: [
-          { name: "Juan Pérez", total_revenue: 45000, orders: 15 },
-          { name: "María García", total_revenue: 35000, orders: 12 },
-          { name: "Carlos López", total_revenue: 30000, orders: 10 },
-          { name: "Ana Martínez", total_revenue: 15000, orders: 8 }
-        ]
-      })
+      console.error('Error cargando reporte de ventas:', error)
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const getPeriodData = (period: string) => {
-    const baseData = {
-      topServices: [
-        { name: "Reparación Motor", revenue: 45000, orders: 15 },
-        { name: "Mantenimiento", revenue: 35000, orders: 20 },
-        { name: "Diagnóstico", revenue: 25000, orders: 8 },
-        { name: "Otros", revenue: 20000, orders: 2 }
-      ],
-      salesByEmployee: [
-        { name: "Juan Pérez", total_revenue: 45000, orders: 15 },
-        { name: "María García", total_revenue: 35000, orders: 12 },
-        { name: "Carlos López", total_revenue: 30000, orders: 10 },
-        { name: "Ana Martínez", total_revenue: 15000, orders: 8 }
-      ]
-    }
-
-    switch (period) {
-      case "today":
-        return {
-          totalSales: 2500,
-          totalOrders: 3,
-          averageOrderValue: 833,
-          ...baseData
-        }
-      case "this_week":
-        return {
-          totalSales: 15000,
-          totalOrders: 8,
-          averageOrderValue: 1875,
-          ...baseData
-        }
-      case "this_month":
-        return {
-          totalSales: 125000,
-          totalOrders: 45,
-          averageOrderValue: 2778,
-          ...baseData
-        }
-      case "last_month":
-        return {
-          totalSales: 98000,
-          totalOrders: 38,
-          averageOrderValue: 2579,
-          ...baseData
-        }
-      case "this_quarter":
-        return {
-          totalSales: 350000,
-          totalOrders: 125,
-          averageOrderValue: 2800,
-          ...baseData
-        }
-      case "this_year":
-        return {
-          totalSales: 1200000,
-          totalOrders: 450,
-          averageOrderValue: 2667,
-          ...baseData
-        }
-      case "last_year":
-        return {
-          totalSales: 950000,
-          totalOrders: 380,
-          averageOrderValue: 2500,
-          ...baseData
-        }
-      default:
-        return {
-          totalSales: 125000,
-          totalOrders: 45,
-          averageOrderValue: 2778,
-          ...baseData
-        }
     }
   }
 
@@ -429,19 +384,19 @@ export default function ReportesVentasPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(report.totalSales || 0).toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+12.5% del mes anterior</p>
+            <div className="text-2xl font-bold">${(report.summary?.total_sales || 0).toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Total del período</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Órdenes</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Facturas</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{report.totalOrders}</div>
-            <p className="text-xs text-muted-foreground">Órdenes completadas</p>
+            <div className="text-2xl font-bold">{report.summary?.total_invoices || 0}</div>
+            <p className="text-xs text-muted-foreground">Facturas del período</p>
           </CardContent>
         </Card>
 
@@ -451,19 +406,19 @@ export default function ReportesVentasPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(report.averageOrderValue || 0).toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Por orden de trabajo</p>
+            <div className="text-2xl font-bold">${(report.summary?.average_ticket || 0).toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Por factura</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Crecimiento</CardTitle>
+            <CardTitle className="text-sm font-medium">Cobrado</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">+12.5%</div>
-            <p className="text-xs text-muted-foreground">vs mes anterior</p>
+            <div className="text-2xl font-bold text-green-600">${(report.summary?.paid_sales || 0).toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Facturas pagadas</p>
           </CardContent>
         </Card>
       </div>
@@ -478,7 +433,7 @@ export default function ReportesVentasPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {report.topServices.map((service, index) => (
+              {(report.top_services || []).map((service, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
@@ -486,12 +441,8 @@ export default function ReportesVentasPage() {
                     </div>
                     <div>
                       <p className="font-medium">{service.name}</p>
-                      <p className="text-sm text-muted-foreground">{service.count} servicios</p>
+                      <p className="text-sm text-muted-foreground">{service.quantity ?? 0} unidades</p>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">${(service.revenue || 0).toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">Ingresos</p>
                   </div>
                 </div>
               ))}
@@ -503,25 +454,21 @@ export default function ReportesVentasPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              Ventas por Empleado
+              Clientes Frecuentes
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {report.salesByEmployee.map((employee, index) => (
+              {(report.frequent_customers || []).map((customer, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                       <User className="h-4 w-4 text-blue-600" />
                     </div>
                     <div>
-                      <p className="font-medium">{employee.employee_name}</p>
-                      <p className="text-sm text-muted-foreground">{employee.sales_count} órdenes</p>
+                      <p className="font-medium">{customer.name}</p>
+                      <p className="text-sm text-muted-foreground">{customer.orders ?? 0} órdenes</p>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">${(employee.total_revenue || 0).toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">Total vendido</p>
                   </div>
                 </div>
               ))}
@@ -537,17 +484,17 @@ export default function ReportesVentasPage() {
         <CardContent>
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">{report.totalOrders}</div>
-                <div className="text-sm text-black">Órdenes Completadas</div>
+              <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">{report.summary?.total_invoices ?? 0}</div>
+                <div className="text-sm text-muted-foreground">Total Facturas</div>
               </div>
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">${(report.averageOrderValue || 0).toLocaleString()}</div>
-                <div className="text-sm text-black">Ticket Promedio</div>
+              <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">${(report.summary?.average_ticket ?? 0).toLocaleString()}</div>
+                <div className="text-sm text-muted-foreground">Ticket Promedio</div>
               </div>
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <div className="text-2xl font-bold text-purple-600">{report.topServices.length}</div>
-                <div className="text-sm text-black">Servicios Activos</div>
+              <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                <div className="text-2xl font-bold text-purple-600">{(report.top_services || []).length}</div>
+                <div className="text-sm text-muted-foreground">Servicios Activos</div>
               </div>
             </div>
           </div>
