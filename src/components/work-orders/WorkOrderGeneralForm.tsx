@@ -203,6 +203,7 @@ export function WorkOrderGeneralForm({
   // ✅ Refs para NO resetear formData cuando solo cambia isEditing (evita perder cambios tras Guardar)
   const lastSyncedOrderIdRef = useRef<string | null>(null)
   const lastSyncedUpdatedAtRef = useRef<string | null>(null)
+  const lastVehicleHashRef = useRef<string>('')
 
   // ✅ Filtrar clientes por búsqueda
   const filteredCustomers = useMemo(() => {
@@ -249,15 +250,35 @@ export function WorkOrderGeneralForm({
   
   // ✅ SINCRONIZAR formData con order solo cuando la orden realmente cambió (otra orden o datos refrescados)
   // NO sincronizar al solo poner isEditing=false tras Guardar, para no sobrescribir con datos viejos antes del refetch
+  // ✅ FIX: Also detect vehicle data changes so reopened modal shows updated vehicle (color, plate, mileage)
   useEffect(() => {
     if (!order || isEditing) return
+
+    const vehicleHash = order.vehicle
+      ? JSON.stringify({
+          brand: order.vehicle.brand,
+          model: order.vehicle.model,
+          year: order.vehicle.year,
+          plate: order.vehicle.license_plate,
+          color: order.vehicle.color,
+          mileage: order.vehicle.mileage,
+        })
+      : ''
+
     const orderId = order.id
     const updatedAt = order.updated_at ?? null
-    if (lastSyncedOrderIdRef.current === orderId && lastSyncedUpdatedAtRef.current === updatedAt) {
+
+    if (
+      lastSyncedOrderIdRef.current === orderId &&
+      lastSyncedUpdatedAtRef.current === updatedAt &&
+      lastVehicleHashRef.current === vehicleHash
+    ) {
       return
     }
+
     lastSyncedOrderIdRef.current = orderId
     lastSyncedUpdatedAtRef.current = updatedAt
+    lastVehicleHashRef.current = vehicleHash
     setFormData(initializeFormData(order))
   }, [order, isEditing])
 

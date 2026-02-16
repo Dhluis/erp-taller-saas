@@ -509,20 +509,41 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
   }
 
   // Manejar click en orden
-  function handleOrderClick(orderId: string) {
+  async function handleOrderClick(orderId: string) {
     console.log('📋 Click en orden:', orderId);
-    
-    // Encontrar la orden completa
-    const order = columns
-      .flatMap(col => col.orders)
-      .find(order => order.id === orderId);
-    
-    if (order) {
-      console.log('✅ Orden encontrada:', order);
-      setSelectedOrder(order);
-      setDetailsModalOpen(true);
-    } else {
-      console.error('❌ Orden no encontrada:', orderId);
+
+    try {
+      // ✅ FIX: Fetch complete order data with all joins (vehicle, customer, inspection)
+      // instead of using basic data from columns array
+      const response = await fetch(`/api/work-orders/${orderId}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al cargar orden');
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        console.log('✅ Orden completa cargada:', result.data);
+        setSelectedOrder(result.data);
+        setDetailsModalOpen(true);
+      } else {
+        console.error('❌ Error en respuesta:', result);
+      }
+    } catch (error) {
+      console.error('❌ Error al cargar orden:', error);
+      // Fallback: usar datos básicos de columns si falla el fetch
+      const order = columns
+        .flatMap(col => col.orders)
+        .find(o => o.id === orderId);
+
+      if (order) {
+        console.warn('⚠️ Usando datos básicos como fallback');
+        setSelectedOrder(order);
+        setDetailsModalOpen(true);
+      }
     }
   }
 

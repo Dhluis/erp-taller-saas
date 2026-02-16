@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServiceClient, createClientFromRequest } from '@/lib/supabase/server'
 
 // Endpoint para obtener el perfil del usuario actual
