@@ -101,7 +101,6 @@ const createPurchaseOrderSchema = z.object({
   supplier_id: z.string().uuid(),
   order_date: z.string(), // ISO date
   expected_delivery_date: z.string().optional(),
-  payment_method: z.enum(['cash', 'card', 'transfer', 'credit']).optional(),
   notes: z.string().optional(),
   items: z.array(purchaseOrderItemSchema).min(1, 'Debe incluir al menos un item')
 });
@@ -188,26 +187,24 @@ export async function POST(request: NextRequest) {
     const tax = subtotal * taxRate;
     const total = subtotal + tax;
     
-    // 8. Crear purchase order (el trigger generará order_number automáticamente)
-    const paymentMethodMap: Record<string, string> = {
-      cash: 'Efectivo',
-      card: 'Tarjeta',
-      transfer: 'Transferencia',
-      credit: 'Crédito'
-    };
+    // 8. Generar número de orden
+    const { data: generatedOrderNumber } = await supabaseAdmin.rpc('generate_purchase_order_number');
+    const orderNumber = generatedOrderNumber || `OC-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`;
+    
+    // 9. Crear purchase order (solo columnas que existen en BD real)
     const { data: order, error: orderError } = await supabaseAdmin
       .from('purchase_orders')
       .insert({
         organization_id: organizationId,
+        order_number: orderNumber,
         supplier_id: validatedData.supplier_id,
         status: 'draft',
         order_date: validatedData.order_date,
-        expected_delivery_date: validatedData.expected_delivery_date || null,
+        expected_delivery_date: validatedData.expected_delivery_date ?? null,
         subtotal,
         tax,
         total,
-        payment_method: validatedData.payment_method ? paymentMethodMap[validatedData.payment_method] || validatedData.payment_method : null,
-        notes: validatedData.notes || null,
+        notes: validatedData.notes ?? null,
         created_by: userId
       })
       .select()
@@ -252,7 +249,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
     
-    // 10. Retornar orden creada
+    // 11. Retornar orden creada
     return NextResponse.json({
       success: true,
       data: {

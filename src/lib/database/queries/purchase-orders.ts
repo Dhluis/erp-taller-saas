@@ -321,20 +321,22 @@ export async function updatePurchaseOrder(
       throw new Error('No se puede editar una orden cancelada')
     }
 
-    // Actualizar orden
-    const updateData: any = {
-      ...data,
+    // Actualizar orden (solo columnas que existen en BD real)
+    const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString()
     }
+    if (data.supplier_id !== undefined) updateData.supplier_id = data.supplier_id
+    if (data.order_date !== undefined) updateData.order_date = data.order_date
+    if (data.expected_delivery_date !== undefined) updateData.expected_delivery_date = data.expected_delivery_date
+    if (data.notes !== undefined) updateData.notes = data.notes
 
     // Recalcular totales si hay items
     if (data.items && data.items.length > 0) {
       const subtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0)
-      const taxAmount = subtotal * 0.16
-      const total = subtotal + taxAmount
-
+      const tax = subtotal * 0.16
+      const total = subtotal + tax
       updateData.subtotal = subtotal
-      updateData.tax_amount = taxAmount
+      updateData.tax = tax
       updateData.total = total
     }
 
