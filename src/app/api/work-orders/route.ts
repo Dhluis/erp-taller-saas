@@ -208,7 +208,8 @@ export async function GET(request: NextRequest) {
               year,
               license_plate,
               color,
-              mileage
+              mileage,
+              vin
             ),
             assigned_user:users!work_orders_assigned_to_fkey(
               id,

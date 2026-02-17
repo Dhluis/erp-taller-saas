@@ -88,7 +88,8 @@ export async function GET(
           year,
           license_plate,
           color,
-          mileage
+          mileage,
+          vin
         ),
         assigned_user:users!work_orders_assigned_to_fkey(
           id,
@@ -360,7 +361,8 @@ export async function PUT(
           year,
           license_plate,
           color,
-          mileage
+          mileage,
+          vin
         ),
         assigned_user:users!work_orders_assigned_to_fkey(
           id,

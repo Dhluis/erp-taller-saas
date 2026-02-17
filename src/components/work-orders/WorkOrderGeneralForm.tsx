@@ -77,6 +77,7 @@ export function WorkOrderGeneralForm({
         vehiclePlate: '',
         vehicleColor: '',
         vehicleMileage: '',
+        vehicleVin: '',
         description: '',
         estimated_cost: '',
         assigned_to: '',
@@ -150,6 +151,7 @@ export function WorkOrderGeneralForm({
       vehiclePlate: orderData.vehicle?.license_plate || '',
       vehicleColor: orderData.vehicle?.color || '',
       vehicleMileage: orderData.vehicle?.mileage?.toString() || '',
+      vehicleVin: orderData.vehicle?.vin || '',
       
       // Orden
       description: orderData.description || '',
@@ -366,6 +368,7 @@ export function WorkOrderGeneralForm({
         if (formData.vehiclePlate)   vehicleUpdate.license_plate = formData.vehiclePlate.toUpperCase()
         vehicleUpdate.color = formData.vehicleColor || null
         vehicleUpdate.mileage = formData.vehicleMileage ? parseInt(formData.vehicleMileage) : null
+        vehicleUpdate.vin = formData.vehicleVin?.trim() ? formData.vehicleVin.trim().toUpperCase() : null
 
         console.log('📊 [DEBUG] vehicleUpdate a enviar:', vehicleUpdate)
         console.log('📊 [DEBUG] Cantidad de campos a actualizar:', Object.keys(vehicleUpdate).length)
@@ -789,6 +792,22 @@ export function WorkOrderGeneralForm({
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">{formData.vehicleMileage || 'N/A'}</p>
+          )}
+        </div>
+
+        <div>
+          <Label htmlFor="vin">VIN / No. Serie</Label>
+          {isEditing ? (
+            <Input
+              id="vin"
+              name="vehicleVin"
+              value={formData.vehicleVin}
+              onChange={handleChange}
+              placeholder="17 caracteres"
+              maxLength={17}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">{formData.vehicleVin || 'N/A'}</p>
           )}
         </div>
       </div>
