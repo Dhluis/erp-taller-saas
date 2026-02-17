@@ -56,8 +56,7 @@ export async function GET(request: NextRequest) {
         updated_at,
         products (
           id,
-          name,
-          sku
+          name
         )
       `,
         { count: 'exact' }
@@ -186,7 +185,7 @@ export async function POST(request: NextRequest) {
       .select(
         `
         *,
-        products (id, name, sku)
+        products (id, name)
       `
       )
       .single()
