@@ -396,14 +396,14 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
 
       {/* Modal + Paquete */}
       <Dialog open={modalPackage} onOpenChange={setModalPackage}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-white">
           <DialogHeader>
-            <DialogTitle>Agregar paquete</DialogTitle>
-            <DialogDescription>Elige un paquete predefinido de la organización.</DialogDescription>
+            <DialogTitle className="text-white">Agregar paquete</DialogTitle>
+            <DialogDescription className="text-slate-300">Elige un paquete predefinido de la organización.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Paquete</Label>
+              <Label className="text-slate-200">Paquete</Label>
               <Select
                 value={formPackage.service_package_id}
                 onValueChange={(v) => {
@@ -416,17 +416,17 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
                   }))
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-slate-800/80 border-slate-600 text-white hover:bg-slate-700/80">
                   <SelectValue placeholder="Seleccionar paquete" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-slate-900 border-slate-600 text-white">
                   {packages.map((p) => {
                     const st = stockStatusForPackage(p)
                     return (
-                      <SelectItem key={p.id} value={p.id}>
+                      <SelectItem key={p.id} value={p.id} className="text-white focus:bg-slate-700 focus:text-white">
                         <span className="flex items-center gap-2">
                           {p.name} – {formatMoney(p.price)}
-                          {!st.ok && <span className="text-red-600 text-xs">(stock bajo)</span>}
+                          {!st.ok && <span className="text-red-400 text-xs">(stock bajo)</span>}
                         </span>
                       </SelectItem>
                     )
@@ -435,8 +435,9 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
               </Select>
             </div>
             <div>
-              <Label>Nombre (opcional)</Label>
+              <Label className="text-slate-200">Nombre (opcional)</Label>
               <Input
+                className="bg-slate-800/80 border-slate-600 text-white placeholder:text-slate-400"
                 value={formPackage.name}
                 onChange={(e) => setFormPackage(prev => ({ ...prev, name: e.target.value }))}
                 placeholder="Se usa el nombre del paquete si se deja vacío"
@@ -444,27 +445,29 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Precio unitario</Label>
+                <Label className="text-slate-200">Precio unitario</Label>
                 <Input
                   type="number"
                   min={0}
                   step={0.01}
+                  className="bg-slate-800/80 border-slate-600 text-white"
                   value={formPackage.unit_price || ''}
                   onChange={(e) => setFormPackage(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
                 />
               </div>
               <div>
-                <Label>Cantidad</Label>
+                <Label className="text-slate-200">Cantidad</Label>
                 <Input
                   type="number"
                   min={1}
+                  className="bg-slate-800/80 border-slate-600 text-white"
                   value={formPackage.quantity}
                   onChange={(e) => setFormPackage(prev => ({ ...prev, quantity: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
                 />
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setModalPackage(false)}>Cancelar</Button>
+              <Button variant="outline" className="border-slate-600 text-slate-200 hover:bg-slate-800" onClick={() => setModalPackage(false)}>Cancelar</Button>
               <Button onClick={submitPackage} disabled={saving || !formPackage.service_package_id}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Agregar

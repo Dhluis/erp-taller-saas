@@ -134,13 +134,13 @@ export default function IngresosPage() {
           actions={
             <div className="flex gap-2">
               <Link href="/ingresos/facturacion">
-                <Button>
+                <Button className="text-white">
                   <Plus className="h-4 w-4 mr-2" />
                   Nueva Factura
                 </Button>
               </Link>
               <Link href="/ingresos/cobros">
-                <Button variant="outline">
+                <Button variant="outline" className="text-white">
                   <CreditCard className="h-4 w-4 mr-2" />
                   Registrar Cobro
                 </Button>
@@ -255,7 +255,7 @@ export default function IngresosPage() {
             </CardHeader>
             <CardContent className="p-6">
               <Link href="/ingresos/facturacion">
-                <Button className="w-full">
+                <Button className="w-full text-white">
                   Gestionar Facturas
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -273,7 +273,7 @@ export default function IngresosPage() {
             </CardHeader>
             <CardContent className="p-6">
               <Link href="/ingresos/cobros">
-                <Button className="w-full">
+                <Button className="w-full text-white">
                   Gestionar Cobros
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -291,7 +291,7 @@ export default function IngresosPage() {
             </CardHeader>
             <CardContent className="p-6">
               <Link href="/ingresos/reportes">
-                <Button className="w-full">
+                <Button className="w-full text-white">
                   Ver Reportes
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
