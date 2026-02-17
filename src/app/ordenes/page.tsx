@@ -3,7 +3,7 @@
 // Force dynamic rendering to avoid cache issues
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
@@ -57,7 +57,7 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor
   in_progress: { label: 'En Proceso', color: 'text-blue-700', bgColor: 'bg-blue-100' },
 };
 
-export default function OrdenesPage() {
+function OrdenesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { organizationId, loading: orgLoading, ready } = useOrganization();
@@ -891,5 +891,17 @@ export default function OrdenesPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function OrdenesPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500" />
+      </div>
+    }>
+      <OrdenesPageContent />
+    </Suspense>
   );
 }
