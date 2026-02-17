@@ -903,9 +903,9 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
         </Card>
       )}
 
-      {/* Modal de imagen en detalle */}
+      {/* Modal de imagen en detalle — overlay oscuro para no confundir con las imágenes de atrás */}
       <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl" overlayClassName="bg-black/95">
           {selectedImage && (
             <>
               <DialogHeader>
@@ -1056,12 +1056,25 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
     </div>
   )
 }, (prevProps, nextProps) => {
-  // ✅ OPTIMIZACIÓN: Solo re-renderizar si cambian props relevantes
-  return (
-    prevProps.orderId === nextProps.orderId &&
-    prevProps.images.length === nextProps.images.length &&
-    prevProps.currentStatus === nextProps.currentStatus &&
-    prevProps.userId === nextProps.userId &&
-    prevProps.maxImages === nextProps.maxImages
-  )
+  // ✅ OPTIMIZACIÓN: Re-renderizar si cambian props relevantes O contenido de imágenes
+  if (prevProps.orderId !== nextProps.orderId) return false
+  if (prevProps.currentStatus !== nextProps.currentStatus) return false
+  if (prevProps.userId !== nextProps.userId) return false
+  if (prevProps.maxImages !== nextProps.maxImages) return false
+
+  // ✅ FIX: Comparar contenido de imágenes, no solo el length
+  if (prevProps.images.length !== nextProps.images.length) return false
+
+  // Verificar si alguna imagen cambió (categoría, descripción, url)
+  for (let i = 0; i < nextProps.images.length; i++) {
+    const prev = prevProps.images[i]
+    const next = nextProps.images[i]
+    if (!prev || !next) return false
+    if (prev.path !== next.path) return false
+    if (prev.category !== next.category) return false
+    if (prev.description !== next.description) return false
+    if (prev.url !== next.url) return false
+  }
+
+  return true
 })

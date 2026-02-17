@@ -1,279 +1,212 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClientFromRequest } from '@/lib/supabase/server'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
-import { InventoryMovementInsert, InventoryMovement } from '@/types/supabase-simple'
-import { z } from 'zod'
-import { 
-  extractPaginationFromURL, 
-  calculateOffset, 
-  generatePaginationMeta 
-} from '@/lib/utils/pagination'
-import type { PaginatedResponse } from '@/types/pagination'
+import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 
-// Schema de validación para crear movimiento
-const createMovementSchema = z.object({
-  product_id: z.string().uuid(),
-  movement_type: z.enum(['entry', 'exit', 'adjustment', 'transfer']),
-  quantity: z.number().int().positive(),
-  reference_type: z.enum(['purchase_order', 'work_order', 'adjustment', 'transfer', 'initial']).optional(),
-  reference_id: z.string().uuid().optional(),
-  unit_cost: z.number().positive().optional(),
-  notes: z.string().optional()
-})
-
-// GET - Obtener movimientos de inventario
+// GET - Listar movimientos de inventario con paginación y filtros
 export async function GET(request: NextRequest) {
   try {
-    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
-    const supabase = createClientFromRequest(request);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+    const supabase = createClientFromRequest(request)
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
     if (authError || !user) {
-      console.error('[GET /api/inventory/movements] Error de autenticación:', authError);
-      return NextResponse.json({ 
-        success: false,
-        error: 'No autorizado',
-        data: []
-      }, { status: 401 })
+      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
     }
 
-    // Obtener organization_id del perfil del usuario usando Service Role Client
-    const supabaseAdmin = getSupabaseServiceClient();
+    const supabaseAdmin = getSupabaseServiceClient()
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
       .select('organization_id')
       .eq('auth_user_id', user.id)
-      .single();
+      .single()
 
     if (profileError || !userProfile?.organization_id) {
-      console.error('[GET /api/inventory/movements] Error obteniendo perfil:', profileError);
-      return NextResponse.json({ 
-        success: false,
-        error: 'Perfil de usuario no encontrado',
-        data: []
-      }, { status: 404 })
+      return NextResponse.json({ success: false, error: 'Perfil no encontrado' }, { status: 404 })
     }
 
-    const organizationId = userProfile.organization_id;
+    const organizationId = userProfile.organization_id
     const url = request.url ? new URL(request.url, 'https://localhost') : new URL('https://localhost/api/inventory/movements')
-    const searchParams = url.searchParams
+    const { searchParams } = url
 
-    const { page, pageSize, sortBy, sortOrder } = extractPaginationFromURL(url)
-    const offset = calculateOffset(page, pageSize)
-    
-    // Obtener parámetros de filtro
-    const product_id = searchParams.get('product_id')
+    const page = parseInt(searchParams.get('page') || '1')
+    const pageSize = parseInt(searchParams.get('pageSize') || '50')
+    const sortBy = searchParams.get('sortBy') || 'created_at'
+    const sortOrder = searchParams.get('sortOrder') || 'desc'
+    const offset = (page - 1) * pageSize
+
     const movement_type = searchParams.get('movement_type')
+    const product_id = searchParams.get('product_id')
     const start_date = searchParams.get('start_date')
     const end_date = searchParams.get('end_date')
 
-    console.log('🔄 [GET /api/inventory/movements] Parámetros:', {
-      organizationId,
-      page,
-      pageSize,
-      product_id,
-      movement_type,
-      start_date,
-      end_date
-    })
-
-    // ✅ Construir consulta base con count para paginación
-    let countQuery = supabaseAdmin
+    let query = supabaseAdmin
       .from('inventory_movements')
-      .select('*', { count: 'exact', head: true })
+      .select(
+        `
+        id,
+        product_id,
+        movement_type,
+        quantity,
+        previous_stock,
+        new_stock,
+        reference_type,
+        reference_id,
+        unit_cost,
+        total_cost,
+        notes,
+        created_at,
+        updated_at,
+        products (
+          id,
+          name,
+          sku
+        )
+      `,
+        { count: 'exact' }
+      )
       .eq('organization_id', organizationId)
 
-    // Aplicar filtros a count query
-    if (product_id) countQuery = countQuery.eq('product_id', product_id)
-    if (movement_type && movement_type !== 'all') countQuery = countQuery.eq('movement_type', movement_type)
-    if (start_date) countQuery = countQuery.gte('created_at', start_date)
-    if (end_date) countQuery = countQuery.lte('created_at', end_date)
-
-    const sortColumn = sortBy || 'created_at'
-    const sortDirection = sortOrder || 'desc'
-
-    // Query de datos: intentar con join a products; si falla (ej. FK distinto en producción), sin join
-    let dataQuery = supabaseAdmin
-      .from('inventory_movements')
-      .select('*', { count: 'exact' })
-      .eq('organization_id', organizationId)
-
-    if (product_id) dataQuery = dataQuery.eq('product_id', product_id)
-    if (movement_type && movement_type !== 'all') dataQuery = dataQuery.eq('movement_type', movement_type)
-    if (start_date) dataQuery = dataQuery.gte('created_at', start_date)
-    if (end_date) dataQuery = dataQuery.lte('created_at', end_date)
-    dataQuery = dataQuery.order(sortColumn, { ascending: sortDirection === 'asc' }).range(offset, offset + pageSize - 1)
-
-    const [countResult, dataResult] = await Promise.all([countQuery, dataQuery])
-
-    if (countResult.error) {
-      console.error('❌ [GET /api/inventory/movements] Error en count:', countResult.error)
-      return NextResponse.json({
-        success: false,
-        error: 'Error al obtener total de movimientos',
-        data: { items: [], pagination: generatePaginationMeta(page, pageSize, 0) }
-      }, { status: 500 })
+    if (movement_type && movement_type !== 'all') {
+      query = query.eq('movement_type', movement_type)
+    }
+    if (product_id) {
+      query = query.eq('product_id', product_id)
+    }
+    if (start_date) {
+      query = query.gte('created_at', `${start_date}T00:00:00.000Z`)
+    }
+    if (end_date) {
+      query = query.lte('created_at', `${end_date}T23:59:59.999Z`)
     }
 
-    if (dataResult.error) {
-      console.error('❌ [GET /api/inventory/movements] Error en data:', dataResult.error)
-      return NextResponse.json({
-        success: false,
-        error: 'Error al obtener movimientos',
-        data: { items: [], pagination: generatePaginationMeta(page, pageSize, 0) }
-      }, { status: 500 })
+    query = query
+      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .range(offset, offset + pageSize - 1)
+
+    const { data: movements, error, count } = await query
+
+    if (error) {
+      console.error('[GET /api/inventory/movements] Error:', error)
+      return NextResponse.json({ success: false, error: 'Error al obtener movimientos' }, { status: 500 })
     }
 
-    const count = countResult.count ?? 0
-    let movements = (dataResult.data || []) as Array<Record<string, unknown> & { product_id?: string }>
+    const total = count ?? 0
+    const totalPages = Math.ceil(total / pageSize)
 
-    // Enriquecer con nombre de producto (consulta separada para evitar 500 por join/embed en Supabase)
-    if (movements.length > 0) {
-      const productIds = [...new Set(movements.map((m) => m.product_id).filter(Boolean))] as string[]
-      if (productIds.length > 0) {
-        const { data: productsData } = await supabaseAdmin
-          .from('products')
-          .select('id, name')
-          .in('id', productIds)
-        const rawList = Array.isArray(productsData) ? productsData : []
-        const byId = new Map<string, { id: string; name: string }>()
-        for (let i = 0; i < rawList.length; i++) {
-          const p = rawList[i] as Record<string, unknown> | null
-          if (p && p.id) byId.set(String(p.id), { id: String(p.id), name: String(p.name ?? '') })
-        }
-        movements = movements.map((m) => ({
-          ...m,
-          products: m.product_id ? (byId.get(m.product_id) ?? null) : null
-        }))
-      }
-    }
-
-    console.log('✅ [GET /api/inventory/movements] Movimientos obtenidos:', {
-      count: movements.length,
-      total: count,
-      page,
-      pageSize
-    })
-
-    // ✅ Retornar formato paginado consistente
     return NextResponse.json({
       success: true,
       data: {
-        items: movements,
-        pagination: generatePaginationMeta(page, pageSize, count)
+        items: movements ?? [],
+        pagination: {
+          page,
+          pageSize,
+          total,
+          totalPages
+        }
       }
-    } as PaginatedResponse<InventoryMovement>)
-
-  } catch (error) {
-    console.error('Error in GET /api/inventory/movements:', error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    })
+  } catch (err) {
+    console.error('[GET /api/inventory/movements] Error interno:', err)
+    return NextResponse.json({ success: false, error: 'Error interno del servidor' }, { status: 500 })
   }
 }
 
-// POST - Crear nuevo movimiento de inventario
+// POST - Crear nuevo movimiento manual (ajuste)
 export async function POST(request: NextRequest) {
   try {
-    // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
-    const supabase = createClientFromRequest(request);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+    const supabase = createClientFromRequest(request)
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
     if (authError || !user) {
-      console.error('[POST /api/inventory/movements] Error de autenticación:', authError);
-      return NextResponse.json({ 
-        success: false,
-        error: 'No autorizado'
-      }, { status: 401 })
+      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
     }
 
-    // Obtener organization_id del perfil del usuario usando Service Role Client
-    const supabaseAdmin = getSupabaseServiceClient();
-    const { data: userProfile, error: profileError } = await supabaseAdmin
+    const supabaseAdmin = getSupabaseServiceClient()
+    const { data: userProfile } = await supabaseAdmin
       .from('users')
       .select('organization_id')
       .eq('auth_user_id', user.id)
-      .single();
+      .single()
 
-    if (profileError || !userProfile?.organization_id) {
-      console.error('[POST /api/inventory/movements] Error obteniendo perfil:', profileError);
-      return NextResponse.json({ 
-        success: false,
-        error: 'Perfil de usuario no encontrado'
-      }, { status: 404 })
+    if (!userProfile?.organization_id) {
+      return NextResponse.json({ success: false, error: 'Perfil no encontrado' }, { status: 404 })
     }
 
-    const organizationId = userProfile.organization_id;
-
-    // Validar datos del request
+    const organizationId = userProfile.organization_id
     const body = await request.json()
-    const validatedData = createMovementSchema.parse(body)
+    const { product_id, movement_type, quantity, notes, unit_cost } = body
 
-    // Verificar que el producto existe y pertenece a la organización
+    if (!product_id || !movement_type || quantity == null) {
+      return NextResponse.json(
+        { success: false, error: 'product_id, movement_type y quantity son requeridos' },
+        { status: 400 }
+      )
+    }
+
     const { data: product, error: productError } = await supabaseAdmin
       .from('products')
-      .select('id, name, stock')
-      .eq('id', validatedData.product_id)
+      .select('id, stock, unit_cost')
+      .eq('id', product_id)
       .eq('organization_id', organizationId)
       .single()
 
     if (productError || !product) {
-      return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 })
+      return NextResponse.json({ success: false, error: 'Producto no encontrado' }, { status: 404 })
     }
 
-    // Usar la función de PostgreSQL para crear el movimiento
-    const { data: movementId, error: movementError } = await supabaseAdmin
-      .rpc('create_inventory_movement', {
-        p_product_id: validatedData.product_id,
-        p_movement_type: validatedData.movement_type,
-        p_quantity: validatedData.quantity,
-        p_reference_type: validatedData.reference_type || null,
-        p_reference_id: validatedData.reference_id || null,
-        p_unit_cost: validatedData.unit_cost || null,
-        p_notes: validatedData.notes || null
-      })
+    const previous_stock = Number(product.stock) || 0
+    const quantityNum = parseInt(String(quantity), 10)
+    const new_stock =
+      movement_type === 'entry'
+        ? previous_stock + quantityNum
+        : previous_stock - quantityNum
 
-    if (movementError) {
-      console.error('Error creating inventory movement:', movementError)
-      return NextResponse.json({ 
-        error: 'Error al crear movimiento de inventario',
-        details: movementError.message 
-      }, { status: 400 })
+    if (new_stock < 0) {
+      return NextResponse.json(
+        { success: false, error: `Stock insuficiente. Stock actual: ${previous_stock}` },
+        { status: 400 }
+      )
     }
 
-    // Obtener el movimiento creado con datos relacionados
-    const { data: newMovement, error: fetchError } = await supabaseAdmin
+    const costPerUnit = unit_cost ?? product.unit_cost ?? 0
+    const total_cost = Number(costPerUnit) * quantityNum
+
+    const { data: movement, error: movementError } = await supabaseAdmin
       .from('inventory_movements')
-      .select(`
+      .insert({
+        organization_id: organizationId,
+        product_id,
+        movement_type,
+        quantity: quantityNum,
+        previous_stock,
+        new_stock,
+        unit_cost: Number(costPerUnit),
+        total_cost,
+        notes: notes ?? null,
+        reference_type: 'adjustment'
+      })
+      .select(
+        `
         *,
-        products (
-          id,
-          name,
-          sku,
-          stock
-        )
-      `)
-      .eq('id', movementId)
+        products (id, name, sku)
+      `
+      )
       .single()
 
-    if (fetchError) {
-      console.error('Error fetching created movement:', fetchError)
-      return NextResponse.json({ error: 'Movimiento creado pero error al obtener datos' }, { status: 500 })
+    if (movementError) {
+      console.error('[POST /api/inventory/movements] Error:', movementError)
+      return NextResponse.json({ success: false, error: 'Error al crear movimiento' }, { status: 500 })
     }
 
-    return NextResponse.json({
-      success: true,
-      data: newMovement,
-      message: 'Movimiento de inventario creado exitosamente'
-    }, { status: 201 })
+    await supabaseAdmin
+      .from('products')
+      .update({ stock: new_stock, updated_at: new Date().toISOString() })
+      .eq('id', product_id)
 
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ 
-        error: 'Datos inválidos',
-        details: error.errors 
-      }, { status: 400 })
-    }
-
-    console.error('Error in POST /api/inventory/movements:', error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    return NextResponse.json(
+      { success: true, data: movement, message: 'Movimiento creado exitosamente' },
+      { status: 201 }
+    )
+  } catch (err) {
+    console.error('[POST /api/inventory/movements] Error interno:', err)
+    return NextResponse.json({ success: false, error: 'Error interno del servidor' }, { status: 500 })
   }
 }
