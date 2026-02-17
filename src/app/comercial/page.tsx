@@ -279,7 +279,9 @@ export default function ComercialPage() {
           // router.push(`/clientes/${data.data.customer_id}`)
         }
       } else {
-        toast.error(data.error || 'Error al convertir lead')
+        toast.error(data.error || 'Error al convertir lead', {
+          description: data.details || undefined
+        })
       }
     } catch (error) {
       console.error('Error converting lead:', error)

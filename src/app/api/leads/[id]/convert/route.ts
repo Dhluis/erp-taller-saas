@@ -31,7 +31,7 @@ export async function POST(
 
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('organization_id, id')
+      .select('organization_id, workshop_id, id')
       .eq('auth_user_id', user.id)
       .single()
 
@@ -43,6 +43,7 @@ export async function POST(
     }
 
     const organizationId = userData.organization_id
+    const workshopId = userData.workshop_id ?? null
     const leadId = params.id
 
     const { data: lead, error: leadError } = await supabase
@@ -170,7 +171,65 @@ export async function POST(
       console.log('[Leads API] Cliente creado exitosamente:', customerId)
     }
 
-    // Actualizar lead a convertido
+    // Crear vehículo opcional
+    let createdVehicle: {
+      id: string
+      brand: string
+      model: string
+      year: number
+      license_plate: string
+      vin?: string
+    } | null = null
+
+    if (vehicleInput && customerId) {
+      const { brand, model, year, plate, vin } = vehicleInput
+      const y = Number(year)
+      const vehicleData: Record<string, unknown> = {
+        customer_id: customerId,
+        organization_id: organizationId,
+        brand: String(brand).trim(),
+        model: String(model).trim(),
+        year: y,
+        license_plate: String(plate).trim().toUpperCase(),
+        vin: vin ? String(vin).trim().toUpperCase() : null
+      }
+
+      if (workshopId) {
+        vehicleData.workshop_id = workshopId
+      }
+
+      const { data: newVehicle, error: vehicleError } = await supabase
+        .from('vehicles')
+        .insert(vehicleData as any)
+        .select('id, brand, model, year, license_plate, vin')
+        .single()
+
+      if (vehicleError) {
+        console.error('[Leads API] Error creando vehículo:', vehicleError)
+        if (vehicleError.code === '23505') {
+          return NextResponse.json(
+            {
+              error: 'Ya existe un vehículo con esas placas o VIN en tu organización',
+              details: vehicleError.message,
+              code: vehicleError.code
+            },
+            { status: 409 }
+          )
+        }
+
+        return NextResponse.json(
+          {
+            error: 'Error creando vehículo',
+            details: vehicleError.message,
+            code: vehicleError.code
+          },
+          { status: 400 }
+        )
+      }
+      createdVehicle = newVehicle
+    }
+
+    // Actualizar lead a convertido (solo después de crear cliente/vehículo exitosamente)
     const { data: updatedLead, error: updateError } = await supabase
       .from('leads')
       .update({
@@ -191,42 +250,6 @@ export async function POST(
         { error: 'Error actualizando lead', details: updateError.message },
         { status: 500 }
       )
-    }
-
-    // Crear vehículo opcional
-    let createdVehicle: {
-      id: string
-      brand: string
-      model: string
-      year: number
-      license_plate: string
-      vin?: string
-    } | null = null
-
-    if (vehicleInput && customerId) {
-      const { brand, model, year, plate, vin } = vehicleInput
-      const y = Number(year)
-      const { data: newVehicle, error: vehicleError } = await supabase
-        .from('vehicles')
-        .insert({
-          customer_id: customerId,
-          brand: String(brand).trim(),
-          model: String(model).trim(),
-          year: y,
-          license_plate: String(plate).trim(),
-          vin: vin ? String(vin).trim() : null
-        })
-        .select('id, brand, model, year, license_plate, vin')
-        .single()
-
-      if (vehicleError) {
-        console.error('[Leads API] Error creando vehículo:', vehicleError)
-        return NextResponse.json(
-          { error: 'Error creando vehículo', details: vehicleError.message },
-          { status: 400 }
-        )
-      }
-      createdVehicle = newVehicle
     }
 
     // Actualizar conversación de WhatsApp: vincular customer_id y mantener lead_id
