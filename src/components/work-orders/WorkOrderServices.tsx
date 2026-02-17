@@ -479,7 +479,7 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
 
       {/* Modal + Servicio libre */}
       <Dialog open={modalFree} onOpenChange={setModalFree}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" overlayClassName="bg-black/95 backdrop-blur-sm">
           <DialogHeader>
             <DialogTitle>Agregar servicio libre</DialogTitle>
             <DialogDescription>Servicio o mano de obra sin relación con inventario.</DialogDescription>
@@ -537,7 +537,7 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
 
       {/* Modal + Producto suelto */}
       <Dialog open={modalProduct} onOpenChange={setModalProduct}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" overlayClassName="bg-black/95 backdrop-blur-sm">
           <DialogHeader>
             <DialogTitle>Agregar producto suelto</DialogTitle>
             <DialogDescription>Concepto de producto; opcionalmente vinculado a inventario.</DialogDescription>

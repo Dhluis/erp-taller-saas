@@ -568,266 +568,280 @@ export function WorkOrderGeneralForm({
 
   return (
     <div className="space-y-6">
-      {/* Datos del Cliente */}
-      <div className="space-y-4">
-        <h3 className="font-semibold text-sm border-b pb-2">
-          Datos del Cliente
-        </h3>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div className="relative">
-            <Label htmlFor="customer_name">Nombre *</Label>
-            {isEditing ? (
-              <>
-                <div className="relative">
-                  <Input
-                    id="customer_name"
-                    name="customerName"
-                    value={formData.customerName}
-                    onChange={handleChange}
-                    onFocus={() => setShowCustomerDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
-                    placeholder="Escribe o selecciona un cliente"
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCustomerDropdown(!showCustomerDropdown)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-700 rounded"
-                  >
-                    <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showCustomerDropdown ? 'rotate-180' : ''}`} />
-                  </button>
-                </div>
-                {showCustomerDropdown && filteredCustomers.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto">
-                    {filteredCustomers.map((customer) => (
-                      <button
-                        key={customer.id}
-                        type="button"
-                        onClick={() => {
-                          setFormData(prev => ({
-                            ...prev,
-                            customerName: customer.name,
-                            customerPhone: customer.phone || '',
-                            customerEmail: customer.email || '',
-                            customerAddress: customer.address || ''
-                          }))
-                          setShowCustomerDropdown(false)
-                        }}
-                        className="w-full px-4 py-3 text-left hover:bg-gray-800 transition-colors flex items-center gap-3 border-b border-gray-800 last:border-0"
-                      >
-                        <User className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white truncate">{customer.name}</p>
-                          <p className="text-xs text-gray-400 truncate">{customer.phone}</p>
-                        </div>
-                      </button>
-                    ))}
+      {/* ─── PRIMERA SECCIÓN: Datos del Cliente, Vehículo y Descripción ─── */}
+      <div className="rounded-xl border border-slate-700/80 bg-slate-900/40 overflow-hidden">
+        {/* Datos del Cliente */}
+        <div className="p-5 border-b border-slate-700/80">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <User className="h-4 w-4 text-cyan-400" />
+            </div>
+            <h3 className="font-semibold text-sm text-slate-100 tracking-tight">
+              Datos del Cliente
+            </h3>
+            <div className="flex-1 h-px bg-gradient-to-r from-cyan-500/30 to-transparent" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-2 relative">
+              <Label htmlFor="customer_name" className="text-slate-400 text-xs font-medium uppercase tracking-wider">Nombre *</Label>
+              {isEditing ? (
+                <>
+                  <div className="relative mt-1">
+                    <Input
+                      id="customer_name"
+                      name="customerName"
+                      value={formData.customerName}
+                      onChange={handleChange}
+                      onFocus={() => setShowCustomerDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
+                      placeholder="Escribe o selecciona un cliente"
+                      className="pr-10 bg-slate-800/80 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 mt-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomerDropdown(!showCustomerDropdown)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-700 rounded text-cyan-400 transition-colors"
+                    >
+                      <ChevronDown className={`h-4 w-4 transition-transform ${showCustomerDropdown ? 'rotate-180' : ''}`} />
+                    </button>
                   </div>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">{formData.customerName || 'N/A'}</p>
-            )}
-          </div>
-          
-          <div>
-            <Label htmlFor="customer_phone">Teléfono *</Label>
-            {isEditing ? (
-              <div className="relative">
-                <Input
-                  id="customer_phone"
-                  name="customerPhone"
-                  type="tel"
-                  value={formData.customerPhone}
-                  onChange={handleChange}
-                  placeholder="4491234567"
-                  maxLength={10}
-                  className="pr-10"
-                />
-                {formData.customerPhone && (
-                  <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">{formData.customerPhone || 'N/A'}</p>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="customer_email">Email (opcional)</Label>
-          {isEditing ? (
-            <div className="relative">
-              <Input
-                id="customer_email"
-                name="customerEmail"
-                type="email"
-                value={formData.customerEmail}
-                onChange={handleChange}
-                placeholder="cliente@ejemplo.com"
-                className="pr-10"
-              />
-              {formData.customerEmail && (
-                <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
+                  {showCustomerDropdown && filteredCustomers.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-slate-900 border border-cyan-500/30 rounded-lg shadow-xl shadow-black/20 max-h-60 overflow-auto">
+                      {filteredCustomers.map((customer) => (
+                        <button
+                          key={customer.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              customerName: customer.name,
+                              customerPhone: customer.phone || '',
+                              customerEmail: customer.email || '',
+                              customerAddress: customer.address || ''
+                            }))
+                            setShowCustomerDropdown(false)
+                          }}
+                          className="w-full px-4 py-3 text-left hover:bg-cyan-500/10 transition-colors flex items-center gap-3 border-b border-slate-800 last:border-0"
+                        >
+                          <User className="h-4 w-4 text-cyan-400/70 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white truncate">{customer.name}</p>
+                            <p className="text-xs text-slate-400 truncate">{customer.phone}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-slate-200 mt-1 font-medium">{formData.customerName || '—'}</p>
               )}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">{formData.customerEmail || 'N/A'}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Datos del Vehículo */}
-      <div className="space-y-4">
-        <h3 className="font-semibold text-sm border-b pb-2">
-          Datos del Vehículo
-        </h3>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="vehicle_brand">Marca *</Label>
-            {isEditing ? (
-              <Input
-                id="vehicle_brand"
-                name="vehicleBrand"
-                value={formData.vehicleBrand}
-                onChange={handleChange}
-                placeholder="Toyota, Honda..."
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground">{formData.vehicleBrand || 'N/A'}</p>
-            )}
-          </div>
-          
-          <div>
-            <Label htmlFor="vehicle_model">Modelo *</Label>
-            {isEditing ? (
-              <Input
-                id="vehicle_model"
-                name="vehicleModel"
-                value={formData.vehicleModel}
-                onChange={handleChange}
-                placeholder="Corolla, Civic..."
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground">{formData.vehicleModel || 'N/A'}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <Label htmlFor="vehicle_year">Año *</Label>
-            {isEditing ? (
-              <div className="relative">
-                <Input
-                  id="vehicle_year"
-                  name="vehicleYear"
-                  inputMode="numeric"
-                  value={formData.vehicleYear}
-                  onChange={handleChange}
-                  placeholder="2020"
-                  maxLength={4}
-                  className="pr-10"
-                />
-                {formData.vehicleYear && (
-                  <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">{formData.vehicleYear || 'N/A'}</p>
-            )}
-          </div>
-          
-          <div>
-            <Label htmlFor="vehicle_plate">Placa *</Label>
-            {isEditing ? (
-              <Input
-                id="vehicle_plate"
-                name="vehiclePlate"
-                value={formData.vehiclePlate}
-                onChange={handleChange}
-                placeholder="ABC-123-D"
-                maxLength={INPUT_LIMITS.PLATE_MAX}
-                className="uppercase"
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground">{formData.vehiclePlate || 'N/A'}</p>
-            )}
-          </div>
-          
-          <div>
-            <Label htmlFor="vehicle_color">Color</Label>
-            {isEditing ? (
-              <Input
-                id="vehicle_color"
-                name="vehicleColor"
-                value={formData.vehicleColor}
-                onChange={handleChange}
-                placeholder="Blanco..."
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground">{formData.vehicleColor || 'N/A'}</p>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="mileage">Kilometraje</Label>
-          {isEditing ? (
-            <div className="relative">
-              <Input
-                id="mileage"
-                name="vehicleMileage"
-                inputMode="numeric"
-                value={formData.vehicleMileage}
-                onChange={handleChange}
-                placeholder="50000"
-                className="pr-10"
-              />
-              {formData.vehicleMileage && (
-                <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
+            <div>
+              <Label htmlFor="customer_phone" className="text-slate-400 text-xs font-medium uppercase tracking-wider">Teléfono *</Label>
+              {isEditing ? (
+                <div className="relative mt-1">
+                  <Input
+                    id="customer_phone"
+                    name="customerPhone"
+                    type="tel"
+                    value={formData.customerPhone}
+                    onChange={handleChange}
+                    placeholder="4491234567"
+                    maxLength={10}
+                    className="pr-10 bg-slate-800/80 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 mt-1"
+                  />
+                  {formData.customerPhone && (
+                    <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-cyan-400" />
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-200 mt-1 font-medium">{formData.customerPhone || '—'}</p>
               )}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">{formData.vehicleMileage || 'N/A'}</p>
-          )}
+            <div className="sm:col-span-3">
+              <Label htmlFor="customer_email" className="text-slate-400 text-xs font-medium uppercase tracking-wider">Email (opcional)</Label>
+              {isEditing ? (
+                <div className="relative mt-1">
+                  <Input
+                    id="customer_email"
+                    name="customerEmail"
+                    type="email"
+                    value={formData.customerEmail}
+                    onChange={handleChange}
+                    placeholder="cliente@ejemplo.com"
+                    className="pr-10 bg-slate-800/80 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 mt-1 max-w-md"
+                  />
+                  {formData.customerEmail && (
+                    <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-cyan-400" />
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-200 mt-1">{formData.customerEmail || '—'}</p>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div>
-          <Label htmlFor="vin">VIN / No. Serie</Label>
+        {/* Datos del Vehículo */}
+        <div className="p-5 border-b border-slate-700/80">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <Wrench className="h-4 w-4 text-cyan-400" />
+            </div>
+            <h3 className="font-semibold text-sm text-slate-100 tracking-tight">
+              Datos del Vehículo
+            </h3>
+            <div className="flex-1 h-px bg-gradient-to-r from-cyan-500/30 to-transparent" />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div>
+              <Label htmlFor="vehicle_brand" className="text-slate-400 text-xs font-medium uppercase tracking-wider">Marca *</Label>
+              {isEditing ? (
+                <Input
+                  id="vehicle_brand"
+                  name="vehicleBrand"
+                  value={formData.vehicleBrand}
+                  onChange={handleChange}
+                  placeholder="Toyota, Honda..."
+                  className="bg-slate-800/80 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 mt-1"
+                />
+              ) : (
+                <p className="text-sm text-slate-200 mt-1 font-medium">{formData.vehicleBrand || '—'}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="vehicle_model" className="text-slate-400 text-xs font-medium uppercase tracking-wider">Modelo *</Label>
+              {isEditing ? (
+                <Input
+                  id="vehicle_model"
+                  name="vehicleModel"
+                  value={formData.vehicleModel}
+                  onChange={handleChange}
+                  placeholder="Corolla, Civic..."
+                  className="bg-slate-800/80 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 mt-1"
+                />
+              ) : (
+                <p className="text-sm text-slate-200 mt-1 font-medium">{formData.vehicleModel || '—'}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="vehicle_year" className="text-slate-400 text-xs font-medium uppercase tracking-wider">Año *</Label>
+              {isEditing ? (
+                <div className="relative mt-1">
+                  <Input
+                    id="vehicle_year"
+                    name="vehicleYear"
+                    inputMode="numeric"
+                    value={formData.vehicleYear}
+                    onChange={handleChange}
+                    placeholder="2020"
+                    maxLength={4}
+                    className="pr-10 bg-slate-800/80 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 mt-1"
+                  />
+                  {formData.vehicleYear && (
+                    <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-cyan-400" />
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-200 mt-1 font-medium">{formData.vehicleYear || '—'}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="vehicle_plate" className="text-slate-400 text-xs font-medium uppercase tracking-wider">Placa *</Label>
+              {isEditing ? (
+                <Input
+                  id="vehicle_plate"
+                  name="vehiclePlate"
+                  value={formData.vehiclePlate}
+                  onChange={handleChange}
+                  placeholder="ABC-123-D"
+                  maxLength={INPUT_LIMITS.PLATE_MAX}
+                  className="uppercase bg-slate-800/80 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 mt-1"
+                />
+              ) : (
+                <p className="text-sm text-slate-200 mt-1 font-medium">{formData.vehiclePlate || '—'}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="vehicle_color" className="text-slate-400 text-xs font-medium uppercase tracking-wider">Color</Label>
+              {isEditing ? (
+                <Input
+                  id="vehicle_color"
+                  name="vehicleColor"
+                  value={formData.vehicleColor}
+                  onChange={handleChange}
+                  placeholder="Blanco..."
+                  className="bg-slate-800/80 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 mt-1"
+                />
+              ) : (
+                <p className="text-sm text-slate-200 mt-1">{formData.vehicleColor || '—'}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="mileage" className="text-slate-400 text-xs font-medium uppercase tracking-wider">Kilometraje</Label>
+              {isEditing ? (
+                <div className="relative mt-1">
+                  <Input
+                    id="mileage"
+                    name="vehicleMileage"
+                    inputMode="numeric"
+                    value={formData.vehicleMileage}
+                    onChange={handleChange}
+                    placeholder="50000"
+                    className="pr-10 bg-slate-800/80 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 mt-1"
+                  />
+                  {formData.vehicleMileage && (
+                    <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-cyan-400" />
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-200 mt-1">{formData.vehicleMileage || '—'}</p>
+              )}
+            </div>
+          </div>
+          <div className="mt-4">
+            <Label htmlFor="vin" className="text-slate-400 text-xs font-medium uppercase tracking-wider">VIN / No. Serie</Label>
+            {isEditing ? (
+              <Input
+                id="vin"
+                name="vehicleVin"
+                value={formData.vehicleVin}
+                onChange={handleChange}
+                placeholder="17 caracteres"
+                maxLength={17}
+                className="max-w-xs bg-slate-800/80 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 mt-1"
+              />
+            ) : (
+              <p className="text-sm text-slate-200 mt-1 font-mono">{formData.vehicleVin || '—'}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Descripción del Trabajo */}
+        <div className="p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <Edit className="h-4 w-4 text-cyan-400" />
+            </div>
+            <h3 className="font-semibold text-sm text-slate-100 tracking-tight">
+              Descripción del Trabajo
+            </h3>
+            <div className="flex-1 h-px bg-gradient-to-r from-cyan-500/30 to-transparent" />
+          </div>
           {isEditing ? (
-            <Input
-              id="vin"
-              name="vehicleVin"
-              value={formData.vehicleVin}
+            <Textarea
+              name="description"
+              value={formData.description}
               onChange={handleChange}
-              placeholder="17 caracteres"
-              maxLength={17}
+              placeholder="Descripción del trabajo a realizar..."
+              rows={3}
+              className="bg-slate-800/80 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 resize-none"
             />
           ) : (
-            <p className="text-sm text-muted-foreground">{formData.vehicleVin || 'N/A'}</p>
+            <p className="text-sm text-slate-200 leading-relaxed min-h-[3.5rem]">{formData.description || 'Sin descripción'}</p>
           )}
         </div>
-      </div>
-
-      {/* Descripción del Trabajo */}
-      <div className="space-y-4">
-        <h3 className="font-semibold text-sm border-b pb-2">
-          Descripción del Trabajo
-        </h3>
-        {isEditing ? (
-          <Textarea
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            placeholder="Descripción del trabajo a realizar..."
-            rows={3}
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">{formData.description || 'Sin descripción'}</p>
-        )}
       </div>
 
       {/* Inspección del Vehículo */}
