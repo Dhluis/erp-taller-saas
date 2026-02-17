@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
@@ -59,17 +59,22 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor
 
 export default function OrdenesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { organizationId, loading: orgLoading, ready } = useOrganization();
   const { profile } = useSession();
   const permissions = usePermissions();
   const { currency } = useOrgCurrency();
+
+  const filterStatusFromUrl = searchParams.get('filter_status') as OrderStatus | null;
+  const initialStatusFilter: OrderStatus | 'all' =
+    filterStatusFromUrl && filterStatusFromUrl in STATUS_CONFIG ? filterStatusFromUrl : 'all';
 
   // ==========================================
   // STATE LOCAL
   // ==========================================
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>(initialStatusFilter);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);

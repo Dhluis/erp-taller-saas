@@ -243,7 +243,7 @@ export default function FacturacionPage() {
           breadcrumbs={breadcrumbs}
           actions={
             canCreate && (
-              <Button onClick={() => toast.info('Crear factura manual: use la conversión desde orden completada o cotización')}>
+              <Button onClick={() => router.push('/ordenes?filter_status=completed')}>
                 <Plus className="h-4 w-4 mr-2" />
                 Nueva factura
               </Button>
