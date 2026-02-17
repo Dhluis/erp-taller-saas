@@ -18,11 +18,18 @@ export async function GET(request: NextRequest) {
       .eq('auth_user_id', user.id)
       .single()
 
-    if (profileError || !userProfile?.organization_id) {
+    if (profileError) {
+      return NextResponse.json({ success: false, error: 'Perfil no encontrado' }, { status: 404 })
+    }
+    if (!userProfile) {
+      return NextResponse.json({ success: false, error: 'Perfil no encontrado' }, { status: 404 })
+    }
+    const orgId = (userProfile as { organization_id?: string }).organization_id
+    if (!orgId) {
       return NextResponse.json({ success: false, error: 'Perfil no encontrado' }, { status: 404 })
     }
 
-    const organizationId = userProfile.organization_id
+    const organizationId = orgId
     const url = request.url ? new URL(request.url, 'https://localhost') : new URL('https://localhost/api/inventory/movements')
     const { searchParams } = url
 
@@ -57,6 +64,13 @@ export async function GET(request: NextRequest) {
         products (
           id,
           name
+        ),
+        inventory (
+          id,
+          name,
+          sku,
+          unit_price,
+          current_stock
         )
       `,
         { count: 'exact' }
@@ -125,11 +139,15 @@ export async function POST(request: NextRequest) {
       .eq('auth_user_id', user.id)
       .single()
 
-    if (!userProfile?.organization_id) {
+    if (!userProfile) {
+      return NextResponse.json({ success: false, error: 'Perfil no encontrado' }, { status: 404 })
+    }
+    const orgId = (userProfile as { organization_id?: string }).organization_id
+    if (!orgId) {
       return NextResponse.json({ success: false, error: 'Perfil no encontrado' }, { status: 404 })
     }
 
-    const organizationId = userProfile.organization_id
+    const organizationId = orgId
     const body = await request.json()
     const { product_id, movement_type, quantity, notes, unit_cost } = body
 
@@ -142,7 +160,7 @@ export async function POST(request: NextRequest) {
 
     const { data: product, error: productError } = await supabaseAdmin
       .from('products')
-      .select('id, stock, unit_cost')
+      .select('id, current_stock, unit_price')
       .eq('id', product_id)
       .eq('organization_id', organizationId)
       .single()
@@ -151,7 +169,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Producto no encontrado' }, { status: 404 })
     }
 
-    const previous_stock = Number(product.stock) || 0
+    const previous_stock = Number((product as { current_stock?: number | null }).current_stock) || 0
     const quantityNum = parseInt(String(quantity), 10)
     const new_stock =
       movement_type === 'entry'
@@ -165,14 +183,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const costPerUnit = unit_cost ?? product.unit_cost ?? 0
+    const costPerUnit = unit_cost ?? (product as { unit_price?: number | null }).unit_price ?? 0
     const total_cost = Number(costPerUnit) * quantityNum
 
     const { data: movement, error: movementError } = await supabaseAdmin
       .from('inventory_movements')
       .insert({
-        organization_id: organizationId,
-        product_id,
+        organization_id: organizationId as string,
+        inventory_id: product_id,
         movement_type,
         quantity: quantityNum,
         previous_stock,
@@ -181,7 +199,7 @@ export async function POST(request: NextRequest) {
         total_cost,
         notes: notes ?? null,
         reference_type: 'adjustment'
-      })
+      } as any)
       .select(
         `
         *,
@@ -197,7 +215,7 @@ export async function POST(request: NextRequest) {
 
     await supabaseAdmin
       .from('products')
-      .update({ stock: new_stock, updated_at: new Date().toISOString() })
+      .update({ stock_quantity: new_stock, updated_at: new Date().toISOString() } as never)
       .eq('id', product_id)
 
     return NextResponse.json(
