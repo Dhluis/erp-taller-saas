@@ -1225,6 +1225,9 @@ export default function CitasPage() {
           setSelectedAppointmentForOrder(null)
           toast.success('Orden creada desde la cita')
         }}
+        onUpdate={async () => {
+          await loadData()
+        }}
         appointmentId={selectedAppointmentForOrder?.id || null}
         organizationId={organizationId}
       />

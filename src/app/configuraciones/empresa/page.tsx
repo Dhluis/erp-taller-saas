@@ -19,19 +19,57 @@ import {
   Upload,
   Camera
 } from "lucide-react"
-import { getCompanySettings, updateCompanySettings, CompanySettings } from "@/lib/supabase/company-settings"
+import { getCompanySettings, updateCompanySettings, type CompanySettings } from "@/lib/supabase/company-settings"
 import { useAuth } from "@/hooks/useAuth"
 import { useOrganization } from "@/lib/context/SessionContext"
 import { SUPPORTED_CURRENCIES, useOrgCurrency, type OrgCurrencyCode } from "@/lib/context/CurrencyContext"
 
-export default function EmpresaPage() {
-  const { organization } = useAuth()
-  const { organizationId } = useOrganization()
-  const { setCurrency: setGlobalCurrency } = useOrgCurrency()
-  const [isEditing, setIsEditing] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
-  const [formData, setFormData] = useState<CompanySettings>({
+// Tipo del formulario (UI). La API usa company_name, working_hours, etc.; el form usa name, business_hours, billing, services.
+export type CompanySettingsForm = {
+  id: string
+  name: string
+  rfc: string
+  address: string
+  phone: string
+  email: string
+  website: string
+  logo: string
+  business_hours: {
+    monday: string
+    tuesday: string
+    wednesday: string
+    thursday: string
+    friday: string
+    saturday: string
+    sunday: string
+  }
+  billing: {
+    currency: string
+    tax_rate: number
+    invoice_prefix: string
+    payment_terms: number
+  }
+  services: {
+    default_service_time: number
+    require_appointment: boolean
+    send_notifications: boolean
+  }
+  created_at: string
+  updated_at: string
+}
+
+const DEFAULT_BUSINESS_HOURS: CompanySettingsForm['business_hours'] = {
+  monday: '', tuesday: '', wednesday: '', thursday: '', friday: '', saturday: '', sunday: ''
+}
+const DEFAULT_BILLING: CompanySettingsForm['billing'] = {
+  currency: 'MXN', tax_rate: 16, invoice_prefix: 'FAC', payment_terms: 30
+}
+const DEFAULT_SERVICES: CompanySettingsForm['services'] = {
+  default_service_time: 120, require_appointment: true, send_notifications: true
+}
+
+function getDefaultFormState(): CompanySettingsForm {
+  return {
     id: '',
     name: '',
     rfc: '',
@@ -40,29 +78,79 @@ export default function EmpresaPage() {
     email: '',
     website: '',
     logo: '',
-    business_hours: {
-      monday: '',
-      tuesday: '',
-      wednesday: '',
-      thursday: '',
-      friday: '',
-      saturday: '',
-      sunday: ''
-    },
-    billing: {
-      currency: 'MXN',
-      tax_rate: 16,
-      invoice_prefix: 'FAC',
-      payment_terms: 30
-    },
-    services: {
-      default_service_time: 120,
-      require_appointment: true,
-      send_notifications: true
-    },
+    business_hours: { ...DEFAULT_BUSINESS_HOURS },
+    billing: { ...DEFAULT_BILLING },
+    services: { ...DEFAULT_SERVICES },
     created_at: '',
     updated_at: ''
-  })
+  }
+}
+
+/** Convierte la respuesta de la API (company_settings) al estado del formulario. */
+function apiToFormSettings(api: CompanySettings | null): CompanySettingsForm {
+  if (!api) return getDefaultFormState()
+  const hours = api.working_hours && typeof api.working_hours === 'object' ? api.working_hours as Record<string, string> : {}
+  const appDefaults = api.appointment_defaults && typeof api.appointment_defaults === 'object' ? api.appointment_defaults as Record<string, unknown> : {}
+  return {
+    id: api.id ?? '',
+    name: api.company_name ?? '',
+    rfc: api.tax_id ?? '',
+    address: api.address ?? '',
+    phone: api.phone ?? '',
+    email: api.email ?? '',
+    website: '',
+    logo: api.logo_url ?? '',
+    business_hours: {
+      ...DEFAULT_BUSINESS_HOURS,
+      ...hours
+    },
+    billing: {
+      currency: api.currency ?? DEFAULT_BILLING.currency,
+      tax_rate: api.tax_rate ?? DEFAULT_BILLING.tax_rate,
+      invoice_prefix: (appDefaults.invoice_prefix as string) ?? DEFAULT_BILLING.invoice_prefix,
+      payment_terms: typeof appDefaults.payment_terms === 'number' ? appDefaults.payment_terms : DEFAULT_BILLING.payment_terms
+    },
+    services: {
+      default_service_time: (appDefaults.default_duration as number) ?? DEFAULT_SERVICES.default_service_time,
+      require_appointment: typeof appDefaults.require_appointment === 'boolean' ? appDefaults.require_appointment : DEFAULT_SERVICES.require_appointment,
+      send_notifications: typeof appDefaults.send_notifications === 'boolean' ? appDefaults.send_notifications : DEFAULT_SERVICES.send_notifications
+    },
+    created_at: api.created_at ?? '',
+    updated_at: api.updated_at ?? ''
+  }
+}
+
+/** Convierte el estado del formulario al payload que espera updateCompanySettings. */
+function formToApiSettings(form: CompanySettingsForm): Parameters<typeof updateCompanySettings>[1] {
+  return {
+    company_name: form.name,
+    tax_id: form.rfc || null,
+    address: form.address || null,
+    phone: form.phone || null,
+    email: form.email || null,
+    logo_url: form.logo || null,
+    currency: form.billing.currency,
+    tax_rate: form.billing.tax_rate,
+    working_hours: form.business_hours,
+    invoice_terms: `Pago a ${form.billing.payment_terms} días`,
+    appointment_defaults: {
+      default_duration: form.services.default_service_time,
+      require_appointment: form.services.require_appointment,
+      send_notifications: form.services.send_notifications,
+      invoice_prefix: form.billing.invoice_prefix,
+      payment_terms: form.billing.payment_terms
+    }
+  }
+}
+
+export default function EmpresaPage() {
+  const { organization } = useAuth()
+  const { organizationId } = useOrganization()
+  const { setCurrency: setGlobalCurrency } = useOrgCurrency()
+  const [isEditing, setIsEditing] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [formData, setFormData] = useState<CompanySettingsForm>(getDefaultFormState())
 
   useEffect(() => {
     if (organizationId) {
@@ -74,9 +162,7 @@ export default function EmpresaPage() {
     setIsLoading(true)
     try {
       const settings = await getCompanySettings(organizationId as string)
-      if (settings) {
-        setFormData(settings)
-      }
+      setFormData(apiToFormSettings(settings))
     } catch (error) {
       console.error('Error loading settings:', error)
     } finally {
@@ -95,7 +181,7 @@ export default function EmpresaPage() {
     setFormData(prev => ({
       ...prev,
       [parent]: {
-        ...prev[parent as keyof CompanySettings],
+        ...(prev[parent as keyof CompanySettingsForm] as object),
         [field]: value
       }
     }))
@@ -127,7 +213,7 @@ export default function EmpresaPage() {
     setIsSaving(true)
     try {
       if (!organizationId) throw new Error('organizationId no disponible')
-      const success = await updateCompanySettings(organizationId, formData)
+      const success = await updateCompanySettings(organizationId, formToApiSettings(formData))
       if (success) {
         // Sincronizar la moneda seleccionada con el contexto global
         if (formData.billing?.currency && formData.billing.currency in SUPPORTED_CURRENCIES) {
@@ -343,7 +429,7 @@ export default function EmpresaPage() {
                 </Label>
                 <Input 
                   id={day.key}
-                  value={formData.business_hours[day.key as keyof typeof formData.business_hours]}
+                  value={(formData.business_hours ?? DEFAULT_BUSINESS_HOURS)[day.key as keyof typeof DEFAULT_BUSINESS_HOURS]}
                   onChange={(e) => handleNestedInputChange('business_hours', day.key, e.target.value)}
                   disabled={!isEditing}
                   className="w-32"
@@ -367,7 +453,7 @@ export default function EmpresaPage() {
                 <Label htmlFor="currency">Moneda</Label>
                 <select 
                   id="currency"
-                  value={formData.billing.currency}
+                  value={(formData.billing ?? DEFAULT_BILLING).currency}
                   onChange={(e) => handleNestedInputChange('billing', 'currency', e.target.value)}
                   disabled={!isEditing}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -384,7 +470,7 @@ export default function EmpresaPage() {
                 <Input 
                   id="tax_rate" 
                   type="number"
-                  value={formData.billing.tax_rate}
+                  value={(formData.billing ?? DEFAULT_BILLING).tax_rate}
                   onChange={(e) => handleNestedInputChange('billing', 'tax_rate', parseFloat(e.target.value))}
                   disabled={!isEditing}
                   placeholder="16"
@@ -397,7 +483,7 @@ export default function EmpresaPage() {
                 <Label htmlFor="invoice_prefix">Prefijo de Facturas</Label>
                 <Input 
                   id="invoice_prefix" 
-                  value={formData.billing.invoice_prefix}
+                  value={(formData.billing ?? DEFAULT_BILLING).invoice_prefix}
                   onChange={(e) => handleNestedInputChange('billing', 'invoice_prefix', e.target.value)}
                   disabled={!isEditing}
                   placeholder="FAC"
@@ -408,7 +494,7 @@ export default function EmpresaPage() {
                 <Input 
                   id="payment_terms" 
                   type="number"
-                  value={formData.billing.payment_terms}
+                  value={(formData.billing ?? DEFAULT_BILLING).payment_terms}
                   onChange={(e) => handleNestedInputChange('billing', 'payment_terms', parseInt(e.target.value))}
                   disabled={!isEditing}
                   placeholder="30"
@@ -431,7 +517,7 @@ export default function EmpresaPage() {
               <Input 
                 id="default_service_time" 
                 type="number"
-                value={formData.services.default_service_time}
+                value={(formData.services ?? DEFAULT_SERVICES).default_service_time}
                 onChange={(e) => handleNestedInputChange('services', 'default_service_time', parseInt(e.target.value))}
                 disabled={!isEditing}
                 placeholder="120"
@@ -444,7 +530,7 @@ export default function EmpresaPage() {
                 <input
                   type="checkbox"
                   id="require_appointment"
-                  checked={formData.services.require_appointment}
+                  checked={(formData.services ?? DEFAULT_SERVICES).require_appointment}
                   onChange={(e) => handleNestedInputChange('services', 'require_appointment', e.target.checked)}
                   disabled={!isEditing}
                   className="h-4 w-4"
@@ -456,7 +542,7 @@ export default function EmpresaPage() {
                 <input
                   type="checkbox"
                   id="send_notifications"
-                  checked={formData.services.send_notifications}
+                  checked={(formData.services ?? DEFAULT_SERVICES).send_notifications}
                   onChange={(e) => handleNestedInputChange('services', 'send_notifications', e.target.checked)}
                   disabled={!isEditing}
                   className="h-4 w-4"

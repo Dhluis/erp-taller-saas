@@ -63,6 +63,8 @@ interface CreateWorkOrderModalProps {
 
   onSuccess?: () => void
 
+  onUpdate?: () => void | Promise<void>
+
   prefilledServiceType?: string
 
   organizationId?: string | null  // ✅ Opcional: si no se proporciona, usa el context
@@ -256,6 +258,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   onOpenChange, 
 
   onSuccess,
+
+  onUpdate,
 
   prefilledServiceType,
 
@@ -1513,7 +1517,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       
       // Llamar onSuccess después de un pequeño delay para asegurar que la DB esté actualizada
       console.log('⏳ [CreateWorkOrderModal] Esperando 500ms antes de llamar onSuccess...');
-      setTimeout(() => {
+      setTimeout(async () => {
         console.log('✅ [CreateWorkOrderModal] Ejecutando onSuccess después de delay...');
         console.log('✅ [CreateWorkOrderModal] onSuccess existe?', !!onSuccess);
         if (onSuccess) {
@@ -1521,6 +1525,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           console.log('✅ [CreateWorkOrderModal] onSuccess ejecutado');
         } else {
           console.warn('⚠️ [CreateWorkOrderModal] onSuccess no está definido');
+        }
+        if (onUpdate) {
+          await onUpdate();
         }
       }, 500);
 
