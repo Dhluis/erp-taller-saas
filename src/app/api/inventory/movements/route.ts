@@ -55,10 +55,10 @@ export async function GET(request: NextRequest) {
     }
 
     const organizationId = userProfile.organization_id;
-    const { searchParams } = new URL(request.url)
-    
-    // ✅ Extraer parámetros de paginación usando utilidad estándar
-    const { page, pageSize, sortBy, sortOrder } = extractPaginationFromURL(request.url)
+    const url = request.url ? new URL(request.url, 'https://localhost') : new URL('https://localhost/api/inventory/movements')
+    const searchParams = url.searchParams
+
+    const { page, pageSize, sortBy, sortOrder } = extractPaginationFromURL(url)
     const offset = calculateOffset(page, pageSize)
     
     // Obtener parámetros de filtro
@@ -131,15 +131,19 @@ export async function GET(request: NextRequest) {
     if (movements.length > 0) {
       const productIds = [...new Set(movements.map((m) => m.product_id).filter(Boolean))] as string[]
       if (productIds.length > 0) {
-        const { data: products } = await supabaseAdmin
+        const { data: productsData } = await supabaseAdmin
           .from('products')
           .select('id, name')
           .in('id', productIds)
-        const productList = (products || []) as Array<{ id: string; name: string }>
-        const byId = new Map(productList.map((p) => [p.id, p]))
+        const rawList = Array.isArray(productsData) ? productsData : []
+        const byId = new Map<string, { id: string; name: string }>()
+        for (let i = 0; i < rawList.length; i++) {
+          const p = rawList[i] as Record<string, unknown> | null
+          if (p && p.id) byId.set(String(p.id), { id: String(p.id), name: String(p.name ?? '') })
+        }
         movements = movements.map((m) => ({
           ...m,
-          products: m.product_id ? byId.get(m.product_id) ?? null : null
+          products: m.product_id ? (byId.get(m.product_id) ?? null) : null
         }))
       }
     }
