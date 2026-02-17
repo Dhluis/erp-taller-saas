@@ -712,7 +712,6 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
               type="file"
               accept="image/*"
               capture="environment"
-              data-category="reception"
               onChange={handleFileChange}
               className="hidden"
               disabled={uploading || images.length >= maxImages}
@@ -733,10 +732,9 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
 
             {/* Botones de acción */}
             <div className="grid grid-cols-2 gap-3">
-              {/* Botón: Tomar Foto — siempre categoría Recepción */}
+              {/* Botón: Tomar Foto — usa la categoría seleccionada en el dropdown */}
               <Button
                 onClick={() => {
-                  setSelectedCategory('reception')
                   cameraInputRef.current?.click()
                 }}
                 disabled={uploading || images.length >= maxImages}
