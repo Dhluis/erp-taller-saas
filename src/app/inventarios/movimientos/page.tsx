@@ -35,10 +35,7 @@ interface InventoryMovement {
   total_cost: number | null
   notes: string | null
   created_at: string
-  products: {
-    id: string
-    name: string
-  } | null
+  inventory: { id: string; name: string; unit_price: string; current_stock: number } | null
 }
 
 interface MovementStats {
@@ -480,10 +477,10 @@ export default function MovimientosInventarioPage() {
                       <td className="p-4">
                         <div>
                           <div className="font-medium">
-                            {movement.products?.name || 'Producto desconocido'}
+                            {movement.inventory?.name || 'Producto desconocido'}
                           </div>
                           <div className="text-sm text-text-muted">
-                            ID: {(movement.products?.id || movement.product_id || 'N/A').slice(0, 8)}...
+                            ID: {(movement.inventory?.id || movement.inventory_id || 'N/A').slice(0, 8)}...
                           </div>
                         </div>
                       </td>
