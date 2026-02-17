@@ -63,6 +63,7 @@ export function WorkOrderGeneralForm({
   
   // ✅ Función helper para inicializar formData desde order
   const initializeFormData = (orderData: any) => {
+    console.log('🔍 [DEBUG Vehicle] color:', orderData?.vehicle?.color, '| mileage:', orderData?.vehicle?.mileage)
     if (!orderData) {
       console.warn('⚠️ [WorkOrderGeneralForm] orderData es null/undefined')
       return {
@@ -363,8 +364,8 @@ export function WorkOrderGeneralForm({
         if (formData.vehicleModel)   vehicleUpdate.model = formData.vehicleModel
         if (formData.vehicleYear)    vehicleUpdate.year = parseInt(formData.vehicleYear) || null
         if (formData.vehiclePlate)   vehicleUpdate.license_plate = formData.vehiclePlate.toUpperCase()
-        if (formData.vehicleColor !== undefined) vehicleUpdate.color = formData.vehicleColor || null
-        if (formData.vehicleMileage) vehicleUpdate.mileage = parseInt(formData.vehicleMileage) || null
+        vehicleUpdate.color = formData.vehicleColor || null
+        vehicleUpdate.mileage = formData.vehicleMileage ? parseInt(formData.vehicleMileage) : null
 
         console.log('📊 [DEBUG] vehicleUpdate a enviar:', vehicleUpdate)
         console.log('📊 [DEBUG] Cantidad de campos a actualizar:', Object.keys(vehicleUpdate).length)

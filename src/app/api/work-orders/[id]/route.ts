@@ -358,7 +358,9 @@ export async function PUT(
           brand,
           model,
           year,
-          license_plate
+          license_plate,
+          color,
+          mileage
         ),
         assigned_user:users!work_orders_assigned_to_fkey(
           id,

@@ -206,7 +206,9 @@ export async function GET(request: NextRequest) {
               brand,
               model,
               year,
-              license_plate
+              license_plate,
+              color,
+              mileage
             ),
             assigned_user:users!work_orders_assigned_to_fkey(
               id,
