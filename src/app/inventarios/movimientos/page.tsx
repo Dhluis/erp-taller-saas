@@ -98,10 +98,12 @@ export default function MovimientosInventarioPage() {
     total: 0,
     pages: 0
   })
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const loadMovements = async () => {
     try {
       setLoading(true)
+      setLoadError(null)
       const params = new URLSearchParams({
         page: pagination.page.toString(),
         pageSize: pagination.limit.toString(),
@@ -110,60 +112,37 @@ export default function MovimientosInventarioPage() {
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '' && v !== 'all'))
       })
 
-      console.log('🔄 [Movimientos] Cargando movimientos:', params.toString())
-
       const result = await safeFetch(`/api/inventory/movements?${params}`)
-      
-      console.log('🔍 [Movimientos] Respuesta completa:', {
-        success: result.success,
-        hasData: !!result.data,
-        dataType: typeof result.data,
-        isArray: Array.isArray(result.data)
-      })
 
-      if (result.success && result.data) {
-        // ✅ Manejar estructura paginada: { items: [], pagination: {} }
-        const responseData = result.data?.data || result.data
-        const items = Array.isArray(responseData?.items) 
-          ? responseData.items 
-          : (Array.isArray(responseData) ? responseData : [])
-        
-        const paginationData = responseData?.pagination || result.data?.pagination || {
-          page: pagination.page,
-          pageSize: pagination.limit,
-          total: items.length,
-          totalPages: Math.ceil((items.length || 0) / pagination.limit)
-        }
+      // Parseo defensivo: safeFetch pone el body completo en result.data
+      // Body puede ser { success, data: { items, pagination } } o directamente { items, pagination }
+      const raw = result.data
+      const inner = raw && typeof raw === 'object' && 'data' in raw ? (raw as { data?: unknown }).data : raw
+      const payload = inner && typeof inner === 'object' ? inner as { items?: unknown[]; pagination?: { total?: number; totalPages?: number; page?: number } } : null
+      const items = Array.isArray(payload?.items)
+        ? payload.items
+        : Array.isArray(payload)
+          ? payload
+          : Array.isArray((raw as { items?: unknown[] })?.items)
+            ? (raw as { items: unknown[] }).items
+            : []
+      const paginationData = payload?.pagination ?? (raw && typeof raw === 'object' && 'pagination' in raw ? (raw as { pagination: { total?: number; totalPages?: number } }).pagination : null)
+      const total = paginationData?.total ?? items.length
+      const totalPages = paginationData?.totalPages ?? Math.ceil(total / pagination.limit)
 
-        console.log('✅ [Movimientos] Movimientos extraídos:', {
-          count: items.length,
-          total: paginationData.total,
-          page: paginationData.page
-        })
-
-        setMovements(items)
-        setPagination(prev => ({
-          ...prev,
-          total: paginationData.total || 0,
-          pages: paginationData.totalPages || 0
-        }))
+      if (result.success) {
+        setMovements((items || []) as InventoryMovement[])
+        setPagination(prev => ({ ...prev, total, pages: totalPages }))
       } else {
-        console.error('❌ [Movimientos] Error en respuesta:', result.error)
+        setLoadError(result.error || 'No se pudieron cargar los movimientos')
         setMovements([])
-        setPagination(prev => ({
-          ...prev,
-          total: 0,
-          pages: 0
-        }))
+        setPagination(prev => ({ ...prev, total: 0, pages: 0 }))
       }
     } catch (error) {
-      console.error('❌ [Movimientos] Error loading movements:', error)
+      const message = error instanceof Error ? error.message : 'Error al cargar movimientos'
+      setLoadError(message)
       setMovements([])
-      setPagination(prev => ({
-        ...prev,
-        total: 0,
-        pages: 0
-      }))
+      setPagination(prev => ({ ...prev, total: 0, pages: 0 }))
     } finally {
       setLoading(false)
     }
@@ -451,16 +430,26 @@ export default function MovimientosInventarioPage() {
           <CardContent>
             {(movements || []).length === 0 ? (
               <div className="text-center py-12">
-                <div className="text-gray-400 mb-4">
-                  <ArrowPathIcon className="h-12 w-12 mx-auto" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No hay movimientos de inventario
-                </h3>
-                <p className="text-gray-500 mb-4">
-                  Los movimientos de inventario aparecerán aquí cuando se registren entradas, salidas o ajustes de stock.
-                </p>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
+                {loadError ? (
+                  <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-left">
+                    <p className="text-amber-800 font-medium">Error al cargar movimientos</p>
+                    <p className="text-sm text-amber-700 mt-1">{loadError}</p>
+                    <p className="text-xs text-amber-600 mt-2">Comprueba tu sesión o vuelve a intentar.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-gray-400 mb-4">
+                      <ArrowPathIcon className="h-12 w-12 mx-auto" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No hay movimientos de inventario
+                    </h3>
+                    <p className="text-gray-500 mb-4">
+                      Los movimientos de inventario aparecerán aquí cuando se registren entradas, salidas o ajustes de stock.
+                    </p>
+                  </>
+                )}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left mt-4">
                   <h4 className="font-medium text-blue-900 mb-2">Para crear movimientos:</h4>
                   <ol className="text-sm text-blue-800 space-y-1">
                     <li>1. Ve a la sección de Productos</li>

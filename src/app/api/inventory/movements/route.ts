@@ -83,55 +83,32 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('organization_id', organizationId)
 
-    let dataQuery = supabaseAdmin
-      .from('inventory_movements')
-      .select(`
-        *,
-        products!inventory_movements_product_id_fkey (
-          id,
-          name
-        )
-      `, { count: 'exact' })
-      .eq('organization_id', organizationId)
+    // Aplicar filtros a count query
+    if (product_id) countQuery = countQuery.eq('product_id', product_id)
+    if (movement_type && movement_type !== 'all') countQuery = countQuery.eq('movement_type', movement_type)
+    if (start_date) countQuery = countQuery.gte('created_at', start_date)
+    if (end_date) countQuery = countQuery.lte('created_at', end_date)
 
-    // Aplicar filtros a ambas queries
-    if (product_id) {
-      countQuery = countQuery.eq('product_id', product_id)
-      dataQuery = dataQuery.eq('product_id', product_id)
-    }
-    
-    if (movement_type && movement_type !== 'all') {
-      countQuery = countQuery.eq('movement_type', movement_type)
-      dataQuery = dataQuery.eq('movement_type', movement_type)
-    }
-    
-    if (start_date) {
-      countQuery = countQuery.gte('created_at', start_date)
-      dataQuery = dataQuery.gte('created_at', start_date)
-    }
-    
-    if (end_date) {
-      countQuery = countQuery.lte('created_at', end_date)
-      dataQuery = dataQuery.lte('created_at', end_date)
-    }
-
-    // Aplicar ordenamiento
     const sortColumn = sortBy || 'created_at'
     const sortDirection = sortOrder || 'desc'
-    dataQuery = dataQuery.order(sortColumn, { ascending: sortDirection === 'asc' })
 
-    // Aplicar paginación
-    dataQuery = dataQuery.range(offset, offset + pageSize - 1)
+    // Query de datos: intentar con join a products; si falla (ej. FK distinto en producción), sin join
+    let dataQuery = supabaseAdmin
+      .from('inventory_movements')
+      .select('*', { count: 'exact' })
+      .eq('organization_id', organizationId)
 
-    // Ejecutar queries en paralelo
-    const [countResult, dataResult] = await Promise.all([
-      countQuery,
-      dataQuery
-    ])
+    if (product_id) dataQuery = dataQuery.eq('product_id', product_id)
+    if (movement_type && movement_type !== 'all') dataQuery = dataQuery.eq('movement_type', movement_type)
+    if (start_date) dataQuery = dataQuery.gte('created_at', start_date)
+    if (end_date) dataQuery = dataQuery.lte('created_at', end_date)
+    dataQuery = dataQuery.order(sortColumn, { ascending: sortDirection === 'asc' }).range(offset, offset + pageSize - 1)
+
+    const [countResult, dataResult] = await Promise.all([countQuery, dataQuery])
 
     if (countResult.error) {
       console.error('❌ [GET /api/inventory/movements] Error en count:', countResult.error)
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: false,
         error: 'Error al obtener total de movimientos',
         data: { items: [], pagination: generatePaginationMeta(page, pageSize, 0) }
@@ -140,15 +117,32 @@ export async function GET(request: NextRequest) {
 
     if (dataResult.error) {
       console.error('❌ [GET /api/inventory/movements] Error en data:', dataResult.error)
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: false,
         error: 'Error al obtener movimientos',
         data: { items: [], pagination: generatePaginationMeta(page, pageSize, 0) }
       }, { status: 500 })
     }
 
-    const count = countResult.count || 0
-    const movements = dataResult.data || []
+    const count = countResult.count ?? 0
+    let movements = (dataResult.data || []) as Array<Record<string, unknown> & { product_id?: string }>
+
+    // Enriquecer con nombre de producto (consulta separada para evitar 500 por join/embed en Supabase)
+    if (movements.length > 0) {
+      const productIds = [...new Set(movements.map((m) => m.product_id).filter(Boolean))] as string[]
+      if (productIds.length > 0) {
+        const { data: products } = await supabaseAdmin
+          .from('products')
+          .select('id, name')
+          .in('id', productIds)
+        const productList = (products || []) as Array<{ id: string; name: string }>
+        const byId = new Map(productList.map((p) => [p.id, p]))
+        movements = movements.map((m) => ({
+          ...m,
+          products: m.product_id ? byId.get(m.product_id) ?? null : null
+        }))
+      }
+    }
 
     console.log('✅ [GET /api/inventory/movements] Movimientos obtenidos:', {
       count: movements.length,
