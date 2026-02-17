@@ -157,18 +157,34 @@ export default function WorkOrderDocuments({
             value={selectedCategory}
             onValueChange={(value) => setSelectedCategory(value as WorkOrderDocument['category'])}
           >
-            <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px] bg-slate-800/80 border-slate-600 text-white hover:bg-slate-700/80">
               <SelectValue placeholder="Categoría" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="invoice">📄 Factura</SelectItem>
-              <SelectItem value="quotation">📋 Cotización</SelectItem>
-              <SelectItem value="receipt">🧾 Recibo</SelectItem>
-              <SelectItem value="contract">📜 Contrato</SelectItem>
-              <SelectItem value="warranty">🛡️ Garantía</SelectItem>
-              <SelectItem value="photo">📸 Foto</SelectItem>
-              <SelectItem value="report">📊 Reporte</SelectItem>
-              <SelectItem value="other">📎 Otro</SelectItem>
+            <SelectContent className="bg-slate-900 border-slate-600 text-white shadow-xl z-[10001]">
+              <SelectItem value="invoice" className="text-white focus:bg-slate-700 focus:text-white cursor-pointer">
+                📄 Factura
+              </SelectItem>
+              <SelectItem value="quotation" className="text-white focus:bg-slate-700 focus:text-white cursor-pointer">
+                📋 Cotización
+              </SelectItem>
+              <SelectItem value="receipt" className="text-white focus:bg-slate-700 focus:text-white cursor-pointer">
+                🧾 Recibo
+              </SelectItem>
+              <SelectItem value="contract" className="text-white focus:bg-slate-700 focus:text-white cursor-pointer">
+                📜 Contrato
+              </SelectItem>
+              <SelectItem value="warranty" className="text-white focus:bg-slate-700 focus:text-white cursor-pointer">
+                🛡️ Garantía
+              </SelectItem>
+              <SelectItem value="photo" className="text-white focus:bg-slate-700 focus:text-white cursor-pointer">
+                📸 Foto
+              </SelectItem>
+              <SelectItem value="report" className="text-white focus:bg-slate-700 focus:text-white cursor-pointer">
+                📊 Reporte
+              </SelectItem>
+              <SelectItem value="other" className="text-white focus:bg-slate-700 focus:text-white cursor-pointer">
+                📎 Otro
+              </SelectItem>
             </SelectContent>
           </Select>
 

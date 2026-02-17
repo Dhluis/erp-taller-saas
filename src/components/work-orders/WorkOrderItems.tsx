@@ -107,19 +107,19 @@ export function WorkOrderItems({ orderId, orderStatus, onTotalChange }: WorkOrde
     loadEmployees()
   }, [orderId])
 
-  async function loadItems() {
+  /** Carga items; no notifica onTotalChange en carga inicial para no disparar onUpdate y cerrar el modal. */
+  async function loadItems(): Promise<OrderItem[]> {
     try {
       const response = await fetch(`/api/orders/${orderId}/items`)
       if (!response.ok) throw new Error('Error al cargar items')
       const data = await response.json()
-      setItems(data)
-      
-      // Calcular total y notificar
-      const total = data.reduce((sum: number, item: OrderItem) => sum + item.total, 0)
-      onTotalChange?.(total)
+      const list = Array.isArray(data) ? data : []
+      setItems(list)
+      return list
     } catch (error) {
       console.error('Error cargando items:', error)
       toast.error('Error al cargar items')
+      return []
     }
   }
 
@@ -255,7 +255,9 @@ export function WorkOrderItems({ orderId, orderStatus, onTotalChange }: WorkOrde
 
       toast.success(editingItem ? 'Item actualizado' : 'Item agregado')
       setIsAddModalOpen(false)
-      await loadItems()
+      const list = await loadItems()
+      const total = list.reduce((sum: number, item: OrderItem) => sum + (item.total ?? 0), 0)
+      onTotalChange?.(total)
     } catch (error) {
       console.error('Error guardando item:', error)
       toast.error('Error al guardar item')
@@ -278,7 +280,9 @@ export function WorkOrderItems({ orderId, orderStatus, onTotalChange }: WorkOrde
       toast.success('Item eliminado')
       setShowDeleteDialog(false)
       setDeletingItemId(null)
-      await loadItems()
+      const list = await loadItems()
+      const total = list.reduce((sum: number, item: OrderItem) => sum + (item.total ?? 0), 0)
+      onTotalChange?.(total)
     } catch (error) {
       console.error('Error eliminando item:', error)
       toast.error('Error al eliminar item')
