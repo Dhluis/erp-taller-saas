@@ -68,12 +68,17 @@ export const TOAST_MESSAGES = {
     checkFields: 'Revisa los campos marcados en rojo'
   },
   
-  // Red/Conexión
+  // Red/Conexión - Mensajes claros cuando no hay internet
   network: {
     offline: 'Sin conexión a internet',
     timeout: 'La solicitud tardó demasiado',
     error: 'Error de conexión',
-    retrying: 'Reintentando...'
+    retrying: 'Reintentando...',
+    // Mensajes específicos para el usuario
+    noConnection: 'No hay conexión a internet. Verifica tu red e intenta de nuevo.',
+    connectionTimeout: 'Tiempo de conexión agotado. Revisa tu conexión a internet e intenta de nuevo.',
+    serverUnreachable: 'No se pudo contactar al servidor. Comprueba tu conexión e intenta de nuevo.',
+    requestFailed: 'La solicitud falló. Verifica que tienes conexión a internet.',
   },
   
   // Permisos
@@ -166,6 +171,74 @@ export const MESSAGE_TEMPLATES = {
       `${field} debe ser menor o igual a ${max}`
   }
 } as const
+
+/**
+ * Detecta si un mensaje de error indica problemas de red/conexión
+ */
+export function isNetworkError(message: string | undefined): boolean {
+  if (!message || typeof message !== 'string') return false
+  const m = message.toLowerCase()
+  return (
+    m.includes('failed to fetch') ||
+    m.includes('connection timeout') ||
+    m.includes('connection refused') ||
+    m.includes('connection closed') ||
+    m.includes('connection reset') ||
+    m.includes('network error') ||
+    m.includes('networkerror') ||
+    m.includes('err_connection') ||
+    m.includes('err_net_') ||
+    m.includes('econnrefused') ||
+    m.includes('econnreset') ||
+    m.includes('etimedout') ||
+    m.includes('please check your internet') ||
+    m.includes('timeout') && (m.includes('connection') || m.includes('request'))
+  )
+}
+
+/**
+ * Convierte errores de red/conexión a mensajes claros en español para el toaster.
+ * Usar cuando se muestran errores al usuario (ej. sin internet).
+ */
+export function getNetworkErrorMessage(rawMessage: string | undefined | null | unknown): string {
+  const msg = rawMessage != null && typeof rawMessage === 'string' ? rawMessage : ''
+  if (!msg) {
+    return TOAST_MESSAGES.network.noConnection
+  }
+  const m = msg.toLowerCase()
+
+  // Tiempo de espera agotado
+  if (m.includes('timeout') || m.includes('timed out') || m.includes('aborted')) {
+    return TOAST_MESSAGES.network.connectionTimeout
+  }
+
+  // Fetch fallido (sin conexión, DNS, etc.)
+  if (m.includes('failed to fetch') || m.includes('load failed')) {
+    return TOAST_MESSAGES.network.noConnection
+  }
+
+  // Errores de conexión del navegador/sistema
+  if (m.includes('connection refused') || m.includes('connection closed') || m.includes('connection reset')) {
+    return TOAST_MESSAGES.network.serverUnreachable
+  }
+
+  // NetworkError genérico
+  if (m.includes('network error') || m.includes('networkerror')) {
+    return TOAST_MESSAGES.network.noConnection
+  }
+
+  // Errores ERR_* del navegador
+  if (m.includes('err_connection') || m.includes('err_net_') || m.includes('econn')) {
+    return TOAST_MESSAGES.network.noConnection
+  }
+
+  // Mensaje en inglés genérico de conexión
+  if (m.includes('please check your internet')) {
+    return TOAST_MESSAGES.network.noConnection
+  }
+
+  return msg
+}
 
 /**
  * Helper para obtener mensaje con descripción

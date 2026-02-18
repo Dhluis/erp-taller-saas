@@ -72,14 +72,14 @@ export function getSupabaseClient(): SupabaseClient {
               const hint = isAuthRequest
                 ? ' Revisa tu conexión. Si usas Supabase gratis, el proyecto puede estar en pausa: reactívalo en el dashboard.'
                 : ''
-              throw new Error('Connection timeout. Please check your internet connection and try again.' + hint)
+              throw new Error('Tiempo de conexión agotado. Revisa tu conexión a internet e intenta de nuevo.' + hint)
             }
             
             if (error.message?.includes('ERR_CONNECTION_CLOSED') || 
                 error.message?.includes('Failed to fetch') ||
                 error.message?.includes('NetworkError')) {
               console.error('❌ Supabase connection error:', error.message)
-              throw new Error('Unable to connect to Supabase. Please check your internet connection and try again.')
+              throw new Error('No se pudo conectar. Revisa tu conexión a internet e intenta de nuevo.')
             }
             
             throw error
@@ -116,7 +116,7 @@ export async function testSupabaseConnection(): Promise<{ success: boolean; mess
       
       // Probar conexión con timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Connection timeout')), 5000)
+        setTimeout(() => reject(new Error('Tiempo de conexión agotado')), 5000)
       })
 
       const queryPromise = client.from('organizations').select('id').limit(1)

@@ -16,6 +16,7 @@ import {
 import { useCustomers } from '@/hooks/useCustomers'
 import { useOrganization } from '@/lib/context/SessionContext'
 import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
+import { getNetworkErrorMessage, TOAST_MESSAGES } from '@/lib/constants/messages'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import {
@@ -339,13 +340,14 @@ export function WorkOrderGeneralForm({
       })
       
       if (!orderResponse.ok) {
-        const error = await orderResponse.json()
+        const error = await orderResponse.json().catch(() => ({}))
+        const msg = error?.error || 'Error desconocido'
         console.error('[WorkOrderGeneralForm] Error actualizando orden:', error)
-        errors.push(`Orden: ${error.error || 'Error desconocido'}`)
+        errors.push(`Orden: ${getNetworkErrorMessage(msg)}`)
       }
     } catch (err: any) {
       console.error('[WorkOrderGeneralForm] Error actualizando orden:', err)
-      errors.push(`Orden: ${err.message}`)
+      errors.push(`Orden: ${getNetworkErrorMessage(err?.message)}`)
     }
 
     // 2. Actualizar vehículo (placa, marca, modelo, año, color, km)
@@ -385,7 +387,7 @@ export function WorkOrderGeneralForm({
 
           if (vehicleError) {
             console.error('[WorkOrderGeneralForm] Error actualizando vehículo:', vehicleError)
-            errors.push(`Vehículo: ${vehicleError.message}`)
+            errors.push(`Vehículo: ${getNetworkErrorMessage(vehicleError.message)}`)
           } else {
             console.log('✅ [DEBUG] Vehículo actualizado exitosamente')
           }
@@ -397,7 +399,7 @@ export function WorkOrderGeneralForm({
       }
     } catch (err: any) {
       console.error('[WorkOrderGeneralForm] Error actualizando vehículo:', err)
-      errors.push(`Vehículo: ${err.message}`)
+      errors.push(`Vehículo: ${getNetworkErrorMessage(err?.message)}`)
     }
 
     // 3. Actualizar cliente (nombre, teléfono, email, dirección)
@@ -417,13 +419,13 @@ export function WorkOrderGeneralForm({
 
           if (customerError) {
             console.error('[WorkOrderGeneralForm] Error actualizando cliente:', customerError)
-            errors.push(`Cliente: ${customerError.message}`)
+            errors.push(`Cliente: ${getNetworkErrorMessage(customerError.message)}`)
           }
         }
       }
     } catch (err: any) {
       console.error('[WorkOrderGeneralForm] Error actualizando cliente:', err)
-      errors.push(`Cliente: ${err.message}`)
+      errors.push(`Cliente: ${getNetworkErrorMessage(err?.message)}`)
     }
     
     // 4. Actualizar inspección (crear o actualizar)
@@ -456,7 +458,7 @@ export function WorkOrderGeneralForm({
         
         if (updateError) {
           console.error('[WorkOrderGeneralForm] Error actualizando inspección:', updateError)
-          errors.push(`Inspección: ${updateError.message}`)
+          errors.push(`Inspección: ${getNetworkErrorMessage(updateError.message)}`)
         }
       } else {
         const { error: insertError } = await supabase
@@ -465,12 +467,12 @@ export function WorkOrderGeneralForm({
         
         if (insertError) {
           console.error('[WorkOrderGeneralForm] Error creando inspección:', insertError)
-          errors.push(`Inspección: ${insertError.message}`)
+          errors.push(`Inspección: ${getNetworkErrorMessage(insertError.message)}`)
         }
       }
     } catch (err: any) {
       console.error('[WorkOrderGeneralForm] Error en inspección:', err)
-      errors.push(`Inspección: ${err.message}`)
+      errors.push(`Inspección: ${getNetworkErrorMessage(err?.message)}`)
     }
     
     // ✅ Registrar historial de cambios (fire-and-forget)
@@ -523,8 +525,20 @@ export function WorkOrderGeneralForm({
       onEditChange(false)
       onSave()
     } else {
-      toast.error(`Hubo ${errors.length} error(es) al guardar`, {
-        description: errors.join('. '),
+      // Si todos los errores son de red (mismo mensaje), mostrar mensaje único más claro
+      const networkMsg = TOAST_MESSAGES.network.noConnection
+      const timeoutMsg = TOAST_MESSAGES.network.connectionTimeout
+      const allSameNetwork = errors.length > 1 && errors.every(e =>
+        e.includes(networkMsg) || e.includes(timeoutMsg) || e.includes(TOAST_MESSAGES.network.serverUnreachable)
+      )
+      const title = allSameNetwork
+        ? 'Sin conexión a internet'
+        : `Hubo ${errors.length} error(es) al guardar`
+      const description = allSameNetwork
+        ? `No se pudieron guardar los cambios. Verifica tu conexión a internet e intenta de nuevo.`
+        : errors.join('. ')
+      toast.error(title, {
+        description,
         duration: 6000,
       })
       // Mantener modo edición y no refetch para que el usuario vea sus datos y pueda reintentar

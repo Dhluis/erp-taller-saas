@@ -176,8 +176,7 @@ export function Sidebar({ className }: SidebarProps) {
       href: "/comercial",
       label: "Comercial",
       icon: MessageCircle,
-      variant: "secondary" as const,
-      badge: "New"
+      variant: "secondary" as const
     }
   ]
 
