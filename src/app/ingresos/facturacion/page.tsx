@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Plus, Search, Eye, DollarSign, XCircle, Loader2, CalendarDays, ChevronDown } from 'lucide-react';
 import { useInvoices } from '@/hooks/useInvoices';
+import { CreateManualInvoiceModal } from '@/components/invoices/CreateManualInvoiceModal';
 import { toast } from 'sonner';
 
 type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
@@ -110,6 +111,7 @@ export default function FacturacionPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
+  const [isManualInvoiceModalOpen, setIsManualInvoiceModalOpen] = useState(false);
   const [stats, setStats] = useState({
     totalRevenue: 0,
     monthlyRevenue: 0,
@@ -270,7 +272,7 @@ export default function FacturacionPage() {
                       <p className="text-xs text-muted-foreground">Cobro parcial de trabajo en proceso</p>
                     </div>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => toast.info('Funcionalidad próximamente: factura manual sin orden asociada')}>
+                  <DropdownMenuItem onClick={() => setIsManualInvoiceModalOpen(true)}>
                     <div>
                       <p className="font-medium">Factura manual</p>
                       <p className="text-xs text-muted-foreground">Sin orden de trabajo asociada</p>
@@ -545,6 +547,15 @@ export default function FacturacionPage() {
           setIsPayModalOpen(false);
           setPayInvoice(null);
           toast.success('Pago registrado');
+        }}
+      />
+
+      {/* Modal Crear Factura Manual */}
+      <CreateManualInvoiceModal
+        open={isManualInvoiceModalOpen}
+        onOpenChange={setIsManualInvoiceModalOpen}
+        onSuccess={() => {
+          mutate();
         }}
       />
     </AppLayout>

@@ -65,16 +65,17 @@ function OrdenesPageContent() {
   const permissions = usePermissions();
   const { currency } = useOrgCurrency();
 
-  const filterStatusFromUrl = searchParams.get('filter_status') as OrderStatus | null;
-  const initialStatusFilter: OrderStatus | 'all' =
-    filterStatusFromUrl && filterStatusFromUrl in STATUS_CONFIG ? filterStatusFromUrl : 'all';
+  // Support multiple status separated by comma (e.g. ?filter_status=in_progress,diagnosis,testing)
+  const statusFilterParam = searchParams.get('filter_status') || 'all';
+  const initialStatusFilter: OrderStatus | 'all' | string =
+    statusFilterParam === 'all' ? 'all' : statusFilterParam;
 
   // ==========================================
   // STATE LOCAL
   // ==========================================
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>(initialStatusFilter);
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all' | string>(initialStatusFilter);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -122,10 +123,10 @@ function OrdenesPageContent() {
     setSearch(debouncedSearch);
   }, [debouncedSearch, setSearch]);
 
-  // Actualizar filtro de status en el backend
+  // Actualizar filtro de status en el backend (soporta uno o varios separados por coma)
   useEffect(() => {
     if (statusFilter !== 'all') {
-      setFilters({ status: statusFilter });
+      setFilters({ status: String(statusFilter) });
     } else {
       setFilters({});
     }
@@ -524,7 +525,7 @@ function OrdenesPageContent() {
           {/* Filtro de estado */}
           <Select
             value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as OrderStatus | 'all')}
+            onValueChange={(value) => setStatusFilter(value as OrderStatus | 'all' | string)}
             disabled={loading}
           >
             <SelectTrigger className="w-[200px] bg-slate-900/50 border-slate-700 text-white hover:bg-slate-800/50 focus:ring-2 focus:ring-cyan-500">
@@ -537,6 +538,14 @@ function OrdenesPageContent() {
               >
                 Todos los estados
               </SelectItem>
+              {statusFilter.includes(',') && (
+                <SelectItem
+                  value={statusFilter}
+                  className="text-white hover:bg-slate-800 focus:bg-slate-800 cursor-pointer"
+                >
+                  Varios estados
+                </SelectItem>
+              )}
               {Object.entries(STATUS_CONFIG).map(([key, config]) => (
                 <SelectItem
                   key={key}

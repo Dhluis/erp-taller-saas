@@ -259,7 +259,13 @@ export async function GET(request: NextRequest) {
         }
 
         if (status) {
-          query = query.eq('status', status);
+          // Support multiple status separated by comma
+          if (status.includes(',')) {
+            const statusList = status.split(',').map(s => s.trim()).filter(Boolean);
+            if (statusList.length) query = query.in('status', statusList);
+          } else {
+            query = query.eq('status', status);
+          }
         }
         
         // ✅ Ordenamiento

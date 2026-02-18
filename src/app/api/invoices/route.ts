@@ -131,8 +131,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(response);
     }
   } catch (error) {
-    logger.error('Error al obtener notas de venta', context, error as Error);
-    
+    logger.error('Error al obtener notas de venta', undefined, error as Error);
+
     // Intentar extraer paginación para respuesta de error consistente
     let page = 1;
     let pageSize = 20;
@@ -160,6 +160,7 @@ export async function GET(request: NextRequest) {
 // POST - Crear nueva nota de venta
 // =====================================================
 export async function POST(request: NextRequest) {
+  let context: ReturnType<typeof createLogContext> | null = null;
   try {
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
@@ -173,7 +174,7 @@ export async function POST(request: NextRequest) {
     }
 
     const organizationId = tenantContext.organizationId;
-    const context = createLogContext(
+    context = createLogContext(
       organizationId,
       undefined,
       'invoices-api',
@@ -219,11 +220,122 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'manual':
-      default:
-        // Crear manualmente
+      default: {
+        // Crear manualmente con ítems (modal "Factura manual")
+        if (data.invoice_items && Array.isArray(data.invoice_items) && data.invoice_items.length > 0) {
+          if (!data.customer_id || typeof data.customer_id !== 'string') {
+            return NextResponse.json(
+              { success: false, error: 'customer_id es requerido' },
+              { status: 400 }
+            );
+          }
+          const supabaseAdmin = getSupabaseServiceClient();
+          const validItems = data.invoice_items.filter(
+            (it: any) => it.description != null && it.quantity > 0 && it.unit_price >= 0
+          );
+          if (validItems.length === 0) {
+            return NextResponse.json(
+              { success: false, error: 'Agrega al menos un concepto válido' },
+              { status: 400 }
+            );
+          }
+          const subtotal = Number(data.subtotal) ?? 0;
+          const taxAmount = Number(data.tax_amount) ?? 0;
+          const discountAmount = Number(data.discount_amount) ?? 0;
+          const totalAmount = Number(data.total_amount) ?? 0;
+          const dueDate = data.due_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+          // Generar número de factura
+          const year = new Date().getFullYear();
+          const { data: lastInv } = await supabaseAdmin
+            .from('invoices')
+            .select('invoice_number')
+            .eq('organization_id', organizationId)
+            .like('invoice_number', `INV-${year}-%`)
+            .order('invoice_number', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          let nextNum = 1;
+          const lastNumber = lastInv && typeof lastInv === 'object' && 'invoice_number' in lastInv
+            ? (lastInv as { invoice_number: string }).invoice_number
+            : null;
+          if (lastNumber) {
+            const match = String(lastNumber).match(/INV-\d{4}-(\d+)/);
+            if (match) nextNum = parseInt(match[1], 10) + 1;
+          }
+          const invoiceNumber = `INV-${year}-${String(nextNum).padStart(4, '0')}`;
+
+          const insertPayload = {
+            organization_id: organizationId,
+            customer_id: data.customer_id,
+            vehicle_id: data.vehicle_id || null,
+            invoice_number: invoiceNumber,
+            status: data.status || 'draft',
+            due_date: dueDate,
+            paid_date: null,
+            payment_method: data.payment_method || null,
+            notes: data.notes || null,
+            subtotal,
+            tax_amount: taxAmount,
+            discount_amount: discountAmount,
+            total: totalAmount,
+          };
+          const { data: invoice, error: invError } = await supabaseAdmin
+            .from('invoices')
+            .insert(insertPayload as any)
+            .select()
+            .single();
+
+          if (invError) {
+            logger.error('Error al crear factura manual', context!, invError as Error);
+            return NextResponse.json(
+              { success: false, error: invError.message || 'Error al crear factura' },
+              { status: 500 }
+            );
+          }
+
+          const createdInvoice = invoice as { id: string } | null;
+          if (!createdInvoice) {
+            return NextResponse.json(
+              { success: false, error: 'Error al crear factura' },
+              { status: 500 }
+            );
+          }
+
+          const itemsToInsert = validItems.map((it: any) => ({
+            invoice_id: createdInvoice.id,
+            organization_id: organizationId,
+            description: it.description || 'Item',
+            quantity: it.quantity ?? 1,
+            unit_price: it.unit_price ?? 0,
+            discount_percent: 0,
+            subtotal: Number(it.total) ?? 0,
+            tax_amount: 0,
+            total: Number(it.total) ?? 0,
+          }));
+
+          const { error: itemsError } = await supabaseAdmin
+            .from('invoice_items')
+            .insert(itemsToInsert as any);
+
+          if (itemsError) {
+            await supabaseAdmin.from('invoices').delete().eq('id', createdInvoice.id);
+            logger.error('Error al insertar ítems de factura manual', context!, itemsError as Error);
+            return NextResponse.json(
+              { success: false, error: itemsError.message || 'Error al guardar conceptos' },
+              { status: 500 }
+            );
+          }
+
+          result = invoice;
+          logger.businessEvent('invoice_created', 'invoice', createdInvoice.id, context!);
+          break;
+        }
+
+        // Crear manualmente (flujo legacy: customer_id, vehicle_id, description)
         const requiredFields = ['customer_id', 'vehicle_id', 'description'];
-        const missingFields = requiredFields.filter(field => !data[field]);
-        
+        const missingFields = requiredFields.filter((field: string) => !data[field]);
+
         if (missingFields.length > 0) {
           return NextResponse.json(
             {
@@ -234,7 +346,6 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Validar tipos de datos
         if (typeof data.customer_id !== 'string' || typeof data.vehicle_id !== 'string') {
           return NextResponse.json(
             {
@@ -248,16 +359,17 @@ export async function POST(request: NextRequest) {
         result = await createInvoice(organizationId, data);
         logger.businessEvent('invoice_created', 'invoice', result.id, context);
         break;
+      }
     }
 
-    logger.info(`Nota de venta creada exitosamente: ${result.id}`, context);
+    logger.info(`Nota de venta creada exitosamente: ${result.id}`, context!);
 
     return NextResponse.json({
       success: true,
       data: result,
     }, { status: 201 });
   } catch (error) {
-    logger.error('Error al crear nota de venta', context, error as Error);
+    logger.error('Error al crear nota de venta', context ?? undefined, error as Error);
     
     return NextResponse.json(
       {
