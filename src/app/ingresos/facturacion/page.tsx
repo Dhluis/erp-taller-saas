@@ -36,7 +36,13 @@ import {
 } from '@/components/ui/table';
 import { PageHeader } from '@/components/navigation/page-header';
 import { Pagination } from '@/components/ui/pagination';
-import { Plus, Search, Eye, DollarSign, XCircle, Loader2, CalendarDays } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Plus, Search, Eye, DollarSign, XCircle, Loader2, CalendarDays, ChevronDown } from 'lucide-react';
 import { useInvoices } from '@/hooks/useInvoices';
 import { toast } from 'sonner';
 
@@ -243,10 +249,35 @@ export default function FacturacionPage() {
           breadcrumbs={breadcrumbs}
           actions={
             canCreate && (
-              <Button onClick={() => router.push('/ordenes?filter_status=completed')}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nueva factura
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nueva factura
+                    <ChevronDown className="h-4 w-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuItem onClick={() => router.push('/ordenes?filter_status=completed')}>
+                    <div>
+                      <p className="font-medium">Desde orden completada</p>
+                      <p className="text-xs text-muted-foreground">Facturar trabajo terminado</p>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push('/ordenes?filter_status=in_progress,diagnosis,disassembly,assembly,testing')}>
+                    <div>
+                      <p className="font-medium">Crear anticipo</p>
+                      <p className="text-xs text-muted-foreground">Cobro parcial de trabajo en proceso</p>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => toast.info('Funcionalidad próximamente: factura manual sin orden asociada')}>
+                    <div>
+                      <p className="font-medium">Factura manual</p>
+                      <p className="text-xs text-muted-foreground">Sin orden de trabajo asociada</p>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )
           }
         />
