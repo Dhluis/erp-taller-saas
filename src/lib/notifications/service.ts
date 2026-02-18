@@ -170,14 +170,14 @@ export async function notifyInvoiceOverdue(invoiceId: string) {
       organization_id: invoice.organization_id,
       type: 'invoice_overdue',
       title: 'Factura Vencida',
-      message: `La factura ${invoice.invoice_number} del cliente ${invoice.customers.name} está vencida. Monto: $${invoice.total}`,
+      message: `La factura ${invoice.invoice_number} del cliente ${invoice.customers.name} está vencida. Monto: $${invoice.total_amount ?? invoice.total}`,
       priority: 'high',
       metadata: {
         invoice_id: invoiceId,
         invoice_number: invoice.invoice_number,
         customer_name: invoice.customers.name,
         customer_email: invoice.customers.email,
-        total: invoice.total,
+        total: invoice.total_amount ?? invoice.total,
         due_date: invoice.due_date
       }
     })
@@ -316,7 +316,7 @@ export async function notifyPaymentReceived(invoiceId: string, amount: number) {
         customer_name: invoice.customers.name,
         customer_email: invoice.customers.email,
         payment_amount: amount,
-        invoice_total: invoice.total
+        invoice_total: invoice.total_amount ?? invoice.total
       }
     })
 

@@ -109,7 +109,7 @@ export async function POST(
       .eq('invoice_id', invoiceId);
 
     const totalPaidBefore = (existingPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const invoiceTotal = Number(invoice.total ?? 0);
+    const invoiceTotal = Number(invoice.total_amount ?? invoice.total ?? 0);
     const remaining = Math.max(0, invoiceTotal - totalPaidBefore);
 
     if (amount > remaining) {

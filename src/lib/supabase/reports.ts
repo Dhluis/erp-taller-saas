@@ -92,7 +92,7 @@ export async function getFinancialReport(
         .gte('paid_date', start)
         .lte('paid_date', end)
       
-      const totalRevenue = revenueData?.reduce((sum, invoice) => sum + (invoice.total || 0), 0) || 0
+      const totalRevenue = revenueData?.reduce((sum, invoice) => sum + (invoice.total_amount ?? invoice.total ?? 0), 0) || 0
       
       // Obtener gastos - purchase_orders usa total y order_date
       const { data: expensesData } = await client
@@ -111,7 +111,7 @@ export async function getFinancialReport(
         const date = invoice.paid_date
         if (!date) return acc
         const month = new Date(date).toISOString().slice(0, 7)
-        acc[month] = (acc[month] || 0) + (invoice.total || 0)
+        acc[month] = (acc[month] || 0) + (invoice.total_amount ?? invoice.total ?? 0)
         return acc
       }, {}) || {}
       
@@ -156,7 +156,7 @@ export async function getFinancialReport(
         if (!acc[customerName]) {
           acc[customerName] = { revenue: 0, orders: 0 }
         }
-        acc[customerName].revenue += invoice.total || 0
+        acc[customerName].revenue += invoice.total_amount ?? invoice.total ?? 0
         acc[customerName].orders += 1
         return acc
       }, {}) || {}

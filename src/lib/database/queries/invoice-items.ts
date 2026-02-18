@@ -258,7 +258,7 @@ export async function calculateInvoiceTotals(invoiceId: string) {
     // Obtener todos los items
     const { data: items, error: itemsError } = await supabase
       .from('invoice_items')
-      .select('quantity, unit_price, discount_amount, tax_amount, total')
+      .select('quantity, unit_price, discount_amount, tax_amount, total_amount')
       .eq('invoice_id', invoiceId)
 
     if (itemsError) throw itemsError
@@ -271,7 +271,7 @@ export async function calculateInvoiceTotals(invoiceId: string) {
           subtotal: 0,
           tax_amount: 0,
           discount_amount: 0,
-          total: 0,
+          total_amount: 0,
           updated_at: new Date().toISOString()
         })
         .eq('id', invoiceId)
@@ -299,7 +299,7 @@ export async function calculateInvoiceTotals(invoiceId: string) {
       subtotal += itemSubtotal
       totalDiscount += item.discount_amount || 0
       totalTax += item.tax_amount || 0
-      total += item.total || 0
+      total += Number((item as any).total_amount ?? (item as any).total ?? 0)
     })
 
     // Actualizar factura
@@ -309,7 +309,7 @@ export async function calculateInvoiceTotals(invoiceId: string) {
         subtotal: subtotal,
         tax_amount: totalTax,
         discount_amount: totalDiscount,
-        total: total,
+        total_amount: total,
         updated_at: new Date().toISOString()
       })
       .eq('id', invoiceId)

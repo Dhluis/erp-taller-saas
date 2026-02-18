@@ -306,7 +306,7 @@ export interface Quotation extends BaseEntity {
   subtotal: number
   discount_amount: number
   tax_amount: number
-  total: number
+  total_amount: number
   converted_to_order: boolean
   notes?: string
   client?: Customer
@@ -323,7 +323,7 @@ export interface CreateQuotationData extends BaseCreateData {
   subtotal?: number
   discount_amount?: number
   tax_amount?: number
-  total?: number
+  total_amount?: number
   converted_to_order?: boolean
   notes?: string
 }
@@ -337,7 +337,7 @@ export interface UpdateQuotationData extends BaseUpdateData {
   subtotal?: number
   discount_amount?: number
   tax_amount?: number
-  total?: number
+  total_amount?: number
   converted_to_order?: boolean
   notes?: string
 }
@@ -390,7 +390,7 @@ export interface Invoice extends BaseEntity {
   status: InvoiceStatus
   subtotal: number
   tax_amount: number
-  total: number
+  total_amount: number
   due_date: string
   paid_date?: string
   payment_method?: PaymentMethod
@@ -407,7 +407,7 @@ export interface CreateInvoiceData extends BaseCreateData {
   status?: InvoiceStatus
   subtotal?: number
   tax_amount?: number
-  total?: number
+  total_amount?: number
   due_date: string
   paid_date?: string
   payment_method?: PaymentMethod
@@ -423,7 +423,7 @@ export interface UpdateInvoiceData extends BaseUpdateData {
   status?: InvoiceStatus
   subtotal?: number
   tax_amount?: number
-  total?: number
+  total_amount?: number
   due_date?: string
   paid_date?: string
   payment_method?: PaymentMethod
@@ -550,7 +550,7 @@ export interface PurchaseOrder extends BaseEntity {
   status: OrderStatus
   subtotal: number
   tax_amount: number
-  total: number
+  total_amount: number
   notes?: string
   supplier?: Supplier
 }
@@ -563,7 +563,7 @@ export interface CreatePurchaseOrderData extends BaseCreateData {
   status?: OrderStatus
   subtotal?: number
   tax_amount?: number
-  total?: number
+  total_amount?: number
   notes?: string
 }
 

@@ -33,8 +33,8 @@ export interface PurchaseOrder {
   expected_delivery_date?: string
   received_date?: string
   subtotal: number
-  tax: number
-  total: number
+  tax_amount: number
+  total_amount: number
   notes?: string
   payment_method?: string
   payment_status: 'pending' | 'partial' | 'paid'

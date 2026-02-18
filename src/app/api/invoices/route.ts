@@ -278,7 +278,7 @@ export async function POST(request: NextRequest) {
             subtotal,
             tax_amount: taxAmount,
             discount_amount: discountAmount,
-            total: totalAmount,
+            total_amount: totalAmount,
           };
           const { data: invoice, error: invError } = await supabaseAdmin
             .from('invoices')
@@ -309,9 +309,9 @@ export async function POST(request: NextRequest) {
             quantity: it.quantity ?? 1,
             unit_price: it.unit_price ?? 0,
             discount_percent: 0,
-            subtotal: Number(it.total) ?? 0,
+            subtotal: Number(it.total ?? it.total_amount) ?? 0,
             tax_amount: 0,
-            total: Number(it.total) ?? 0,
+            total_amount: Number(it.total ?? it.total_amount) ?? 0,
           }));
 
           const { error: itemsError } = await supabaseAdmin

@@ -345,7 +345,7 @@ export default function FacturacionPage() {
                   </TableRow>
                 ) : (
                   filteredInvoices.map((inv) => {
-                    const total = inv.total ?? inv.total_amount ?? 0;
+                    const total = inv.total_amount ?? inv.total ?? 0;
                     const customerName = inv.customer?.name ?? inv.customer_id ?? '-';
                     const vehicleInfo = inv.vehicle
                       ? `${inv.vehicle.brand} ${inv.vehicle.model} ${inv.vehicle.license_plate || ''}`
@@ -478,7 +478,7 @@ export default function FacturacionPage() {
                           <TableCell>{it.description ?? '-'}</TableCell>
                           <TableCell>{it.quantity}</TableCell>
                           <TableCell>${Number(it.unit_price).toLocaleString()}</TableCell>
-                          <TableCell>${Number(it.total).toLocaleString()}</TableCell>
+                          <TableCell>${Number(it.total_amount ?? it.total).toLocaleString()}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -488,14 +488,14 @@ export default function FacturacionPage() {
               <div className="border-t pt-4 space-y-1 text-sm">
                 <p>
                   Subtotal: $
-                  {(viewInvoice.subtotal ?? viewInvoice.total ?? 0).toLocaleString()}
+                  {(viewInvoice.subtotal ?? viewInvoice.total_amount ?? viewInvoice.total ?? 0).toLocaleString()}
                 </p>
                 {(viewInvoice.tax_amount ?? 0) > 0 && (
                   <p>Impuestos: ${Number(viewInvoice.tax_amount).toLocaleString()}</p>
                 )}
                 <p className="font-semibold">
                   Total: $
-                  {(viewInvoice.total ?? viewInvoice.total_amount ?? 0).toLocaleString()}
+                  {(viewInvoice.total_amount ?? viewInvoice.total ?? 0).toLocaleString()}
                 </p>
               </div>
               {viewPayments.length > 0 && (
@@ -584,7 +584,7 @@ function RegisterPaymentModal({
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const invoiceTotal = invoice ? (invoice.total ?? invoice.total_amount ?? 0) : 0;
+  const invoiceTotal = invoice ? (invoice.total_amount ?? invoice.total ?? 0) : 0;
   const remaining = Math.max(0, invoiceTotal - totalPaid);
 
   useEffect(() => {

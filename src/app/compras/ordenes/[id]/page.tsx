@@ -135,7 +135,7 @@ export default function PurchaseOrderDetailPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total</p>
-              <p className="font-medium">{formatCurrency(order.total)}</p>
+              <p className="font-medium">{formatCurrency(order.total_amount ?? order.total)}</p>
             </div>
           </div>
         </CardContent>
@@ -164,7 +164,7 @@ export default function PurchaseOrderDetailPage() {
                     <td className="p-3 text-right">{item.quantity}</td>
                     <td className="p-3 text-right">{item.quantity_received}</td>
                     <td className="p-3 text-right">{formatCurrency(item.unit_cost)}</td>
-                    <td className="p-3 text-right">{formatCurrency(item.total)}</td>
+                    <td className="p-3 text-right">{formatCurrency(item.total_amount ?? item.total)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -173,7 +173,7 @@ export default function PurchaseOrderDetailPage() {
           <div className="mt-4 flex justify-end gap-4 text-sm">
             <span>Subtotal: {formatCurrency(order.subtotal)}</span>
             <span>IVA: {formatCurrency(order.tax)}</span>
-            <span className="font-bold">Total: {formatCurrency(order.total)}</span>
+            <span className="font-bold">Total: {formatCurrency(order.total_amount ?? order.total)}</span>
           </div>
         </CardContent>
       </Card>

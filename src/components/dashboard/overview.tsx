@@ -13,7 +13,7 @@ export function Overview({ data }: { data: RevenuePoint[] }) {
         {data.map((p) => (
           <li key={p.month} className="flex justify-between">
             <span>{p.month}</span>
-            <span>{formatMoney(p.total)}</span>
+            <span>{formatMoney(p.total_amount ?? p.total)}</span>
           </li>
         ))}
       </ul>

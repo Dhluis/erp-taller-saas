@@ -105,7 +105,7 @@ export async function GET(
       quantity: Number(item.quantity) || 0,
       quantity_received: Number(item.quantity_received) || 0,
       unit_cost: Number(item.unit_cost) || 0,
-      total: Number(item.total) || 0,
+      total: Number(item.total_amount ?? item.total) || 0,
       notes: item.notes
     }));
     

@@ -72,7 +72,7 @@ export default function PurchaseOrdersPage() {
           total: items.length,
           pending: items.filter(o => o.status === 'draft' || o.status === 'sent').length,
           approved: items.filter(o => o.status === 'received').length,
-          totalValue: items.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0)
+          totalValue: items.reduce((sum, o) => sum + (parseFloat(o.total_amount ?? o.total) || 0), 0)
         });
         
         console.log('✅ Órdenes cargadas:', items.length);
@@ -300,7 +300,7 @@ export default function PurchaseOrdersPage() {
                       <td className="p-4 font-mono text-sm">{order.order_number}</td>
                       <td className="p-4">{order.supplier?.name || 'Sin proveedor'}</td>
                       <td className="p-4">{getStatusBadge(order.status)}</td>
-                      <td className="p-4">{formatCurrency(order.total)}</td>
+                      <td className="p-4">{formatCurrency(order.total_amount ?? order.total)}</td>
                       <td className="p-4">{formatDate(order.created_at)}</td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">

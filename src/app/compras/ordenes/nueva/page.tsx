@@ -452,7 +452,7 @@ export default function NewPurchaseOrderPage() {
                       <div className="space-y-2">
                         <Label>Total</Label>
                         <div className="h-10 px-3 py-2 bg-muted rounded-md flex items-center">
-                          {formatCurrency(item.total)}
+                          {formatCurrency(item.total_amount ?? item.total)}
                         </div>
                       </div>
                     </div>

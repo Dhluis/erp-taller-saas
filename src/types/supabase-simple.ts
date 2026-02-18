@@ -376,7 +376,7 @@ export interface Database {
           status: string
           subtotal: number | null
           tax_amount: number | null
-          total: number | null
+          total_amount: number | null
           notes: string | null
           created_at: string
           updated_at: string
@@ -393,7 +393,7 @@ export interface Database {
           status?: string
           subtotal?: number | null
           tax_amount?: number | null
-          total?: number | null
+          total_amount?: number | null
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -410,7 +410,7 @@ export interface Database {
           status?: string
           subtotal?: number | null
           tax_amount?: number | null
-          total?: number | null
+          total_amount?: number | null
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -477,7 +477,7 @@ export interface Database {
           subtotal: number | null
           tax_amount: number | null
           discount_amount: number | null
-          total: number | null
+          total_amount: number | null
           created_at: string
           updated_at: string
           created_by: string | null
@@ -497,7 +497,7 @@ export interface Database {
           subtotal?: number | null
           tax_amount?: number | null
           discount_amount?: number | null
-          total?: number | null
+          total_amount?: number | null
           created_at?: string
           updated_at?: string
           created_by?: string | null
@@ -517,7 +517,7 @@ export interface Database {
           subtotal?: number | null
           tax_amount?: number | null
           discount_amount?: number | null
-          total?: number | null
+          total_amount?: number | null
           created_at?: string
           updated_at?: string
           created_by?: string | null

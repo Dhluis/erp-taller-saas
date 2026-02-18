@@ -363,7 +363,7 @@ export default function CotizacionDetailPage() {
                     </td>
                     <td className="border border-gray-300 px-4 py-3 text-right">{formatCurrency(item.subtotal)}</td>
                     <td className="border border-gray-300 px-4 py-3 text-right">{formatCurrency(item.tax_amount)}</td>
-                    <td className="border border-gray-300 px-4 py-3 text-right font-semibold">{formatCurrency(item.total)}</td>
+                    <td className="border border-gray-300 px-4 py-3 text-right font-semibold">{formatCurrency(item.total_amount ?? item.total)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -389,7 +389,7 @@ export default function CotizacionDetailPage() {
             <Separator />
             <div className="flex justify-between text-lg font-bold">
               <span>Total:</span>
-              <span>{formatCurrency(quotation.total)}</span>
+              <span>{formatCurrency(quotation.total_amount ?? quotation.total)}</span>
             </div>
           </div>
         </div>

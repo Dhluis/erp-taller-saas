@@ -101,7 +101,7 @@ export async function getInvoiceById(id: string) {
           description,
           quantity,
           unit_price,
-          total
+          total_amount
         )
       `)
       .eq('id', id)
@@ -384,7 +384,7 @@ export async function createInvoiceFromWorkOrder(
       // Fallback a order_items
       const orderItems = workOrder.order_items || []
       invoiceItems = orderItems.map((item: any) => {
-        const total = Number(item.total) || 0
+        const total = Number(item.total_amount ?? item.total) || 0
         itemsTotal += total
         itemsTaxAmount += Number(item.tax_amount) || 0
         itemsDiscountAmount += Number(item.discount_amount) || 0
@@ -453,9 +453,9 @@ export async function createInvoiceFromWorkOrder(
       quantity: it.quantity ?? 1,
       unit_price: it.unit_price ?? 0,
       discount_percent: it.discount_percent ?? 0,
-      subtotal: it.total ?? 0,
+      subtotal: it.total ?? it.total_amount ?? 0,
       tax_amount: it.tax_amount ?? 0,
-      total: it.total ?? 0,
+      total_amount: it.total ?? it.total_amount ?? 0,
     }))
 
     // 10. Insertar invoice_items
@@ -628,7 +628,7 @@ export async function getUnpaidTotals(organizationId: string) {
 
     const { data, error } = await supabase
       .from('invoices')
-      .select('total, status, due_date')
+      .select('total_amount, status, due_date')
       .eq('organization_id', organizationId)
       .in('status', ['draft', 'sent', 'overdue'])
 
@@ -644,11 +644,11 @@ export async function getUnpaidTotals(organizationId: string) {
     }
 
     data?.forEach(invoice => {
-      totals.total_unpaid += invoice.total || 0
+      totals.total_unpaid += invoice.total_amount ?? invoice.total ?? 0
       totals.count_unpaid += 1
 
       if (invoice.due_date < today && invoice.status !== 'draft') {
-        totals.total_overdue += invoice.total || 0
+        totals.total_overdue += invoice.total_amount ?? invoice.total ?? 0
         totals.count_overdue += 1
       }
     })
@@ -697,7 +697,7 @@ export async function checkAndUpdateOverdueInvoices(organizationId: string) {
 
 /**
  * Estadísticas para dashboard de ingresos
- * Usa columna 'total' (no total_amount)
+ * Usa columna total_amount
  */
 export async function getIncomeStats(organizationId: string) {
   return executeWithErrorHandling(async () => {
@@ -705,7 +705,7 @@ export async function getIncomeStats(organizationId: string) {
 
     const { data, error } = await supabase
       .from('invoices')
-      .select('status, total, due_date, paid_date, created_at')
+      .select('status, total_amount, due_date, paid_date, created_at')
       .eq('organization_id', organizationId)
 
     if (error) throw error
@@ -714,7 +714,7 @@ export async function getIncomeStats(organizationId: string) {
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
     const todayStr = today.toISOString().split('T')[0]
 
-    const amt = (i: { total?: number }) => Number(i.total ?? 0)
+    const amt = (i: { total_amount?: number; total?: number }) => Number(i.total_amount ?? i.total ?? 0)
 
     const paid = (data || []).filter((i) => i.status === 'paid')
     const pending = (data || []).filter((i) => i.status === 'draft' || i.status === 'sent')

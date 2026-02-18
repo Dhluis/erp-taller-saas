@@ -207,10 +207,10 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-700 text-white">
         <DialogHeader>
-          <DialogTitle>Crear Factura Manual</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-white">Crear Factura Manual</DialogTitle>
+          <DialogDescription className="text-slate-400">
             Factura sin orden de trabajo asociada
           </DialogDescription>
         </DialogHeader>
@@ -219,14 +219,14 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
           {/* Cliente y Vehículo */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Cliente *</Label>
+              <Label className="text-slate-300">Cliente *</Label>
               <Select value={customerId} onValueChange={setCustomerId}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 hover:bg-slate-700">
                   <SelectValue placeholder="Seleccionar cliente..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-slate-900 border-slate-700 text-white">
                   {customers.map(customer => (
-                    <SelectItem key={customer.id} value={customer.id}>
+                    <SelectItem key={customer.id} value={customer.id} className="text-white hover:bg-slate-800 focus:bg-slate-800 focus:text-white cursor-pointer">
                       {customer.name}
                     </SelectItem>
                   ))}
@@ -235,13 +235,13 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
             </div>
 
             <div>
-              <Label>Vehículo (opcional)</Label>
+              <Label className="text-slate-300">Vehículo (opcional)</Label>
               <Select
                 value={vehicleId || undefined}
                 onValueChange={(value) => setVehicleId(value)}
                 disabled={!customerId || loadingVehicles}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 hover:bg-slate-700">
                   <SelectValue placeholder={
                     !customerId ? "Primero selecciona cliente" :
                       loadingVehicles ? "Cargando..." :
@@ -249,12 +249,12 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
                           "Seleccionar vehículo (opcional)..."
                   } />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-slate-900 border-slate-700 text-white">
                   {vehicles.length > 0 && (
-                    <SelectItem value="none">Ninguno</SelectItem>
+                    <SelectItem value="none" className="text-white hover:bg-slate-800 focus:bg-slate-800 focus:text-white cursor-pointer">Ninguno</SelectItem>
                   )}
                   {vehicles.map(vehicle => (
-                    <SelectItem key={vehicle.id} value={vehicle.id}>
+                    <SelectItem key={vehicle.id} value={vehicle.id} className="text-white hover:bg-slate-800 focus:bg-slate-800 focus:text-white cursor-pointer">
                       {vehicle.brand} {vehicle.model} - {vehicle.license_plate}
                     </SelectItem>
                   ))}
@@ -266,8 +266,8 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
           {/* Items */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <Label>Conceptos *</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addItem}>
+              <Label className="text-slate-300">Conceptos *</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addItem} className="border-slate-600 text-slate-200 hover:bg-slate-800">
                 <Plus className="h-4 w-4 mr-1" />
                 Agregar concepto
               </Button>
@@ -275,12 +275,13 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
 
             <div className="space-y-3">
               {items.map((item, index) => (
-                <div key={item.id} className="grid grid-cols-12 gap-2 items-start p-3 border rounded-lg">
+                <div key={item.id} className="grid grid-cols-12 gap-2 items-start p-3 border border-slate-700 rounded-lg bg-slate-800/50">
                   <div className="col-span-5">
                     <Input
                       placeholder="Descripción del servicio/producto"
                       value={item.description}
                       onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                      className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                       required
                     />
                   </div>
@@ -292,6 +293,7 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
                       placeholder="Cant."
                       value={item.quantity}
                       onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
+                      className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                       required
                     />
                   </div>
@@ -303,6 +305,7 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
                       placeholder="P. Unit"
                       value={item.unit_price}
                       onChange={(e) => updateItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                      className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                       required
                     />
                   </div>
@@ -310,7 +313,7 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
                     <Input
                       value={`$${item.total.toFixed(2)}`}
                       disabled
-                      className="bg-muted"
+                      className="bg-slate-700 border-slate-600 text-slate-300"
                     />
                   </div>
                   <div className="col-span-1 flex justify-center">
@@ -330,7 +333,7 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
           </div>
 
           {/* Totales */}
-          <div className="border-t pt-4 space-y-3">
+          <div className="border-t border-slate-700 pt-4 space-y-3 text-slate-200">
             <div className="flex justify-between text-sm">
               <span>Subtotal:</span>
               <span className="font-medium">${subtotal.toFixed(2)}</span>
@@ -342,7 +345,7 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
                   type="checkbox"
                   checked={applyTax}
                   onChange={(e) => setApplyTax(e.target.checked)}
-                  className="rounded"
+                  className="rounded border-slate-600 bg-slate-800"
                 />
                 IVA (16%):
               </label>
@@ -350,7 +353,7 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
             </div>
 
             <div className="flex justify-between items-center">
-              <Label className="text-sm">Descuento:</Label>
+              <Label className="text-sm text-slate-300">Descuento:</Label>
               <Input
                 type="number"
                 min={0}
@@ -358,11 +361,11 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
                 max={subtotal}
                 value={discountAmount}
                 onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
-                className="w-32 text-right"
+                className="w-32 text-right bg-slate-800 border-slate-600 text-white"
               />
             </div>
 
-            <div className="flex justify-between text-lg font-bold border-t pt-3">
+            <div className="flex justify-between text-lg font-bold border-t border-slate-700 pt-3">
               <span>Total:</span>
               <span>${total.toFixed(2)}</span>
             </div>
@@ -371,14 +374,14 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
           {/* Otros detalles */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Método de pago</Label>
+              <Label className="text-slate-300">Método de pago</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-slate-900 border-slate-700 text-white">
                   {PAYMENT_METHODS.map(method => (
-                    <SelectItem key={method.value} value={method.value}>
+                    <SelectItem key={method.value} value={method.value} className="text-white hover:bg-slate-800 focus:bg-slate-800 focus:text-white cursor-pointer">
                       {method.label}
                     </SelectItem>
                   ))}
@@ -387,36 +390,39 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
             </div>
 
             <div>
-              <Label>Fecha de vencimiento</Label>
+              <Label className="text-slate-300">Fecha de vencimiento</Label>
               <Input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
+                className="bg-slate-800 border-slate-600 text-white"
                 required
               />
             </div>
           </div>
 
           <div>
-            <Label>Notas (opcional)</Label>
+            <Label className="text-slate-300">Notas (opcional)</Label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="Información adicional sobre la factura..."
+              className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
             />
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="border-t border-slate-700 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
+              className="border-slate-600 text-slate-200 hover:bg-slate-800"
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className="bg-cyan-600 hover:bg-cyan-700 text-white">
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
