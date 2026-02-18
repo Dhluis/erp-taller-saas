@@ -164,7 +164,7 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
         source: 'manual',
         organization_id: organizationId,
         customer_id: customerId,
-        vehicle_id: vehicleId || null,
+        vehicle_id: vehicleId && vehicleId !== 'none' ? vehicleId : null,
         status: 'draft',
         subtotal,
         tax_amount: taxAmount,
@@ -237,8 +237,8 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
             <div>
               <Label>Vehículo (opcional)</Label>
               <Select
-                value={vehicleId}
-                onValueChange={setVehicleId}
+                value={vehicleId || undefined}
+                onValueChange={(value) => setVehicleId(value)}
                 disabled={!customerId || loadingVehicles}
               >
                 <SelectTrigger>
@@ -246,11 +246,13 @@ export function CreateManualInvoiceModal({ open, onOpenChange, onSuccess }: Crea
                     !customerId ? "Primero selecciona cliente" :
                       loadingVehicles ? "Cargando..." :
                         vehicles.length === 0 ? "Sin vehículos" :
-                          "Seleccionar vehículo..."
+                          "Seleccionar vehículo (opcional)..."
                   } />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Ninguno</SelectItem>
+                  {vehicles.length > 0 && (
+                    <SelectItem value="none">Ninguno</SelectItem>
+                  )}
                   {vehicles.map(vehicle => (
                     <SelectItem key={vehicle.id} value={vehicle.id}>
                       {vehicle.brand} {vehicle.model} - {vehicle.license_plate}
