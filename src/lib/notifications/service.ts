@@ -199,7 +199,7 @@ export async function notifyQuotationApproved(quotationId: string) {
       .select(`
         id,
         quotation_number,
-        total,
+        total_amount,
         status,
         organization_id,
         customers!inner(name, email)
@@ -216,14 +216,14 @@ export async function notifyQuotationApproved(quotationId: string) {
       organization_id: quotation.organization_id,
       type: 'quotation_approved',
       title: 'Cotización Aprobada',
-      message: `La cotización ${quotation.quotation_number} del cliente ${quotation.customers.name} ha sido aprobada. Monto: $${quotation.total}`,
+      message: `La cotización ${quotation.quotation_number} del cliente ${quotation.customers.name} ha sido aprobada. Monto: $${quotation.total_amount ?? (quotation as any).total ?? 0}`,
       priority: 'medium',
       metadata: {
         quotation_id: quotationId,
         quotation_number: quotation.quotation_number,
         customer_name: quotation.customers.name,
         customer_email: quotation.customers.email,
-        total: quotation.total,
+        total: quotation.total_amount ?? (quotation as any).total ?? 0,
         status: quotation.status
       }
     })
@@ -292,7 +292,7 @@ export async function notifyPaymentReceived(invoiceId: string, amount: number) {
       .select(`
         id,
         invoice_number,
-        total,
+        total_amount,
         organization_id,
         customers!inner(name, email)
       `)
@@ -337,7 +337,7 @@ export async function notifySupplierOrderReceived(orderId: string) {
       .select(`
         id,
         order_number,
-        total,
+        total_amount,
         status,
         organization_id,
         suppliers!inner(name, contact_person)
@@ -354,14 +354,14 @@ export async function notifySupplierOrderReceived(orderId: string) {
       organization_id: order.organization_id,
       type: 'supplier_order_received',
       title: 'Orden de Compra Recibida',
-      message: `La orden de compra ${order.order_number} del proveedor ${order.suppliers.name} ha sido recibida. Monto: $${order.total}`,
+      message: `La orden de compra ${order.order_number} del proveedor ${order.suppliers.name} ha sido recibida. Monto: $${order.total_amount ?? (order as any).total ?? 0}`,
       priority: 'medium',
       metadata: {
         order_id: orderId,
         order_number: order.order_number,
         supplier_name: order.suppliers.name,
         supplier_contact: order.suppliers.contact_person,
-        total: order.total,
+        total: order.total_amount ?? (order as any).total ?? 0,
         status: order.status
       }
     })

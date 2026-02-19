@@ -97,13 +97,13 @@ export async function getFinancialReport(
       // Obtener gastos - purchase_orders usa total y order_date
       const { data: expensesData } = await client
         .from('purchase_orders')
-        .select('total, order_date')
+        .select('total_amount, order_date')
         .eq('organization_id', organizationId)
         .eq('status', 'received')
         .gte('order_date', start)
         .lte('order_date', end)
       
-      const totalExpenses = expensesData?.reduce((sum, order) => sum + (order.total || 0), 0) || 0
+      const totalExpenses = expensesData?.reduce((sum, order) => sum + (order.total_amount ?? order.total ?? 0), 0) || 0
       const netProfit = totalRevenue - totalExpenses
       
       // Ingresos por mes - usar paid_date y total
@@ -123,16 +123,16 @@ export async function getFinancialReport(
       // Gastos por proveedor (datos reales)
       const { data: expensesBySupplierData } = await client
         .from('purchase_orders')
-        .select('total, supplier_id, suppliers(name)')
+        .select('total_amount, supplier_id, suppliers(name)')
         .eq('organization_id', organizationId)
         .eq('status', 'received')
         .gte('order_date', start)
         .lte('order_date', end)
 
       const supplierTotals = (expensesBySupplierData || []).reduce(
-        (acc: Record<string, number>, row: { total?: number; suppliers?: { name?: string } | null }) => {
+        (acc: Record<string, number>, row: { total_amount?: number; total?: number; suppliers?: { name?: string } | null }) => {
           const name = row.suppliers?.name || 'Sin proveedor'
-          acc[name] = (acc[name] || 0) + (row.total || 0)
+          acc[name] = (acc[name] || 0) + (row.total_amount ?? row.total ?? 0)
           return acc
         },
         {}

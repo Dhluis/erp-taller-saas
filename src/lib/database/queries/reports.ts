@@ -471,7 +471,7 @@ export async function getSuppliersReport(organizationId: string) {
         phone,
         is_active,
         created_at,
-        purchase_orders!inner(id, total, status, order_date)
+        purchase_orders!inner(id, total_amount, status, order_date)
       `)
       .eq('organization_id', organizationId)
 
@@ -485,7 +485,7 @@ export async function getSuppliersReport(organizationId: string) {
       is_active: supplier.is_active,
       total_orders: supplier.purchase_orders?.length || 0,
       total_spent: supplier.purchase_orders?.reduce((sum, order) => 
-        sum + (order.total || 0), 0) || 0,
+        sum + (order.total_amount ?? order.total ?? 0), 0) || 0,
       pending_orders: supplier.purchase_orders?.filter(order => 
         order.status === 'pending').length || 0,
       last_order_date: supplier.purchase_orders?.sort((a, b) => 

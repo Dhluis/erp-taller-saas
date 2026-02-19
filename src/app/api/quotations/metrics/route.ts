@@ -67,7 +67,7 @@ export async function GET() {
     const pendingCount = pendingResponse?.length || 0
     const approvedCount = approved?.length || 0
     const convertedCount = converted?.length || 0
-    const totalValueAmount = totalValue?.reduce((sum, q) => sum + (q.total || 0), 0) || 0
+    const totalValueAmount = totalValue?.reduce((sum, q) => sum + (q.total_amount ?? (q as any).total ?? 0), 0) || 0
 
     // Calcular tasa de conversión
     const totalSent = (pendingCount + approvedCount + convertedCount) || 1

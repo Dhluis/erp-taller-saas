@@ -257,7 +257,7 @@ export async function POST(request: NextRequest) {
         order_number: order.order_number,
         supplier: supplier.name,
         status: order.status,
-        total: order.total,
+        total: order.total_amount ?? order.total,
         items_count: orderItems.length
       },
       error: null

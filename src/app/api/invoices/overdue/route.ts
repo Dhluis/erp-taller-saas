@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const overdueInvoices = await getOverdueInvoices(organizationId)
     
     // Calcular totales
-    const totalAmount = overdueInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0)
+    const totalAmount = overdueInvoices.reduce((sum, inv) => sum + (inv.total_amount ?? inv.total ?? 0), 0)
     
     return NextResponse.json({
       data: {

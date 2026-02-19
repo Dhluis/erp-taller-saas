@@ -117,12 +117,12 @@ export async function getSupplierById(id: string) {
     // Obtener estadísticas básicas
     const { data: stats } = await supabase
       .from('purchase_orders')
-      .select('id, total, status, order_date')
+      .select('id, total_amount, status, order_date')
       .eq('supplier_id', id)
 
     const statsArray = (stats || []) as any[]
     const totalOrders = statsArray.length
-    const totalSpent = statsArray.reduce((sum, order) => sum + ((order.total as number) || 0), 0)
+    const totalSpent = statsArray.reduce((sum, order) => sum + ((order.total_amount as number) || 0), 0)
     const pendingOrders = statsArray.filter(order => (order.status as string) === 'pending').length
 
     return {
@@ -413,7 +413,7 @@ export async function getSupplierStats(supplierId: string) {
     // Obtener órdenes de compra
     const { data: orders, error: ordersError } = await supabase
       .from('purchase_orders')
-      .select('id, total, status, order_date, expected_delivery_date')
+      .select('id, total_amount, status, order_date, expected_delivery_date')
       .eq('supplier_id', supplierId)
       .order('order_date', { ascending: false })
 
@@ -432,7 +432,7 @@ export async function getSupplierStats(supplierId: string) {
     const ordersArray = (orders || []) as any[]
     const paymentsArray = (payments || []) as any[]
     const totalOrders = ordersArray.length
-    const totalSpent = ordersArray.reduce((sum, order) => sum + ((order.total as number) || 0), 0)
+    const totalSpent = ordersArray.reduce((sum, order) => sum + ((order.total_amount as number) || 0), 0)
     const totalPaid = paymentsArray.reduce((sum, payment) => sum + ((payment.amount as number) || 0), 0)
     const pendingAmount = totalSpent - totalPaid
 

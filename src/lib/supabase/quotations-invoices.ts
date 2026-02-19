@@ -579,13 +579,13 @@ export async function getInvoiceStats(organizationId: string) {
       cancelled: data.filter((i) => i.status === 'cancelled').length,
       total_revenue: data
         .filter((i) => i.status !== 'cancelled')
-        .reduce((sum, i) => sum + (i.total || 0), 0),
+        .reduce((sum, i) => sum + (i.total_amount ?? (i as any).total ?? 0), 0),
       total_collected: data
         .filter((i) => i.status === 'paid')
-        .reduce((sum, i) => sum + (i.total || 0), 0),
+        .reduce((sum, i) => sum + (i.total_amount ?? (i as any).total ?? 0), 0),
       total_pending: data
         .filter((i) => i.status !== 'cancelled' && i.status !== 'paid')
-        .reduce((sum, i) => sum + (i.total || 0), 0),
+        .reduce((sum, i) => sum + (i.total_amount ?? (i as any).total ?? 0), 0),
     };
 
     return stats;

@@ -333,11 +333,11 @@ export async function updatePurchaseOrder(
     // Recalcular totales si hay items
     if (data.items && data.items.length > 0) {
       const subtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0)
-      const tax = subtotal * 0.16
-      const total = subtotal + tax
+      const taxAmount = subtotal * 0.16
+      const totalAmount = subtotal + taxAmount
       updateData.subtotal = subtotal
-      updateData.tax = tax
-      updateData.total = total
+      updateData.tax_amount = taxAmount
+      updateData.total_amount = totalAmount
     }
 
     const { data: updatedOrder, error: orderError } = await supabase
