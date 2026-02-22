@@ -437,7 +437,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     })
     
     if (!user || !profile) {
-      toast.error('Error', {
+      toast.error('Sesión no disponible', {
         description: 'No hay sesión activa. Por favor recarga la página.'
       })
       return

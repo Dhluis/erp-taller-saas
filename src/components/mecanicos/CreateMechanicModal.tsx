@@ -127,7 +127,7 @@ export function CreateMechanicModal({
     
     // ✅ Usar organizationId y workshopId dinámicos del SessionContext
     if (!organizationId) {
-      toast.error('Error', {
+      toast.error('Sesión no disponible', {
         description: 'No se pudo obtener la organización. Por favor recarga la página.'
       })
       return
@@ -135,9 +135,9 @@ export function CreateMechanicModal({
 
     // ✅ workshopId es opcional - para crear mecánicos, preferiblemente debería existir
     const workshopId = sessionWorkshopId || profile?.workshop_id || null
-    
+
     if (!workshopId) {
-      toast.error('Error', {
+      toast.error('Taller no seleccionado', {
         description: 'No se pudo determinar el taller. Si tu organización tiene múltiples talleres, por favor selecciona uno primero.'
       })
       return

@@ -114,7 +114,7 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
         setServices(servicesResult.data)
       } else {
         toast({
-          title: "Error",
+          title: "Error al cargar servicios",
           description: "No se pudieron cargar los servicios",
           variant: "destructive"
         })
@@ -126,7 +126,7 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
         setInventory(inventoryResult.data)
       } else {
         toast({
-          title: "Error",
+          title: "Error al cargar inventario",
           description: "No se pudo cargar el inventario",
           variant: "destructive"
         })
@@ -138,7 +138,7 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
         setEmployees(employeesResult.data.filter((emp: Employee) => emp.role === 'mechanic'))
       } else {
         toast({
-          title: "Error",
+          title: "Error al cargar empleados",
           description: "No se pudieron cargar los empleados",
           variant: "destructive"
         })
@@ -146,8 +146,8 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
     } catch (error) {
       console.error('Error loading data:', error)
       toast({
-        title: "Error",
-        description: "Error al cargar los datos",
+        title: "Error al cargar datos",
+        description: "Ocurrió un error al cargar los datos necesarios",
         variant: "destructive"
       })
     }

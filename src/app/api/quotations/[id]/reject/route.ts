@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getQuotationById, trackQuotationChange, saveQuotationVersion } from '@/lib/database/queries/quotations'
 import { createClient } from '@/lib/supabase/server'
+import { createNotification } from '@/lib/notifications/service'
 
 // POST /api/quotations/[id]/reject - Rechazar cotización
 export async function POST(
@@ -111,9 +112,23 @@ export async function POST(
       customer_name: quotation.customers?.name
     })
 
-    // 8. NOTIFICAR (si hay sistema de notificaciones)
-    // TODO: Implementar notificaciones
-    // await notifyQuotationRejected(quotationId, quotation, reason)
+    // 8. NOTIFICAR — Crear notificación en el sistema
+    await createNotification({
+      organization_id: quotation.organization_id,
+      type: 'system_alert',
+      title: 'Cotización Rechazada',
+      message: `La cotización ${rejectedQuotation.quotation_number} del cliente ${quotation.customers?.name || 'Desconocido'} ha sido rechazada.${reason ? ` Motivo: ${reason}` : ''}`,
+      priority: 'medium',
+      metadata: {
+        quotation_id: quotationId,
+        quotation_number: rejectedQuotation.quotation_number,
+        customer_name: quotation.customers?.name,
+        rejection_reason: reason || null,
+        total_amount: quotation.total_amount,
+      }
+    }).catch((err) =>
+      console.error('Error al crear notificación de rechazo:', err)
+    )
 
     // 9. RETORNAR RESULTADO
     return NextResponse.json({

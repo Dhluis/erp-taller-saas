@@ -71,7 +71,7 @@ export function OrderItemsManager({ orderId, onTotalChange }: OrderItemsManagerP
       
       if (!result.success) {
         toast({
-          title: "Error",
+          title: "Error al cargar items",
           description: result.error || "No se pudieron cargar los items de la orden",
           variant: "destructive"
         })
@@ -118,7 +118,7 @@ export function OrderItemsManager({ orderId, onTotalChange }: OrderItemsManagerP
 
       if (!result.success) {
         toast({
-          title: "Error",
+          title: "Error al eliminar item",
           description: result.error || "No se pudo eliminar el item",
           variant: "destructive"
         })
@@ -134,7 +134,7 @@ export function OrderItemsManager({ orderId, onTotalChange }: OrderItemsManagerP
     } catch (error) {
       console.error('Error deleting item:', error)
       toast({
-        title: "Error",
+        title: "Error al eliminar item",
         description: "No se pudo eliminar el item",
         variant: "destructive"
       })

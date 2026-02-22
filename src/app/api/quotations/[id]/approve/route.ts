@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getQuotationById, trackQuotationChange, saveQuotationVersion } from '@/lib/database/queries/quotations'
 import { createClient } from '@/lib/supabase/server'
+import { notifyQuotationApproved } from '@/lib/notifications/service'
 
 // POST /api/quotations/[id]/approve - Aprobar cotización
 export async function POST(
@@ -134,9 +135,10 @@ export async function POST(
         : null
     })
 
-    // 9. NOTIFICAR (si hay sistema de notificaciones)
-    // TODO: Implementar notificaciones
-    // await notifyQuotationApproved(quotationId, quotation)
+    // 9. NOTIFICAR — Crear notificación en el sistema
+    await notifyQuotationApproved(quotationId).catch((err) =>
+      console.error('Error al crear notificación de aprobación:', err)
+    )
 
     // 10. RETORNAR RESULTADO
     return NextResponse.json({

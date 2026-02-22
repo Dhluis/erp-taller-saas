@@ -27,6 +27,59 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
+ * Transcribe audio a texto usando OpenAI Whisper.
+ * - Acepta datos base64 (WAHA Core: audio en message.body)
+ * - O URL directa (WAHA Plus: media.url)
+ * Retorna el texto transcrito o null si falla.
+ */
+async function transcribeAudioWithWhisper(
+  base64Data: string | null,
+  audioUrl: string | null
+): Promise<string | null> {
+  if (!process.env.OPENAI_API_KEY) return null;
+  if (!base64Data && !audioUrl) return null;
+
+  try {
+    const { default: OpenAI } = await import('openai');
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    let audioBuffer: Buffer;
+    let mimeType = 'audio/ogg';
+
+    if (base64Data && base64Data.length > 100) {
+      // WAHA Core: el body contiene el audio codificado en base64
+      audioBuffer = Buffer.from(base64Data, 'base64');
+    } else if (audioUrl) {
+      // WAHA Plus: descargar desde la URL
+      const headers: Record<string, string> = {};
+      if (process.env.WAHA_API_KEY) headers['X-Api-Key'] = process.env.WAHA_API_KEY;
+      const res = await fetch(audioUrl, { headers });
+      if (!res.ok) {
+        console.error('[Whisper] No se pudo descargar audio:', res.status);
+        return null;
+      }
+      const contentType = res.headers.get('content-type');
+      if (contentType) mimeType = contentType.split(';')[0];
+      audioBuffer = Buffer.from(await res.arrayBuffer());
+    } else {
+      return null;
+    }
+
+    const audioFile = new File([audioBuffer], 'audio.ogg', { type: mimeType });
+    const result = await openai.audio.transcriptions.create({
+      file: audioFile,
+      model: 'whisper-1',
+      language: 'es',
+    });
+
+    return result.text?.trim() || null;
+  } catch (err) {
+    console.error('[Whisper] Error al transcribir audio:', err);
+    return null;
+  }
+}
+
+/**
  * GET /api/webhooks/whatsapp
  * Verificación del webhook (para algunos providers)
  */
@@ -426,19 +479,52 @@ async function handleMessageEvent(body: any) {
       console.log('[WAHA Webhook] ⚠️ NO se detectó multimedia en el mensaje');
     }
 
-    // Construir texto del mensaje incluyendo info de media
-    let messageText = message.text || message.body || message.content || message.caption || '';
+    // Construir texto del mensaje según el tipo de contenido
+    // IMPORTANTE: para mensajes con media, message.body puede contener datos base64
+    // (WAHA Core envía el archivo codificado en base64 en el campo body).
+    // En esos casos NO usamos message.body — solo usamos caption/text.
+    let messageText = '';
 
-    // Si es audio sin texto, agregar indicador
-    if (mediaType === 'audio' && !messageText) {
-      messageText = '[Audio recibido - Transcripción no disponible]';
-      // TODO: Integrar con Whisper API para transcribir audios
+    if (!hasMedia || messageType === 'text') {
+      // Mensaje de texto puro: extraer normalmente
+      messageText = message.text || message.body || message.content || message.caption || '';
+    } else {
+      // Mensaje con media: ignorar body (puede ser base64), usar solo caption/text
+      messageText = message.caption || message.text || '';
     }
 
-    // Si es imagen sin texto, agregar indicador
-    if (mediaType === 'image' && !messageText) {
-      messageText = '[Imagen recibida]';
-      // El caption de la imagen ya estaría en message.caption
+    // Indicador descriptivo por tipo de media cuando no hay texto/caption
+    if (!messageText) {
+      if (mediaType === 'audio') {
+        messageText = '[Audio recibido]';
+      } else if (mediaType === 'image') {
+        messageText = '[Imagen recibida]';
+      } else if (mediaType === 'video') {
+        messageText = '[Video recibido]';
+      } else if (mediaType === 'document') {
+        const filename = message.filename || message.document?.filename || '';
+        messageText = filename ? `[Documento recibido: ${filename}]` : '[Documento recibido]';
+      } else if (hasMedia) {
+        messageText = '[Archivo recibido]';
+      }
+    }
+
+    // Transcripción de audio con Whisper (si OPENAI_API_KEY está configurada)
+    if (mediaType === 'audio') {
+      console.log('[WAHA Webhook] 🎤 Intentando transcripción con Whisper...');
+      const base64Body = (message.body && typeof message.body === 'string' && message.body.length > 100)
+        ? message.body
+        : null;
+      const transcription = await transcribeAudioWithWhisper(base64Body, mediaUrl);
+      if (transcription) {
+        console.log('[WAHA Webhook] ✅ Audio transcrito:', transcription.substring(0, 100));
+        messageText = transcription;
+      } else {
+        console.log('[WAHA Webhook] ⚠️ Transcripción no disponible, usando placeholder');
+        if (messageText === '[Audio recibido]') {
+          messageText = '[Audio recibido - escribe tu consulta para que pueda ayudarte]';
+        }
+      }
     }
 
     // Reutilizar messageId ya extraído arriba

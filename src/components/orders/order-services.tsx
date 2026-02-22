@@ -214,7 +214,7 @@ export function OrderServices({ orderId, orderStatus, onTotalChange }: OrderServ
       }
     } catch (error) {
       toast({
-        title: "Error",
+        title: "Error al guardar item",
         description: "No se pudo guardar el item",
         variant: "destructive"
       })
@@ -238,7 +238,7 @@ export function OrderServices({ orderId, orderStatus, onTotalChange }: OrderServ
       }
     } catch (error) {
       toast({
-        title: "Error",
+        title: "Error al eliminar item",
         description: "No se pudo eliminar el item",
         variant: "destructive"
       })

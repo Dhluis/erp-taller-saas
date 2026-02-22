@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
-// TODO: Implementar envío de email real
+import { sendEmail } from '@/lib/email/mailer'
 
 /**
  * API Route para gestión de invitaciones
@@ -191,12 +191,49 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // TODO: Implementar envío de email real
+    // Obtener nombre de la organización para el email
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('name')
+      .eq('id', tenantContext.organizationId)
+      .single()
 
-    console.log('✅ Invitación creada:', invitation.id)
-    return NextResponse.json({ 
-      success: true, 
-      data: invitation 
+    const orgName = org?.name || 'Eagles ERP'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'
+    const roleLabels: Record<string, string> = {
+      admin: 'Administrador',
+      manager: 'Gerente',
+      mechanic: 'Mecánico',
+      receptionist: 'Recepcionista',
+      viewer: 'Visualizador',
+    }
+    const roleLabel = roleLabels[role] || role
+    const registerUrl = `${appUrl}/auth/register?email=${encodeURIComponent(email)}&invitation=${invitation.id}`
+
+    const emailSent = await sendEmail({
+      to: email,
+      subject: `Invitación a ${orgName} en Eagles ERP`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #1a1a2e;">Has sido invitado a ${orgName}</h2>
+          <p>Has recibido una invitación para unirte a <strong>${orgName}</strong> en Eagles ERP con el rol de <strong>${roleLabel}</strong>.</p>
+          ${message ? `<p style="background: #f5f5f5; padding: 12px; border-radius: 6px; font-style: italic;">"${message}"</p>` : ''}
+          <p>Esta invitación expira el <strong>${expiresAt.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}</strong>.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${registerUrl}" style="background: #6366f1; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; display: inline-block;">
+              Aceptar Invitación
+            </a>
+          </div>
+          <p style="color: #666; font-size: 12px;">Si no esperabas esta invitación, puedes ignorar este correo.</p>
+        </div>
+      `,
+    })
+
+    console.log('✅ Invitación creada:', invitation.id, '| Email enviado:', emailSent)
+    return NextResponse.json({
+      success: true,
+      data: invitation,
+      emailSent,
     }, { status: 201 })
 
   } catch (error: any) {

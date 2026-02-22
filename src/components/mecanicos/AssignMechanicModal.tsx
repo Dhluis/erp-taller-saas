@@ -138,7 +138,7 @@ export default function AssignMechanicModal({
         setMechanics(mechanicUsers)
       } catch (error: any) {
         console.error('Error cargando mecánicos:', error)
-        toast.error('Error', {
+        toast.error('Error al cargar mecánicos', {
           description: error.message || 'No se pudieron cargar los mecánicos'
         })
       } finally {

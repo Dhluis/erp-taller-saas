@@ -45,7 +45,7 @@ export function UpgradeButton({ plan, variant = 'default', size = 'default', cla
       const message = error instanceof Error ? error.message : 'No se pudo procesar el pago'
       console.error('Error al procesar upgrade:', error)
       toast({
-        title: 'Error',
+        title: 'Error al procesar pago',
         description: message,
         variant: 'destructive',
       })

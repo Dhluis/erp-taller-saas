@@ -599,9 +599,14 @@ export async function getInvoiceStats(organizationId: string) {
 // Obtener items de nota de venta
 export async function getInvoiceItems(invoiceId: string) {
   return executeWithErrorHandling(async () => {
-    // Tabla invoice_items no existe en el schema actual
-    console.warn('getInvoiceItems: Tabla invoice_items no existe en el schema actual');
-    return [];
+    const { data, error } = await supabase
+      .from('invoice_items')
+      .select('*')
+      .eq('invoice_id', invoiceId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return (data ?? []) as InvoiceItem[];
   }, 'Error al obtener items de nota de venta');
 }
 
@@ -615,9 +620,21 @@ export async function createInvoiceItem(itemData: {
   unit_price: number;
 }) {
   return executeWithErrorHandling(async () => {
-    // Tabla invoice_items no existe en el schema actual
-    console.warn('createInvoiceItem: Tabla invoice_items no existe en el schema actual');
-    return null;
+    const total_price = itemData.quantity * itemData.unit_price;
+    const { data, error } = await supabase
+      .from('invoice_items')
+      .insert({
+        invoice_id: itemData.invoice_id,
+        description: itemData.description || itemData.item_name,
+        quantity: itemData.quantity,
+        unit_price: itemData.unit_price,
+        total_price,
+      } as any)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as InvoiceItem;
   }, 'Error al crear item de nota de venta');
 }
 
@@ -627,18 +644,38 @@ export async function updateInvoiceItem(
   itemData: Partial<InvoiceItem>
 ) {
   return executeWithErrorHandling(async () => {
-    // Tabla invoice_items no existe en el schema actual
-    console.warn('updateInvoiceItem: Tabla invoice_items no existe en el schema actual');
-    return null;
+    const updatePayload: Record<string, any> = {};
+    if (itemData.description !== undefined) updatePayload.description = itemData.description;
+    if (itemData.item_name !== undefined) updatePayload.description = itemData.item_name;
+    if (itemData.quantity !== undefined) updatePayload.quantity = itemData.quantity;
+    if (itemData.unit_price !== undefined) updatePayload.unit_price = itemData.unit_price;
+    if (itemData.total_price !== undefined) updatePayload.total_price = itemData.total_price;
+    else if (itemData.quantity !== undefined && itemData.unit_price !== undefined) {
+      updatePayload.total_price = itemData.quantity * itemData.unit_price;
+    }
+
+    const { data, error } = await supabase
+      .from('invoice_items')
+      .update(updatePayload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as InvoiceItem;
   }, 'Error al actualizar item de nota de venta');
 }
 
 // Eliminar item de nota de venta
 export async function deleteInvoiceItem(id: string) {
   return executeWithErrorHandling(async () => {
-    // Tabla invoice_items no existe en el schema actual
-    console.warn('deleteInvoiceItem: Tabla invoice_items no existe en el schema actual');
-    return null;
+    const { error } = await supabase
+      .from('invoice_items')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
   }, 'Error al eliminar item de nota de venta');
 }
 
