@@ -390,8 +390,13 @@ async function handleMessageEvent(body: any) {
     }
 
     // 10. Detectar tipo de mensaje y multimedia
-    const messageType = message.type || message.messageType || 'text';
-    
+    // Revisar en múltiples ubicaciones: WAHA puede poner el tipo en payload.type o en _data.type
+    const messageType = message.type ||
+                        message.messageType ||
+                        message._data?.type ||        // WAHA Core: tipo en _data
+                        body.payload?._data?.type ||  // alternativa
+                        'text';
+
     // Buscar media también en body.payload (WAHA puede enviarlo ahí)
     const payloadMedia = body.payload?.media || body.payload?._data?.message?.videoMessage || body.payload?._data?.message?.imageMessage || body.payload?._data?.message?.audioMessage || body.payload?._data?.message?.documentMessage;
     
@@ -412,14 +417,21 @@ async function handleMessageEvent(body: any) {
       messageStructure: JSON.stringify(message, null, 2).substring(0, 1000)
     });
     
-    const hasMedia = message.hasMedia || 
-                     message.mediaUrl || 
-                     message.image || 
-                     message.audio || 
-                     message.document ||
-                     message.video ||
-                     !!payloadMedia || // ✅ Buscar también en payload
-                     messageType !== 'text';
+    const hasMedia = !!message.hasMedia ||
+                     !!message._data?.hasMedia ||      // WAHA Core: flag en _data
+                     !!message.mediaUrl ||
+                     !!message.image ||
+                     !!message.audio ||
+                     !!message.document ||
+                     !!message.video ||
+                     !!payloadMedia ||
+                     messageType === 'ptt' ||           // voice message explícito
+                     messageType === 'audio' ||
+                     messageType === 'image' ||
+                     messageType === 'video' ||
+                     messageType === 'document' ||
+                     messageType === 'sticker' ||
+                     (messageType !== 'text' && messageType !== 'chat');
 
     // Extraer URL del media si existe
     let mediaUrl = null;
@@ -453,14 +465,18 @@ async function handleMessageEvent(body: any) {
                        body.payload?._data?.message?.documentMessage?.mimetype;
       
       // Detectar tipo también por la presencia de objetos específicos
-      if (message.type === 'image' || message.image || body.payload?._data?.message?.imageMessage || mimetype?.startsWith('image/')) {
+      // Revisar tanto message.type como message._data?.type para cubrir todas las versiones de WAHA
+      const rawType = message.type || message._data?.type || '';
+      if (rawType === 'image' || message.image || body.payload?._data?.message?.imageMessage || mimetype?.startsWith('image/')) {
         mediaType = 'image';
-      } else if (message.type === 'audio' || message.type === 'ptt' || message.audio || body.payload?._data?.message?.audioMessage || mimetype?.startsWith('audio/')) {
+      } else if (rawType === 'audio' || rawType === 'ptt' || message.audio || body.payload?._data?.message?.audioMessage || mimetype?.startsWith('audio/')) {
         mediaType = 'audio';
-      } else if (message.type === 'video' || message.video || body.payload?._data?.message?.videoMessage || mimetype?.startsWith('video/')) {
+      } else if (rawType === 'video' || message.video || body.payload?._data?.message?.videoMessage || mimetype?.startsWith('video/')) {
         mediaType = 'video';
-      } else if (message.type === 'document' || message.document || body.payload?._data?.message?.documentMessage || mimetype?.startsWith('application/')) {
+      } else if (rawType === 'document' || message.document || body.payload?._data?.message?.documentMessage || mimetype?.startsWith('application/')) {
         mediaType = 'document';
+      } else if (rawType === 'sticker') {
+        mediaType = 'image'; // los stickers se tratan como imágenes
       }
       
       console.log('[WAHA Webhook] 📎 Media detectado:', {
@@ -479,17 +495,18 @@ async function handleMessageEvent(body: any) {
       console.log('[WAHA Webhook] ⚠️ NO se detectó multimedia en el mensaje');
     }
 
-    // Construir texto del mensaje según el tipo de contenido
-    // IMPORTANTE: para mensajes con media, message.body puede contener datos base64
-    // (WAHA Core envía el archivo codificado en base64 en el campo body).
-    // En esos casos NO usamos message.body — solo usamos caption/text.
+    // Construir texto del mensaje según el tipo de contenido.
+    // CRÍTICO: message.body puede contener datos base64 en WAHA Core (audio, imagen, etc.).
+    // La decisión de usar o no message.body se basa en hasMedia (no en messageType,
+    // porque messageType puede quedar en 'text' si el campo type no está en el payload top-level).
     let messageText = '';
 
-    if (!hasMedia || messageType === 'text') {
+    if (!hasMedia) {
       // Mensaje de texto puro: extraer normalmente
       messageText = message.text || message.body || message.content || message.caption || '';
     } else {
-      // Mensaje con media: ignorar body (puede ser base64), usar solo caption/text
+      // Mensaje con media: NUNCA usar message.body (puede ser base64 del archivo).
+      // Solo usar caption o text explícitos.
       messageText = message.caption || message.text || '';
     }
 
@@ -507,6 +524,11 @@ async function handleMessageEvent(body: any) {
       } else if (hasMedia) {
         messageText = '[Archivo recibido]';
       }
+    }
+
+    // Fallback final: si el mensaje sigue vacío, evitar llamar al AI con string vacío
+    if (!messageText) {
+      messageText = '[Mensaje recibido]';
     }
 
     // Transcripción de audio con Whisper (si OPENAI_API_KEY está configurada)
