@@ -27,6 +27,14 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
+ * Mapa en memoria para debounce de mensajes por conversación.
+ * Clave: conversationId | Valor: Date.now() del último mensaje registrado.
+ * Al llegar un nuevo mensaje, sobreescribe el valor → el mensaje anterior
+ * detecta que ya no es el último y cede la respuesta al AI.
+ */
+const _debounceMap = new Map<string, number>();
+
+/**
  * Transcribe audio a texto usando OpenAI Whisper.
  * - Acepta datos base64 (WAHA Core: audio en message.body)
  * - O URL directa (WAHA Plus: media.url)
@@ -116,109 +124,114 @@ async function transcribeAudioWithWhisper(
 }
 
 /**
- * Analiza el contenido de una imagen usando OpenAI GPT-4o-mini Vision.
- * Descarga la imagen desde WAHA (con autenticación), la codifica en base64
- * y solicita una descripción concisa en español.
- * Retorna la descripción o null si falla.
+ * Descarga el binario de una imagen desde WAHA usando el endpoint correcto.
+ * Estrategia en cascada:
+ *   1. base64 ya disponible en el payload (sin red)
+ *   2. Endpoint WAHA: POST /api/{session}/messages/{id}/download  (WAHA PLUS/NOWEB)
+ *   3. URL directa del archivo con auth header
+ * Retorna { buffer, mimeType } o null si todo falla.
  */
-async function analyzeImageWithVision(
-  imageUrl: string | null,
-  wahaApiKey?: string,
-  mimetype?: string,
-  base64DataRaw?: string | null
-): Promise<string | null> {
-  if (!process.env.OPENAI_API_KEY) {
-    console.warn('[Vision] OPENAI_API_KEY no configurada, saltando análisis de imagen');
-    return null;
-  }
-  if (!imageUrl && !base64DataRaw) {
-    console.warn('[Vision] Sin URL ni base64, no se puede analizar');
-    return null;
-  }
+async function downloadImageFromWaha(opts: {
+  base64Raw?: string | null;
+  wahaBaseUrl: string;
+  wahaApiKey: string;
+  sessionName: string;
+  messageId: string;
+  fileUrl?: string | null;
+  mimetype?: string | null;
+}): Promise<{ buffer: Buffer; mimeType: string } | null> {
+  const { base64Raw, wahaBaseUrl, wahaApiKey, sessionName, messageId, fileUrl, mimetype } = opts;
+  const headers = { 'X-Api-Key': wahaApiKey, 'Content-Type': 'application/json' };
+  const mimeType = mimetype || 'image/jpeg';
 
-  const { default: OpenAI } = await import('openai');
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-  const VISION_PROMPT = 'Describe brevemente qué muestra esta imagen en el contexto de un taller mecánico o servicio automotriz. Responde en español en 1-2 oraciones concisas.';
-
-  // ── Intento 1: base64 directo desde el payload WAHA (más rápido, sin descarga)
-  if (base64DataRaw && base64DataRaw.length > 100) {
-    const dataUrl = base64DataRaw.startsWith('data:')
-      ? base64DataRaw
-      : `data:${mimetype || 'image/jpeg'};base64,${base64DataRaw}`;
-    console.log('[Vision] Intento 1: base64 directo del payload, longitud:', base64DataRaw.length);
+  // ── A: base64 ya en payload (WAHA NOWEB voice-style, no siempre disponible para imágenes)
+  if (base64Raw && base64Raw.length > 200) {
     try {
-      const res = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: [
-          { type: 'image_url', image_url: { url: dataUrl } },
-          { type: 'text', text: VISION_PROMPT }
-        ]}],
-        max_tokens: 150
-      });
-      const desc = res.choices[0]?.message?.content?.trim() || null;
-      if (desc) { console.log('[Vision] ✅ Éxito base64 directo:', desc.substring(0, 80)); return desc; }
-    } catch (e: any) {
-      console.warn('[Vision] ⚠️ Intento 1 falló:', e?.message);
-    }
+      let clean = base64Raw;
+      if (clean.startsWith('data:')) clean = clean.split(';base64,')[1] || clean;
+      const buf = Buffer.from(clean, 'base64');
+      if (buf.byteLength > 500) {
+        console.log('[Vision] A: base64 del payload OK,', buf.byteLength, 'bytes');
+        return { buffer: buf, mimeType };
+      }
+    } catch { /* continúa */ }
   }
 
-  if (!imageUrl) return null;
-
-  // ── Intento 2: pasar la URL directamente a OpenAI (OpenAI la descarga por nosotros)
-  // Funciona si el endpoint WAHA /api/files/ no requiere autenticación
-  console.log('[Vision] Intento 2: URL directa a OpenAI:', imageUrl.substring(0, 80));
+  // ── B: endpoint WAHA /messages/{id}/download (correcto para WAHA PLUS y NOWEB)
   try {
-    const res = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: [
-        { type: 'image_url', image_url: { url: imageUrl } },
-        { type: 'text', text: VISION_PROMPT }
-      ]}],
-      max_tokens: 150
-    });
-    const desc = res.choices[0]?.message?.content?.trim() || null;
-    if (desc) { console.log('[Vision] ✅ Éxito URL directa:', desc.substring(0, 80)); return desc; }
-    console.warn('[Vision] ⚠️ Intento 2: respuesta vacía de OpenAI');
-  } catch (e: any) {
-    console.warn('[Vision] ⚠️ Intento 2 falló (URL directa):', e?.status, e?.message);
+    const dlUrl = `${wahaBaseUrl.replace(/\/$/, '')}/api/${sessionName}/messages/${encodeURIComponent(messageId)}/download`;
+    console.log('[Vision] B: endpoint WAHA download:', dlUrl);
+    const res = await fetch(dlUrl, { method: 'GET', headers: { 'X-Api-Key': wahaApiKey } });
+    console.log('[Vision] B respuesta:', res.status, res.headers.get('content-type'));
+    if (res.ok) {
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.byteLength > 500) {
+        const ct = res.headers.get('content-type') || mimeType;
+        console.log('[Vision] B: OK,', buf.byteLength, 'bytes');
+        return { buffer: buf, mimeType: ct.split(';')[0] };
+      }
+    }
+  } catch (e: any) { console.warn('[Vision] B falló:', e.message); }
+
+  // ── C: URL directa del archivo (requiere auth header)
+  if (fileUrl) {
+    try {
+      console.log('[Vision] C: URL directa:', fileUrl.substring(0, 80));
+      const res = await fetch(fileUrl, { headers: { 'X-Api-Key': wahaApiKey } });
+      console.log('[Vision] C respuesta:', res.status, res.headers.get('content-type'));
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        if (buf.byteLength > 500) {
+          const ct = res.headers.get('content-type') || mimeType;
+          console.log('[Vision] C: OK,', buf.byteLength, 'bytes');
+          return { buffer: buf, mimeType: ct.split(';')[0] };
+        }
+      }
+    } catch (e: any) { console.warn('[Vision] C falló:', e.message); }
   }
 
-  // ── Intento 3: descargar imagen nosotros → convertir a base64 → enviar a OpenAI
-  console.log('[Vision] Intento 3: descargar desde WAHA y convertir a base64...');
+  console.error('[Vision] ❌ Todos los métodos de descarga fallaron');
+  return null;
+}
+
+/**
+ * Analiza el contenido de una imagen con GPT-4o-mini Vision.
+ */
+async function analyzeImageWithVision(opts: {
+  base64Raw?: string | null;
+  wahaBaseUrl: string;
+  wahaApiKey: string;
+  sessionName: string;
+  messageId: string;
+  fileUrl?: string | null;
+  mimetype?: string | null;
+}): Promise<string | null> {
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn('[Vision] OPENAI_API_KEY no configurada');
+    return null;
+  }
+
+  const media = await downloadImageFromWaha(opts);
+  if (!media) return null;
+
   try {
-    const apiKey = wahaApiKey || process.env.WAHA_API_KEY;
-    const headers: Record<string, string> = apiKey ? { 'X-Api-Key': apiKey } : {};
-    const imageRes = await fetch(imageUrl, { headers });
-    console.log('[Vision] Descarga respuesta:', imageRes.status, imageRes.statusText,
-      'Content-Type:', imageRes.headers.get('content-type'));
-    if (!imageRes.ok) {
-      console.error('[Vision] ❌ Intento 3 descarga fallida:', imageRes.status, imageRes.statusText);
-      return null;
-    }
-    const contentType = imageRes.headers.get('content-type') || '';
-    const mimeType = mimetype || (contentType.split(';')[0]) || 'image/jpeg';
-    const buf = await imageRes.arrayBuffer();
-    if (buf.byteLength === 0) {
-      console.error('[Vision] ❌ Intento 3: respuesta vacía, 0 bytes');
-      return null;
-    }
-    console.log('[Vision] Imagen descargada:', buf.byteLength, 'bytes, mime:', mimeType);
-    const dataUrl = `data:${mimeType};base64,${Buffer.from(buf).toString('base64')}`;
+    const { default: OpenAI } = await import('openai');
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const dataUrl = `data:${media.mimeType};base64,${media.buffer.toString('base64')}`;
     const res = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: [
         { type: 'image_url', image_url: { url: dataUrl } },
-        { type: 'text', text: VISION_PROMPT }
+        { type: 'text', text: 'Describe brevemente qué muestra esta imagen en el contexto de un taller mecánico o servicio automotriz. Responde en español en 1-2 oraciones concisas.' }
       ]}],
       max_tokens: 150
     });
     const desc = res.choices[0]?.message?.content?.trim() || null;
-    if (desc) { console.log('[Vision] ✅ Éxito descarga+base64:', desc.substring(0, 80)); return desc; }
-    console.warn('[Vision] ⚠️ Intento 3: OpenAI no devolvió descripción');
-    return null;
+    if (desc) console.log('[Vision] ✅ Imagen analizada:', desc.substring(0, 100));
+    else console.warn('[Vision] ⚠️ OpenAI no devolvió descripción');
+    return desc;
   } catch (e: any) {
-    console.error('[Vision] ❌ Intento 3 error:', e?.status, e?.message, e?.error);
+    console.error('[Vision] ❌ Error OpenAI:', e?.status, e?.message);
     return null;
   }
 }
@@ -775,41 +788,35 @@ async function handleMessageEvent(body: any) {
       }
     }
 
-    // Análisis de imagen con GPT-4o-mini Vision (si OPENAI_API_KEY está configurada)
-    // WAHA NOWEB puede enviar el binario de la imagen de tres formas:
-    //   1. body.payload.media.data  → base64 en el payload
-    //   2. message.body             → base64 directo (IGUAL que para audio — sin filtros extra)
-    //   3. media.url                → URL descargable
-    const imageBase64FromPayload = (body as any).__mediaBase64Data as string | null;
-    // Usar la misma lógica que Whisper para audio: si message.body es string largo → puede ser base64
-    const imageBase64FromBody = (hasMedia && typeof message.body === 'string' && message.body.length > 100)
-      ? message.body
-      : null;
-    const imageBase64 = imageBase64FromPayload || imageBase64FromBody;
+    // Análisis de imagen con GPT-4o-mini Vision
+    const imageBase64Raw = (body as any).__mediaBase64Data as string | null
+      || ((hasMedia && typeof message.body === 'string' && message.body.length > 200) ? message.body : null);
     const imageMime = (body as any).__mimetype as string | undefined;
 
-    if (mediaType === 'image' && (mediaUrl || imageBase64)) {
-      console.log('[WAHA Webhook] 🖼️ Intentando análisis de imagen con Vision...', {
-        hasUrl: !!mediaUrl,
-        hasBase64FromPayload: !!imageBase64FromPayload,
-        hasBase64FromBody: !!imageBase64FromBody,
-        base64Length: imageBase64?.length || 0
-      });
+    if (mediaType === 'image') {
+      console.log('[WAHA Webhook] 🖼️ Vision: messageId=' + (messageId || '?') + ' session=' + sessionName + ' hasUrl=' + !!mediaUrl + ' hasBase64=' + !!imageBase64Raw);
       try {
         const wahaConf = await getWahaConfig(organizationId);
-        const imageDescription = await analyzeImageWithVision(mediaUrl, wahaConf.key, imageMime, imageBase64);
+        const imageDescription = await analyzeImageWithVision({
+          base64Raw: imageBase64Raw,
+          wahaBaseUrl: wahaConf.url,
+          wahaApiKey: wahaConf.key,
+          sessionName: sessionName,
+          messageId: messageId || '',
+          fileUrl: mediaUrl,
+          mimetype: imageMime || null
+        });
         if (imageDescription) {
           const captionPrefix = message.caption ? `${message.caption} — ` : '';
           messageText = `${captionPrefix}[Imagen: ${imageDescription}]`;
           console.log('[WAHA Webhook] ✅ Imagen descrita:', messageText.substring(0, 120));
         } else {
-          console.log('[WAHA Webhook] ⚠️ Vision devolvió null — todos los intentos fallaron');
-          // Fallback descriptivo: el AI puede responder "no veo la imagen, descríbela"
           const captionFallback = message.caption ? ` Caption: "${message.caption}"` : '';
-          messageText = `El cliente envió una foto.${captionFallback} No puedo ver el contenido de la imagen, pide al cliente que describa qué muestra o qué necesita.`;
+          messageText = `El cliente envió una foto.${captionFallback} No puedo ver la imagen directamente, pide al cliente que describa qué necesita o qué muestra la foto.`;
         }
       } catch (visionErr: any) {
-        console.warn('[WAHA Webhook] ⚠️ Error en Vision, usando placeholder:', visionErr.message);
+        console.warn('[WAHA Webhook] ⚠️ Vision error:', visionErr.message);
+        messageText = 'El cliente envió una imagen. Pide que describa lo que necesita.';
       }
     }
 
@@ -922,27 +929,17 @@ async function handleMessageEvent(body: any) {
     }
 
     // 12. DEBOUNCE — esperar a que terminen de llegar mensajes del mismo turno.
-    // Si el usuario escribe "hola", "cómo estás?", "info" en 3 mensajes seguidos,
-    // esperamos 2.5s y solo respondemos UNA VEZ al último mensaje, combinando el texto.
+    // Usa Map en memoria (milisegundos) para evitar problemas de formato/precisión de timestamps.
     const DEBOUNCE_MS = 2500;
-    // Usar el timestamp del mensaje WhatsApp (ya calculado arriba) para comparar.
-    // Es más fiable que server time porque evita problemas de formato "Z" vs "+00:00" en strings.
-    const ourMsgTimestampMs = timestamp.getTime();
-    console.log('[Webhook] ⏳ Debounce: esperando', DEBOUNCE_MS, 'ms antes de responder... (msg ts:', new Date(ourMsgTimestampMs).toISOString(), ')');
+    const myArrivalMs = Date.now();
+    _debounceMap.set(conversationId, myArrivalMs);
+    console.log('[Webhook] ⏳ Debounce: esperando', DEBOUNCE_MS, 'ms (arrival=', myArrivalMs, ')');
     await new Promise(resolve => setTimeout(resolve, DEBOUNCE_MS));
 
-    // Comparar usando timestamps de mensajes WhatsApp: si llegó uno MÁS NUEVO → ceder
-    const { data: convState } = await supabase
-      .from('whatsapp_conversations')
-      .select('last_message_at')
-      .eq('id', conversationId)
-      .single();
-
-    const lastMsgAt = (convState as any)?.last_message_at;
-    const lastMsgAtMs = lastMsgAt ? new Date(lastMsgAt).getTime() : 0;
-    // Si la conversación tiene un mensaje más reciente (timestamp mayor al nuestro) → ceder
-    if (lastMsgAtMs > ourMsgTimestampMs) {
-      console.log('[Webhook] ⏭️ Debounce: hay mensaje más reciente (last_message_at=' + new Date(lastMsgAtMs).toISOString().substring(11, 19) + ' > nuestro=' + new Date(ourMsgTimestampMs).toISOString().substring(11, 19) + '), cediendo');
+    // Si otro mensaje llegó DESPUÉS que yo → sobreescribió el Map → yo cedo
+    const latestArrivalMs = _debounceMap.get(conversationId) ?? 0;
+    if (latestArrivalMs > myArrivalMs) {
+      console.log('[Webhook] ⏭️ Debounce: hay mensaje más reciente (' + latestArrivalMs + ' > ' + myArrivalMs + '), cediendo respuesta al AI');
       return;
     }
 
