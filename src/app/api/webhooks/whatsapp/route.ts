@@ -834,6 +834,12 @@ async function handleMessageEvent(body: any) {
     let myMessageCreatedAt: string | null = null;
     
     try {
+      // CRÍTICO para debounce cross-process: usar Date.now() (ms de precisión del servidor)
+      // en lugar de message.timestamp (precisión de segundos de WAHA).
+      // Si 4 mensajes llegan en el mismo segundo, message.timestamp es idéntico para todos →
+      // el check gt('created_at', X) no encuentra mensajes más nuevos → todos los handlers
+      // responden. Con new Date() cada mensaje tiene un timestamp único en milisegundos.
+      const insertedAt = new Date().toISOString();
       const { data: savedMessage, error: saveError } = await supabase
         .from('whatsapp_messages')
         .insert({
@@ -848,7 +854,7 @@ async function handleMessageEvent(body: any) {
           status: 'delivered',
           provider: 'waha',
           provider_message_id: finalMessageId,
-          created_at: timestamp.toISOString()
+          created_at: insertedAt
         } as any)
         .select()
         .single();

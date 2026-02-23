@@ -364,10 +364,20 @@ export async function getConversationHistory(
       return []
     }
 
-    return data.map(msg => ({
-      role: msg.direction === 'inbound' ? 'user' : 'assistant',
-      content: msg.body
-    }))
+    return data.map(msg => {
+      let content = msg.body;
+      // Reemplazar markers de audio/video en el HISTORIAL por texto neutro.
+      // Si el AI ve "[Audio recibido - escribe tu consulta...]" en el historial,
+      // aplica la regla del system prompt y responde "No puedo escuchar audios"
+      // aunque el mensaje ACTUAL sea texto puro.
+      if (content?.startsWith('[Audio recibido')) {
+        content = '(el cliente envió un audio anteriormente)';
+      }
+      return {
+        role: msg.direction === 'inbound' ? 'user' : 'assistant',
+        content
+      };
+    })
   } catch (error) {
     console.error('[ContextLoader] Error en getConversationHistory:', error)
     return []
