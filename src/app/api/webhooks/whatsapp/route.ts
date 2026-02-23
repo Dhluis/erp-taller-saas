@@ -34,7 +34,8 @@ export const dynamic = 'force-dynamic';
  */
 async function transcribeAudioWithWhisper(
   base64Data: string | null,
-  audioUrl: string | null
+  audioUrl: string | null,
+  wahaApiKey?: string   // Clave WAHA específica de la organización (multi-tenant)
 ): Promise<string | null> {
   if (!process.env.OPENAI_API_KEY) return null;
   if (!base64Data && !audioUrl) return null;
@@ -48,14 +49,27 @@ async function transcribeAudioWithWhisper(
 
     if (base64Data && base64Data.length > 100) {
       // WAHA Core: el body contiene el audio codificado en base64
-      audioBuffer = Buffer.from(base64Data, 'base64');
+      // WAHA a veces envía Data URIs: "data:audio/ogg;base64,<datos>" — extraer solo el base64
+      let cleanBase64 = base64Data;
+      if (cleanBase64.includes(';base64,')) {
+        const parts = cleanBase64.split(';base64,');
+        // Extraer mimetype del prefijo si está disponible ("data:audio/ogg")
+        if (parts[0].startsWith('data:')) {
+          mimeType = parts[0].replace('data:', '') || mimeType;
+        }
+        cleanBase64 = parts[1];
+      }
+      audioBuffer = Buffer.from(cleanBase64, 'base64');
     } else if (audioUrl) {
       // WAHA Plus: descargar desde la URL
+      // Usar clave WAHA específica de la org; fallback a variable de entorno
       const headers: Record<string, string> = {};
-      if (process.env.WAHA_API_KEY) headers['X-Api-Key'] = process.env.WAHA_API_KEY;
+      const apiKey = wahaApiKey || process.env.WAHA_API_KEY;
+      if (apiKey) headers['X-Api-Key'] = apiKey;
+      console.log('[Whisper] Descargando audio desde URL:', audioUrl.substring(0, 80) + '...', { hasApiKey: !!apiKey });
       const res = await fetch(audioUrl, { headers });
       if (!res.ok) {
-        console.error('[Whisper] No se pudo descargar audio:', res.status);
+        console.error('[Whisper] No se pudo descargar audio:', res.status, res.statusText);
         return null;
       }
       const contentType = res.headers.get('content-type');
@@ -400,6 +414,14 @@ async function handleMessageEvent(body: any) {
     // Buscar media también en body.payload (WAHA puede enviarlo ahí)
     const payloadMedia = body.payload?.media || body.payload?._data?.message?.videoMessage || body.payload?._data?.message?.imageMessage || body.payload?._data?.message?.audioMessage || body.payload?._data?.message?.documentMessage;
     
+    // Detectar si el body parece ser base64 de un archivo media
+    // (WAHA Core puede no enviar hasMedia=true en algunas versiones)
+    const bodyStr = typeof message.body === 'string' ? message.body : '';
+    const bodyIsLikelyBase64 = bodyStr.length > 500 &&
+      !bodyStr.includes(' ') &&
+      /^[A-Za-z0-9+/=]+$/.test(bodyStr.substring(0, 100));
+    const bodyIsDataUri = bodyStr.startsWith('data:') && bodyStr.includes(';base64,');
+
     // Log detallado para diagnóstico de multimedia
     console.log('[WAHA Webhook] 🔍 DIAGNÓSTICO MULTIMEDIA:', {
       messageType,
@@ -413,10 +435,13 @@ async function handleMessageEvent(body: any) {
       mimetype: message.mimetype,
       hasPayloadMedia: !!payloadMedia,
       payloadMediaKeys: payloadMedia ? Object.keys(payloadMedia) : [],
+      bodyLength: bodyStr.length,
+      bodyIsLikelyBase64,
+      bodyIsDataUri,
       messageKeys: Object.keys(message),
       messageStructure: JSON.stringify(message, null, 2).substring(0, 1000)
     });
-    
+
     const hasMedia = !!message.hasMedia ||
                      !!message._data?.hasMedia ||      // WAHA Core: flag en _data
                      !!message.mediaUrl ||
@@ -431,7 +456,9 @@ async function handleMessageEvent(body: any) {
                      messageType === 'video' ||
                      messageType === 'document' ||
                      messageType === 'sticker' ||
-                     (messageType !== 'text' && messageType !== 'chat');
+                     (messageType !== 'text' && messageType !== 'chat') ||
+                     bodyIsLikelyBase64 ||             // body parece base64 de media
+                     bodyIsDataUri;                     // body es data URI (WAHA Core)
 
     // Extraer URL del media si existe
     let mediaUrl = null;
@@ -456,14 +483,17 @@ async function handleMessageEvent(body: any) {
                  body.payload?._data?.message?.documentMessage?.url; // ✅ Documento en _data.message
       
       // Detectar tipo de media (verificar también en payload.media.mimetype y _data.message)
-      const mimetype = message.mimetype || 
-                       message.media?.mimetype || 
+      // Si el body es un data URI, extraer el mimetype del prefijo
+      const dataUriMime = bodyIsDataUri ? (bodyStr.match(/^data:([^;]+);/) || [])[1] : undefined;
+      const mimetype = dataUriMime ||
+                       message.mimetype ||
+                       message.media?.mimetype ||
                        body.payload?.media?.mimetype ||
                        body.payload?._data?.message?.videoMessage?.mimetype ||
                        body.payload?._data?.message?.imageMessage?.mimetype ||
                        body.payload?._data?.message?.audioMessage?.mimetype ||
                        body.payload?._data?.message?.documentMessage?.mimetype;
-      
+
       // Detectar tipo también por la presencia de objetos específicos
       // Revisar tanto message.type como message._data?.type para cubrir todas las versiones de WAHA
       const rawType = message.type || message._data?.type || '';
@@ -477,6 +507,12 @@ async function handleMessageEvent(body: any) {
         mediaType = 'document';
       } else if (rawType === 'sticker') {
         mediaType = 'image'; // los stickers se tratan como imágenes
+      } else if (bodyIsLikelyBase64 || bodyIsDataUri) {
+        // Fallback: body parece ser media pero sin tipo explícito
+        // Intentar detectar por mimetype o asumir audio (lo más común)
+        mediaType = mimetype?.startsWith('image/') ? 'image' :
+                    mimetype?.startsWith('video/') ? 'video' :
+                    'audio'; // Default: asumir audio para base64 sin tipo
       }
       
       console.log('[WAHA Webhook] 📎 Media detectado:', {
@@ -537,7 +573,20 @@ async function handleMessageEvent(body: any) {
       const base64Body = (message.body && typeof message.body === 'string' && message.body.length > 100)
         ? message.body
         : null;
-      const transcription = await transcribeAudioWithWhisper(base64Body, mediaUrl);
+
+      // Obtener clave WAHA específica de la organización para descargar el audio
+      // (necesario para configuraciones multi-tenant donde la clave está en BD, no en env vars)
+      let wahaApiKeyForAudio: string | undefined;
+      if (mediaUrl) {
+        try {
+          const wahaConf = await getWahaConfig(organizationId);
+          wahaApiKeyForAudio = wahaConf.key;
+        } catch {
+          // Fallback: transcribeAudioWithWhisper usará process.env.WAHA_API_KEY
+        }
+      }
+
+      const transcription = await transcribeAudioWithWhisper(base64Body, mediaUrl, wahaApiKeyForAudio);
       if (transcription) {
         console.log('[WAHA Webhook] ✅ Audio transcrito:', transcription.substring(0, 100));
         messageText = transcription;
