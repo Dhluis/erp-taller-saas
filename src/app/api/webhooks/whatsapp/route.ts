@@ -179,17 +179,22 @@ export async function POST(request: NextRequest) {
         await handleMessageEvent(body);
         break;
       
-      case 'message.any':
-        // ⚠️ Este evento NO debería llegar si el webhook está configurado correctamente
-        console.log('[Webhook] ⚠️ ADVERTENCIA: Evento message.any recibido (no debería estar en webhook)');
-        console.log('[Webhook] ⚠️ Ignorando message.any - solo procesamos "message"');
-        // NO procesar message.any para evitar duplicados
-        return NextResponse.json({ 
-          success: true, 
-          skipped: true, 
-          reason: 'message.any_ignored',
-          message: 'Evento message.any ignorado. Solo procesamos "message"'
-        });
+      case 'message.any': {
+        // WAHA NOWEB envía algunos tipos de media (imágenes, documentos) como message.any
+        // en lugar de como message. Procesamos SOLO los entrantes (fromMe: false).
+        // El constraint UNIQUE (provider_message_id) en la BD previene duplicados
+        // si el mismo mensaje llega por ambos eventos.
+        const anyPayload = body.payload || body.message || body.data || body;
+        const anyFromMe = anyPayload?.fromMe === true || anyPayload?.fromMe === 'true' || anyPayload?.fromMe === 1;
+        if (!anyFromMe) {
+          console.log('[Webhook] 🔄 message.any ENTRANTE (WAHA NOWEB) — procesando como message...');
+          await handleMessageEvent(body);
+        } else {
+          console.log('[Webhook] ⏭️ message.any ignorado (fromMe=true)');
+          return NextResponse.json({ success: true, skipped: true, reason: 'message.any_own_ignored' });
+        }
+        break;
+      }
       
       case 'session.status':
       case 'status':
