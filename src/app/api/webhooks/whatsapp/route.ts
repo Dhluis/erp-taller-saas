@@ -778,12 +778,12 @@ async function handleMessageEvent(body: any) {
     // Análisis de imagen con GPT-4o-mini Vision (si OPENAI_API_KEY está configurada)
     // WAHA NOWEB puede enviar el binario de la imagen de tres formas:
     //   1. body.payload.media.data  → base64 en el payload
-    //   2. message.body             → base64 directo (igual que para audio)
-    //   3. media.url                → URL descargable (puede requerir auth)
+    //   2. message.body             → base64 directo (IGUAL que para audio — sin filtros extra)
+    //   3. media.url                → URL descargable
     const imageBase64FromPayload = (body as any).__mediaBase64Data as string | null;
-    // Igual que audio: WAHA NOWEB a veces pone el base64 de la imagen en message.body
-    const imageBase64FromBody = (bodyIsLikelyBase64 || bodyIsDataUri)
-      ? (typeof message.body === 'string' ? message.body : null)
+    // Usar la misma lógica que Whisper para audio: si message.body es string largo → puede ser base64
+    const imageBase64FromBody = (hasMedia && typeof message.body === 'string' && message.body.length > 100)
+      ? message.body
       : null;
     const imageBase64 = imageBase64FromPayload || imageBase64FromBody;
     const imageMime = (body as any).__mimetype as string | undefined;
@@ -925,22 +925,24 @@ async function handleMessageEvent(body: any) {
     // Si el usuario escribe "hola", "cómo estás?", "info" en 3 mensajes seguidos,
     // esperamos 2.5s y solo respondemos UNA VEZ al último mensaje, combinando el texto.
     const DEBOUNCE_MS = 2500;
-    const debounceStartedAt = new Date().toISOString(); // timestamp del servidor ahora
-    console.log('[Webhook] ⏳ Debounce: esperando', DEBOUNCE_MS, 'ms antes de responder...');
+    // Usar el timestamp del mensaje WhatsApp (ya calculado arriba) para comparar.
+    // Es más fiable que server time porque evita problemas de formato "Z" vs "+00:00" en strings.
+    const ourMsgTimestampMs = timestamp.getTime();
+    console.log('[Webhook] ⏳ Debounce: esperando', DEBOUNCE_MS, 'ms antes de responder... (msg ts:', new Date(ourMsgTimestampMs).toISOString(), ')');
     await new Promise(resolve => setTimeout(resolve, DEBOUNCE_MS));
 
-    // Consultar la conversación para ver si llegó un mensaje más reciente durante la espera
+    // Comparar usando timestamps de mensajes WhatsApp: si llegó uno MÁS NUEVO → ceder
     const { data: convState } = await supabase
       .from('whatsapp_conversations')
-      .select('updated_at, last_message_at')
+      .select('last_message_at')
       .eq('id', conversationId)
       .single();
 
-    const convUpdatedAt = (convState as any)?.updated_at || '';
-    // Si la conversación fue actualizada MÁS TARDE que cuando empezamos este debounce,
-    // significa que un mensaje más reciente llegó → ceder el paso
-    if (convUpdatedAt > debounceStartedAt) {
-      console.log('[Webhook] ⏭️ Debounce: hay mensaje más reciente (' + convUpdatedAt.substring(11, 19) + ' > ' + debounceStartedAt.substring(11, 19) + '), cediendo respuesta al AI');
+    const lastMsgAt = (convState as any)?.last_message_at;
+    const lastMsgAtMs = lastMsgAt ? new Date(lastMsgAt).getTime() : 0;
+    // Si la conversación tiene un mensaje más reciente (timestamp mayor al nuestro) → ceder
+    if (lastMsgAtMs > ourMsgTimestampMs) {
+      console.log('[Webhook] ⏭️ Debounce: hay mensaje más reciente (last_message_at=' + new Date(lastMsgAtMs).toISOString().substring(11, 19) + ' > nuestro=' + new Date(ourMsgTimestampMs).toISOString().substring(11, 19) + '), cediendo');
       return;
     }
 
