@@ -87,6 +87,8 @@ interface Message {
   timestamp: Date
   read: boolean
   type?: 'text' | 'image' | 'video' | 'file' | 'internal'
+  mediaUrl?: string
+  mediaType?: string
 }
 
 interface Conversation {
@@ -412,10 +414,12 @@ export default function ConversacionesPage() {
         return {
           id: msg.id || Date.now().toString(),
           text: msg.body || msg.content || msg.text || '',
-        sender: msg.direction === 'inbound' ? 'customer' : 'agent',
+          sender: msg.direction === 'inbound' ? 'customer' : 'agent',
           timestamp: date,
           read: msg.status === 'read' || msg.status === 'delivered' || false,
-        type: (msg.metadata?.is_internal_note || msg.is_internal_note) ? 'internal' : (msg.message_type || msg.type || 'text')
+          type: (msg.metadata?.is_internal_note || msg.is_internal_note) ? 'internal' : (msg.message_type || msg.type || 'text'),
+          mediaUrl: msg.media_url || undefined,
+          mediaType: msg.media_type || undefined,
         }
       })
 
@@ -1928,6 +1932,17 @@ export default function ConversacionesPage() {
                           )}>
                             Nota Interna
                           </span>
+                        )}
+                        {/* Preview de imagen cuando hay media_url de tipo imagen */}
+                        {message.mediaUrl && (message.mediaType === 'image' || message.type === 'image') && (
+                          <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="block mb-1">
+                            <img
+                              src={message.mediaUrl}
+                              alt="Imagen recibida"
+                              className="max-w-full rounded max-h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                            />
+                          </a>
                         )}
                         <p className={cn(
                           "text-sm",

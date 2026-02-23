@@ -503,7 +503,30 @@ async function handleMessageEvent(body: any) {
                  body.payload?._data?.message?.imageMessage?.url || // ✅ Imagen en _data.message
                  body.payload?._data?.message?.audioMessage?.url || // ✅ Audio en _data.message
                  body.payload?._data?.message?.documentMessage?.url; // ✅ Documento en _data.message
-      
+
+      // Reescribir URLs localhost (internas de Docker) por la URL pública de WAHA.
+      // WAHA dentro de Docker envía: "http://localhost:80/api/files/..." (inaccessible desde Next.js)
+      // Necesitamos: "https://waha-erp-eagles.easypanel.host/api/files/..."
+      if (mediaUrl && (
+        mediaUrl.startsWith('http://localhost') ||
+        mediaUrl.startsWith('http://127.0.0.1') ||
+        mediaUrl.startsWith('https://localhost')
+      )) {
+        try {
+          const wahaConf = await getWahaConfig(organizationId);
+          const urlObj = new URL(mediaUrl);
+          const baseObj = new URL(wahaConf.url);
+          urlObj.protocol = baseObj.protocol;
+          urlObj.hostname = baseObj.hostname;
+          urlObj.port = baseObj.port || '';
+          const rewrittenUrl = urlObj.toString();
+          console.log('[WAHA Webhook] 🔗 Media URL reescrita (localhost → pública):', rewrittenUrl.substring(0, 80));
+          mediaUrl = rewrittenUrl;
+        } catch (rewriteErr: any) {
+          console.warn('[WAHA Webhook] ⚠️ No se pudo reescribir URL media:', rewriteErr.message);
+        }
+      }
+
       // Detectar tipo de media (verificar también en payload.media.mimetype y _data.message)
       // Si el body es un data URI, extraer el mimetype del prefijo
       const dataUriMime = bodyIsDataUri ? (bodyStr.match(/^data:([^;]+);/) || [])[1] : undefined;
