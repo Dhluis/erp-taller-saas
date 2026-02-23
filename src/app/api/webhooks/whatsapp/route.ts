@@ -125,79 +125,100 @@ async function analyzeImageWithVision(
   imageUrl: string | null,
   wahaApiKey?: string,
   mimetype?: string,
-  base64DataRaw?: string | null  // base64 directo desde WAHA (evita descarga)
+  base64DataRaw?: string | null
 ): Promise<string | null> {
   if (!process.env.OPENAI_API_KEY) {
     console.warn('[Vision] OPENAI_API_KEY no configurada, saltando análisis de imagen');
     return null;
   }
   if (!imageUrl && !base64DataRaw) {
-    console.warn('[Vision] Sin URL ni base64, no se puede analizar la imagen');
+    console.warn('[Vision] Sin URL ni base64, no se puede analizar');
     return null;
   }
-  try {
-    const { default: OpenAI } = await import('openai');
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    let dataUrl: string;
+  const { default: OpenAI } = await import('openai');
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    if (base64DataRaw && base64DataRaw.length > 100) {
-      // WAHA NOWEB puede enviar el contenido directamente en media.data como base64
-      // Puede venir como data URI ("data:image/jpeg;base64,...") o solo el base64 puro
-      if (base64DataRaw.startsWith('data:')) {
-        dataUrl = base64DataRaw;
-      } else {
-        const mimeType = mimetype || 'image/jpeg';
-        dataUrl = `data:${mimeType};base64,${base64DataRaw}`;
-      }
-      console.log('[Vision] Usando base64 directo desde payload WAHA, longitud:', base64DataRaw.length);
-    } else if (imageUrl) {
-      // Descargar imagen desde URL WAHA con autenticación
-      const headers: Record<string, string> = {};
-      const apiKey = wahaApiKey || process.env.WAHA_API_KEY;
-      if (apiKey) headers['X-Api-Key'] = apiKey;
+  const VISION_PROMPT = 'Describe brevemente qué muestra esta imagen en el contexto de un taller mecánico o servicio automotriz. Responde en español en 1-2 oraciones concisas.';
 
-      console.log('[Vision] Descargando imagen desde URL:', imageUrl.substring(0, 80) + '...');
-      const imageRes = await fetch(imageUrl, { headers });
-      if (!imageRes.ok) {
-        console.error('[Vision] ❌ Descarga fallida:', imageRes.status, imageRes.statusText, 'URL:', imageUrl.substring(0, 80));
-        return null;
-      }
-      const contentType = imageRes.headers.get('content-type');
-      const mimeType = mimetype || contentType?.split(';')[0] || 'image/jpeg';
-      const imageBuffer = await imageRes.arrayBuffer();
-      if (imageBuffer.byteLength === 0) {
-        console.error('[Vision] ❌ Respuesta vacía al descargar imagen');
-        return null;
-      }
-      console.log('[Vision] Imagen descargada:', imageBuffer.byteLength, 'bytes, tipo:', mimeType);
-      const base64Image = Buffer.from(imageBuffer).toString('base64');
-      dataUrl = `data:${mimeType};base64,${base64Image}`;
-    } else {
-      return null;
-    }
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{
-        role: 'user',
-        content: [
+  // ── Intento 1: base64 directo desde el payload WAHA (más rápido, sin descarga)
+  if (base64DataRaw && base64DataRaw.length > 100) {
+    const dataUrl = base64DataRaw.startsWith('data:')
+      ? base64DataRaw
+      : `data:${mimetype || 'image/jpeg'};base64,${base64DataRaw}`;
+    console.log('[Vision] Intento 1: base64 directo del payload, longitud:', base64DataRaw.length);
+    try {
+      const res = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: [
           { type: 'image_url', image_url: { url: dataUrl } },
-          { type: 'text', text: 'Describe brevemente qué muestra esta imagen en el contexto de un taller mecánico o servicio automotriz. Responde en español en 1-2 oraciones concisas.' }
-        ]
-      }],
+          { type: 'text', text: VISION_PROMPT }
+        ]}],
+        max_tokens: 150
+      });
+      const desc = res.choices[0]?.message?.content?.trim() || null;
+      if (desc) { console.log('[Vision] ✅ Éxito base64 directo:', desc.substring(0, 80)); return desc; }
+    } catch (e: any) {
+      console.warn('[Vision] ⚠️ Intento 1 falló:', e?.message);
+    }
+  }
+
+  if (!imageUrl) return null;
+
+  // ── Intento 2: pasar la URL directamente a OpenAI (OpenAI la descarga por nosotros)
+  // Funciona si el endpoint WAHA /api/files/ no requiere autenticación
+  console.log('[Vision] Intento 2: URL directa a OpenAI:', imageUrl.substring(0, 80));
+  try {
+    const res = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: [
+        { type: 'image_url', image_url: { url: imageUrl } },
+        { type: 'text', text: VISION_PROMPT }
+      ]}],
       max_tokens: 150
     });
+    const desc = res.choices[0]?.message?.content?.trim() || null;
+    if (desc) { console.log('[Vision] ✅ Éxito URL directa:', desc.substring(0, 80)); return desc; }
+    console.warn('[Vision] ⚠️ Intento 2: respuesta vacía de OpenAI');
+  } catch (e: any) {
+    console.warn('[Vision] ⚠️ Intento 2 falló (URL directa):', e?.status, e?.message);
+  }
 
-    const description = response.choices[0]?.message?.content?.trim() || null;
-    if (description) {
-      console.log('[Vision] ✅ Imagen analizada:', description.substring(0, 100));
-    } else {
-      console.warn('[Vision] ⚠️ GPT-4o-mini no devolvió descripción');
+  // ── Intento 3: descargar imagen nosotros → convertir a base64 → enviar a OpenAI
+  console.log('[Vision] Intento 3: descargar desde WAHA y convertir a base64...');
+  try {
+    const apiKey = wahaApiKey || process.env.WAHA_API_KEY;
+    const headers: Record<string, string> = apiKey ? { 'X-Api-Key': apiKey } : {};
+    const imageRes = await fetch(imageUrl, { headers });
+    console.log('[Vision] Descarga respuesta:', imageRes.status, imageRes.statusText,
+      'Content-Type:', imageRes.headers.get('content-type'));
+    if (!imageRes.ok) {
+      console.error('[Vision] ❌ Intento 3 descarga fallida:', imageRes.status, imageRes.statusText);
+      return null;
     }
-    return description;
-  } catch (err: any) {
-    console.error('[Vision] ❌ Error analizando imagen:', err?.message || err);
+    const contentType = imageRes.headers.get('content-type') || '';
+    const mimeType = mimetype || (contentType.split(';')[0]) || 'image/jpeg';
+    const buf = await imageRes.arrayBuffer();
+    if (buf.byteLength === 0) {
+      console.error('[Vision] ❌ Intento 3: respuesta vacía, 0 bytes');
+      return null;
+    }
+    console.log('[Vision] Imagen descargada:', buf.byteLength, 'bytes, mime:', mimeType);
+    const dataUrl = `data:${mimeType};base64,${Buffer.from(buf).toString('base64')}`;
+    const res = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: [
+        { type: 'image_url', image_url: { url: dataUrl } },
+        { type: 'text', text: VISION_PROMPT }
+      ]}],
+      max_tokens: 150
+    });
+    const desc = res.choices[0]?.message?.content?.trim() || null;
+    if (desc) { console.log('[Vision] ✅ Éxito descarga+base64:', desc.substring(0, 80)); return desc; }
+    console.warn('[Vision] ⚠️ Intento 3: OpenAI no devolvió descripción');
+    return null;
+  } catch (e: any) {
+    console.error('[Vision] ❌ Intento 3 error:', e?.status, e?.message, e?.error);
     return null;
   }
 }
@@ -703,7 +724,7 @@ async function handleMessageEvent(body: any) {
       if (mediaType === 'audio') {
         messageText = '[Audio recibido]';
       } else if (mediaType === 'image') {
-        messageText = '[Imagen recibida]';
+        messageText = 'El cliente envió una imagen.';
       } else if (mediaType === 'video') {
         messageText = '[Video recibido]';
       } else if (mediaType === 'document') {
@@ -755,12 +776,23 @@ async function handleMessageEvent(body: any) {
     }
 
     // Análisis de imagen con GPT-4o-mini Vision (si OPENAI_API_KEY está configurada)
-    const imageBase64 = (body as any).__mediaBase64Data as string | null;
+    // WAHA NOWEB puede enviar el binario de la imagen de tres formas:
+    //   1. body.payload.media.data  → base64 en el payload
+    //   2. message.body             → base64 directo (igual que para audio)
+    //   3. media.url                → URL descargable (puede requerir auth)
+    const imageBase64FromPayload = (body as any).__mediaBase64Data as string | null;
+    // Igual que audio: WAHA NOWEB a veces pone el base64 de la imagen en message.body
+    const imageBase64FromBody = (bodyIsLikelyBase64 || bodyIsDataUri)
+      ? (typeof message.body === 'string' ? message.body : null)
+      : null;
+    const imageBase64 = imageBase64FromPayload || imageBase64FromBody;
     const imageMime = (body as any).__mimetype as string | undefined;
+
     if (mediaType === 'image' && (mediaUrl || imageBase64)) {
       console.log('[WAHA Webhook] 🖼️ Intentando análisis de imagen con Vision...', {
         hasUrl: !!mediaUrl,
-        hasBase64: !!imageBase64,
+        hasBase64FromPayload: !!imageBase64FromPayload,
+        hasBase64FromBody: !!imageBase64FromBody,
         base64Length: imageBase64?.length || 0
       });
       try {
@@ -771,7 +803,10 @@ async function handleMessageEvent(body: any) {
           messageText = `${captionPrefix}[Imagen: ${imageDescription}]`;
           console.log('[WAHA Webhook] ✅ Imagen descrita:', messageText.substring(0, 120));
         } else {
-          console.log('[WAHA Webhook] ⚠️ Vision devolvió null, usando placeholder');
+          console.log('[WAHA Webhook] ⚠️ Vision devolvió null — todos los intentos fallaron');
+          // Fallback descriptivo: el AI puede responder "no veo la imagen, descríbela"
+          const captionFallback = message.caption ? ` Caption: "${message.caption}"` : '';
+          messageText = `El cliente envió una foto.${captionFallback} No puedo ver el contenido de la imagen, pide al cliente que describa qué muestra o qué necesita.`;
         }
       } catch (visionErr: any) {
         console.warn('[WAHA Webhook] ⚠️ Error en Vision, usando placeholder:', visionErr.message);
