@@ -35,7 +35,8 @@ export const dynamic = 'force-dynamic';
 async function transcribeAudioWithWhisper(
   base64Data: string | null,
   audioUrl: string | null,
-  wahaApiKey?: string   // Clave WAHA específica de la organización (multi-tenant)
+  wahaApiKey?: string,    // Clave WAHA específica de la organización (multi-tenant)
+  wahaBaseUrl?: string    // URL externa de WAHA (para reemplazar localhost interno de Docker)
 ): Promise<string | null> {
   if (!process.env.OPENAI_API_KEY) return null;
   if (!base64Data && !audioUrl) return null;
@@ -62,12 +63,33 @@ async function transcribeAudioWithWhisper(
       audioBuffer = Buffer.from(cleanBase64, 'base64');
     } else if (audioUrl) {
       // WAHA Plus: descargar desde la URL
+      // CRÍTICO: WAHA dentro de Docker envía URLs con "http://localhost:80" (su IP interna).
+      // El servidor Next.js no puede acceder a esa URL — hay que reemplazarla por la URL pública.
+      let resolvedUrl = audioUrl;
+      if (wahaBaseUrl && (
+        audioUrl.startsWith('http://localhost') ||
+        audioUrl.startsWith('http://127.0.0.1') ||
+        audioUrl.startsWith('https://localhost')
+      )) {
+        try {
+          const urlObj = new URL(audioUrl);
+          const baseObj = new URL(wahaBaseUrl);
+          urlObj.protocol = baseObj.protocol;
+          urlObj.hostname = baseObj.hostname;
+          urlObj.port = baseObj.port || '';
+          resolvedUrl = urlObj.toString();
+          console.log('[Whisper] URL localhost → URL pública:', audioUrl.substring(0, 60), '→', resolvedUrl.substring(0, 60));
+        } catch {
+          console.warn('[Whisper] No se pudo reemplazar URL localhost, usando original');
+        }
+      }
+
       // Usar clave WAHA específica de la org; fallback a variable de entorno
       const headers: Record<string, string> = {};
       const apiKey = wahaApiKey || process.env.WAHA_API_KEY;
       if (apiKey) headers['X-Api-Key'] = apiKey;
-      console.log('[Whisper] Descargando audio desde URL:', audioUrl.substring(0, 80) + '...', { hasApiKey: !!apiKey });
-      const res = await fetch(audioUrl, { headers });
+      console.log('[Whisper] Descargando audio desde URL:', resolvedUrl.substring(0, 80) + '...', { hasApiKey: !!apiKey });
+      const res = await fetch(resolvedUrl, { headers });
       if (!res.ok) {
         console.error('[Whisper] No se pudo descargar audio:', res.status, res.statusText);
         return null;
@@ -574,19 +596,23 @@ async function handleMessageEvent(body: any) {
         ? message.body
         : null;
 
-      // Obtener clave WAHA específica de la organización para descargar el audio
-      // (necesario para configuraciones multi-tenant donde la clave está en BD, no en env vars)
+      // Obtener configuración WAHA para descargar el audio:
+      // - wahaApiKey: para autenticar la descarga (clave org-específica)
+      // - wahaBaseUrl: para reemplazar URLs "http://localhost:80" que WAHA envía internamente
+      //   (WAHA dentro de Docker genera URLs con su IP interna, que Next.js no puede acceder)
       let wahaApiKeyForAudio: string | undefined;
+      let wahaBaseUrlForAudio: string | undefined;
       if (mediaUrl) {
         try {
           const wahaConf = await getWahaConfig(organizationId);
           wahaApiKeyForAudio = wahaConf.key;
+          wahaBaseUrlForAudio = wahaConf.url;
         } catch {
           // Fallback: transcribeAudioWithWhisper usará process.env.WAHA_API_KEY
         }
       }
 
-      const transcription = await transcribeAudioWithWhisper(base64Body, mediaUrl, wahaApiKeyForAudio);
+      const transcription = await transcribeAudioWithWhisper(base64Body, mediaUrl, wahaApiKeyForAudio, wahaBaseUrlForAudio);
       if (transcription) {
         console.log('[WAHA Webhook] ✅ Audio transcrito:', transcription.substring(0, 100));
         messageText = transcription;
