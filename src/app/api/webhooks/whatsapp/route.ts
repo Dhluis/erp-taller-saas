@@ -122,32 +122,60 @@ async function transcribeAudioWithWhisper(
  * Retorna la descripción o null si falla.
  */
 async function analyzeImageWithVision(
-  imageUrl: string,
+  imageUrl: string | null,
   wahaApiKey?: string,
-  mimetype?: string
+  mimetype?: string,
+  base64DataRaw?: string | null  // base64 directo desde WAHA (evita descarga)
 ): Promise<string | null> {
-  if (!process.env.OPENAI_API_KEY) return null;
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn('[Vision] OPENAI_API_KEY no configurada, saltando análisis de imagen');
+    return null;
+  }
+  if (!imageUrl && !base64DataRaw) {
+    console.warn('[Vision] Sin URL ni base64, no se puede analizar la imagen');
+    return null;
+  }
   try {
     const { default: OpenAI } = await import('openai');
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    // Descargar imagen desde WAHA con autenticación
-    const headers: Record<string, string> = {};
-    const apiKey = wahaApiKey || process.env.WAHA_API_KEY;
-    if (apiKey) headers['X-Api-Key'] = apiKey;
+    let dataUrl: string;
 
-    console.log('[Vision] Descargando imagen desde:', imageUrl.substring(0, 80) + '...');
-    const imageRes = await fetch(imageUrl, { headers });
-    if (!imageRes.ok) {
-      console.error('[Vision] No se pudo descargar imagen:', imageRes.status, imageRes.statusText);
+    if (base64DataRaw && base64DataRaw.length > 100) {
+      // WAHA NOWEB puede enviar el contenido directamente en media.data como base64
+      // Puede venir como data URI ("data:image/jpeg;base64,...") o solo el base64 puro
+      if (base64DataRaw.startsWith('data:')) {
+        dataUrl = base64DataRaw;
+      } else {
+        const mimeType = mimetype || 'image/jpeg';
+        dataUrl = `data:${mimeType};base64,${base64DataRaw}`;
+      }
+      console.log('[Vision] Usando base64 directo desde payload WAHA, longitud:', base64DataRaw.length);
+    } else if (imageUrl) {
+      // Descargar imagen desde URL WAHA con autenticación
+      const headers: Record<string, string> = {};
+      const apiKey = wahaApiKey || process.env.WAHA_API_KEY;
+      if (apiKey) headers['X-Api-Key'] = apiKey;
+
+      console.log('[Vision] Descargando imagen desde URL:', imageUrl.substring(0, 80) + '...');
+      const imageRes = await fetch(imageUrl, { headers });
+      if (!imageRes.ok) {
+        console.error('[Vision] ❌ Descarga fallida:', imageRes.status, imageRes.statusText, 'URL:', imageUrl.substring(0, 80));
+        return null;
+      }
+      const contentType = imageRes.headers.get('content-type');
+      const mimeType = mimetype || contentType?.split(';')[0] || 'image/jpeg';
+      const imageBuffer = await imageRes.arrayBuffer();
+      if (imageBuffer.byteLength === 0) {
+        console.error('[Vision] ❌ Respuesta vacía al descargar imagen');
+        return null;
+      }
+      console.log('[Vision] Imagen descargada:', imageBuffer.byteLength, 'bytes, tipo:', mimeType);
+      const base64Image = Buffer.from(imageBuffer).toString('base64');
+      dataUrl = `data:${mimeType};base64,${base64Image}`;
+    } else {
       return null;
     }
-
-    const contentType = imageRes.headers.get('content-type');
-    const mimeType = mimetype || contentType?.split(';')[0] || 'image/jpeg';
-    const imageBuffer = await imageRes.arrayBuffer();
-    const base64Image = Buffer.from(imageBuffer).toString('base64');
-    const dataUrl = `data:${mimeType};base64,${base64Image}`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -164,10 +192,12 @@ async function analyzeImageWithVision(
     const description = response.choices[0]?.message?.content?.trim() || null;
     if (description) {
       console.log('[Vision] ✅ Imagen analizada:', description.substring(0, 100));
+    } else {
+      console.warn('[Vision] ⚠️ GPT-4o-mini no devolvió descripción');
     }
     return description;
   } catch (err: any) {
-    console.error('[Vision] Error analizando imagen:', err?.message || err);
+    console.error('[Vision] ❌ Error analizando imagen:', err?.message || err);
     return null;
   }
 }
@@ -622,18 +652,33 @@ async function handleMessageEvent(body: any) {
                     'audio'; // Default: asumir audio para base64 sin tipo
       }
       
+      // Capturar base64 directo del payload (WAHA NOWEB puede enviar media.data en lugar de URL)
+      // Esto es un fallback para cuando mediaUrl no está disponible o falla la descarga
+      // Mirar en múltiples ubicaciones donde WAHA NOWEB puede poner el base64
+      const mediaBase64Data: string | null =
+        body.payload?.media?.data ||
+        message.media?.data ||
+        body.payload?.mediaData ||
+        null;
+
       console.log('[WAHA Webhook] 📎 Media detectado:', {
         mediaType,
         mediaUrl: mediaUrl ? mediaUrl.substring(0, 100) + '...' : null,
         mimetype: mimetype,
         originalType: message.type,
         hasMediaUrl: !!mediaUrl,
-        mediaLocation: message.media ? 'message.media' : 
-                      body.payload?.media ? 'payload.media' : 
+        hasMediaBase64: !!mediaBase64Data,
+        mediaBase64Length: mediaBase64Data?.length || 0,
+        mediaLocation: message.media ? 'message.media' :
+                      body.payload?.media ? 'payload.media' :
                       body.payload?._data?.message?.videoMessage ? '_data.message.videoMessage' :
                       body.payload?._data?.message?.imageMessage ? '_data.message.imageMessage' :
                       'unknown'
       });
+
+      // Exponer mediaBase64Data al scope externo para usarlo en vision
+      (body as any).__mediaBase64Data = mediaBase64Data;
+      (body as any).__mimetype = mimetype;
     } else {
       console.log('[WAHA Webhook] ⚠️ NO se detectó multimedia en el mensaje');
     }
@@ -710,18 +755,23 @@ async function handleMessageEvent(body: any) {
     }
 
     // Análisis de imagen con GPT-4o-mini Vision (si OPENAI_API_KEY está configurada)
-    if (mediaType === 'image' && mediaUrl) {
-      console.log('[WAHA Webhook] 🖼️ Intentando análisis de imagen con Vision...');
+    const imageBase64 = (body as any).__mediaBase64Data as string | null;
+    const imageMime = (body as any).__mimetype as string | undefined;
+    if (mediaType === 'image' && (mediaUrl || imageBase64)) {
+      console.log('[WAHA Webhook] 🖼️ Intentando análisis de imagen con Vision...', {
+        hasUrl: !!mediaUrl,
+        hasBase64: !!imageBase64,
+        base64Length: imageBase64?.length || 0
+      });
       try {
         const wahaConf = await getWahaConfig(organizationId);
-        const imageDescription = await analyzeImageWithVision(mediaUrl, wahaConf.key, undefined);
+        const imageDescription = await analyzeImageWithVision(mediaUrl, wahaConf.key, imageMime, imageBase64);
         if (imageDescription) {
-          // Combinar descripción con caption si lo hubiera
           const captionPrefix = message.caption ? `${message.caption} — ` : '';
           messageText = `${captionPrefix}[Imagen: ${imageDescription}]`;
           console.log('[WAHA Webhook] ✅ Imagen descrita:', messageText.substring(0, 120));
         } else {
-          console.log('[WAHA Webhook] ⚠️ No se pudo analizar imagen, usando placeholder');
+          console.log('[WAHA Webhook] ⚠️ Vision devolvió null, usando placeholder');
         }
       } catch (visionErr: any) {
         console.warn('[WAHA Webhook] ⚠️ Error en Vision, usando placeholder:', visionErr.message);
@@ -836,7 +886,53 @@ async function handleMessageEvent(body: any) {
       throw err;
     }
 
-    // 12. Verificar si el bot está activo en la conversación
+    // 12. DEBOUNCE — esperar a que terminen de llegar mensajes del mismo turno.
+    // Si el usuario escribe "hola", "cómo estás?", "info" en 3 mensajes seguidos,
+    // esperamos 2.5s y solo respondemos UNA VEZ al último mensaje, combinando el texto.
+    const DEBOUNCE_MS = 2500;
+    const debounceStartedAt = new Date().toISOString(); // timestamp del servidor ahora
+    console.log('[Webhook] ⏳ Debounce: esperando', DEBOUNCE_MS, 'ms antes de responder...');
+    await new Promise(resolve => setTimeout(resolve, DEBOUNCE_MS));
+
+    // Consultar la conversación para ver si llegó un mensaje más reciente durante la espera
+    const { data: convState } = await supabase
+      .from('whatsapp_conversations')
+      .select('updated_at, last_message_at')
+      .eq('id', conversationId)
+      .single();
+
+    const convUpdatedAt = (convState as any)?.updated_at || '';
+    // Si la conversación fue actualizada MÁS TARDE que cuando empezamos este debounce,
+    // significa que un mensaje más reciente llegó → ceder el paso
+    if (convUpdatedAt > debounceStartedAt) {
+      console.log('[Webhook] ⏭️ Debounce: hay mensaje más reciente (' + convUpdatedAt.substring(11, 19) + ' > ' + debounceStartedAt.substring(11, 19) + '), cediendo respuesta al AI');
+      return;
+    }
+
+    // Somos el último mensaje del turno → verificar si hay más mensajes recientes
+    // para combinarlos y que el AI responda al conjunto completo de una vez
+    const batchWindowMs = DEBOUNCE_MS + 2000; // ventana de 4.5s
+    const batchSince = new Date(Date.now() - batchWindowMs).toISOString();
+    const { data: recentBatch } = await supabase
+      .from('whatsapp_messages')
+      .select('body, created_at')
+      .eq('conversation_id', conversationId)
+      .eq('direction', 'inbound')
+      .gte('created_at', batchSince)
+      .order('created_at', { ascending: true });
+
+    if (recentBatch && recentBatch.length > 1) {
+      const combinedText = recentBatch
+        .map((m: any) => m.body)
+        .filter((b: string) => b && b.trim() && !b.startsWith('[Audio') && !b.startsWith('[Imagen') && !b.startsWith('[Video') && !b.startsWith('[Archivo') && !b.startsWith('[Documento'))
+        .join('\n');
+      if (combinedText && combinedText.length > messageText.length) {
+        console.log('[Webhook] 📦 Debounce: combinando', recentBatch.length, 'mensajes recientes → "' + combinedText.substring(0, 80) + '"');
+        messageText = combinedText;
+      }
+    }
+
+    // 12b. Verificar si el bot está activo en la conversación
     const { data: conversation } = await supabase
       .from('whatsapp_conversations')
       .select('is_bot_active')
