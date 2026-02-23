@@ -116,6 +116,63 @@ async function transcribeAudioWithWhisper(
 }
 
 /**
+ * Analiza el contenido de una imagen usando OpenAI GPT-4o-mini Vision.
+ * Descarga la imagen desde WAHA (con autenticación), la codifica en base64
+ * y solicita una descripción concisa en español.
+ * Retorna la descripción o null si falla.
+ */
+async function analyzeImageWithVision(
+  imageUrl: string,
+  wahaApiKey?: string,
+  mimetype?: string
+): Promise<string | null> {
+  if (!process.env.OPENAI_API_KEY) return null;
+  try {
+    const { default: OpenAI } = await import('openai');
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    // Descargar imagen desde WAHA con autenticación
+    const headers: Record<string, string> = {};
+    const apiKey = wahaApiKey || process.env.WAHA_API_KEY;
+    if (apiKey) headers['X-Api-Key'] = apiKey;
+
+    console.log('[Vision] Descargando imagen desde:', imageUrl.substring(0, 80) + '...');
+    const imageRes = await fetch(imageUrl, { headers });
+    if (!imageRes.ok) {
+      console.error('[Vision] No se pudo descargar imagen:', imageRes.status, imageRes.statusText);
+      return null;
+    }
+
+    const contentType = imageRes.headers.get('content-type');
+    const mimeType = mimetype || contentType?.split(';')[0] || 'image/jpeg';
+    const imageBuffer = await imageRes.arrayBuffer();
+    const base64Image = Buffer.from(imageBuffer).toString('base64');
+    const dataUrl = `data:${mimeType};base64,${base64Image}`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: dataUrl } },
+          { type: 'text', text: 'Describe brevemente qué muestra esta imagen en el contexto de un taller mecánico o servicio automotriz. Responde en español en 1-2 oraciones concisas.' }
+        ]
+      }],
+      max_tokens: 150
+    });
+
+    const description = response.choices[0]?.message?.content?.trim() || null;
+    if (description) {
+      console.log('[Vision] ✅ Imagen analizada:', description.substring(0, 100));
+    }
+    return description;
+  } catch (err: any) {
+    console.error('[Vision] Error analizando imagen:', err?.message || err);
+    return null;
+  }
+}
+
+/**
  * GET /api/webhooks/whatsapp
  * Verificación del webhook (para algunos providers)
  */
@@ -649,6 +706,25 @@ async function handleMessageEvent(body: any) {
         if (messageText === '[Audio recibido]') {
           messageText = '[Audio recibido - escribe tu consulta para que pueda ayudarte]';
         }
+      }
+    }
+
+    // Análisis de imagen con GPT-4o-mini Vision (si OPENAI_API_KEY está configurada)
+    if (mediaType === 'image' && mediaUrl) {
+      console.log('[WAHA Webhook] 🖼️ Intentando análisis de imagen con Vision...');
+      try {
+        const wahaConf = await getWahaConfig(organizationId);
+        const imageDescription = await analyzeImageWithVision(mediaUrl, wahaConf.key, undefined);
+        if (imageDescription) {
+          // Combinar descripción con caption si lo hubiera
+          const captionPrefix = message.caption ? `${message.caption} — ` : '';
+          messageText = `${captionPrefix}[Imagen: ${imageDescription}]`;
+          console.log('[WAHA Webhook] ✅ Imagen descrita:', messageText.substring(0, 120));
+        } else {
+          console.log('[WAHA Webhook] ⚠️ No se pudo analizar imagen, usando placeholder');
+        }
+      } catch (visionErr: any) {
+        console.warn('[WAHA Webhook] ⚠️ Error en Vision, usando placeholder:', visionErr.message);
       }
     }
 
