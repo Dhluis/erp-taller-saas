@@ -44,8 +44,9 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           webhooks: [{
             url: webhookUrl,
-            events: ['message', 'session.status'],
-            downloadMedia: false
+            events: ['message', 'message.any', 'session.status'],
+            downloadMedia: true,
+            downloadMediaOnMessage: true
           }]
         })
       }
@@ -68,8 +69,9 @@ export async function POST(request: NextRequest) {
             config: {
               webhooks: [{
                 url: webhookUrl,
-                events: ['message', 'session.status'],
-                downloadMedia: false
+                events: ['message', 'message.any', 'session.status'],
+                downloadMedia: true,
+                downloadMediaOnMessage: true
               }]
             }
           })
