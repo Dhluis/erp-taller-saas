@@ -807,16 +807,18 @@ async function handleMessageEvent(body: any) {
           mimetype: imageMime || null
         });
         if (imageDescription) {
-          const captionPrefix = message.caption ? `${message.caption} — ` : '';
-          messageText = `${captionPrefix}[Imagen: ${imageDescription}]`;
+          const captionPrefix = message.caption ? `"${message.caption}" — ` : '';
+          // Formato en lenguaje natural para que el AI responda contextualmente
+          // (ej: "Veo que enviaste una foto de X, nuestros servicios son para vehículos...")
+          messageText = `${captionPrefix}El cliente envió una foto que muestra: "${imageDescription}"`;
           console.log('[WAHA Webhook] ✅ Imagen descrita:', messageText.substring(0, 120));
         } else {
-          const captionFallback = message.caption ? ` Caption: "${message.caption}"` : '';
-          messageText = `El cliente envió una foto.${captionFallback} No puedo ver la imagen directamente, pide al cliente que describa qué necesita o qué muestra la foto.`;
+          const captionFallback = message.caption ? ` (caption: "${message.caption}")` : '';
+          messageText = `El cliente envió una foto.${captionFallback} No fue posible analizar la imagen. Saluda al cliente, menciona que recibiste su imagen y pregunta en qué puedes ayudarle con su vehículo.`;
         }
       } catch (visionErr: any) {
         console.warn('[WAHA Webhook] ⚠️ Vision error:', visionErr.message);
-        messageText = 'El cliente envió una imagen. Pide que describa lo que necesita.';
+        messageText = 'El cliente envió una imagen. Saluda, menciona que recibiste su foto y pregunta en qué le puedes ayudar con su vehículo.';
       }
     }
 
