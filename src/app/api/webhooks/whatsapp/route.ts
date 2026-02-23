@@ -956,8 +956,8 @@ async function handleMessageEvent(body: any) {
     //   B) BD (cross-process): consulta si llegó un mensaje más reciente al mismo chat.
     //      Esto cubre deploys con múltiples réplicas o reinicios del contenedor.
     //
-    // Ventana aumentada a 4 000 ms para cubrir mensajes escritos en partes con pausa.
-    const DEBOUNCE_MS = 4000;
+    // Ventana aumentada a 6 000 ms para cubrir mensajes escritos en partes con pausa larga.
+    const DEBOUNCE_MS = 6000;
     const myArrivalMs = Date.now();
     _debounceMap.set(conversationId, myArrivalMs);
     console.log('[Webhook] ⏳ Debounce: esperando', DEBOUNCE_MS, 'ms (arrival=', myArrivalMs, ')');
@@ -993,7 +993,7 @@ async function handleMessageEvent(body: any) {
 
     // Somos el último mensaje del turno → combinar todos los mensajes recientes del batch
     // para que el AI responda al conjunto completo de una sola vez.
-    const batchWindowMs = DEBOUNCE_MS + 5000; // ventana generosa: 9 s desde el último mensaje
+    const batchWindowMs = DEBOUNCE_MS + 5000; // ventana generosa: 11 s desde el último mensaje
     const batchSince = new Date(Date.now() - batchWindowMs).toISOString();
     const { data: recentBatch } = await supabase
       .from('whatsapp_messages')
