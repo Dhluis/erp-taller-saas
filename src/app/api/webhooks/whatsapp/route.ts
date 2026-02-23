@@ -441,6 +441,16 @@ async function handleMessageEvent(body: any) {
       console.log('[WAHA Webhook] ⏭️ Ignorando mensaje de grupo');
       return;
     }
+
+    // 5.0. Ignorar mensajes revocados/eliminados ("eliminar para todos")
+    // WAHA envía un event message.any con type='revoked' cuando alguien borra un mensaje.
+    // Sin este filtro, el mensaje borrado se guarda en BD y aparece en la web como si
+    // existiera, aunque en el celular ya fue eliminado.
+    const rawMsgType = message.type || message.messageType || message._data?.type || body.payload?._data?.type || '';
+    if (rawMsgType === 'revoked' || rawMsgType === 'revoke' || rawMsgType === 'deleted') {
+      console.log('[WAHA Webhook] ⏭️ Ignorando mensaje revocado/eliminado (type=' + rawMsgType + ')');
+      return NextResponse.json({ success: true, skipped: true, reason: 'revoked_message' });
+    }
     
     // 5.1. Validar que sea un mensaje directo válido (debe tener @c.us, @s.whatsapp.net o @lid)
     const isValidDirectMessage = 
