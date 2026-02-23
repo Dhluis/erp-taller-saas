@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
-import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Users, Target, UserPlus, UserCheck, Calendar, MessageSquare, Car, Wrench } from "lucide-react"
+import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Users, Target, UserPlus, UserCheck, Calendar, MessageSquare, Car, Wrench, User, Phone, Mail } from "lucide-react"
 import { LeadStatusBadge, type LeadStatus } from '@/components/whatsapp/LeadStatusBadge'
 import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
 import { toast } from 'sonner'
@@ -61,7 +61,7 @@ export default function ComercialPage() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
   const [isConverting, setIsConverting] = useState(false)
   const [conversationModalId, setConversationModalId] = useState<string | null>(null)
-  const [conversationMessages, setConversationMessages] = useState<{ direction: string; content: string; created_at: string }[]>([])
+  const [conversationMessages, setConversationMessages] = useState<{ direction: string; body?: string; content?: string; created_at: string }[]>([])
   const [conversationLoading, setConversationLoading] = useState(false)
   const [convertModalLead, setConvertModalLead] = useState<Lead | null>(null)
   const [convertVehicle, setConvertVehicle] = useState({ add: false, brand: '', model: '', year: '', plate: '', vin: '' })
@@ -335,7 +335,14 @@ export default function ComercialPage() {
 
   const openCreateOTModal = (lead: Lead) => {
     setOtLead(lead)
-    setOtForm({ brand: '', model: '', year: '', plate: '', vin: '', description: '' })
+    setOtForm({
+      brand: '',
+      model: '',
+      year: '',
+      plate: '',
+      vin: '',
+      description: lead.notes ? lead.notes.trim() : ''
+    })
     setShowCreateOTDialog(true)
   }
 
@@ -1019,93 +1026,133 @@ export default function ComercialPage() {
 
       {/* Modal: Crear Orden de Trabajo desde lead */}
       <Dialog open={showCreateOTDialog} onOpenChange={(open) => { if (!open) { setShowCreateOTDialog(false); setOtLead(null) } }}>
-        <DialogContent className="max-w-md bg-slate-800 border-orange-500/50 border-2 text-white">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-white">
-              <Wrench className="h-5 w-5 text-orange-400" />
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5" />
               Crear Orden de Trabajo
             </DialogTitle>
-            <DialogDescription className="text-slate-400">
-              {otLead && <>El auto llegó al taller · {otLead.name} · {otLead.phone}</>}
+            <DialogDescription>
+              El vehículo llegó al taller — se creará el cliente y la OT en un solo paso
             </DialogDescription>
           </DialogHeader>
           {otLead && (
-            <div className="space-y-3 py-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-slate-400 text-xs">Marca *</Label>
-                  <Input
-                    value={otForm.brand}
-                    onChange={(e) => setOtForm(f => ({ ...f, brand: e.target.value }))}
-                    className="bg-gray-800 border-gray-700 text-white mt-1"
-                    placeholder="Ej. Toyota"
-                  />
-                </div>
-                <div>
-                  <Label className="text-slate-400 text-xs">Modelo *</Label>
-                  <Input
-                    value={otForm.model}
-                    onChange={(e) => setOtForm(f => ({ ...f, model: e.target.value }))}
-                    className="bg-gray-800 border-gray-700 text-white mt-1"
-                    placeholder="Ej. Corolla"
-                  />
-                </div>
-                <div>
-                  <Label className="text-slate-400 text-xs">Año * (1950-2030)</Label>
-                  <Input
-                    inputMode="numeric"
-                    value={otForm.year}
-                    onChange={(e) => setOtForm(f => ({ ...f, year: sanitize.year(e.target.value) }))}
-                    maxLength={4}
-                    className="bg-gray-800 border-gray-700 text-white mt-1"
-                    placeholder="2024"
-                  />
-                </div>
-                <div>
-                  <Label className="text-slate-400 text-xs">Placas *</Label>
-                  <Input
-                    value={otForm.plate}
-                    onChange={(e) => setOtForm(f => ({ ...f, plate: sanitize.plate(e.target.value) }))}
-                    maxLength={INPUT_LIMITS.PLATE_MAX}
-                    className="bg-gray-800 border-gray-700 text-white mt-1"
-                    placeholder="ABC-123"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-slate-400 text-xs">VIN (opcional)</Label>
-                  <Input
-                    value={otForm.vin}
-                    onChange={(e) => setOtForm(f => ({ ...f, vin: sanitize.vin(e.target.value) }))}
-                    maxLength={INPUT_LIMITS.VIN_MAX}
-                    className="bg-gray-800 border-gray-700 text-white mt-1"
-                    placeholder="17 caracteres"
-                  />
+            <div className="grid gap-4 py-2">
+              {/* Datos del cliente (pre-rellenados del lead, solo lectura) */}
+              <div className="rounded-lg border bg-muted/40 px-4 py-3 space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Cliente</p>
+                <div className="grid grid-cols-3 gap-x-4 gap-y-1 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="font-medium truncate">{otLead.name || '—'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">{otLead.phone || '—'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">{otLead.email || '—'}</span>
+                  </div>
                 </div>
               </div>
+
+              {/* Vehículo */}
               <div>
-                <Label className="text-slate-400 text-xs">Descripción del trabajo * (mín. 10 caracteres)</Label>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Vehículo *</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="ot-brand">Marca</Label>
+                    <Input
+                      id="ot-brand"
+                      value={otForm.brand}
+                      onChange={(e) => setOtForm(f => ({ ...f, brand: e.target.value }))}
+                      placeholder="Toyota"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="ot-model">Modelo</Label>
+                    <Input
+                      id="ot-model"
+                      value={otForm.model}
+                      onChange={(e) => setOtForm(f => ({ ...f, model: e.target.value }))}
+                      placeholder="Corolla"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="ot-year">Año</Label>
+                    <Input
+                      id="ot-year"
+                      inputMode="numeric"
+                      value={otForm.year}
+                      onChange={(e) => setOtForm(f => ({ ...f, year: sanitize.year(e.target.value) }))}
+                      maxLength={4}
+                      placeholder="2024"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="ot-plate">Placas</Label>
+                    <Input
+                      id="ot-plate"
+                      value={otForm.plate}
+                      onChange={(e) => setOtForm(f => ({ ...f, plate: sanitize.plate(e.target.value) }))}
+                      maxLength={INPUT_LIMITS.PLATE_MAX}
+                      placeholder="ABC-123"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="ot-vin">VIN <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+                    <Input
+                      id="ot-vin"
+                      value={otForm.vin}
+                      onChange={(e) => setOtForm(f => ({ ...f, vin: sanitize.vin(e.target.value) }))}
+                      maxLength={INPUT_LIMITS.VIN_MAX}
+                      placeholder="17 caracteres"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Descripción del trabajo */}
+              <div>
+                <Label htmlFor="ot-description">
+                  Descripción del trabajo *
+                  <span className="text-muted-foreground font-normal ml-1">(mín. 10 caracteres)</span>
+                </Label>
                 <Textarea
+                  id="ot-description"
                   value={otForm.description}
                   onChange={(e) => setOtForm(f => ({ ...f, description: e.target.value }))}
-                  className="bg-gray-800 border-gray-700 text-white mt-1 resize-none"
                   rows={3}
                   placeholder="Ej. Cambio de aceite y filtros, revisión de frenos..."
+                  className="mt-1 resize-none"
                 />
+                {otLead.whatsapp_conversation_id && (
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <MessageSquare className="h-3 w-3" />
+                    Pre-rellenado con las notas del lead — edita si es necesario
+                  </p>
+                )}
               </div>
-              <div className="flex justify-end gap-2 pt-2">
+
+              <div className="flex justify-end gap-2 pt-1">
                 <Button
                   variant="outline"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
                   onClick={() => { setShowCreateOTDialog(false); setOtLead(null) }}
                 >
                   Cancelar
                 </Button>
                 <Button
-                  className="bg-orange-600 hover:bg-orange-700 text-white"
                   disabled={creatingOT}
                   onClick={handleCreateWorkOrder}
                 >
-                  {creatingOT ? 'Creando OT...' : 'Crear OT'}
+                  <Wrench className="h-4 w-4 mr-2" />
+                  {creatingOT ? 'Creando OT...' : 'Crear Orden de Trabajo'}
                 </Button>
               </div>
             </div>
