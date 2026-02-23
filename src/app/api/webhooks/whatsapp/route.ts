@@ -830,6 +830,8 @@ async function handleMessageEvent(body: any) {
     // 11. GUARDAR MENSAJE EN BD ANTES DE PROCESAR CON AI
     // Si es duplicado, el constraint UNIQUE (provider_message_id) lanzará error 23505
     const finalMessageId = messageId || `waha_${Date.now()}`;
+    // Para debounce BD cross-process: guardar el created_at del mensaje guardado
+    let myMessageCreatedAt: string | null = null;
     
     try {
       const { data: savedMessage, error: saveError } = await supabase
@@ -873,7 +875,8 @@ async function handleMessageEvent(body: any) {
       }
 
       if (savedMessage) {
-        console.log('[Webhook] ✅ Mensaje guardado en BD:', (savedMessage as any).id);
+        myMessageCreatedAt = (savedMessage as any).created_at || timestamp.toISOString();
+        console.log('[Webhook] ✅ Mensaje guardado en BD:', (savedMessage as any).id, 'created_at:', myMessageCreatedAt);
       }
       
       // Actualizar conversación - obtener count actual y sumar 1
@@ -931,23 +934,50 @@ async function handleMessageEvent(body: any) {
     }
 
     // 12. DEBOUNCE — esperar a que terminen de llegar mensajes del mismo turno.
-    // Usa Map en memoria (milisegundos) para evitar problemas de formato/precisión de timestamps.
-    const DEBOUNCE_MS = 2500;
+    //
+    // Estrategia dual (robusta en single-process y multi-instancia):
+    //   A) Map en memoria: rápido, funciona cuando todos los hits van al mismo proceso.
+    //   B) BD (cross-process): consulta si llegó un mensaje más reciente al mismo chat.
+    //      Esto cubre deploys con múltiples réplicas o reinicios del contenedor.
+    //
+    // Ventana aumentada a 4 000 ms para cubrir mensajes escritos en partes con pausa.
+    const DEBOUNCE_MS = 4000;
     const myArrivalMs = Date.now();
     _debounceMap.set(conversationId, myArrivalMs);
     console.log('[Webhook] ⏳ Debounce: esperando', DEBOUNCE_MS, 'ms (arrival=', myArrivalMs, ')');
     await new Promise(resolve => setTimeout(resolve, DEBOUNCE_MS));
 
-    // Si otro mensaje llegó DESPUÉS que yo → sobreescribió el Map → yo cedo
+    // Verificación A: Map en memoria (mismo proceso)
     const latestArrivalMs = _debounceMap.get(conversationId) ?? 0;
     if (latestArrivalMs > myArrivalMs) {
-      console.log('[Webhook] ⏭️ Debounce: hay mensaje más reciente (' + latestArrivalMs + ' > ' + myArrivalMs + '), cediendo respuesta al AI');
+      console.log('[Webhook] ⏭️ Debounce (Map):', latestArrivalMs, '>', myArrivalMs, '— cediendo');
       return;
     }
 
-    // Somos el último mensaje del turno → verificar si hay más mensajes recientes
-    // para combinarlos y que el AI responda al conjunto completo de una vez
-    const batchWindowMs = DEBOUNCE_MS + 2000; // ventana de 4.5s
+    // Verificación B: Base de datos (cross-process / multi-instancia)
+    // Ceder si hay un mensaje del mismo chat con created_at posterior al nuestro.
+    if (myMessageCreatedAt) {
+      try {
+        const { data: newerMsgs } = await supabase
+          .from('whatsapp_messages')
+          .select('id, created_at')
+          .eq('conversation_id', conversationId)
+          .eq('direction', 'inbound')
+          .gt('created_at', myMessageCreatedAt)
+          .limit(1);
+        if (newerMsgs && newerMsgs.length > 0) {
+          console.log('[Webhook] ⏭️ Debounce (BD): mensaje más reciente detectado en BD, cediendo...');
+          return;
+        }
+      } catch (dbDebounceErr: any) {
+        // No bloquear el flujo si el check de BD falla
+        console.warn('[Webhook] ⚠️ Error en debounce BD (continuando):', dbDebounceErr.message);
+      }
+    }
+
+    // Somos el último mensaje del turno → combinar todos los mensajes recientes del batch
+    // para que el AI responda al conjunto completo de una sola vez.
+    const batchWindowMs = DEBOUNCE_MS + 5000; // ventana generosa: 9 s desde el último mensaje
     const batchSince = new Date(Date.now() - batchWindowMs).toISOString();
     const { data: recentBatch } = await supabase
       .from('whatsapp_messages')
@@ -960,10 +990,15 @@ async function handleMessageEvent(body: any) {
     if (recentBatch && recentBatch.length > 1) {
       const combinedText = recentBatch
         .map((m: any) => m.body)
-        .filter((b: string) => b && b.trim() && !b.startsWith('[Audio') && !b.startsWith('[Imagen') && !b.startsWith('[Video') && !b.startsWith('[Archivo') && !b.startsWith('[Documento'))
+        .filter((b: string) => b && b.trim() &&
+          !b.startsWith('[Audio') &&
+          !b.startsWith('[Video') &&
+          !b.startsWith('[Archivo') &&
+          !b.startsWith('[Documento') &&
+          !b.startsWith('El cliente envió una foto'))
         .join('\n');
       if (combinedText && combinedText.length > messageText.length) {
-        console.log('[Webhook] 📦 Debounce: combinando', recentBatch.length, 'mensajes recientes → "' + combinedText.substring(0, 80) + '"');
+        console.log('[Webhook] 📦 Batch: combinando', recentBatch.length, 'mensajes → "' + combinedText.substring(0, 80) + '"');
         messageText = combinedText;
       }
     }
