@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
-import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Users, Target, UserPlus, UserCheck, Calendar, MessageSquare, Car } from "lucide-react"
+import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Users, Target, UserPlus, UserCheck, Calendar, MessageSquare, Car, Wrench } from "lucide-react"
 import { LeadStatusBadge, type LeadStatus } from '@/components/whatsapp/LeadStatusBadge'
 import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
 import { toast } from 'sonner'
@@ -66,6 +66,10 @@ export default function ComercialPage() {
   const [convertModalLead, setConvertModalLead] = useState<Lead | null>(null)
   const [convertVehicle, setConvertVehicle] = useState({ add: false, brand: '', model: '', year: '', plate: '', vin: '' })
   const [convertSubmitting, setConvertSubmitting] = useState(false)
+  const [showCreateOTDialog, setShowCreateOTDialog] = useState(false)
+  const [otLead, setOtLead] = useState<Lead | null>(null)
+  const [otForm, setOtForm] = useState({ brand: '', model: '', year: '', plate: '', vin: '', description: '' })
+  const [creatingOT, setCreatingOT] = useState(false)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [formData, setFormData] = useState({
     name: "",
@@ -326,6 +330,68 @@ export default function ComercialPage() {
       })
     } else {
       await handleConvertToCustomer(convertModalLead)
+    }
+  }
+
+  const openCreateOTModal = (lead: Lead) => {
+    setOtLead(lead)
+    setOtForm({ brand: '', model: '', year: '', plate: '', vin: '', description: '' })
+    setShowCreateOTDialog(true)
+  }
+
+  const handleCreateWorkOrder = async () => {
+    if (!otLead) return
+    const y = parseInt(otForm.year, 10)
+    if (Number.isNaN(y) || y < INPUT_LIMITS.YEAR_MIN || y > INPUT_LIMITS.YEAR_MAX) {
+      toast.error(`El año debe estar entre ${INPUT_LIMITS.YEAR_MIN} y ${INPUT_LIMITS.YEAR_MAX}`)
+      return
+    }
+    if (!otForm.brand.trim() || !otForm.model.trim() || !otForm.plate.trim()) {
+      toast.error('Marca, modelo y placas son requeridos')
+      return
+    }
+    if (otForm.description.trim().length < 10) {
+      toast.error('La descripción debe tener al menos 10 caracteres')
+      return
+    }
+    setCreatingOT(true)
+    try {
+      const res = await fetch(`/api/leads/${otLead.id}/create-work-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vehicle: {
+            brand: otForm.brand.trim(),
+            model: otForm.model.trim(),
+            year: y,
+            plate: otForm.plate.trim(),
+            ...(otForm.vin.trim() ? { vin: otForm.vin.trim() } : {})
+          },
+          description: otForm.description.trim()
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setLeads(leads.map(l =>
+          l.id === otLead.id
+            ? { ...l, status: 'converted' as LeadStatus, customer_id: data.data.customer_id }
+            : l
+        ))
+        setShowCreateOTDialog(false)
+        setOtLead(null)
+        toast.success(`OT ${data.data.order_number} creada`, {
+          description: `Lead "${otLead.name}" convertido a cliente`
+        })
+      } else {
+        toast.error(data.error || 'Error al crear orden de trabajo', {
+          description: data.details || undefined
+        })
+      }
+    } catch (error) {
+      console.error('Error creating work order:', error)
+      toast.error('Error al crear orden de trabajo')
+    } finally {
+      setCreatingOT(false)
     }
   }
 
@@ -867,7 +933,18 @@ export default function ComercialPage() {
                           Convertir a Cliente
                         </Button>
                       )}
-                      <Button 
+                      {!['converted', 'lost'].includes(lead.status) && !lead.customer_id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
+                          onClick={() => openCreateOTModal(lead)}
+                        >
+                          <Wrench className="h-4 w-4 mr-1" />
+                          Crear OT
+                        </Button>
+                      )}
+                      <Button
                         variant="ghost" 
                         size="sm"
                         className="hover:bg-gray-700 text-gray-300 hover:text-white"
@@ -932,11 +1009,107 @@ export default function ComercialPage() {
                   <div className="text-xs text-slate-400 mb-1">
                     {msg.direction === 'incoming' || msg.direction === 'inbound' ? 'Cliente' : 'Taller'} · {new Date(msg.created_at).toLocaleString()}
                   </div>
-                  <div className="text-white">{msg.content || '(sin texto)'}</div>
+                  <div className="text-white">{msg.body || msg.content || '(sin texto)'}</div>
                 </div>
               ))
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Crear Orden de Trabajo desde lead */}
+      <Dialog open={showCreateOTDialog} onOpenChange={(open) => { if (!open) { setShowCreateOTDialog(false); setOtLead(null) } }}>
+        <DialogContent className="max-w-md bg-slate-800 border-orange-500/50 border-2 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <Wrench className="h-5 w-5 text-orange-400" />
+              Crear Orden de Trabajo
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              {otLead && <>El auto llegó al taller · {otLead.name} · {otLead.phone}</>}
+            </DialogDescription>
+          </DialogHeader>
+          {otLead && (
+            <div className="space-y-3 py-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-slate-400 text-xs">Marca *</Label>
+                  <Input
+                    value={otForm.brand}
+                    onChange={(e) => setOtForm(f => ({ ...f, brand: e.target.value }))}
+                    className="bg-gray-800 border-gray-700 text-white mt-1"
+                    placeholder="Ej. Toyota"
+                  />
+                </div>
+                <div>
+                  <Label className="text-slate-400 text-xs">Modelo *</Label>
+                  <Input
+                    value={otForm.model}
+                    onChange={(e) => setOtForm(f => ({ ...f, model: e.target.value }))}
+                    className="bg-gray-800 border-gray-700 text-white mt-1"
+                    placeholder="Ej. Corolla"
+                  />
+                </div>
+                <div>
+                  <Label className="text-slate-400 text-xs">Año * (1950-2030)</Label>
+                  <Input
+                    inputMode="numeric"
+                    value={otForm.year}
+                    onChange={(e) => setOtForm(f => ({ ...f, year: sanitize.year(e.target.value) }))}
+                    maxLength={4}
+                    className="bg-gray-800 border-gray-700 text-white mt-1"
+                    placeholder="2024"
+                  />
+                </div>
+                <div>
+                  <Label className="text-slate-400 text-xs">Placas *</Label>
+                  <Input
+                    value={otForm.plate}
+                    onChange={(e) => setOtForm(f => ({ ...f, plate: sanitize.plate(e.target.value) }))}
+                    maxLength={INPUT_LIMITS.PLATE_MAX}
+                    className="bg-gray-800 border-gray-700 text-white mt-1"
+                    placeholder="ABC-123"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-slate-400 text-xs">VIN (opcional)</Label>
+                  <Input
+                    value={otForm.vin}
+                    onChange={(e) => setOtForm(f => ({ ...f, vin: sanitize.vin(e.target.value) }))}
+                    maxLength={INPUT_LIMITS.VIN_MAX}
+                    className="bg-gray-800 border-gray-700 text-white mt-1"
+                    placeholder="17 caracteres"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-slate-400 text-xs">Descripción del trabajo * (mín. 10 caracteres)</Label>
+                <Textarea
+                  value={otForm.description}
+                  onChange={(e) => setOtForm(f => ({ ...f, description: e.target.value }))}
+                  className="bg-gray-800 border-gray-700 text-white mt-1 resize-none"
+                  rows={3}
+                  placeholder="Ej. Cambio de aceite y filtros, revisión de frenos..."
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  onClick={() => { setShowCreateOTDialog(false); setOtLead(null) }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                  disabled={creatingOT}
+                  onClick={handleCreateWorkOrder}
+                >
+                  {creatingOT ? 'Creando OT...' : 'Crear OT'}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
