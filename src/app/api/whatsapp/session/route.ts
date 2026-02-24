@@ -21,6 +21,13 @@ const qrCache = new Map<string, { qr: string; timestamp: number }>();
 const QR_CACHE_TTL = 50000; // 50 segundos (los QRs de WhatsApp expiran en ~60s, dejamos margen)
 
 /**
+ * Detector de sesiones stuck en STARTING sin generar QR
+ * Cuando se alcanza el umbral, se genera un nombre de sesión nuevo (sin datos en Redis)
+ */
+const startingStuckCounter = new Map<string, number>();
+const STUCK_STARTING_THRESHOLD = 6; // ~30s con polling cada 5s
+
+/**
  * Obtener QR con cache
  */
 async function getCachedQR(sessionName: string, organizationId: string): Promise<string | null> {
@@ -233,9 +240,10 @@ export async function GET(request: NextRequest) {
       const phone = status.me?.id?.split('@')[0] || status.me?.phone || null;
       console.log(`[/api/whatsapp/session] ✅ Sesión conectada: ${phone || 'N/A'}`);
       
-      // ✅ Limpiar cache de QR cuando está conectado (ya no necesitamos el QR)
+      // ✅ Limpiar cache de QR y contador cuando está conectado
       clearQRCache(sessionName, organizationId);
-      
+      startingStuckCounter.delete(organizationId);
+
       return NextResponse.json({
         success: true,
         status: 'WORKING',
@@ -265,7 +273,8 @@ export async function GET(request: NextRequest) {
       
       if (qrValue && typeof qrValue === 'string' && qrValue.length > 20) {
         console.log(`[/api/whatsapp/session] ✅ QR disponible: ${qrValue.length} caracteres`);
-        
+        startingStuckCounter.delete(organizationId);
+
         return NextResponse.json({
           success: true,
           status: 'SCAN_QR',
@@ -275,7 +284,81 @@ export async function GET(request: NextRequest) {
           expiresIn: 60
         });
       } else {
-        // Si no hay QR cacheado y no se pudo obtener, devolver estado sin QR
+        // Si no hay QR y sesión sigue en STARTING, detectar si está stuck
+        if (status.status === 'STARTING') {
+          const stuckCount = (startingStuckCounter.get(organizationId) || 0) + 1;
+          startingStuckCounter.set(organizationId, stuckCount);
+          console.warn(`[/api/whatsapp/session] ⚠️ Sesión stuck en STARTING (${stuckCount}/${STUCK_STARTING_THRESHOLD})`);
+
+          if (stuckCount >= STUCK_STARTING_THRESHOLD) {
+            console.log(`[/api/whatsapp/session] 🔄 Auto-rotando sesión: datos Redis stale detectados`);
+            startingStuckCounter.delete(organizationId);
+            clearQRCache(sessionName, organizationId);
+
+            try {
+              const { getWahaConfig: _getConfig } = await import('@/lib/waha-sessions');
+              const { url, key } = await _getConfig(organizationId);
+
+              // Eliminar sesión stuck
+              await fetchWithTimeout(
+                `${url}/api/sessions/${sessionName}`,
+                { method: 'DELETE', headers: { 'X-Api-Key': key } },
+                8000
+              ).catch(() => {});
+              await new Promise(resolve => setTimeout(resolve, 1500));
+
+              // Generar nombre fresco (sin historial en Redis)
+              const cleanId = organizationId.replace(/-/g, '').substring(0, 16);
+              const freshSuffix = Date.now().toString(36).slice(-4);
+              const freshName = `eagles_${cleanId}${freshSuffix}`;
+
+              console.log(`[/api/whatsapp/session] 🆕 Creando sesión con nombre fresco: ${freshName}`);
+
+              // Crear nueva sesión
+              const { getAppUrl } = await import('@/lib/utils/env');
+              const webhookUrl = `${getAppUrl()}/api/webhooks/whatsapp`;
+              await fetchWithTimeout(`${url}/api/sessions`, {
+                method: 'POST',
+                headers: { 'X-Api-Key': key, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: freshName,
+                  start: true,
+                  config: {
+                    webhooks: [{
+                      url: webhookUrl,
+                      events: ['message', 'message.any', 'session.status'],
+                      downloadMedia: true,
+                      customHeaders: [{ name: 'X-Organization-ID', value: organizationId }]
+                    }]
+                  }
+                })
+              }, 15000);
+
+              // Actualizar nombre en BD
+              const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
+              await getSupabaseServiceClient()
+                .from('ai_agent_config')
+                .update({ whatsapp_session_name: freshName, updated_at: new Date().toISOString() })
+                .eq('organization_id', organizationId);
+
+              console.log(`[/api/whatsapp/session] ✅ Sesión rotada a: ${freshName}`);
+              return NextResponse.json({
+                success: true,
+                status: 'STARTING',
+                connected: false,
+                session: freshName,
+                qr: null,
+                message: 'Sesión renovada automáticamente. El QR estará disponible en unos segundos.'
+              });
+            } catch (rotateError: any) {
+              console.error(`[/api/whatsapp/session] ❌ Error rotando sesión:`, rotateError.message);
+              // Continúa hacia respuesta normal
+            }
+          }
+        } else {
+          startingStuckCounter.delete(organizationId);
+        }
+
         console.warn(`[/api/whatsapp/session] ⚠️ QR no disponible`);
         return NextResponse.json({
           success: true,
