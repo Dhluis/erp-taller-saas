@@ -233,7 +233,7 @@ export async function createOrganizationSession(organizationId: string): Promise
     config: {
       webhooks: [{
         url: webhookUrl,
-        events: ['message', 'message.any', 'session.status'],
+        events: ['message', 'session.status'],
         downloadMedia: true, // ✅ Descargar media automáticamente
         downloadMediaOnMessage: true, // ✅ Descargar media cuando llega mensaje
         customHeaders: [{
@@ -369,7 +369,7 @@ export async function updateWebhookForOrganization(sessionName: string, organiza
     config: {
       webhooks: [{
         url: webhookUrl,
-        events: ['message', 'message.any', 'session.status'],
+        events: ['message', 'session.status'],
         downloadMedia: true,
         downloadMediaOnMessage: true,
         customHeaders: [{

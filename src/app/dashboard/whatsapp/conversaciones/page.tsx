@@ -1933,19 +1933,14 @@ export default function ConversacionesPage() {
                             Nota Interna
                           </span>
                         )}
-                        {/* Preview de imagen — carga mediante proxy autenticado */}
+                        {/* Preview de imagen cuando hay media_url de tipo imagen */}
                         {message.mediaUrl && (message.mediaType === 'image' || message.type === 'image') && (
-                          <a
-                            href={`/api/whatsapp/media?url=${encodeURIComponent(message.mediaUrl)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block mb-2"
-                          >
+                          <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="block mb-1">
                             <img
-                              src={`/api/whatsapp/media?url=${encodeURIComponent(message.mediaUrl)}`}
+                              src={message.mediaUrl}
                               alt="Imagen recibida"
-                              className="max-w-full rounded max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity border border-white/10"
-                              onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }}
+                              className="max-w-full rounded max-h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                             />
                           </a>
                         )}

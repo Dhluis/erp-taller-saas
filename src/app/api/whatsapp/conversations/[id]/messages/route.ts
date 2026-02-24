@@ -125,20 +125,15 @@ export async function GET(
 
     console.log('✅ [GET /api/whatsapp/conversations/[id]/messages] Conversación validada:', conversation.id);
 
-    // Obtener mensajes de la conversación — los más recientes primero para garantizar
-    // que al paginar (limit=100) siempre se muestren los últimos mensajes, no los primeros.
-    // Se invierten en el cliente para mostrarlos en orden cronológico ascendente.
+    // Obtener mensajes de la conversación
     console.log('🔍 [GET /api/whatsapp/conversations/[id]/messages] Obteniendo mensajes...');
-    const { data: messagesDesc, error: messagesError } = await supabaseAdmin
+    const { data: messages, error: messagesError } = await supabaseAdmin
       .from('whatsapp_messages')
       .select('*')
       .eq('conversation_id', conversationId)
       .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
       .limit(limit);
-
-    // Invertir para devolver en orden ascendente (cronológico)
-    const messages = messagesDesc ? [...messagesDesc].reverse() : messagesDesc;
 
     if (messagesError) {
       console.error('❌ [GET /api/whatsapp/conversations/[id]/messages] Error en query de mensajes:', {

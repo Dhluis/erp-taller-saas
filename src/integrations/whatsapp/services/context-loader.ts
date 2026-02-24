@@ -364,20 +364,10 @@ export async function getConversationHistory(
       return []
     }
 
-    return data.map(msg => {
-      let content = msg.body;
-      // Reemplazar markers de audio/video en el HISTORIAL por texto neutro.
-      // Si el AI ve "[Audio recibido - escribe tu consulta...]" en el historial,
-      // aplica la regla del system prompt y responde "No puedo escuchar audios"
-      // aunque el mensaje ACTUAL sea texto puro.
-      if (content?.startsWith('[Audio recibido')) {
-        content = '(el cliente envió un audio anteriormente)';
-      }
-      return {
-        role: msg.direction === 'inbound' ? 'user' : 'assistant',
-        content
-      };
-    })
+    return data.map(msg => ({
+      role: msg.direction === 'inbound' ? 'user' : 'assistant',
+      content: msg.body
+    }))
   } catch (error) {
     console.error('[ContextLoader] Error en getConversationHistory:', error)
     return []
@@ -414,22 +404,8 @@ export function buildSystemPrompt(
   config: AIAgentConfig,
   context: AIContext
 ): string {
-  // Fecha y hora actuales para que el AI interprete correctamente "hoy", "mañana",
-  // "el martes", etc. sin depender del knowledge cutoff del modelo.
-  const now = new Date();
-  const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-  const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-  const currentDateStr = `${dayNames[now.getDay()]}, ${now.getDate()} de ${monthNames[now.getMonth()]} de ${now.getFullYear()}`;
-  const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
   // ✅ NUEVO: Prompt estructurado y completo
   const systemPrompt = `Eres el asistente virtual de WhatsApp de ${context.organization_name}, un taller mecánico profesional.
-
-# 📅 FECHA Y HORA ACTUAL
-- Hoy es: ${currentDateStr}
-- Hora actual: ${currentTimeStr}
-- Usa esta información para interpretar correctamente expresiones como "mañana", "el martes", "esta semana", etc.
 
 # 🏢 INFORMACIÓN DEL TALLER
 - Nombre: ${context.organization_name}

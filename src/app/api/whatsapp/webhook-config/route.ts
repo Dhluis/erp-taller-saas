@@ -47,9 +47,9 @@ export async function GET(request: NextRequest) {
         downloadMedia: webhookConfig?.downloadMedia || false,
         downloadMediaOnMessage: webhookConfig?.downloadMediaOnMessage || false
       },
-      needsUpdate: !webhookConfig?.downloadMedia ||
+      needsUpdate: !webhookConfig?.downloadMedia || 
                    !webhookConfig?.downloadMediaOnMessage ||
-                   !webhookConfig?.events?.includes('message.any')
+                   webhookConfig?.events?.includes('message.any')
     });
 
   } catch (error: any) {

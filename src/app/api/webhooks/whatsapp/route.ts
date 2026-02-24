@@ -27,14 +27,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * Mapa en memoria para debounce de mensajes por conversación.
- * Clave: conversationId | Valor: Date.now() del último mensaje registrado.
- * Al llegar un nuevo mensaje, sobreescribe el valor → el mensaje anterior
- * detecta que ya no es el último y cede la respuesta al AI.
- */
-const _debounceMap = new Map<string, number>();
-
-/**
  * Transcribe audio a texto usando OpenAI Whisper.
  * - Acepta datos base64 (WAHA Core: audio en message.body)
  * - O URL directa (WAHA Plus: media.url)
@@ -124,114 +116,88 @@ async function transcribeAudioWithWhisper(
 }
 
 /**
- * Descarga el binario de una imagen desde WAHA usando el endpoint correcto.
- * Estrategia en cascada:
- *   1. base64 ya disponible en el payload (sin red)
- *   2. Endpoint WAHA: POST /api/{session}/messages/{id}/download  (WAHA PLUS/NOWEB)
- *   3. URL directa del archivo con auth header
- * Retorna { buffer, mimeType } o null si todo falla.
+ * Analiza el contenido de una imagen usando OpenAI GPT-4o-mini Vision.
+ * Descarga la imagen desde WAHA (con autenticación), la codifica en base64
+ * y solicita una descripción concisa en español.
+ * Retorna la descripción o null si falla.
  */
-async function downloadImageFromWaha(opts: {
-  base64Raw?: string | null;
-  wahaBaseUrl: string;
-  wahaApiKey: string;
-  sessionName: string;
-  messageId: string;
-  fileUrl?: string | null;
-  mimetype?: string | null;
-}): Promise<{ buffer: Buffer; mimeType: string } | null> {
-  const { base64Raw, wahaBaseUrl, wahaApiKey, sessionName, messageId, fileUrl, mimetype } = opts;
-  const headers = { 'X-Api-Key': wahaApiKey, 'Content-Type': 'application/json' };
-  const mimeType = mimetype || 'image/jpeg';
-
-  // ── A: base64 ya en payload (WAHA NOWEB voice-style, no siempre disponible para imágenes)
-  if (base64Raw && base64Raw.length > 200) {
-    try {
-      let clean = base64Raw;
-      if (clean.startsWith('data:')) clean = clean.split(';base64,')[1] || clean;
-      const buf = Buffer.from(clean, 'base64');
-      if (buf.byteLength > 500) {
-        console.log('[Vision] A: base64 del payload OK,', buf.byteLength, 'bytes');
-        return { buffer: buf, mimeType };
-      }
-    } catch { /* continúa */ }
-  }
-
-  // ── B: endpoint WAHA /messages/{id}/download (correcto para WAHA PLUS y NOWEB)
-  try {
-    const dlUrl = `${wahaBaseUrl.replace(/\/$/, '')}/api/${sessionName}/messages/${encodeURIComponent(messageId)}/download`;
-    console.log('[Vision] B: endpoint WAHA download:', dlUrl);
-    const res = await fetch(dlUrl, { method: 'GET', headers: { 'X-Api-Key': wahaApiKey } });
-    console.log('[Vision] B respuesta:', res.status, res.headers.get('content-type'));
-    if (res.ok) {
-      const buf = Buffer.from(await res.arrayBuffer());
-      if (buf.byteLength > 500) {
-        const ct = res.headers.get('content-type') || mimeType;
-        console.log('[Vision] B: OK,', buf.byteLength, 'bytes');
-        return { buffer: buf, mimeType: ct.split(';')[0] };
-      }
-    }
-  } catch (e: any) { console.warn('[Vision] B falló:', e.message); }
-
-  // ── C: URL directa del archivo (requiere auth header)
-  if (fileUrl) {
-    try {
-      console.log('[Vision] C: URL directa:', fileUrl.substring(0, 80));
-      const res = await fetch(fileUrl, { headers: { 'X-Api-Key': wahaApiKey } });
-      console.log('[Vision] C respuesta:', res.status, res.headers.get('content-type'));
-      if (res.ok) {
-        const buf = Buffer.from(await res.arrayBuffer());
-        if (buf.byteLength > 500) {
-          const ct = res.headers.get('content-type') || mimeType;
-          console.log('[Vision] C: OK,', buf.byteLength, 'bytes');
-          return { buffer: buf, mimeType: ct.split(';')[0] };
-        }
-      }
-    } catch (e: any) { console.warn('[Vision] C falló:', e.message); }
-  }
-
-  console.error('[Vision] ❌ Todos los métodos de descarga fallaron');
-  return null;
-}
-
-/**
- * Analiza el contenido de una imagen con GPT-4o-mini Vision.
- */
-async function analyzeImageWithVision(opts: {
-  base64Raw?: string | null;
-  wahaBaseUrl: string;
-  wahaApiKey: string;
-  sessionName: string;
-  messageId: string;
-  fileUrl?: string | null;
-  mimetype?: string | null;
-}): Promise<string | null> {
+async function analyzeImageWithVision(
+  imageUrl: string | null,
+  wahaApiKey?: string,
+  mimetype?: string,
+  base64DataRaw?: string | null  // base64 directo desde WAHA (evita descarga)
+): Promise<string | null> {
   if (!process.env.OPENAI_API_KEY) {
-    console.warn('[Vision] OPENAI_API_KEY no configurada');
+    console.warn('[Vision] OPENAI_API_KEY no configurada, saltando análisis de imagen');
     return null;
   }
-
-  const media = await downloadImageFromWaha(opts);
-  if (!media) return null;
-
+  if (!imageUrl && !base64DataRaw) {
+    console.warn('[Vision] Sin URL ni base64, no se puede analizar la imagen');
+    return null;
+  }
   try {
     const { default: OpenAI } = await import('openai');
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const dataUrl = `data:${media.mimeType};base64,${media.buffer.toString('base64')}`;
-    const res = await openai.chat.completions.create({
+
+    let dataUrl: string;
+
+    if (base64DataRaw && base64DataRaw.length > 100) {
+      // WAHA NOWEB puede enviar el contenido directamente en media.data como base64
+      // Puede venir como data URI ("data:image/jpeg;base64,...") o solo el base64 puro
+      if (base64DataRaw.startsWith('data:')) {
+        dataUrl = base64DataRaw;
+      } else {
+        const mimeType = mimetype || 'image/jpeg';
+        dataUrl = `data:${mimeType};base64,${base64DataRaw}`;
+      }
+      console.log('[Vision] Usando base64 directo desde payload WAHA, longitud:', base64DataRaw.length);
+    } else if (imageUrl) {
+      // Descargar imagen desde URL WAHA con autenticación
+      const headers: Record<string, string> = {};
+      const apiKey = wahaApiKey || process.env.WAHA_API_KEY;
+      if (apiKey) headers['X-Api-Key'] = apiKey;
+
+      console.log('[Vision] Descargando imagen desde URL:', imageUrl.substring(0, 80) + '...');
+      const imageRes = await fetch(imageUrl, { headers });
+      if (!imageRes.ok) {
+        console.error('[Vision] ❌ Descarga fallida:', imageRes.status, imageRes.statusText, 'URL:', imageUrl.substring(0, 80));
+        return null;
+      }
+      const contentType = imageRes.headers.get('content-type');
+      const mimeType = mimetype || contentType?.split(';')[0] || 'image/jpeg';
+      const imageBuffer = await imageRes.arrayBuffer();
+      if (imageBuffer.byteLength === 0) {
+        console.error('[Vision] ❌ Respuesta vacía al descargar imagen');
+        return null;
+      }
+      console.log('[Vision] Imagen descargada:', imageBuffer.byteLength, 'bytes, tipo:', mimeType);
+      const base64Image = Buffer.from(imageBuffer).toString('base64');
+      dataUrl = `data:${mimeType};base64,${base64Image}`;
+    } else {
+      return null;
+    }
+
+    const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: [
-        { type: 'image_url', image_url: { url: dataUrl } },
-        { type: 'text', text: 'Describe brevemente qué muestra esta imagen en el contexto de un taller mecánico o servicio automotriz. Responde en español en 1-2 oraciones concisas.' }
-      ]}],
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: dataUrl } },
+          { type: 'text', text: 'Describe brevemente qué muestra esta imagen en el contexto de un taller mecánico o servicio automotriz. Responde en español en 1-2 oraciones concisas.' }
+        ]
+      }],
       max_tokens: 150
     });
-    const desc = res.choices[0]?.message?.content?.trim() || null;
-    if (desc) console.log('[Vision] ✅ Imagen analizada:', desc.substring(0, 100));
-    else console.warn('[Vision] ⚠️ OpenAI no devolvió descripción');
-    return desc;
-  } catch (e: any) {
-    console.error('[Vision] ❌ Error OpenAI:', e?.status, e?.message);
+
+    const description = response.choices[0]?.message?.content?.trim() || null;
+    if (description) {
+      console.log('[Vision] ✅ Imagen analizada:', description.substring(0, 100));
+    } else {
+      console.warn('[Vision] ⚠️ GPT-4o-mini no devolvió descripción');
+    }
+    return description;
+  } catch (err: any) {
+    console.error('[Vision] ❌ Error analizando imagen:', err?.message || err);
     return null;
   }
 }
@@ -440,16 +406,6 @@ async function handleMessageEvent(body: any) {
     if (chatId && chatId.includes('@g.us')) {
       console.log('[WAHA Webhook] ⏭️ Ignorando mensaje de grupo');
       return;
-    }
-
-    // 5.0. Ignorar mensajes revocados/eliminados ("eliminar para todos")
-    // WAHA envía un event message.any con type='revoked' cuando alguien borra un mensaje.
-    // Sin este filtro, el mensaje borrado se guarda en BD y aparece en la web como si
-    // existiera, aunque en el celular ya fue eliminado.
-    const rawMsgType = message.type || message.messageType || message._data?.type || body.payload?._data?.type || '';
-    if (rawMsgType === 'revoked' || rawMsgType === 'revoke' || rawMsgType === 'deleted') {
-      console.log('[WAHA Webhook] ⏭️ Ignorando mensaje revocado/eliminado (type=' + rawMsgType + ')');
-      return NextResponse.json({ success: true, skipped: true, reason: 'revoked_message' });
     }
     
     // 5.1. Validar que sea un mensaje directo válido (debe tener @c.us, @s.whatsapp.net o @lid)
@@ -747,7 +703,7 @@ async function handleMessageEvent(body: any) {
       if (mediaType === 'audio') {
         messageText = '[Audio recibido]';
       } else if (mediaType === 'image') {
-        messageText = 'El cliente envió una imagen.';
+        messageText = '[Imagen recibida]';
       } else if (mediaType === 'video') {
         messageText = '[Video recibido]';
       } else if (mediaType === 'document') {
@@ -798,37 +754,27 @@ async function handleMessageEvent(body: any) {
       }
     }
 
-    // Análisis de imagen con GPT-4o-mini Vision
-    const imageBase64Raw = (body as any).__mediaBase64Data as string | null
-      || ((hasMedia && typeof message.body === 'string' && message.body.length > 200) ? message.body : null);
+    // Análisis de imagen con GPT-4o-mini Vision (si OPENAI_API_KEY está configurada)
+    const imageBase64 = (body as any).__mediaBase64Data as string | null;
     const imageMime = (body as any).__mimetype as string | undefined;
-
-    if (mediaType === 'image') {
-      console.log('[WAHA Webhook] 🖼️ Vision: messageId=' + (messageId || '?') + ' session=' + sessionName + ' hasUrl=' + !!mediaUrl + ' hasBase64=' + !!imageBase64Raw);
+    if (mediaType === 'image' && (mediaUrl || imageBase64)) {
+      console.log('[WAHA Webhook] 🖼️ Intentando análisis de imagen con Vision...', {
+        hasUrl: !!mediaUrl,
+        hasBase64: !!imageBase64,
+        base64Length: imageBase64?.length || 0
+      });
       try {
         const wahaConf = await getWahaConfig(organizationId);
-        const imageDescription = await analyzeImageWithVision({
-          base64Raw: imageBase64Raw,
-          wahaBaseUrl: wahaConf.url,
-          wahaApiKey: wahaConf.key,
-          sessionName: sessionName,
-          messageId: messageId || '',
-          fileUrl: mediaUrl,
-          mimetype: imageMime || null
-        });
+        const imageDescription = await analyzeImageWithVision(mediaUrl, wahaConf.key, imageMime, imageBase64);
         if (imageDescription) {
-          const captionPrefix = message.caption ? `"${message.caption}" — ` : '';
-          // Formato en lenguaje natural para que el AI responda contextualmente
-          // (ej: "Veo que enviaste una foto de X, nuestros servicios son para vehículos...")
-          messageText = `${captionPrefix}El cliente envió una foto que muestra: "${imageDescription}"`;
+          const captionPrefix = message.caption ? `${message.caption} — ` : '';
+          messageText = `${captionPrefix}[Imagen: ${imageDescription}]`;
           console.log('[WAHA Webhook] ✅ Imagen descrita:', messageText.substring(0, 120));
         } else {
-          const captionFallback = message.caption ? ` (caption: "${message.caption}")` : '';
-          messageText = `El cliente envió una foto.${captionFallback} No fue posible analizar la imagen. Saluda al cliente, menciona que recibiste su imagen y pregunta en qué puedes ayudarle con su vehículo.`;
+          console.log('[WAHA Webhook] ⚠️ Vision devolvió null, usando placeholder');
         }
       } catch (visionErr: any) {
-        console.warn('[WAHA Webhook] ⚠️ Vision error:', visionErr.message);
-        messageText = 'El cliente envió una imagen. Saluda, menciona que recibiste su foto y pregunta en qué le puedes ayudar con su vehículo.';
+        console.warn('[WAHA Webhook] ⚠️ Error en Vision, usando placeholder:', visionErr.message);
       }
     }
 
@@ -840,16 +786,8 @@ async function handleMessageEvent(body: any) {
     // 11. GUARDAR MENSAJE EN BD ANTES DE PROCESAR CON AI
     // Si es duplicado, el constraint UNIQUE (provider_message_id) lanzará error 23505
     const finalMessageId = messageId || `waha_${Date.now()}`;
-    // Para debounce BD cross-process: guardar el created_at del mensaje guardado
-    let myMessageCreatedAt: string | null = null;
     
     try {
-      // CRÍTICO para debounce cross-process: usar Date.now() (ms de precisión del servidor)
-      // en lugar de message.timestamp (precisión de segundos de WAHA).
-      // Si 4 mensajes llegan en el mismo segundo, message.timestamp es idéntico para todos →
-      // el check gt('created_at', X) no encuentra mensajes más nuevos → todos los handlers
-      // responden. Con new Date() cada mensaje tiene un timestamp único en milisegundos.
-      const insertedAt = new Date().toISOString();
       const { data: savedMessage, error: saveError } = await supabase
         .from('whatsapp_messages')
         .insert({
@@ -864,7 +802,7 @@ async function handleMessageEvent(body: any) {
           status: 'delivered',
           provider: 'waha',
           provider_message_id: finalMessageId,
-          created_at: insertedAt
+          created_at: timestamp.toISOString()
         } as any)
         .select()
         .single();
@@ -891,8 +829,7 @@ async function handleMessageEvent(body: any) {
       }
 
       if (savedMessage) {
-        myMessageCreatedAt = (savedMessage as any).created_at || timestamp.toISOString();
-        console.log('[Webhook] ✅ Mensaje guardado en BD:', (savedMessage as any).id, 'created_at:', myMessageCreatedAt);
+        console.log('[Webhook] ✅ Mensaje guardado en BD:', (savedMessage as any).id);
       }
       
       // Actualizar conversación - obtener count actual y sumar 1
@@ -950,50 +887,31 @@ async function handleMessageEvent(body: any) {
     }
 
     // 12. DEBOUNCE — esperar a que terminen de llegar mensajes del mismo turno.
-    //
-    // Estrategia dual (robusta en single-process y multi-instancia):
-    //   A) Map en memoria: rápido, funciona cuando todos los hits van al mismo proceso.
-    //   B) BD (cross-process): consulta si llegó un mensaje más reciente al mismo chat.
-    //      Esto cubre deploys con múltiples réplicas o reinicios del contenedor.
-    //
-    // Ventana aumentada a 6 000 ms para cubrir mensajes escritos en partes con pausa larga.
-    const DEBOUNCE_MS = 6000;
-    const myArrivalMs = Date.now();
-    _debounceMap.set(conversationId, myArrivalMs);
-    console.log('[Webhook] ⏳ Debounce: esperando', DEBOUNCE_MS, 'ms (arrival=', myArrivalMs, ')');
+    // Si el usuario escribe "hola", "cómo estás?", "info" en 3 mensajes seguidos,
+    // esperamos 2.5s y solo respondemos UNA VEZ al último mensaje, combinando el texto.
+    const DEBOUNCE_MS = 2500;
+    const debounceStartedAt = new Date().toISOString(); // timestamp del servidor ahora
+    console.log('[Webhook] ⏳ Debounce: esperando', DEBOUNCE_MS, 'ms antes de responder...');
     await new Promise(resolve => setTimeout(resolve, DEBOUNCE_MS));
 
-    // Verificación A: Map en memoria (mismo proceso)
-    const latestArrivalMs = _debounceMap.get(conversationId) ?? 0;
-    if (latestArrivalMs > myArrivalMs) {
-      console.log('[Webhook] ⏭️ Debounce (Map):', latestArrivalMs, '>', myArrivalMs, '— cediendo');
+    // Consultar la conversación para ver si llegó un mensaje más reciente durante la espera
+    const { data: convState } = await supabase
+      .from('whatsapp_conversations')
+      .select('updated_at, last_message_at')
+      .eq('id', conversationId)
+      .single();
+
+    const convUpdatedAt = (convState as any)?.updated_at || '';
+    // Si la conversación fue actualizada MÁS TARDE que cuando empezamos este debounce,
+    // significa que un mensaje más reciente llegó → ceder el paso
+    if (convUpdatedAt > debounceStartedAt) {
+      console.log('[Webhook] ⏭️ Debounce: hay mensaje más reciente (' + convUpdatedAt.substring(11, 19) + ' > ' + debounceStartedAt.substring(11, 19) + '), cediendo respuesta al AI');
       return;
     }
 
-    // Verificación B: Base de datos (cross-process / multi-instancia)
-    // Ceder si hay un mensaje del mismo chat con created_at posterior al nuestro.
-    if (myMessageCreatedAt) {
-      try {
-        const { data: newerMsgs } = await supabase
-          .from('whatsapp_messages')
-          .select('id, created_at')
-          .eq('conversation_id', conversationId)
-          .eq('direction', 'inbound')
-          .gt('created_at', myMessageCreatedAt)
-          .limit(1);
-        if (newerMsgs && newerMsgs.length > 0) {
-          console.log('[Webhook] ⏭️ Debounce (BD): mensaje más reciente detectado en BD, cediendo...');
-          return;
-        }
-      } catch (dbDebounceErr: any) {
-        // No bloquear el flujo si el check de BD falla
-        console.warn('[Webhook] ⚠️ Error en debounce BD (continuando):', dbDebounceErr.message);
-      }
-    }
-
-    // Somos el último mensaje del turno → combinar todos los mensajes recientes del batch
-    // para que el AI responda al conjunto completo de una sola vez.
-    const batchWindowMs = DEBOUNCE_MS + 5000; // ventana generosa: 11 s desde el último mensaje
+    // Somos el último mensaje del turno → verificar si hay más mensajes recientes
+    // para combinarlos y que el AI responda al conjunto completo de una vez
+    const batchWindowMs = DEBOUNCE_MS + 2000; // ventana de 4.5s
     const batchSince = new Date(Date.now() - batchWindowMs).toISOString();
     const { data: recentBatch } = await supabase
       .from('whatsapp_messages')
@@ -1006,15 +924,10 @@ async function handleMessageEvent(body: any) {
     if (recentBatch && recentBatch.length > 1) {
       const combinedText = recentBatch
         .map((m: any) => m.body)
-        .filter((b: string) => b && b.trim() &&
-          !b.startsWith('[Audio') &&
-          !b.startsWith('[Video') &&
-          !b.startsWith('[Archivo') &&
-          !b.startsWith('[Documento') &&
-          !b.startsWith('El cliente envió una foto'))
+        .filter((b: string) => b && b.trim() && !b.startsWith('[Audio') && !b.startsWith('[Imagen') && !b.startsWith('[Video') && !b.startsWith('[Archivo') && !b.startsWith('[Documento'))
         .join('\n');
       if (combinedText && combinedText.length > messageText.length) {
-        console.log('[Webhook] 📦 Batch: combinando', recentBatch.length, 'mensajes → "' + combinedText.substring(0, 80) + '"');
+        console.log('[Webhook] 📦 Debounce: combinando', recentBatch.length, 'mensajes recientes → "' + combinedText.substring(0, 80) + '"');
         messageText = combinedText;
       }
     }
