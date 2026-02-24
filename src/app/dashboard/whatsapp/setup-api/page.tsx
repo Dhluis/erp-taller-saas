@@ -187,7 +187,6 @@ export default function SetupApiPage() {
     setLoading(true)
     try {
       const payload: any = {
-        waha_config_type: 'shared',
         businessInfo: formData.businessInfo,
         services: formData.services,
         policies: formData.policies,

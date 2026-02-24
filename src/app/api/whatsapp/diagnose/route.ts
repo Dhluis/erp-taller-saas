@@ -164,8 +164,8 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // 5️⃣ VERIFICAR SESIÓN WAHA
-    console.log('[Diagnose] 🔍 Verificando sesión WAHA...');
+    // 5️⃣ VERIFICAR CONFIGURACIÓN WHATSAPP
+    console.log('[Diagnose] 🔍 Verificando configuración WhatsApp...');
     const { data: sessionConfig, error: sessionError } = await supabase
       .from('ai_agent_config')
       .select('whatsapp_session_name')
@@ -173,12 +173,12 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (sessionError || !sessionConfig) {
-      diagnostics.checks.wahaSession = {
+      diagnostics.checks.whatsappSession = {
         status: 'error',
-        error: sessionError?.message || 'No se encontró sesión'
+        error: sessionError?.message || 'No se encontró configuración'
       };
     } else {
-      diagnostics.checks.wahaSession = {
+      diagnostics.checks.whatsappSession = {
         status: 'ok',
         sessionName: sessionConfig.whatsapp_session_name
       };
@@ -190,7 +190,7 @@ export async function GET(request: NextRequest) {
       diagnostics.checks.apiKeys?.status === 'ok',
       diagnostics.checks.webhook?.status === 'ok',
       diagnostics.checks.conversations?.status === 'ok' && diagnostics.checks.conversations?.botActive > 0,
-      diagnostics.checks.wahaSession?.status === 'ok'
+      diagnostics.checks.whatsappSession?.status === 'ok'
     ];
 
     const passedChecks = allChecks.filter(Boolean).length;
@@ -205,7 +205,7 @@ export async function GET(request: NextRequest) {
         diagnostics.checks.apiKeys?.status !== 'ok' && 'API key no configurada',
         diagnostics.checks.webhook?.status !== 'ok' && 'Problema con webhook',
         diagnostics.checks.conversations?.botActive === 0 && 'No hay conversaciones con bot activo',
-        diagnostics.checks.wahaSession?.status !== 'ok' && 'Sesión WAHA no configurada'
+        diagnostics.checks.whatsappSession?.status !== 'ok' && 'Configuración WhatsApp no encontrada'
       ].filter(Boolean)
     };
 

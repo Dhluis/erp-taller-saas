@@ -4,7 +4,6 @@
  */
 
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
-import { sendTextMessage } from '@/integrations/whatsapp/services/waha-service';
 import { MessagingConfig, SendMessageResult } from './types';
 import twilio from 'twilio';
 
@@ -27,33 +26,20 @@ export async function sendMessage(
     // Normalizar número destino (eliminar espacios, guiones, etc.)
     const normalizedTo = to.replace(/[^0-9+]/g, '');
     
-    // Determinar canal según tier y provider
-    if (config.tier === 'basic' || config.whatsapp_api_provider === 'waha') {
-      // Enviar por WAHA (tier básico)
-      console.log('[Messaging Sender] Enviando por WAHA (tier basic)');
-      return await sendWAHAMessage(organizationId, normalizedTo, message);
-      
-    } else if (config.tier === 'premium' && config.whatsapp_api_provider === 'twilio') {
-      // Enviar por Twilio WhatsApp API (tier premium)
-      if (!config.whatsapp_api_number) {
-        return { 
-          success: false, 
-          error: 'Número de WhatsApp API no configurado para tier premium' 
-        };
-      }
-      
-      console.log('[Messaging Sender] Enviando por Twilio WhatsApp API (tier premium)');
-      return await sendTwilioWhatsAppMessage(
-        config.whatsapp_api_number,
-        normalizedTo,
-        message
-      );
+    // Enviar por Twilio WhatsApp API
+    if (!config.whatsapp_api_number) {
+      return {
+        success: false,
+        error: 'Número de WhatsApp API no configurado'
+      };
     }
-    
-    return { 
-      success: false, 
-      error: 'Configuración de canal no válida' 
-    };
+
+    console.log('[Messaging Sender] Enviando por Twilio WhatsApp API');
+    return await sendTwilioWhatsAppMessage(
+      config.whatsapp_api_number,
+      normalizedTo,
+      message
+    );
     
   } catch (error: any) {
     console.error('[Messaging Sender] Error enviando mensaje:', error);
@@ -90,49 +76,17 @@ async function getMessagingConfig(organizationId: string): Promise<MessagingConf
     return {
       organization_id: data.organization_id,
       tier: (data.tier as 'basic' | 'premium') || 'basic',
-      whatsapp_api_provider: data.whatsapp_api_provider as 'waha' | 'twilio' | null,
+      whatsapp_api_provider: data.whatsapp_api_provider as 'twilio' | null,
       whatsapp_api_number: data.whatsapp_api_number,
       whatsapp_api_twilio_sid: data.whatsapp_api_twilio_sid,
       whatsapp_api_status: (data.whatsapp_api_status as 'active' | 'inactive' | 'pending') || 'inactive',
       whatsapp_enabled: data.whatsapp_enabled || false,
       whatsapp_verified: data.whatsapp_verified || false,
-      waha_connected: data.waha_connected || false,
     };
     
   } catch (error) {
     console.error('[Messaging Sender] Error en getMessagingConfig:', error);
     return null;
-  }
-}
-
-/**
- * Envía mensaje por WAHA
- */
-async function sendWAHAMessage(
-  organizationId: string,
-  to: string,
-  text: string
-): Promise<SendMessageResult> {
-  try {
-    const result = await sendTextMessage(organizationId, to, text);
-    
-    if (result.sent) {
-      return {
-        success: true,
-        messageId: result.messageId,
-      };
-    } else {
-      return {
-        success: false,
-        error: result.error || 'Error enviando mensaje por WAHA',
-      };
-    }
-  } catch (error: any) {
-    console.error('[Messaging Sender] Error en sendWAHAMessage:', error);
-    return {
-      success: false,
-      error: error.message || 'Error desconocido en WAHA',
-    };
   }
 }
 

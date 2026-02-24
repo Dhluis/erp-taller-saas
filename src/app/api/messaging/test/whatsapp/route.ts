@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     // 4. Obtener proveedor antes de enviar (para incluir en mensaje)
     const { getMessagingConfig } = await import('@/lib/messaging/twilio-client');
     const config = await getMessagingConfig(profile.organization_id);
-    const providerName = config?.whatsappProvider === 'twilio' ? 'Twilio Business API' : 'WAHA';
+    const providerName = 'Twilio Business API';
 
     // 5. Enviar WhatsApp de prueba
     const result = await sendWhatsAppMessage(profile.organization_id, {

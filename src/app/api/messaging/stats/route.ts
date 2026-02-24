@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
           configured: !!process.env.SENDGRID_API_KEY,
         },
         whatsapp: {
-          provider: 'waha',
+          provider: 'twilio',
           enabled: true,
           configured: true,
         }

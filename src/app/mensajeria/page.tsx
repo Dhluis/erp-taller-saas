@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 interface MessagingConfig {
   emailEnabled: boolean;
-  whatsappProvider: 'waha' | 'twilio';
+  whatsappProvider: 'twilio' | null;
   whatsappEnabled: boolean;
   tier?: 'basic' | 'premium';
 }
@@ -54,7 +54,6 @@ export default function MessagingPage() {
   const getWhatsAppStatus = () => {
     if (!config) return 'not-configured';
     if (config.whatsappProvider === 'twilio' && config.whatsappEnabled) return 'active';
-    if (config.whatsappProvider === 'waha') return 'configured';
     return 'not-configured';
   };
 
@@ -114,9 +113,9 @@ export default function MessagingPage() {
             <div>
               <h3 className="font-semibold text-text-primary mb-2">💬 WhatsApp</h3>
               <ul className="space-y-1">
-                <li>• Plan Básico (WAHA) - Gratis</li>
-                <li>• Plan Premium (Twilio API) - $200/mes</li>
+                <li>• WhatsApp Business API (Twilio)</li>
                 <li>• Chatbot con IA incluido</li>
+                <li>• Sin riesgo de baneo</li>
                 <li>• Máxima confiabilidad</li>
               </ul>
             </div>

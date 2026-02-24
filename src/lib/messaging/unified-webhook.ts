@@ -1,6 +1,6 @@
 /**
- * Webhook unificado - Maneja mensajes entrantes de cualquier canal
- * (WAHA o Twilio) y los procesa con IA de forma unificada
+ * Webhook unificado - Maneja mensajes entrantes de Twilio
+ * y los procesa con IA de forma unificada
  */
 
 import { MessageSource, NormalizedMessage } from './types';
@@ -8,11 +8,10 @@ import { normalizeMessage } from './normalizer';
 import { sendMessage } from './sender';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { processMessage } from '@/integrations/whatsapp/services/ai-agent';
-import { getOrganizationFromSession } from '@/lib/waha-sessions';
 import { normalizePhoneNumber } from '@/lib/utils/phone-formatter';
 
 /**
- * Maneja mensajes entrantes de cualquier canal (WAHA o Twilio)
+ * Maneja mensajes entrantes de Twilio
  */
 export async function handleIncomingMessage(
   source: MessageSource,

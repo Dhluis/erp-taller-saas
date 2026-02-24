@@ -5,18 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Wifi } from 'lucide-react'
 
 interface WhatsAppSetupStepProps {
-  data: {
-    waha_config_type?: 'shared'
-    waha_api_url?: string
-    waha_api_key?: string
-  }
-  onChange: (data: { waha_config_type: 'shared' }) => void
+  data?: Record<string, unknown>
+  onChange?: () => void
 }
 
-export function WhatsAppSetupStep({ data, onChange }: WhatsAppSetupStepProps) {
-  // Inicializar siempre con 'shared' y notificar al componente padre
+export function WhatsAppSetupStep({ onChange }: WhatsAppSetupStepProps) {
   useEffect(() => {
-    onChange({ waha_config_type: 'shared' })
+    onChange?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

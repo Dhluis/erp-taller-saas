@@ -4,7 +4,6 @@ import { getAppUrl, cleanEnvVar } from '@/lib/utils/env';
 export async function GET() {
   // Limpiar TODAS las variables de entorno antes de usarlas
   const supabaseUrl = cleanEnvVar(process.env.NEXT_PUBLIC_SUPABASE_URL);
-  const wahaUrl = cleanEnvVar(process.env.WAHA_API_URL || process.env.NEXT_PUBLIC_WAHA_API_URL);
   const openaiKey = cleanEnvVar(process.env.OPENAI_API_KEY);
   const upstashUrl = cleanEnvVar(process.env.UPSTASH_REDIS_REST_URL);
   const cleanedAppUrl = cleanEnvVar(process.env.NEXT_PUBLIC_APP_URL);
@@ -16,10 +15,6 @@ export async function GET() {
       url: supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : undefined,
       hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    },
-    waha: {
-      url: wahaUrl,
-      hasKey: !!(process.env.WAHA_API_KEY || process.env.NEXT_PUBLIC_WAHA_API_KEY),
     },
     openai: {
       hasKey: !!openaiKey,

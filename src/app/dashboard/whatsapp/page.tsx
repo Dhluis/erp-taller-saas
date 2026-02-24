@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  Check, 
+import {
+  Check,
   Smartphone,
   Building2,
   Info,
@@ -16,7 +15,7 @@ import {
   Loader2,
   HelpCircle
 } from 'lucide-react'
-import { useToast } from '@/components/ui/use-toast'
+import { toast } from 'sonner'
 import { useSession } from '@/lib/context/SessionContext'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useBilling } from '@/hooks/useBilling'
@@ -35,7 +34,7 @@ import {
 interface SubscriptionConfig {
   subscription_status: 'trial' | 'active' | 'expired' | 'none'
   trial_ends_at: string | null
-  whatsapp_api_provider: 'waha' | 'twilio' | null
+  whatsapp_api_provider: 'twilio' | null
   whatsapp_api_number: string | null
   created_at: string
 }
@@ -43,10 +42,8 @@ interface SubscriptionConfig {
 export default function WhatsAppPage() {
   const router = useRouter()
   const { organizationId } = useSession()
-  const { toast } = useToast()
   const [config, setConfig] = useState<SubscriptionConfig | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedMethod, setSelectedMethod] = useState<'waha' | 'twilio'>('waha')
   const [activating, setActivating] = useState(false)
   const [showApiInstructions, setShowApiInstructions] = useState(false)
   
@@ -65,9 +62,6 @@ export default function WhatsAppPage() {
       const data = await res.json()
       if (data.config) {
         setConfig(data.config)
-        if (data.config.whatsapp_api_provider) {
-          setSelectedMethod(data.config.whatsapp_api_provider)
-        }
       }
     } catch (error) {
       console.error('Error cargando config:', error)
@@ -208,71 +202,41 @@ export default function WhatsAppPage() {
             }
             
             if (data.success) {
-              toast({ title: '✅ Prueba gratis iniciada', description: 'Disfruta 7 días sin costo' })
+              toast.success('✅ Prueba gratis iniciada', { description: 'Disfruta 7 días sin costo' })
               loadConfig()
             } else {
-              toast({ title: 'Error', description: data.error || 'No se pudo iniciar la prueba', variant: 'destructive' })
+              toast.error('No se pudo iniciar la prueba', { description: data.error })
             }
           } catch (error: any) {
             console.error('Error iniciando prueba:', error)
-            toast({ title: 'Error', description: error.message || 'Error al iniciar prueba', variant: 'destructive' })
+            toast.error('Error al iniciar prueba', { description: error.message })
           } finally {
             setActivating(false)
           }
         }} activating={activating} />
       ) : (
-        // Tiene suscripción - elegir método WhatsApp
+        // Tiene suscripción - configurar WhatsApp Business
         <Card>
           <CardHeader>
-            <CardTitle>Configura tu WhatsApp</CardTitle>
+            <CardTitle>Configura tu WhatsApp Business</CardTitle>
             <CardDescription>
-              Elige cómo quieres conectar WhatsApp con tu cuenta
+              Número profesional con API Oficial de Meta
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={selectedMethod} onValueChange={(v) => setSelectedMethod(v as 'waha' | 'twilio')}>
-              <TabsList className="grid w-full grid-cols-2 mb-6 border-2 border-green-500 rounded-lg p-1 gap-1 bg-transparent">
-                <TabsTrigger 
-                  value="waha"
-                  className="border-2 border-green-500/50 data-[state=active]:border-green-500 data-[state=active]:bg-green-500/15 data-[state=active]:text-green-700 dark:data-[state=active]:text-green-300 active:scale-[0.98] transition-all focus-visible:ring-green-500"
-                >
-                  <Smartphone className="w-4 h-4 mr-2" />
-                  Mi Número Personal
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="twilio"
-                  className="border-2 border-green-500/50 data-[state=active]:border-green-500 data-[state=active]:bg-green-500/15 data-[state=active]:text-green-700 dark:data-[state=active]:text-green-300 active:scale-[0.98] transition-all focus-visible:ring-green-500"
-                >
-                  <Building2 className="w-4 h-4 mr-2" />
-                  Número Profesional
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="waha" className="space-y-6">
-                <WAHAOption 
-                  isActive={config?.whatsapp_api_provider === 'waha'}
-                  onActivate={() => {
-                    router.push('/dashboard/whatsapp/train-agent')
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="twilio" className="space-y-6">
-                <TwilioOption 
-                  isActive={config?.whatsapp_api_provider === 'twilio'}
-                  phoneNumber={config?.whatsapp_api_number}
-                  onActivate={() => {
-                    router.push('/dashboard/whatsapp/setup-api')
-                  }}
-                  activating={false}
-                  onOpenInstructions={() => setShowApiInstructions(true)}
-                />
-                <ApiOficialInstructionsDialog 
-                  open={showApiInstructions} 
-                  onOpenChange={setShowApiInstructions} 
-                />
-              </TabsContent>
-            </Tabs>
+            <TwilioOption
+              isActive={config?.whatsapp_api_provider === 'twilio'}
+              phoneNumber={config?.whatsapp_api_number}
+              onActivate={() => {
+                router.push('/dashboard/whatsapp/setup-api')
+              }}
+              activating={false}
+              onOpenInstructions={() => setShowApiInstructions(true)}
+            />
+            <ApiOficialInstructionsDialog
+              open={showApiInstructions}
+              onOpenChange={setShowApiInstructions}
+            />
           </CardContent>
         </Card>
       )}
@@ -281,40 +245,23 @@ export default function WhatsAppPage() {
       {hasActiveSubscription && (
         <Card className="mt-6 bg-slate-50 dark:bg-slate-900">
           <CardHeader>
-            <CardTitle className="text-lg">¿Cuál opción elegir?</CardTitle>
+            <CardTitle className="text-lg">WhatsApp Business API Oficial</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-2 gap-6">
-              <ComparisonColumn
-                title="Mi Número Personal (WAHA)"
-                icon={<Smartphone className="w-5 h-5 text-blue-500" />}
-                pros={[
-                  'Usa tu número actual',
-                  'Setup en 1 minuto (QR)',
-                  'Sin costos adicionales',
-                  'Ideal para comenzar'
-                ]}
-                cons={[
-                  'Límite 100 mensajes/día',
-                  'Pequeño riesgo de baneo',
-                  'Requiere mantener WhatsApp abierto'
-                ]}
-              />
-              <ComparisonColumn
-                title="Número Profesional (API Oficial)"
-                icon={<Building2 className="w-5 h-5 text-purple-500" />}
-                pros={[
-                  'Badge verificado oficial ✓',
-                  'Mensajes ilimitados',
-                  'Cero riesgo de bloqueo',
-                  'Número dedicado profesional'
-                ]}
-                cons={[
-                  'Toma ~2 minutos activar',
-                  'Número nuevo para clientes'
-                ]}
-              />
-            </div>
+            <ComparisonColumn
+              title="Número Profesional (API Oficial)"
+              icon={<Building2 className="w-5 h-5 text-purple-500" />}
+              pros={[
+                'Badge verificado oficial ✓',
+                'Mensajes ilimitados',
+                'Cero riesgo de bloqueo',
+                'Número dedicado profesional'
+              ]}
+              cons={[
+                'Toma ~2 minutos activar',
+                'Número nuevo para clientes'
+              ]}
+            />
           </CardContent>
         </Card>
       )}
@@ -363,11 +310,11 @@ function PricingCard({ onActivate, activating }: { onActivate: () => void, activ
 
         <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
           <p className="text-sm font-medium mb-2">
-            ✨ Después de activar, elige tu método preferido:
+            ✨ Incluye número WhatsApp Business con API Oficial verificada
           </p>
           <div className="space-y-1 text-sm text-muted-foreground">
-            <div>• <strong>Número Personal:</strong> Conecta con QR (WAHA)</div>
-            <div>• <strong>Número Profesional:</strong> API Oficial verificada</div>
+            <div>• Número profesional dedicado para tu negocio</div>
+            <div>• Sin riesgo de baneo, sin límites de mensajes</div>
           </div>
         </div>
 
@@ -397,56 +344,6 @@ function PricingCard({ onActivate, activating }: { onActivate: () => void, activ
   )
 }
 
-function WAHAOption({ 
-  isActive, 
-  onActivate 
-}: { 
-  isActive: boolean
-  onActivate: () => void 
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-start gap-4 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
-        <Smartphone className="w-8 h-8 text-blue-600 flex-shrink-0 mt-1" />
-        <div className="flex-1">
-          <h3 className="font-semibold mb-2">Conecta tu número personal</h3>
-          <p className="text-sm text-muted-foreground mb-3">
-            Usa tu WhatsApp actual escaneando un código QR. Setup en menos de 1 minuto.
-          </p>
-          
-          {isActive ? (
-            <div className="flex items-center gap-2 text-green-600">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-              <span className="text-sm font-medium">Conectado y activo</span>
-            </div>
-          ) : (
-            <Button variant="primary" onClick={onActivate}>
-              Conectar con QR →
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <div className="space-y-2">
-          <p className="font-medium text-green-600">✅ Ventajas</p>
-          <ul className="space-y-1 text-muted-foreground">
-            <li>• Setup instantáneo</li>
-            <li>• Sin costo extra</li>
-            <li>• Tu número actual</li>
-          </ul>
-        </div>
-        <div className="space-y-2">
-          <p className="font-medium text-yellow-600">⚠️ Consideraciones</p>
-          <ul className="space-y-1 text-muted-foreground">
-            <li>• Límite 100 msg/día</li>
-            <li>• Pequeño riesgo baneo</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function ApiOficialInstructionsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   return (

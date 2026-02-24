@@ -1,9 +1,8 @@
 /**
  * Tipos unificados para sistema de mensajería multi-canal
- * Soporta WAHA (tier basic) y Twilio WhatsApp API (tier premium)
  */
 
-export type MessageSource = 'waha' | 'twilio';
+export type MessageSource = 'twilio';
 
 export type MessagingTier = 'basic' | 'premium';
 
@@ -21,13 +20,12 @@ export interface NormalizedMessage {
 export interface MessagingConfig {
   organization_id: string;
   tier: MessagingTier;
-  whatsapp_api_provider: 'waha' | 'twilio' | null;
+  whatsapp_api_provider: 'twilio' | null;
   whatsapp_api_number: string | null;
   whatsapp_api_twilio_sid: string | null;
   whatsapp_api_status: 'active' | 'inactive' | 'pending';
   whatsapp_enabled: boolean;
   whatsapp_verified: boolean;
-  waha_connected?: boolean;
 }
 
 export interface SendMessageResult {

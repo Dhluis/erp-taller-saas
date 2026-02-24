@@ -14,7 +14,7 @@ import { Loader2, Check, AlertCircle, Star } from 'lucide-react';
 export const dynamic = 'force-dynamic';
 
 interface WhatsAppConfig {
-  whatsappProvider: 'waha' | 'twilio';
+  whatsappProvider: 'twilio' | null;
   whatsappTwilioNumber: string | null;
   whatsappVerified: boolean;
   whatsappEnabled: boolean;
@@ -59,8 +59,7 @@ export default function WhatsAppConfigPage() {
       throw new Error(error.error || 'Error al enviar WhatsApp de prueba');
     }
 
-    const result = await response.json();
-    return result;
+    return await response.json();
   };
 
   if (loading) {
@@ -71,9 +70,7 @@ export default function WhatsAppConfigPage() {
     );
   }
 
-  const isBasic = config?.whatsappProvider === 'waha';
-  const isPremium = config?.whatsappProvider === 'twilio';
-  const hasActivePlan = isBasic || isPremium;
+  const isActive = config?.whatsappProvider === 'twilio' && config?.whatsappEnabled;
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -90,107 +87,30 @@ export default function WhatsAppConfigPage() {
       <div className="mb-6 mt-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-text-primary mb-2">💬 Configuración de WhatsApp</h1>
-            <p className="text-text-secondary">Elige cómo quieres usar WhatsApp con tus clientes</p>
+            <h1 className="text-3xl font-bold text-text-primary mb-2">💬 WhatsApp Business</h1>
+            <p className="text-text-secondary">API oficial de Meta con Twilio</p>
           </div>
           <StatusBadge
-            status={hasActivePlan ? 'success' : 'warning'}
-            label={
-              isBasic 
-                ? '🟢 Plan Básico' 
-                : isPremium 
-                ? '⭐ Plan Premium' 
-                : '⚠️ Sin configurar'
-            }
+            status={isActive ? 'success' : 'warning'}
+            label={isActive ? '✓ Activo' : '⚠️ Sin configurar'}
           />
         </div>
       </div>
 
-      {/* Plan Básico - WAHA */}
-      <Card className={`mb-6 ${isBasic ? 'border-primary/50 bg-primary/5' : 'border-border'}`}>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">📱</span>
-              <div>
-                <CardTitle>Plan Básico - WAHA</CardTitle>
-                <p className="text-sm text-text-secondary mt-1">
-                  Conecta tu WhatsApp personal con código QR
-                </p>
-              </div>
-            </div>
-            {isBasic && (
-              <StatusBadge status="success" label="✓ Activo" />
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <Check className="w-4 h-4 text-success" />
-              <span>Setup instantáneo (escanea QR)</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <Check className="w-4 h-4 text-success" />
-              <span>Sin costos adicionales</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <Check className="w-4 h-4 text-success" />
-              <span>Usa tu número actual</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <Check className="w-4 h-4 text-success" />
-              <span>Chatbot con IA incluido</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <AlertCircle className="w-4 h-4 text-warning" />
-              <span>Límites de cuenta personal</span>
-            </div>
-          </div>
-
-          {isBasic ? (
-            <div className="bg-bg-tertiary border border-border rounded-lg p-4">
-              <p className="text-sm text-text-secondary">
-                Estado: <strong className="text-success">Conectado</strong>
-              </p>
-              <p className="text-xs text-text-muted mt-1">
-                Tu WhatsApp está funcionando correctamente con WAHA
-              </p>
-            </div>
-          ) : (
-            <div className="bg-info/10 border border-info/20 rounded-lg p-4">
-              <p className="text-sm text-text-secondary">
-                ℹ️ Este plan usa el sistema WAHA que ya tienes configurado
-              </p>
-            </div>
-          )}
-
-          <Button
-            variant="outline"
-            onClick={() => setShowTestModal(true)}
-            disabled={!isBasic}
-          >
-            {isBasic ? 'Enviar prueba' : 'No disponible'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Plan Premium - Twilio */}
-      <Card className={`mb-6 ${isPremium ? 'border-warning/50 bg-warning/5' : 'border-border'}`}>
+      {/* WhatsApp Business API - Twilio */}
+      <Card className={`mb-6 ${isActive ? 'border-primary/50 bg-primary/5' : 'border-border'}`}>
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <Star className="w-6 h-6 text-warning" />
               <div>
-                <CardTitle>Plan Premium - WhatsApp Business API</CardTitle>
+                <CardTitle>WhatsApp Business API</CardTitle>
                 <p className="text-sm text-text-secondary mt-1">
-                  API oficial de Meta con Twilio
+                  Conectado vía Twilio — canal oficial de Meta
                 </p>
               </div>
             </div>
-            {isPremium && (
-              <StatusBadge status="warning" label="⭐ Premium" />
-            )}
+            {isActive && <StatusBadge status="success" label="✓ Activo" />}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -213,99 +133,44 @@ export default function WhatsAppConfigPage() {
             </div>
             <div className="flex items-center gap-2 text-sm text-text-secondary">
               <Check className="w-4 h-4 text-success" />
-              <span>Chatbot con IA mejorado</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <AlertCircle className="w-4 h-4 text-warning" />
-              <span>Requiere verificación de Meta (1-2 semanas)</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <span className="text-warning">💰</span>
-              <span>Costo: +$200 MXN/mes</span>
+              <span>Chatbot con IA incluido</span>
             </div>
           </div>
 
-          {isPremium ? (
+          {isActive ? (
             <div className="bg-bg-tertiary border border-border rounded-lg p-4">
               <p className="text-sm text-text-secondary">
                 Número: <strong className="text-text-primary">{config?.whatsappTwilioNumber || 'No configurado'}</strong>
               </p>
-              <p className="text-xs text-text-muted mt-1">
-                WhatsApp Business API activo
-                {config?.whatsappVerified && (
-                  <span className="text-success ml-2">✓ Verificado</span>
-                )}
-              </p>
+              {config?.whatsappVerified && (
+                <p className="text-xs text-success mt-1">✓ Verificado por Meta</p>
+              )}
             </div>
           ) : (
             <div className="bg-info/10 border border-info/20 rounded-lg p-4">
               <p className="text-sm font-medium text-text-primary mb-2">
-                🚀 ¿Quieres hacer upgrade a Premium?
+                Configura tu número empresarial
               </p>
               <p className="text-xs text-text-secondary">
-                Contacta al soporte para iniciar el proceso de verificación con Meta y configurar tu número empresarial.
+                Ve a la configuración para activar tu número WhatsApp Business.
               </p>
             </div>
           )}
 
-          <Button
-            disabled={!isPremium}
-            variant={isPremium ? 'primary' : 'outline'}
-          >
-            {isPremium ? 'Gestionar Premium' : 'Solicitar Upgrade'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Comparación de Planes */}
-      <Card className="border-info/50 bg-info/5">
-        <CardHeader>
-          <CardTitle className="text-info">ℹ️ Comparación de Planes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-            <div>
-              <h3 className="font-semibold text-text-primary mb-3">Plan Básico (WAHA)</h3>
-              <ul className="space-y-2 text-text-secondary">
-                <li className="flex items-start gap-2">
-                  <span>•</span>
-                  <span>Gratis, siempre incluido</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span>•</span>
-                  <span>Perfecto para empezar</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span>•</span>
-                  <span>Usa tu número actual</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span>•</span>
-                  <span>Setup rápido con QR</span>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-text-primary mb-3">Plan Premium (Twilio)</h3>
-              <ul className="space-y-2 text-text-secondary">
-                <li className="flex items-start gap-2">
-                  <span>•</span>
-                  <span>Máxima confiabilidad</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span>•</span>
-                  <span>Funciones avanzadas</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span>•</span>
-                  <span>Número empresarial dedicado</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span>•</span>
-                  <span>Sin límites de cuenta</span>
-                </li>
-              </ul>
-            </div>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowTestModal(true)}
+              disabled={!isActive}
+            >
+              {isActive ? 'Enviar prueba' : 'No disponible'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => router.push('/dashboard/whatsapp/setup-api')}
+            >
+              Configurar número
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -320,4 +185,3 @@ export default function WhatsAppConfigPage() {
     </div>
   );
 }
-

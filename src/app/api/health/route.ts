@@ -15,8 +15,6 @@ export async function GET() {
       hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
       hasSupabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       hasSupabaseServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-      hasWahaUrl: !!(process.env.WAHA_API_URL || process.env.NEXT_PUBLIC_WAHA_API_URL),
-      hasWahaKey: !!(process.env.WAHA_API_KEY || process.env.NEXT_PUBLIC_WAHA_API_KEY),
       hasOpenAI: !!process.env.OPENAI_API_KEY,
       hasUpstashUrl: !!process.env.UPSTASH_REDIS_REST_URL,
       hasUpstashToken: !!process.env.UPSTASH_REDIS_REST_TOKEN,
@@ -53,46 +51,7 @@ export async function GET() {
     };
   }
 
-  // 3. Verificar WAHA (opcional)
-  try {
-    const wahaUrl = process.env.WAHA_API_URL || process.env.NEXT_PUBLIC_WAHA_API_URL;
-    const wahaKey = process.env.WAHA_API_KEY || process.env.NEXT_PUBLIC_WAHA_API_KEY;
-    
-    if (wahaUrl && wahaKey) {
-      const response = await fetch(`${wahaUrl}/api/sessions`, {
-        headers: { 'X-Api-Key': wahaKey },
-        signal: AbortSignal.timeout(5000) // 5 segundos timeout
-      });
-      
-      if (response.ok) {
-        checks.waha = {
-          status: 'ok',
-          message: 'Conexión a WAHA OK',
-          details: { status: response.status }
-        };
-      } else {
-        checks.waha = {
-          status: 'error',
-          message: `WAHA respondió con error: ${response.status}`,
-          details: { status: response.status }
-        };
-      }
-    } else {
-      checks.waha = {
-        status: 'ok',
-        message: 'WAHA no configurado (opcional)',
-        details: { configured: false }
-      };
-    }
-  } catch (error: any) {
-    checks.waha = {
-      status: 'error',
-      message: `Error conectando a WAHA: ${error.message}`,
-      details: { error: error.toString() }
-    };
-  }
-
-  // 4. Verificar Upstash Redis (opcional)
+  // 3. Verificar Upstash Redis (opcional)
   try {
     const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
     const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;

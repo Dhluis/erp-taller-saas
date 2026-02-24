@@ -2,7 +2,7 @@
  * INICIAR TRIAL - Activa prueba gratis de 7 días
  * 
  * Cuando el usuario hace clic en "Iniciar Prueba Gratis",
- * se activa el trial usando WAHA (tier basic)
+ * se activa el trial con Twilio (tier basic)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         subscription_status: 'trial',
         trial_ends_at: trialEndsAt.toISOString(),
         tier: 'basic',
-        whatsapp_api_provider: 'waha',
+        whatsapp_api_provider: 'twilio',
         whatsapp_enabled: true,
         updated_at: new Date().toISOString(),
       }, {
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
         subscription_status: 'trial',
         trial_ends_at: trialEndsAt.toISOString(),
         tier: 'basic',
-        whatsapp_api_provider: 'waha',
+        whatsapp_api_provider: 'twilio',
       }
     }, { status: 201 });
     

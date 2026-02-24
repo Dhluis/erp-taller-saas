@@ -15,8 +15,6 @@ export interface MessagingConfig {
   whatsappEnabled: boolean;
   whatsappTwilioNumber: string | null;
   whatsappVerified: boolean;
-  wahaSessionId: string | null;
-  wahaConnected: boolean;
   chatbotEnabled: boolean;
   chatbotSystemPrompt: string | null;
   monthlyEmailLimit: number;
@@ -62,12 +60,10 @@ export async function getMessagingConfig(
       emailReplyTo: configData.email_reply_to,
       smsEnabled: configData.sms_enabled ?? false,
       smsFromNumber: configData.sms_from_number,
-      whatsappProvider: configData.whatsapp_provider || 'waha',
+      whatsappProvider: configData.whatsapp_provider || 'twilio',
       whatsappEnabled: configData.whatsapp_enabled ?? false,
       whatsappTwilioNumber: configData.whatsapp_twilio_number,
       whatsappVerified: configData.whatsapp_verified ?? false,
-      wahaSessionId: configData.waha_session_id,
-      wahaConnected: configData.waha_connected ?? false,
       chatbotEnabled: configData.chatbot_enabled ?? false,
       chatbotSystemPrompt: configData.chatbot_system_prompt,
       monthlyEmailLimit: configData.monthly_email_limit ?? 1000,

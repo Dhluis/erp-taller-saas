@@ -16,7 +16,7 @@ import { FAQStep } from './components/FAQStep'
 import { CustomInstructionsStep } from './components/CustomInstructionsStep'
 import { PreviewTestStep } from './components/PreviewTestStep'
 import { AppointmentSchedulingStep } from './components/AppointmentSchedulingStep'
-import { WhatsAppQRConnectorSimple as WhatsAppQRConnector } from '@/components/WhatsAppQRConnectorSimple'
+import { WhatsAppTwilioStatus } from '@/components/WhatsAppTwilioStatus'
 import { useAuth } from '@/hooks/useAuth'
 import { useSession } from '@/lib/context/SessionContext'
 import { toast } from 'sonner'
@@ -29,11 +29,6 @@ export default function TrainAgentPage() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    wahaConfig: {
-      waha_config_type: 'shared' as 'shared',
-      waha_api_url: undefined as string | undefined,
-      waha_api_key: undefined as string | undefined
-    },
     businessInfo: {
       name: organization?.name || '',
       address: organization?.address || '',
@@ -100,20 +95,13 @@ export default function TrainAgentPage() {
 
     setLoading(true)
     try {
-      // ✅ Usar siempre servidor compartido
-      const wahaConfigType = 'shared'
-      // El backend obtendrá las credenciales de sus propias variables de entorno (process.env.WAHA_API_URL)
-
       // 🔍 Log para debugging antes de guardar
       console.log('🔍 [Wizard] Payload antes de guardar:', {
-        waha_config_type: wahaConfigType,
         organization_id: organizationId
       })
 
       // Construir payload
-      // El backend obtendrá las credenciales de sus variables de entorno para 'shared'
       const payload: any = {
-        waha_config_type: wahaConfigType,
         businessInfo: formData.businessInfo,
         services: formData.services,
         policies: formData.policies,
@@ -123,12 +111,6 @@ export default function TrainAgentPage() {
         escalationRules: formData.escalationRules,
         appointmentScheduling: formData.appointmentScheduling
       }
-
-      // 📦 Log del payload final
-      console.log('📦 [Wizard] Payload final:', {
-        ...payload,
-        waha_config_type: 'shared (backend obtendrá credenciales de env vars)'
-      })
 
       // Guardar configuración en ai_agent_config
       const response = await fetch(`/api/whatsapp/config`, {
@@ -203,20 +185,7 @@ export default function TrainAgentPage() {
         if (response.ok) {
           const result = await response.json()
           if (result.success && result.data) {
-            const config = result.data
-            const policies = config.policies || {}
-            
-            // Cargar configuración de WAHA desde policies
-            if (policies.waha_config_type) {
-              setFormData(prev => ({
-                ...prev,
-                wahaConfig: {
-                  waha_config_type: policies.waha_config_type || 'shared',
-                  waha_api_url: policies.waha_api_url || undefined,
-                  waha_api_key: policies.waha_api_key || undefined
-                }
-              }))
-            }
+            // config loaded successfully
           }
         }
       } catch (error) {
@@ -394,7 +363,7 @@ export default function TrainAgentPage() {
           <h2 className="text-xl font-semibold mb-4 text-text-primary">
             Conexión de WhatsApp
           </h2>
-          <WhatsAppQRConnector
+          <WhatsAppTwilioStatus
             onStatusChange={handleWhatsAppStatusChange}
             darkMode={true}
             className="mb-6"
@@ -436,10 +405,7 @@ export default function TrainAgentPage() {
         {/* Wizard Steps */}
         <div className="mt-8">
           {step === 1 && (
-            <WhatsAppSetupStep 
-              data={formData.wahaConfig} 
-              onChange={(data) => updateFormData('wahaConfig', data)} 
-            />
+            <WhatsAppSetupStep />
           )}
           {step === 2 && (
             <BusinessInfoStep 
