@@ -1,16 +1,25 @@
+<<<<<<< HEAD
 # Despliega un commit concreto a Vercel (producción).
 # Uso: Actions → Deploy commit → Run workflow → indicar el SHA (ej: 29f865fca55efc31ec31daa05796f0e682ece6dc).
 # Requiere: secret VERCEL_TOKEN en el repo (y opcionalmente VERCEL_ORG_ID, VERCEL_PROJECT_ID si el proyecto no está enlazado).
 
+=======
+>>>>>>> f020b0ad25494f2f5d55a73fe7011e83ae07fbbb
 name: Deploy commit to Vercel
 
 on:
   workflow_dispatch:
     inputs:
       commit_sha:
+<<<<<<< HEAD
         description: 'Commit SHA to deploy (full or short)'
         required: true
         default: '29f865fca55efc31ec31daa05796f0e682ece6dc'
+=======
+        description: "Commit SHA to deploy (full or short)"
+        required: true
+        default: "29f865fca55efc31ec31daa05796f0e682ece6dc"
+>>>>>>> f020b0ad25494f2f5d55a73fe7011e83ae07fbbb
 
 jobs:
   deploy:
@@ -24,13 +33,22 @@ jobs:
       - name: Checkout specific commit
         run: |
           git fetch origin
+<<<<<<< HEAD
           git checkout "${{ github.event.inputs.commit_sha }}"
+=======
+          git checkout '${{ github.event.inputs.commit_sha }}'
+>>>>>>> f020b0ad25494f2f5d55a73fe7011e83ae07fbbb
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
+<<<<<<< HEAD
           node-version: '20'
           cache: 'npm'
+=======
+          node-version: "20"
+          cache: "npm"
+>>>>>>> f020b0ad25494f2f5d55a73fe7011e83ae07fbbb
 
       - name: Install dependencies
         run: npm ci
