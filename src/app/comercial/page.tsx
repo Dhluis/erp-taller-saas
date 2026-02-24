@@ -11,11 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
-import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Users, Target, UserPlus, UserCheck, Calendar, MessageSquare, Car, Wrench, User, Phone, Mail } from "lucide-react"
+import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Users, Target, UserPlus, UserCheck, Calendar, MessageSquare, Wrench } from "lucide-react"
+import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal'
 import { LeadStatusBadge, type LeadStatus } from '@/components/whatsapp/LeadStatusBadge'
 import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
 import { toast } from 'sonner'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Checkbox } from "@/components/ui/checkbox"
 
 interface Lead {
@@ -59,17 +60,14 @@ export default function ComercialPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
-  const [isConverting, setIsConverting] = useState(false)
   const [conversationModalId, setConversationModalId] = useState<string | null>(null)
   const [conversationMessages, setConversationMessages] = useState<{ direction: string; body?: string; content?: string; created_at: string }[]>([])
   const [conversationLoading, setConversationLoading] = useState(false)
   const [convertModalLead, setConvertModalLead] = useState<Lead | null>(null)
   const [convertVehicle, setConvertVehicle] = useState({ add: false, brand: '', model: '', year: '', plate: '', vin: '' })
   const [convertSubmitting, setConvertSubmitting] = useState(false)
-  const [showCreateOTDialog, setShowCreateOTDialog] = useState(false)
+  const [showOTModal, setShowOTModal] = useState(false)
   const [otLead, setOtLead] = useState<Lead | null>(null)
-  const [otForm, setOtForm] = useState({ brand: '', model: '', year: '', plate: '', vin: '', description: '' })
-  const [creatingOT, setCreatingOT] = useState(false)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [formData, setFormData] = useState({
     name: "",
@@ -333,73 +331,24 @@ export default function ComercialPage() {
     }
   }
 
-  const openCreateOTModal = (lead: Lead) => {
+  const openOTModal = (lead: Lead) => {
     setOtLead(lead)
-    setOtForm({
-      brand: '',
-      model: '',
-      year: '',
-      plate: '',
-      vin: '',
-      description: lead.notes ? lead.notes.trim() : ''
-    })
-    setShowCreateOTDialog(true)
+    setShowOTModal(true)
   }
 
-  const handleCreateWorkOrder = async () => {
+  const handleOTCreated = async () => {
     if (!otLead) return
-    const y = parseInt(otForm.year, 10)
-    if (Number.isNaN(y) || y < INPUT_LIMITS.YEAR_MIN || y > INPUT_LIMITS.YEAR_MAX) {
-      toast.error(`El año debe estar entre ${INPUT_LIMITS.YEAR_MIN} y ${INPUT_LIMITS.YEAR_MAX}`)
-      return
-    }
-    if (!otForm.brand.trim() || !otForm.model.trim() || !otForm.plate.trim()) {
-      toast.error('Marca, modelo y placas son requeridos')
-      return
-    }
-    if (otForm.description.trim().length < 10) {
-      toast.error('La descripción debe tener al menos 10 caracteres')
-      return
-    }
-    setCreatingOT(true)
-    try {
-      const res = await fetch(`/api/leads/${otLead.id}/create-work-order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          vehicle: {
-            brand: otForm.brand.trim(),
-            model: otForm.model.trim(),
-            year: y,
-            plate: otForm.plate.trim(),
-            ...(otForm.vin.trim() ? { vin: otForm.vin.trim() } : {})
-          },
-          description: otForm.description.trim()
-        })
-      })
-      const data = await res.json()
-      if (data.success) {
-        setLeads(leads.map(l =>
-          l.id === otLead.id
-            ? { ...l, status: 'converted' as LeadStatus, customer_id: data.data.customer_id }
-            : l
-        ))
-        setShowCreateOTDialog(false)
-        setOtLead(null)
-        toast.success(`OT ${data.data.order_number} creada`, {
-          description: `Lead "${otLead.name}" convertido a cliente`
-        })
-      } else {
-        toast.error(data.error || 'Error al crear orden de trabajo', {
-          description: data.details || undefined
-        })
-      }
-    } catch (error) {
-      console.error('Error creating work order:', error)
-      toast.error('Error al crear orden de trabajo')
-    } finally {
-      setCreatingOT(false)
-    }
+    // Marcar lead como convertido en la lista local
+    setLeads(prev => prev.map(l =>
+      l.id === otLead.id ? { ...l, status: 'converted' as LeadStatus } : l
+    ))
+    // Persistir en DB
+    await fetch(`/api/leads/${otLead.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'converted' })
+    })
+    setOtLead(null)
   }
 
   const validateLeadForm = (): boolean => {
@@ -945,7 +894,7 @@ export default function ComercialPage() {
                           variant="outline"
                           size="sm"
                           className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
-                          onClick={() => openCreateOTModal(lead)}
+                          onClick={() => openOTModal(lead)}
                         >
                           <Wrench className="h-4 w-4 mr-1" />
                           Crear OT
@@ -1024,141 +973,13 @@ export default function ComercialPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Crear Orden de Trabajo desde lead */}
-      <Dialog open={showCreateOTDialog} onOpenChange={(open) => { if (!open) { setShowCreateOTDialog(false); setOtLead(null) } }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Wrench className="h-5 w-5" />
-              Crear Orden de Trabajo
-            </DialogTitle>
-            <DialogDescription>
-              El vehículo llegó al taller — se creará el cliente y la OT en un solo paso
-            </DialogDescription>
-          </DialogHeader>
-          {otLead && (
-            <div className="grid gap-4 py-2">
-              {/* Datos del cliente (pre-rellenados del lead, solo lectura) */}
-              <div className="rounded-lg border bg-muted/40 px-4 py-3 space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Cliente</p>
-                <div className="grid grid-cols-3 gap-x-4 gap-y-1 text-sm">
-                  <div className="flex items-center gap-1.5">
-                    <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="font-medium truncate">{otLead.name || '—'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="truncate">{otLead.phone || '—'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="truncate">{otLead.email || '—'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Vehículo */}
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Vehículo *</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="ot-brand">Marca</Label>
-                    <Input
-                      id="ot-brand"
-                      value={otForm.brand}
-                      onChange={(e) => setOtForm(f => ({ ...f, brand: e.target.value }))}
-                      placeholder="Toyota"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="ot-model">Modelo</Label>
-                    <Input
-                      id="ot-model"
-                      value={otForm.model}
-                      onChange={(e) => setOtForm(f => ({ ...f, model: e.target.value }))}
-                      placeholder="Corolla"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="ot-year">Año</Label>
-                    <Input
-                      id="ot-year"
-                      inputMode="numeric"
-                      value={otForm.year}
-                      onChange={(e) => setOtForm(f => ({ ...f, year: sanitize.year(e.target.value) }))}
-                      maxLength={4}
-                      placeholder="2024"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="ot-plate">Placas</Label>
-                    <Input
-                      id="ot-plate"
-                      value={otForm.plate}
-                      onChange={(e) => setOtForm(f => ({ ...f, plate: sanitize.plate(e.target.value) }))}
-                      maxLength={INPUT_LIMITS.PLATE_MAX}
-                      placeholder="ABC-123"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label htmlFor="ot-vin">VIN <span className="text-muted-foreground font-normal">(opcional)</span></Label>
-                    <Input
-                      id="ot-vin"
-                      value={otForm.vin}
-                      onChange={(e) => setOtForm(f => ({ ...f, vin: sanitize.vin(e.target.value) }))}
-                      maxLength={INPUT_LIMITS.VIN_MAX}
-                      placeholder="17 caracteres"
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Descripción del trabajo */}
-              <div>
-                <Label htmlFor="ot-description">
-                  Descripción del trabajo *
-                  <span className="text-muted-foreground font-normal ml-1">(mín. 10 caracteres)</span>
-                </Label>
-                <Textarea
-                  id="ot-description"
-                  value={otForm.description}
-                  onChange={(e) => setOtForm(f => ({ ...f, description: e.target.value }))}
-                  rows={3}
-                  placeholder="Ej. Cambio de aceite y filtros, revisión de frenos..."
-                  className="mt-1 resize-none"
-                />
-                {otLead.whatsapp_conversation_id && (
-                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                    <MessageSquare className="h-3 w-3" />
-                    Pre-rellenado con las notas del lead — edita si es necesario
-                  </p>
-                )}
-              </div>
-
-              <div className="flex justify-end gap-2 pt-1">
-                <Button
-                  variant="outline"
-                  onClick={() => { setShowCreateOTDialog(false); setOtLead(null) }}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  disabled={creatingOT}
-                  onClick={handleCreateWorkOrder}
-                >
-                  <Wrench className="h-4 w-4 mr-2" />
-                  {creatingOT ? 'Creando OT...' : 'Crear Orden de Trabajo'}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Modal: Crear Orden de Trabajo (modal estándar del ERP, teléfono pre-llenado) */}
+      <CreateWorkOrderModal
+        open={showOTModal}
+        onOpenChange={(open) => { setShowOTModal(open); if (!open) setOtLead(null) }}
+        prefilledPhone={otLead?.phone ?? ''}
+        onSuccess={handleOTCreated}
+      />
 
       {/* Modal: Convertir Lead a Cliente (con vehículo opcional) */}
       <Dialog open={!!convertModalLead} onOpenChange={(open) => !open && setConvertModalLead(null)}>

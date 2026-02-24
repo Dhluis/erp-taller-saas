@@ -71,6 +71,8 @@ interface CreateWorkOrderModalProps {
 
   appointmentId?: string | null  // ✅ ID de la cita para pre-llenar datos
 
+  prefilledPhone?: string  // ✅ Teléfono pre-llenado (desde lead)
+
 }
 
 interface ValidationErrors {
@@ -265,7 +267,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
   organizationId: propOrganizationId,
 
-  appointmentId
+  appointmentId,
+
+  prefilledPhone
 
 }: CreateWorkOrderModalProps) {
   // ✅ Usar context si no se proporciona como prop
@@ -845,6 +849,22 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     }
 
   }, [open, prefilledServiceType])
+
+  useEffect(() => {
+
+    if (open && prefilledPhone) {
+
+      setFormData(prev => ({
+
+        ...prev,
+
+        customerPhone: sanitize.phone(prefilledPhone)
+
+      }))
+
+    }
+
+  }, [open, prefilledPhone])
 
   useEffect(() => {
 
