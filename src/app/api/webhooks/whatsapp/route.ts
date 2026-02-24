@@ -51,8 +51,7 @@ async function transcribeAudioWithWhisper(
 
   try {
     const { default: OpenAI } = await import('openai');
-    // timeout de 45s para dar margen a audios largos
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 45000 });
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     let audioBuffer: Buffer;
     let mimeType = 'audio/ogg';
@@ -70,7 +69,6 @@ async function transcribeAudioWithWhisper(
         cleanBase64 = parts[1];
       }
       audioBuffer = Buffer.from(cleanBase64, 'base64');
-      console.log('[Whisper] Audio base64 decodificado:', audioBuffer.length, 'bytes');
     } else if (audioUrl) {
       // WAHA Plus: descargar desde la URL
       // CRÍTICO: WAHA dentro de Docker envía URLs con "http://localhost:80" (su IP interna).
@@ -99,16 +97,7 @@ async function transcribeAudioWithWhisper(
       const apiKey = wahaApiKey || process.env.WAHA_API_KEY;
       if (apiKey) headers['X-Api-Key'] = apiKey;
       console.log('[Whisper] Descargando audio desde URL:', resolvedUrl.substring(0, 80) + '...', { hasApiKey: !!apiKey });
-
-      // Timeout de 15s para la descarga del archivo de audio
-      const downloadController = new AbortController();
-      const downloadTimeout = setTimeout(() => downloadController.abort(), 15000);
-      let res: Response;
-      try {
-        res = await fetch(resolvedUrl, { headers, signal: downloadController.signal });
-      } finally {
-        clearTimeout(downloadTimeout);
-      }
+      const res = await fetch(resolvedUrl, { headers });
       if (!res.ok) {
         console.error('[Whisper] No se pudo descargar audio:', res.status, res.statusText);
         return null;
@@ -116,19 +105,11 @@ async function transcribeAudioWithWhisper(
       const contentType = res.headers.get('content-type');
       if (contentType) mimeType = contentType.split(';')[0];
       audioBuffer = Buffer.from(await res.arrayBuffer());
-      console.log('[Whisper] Audio descargado:', audioBuffer.length, 'bytes');
     } else {
       return null;
     }
 
-    // Límite de Whisper: 25 MB
-    if (audioBuffer.length > 24 * 1024 * 1024) {
-      console.warn('[Whisper] ⚠️ Audio demasiado grande para Whisper:', audioBuffer.length, 'bytes — omitiendo transcripción');
-      return null;
-    }
-
-    const audioFile = new File([new Uint8Array(audioBuffer)], 'audio.ogg', { type: mimeType });
-    console.log('[Whisper] Enviando a OpenAI Whisper:', audioFile.size, 'bytes, tipo:', mimeType);
+    const audioFile = new File([audioBuffer], 'audio.ogg', { type: mimeType });
     const result = await openai.audio.transcriptions.create({
       file: audioFile,
       model: 'whisper-1',
@@ -136,15 +117,8 @@ async function transcribeAudioWithWhisper(
     });
 
     return result.text?.trim() || null;
-  } catch (err: any) {
-    // Distinguir tipos de error para diagnóstico
-    if (err?.name === 'AbortError') {
-      console.error('[Whisper] ⏱️ Timeout al descargar audio (>15s)');
-    } else if (err?.status) {
-      console.error('[Whisper] ❌ Error OpenAI:', err.status, err.message);
-    } else {
-      console.error('[Whisper] ❌ Error al transcribir audio:', err?.message || err);
-    }
+  } catch (err) {
+    console.error('[Whisper] Error al transcribir audio:', err);
     return null;
   }
 }

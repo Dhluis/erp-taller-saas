@@ -414,29 +414,14 @@ export function buildSystemPrompt(
   config: AIAgentConfig,
   context: AIContext
 ): string {
-  // Fecha y hora actuales en timezone del negocio (México).
-  // El servidor corre en UTC — sin conversión el AI diría "buenas noches" a las 3PM.
+  // Fecha y hora actuales para que el AI interprete correctamente "hoy", "mañana",
+  // "el martes", etc. sin depender del knowledge cutoff del modelo.
   const now = new Date();
-  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
   const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
     'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-  let currentDateStr: string;
-  let currentTimeStr: string;
-  try {
-    const tzParts = Object.fromEntries(
-      new Intl.DateTimeFormat('es-MX', {
-        timeZone: 'America/Mexico_City', weekday: 'long', year: 'numeric',
-        month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
-      }).formatToParts(now).map(p => [p.type, p.value])
-    );
-    currentDateStr = `${cap(tzParts.weekday)}, ${tzParts.day} de ${tzParts.month} de ${tzParts.year}`;
-    currentTimeStr = `${tzParts.hour}:${tzParts.minute}`;
-  } catch {
-    // Fallback: UTC (server time) si el entorno no tiene datos ICU de la timezone
-    currentDateStr = `${dayNames[now.getDay()]}, ${now.getDate()} de ${monthNames[now.getMonth()]} de ${now.getFullYear()}`;
-    currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  }
+  const currentDateStr = `${dayNames[now.getDay()]}, ${now.getDate()} de ${monthNames[now.getMonth()]} de ${now.getFullYear()}`;
+  const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
   // ✅ NUEVO: Prompt estructurado y completo
   const systemPrompt = `Eres el asistente virtual de WhatsApp de ${context.organization_name}, un taller mecánico profesional.
