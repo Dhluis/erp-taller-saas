@@ -1,21 +1,28 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import { INVENTORY_CONSTANTS } from '@/lib/constants';
-import { InventoryUtils, DateUtils, CurrencyUtils } from '@/lib/utils/constants';
+import { useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import { 
   PencilIcon, 
   TrashIcon, 
   EyeIcon,
   PhoneIcon,
   EnvelopeIcon,
-  MapPinIcon 
+  MapPinIcon,
+  TruckIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import { usePermissions } from '@/hooks/usePermissions';
 import type { Customer } from '@/lib/database/queries/customers';
 
+/** Cliente con relaciones devueltas por la API de lista */
+export interface CustomerListItem extends Customer {
+  vehicles?: Array<{ id: string; brand?: string; model?: string; year?: number; license_plate?: string; color?: string }>;
+  last_work_order?: { id: string; order_number: string | null; status: string; created_at: string } | null;
+}
+
 interface CustomersTableProps {
-  customers: Customer[];
+  customers: CustomerListItem[];
   onEdit: (customer: Customer) => void;
   onDelete: (customer: Customer) => void;
   onView: (customer: Customer) => void;
@@ -42,8 +49,9 @@ export function CustomersTable({
       displayEmail: customer.email ? customer.email : 'Sin email',
       hasVehicles: customer.vehicles && customer.vehicles.length > 0,
       vehicleCount: customer.vehicles ? customer.vehicles.length : 0,
-      lastOrderDate: customer.last_order_date ? new Date(customer.last_order_date).toLocaleDateString() : 'Nunca',
-      totalSpent: customer.total_spent ? `$${customer.total_spent.toLocaleString()}` : '$0'
+      firstVehicle: customer.vehicles?.[0],
+      lastOrderDate: (customer as any).last_order_date ? new Date((customer as any).last_order_date).toLocaleDateString() : 'Nunca',
+      totalSpent: (customer as any).total_spent ? `$${Number((customer as any).total_spent).toLocaleString()}` : '$0'
     }));
   }, [customers]);
 
@@ -76,6 +84,12 @@ export function CustomersTable({
                 <th className="px-6 py-4 text-left text-sm font-semibold text-text-primary">
                   Ubicación
                 </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-text-primary">
+                  Vehículo
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-text-primary">
+                  Orden de ingreso
+                </th>
                 <th className="px-6 py-4 text-right text-sm font-semibold text-text-primary">
                   Acciones
                 </th>
@@ -84,6 +98,12 @@ export function CustomersTable({
             <tbody>
               {[1, 2, 3, 4, 5].map((i) => (
                 <tr key={i} className="border-b border-border">
+                  <td className="px-6 py-4">
+                    <div className="h-10 bg-bg-tertiary animate-pulse rounded"></div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="h-10 bg-bg-tertiary animate-pulse rounded"></div>
+                  </td>
                   <td className="px-6 py-4">
                     <div className="h-10 bg-bg-tertiary animate-pulse rounded"></div>
                   </td>
@@ -133,6 +153,12 @@ export function CustomersTable({
               </th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-text-primary">
                 Ubicación
+              </th>
+              <th className="px-6 py-4 text-left text-sm font-semibold text-text-primary">
+                Vehículo
+              </th>
+              <th className="px-6 py-4 text-left text-sm font-semibold text-text-primary">
+                Orden de ingreso
               </th>
               <th className="px-6 py-4 text-right text-sm font-semibold text-text-primary">
                 Acciones
@@ -201,6 +227,38 @@ export function CustomersTable({
                              <p className="text-text-muted">Sin dirección</p>
                            )}
                          </div>
+                       </div>
+                     </td>
+
+                     {/* Vehículo */}
+                     <td className="px-6 py-4">
+                       <div className="flex items-center space-x-2 text-sm">
+                         <TruckIcon className="w-4 h-4 text-text-secondary flex-shrink-0" />
+                         {customer.firstVehicle ? (
+                           <span className="text-text-primary truncate max-w-[180px]" title={`${customer.firstVehicle.brand ?? ''} ${customer.firstVehicle.model ?? ''} ${customer.firstVehicle.license_plate ?? ''}`.trim()}>
+                             {[customer.firstVehicle.brand, customer.firstVehicle.model].filter(Boolean).join(' ')}
+                             {customer.firstVehicle.license_plate ? ` · ${customer.firstVehicle.license_plate}` : ''}
+                           </span>
+                         ) : (
+                           <span className="text-text-muted">Sin vehículo</span>
+                         )}
+                       </div>
+                     </td>
+
+                     {/* Orden de ingreso */}
+                     <td className="px-6 py-4">
+                       <div className="flex items-center space-x-2 text-sm">
+                         <DocumentTextIcon className="w-4 h-4 text-text-secondary flex-shrink-0" />
+                         {customer.last_work_order ? (
+                           <Link
+                             href={`/ordenes/${customer.last_work_order.id}`}
+                             className="text-primary hover:text-primary-light transition-colors font-medium"
+                           >
+                             #{customer.last_work_order.order_number ?? 'Sin número'}
+                           </Link>
+                         ) : (
+                           <span className="text-text-muted">Sin orden</span>
+                         )}
                        </div>
                      </td>
 

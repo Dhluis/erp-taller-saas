@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { safeFetch, safePost, safePut, safeDelete } from '@/lib/api'
 import { useOrganization } from '@/lib/context/SessionContext'
 import type { Customer } from '@/lib/database/queries/customers'
+import type { CustomerListItem } from '@/components/customers'
 import type { PaginatedResponse, SearchParams } from '@/types/pagination'
 import { buildPaginationQueryString } from '@/lib/utils/pagination'
 
@@ -24,7 +25,7 @@ interface UseCustomersOptions extends Partial<SearchParams> {
 
 interface UseCustomersReturn {
   // Data
-  customers: Customer[]
+  customers: CustomerListItem[]
   loading: boolean
   error: string | null
   
@@ -79,7 +80,7 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
   // STATE
   // ==========================================
   
-  const [customers, setCustomers] = useState<Customer[]>([])
+  const [customers, setCustomers] = useState<CustomerListItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -163,7 +164,7 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
       }
 
       // Fetch
-      const result = await safeFetch<PaginatedResponse<Customer>>(url, { 
+      const result = await safeFetch<PaginatedResponse<CustomerListItem>>(url, { 
         timeout: 30000,
         headers: {
           'Cache-Control': 'no-cache'
@@ -174,14 +175,16 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
         throw new Error(result.error || 'Error al cargar clientes')
       }
 
-      // Extraer datos
-      const responseData = result.data.data || result.data
-      const items = responseData.items || []
-      const paginationData = responseData.pagination
+      // Extraer datos (PaginatedResponse tiene data: { items, pagination })
+      const inner = (result.data as PaginatedResponse<CustomerListItem>).data
+      const items = inner?.items ?? []
+      const paginationData = inner?.pagination
 
       // Actualizar state
       setCustomers(items)
-      setPagination(paginationData)
+      if (paginationData) {
+        setPagination(paginationData)
+      }
 
       // Guardar en cache
       if (enableCache) {

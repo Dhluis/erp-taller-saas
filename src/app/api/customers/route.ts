@@ -55,7 +55,8 @@ export async function GET(request: NextRequest) {
       .eq('auth_user_id', authUser.id)
       .single()
     
-    if (profileError || !userProfile || !userProfile.organization_id) {
+    type UserProfile = { organization_id: string }
+    if (profileError || !userProfile || !(userProfile as UserProfile).organization_id) {
       console.error('❌ [GET /api/customers] Error obteniendo perfil:', profileError)
       return NextResponse.json({ 
         success: false, 
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
       }, { status: 403 })
     }
     
-    const organizationId = userProfile.organization_id
+    const organizationId = (userProfile as UserProfile).organization_id
     console.log('✅ [GET /api/customers] Organization ID:', organizationId)
     
     // ✅ PASO 3: Extraer parámetros de URL
@@ -205,11 +206,41 @@ export async function GET(request: NextRequest) {
       customers = []
     }
     
+    // ✅ PASO 5b: Enriquecer con última orden de ingreso por cliente (solo si hay resultados)
+    let enrichedItems = customers as any[];
+    if (customers.length > 0) {
+      const customerIds = customers.map((c: any) => c.id);
+      const { data: workOrdersRaw } = await supabaseAdmin
+        .from('work_orders')
+        .select('id, customer_id, order_number, status, created_at')
+        .eq('organization_id', organizationId)
+        .in('customer_id', customerIds)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+      type WorkOrderRow = { id: string; customer_id: string; order_number: string | null; status: string; created_at: string };
+      const workOrders = (workOrdersRaw || []) as WorkOrderRow[];
+      const lastByCustomer: Record<string, { id: string; order_number: string | null; status: string; created_at: string }> = {};
+      for (const wo of workOrders) {
+        if (!lastByCustomer[wo.customer_id]) {
+          lastByCustomer[wo.customer_id] = {
+            id: wo.id,
+            order_number: wo.order_number ?? null,
+            status: wo.status,
+            created_at: wo.created_at
+          };
+        }
+      }
+      enrichedItems = customers.map((c: any) => ({
+        ...c,
+        last_work_order: lastByCustomer[c.id] ?? null
+      }));
+    }
+    
     // ✅ PASO 6: Generar metadata de paginación
     const pagination = generatePaginationMeta(page, pageSize, count || 0)
     
     console.log('✅ [GET /api/customers] Respuesta preparada:', {
-      itemsCount: customers.length,
+      itemsCount: enrichedItems.length,
       pagination
     })
     
@@ -217,7 +248,7 @@ export async function GET(request: NextRequest) {
     const response: PaginatedResponse<any> = {
       success: true,
       data: {
-        items: customers,
+        items: enrichedItems,
         pagination
       }
     }
@@ -259,14 +290,15 @@ export async function POST(request: NextRequest) {
       .eq('auth_user_id', authUser.id)
       .single()
     
-    if (profileError || !userProfile || !userProfile.organization_id) {
+    type UserProfile = { organization_id: string }
+    if (profileError || !userProfile || !(userProfile as UserProfile).organization_id) {
       return NextResponse.json({ 
         success: false, 
         error: 'No se pudo obtener el ID de la organización' 
       }, { status: 403 })
     }
     
-    const organizationId = userProfile.organization_id
+    const organizationId = (userProfile as UserProfile).organization_id
 
     // ✅ VERIFICAR LÍMITES ANTES DE CREAR
     const { checkResourceLimit } = await import('@/lib/billing/check-limits')
@@ -313,11 +345,16 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    console.log('✅ Cliente creado:', customer?.id)
+    const created = customer as { id: string } | null
+    if (!created) {
+      return NextResponse.json({ success: false, error: 'Error al crear cliente' }, { status: 500 })
+    }
+
+    console.log('✅ Cliente creado:', created.id)
 
     return NextResponse.json({
       success: true,
-      data: customer
+      data: customer!
     })
 
   } catch (error: any) {
