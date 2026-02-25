@@ -295,10 +295,9 @@
 - ✅ `GET /api/invoices/[id]/pdf`
 
 **Pendiente:**
-- ⏳ Integración con SAT (México)
-- ⏳ Timbre fiscal digital (CFDI)
 - ⏳ Envío automático por email
 - ⏳ Notas de crédito y débito
+- ℹ️ Facturación electrónica (SAT/CFDI) no está en el alcance actual
 
 ---
 
@@ -435,13 +434,7 @@
 
 ### Prioridad Alta 🔴
 
-1. **Integración SAT/CFDI (México)**
-   - Timbre fiscal digital
-   - Generación de XML
-   - Validación con SAT
-   - Cancelación de facturas
-
-2. **Sistema de Pagos**
+1. **Sistema de Pagos**
    - Integración con pasarelas de pago
    - Registro de pagos
    - Conciliación bancaria
@@ -579,7 +572,7 @@
 ### Q1 2025 (Enero - Marzo)
 - ✅ Completar módulo de WhatsApp
 - ✅ Fixes críticos de estabilidad
-- 🔄 Integración SAT/CFDI (en progreso)
+- ℹ️ Facturación electrónica (SAT/CFDI) fuera del alcance actual
 - ⏳ Sistema de pagos básico
 
 ### Q2 2025 (Abril - Junio)
@@ -631,11 +624,6 @@
 ---
 
 ## 🎯 PRÓXIMOS PASOS INMEDIATOS
-
-1. **Completar Integración SAT/CFDI**
-   - Investigación de requerimientos
-   - Implementación de timbre fiscal
-   - Testing exhaustivo
 
 2. **Sistema de Pagos**
    - Integración con Stripe/PayPal

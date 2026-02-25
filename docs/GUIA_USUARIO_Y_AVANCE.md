@@ -182,7 +182,7 @@ El resto son mejoras, pulido, integraciones opcionales y temas de calidad (prueb
 | **Alta** | **Pruebas automáticas:** Más pruebas (unitarias e integración) para no romper nada al cambiar código. |
 | **Alta** | **Documentación de la API:** Listado claro de todos los endpoints y cómo usarlos (para desarrolladores o integraciones). |
 | **Media** | **Citas / agenda:** La sección de citas existe; falta afinar que el flujo “agendar cita → crear orden” quede redondo y estable. |
-| **Media** | **Facturación fiscal:** Que la factura cumpla 100 % con el formato y reglas del SAT (CFDI) si se usa en México. |
+| **Media** | **Facturación electrónica (SAT/CFDI):** No está en el alcance actual del sistema. La facturación interna (registrar cobros, pagos, totales) sí está disponible. |
 | **Media** | **Impresión y PDF:** Reportes y comprobantes que se puedan imprimir o descargar en PDF de forma consistente. |
 | **Media** | **Estados de WhatsApp:** Algunos casos raros de conexión/desconexión del número; mejorar mensajes al usuario cuando falle. |
 | **Baja** | **Monitoreo y logs:** Herramientas para ver errores y uso en producción sin entrar a código. |

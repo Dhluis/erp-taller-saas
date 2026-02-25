@@ -223,8 +223,8 @@ export default function LandingPage() {
               },
               {
                 icon: Receipt,
-                title: "Facturación CFDI 4.0",
-                items: ["Timbrado automático", "Cumplimiento fiscal total", "Reportes financieros"],
+                title: "Facturación y Cobros",
+                items: ["Facturas y pagos internos", "Control de cobros", "Reportes financieros"],
               },
               {
                 icon: BarChart3,
@@ -384,7 +384,7 @@ export default function LandingPage() {
                   "Usuarios ilimitados",
                   "Órdenes ilimitadas",
                   "Inventario completo",
-                  "Facturación CFDI 4.0",
+                  "Facturación y cobros",
                   "Soporte prioritario 24/7",
                   "Reportes avanzados",
                   "App móvil",
@@ -571,8 +571,8 @@ export default function LandingPage() {
                   answer: "Eagles System requiere conexión a internet para funcionar. Sin embargo, la app móvil puede guardar datos temporalmente y sincronizarlos cuando recuperes la conexión.",
                 },
                 {
-                  question: "¿Incluye facturación electrónica?",
-                  answer: "Sí, el plan Profesional incluye facturación CFDI 4.0 totalmente integrada con timbrado automático. Cumple con todos los requisitos del SAT.",
+                  question: "¿Incluye facturación?",
+                  answer: "Sí, el sistema incluye facturación interna: creación de facturas, registro de pagos, control de cobros y estados (pagado, pendiente, vencido). La facturación electrónica ante el SAT (CFDI) no está en el alcance actual.",
                 },
               ].map((faq, index) => (
                 <Card key={index} className="bg-white rounded-lg px-6 border border-slate-200">
@@ -664,7 +664,7 @@ export default function LandingPage() {
             <div>
               <h4 className="text-white font-semibold mb-4">Legal</h4>
               <ul className="space-y-2">
-                {['Privacidad', 'Términos', 'CFDI'].map((link, index) => (
+                {['Privacidad', 'Términos'].map((link, index) => (
                   <li key={index}>
                     <a href="#" className="hover:text-cyan-400 transition-colors text-sm">
                       {link}
