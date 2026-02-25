@@ -46,6 +46,7 @@ export interface WorkOrder {
   total_amount: number | null
   created_at: string
   updated_at: string
+  assigned_to?: string | null
   customer?: {
     id: string
     name: string

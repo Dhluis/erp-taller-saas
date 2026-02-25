@@ -43,7 +43,7 @@ export function Sidebar({ className }: SidebarProps) {
     sections.forEach(section => {
       const sectionRoutes: Record<string, string[]> = {
         'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos', '/service-packages'],
-        'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/reportes'],
+        'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/cuentas-efectivo', '/ingresos/reportes'],
         'compras': ['/compras', '/compras/proveedores', '/compras/pagos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/inventario', '/reportes/financieros'],
         'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/mensajeria', '/mensajeria/email', '/mensajeria/whatsapp', '/perfil']
@@ -156,7 +156,8 @@ export function Sidebar({ className }: SidebarProps) {
       visible: showAllForAdmin || permissions.canRead('invoices') || permissions.canPayInvoices(),
       items: [
         { href: "/ingresos", label: "Facturación", icon: () => <ModernIcons.Facturacion size={18} />, visible: permissions.canRead('invoices') },
-        { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Cobros size={18} />, visible: permissions.canPayInvoices() }
+        { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Cobros size={18} />, visible: permissions.canPayInvoices() },
+        { href: "/ingresos/cuentas-efectivo", label: "Cuentas de efectivo", icon: () => <ModernIcons.Transfer size={18} />, visible: permissions.canPayInvoices() }
       ].filter(item => item.visible)
     },
     {
@@ -226,7 +227,8 @@ export function Sidebar({ className }: SidebarProps) {
       href: "/leads",
       label: "LEADS",
       icon: () => <ModernIcons.Conversaciones size={20} />,
-      variant: "secondary" as const
+      variant: "secondary" as const,
+      badge: undefined as string | number | undefined
     }
   ]
 
@@ -256,7 +258,7 @@ export function Sidebar({ className }: SidebarProps) {
     const isParentOfCollapsibleSection = collapsibleSections.some(section => {
       const sectionRoutes: Record<string, string[]> = {
         'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos', '/service-packages'],
-        'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/reportes'],
+        'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/cuentas-efectivo', '/ingresos/reportes'],
         'compras': ['/compras', '/compras/proveedores', '/compras/pagos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/inventario', '/reportes/financieros'],
         'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/mensajeria', '/mensajeria/email', '/mensajeria/whatsapp', '/perfil']

@@ -149,8 +149,8 @@ function OrdenesPageContent() {
 
     const assignedUserIds = [...new Set(
       workOrders
-        .map((order: any) => order.assigned_to)
-        .filter((id: string | null | undefined) => id)
+        .map((order) => order.assigned_to)
+        .filter((id): id is string => Boolean(id))
     )] as string[];
 
     if (assignedUserIds.length === 0) {
@@ -193,7 +193,7 @@ function OrdenesPageContent() {
     };
 
     loadUsers();
-  }, [workOrders]);
+  }, [workOrders, organizationId]);
 
   // ==========================================
   // HANDLERS
