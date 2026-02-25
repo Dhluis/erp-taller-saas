@@ -157,7 +157,7 @@ export function Sidebar({ className }: SidebarProps) {
       items: [
         { href: "/ingresos", label: "Facturación", icon: () => <ModernIcons.Facturacion size={18} />, visible: permissions.canRead('invoices') },
         { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Cobros size={18} />, visible: permissions.canPayInvoices() },
-        { href: "/ingresos/cuentas-efectivo", label: "Cuentas de efectivo", icon: () => <ModernIcons.Transfer size={18} />, visible: permissions.canPayInvoices() }
+        { href: "/ingresos/cuentas-efectivo", label: "Cuentas de efectivo", icon: () => <ModernIcons.Finanzas size={18} />, visible: permissions.canPayInvoices() }
       ].filter(item => item.visible)
     },
     {

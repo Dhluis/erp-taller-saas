@@ -50,7 +50,11 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching cash_accounts:', error)
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+      const code = (error as { code?: string })?.code
+      const message = code === '42P01' || (error && 'message' in error && String((error as { message?: string }).message || '').includes('does not exist'))
+        ? 'Tabla cash_accounts no existe. Ejecuta la migración 044_cash_accounts.sql en Supabase.'
+        : (error as { message?: string }).message ?? 'Error al cargar cuentas'
+      return NextResponse.json({ success: false, error: message }, { status: 500 })
     }
 
     const items = await Promise.all(
@@ -116,7 +120,11 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error creating cash_account:', error)
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+      const code = (error as { code?: string })?.code
+      const message = code === '42P01' || (error && 'message' in error && String((error as { message?: string }).message || '').includes('does not exist'))
+        ? 'Tabla cash_accounts no existe. Ejecuta la migración 044_cash_accounts.sql en Supabase.'
+        : (error as { message?: string }).message ?? 'Error al crear cuenta'
+      return NextResponse.json({ success: false, error: message }, { status: 500 })
     }
 
     const current_balance = await computeCurrentBalance(
