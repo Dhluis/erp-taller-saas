@@ -112,8 +112,6 @@ function OrdenesPageContent() {
     sortOrder: 'desc',
     autoLoad: true,
     enableCache: false,
-    // ✅ Primera carga ya con filtro de estado si viene por URL o hay uno seleccionado
-    filters: statusFilter !== 'all' ? { status: String(statusFilter) } : {},
   });
 
   // ==========================================
