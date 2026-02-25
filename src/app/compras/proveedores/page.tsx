@@ -374,12 +374,24 @@ export default function ProveedoresPage() {
                 ) : (
                   suppliers.map((supplier) => (
                   <tr key={supplier.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{supplier.id}</td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{supplier.name}</td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{supplier.contact_person}</td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" />{supplier.phone}</td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" />{supplier.email}</td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{getStatusBadge(supplier.is_active)}</td>
+                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 font-mono text-sm text-muted-foreground">{supplier.id}</td>
+                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 font-medium">{supplier.name}</td>
+                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{supplier.contact_person ?? '—'}</td>
+                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span>{supplier.phone ?? '—'}</span>
+                      </div>
+                    </td>
+                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <a href={`mailto:${supplier.email}`} className="text-primary hover:underline">{supplier.email ?? '—'}</a>
+                      </div>
+                    </td>
+                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+                      {getStatusBadge(supplier.is_active)}
+                    </td>
                   </tr>
                   ))
                 )}

@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useCallback } from 'react';
-import Link from 'next/link';
 import { 
   PencilIcon, 
   TrashIcon, 
@@ -10,7 +9,7 @@ import {
   EnvelopeIcon,
   MapPinIcon,
   TruckIcon,
-  DocumentTextIcon
+  WrenchScrewdriverIcon
 } from '@heroicons/react/24/outline';
 import { usePermissions } from '@/hooks/usePermissions';
 import type { Customer } from '@/lib/database/queries/customers';
@@ -26,6 +25,7 @@ interface CustomersTableProps {
   onEdit: (customer: Customer) => void;
   onDelete: (customer: Customer) => void;
   onView: (customer: Customer) => void;
+  onOpenOrderDetails?: (orderId: string) => void;
   loading?: boolean;
 }
 
@@ -34,6 +34,7 @@ export function CustomersTable({
   onEdit, 
   onDelete, 
   onView,
+  onOpenOrderDetails,
   loading = false 
 }: CustomersTableProps) {
   const permissions = usePermissions();
@@ -248,14 +249,18 @@ export function CustomersTable({
                      {/* Orden de ingreso */}
                      <td className="px-6 py-4">
                        <div className="flex items-center space-x-2 text-sm">
-                         <DocumentTextIcon className="w-4 h-4 text-text-secondary flex-shrink-0" />
                          {customer.last_work_order ? (
-                           <Link
-                             href={`/ordenes/${customer.last_work_order.id}`}
-                             className="text-primary hover:text-primary-light transition-colors font-medium"
-                           >
-                             #{customer.last_work_order.order_number ?? 'Sin número'}
-                           </Link>
+                           <>
+                             <WrenchScrewdriverIcon className="w-4 h-4 text-text-secondary flex-shrink-0" />
+                             <button
+                               type="button"
+                               onClick={() => onOpenOrderDetails?.(customer.last_work_order!.id)}
+                               className="text-primary hover:text-primary-light transition-colors font-medium hover:underline"
+                               title="Ver y editar orden de ingreso"
+                             >
+                               #{customer.last_work_order.order_number ?? 'Sin número'}
+                             </button>
+                           </>
                          ) : (
                            <span className="text-text-muted">Sin orden</span>
                          )}

@@ -13,7 +13,10 @@ import {
   DeleteCustomerModal, 
   CustomerDetailsModal 
 } from '@/components/customers';
+import { WorkOrderDetailsModal } from '@/components/work-orders/WorkOrderDetailsModal';
 import { useCustomers } from '@/hooks/useCustomers';
+import { useWorkOrders } from '@/hooks/useWorkOrders';
+import { useSession } from '@/lib/context/SessionContext';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useToast } from '@/hooks/useToast';
 import { ToastContainer } from '@/components/ui/ToastContainer';
@@ -42,6 +45,10 @@ export default function ClientesPage() {
   });
   
   const { toast, showToast, hideToast } = useToast();
+  const { profile } = useSession();
+
+  // Hook solo para obtener la orden por ID y abrir el modal de detalles (sin cargar lista de órdenes)
+  const { fetchWorkOrderById } = useWorkOrders({ autoLoad: false });
 
   // Estados locales
   const [searchTerm, setSearchTerm] = useState('');
@@ -49,6 +56,11 @@ export default function ClientesPage() {
   
   // ✅ Debounce para búsqueda
   const debouncedSearch = useDebouncedValue(searchTerm, 500);
+
+  // Modal de orden de ingreso (detalle/edición)
+  const [isOrderDetailModalOpen, setIsOrderDetailModalOpen] = useState(false);
+  const [selectedOrderForModal, setSelectedOrderForModal] = useState<any | null>(null);
+  const [loadingOrderForModal, setLoadingOrderForModal] = useState(false);
 
   // Estados de modales
   const [showCustomerForm, setShowCustomerForm] = useState(false);
@@ -101,6 +113,24 @@ export default function ClientesPage() {
   const handleDeleteCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
     setShowDeleteModal(true);
+  };
+
+  const handleOpenOrderDetails = async (orderId: string) => {
+    setLoadingOrderForModal(true);
+    try {
+      const order = await fetchWorkOrderById(orderId);
+      if (order) {
+        setSelectedOrderForModal(order);
+        setIsOrderDetailModalOpen(true);
+      } else {
+        showToast('No se pudo cargar la orden', 'error');
+      }
+    } catch (e) {
+      console.error('Error cargando orden:', e);
+      showToast('Error al cargar la orden', 'error');
+    } finally {
+      setLoadingOrderForModal(false);
+    }
   };
 
   const handleFormSubmit = async (formData: any) => {
@@ -186,6 +216,7 @@ export default function ClientesPage() {
           onEdit={handleEditCustomer}
           onDelete={handleDeleteCustomer}
           onView={handleViewCustomer}
+          onOpenOrderDetails={handleOpenOrderDetails}
           loading={loading}
         />
 
@@ -232,6 +263,26 @@ export default function ClientesPage() {
         customer={selectedCustomer}
         onClose={handleCloseModals}
         isOpen={showDetailsModal}
+      />
+
+      {/* Modal de detalle/edición de orden de ingreso (mismo que en Órdenes) */}
+      <WorkOrderDetailsModal
+        order={selectedOrderForModal}
+        open={isOrderDetailModalOpen}
+        onOpenChange={(open) => {
+          setIsOrderDetailModalOpen(open);
+          if (!open) setSelectedOrderForModal(null);
+        }}
+        userId={profile?.id}
+        onUpdate={async () => {
+          await refresh();
+          if (selectedOrderForModal?.id) {
+            try {
+              const updated = await fetchWorkOrderById(selectedOrderForModal.id);
+              if (updated) setSelectedOrderForModal(updated);
+            } catch (_) {}
+          }
+        }}
       />
 
       {/* Toast Notifications */}

@@ -173,8 +173,8 @@ export function Sidebar({ className }: SidebarProps) {
       badge: "New"
     },
     {
-      href: "/comercial",
-      label: "Comercial",
+      href: "/leads",
+      label: "LEADS",
       icon: MessageCircle,
       variant: "secondary" as const
     }
