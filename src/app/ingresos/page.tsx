@@ -17,7 +17,8 @@ import {
   ArrowRight,
   Calendar,
   Users,
-  Receipt
+  Receipt,
+  Wallet
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -51,6 +52,7 @@ export default function IngresosPage() {
     averageInvoiceValue: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [cashBalance, setCashBalance] = useState(0);
   const hasLoadedRef = useRef(false);
   
   // Si no tiene permisos, no renderizar nada
@@ -78,6 +80,21 @@ export default function IngresosPage() {
             averageInvoiceValue: d.averageInvoiceValue ?? 0,
           });
         }
+        if (permissions.canPayInvoices()) {
+          try {
+            const cashRes = await fetch('/api/cash-accounts', { credentials: 'include' });
+            const cashJson = await cashRes.json();
+            if (cashJson.success && cashJson.data?.items?.length) {
+              const total = cashJson.data.items.reduce((sum: number, acc: { current_balance?: number }) => sum + (Number(acc.current_balance) || 0), 0);
+              setCashBalance(total);
+            } else {
+              setCashBalance(0);
+            }
+          } catch (e) {
+            console.error('Error loading cash accounts:', e);
+            setCashBalance(0);
+          }
+        }
       } catch (e) {
         console.error('Error loading income stats:', e);
       } finally {
@@ -86,7 +103,7 @@ export default function IngresosPage() {
     };
 
     loadStats();
-  }, []);
+  }, [permissions.canPayInvoices]);
 
   const breadcrumbs = [
     { label: 'Ingresos', href: '/ingresos' },
@@ -196,6 +213,19 @@ export default function IngresosPage() {
               <p className="text-xs text-muted-foreground">Por factura</p>
             </CardContent>
           </Card>
+
+          {permissions.canPayInvoices() && (
+            <Card className="bg-bg-secondary border border-border rounded-lg shadow-md">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-text-primary">Saldo en cuentas de efectivo</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="text-2xl font-bold text-text-primary">${cashBalance.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Cajas y bancos</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Estado de facturas */}
@@ -281,6 +311,26 @@ export default function IngresosPage() {
             </CardContent>
           </Card>
 
+          {permissions.canPayInvoices() && (
+            <Card className="bg-bg-secondary border border-border rounded-lg shadow-md hover:shadow-lg transition-shadow">
+              <CardHeader className="p-6 border-b border-border">
+                <div className="flex items-center space-x-2">
+                  <Wallet className="h-5 w-5 text-cyan-600" />
+                  <h3 className="text-lg font-semibold text-text-primary">Cuentas de efectivo</h3>
+                </div>
+                <p className="text-sm text-text-secondary mt-1">Cajas y cuentas bancarias</p>
+              </CardHeader>
+              <CardContent className="p-6">
+                <Link href="/ingresos/cuentas-efectivo">
+                  <Button className="w-full text-white">
+                    Ver cuentas
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="bg-bg-secondary border border-border rounded-lg shadow-md hover:shadow-lg transition-shadow">
             <CardHeader className="p-6 border-b border-border">
               <div className="flex items-center space-x-2">
@@ -320,6 +370,14 @@ export default function IngresosPage() {
                   <span className="text-sm font-medium">Registrar Cobro</span>
                 </Button>
               </Link>
+              {permissions.canPayInvoices() && (
+                <Link href="/ingresos/cuentas-efectivo">
+                  <Button variant="ghost" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
+                    <Wallet className="h-6 w-6" />
+                    <span className="text-sm font-medium">Cuentas de efectivo</span>
+                  </Button>
+                </Link>
+              )}
               <Link href="/ingresos/reportes">
                 <Button variant="ghost" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
                   <BarChart3 className="h-6 w-6" />

@@ -17,7 +17,8 @@ import {
   TrendingDown, 
   BarChart3,
   Download,
-  Calendar
+  Calendar,
+  Wallet
 } from "lucide-react"
 import { getFinancialReport } from "@/lib/supabase/reports"
 import { useOrganization } from "@/lib/context/SessionContext"
@@ -90,6 +91,7 @@ export default function ReportesFinancierosPage() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState("this_month")
+  const [cashBalance, setCashBalance] = useState(0)
 
   useEffect(() => {
     if (!ready || !organizationId) {
@@ -108,7 +110,10 @@ export default function ReportesFinancierosPage() {
     setIsLoading(true)
     try {
       const { startDate, endDate } = getPeriodDates(selectedPeriod)
-      const data = await getFinancialReport(organizationId, startDate, endDate)
+      const [data, cashRes] = await Promise.all([
+        getFinancialReport(organizationId, startDate, endDate),
+        fetch('/api/cash-accounts', { credentials: 'include' }).then(r => r.json())
+      ])
       const profitMargin = data.totalRevenue > 0
         ? (data.netProfit / data.totalRevenue) * 100
         : 0
@@ -120,9 +125,16 @@ export default function ReportesFinancierosPage() {
         expenseGrowth: 0,
         profitMargin
       })
+      if (cashRes.success && cashRes.data?.items?.length) {
+        const total = cashRes.data.items.reduce((sum: number, acc: { current_balance?: number }) => sum + (Number(acc.current_balance) || 0), 0)
+        setCashBalance(total)
+      } else {
+        setCashBalance(0)
+      }
     } catch (error) {
       console.error('Error loading financial report:', error)
       setReport(prev => ({ ...prev, totalRevenue: 0, totalExpenses: 0, netProfit: 0, profitMargin: 0 }))
+      setCashBalance(0)
     } finally {
       setIsLoading(false)
     }
@@ -235,6 +247,17 @@ export default function ReportesFinancierosPage() {
             </p>
           </CardContent>
         </Card>
+
+        <Card className="bg-cyan-500/10 border-cyan-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-cyan-400">Saldo disponible</CardTitle>
+            <Wallet className="h-4 w-4 text-cyan-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-cyan-400">${(cashBalance || 0).toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Cuentas de efectivo (cajas y bancos)</p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -251,6 +274,10 @@ export default function ReportesFinancierosPage() {
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Cobros Pendientes</span>
                 <span className="font-medium">$0</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Saldo en cuentas de efectivo</span>
+                <span className="font-medium">${(cashBalance || 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Total Proyectado</span>

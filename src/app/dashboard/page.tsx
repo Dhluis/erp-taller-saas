@@ -35,7 +35,7 @@ import {
 
 export default function DashboardPage() {
   // Obtener datos de sesión - el layout maneja la redirección al onboarding
-  const { organizationId, isLoading: sessionLoading, isReady: sessionReady } = useOrganization();
+  const { organizationId, loading: sessionLoading, isReady: sessionReady } = useOrganization();
   const { user } = useSession();
   const permissions = usePermissions();
   const canViewFinancial = permissions.canViewFinancialReports();
@@ -70,6 +70,7 @@ export default function DashboardPage() {
   const [ingresos, setIngresos] = useState(0);
   const [clientesAtendidos, setClientesAtendidos] = useState(0);
   const [alertasInventario, setAlertasInventario] = useState(0);
+  const [efectivoEnCaja, setEfectivoEnCaja] = useState(0);
   const [incomeData, setIncomeData] = useState<Array<{ date: string; ingresos: number; ordenes: number }>>([]);
 
   // Función para cargar datos de órdenes por estado
@@ -215,6 +216,22 @@ export default function DashboardPage() {
         } catch (e) {
           console.error('Error cargando ingresos desde invoices:', e);
           setIngresos(0);
+        }
+      }
+      // ✅ CARD "Efectivo en caja": suma de saldos (quien puede cobros o ver reportes financieros)
+      if (canViewFinancial || permissions.canPayInvoices()) {
+        try {
+          const cashRes = await fetch('/api/cash-accounts', { credentials: 'include', cache: 'no-store' });
+          const cashJson = await cashRes.json();
+          if (cashJson.success && cashJson.data?.items?.length) {
+            const total = cashJson.data.items.reduce((sum: number, acc: { current_balance?: number }) => sum + (Number(acc.current_balance) || 0), 0);
+            setEfectivoEnCaja(total);
+          } else {
+            setEfectivoEnCaja(0);
+          }
+        } catch (e) {
+          console.error('Error cargando cuentas de efectivo:', e);
+          setEfectivoEnCaja(0);
         }
       }
 
@@ -412,7 +429,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error cargando ingresos:', error);
     }
-  }, [organizationId, dateRange, customDateRange, sessionLoading, sessionReady, canViewFinancial]);
+  }, [organizationId, dateRange, customDateRange, sessionLoading, sessionReady, canViewFinancial, permissions.canPayInvoices]);
 
   // Cargar ingresos cuando cambia el filtro
   useEffect(() => {
@@ -459,6 +476,7 @@ export default function DashboardPage() {
   // Datos dinámicos para mostrar el dashboard
   const stats = {
     ingresos: ingresos,
+    efectivoEnCaja: efectivoEnCaja,
     ordenesActivas: ordenesActivas,
     clientesAtendidos: clientesAtendidos,
     alertasInventario: alertasInventario,
@@ -520,6 +538,16 @@ export default function DashboardPage() {
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-green-400',
       bgColor: 'bg-green-500/10'
+    }] : []),
+    // ✅ Efectivo en caja (cuentas de efectivo)
+    ...(permissions.canPayInvoices() || permissions.canViewFinancialReports() ? [{
+      title: 'Efectivo en caja',
+      value: formatMoney(stats.efectivoEnCaja),
+      description: 'Saldo en cuentas de efectivo',
+      trend: '',
+      icon: () => <ModernIcons.Finanzas size={32} />,
+      color: 'text-cyan-400',
+      bgColor: 'bg-cyan-500/10'
     }] : []),
     {
       title: 'Órdenes Activas',
@@ -653,13 +681,6 @@ export default function DashboardPage() {
                     formatWeekdayName: (day) => {
                       const weekdays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
                       return weekdays[day.getDay()];
-                    },
-                    formatMonthName: (month) => {
-                      const months = [
-                        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-                      ];
-                      return months[month.getMonth()];
                     }
                   }}
                 />
