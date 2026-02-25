@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization, useSession } from '@/lib/context/SessionContext';
@@ -580,10 +581,19 @@ export function EditWorkOrderModal({ open, onOpenChange, order, onSuccess }: Edi
                         <Label className="text-slate-300">Procedimientos</Label>
                         <Textarea value={procedures} onChange={(e) => setProcedures(e.target.value)} rows={2} className="bg-slate-800 border-slate-600" />
                       </div>
-                      <div className="flex gap-4 flex-wrap">
-                        <label className="flex items-center gap-2"><input type="checkbox" checked={will_diagnose} onChange={(e) => setWill_diagnose(e.target.checked)} /> ¿Diagnóstico?</label>
-                        <label className="flex items-center gap-2"><input type="checkbox" checked={is_warranty} onChange={(e) => setIs_warranty(e.target.checked)} /> ¿Garantía?</label>
-                        <label className="flex items-center gap-2"><input type="checkbox" checked={authorize_test_drive} onChange={(e) => setAuthorize_test_drive(e.target.checked)} /> Prueba de ruta</label>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm text-slate-300">¿Diagnóstico? ({will_diagnose ? 'Sí' : 'No'})</span>
+                          <Switch checked={will_diagnose} onCheckedChange={setWill_diagnose} />
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm text-slate-300">¿Es Garantía? ({is_warranty ? 'Sí' : 'No'})</span>
+                          <Switch checked={is_warranty} onCheckedChange={setIs_warranty} />
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm text-slate-300">¿Autoriza prueba de ruta? ({authorize_test_drive ? 'Sí' : 'No'})</span>
+                          <Switch checked={authorize_test_drive} onCheckedChange={setAuthorize_test_drive} />
+                        </div>
                       </div>
                     </div>
                     <div className="space-y-3">
