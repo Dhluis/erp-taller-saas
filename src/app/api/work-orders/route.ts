@@ -105,8 +105,10 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const { searchParams } = url;
     const search = searchParams.get('search');
-    // ✅ FIX: Leer status desde filter_status (enviado por buildPaginationQueryString) o status directo
-    const status = searchParams.get('filter_status') || searchParams.get('status') || null;
+    // ✅ FIX: Leer status desde filter_status o status; normalizar (trim) para que el filtro siempre se aplique
+    const statusRaw = searchParams.get('filter_status') || searchParams.get('status') || null;
+    const status = statusRaw ? String(statusRaw).trim() || null : null;
+    const statusFilter = status && status !== 'all' ? status : null;
     const stats = searchParams.get('stats');
 
     // Si se solicitan estadísticas
@@ -132,7 +134,7 @@ export async function GET(request: NextRequest) {
       sortBy,
       sortOrder,
       search,
-      status
+      status: statusFilter
     });
 
     // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
@@ -237,42 +239,46 @@ export async function GET(request: NextRequest) {
         }
 
         // ✅ Búsqueda: número/folio, descripción, notas, nombre cliente, placa vehículo
+        // Aplicar filtro de búsqueda de forma segura; si .or() falla (p. ej. término "or"), usar solo descripción
         if (search && search.trim()) {
           const term = String(search).trim().replace(/'/g, "''");
           const pattern = `%${term}%`;
-          // PostgREST: valores en .or() con caracteres reservados (p. ej. "or", "%") deben ir entre comillas dobles para no parsearse mal
-          const escapedPattern = pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-          const quoted = `"${escapedPattern}"`;
           const orParts: string[] = [
-            `description.ilike.${quoted}`,
-            `notes.ilike.${quoted}`,
-            `order_number.ilike.${quoted}`,
+            `description.ilike."${pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`,
+            `notes.ilike."${pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`,
+            `order_number.ilike."${pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`,
           ];
-          const { data: customersMatch } = await supabaseAdmin
-            .from('customers')
-            .select('id')
-            .eq('organization_id', organizationId)
-            .ilike('name', pattern);
-          if (customersMatch?.length) {
-            orParts.push(`customer_id.in.(${customersMatch.map((c: any) => c.id).join(',')})`);
+          try {
+            const { data: customersMatch } = await supabaseAdmin
+              .from('customers')
+              .select('id')
+              .eq('organization_id', organizationId)
+              .ilike('name', pattern);
+            if (customersMatch?.length) {
+              orParts.push(`customer_id.in.(${customersMatch.map((c: any) => c.id).join(',')})`);
+            }
+            const { data: vehiclesMatch } = await supabaseAdmin
+              .from('vehicles')
+              .select('id')
+              .ilike('license_plate', pattern);
+            if (vehiclesMatch?.length) {
+              orParts.push(`vehicle_id.in.(${vehiclesMatch.map((v: any) => v.id).join(',')})`);
+            }
+            const orFilter = orParts.join(',');
+            query = query.or(orFilter);
+          } catch (searchErr) {
+            console.warn('[GET /api/work-orders] Búsqueda .or() falló, usando solo descripción:', searchErr);
+            query = query.ilike('description', pattern);
           }
-          const { data: vehiclesMatch } = await supabaseAdmin
-            .from('vehicles')
-            .select('id')
-            .ilike('license_plate', pattern);
-          if (vehiclesMatch?.length) {
-            orParts.push(`vehicle_id.in.(${vehiclesMatch.map((v: any) => v.id).join(',')})`);
-          }
-          query = query.or(orParts.join(','));
         }
 
-        if (status) {
+        if (statusFilter) {
           // Support multiple status separated by comma
-          if (status.includes(',')) {
-            const statusList = status.split(',').map(s => s.trim()).filter(Boolean);
+          if (statusFilter.includes(',')) {
+            const statusList = statusFilter.split(',').map(s => s.trim()).filter(Boolean);
             if (statusList.length) query = query.in('status', statusList);
           } else {
-            query = query.eq('status', status);
+            query = query.eq('status', statusFilter);
           }
         }
         

@@ -107,11 +107,13 @@ function OrdenesPageContent() {
     fetchWorkOrderById,
   } = useWorkOrders({
     page: 1,
-    pageSize: 10, // 10 para work orders (tienen más info)
+    pageSize: 10,
     sortBy: 'created_at',
     sortOrder: 'desc',
     autoLoad: true,
     enableCache: false,
+    // ✅ Primera carga ya con filtro de estado si viene por URL o hay uno seleccionado
+    filters: statusFilter !== 'all' ? { status: String(statusFilter) } : {},
   });
 
   // ==========================================
@@ -605,10 +607,14 @@ function OrdenesPageContent() {
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <FileText className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-              <p className="text-lg text-slate-300 mb-2">No se encontraron órdenes</p>
+              <p className="text-lg text-slate-300 mb-2">
+                {searchQuery || statusFilter !== 'all'
+                  ? 'No hay resultados con estos filtros'
+                  : 'No se encontraron órdenes'}
+              </p>
               <p className="text-sm text-slate-500">
                 {searchQuery || statusFilter !== 'all'
-                  ? 'Intenta ajustar los filtros'
+                  ? 'Prueba con otro término de búsqueda o quita el filtro de estado'
                   : 'Crea tu primera orden de trabajo'}
               </p>
               {!searchQuery && statusFilter === 'all' && permissions.canCreate('work_orders') && (
