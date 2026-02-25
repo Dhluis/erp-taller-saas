@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { useCustomers } from '@/hooks/useCustomers'
 import { useOrganization } from '@/lib/context/SessionContext'
 import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
@@ -986,49 +987,41 @@ export function WorkOrderGeneralForm({
           Motivo de Ingreso
         </h3>
 
-        {/* Toggles */}
-        <div className="grid grid-cols-3 gap-3">
-          <label className="flex items-center justify-between px-4 py-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors border border-slate-700">
-            <span className="text-sm text-slate-300">¿Diagnóstico?</span>
+        {/* Filas con toggle (formato Datos del Servicio) */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm text-slate-300">¿Diagnóstico? ({formData.will_diagnose ? 'Sí' : 'No'})</span>
             {isEditing ? (
-              <input
-                type="checkbox"
+              <Switch
                 checked={formData.will_diagnose}
-                onChange={(e) => setFormData({ ...formData, will_diagnose: e.target.checked })}
-                className="w-4 h-4 rounded"
+                onCheckedChange={(checked) => setFormData({ ...formData, will_diagnose: checked })}
               />
             ) : (
               <span className="text-sm text-muted-foreground">{formData.will_diagnose ? 'Sí' : 'No'}</span>
             )}
-          </label>
-
-          <label className="flex items-center justify-between px-4 py-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors border border-slate-700">
-            <span className="text-sm text-slate-300">¿Garantía?</span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm text-slate-300">¿Es Garantía? ({formData.is_warranty ? 'Sí' : 'No'})</span>
             {isEditing ? (
-              <input
-                type="checkbox"
+              <Switch
                 checked={formData.is_warranty}
-                onChange={(e) => setFormData({ ...formData, is_warranty: e.target.checked })}
-                className="w-4 h-4 rounded"
+                onCheckedChange={(checked) => setFormData({ ...formData, is_warranty: checked })}
               />
             ) : (
               <span className="text-sm text-muted-foreground">{formData.is_warranty ? 'Sí' : 'No'}</span>
             )}
-          </label>
-
-          <label className="flex items-center justify-between px-4 py-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors border border-slate-700">
-            <span className="text-sm text-slate-300">¿Prueba de ruta?</span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm text-slate-300">¿Autoriza prueba de ruta? ({formData.authorize_test_drive ? 'Sí' : 'No'})</span>
             {isEditing ? (
-              <input
-                type="checkbox"
+              <Switch
                 checked={formData.authorize_test_drive}
-                onChange={(e) => setFormData({ ...formData, authorize_test_drive: e.target.checked })}
-                className="w-4 h-4 rounded"
+                onCheckedChange={(checked) => setFormData({ ...formData, authorize_test_drive: checked })}
               />
             ) : (
               <span className="text-sm text-muted-foreground">{formData.authorize_test_drive ? 'Sí' : 'No'}</span>
             )}
-          </label>
+          </div>
         </div>
 
         {/* Motivo */}

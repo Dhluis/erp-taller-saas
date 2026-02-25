@@ -1,14 +1,14 @@
 # ERP Taller SaaS
 
-Sistema ERP para gestión de talleres mecánicos con integración de WhatsApp Business.
+Sistema ERP para gestión de talleres mecánicos con integración de WhatsApp Business vía **Twilio**.
 
 ## 🚀 Inicio Rápido
 
 ### Prerrequisitos
-- Node.js 18+ 
+- Node.js 18+
 - npm o yarn
 - Cuenta de Supabase
-- Servidor WAHA (opcional, para WhatsApp)
+- Cuenta de Twilio (para WhatsApp Business API, opcional)
 
 ### Instalación
 
@@ -35,13 +35,15 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
-# WhatsApp (Opcional)
-WAHA_API_URL=
-WAHA_API_KEY=
+# WhatsApp (Twilio) - Opcional
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
 
 # App
 NEXT_PUBLIC_APP_URL=
 ```
+
+**WhatsApp:** El envío y recepción de mensajes usa únicamente **Twilio WhatsApp Business API**. El número de WhatsApp por organización se configura en la tabla `organization_messaging_config` (campo `whatsapp_api_number` / número comprado en Twilio). No se usa otro proveedor para WhatsApp.
 
 ## 📚 Documentación
 
