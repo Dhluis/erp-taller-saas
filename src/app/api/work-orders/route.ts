@@ -119,8 +119,13 @@ export async function GET(request: NextRequest) {
     }
 
     // ✅ Extraer parámetros de paginación
-    const { page, pageSize, sortBy, sortOrder } = extractPaginationFromURL(url);
-    
+    const { page, pageSize: defaultPageSize, sortBy, sortOrder } = extractPaginationFromURL(url);
+    // Kanban necesita ver todas las órdenes para que los conteos coincidan con el dashboard; permitir hasta 1000 en este endpoint
+    const requestedPageSize = searchParams.get('pageSize');
+    const pageSize = requestedPageSize
+      ? Math.min(1000, Math.max(1, parseInt(requestedPageSize, 10) || defaultPageSize))
+      : defaultPageSize;
+
     console.log('📄 [GET /api/work-orders] Parámetros de paginación:', {
       page,
       pageSize,

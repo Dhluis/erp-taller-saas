@@ -162,7 +162,8 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
       }
       
       // ✅ Usar API route en lugar de query directa
-      const response = await fetch('/api/work-orders', {
+      // Pasar pageSize alto para Kanban: traer todas las órdenes del tablero y que los conteos coincidan con el dashboard
+      const response = await fetch('/api/work-orders?pageSize=500', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
