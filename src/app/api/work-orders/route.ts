@@ -237,15 +237,17 @@ export async function GET(request: NextRequest) {
         }
 
         // ✅ Búsqueda (filtro donde se escribe): descripción, notas, folio, cliente, placa
-        // Usar encodeURIComponent en el patrón para que términos como "or" o "," no rompan el .or() de PostgREST
         if (search && search.trim()) {
           const term = String(search).trim().replace(/'/g, "''");
           const pattern = `%${term}%`;
-          const encoded = encodeURIComponent(pattern);
+          // Para el string de .or() se eliminan comas y paréntesis que romperían la sintaxis de PostgREST.
+          // No usar encodeURIComponent aquí: codificaría % → %25 y el ilike perdería el wildcard.
+          const safeTerm = term.replace(/[,()]/g, '');
+          const orPattern = `%${safeTerm}%`;
           const orParts: string[] = [
-            `description.ilike.${encoded}`,
-            `notes.ilike.${encoded}`,
-            `order_number.ilike.${encoded}`,
+            `description.ilike.${orPattern}`,
+            `notes.ilike.${orPattern}`,
+            `order_number.ilike.${orPattern}`,
           ];
           const { data: customersMatch } = await supabaseAdmin
             .from('customers')
