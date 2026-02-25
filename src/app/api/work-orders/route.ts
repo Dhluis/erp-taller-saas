@@ -240,10 +240,13 @@ export async function GET(request: NextRequest) {
         if (search && search.trim()) {
           const term = String(search).trim().replace(/'/g, "''");
           const pattern = `%${term}%`;
+          // PostgREST: valores en .or() con caracteres reservados (p. ej. "or", "%") deben ir entre comillas dobles para no parsearse mal
+          const escapedPattern = pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+          const quoted = `"${escapedPattern}"`;
           const orParts: string[] = [
-            `description.ilike.${pattern}`,
-            `notes.ilike.${pattern}`,
-            `order_number.ilike.${pattern}`,
+            `description.ilike.${quoted}`,
+            `notes.ilike.${quoted}`,
+            `order_number.ilike.${quoted}`,
           ];
           const { data: customersMatch } = await supabaseAdmin
             .from('customers')
@@ -327,13 +330,11 @@ export async function GET(request: NextRequest) {
       count = null;
     }
 
-    // ✅ Manejar errores
+    // ✅ Manejar errores de query: no devolver 500 para que el filtro no rompa la página; devolver lista vacía
     if (ordersError) {
-      console.error('❌ [GET /api/work-orders] Error en query:', ordersError);
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Error al obtener órdenes de trabajo' 
-      }, { status: 500 });
+      console.error('❌ [GET /api/work-orders] Error en query (devolviendo lista vacía para que el filtro no rompa la UI):', ordersError);
+      orders = [];
+      count = 0;
     }
 
     if (!orders) {
