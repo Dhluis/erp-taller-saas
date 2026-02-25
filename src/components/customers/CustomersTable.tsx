@@ -248,23 +248,18 @@ export function CustomersTable({
 
                      {/* Orden de ingreso */}
                      <td className="px-6 py-4">
-                       <div className="flex items-center space-x-2 text-sm">
-                         {customer.last_work_order ? (
-                           <>
-                             <WrenchScrewdriverIcon className="w-4 h-4 text-text-secondary flex-shrink-0" />
-                             <button
-                               type="button"
-                               onClick={() => onOpenOrderDetails?.(customer.last_work_order!.id)}
-                               className="text-primary hover:text-primary-light transition-colors font-medium hover:underline"
-                               title="Ver y editar orden de ingreso"
-                             >
-                               #{customer.last_work_order.order_number ?? 'Sin número'}
-                             </button>
-                           </>
-                         ) : (
-                           <span className="text-text-muted">Sin orden</span>
-                         )}
-                       </div>
+                       {customer.last_work_order ? (
+                         <button
+                           type="button"
+                           onClick={() => onOpenOrderDetails?.(customer.last_work_order!.id)}
+                           className="p-2 rounded-lg hover:bg-bg-primary transition-colors text-primary hover:text-primary-light"
+                           title="Ver y editar orden de ingreso"
+                         >
+                           <WrenchScrewdriverIcon className="w-5 h-5" />
+                         </button>
+                       ) : (
+                         <span className="text-text-muted text-sm">—</span>
+                       )}
                      </td>
 
                 {/* Acciones */}
