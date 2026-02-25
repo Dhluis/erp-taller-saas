@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { Providers } from "@/components/providers/Providers"
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister"
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -53,6 +54,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <Providers>
+          <ServiceWorkerRegister />
           <div className="min-h-screen bg-bg-primary text-text-primary">
             {children}
           </div>

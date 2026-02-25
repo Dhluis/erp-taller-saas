@@ -83,6 +83,7 @@ export function WorkOrderDetailsTabs({
   onAssignMechanic
 }: WorkOrderDetailsTabsProps) {
   const { profile } = useSession()
+  const { organizationId } = useOrganization()
   const [images, setImages] = useState<WorkOrderImage[]>(order?.images || [])
   // ✅ VALIDAR NOTAS EN EL ESTADO INICIAL
   const [notes, setNotes] = useState<WorkOrderNote[]>(() => {
@@ -90,7 +91,8 @@ export function WorkOrderDetailsTabs({
   })
   const [documents, setDocuments] = useState<any[]>(order?.documents || [])
   const [lastNotesUpdate, setLastNotesUpdate] = useState<number>(0)
-  
+  const [sending, setSending] = useState(false)
+
   // ✅ Estado para modo de edición del tab General
   const [isEditingGeneral, setIsEditingGeneral] = useState(false)
 
@@ -167,7 +169,44 @@ export function WorkOrderDetailsTabs({
     console.log('✅ [WorkOrderDetailsTabs] Nota agregada sin refetch')
   }
 
+  const handleSendNotification = async () => {
+    if (!organizationId || !order?.id) return
+    setSending(true)
+    try {
+      const res = await fetch(`/api/work-orders/${order.id}/notify`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Notificación enviada', {
+          description: data.message,
+        })
+      } else {
+        toast.error('No se pudo enviar la notificación', {
+          description: data.errors?.join(', ') || data.error || 'Error desconocido',
+        })
+      }
+    } catch {
+      toast.error('Error al enviar notificación')
+    } finally {
+      setSending(false)
+    }
+  }
+
   return (
+    <>
+    <div className="flex justify-end mb-3">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleSendNotification}
+        disabled={sending}
+      >
+        {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+        Enviar al cliente
+      </Button>
+    </div>
     <Tabs defaultValue="general" className="w-full">
       <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-1 p-1">
         {/* Tab: General */}
@@ -316,5 +355,6 @@ export function WorkOrderDetailsTabs({
         <WorkOrderHistory orderId={order.id} />
       </TabsContent>
     </Tabs>
+    </>
   )
 }

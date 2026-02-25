@@ -9,6 +9,7 @@ import { hasPermission, canAccessWorkOrder, UserRole } from '@/lib/auth/permissi
 import { createClientFromRequest } from '@/lib/supabase/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { deductInventoryOnOrderComplete } from '@/lib/work-orders/deduct-inventory-on-complete';
+import { notifyOrderStatus } from '@/lib/orders/notifications';
 
 // GET: Obtener una orden por ID
 export async function GET(
@@ -539,6 +540,15 @@ export async function PUT(
               console.log(`✅ [API PUT /work-orders/[id]] ${historyEntries.length} entradas de historial registradas`);
             }
           });
+      }
+    }
+
+    // Fire-and-forget: notificar al cliente si el status cambió a un estado relevante
+    if (body.status && body.status !== prevOrder.status) {
+      const notifyStatuses = ['waiting_approval', 'waiting_parts', 'ready', 'completed']
+      if (notifyStatuses.includes(body.status)) {
+        notifyOrderStatus(organizationId, id, 'status_change', body.status)
+          .catch(err => console.error('[WorkOrder PUT] Notify error:', err))
       }
     }
 
