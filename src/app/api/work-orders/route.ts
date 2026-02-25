@@ -236,35 +236,65 @@ export async function GET(request: NextRequest) {
           query = query.eq('assigned_to', '00000000-0000-0000-0000-000000000000'); // ID imposible = 0 resultados
         }
 
-        // ✅ Búsqueda (filtro donde se escribe): descripción, notas, folio, cliente, placa
+        // ✅ Búsqueda: consultas .ilike() nativas por separado para evitar problemas
+        // de codificación de % en el string de .or() de PostgREST.
         if (search && search.trim()) {
-          const term = String(search).trim().replace(/'/g, "''");
-          const pattern = `%${term}%`;
-          // Para el string de .or() se eliminan comas y paréntesis que romperían la sintaxis de PostgREST.
-          // No usar encodeURIComponent aquí: codificaría % → %25 y el ilike perdería el wildcard.
-          const safeTerm = term.replace(/[,()]/g, '');
-          const orPattern = `%${safeTerm}%`;
-          const orParts: string[] = [
-            `description.ilike.${orPattern}`,
-            `notes.ilike.${orPattern}`,
-            `order_number.ilike.${orPattern}`,
-          ];
+          const pattern = `%${search.trim()}%`;
+          const matchingOrderIds = new Set<string>();
+
+          // 1. Por nombre de cliente
           const { data: customersMatch } = await supabaseAdmin
             .from('customers')
             .select('id')
             .eq('organization_id', organizationId)
             .ilike('name', pattern);
           if (customersMatch?.length) {
-            orParts.push(`customer_id.in.(${customersMatch.map((c: any) => c.id).join(',')})`);
+            const { data: byCustomer } = await supabaseAdmin
+              .from('work_orders')
+              .select('id')
+              .eq('organization_id', organizationId)
+              .in('customer_id', customersMatch.map((c: any) => c.id));
+            byCustomer?.forEach((o: any) => matchingOrderIds.add(o.id));
           }
+
+          // 2. Por placa de vehículo
           const { data: vehiclesMatch } = await supabaseAdmin
             .from('vehicles')
             .select('id')
             .ilike('license_plate', pattern);
           if (vehiclesMatch?.length) {
-            orParts.push(`vehicle_id.in.(${vehiclesMatch.map((v: any) => v.id).join(',')})`);
+            const { data: byVehicle } = await supabaseAdmin
+              .from('work_orders')
+              .select('id')
+              .eq('organization_id', organizationId)
+              .in('vehicle_id', vehiclesMatch.map((v: any) => v.id));
+            byVehicle?.forEach((o: any) => matchingOrderIds.add(o.id));
           }
-          query = query.or(orParts.join(','));
+
+          // 3. Por descripción
+          const { data: byDesc } = await supabaseAdmin
+            .from('work_orders')
+            .select('id')
+            .eq('organization_id', organizationId)
+            .ilike('description', pattern);
+          byDesc?.forEach((o: any) => matchingOrderIds.add(o.id));
+
+          // 4. Por número de orden
+          const { data: byOrderNum } = await supabaseAdmin
+            .from('work_orders')
+            .select('id')
+            .eq('organization_id', organizationId)
+            .ilike('order_number', pattern);
+          byOrderNum?.forEach((o: any) => matchingOrderIds.add(o.id));
+
+          // Filtrar la query principal por los IDs encontrados
+          const ids = Array.from(matchingOrderIds);
+          if (ids.length > 0) {
+            query = query.in('id', ids);
+          } else {
+            // Sin coincidencias → ID imposible para retornar lista vacía
+            query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+          }
         }
 
         if (status) {
