@@ -36,7 +36,7 @@ import {
   Home,
   ChevronRight
 } from "lucide-react"
-import { getCollections, getCollectionStats, createCollection, Collection, CreateCollectionData } from "@/lib/supabase/collections"
+import { getCollections, getCollectionStats, Collection } from "@/lib/supabase/collections"
 import { useErrorHandler } from "@/lib/utils/error-handler"
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 import { useSession } from '@/lib/context/SessionContext'
@@ -80,14 +80,31 @@ export default function CobrosPage() {
     reference_number: '',
     status: 'pending',
     notes: '',
-    currency
+    currency,
+    cash_account_id: ''
   })
+  const [cashAccounts, setCashAccounts] = useState<Array<{ id: string; name: string }>>([])
+  const [payModalOpen, setPayModalOpen] = useState(false)
+  const [collectionToPay, setCollectionToPay] = useState<Collection | null>(null)
+  const [payForm, setPayForm] = useState({ payment_method: 'transfer', cash_account_id: '' })
   
   // Usar el nuevo sistema de manejo de errores
   const { error, handleError, clearError } = useErrorHandler()
 
   useEffect(() => {
     loadData()
+  }, [organizationId])
+
+  useEffect(() => {
+    if (!organizationId) return
+    fetch('/api/cash-accounts', { credentials: 'include' })
+      .then(r => r.json())
+      .then(res => {
+        if (res?.success && res?.data?.items?.length) {
+          setCashAccounts(res.data.items.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name })))
+        }
+      })
+      .catch(() => {})
   }, [organizationId])
 
   const loadData = async () => {
@@ -135,14 +152,27 @@ export default function CobrosPage() {
       return
     }
     setIsSubmitting(true)
-    
     try {
-      const newCollection = await createCollection(organizationId, formData)
-      if (newCollection) {
-        // Recargar datos
+      const res = await fetch('/api/collections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          customer_id: formData.customer_id,
+          amount: formData.amount,
+          currency: formData.currency,
+          due_date: formData.due_date,
+          notes: formData.notes || undefined,
+          reference_number: formData.reference_number || undefined,
+          payment_method: formData.payment_method,
+          status: formData.status,
+          cash_account_id: formData.status === 'paid' && formData.cash_account_id ? formData.cash_account_id : undefined
+        })
+      })
+      const data = await res.json()
+      if (data?.success && data?.data) {
         await loadData()
         setIsDialogOpen(false)
-        // Resetear formulario
         setFormData({
           customer_id: '',
           invoice_id: '',
@@ -152,15 +182,47 @@ export default function CobrosPage() {
           reference_number: '',
           status: 'pending',
           notes: '',
-          currency
+          currency,
+          cash_account_id: ''
         })
-        alert('Cobro registrado exitosamente!')
+        alert('Cobro registrado exitosamente' + (formData.status === 'paid' && formData.cash_account_id ? '. Ingreso registrado en cuenta de efectivo.' : '!'))
       } else {
-        alert('Error al registrar el cobro')
+        alert(data?.error || 'Error al registrar el cobro')
       }
     } catch (error) {
       console.error('Error creating collection:', error)
       alert('Error al registrar el cobro')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleMarkAsPaid = async () => {
+    if (!collectionToPay) return
+    setIsSubmitting(true)
+    try {
+      const res = await fetch(`/api/collections/${collectionToPay.id}/pay`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          payment_method: payForm.payment_method,
+          cash_account_id: payForm.cash_account_id || undefined
+        })
+      })
+      const data = await res.json()
+      if (data?.success) {
+        await loadData()
+        setPayModalOpen(false)
+        setCollectionToPay(null)
+        setPayForm({ payment_method: 'transfer', cash_account_id: '' })
+        alert(payForm.cash_account_id ? 'Cobro marcado como pagado e ingreso registrado en cuenta de efectivo.' : 'Cobro marcado como pagado.')
+      } else {
+        alert(data?.error || 'Error al marcar como pagado')
+      }
+    } catch (error) {
+      console.error('Error marking as paid:', error)
+      alert('Error al marcar como pagado')
     } finally {
       setIsSubmitting(false)
     }
@@ -352,6 +414,28 @@ export default function CobrosPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {formData.status === 'paid' && cashAccounts.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-white">
+                        Cuenta de efectivo (opcional)
+                      </Label>
+                      <Select
+                        value={formData.cash_account_id || 'none'}
+                        onValueChange={(value) => setFormData({...formData, cash_account_id: value === 'none' ? '' : value})}
+                      >
+                        <SelectTrigger className="bg-slate-900 border-slate-700 text-white h-10">
+                          <SelectValue placeholder="No registrar en caja" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-700">
+                          <SelectItem value="none" className="text-white hover:bg-slate-800">No registrar en caja</SelectItem>
+                          {cashAccounts.map((acc) => (
+                            <SelectItem key={acc.id} value={acc.id} className="text-white hover:bg-slate-800">{acc.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-slate-400">Si eliges una cuenta, el ingreso se registrará en Cuentas de efectivo.</p>
+                    </div>
+                  )}
                   
                   <div className="space-y-2">
                     <Label htmlFor="notes" className="text-sm font-medium text-white">
@@ -386,6 +470,60 @@ export default function CobrosPage() {
                   </Button>
                 </DialogFooter>
               </form>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={payModalOpen} onOpenChange={setPayModalOpen}>
+            <DialogContent className="sm:max-w-[400px] bg-black border-slate-700">
+              <DialogHeader>
+                <DialogTitle className="text-white">Marcar cobro como pagado</DialogTitle>
+                <DialogDescription className="text-slate-400">
+                  {collectionToPay && `Monto: $${(collectionToPay.amount || 0).toLocaleString()}. Opcional: registra el ingreso en una cuenta de efectivo.`}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-white">Método de pago</Label>
+                  <Select
+                    value={payForm.payment_method}
+                    onValueChange={(v) => setPayForm({ ...payForm, payment_method: v })}
+                  >
+                    <SelectTrigger className="bg-slate-900 border-slate-700 text-white h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-900 border-slate-700">
+                      <SelectItem value="cash" className="text-white hover:bg-slate-800">Efectivo</SelectItem>
+                      <SelectItem value="transfer" className="text-white hover:bg-slate-800">Transferencia</SelectItem>
+                      <SelectItem value="card" className="text-white hover:bg-slate-800">Tarjeta</SelectItem>
+                      <SelectItem value="check" className="text-white hover:bg-slate-800">Cheque</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {cashAccounts.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-white">Cuenta de efectivo (opcional)</Label>
+                    <Select
+                      value={payForm.cash_account_id || 'none'}
+                      onValueChange={(v) => setPayForm({ ...payForm, cash_account_id: v === 'none' ? '' : v })}
+                    >
+                      <SelectTrigger className="bg-slate-900 border-slate-700 text-white h-10">
+                        <SelectValue placeholder="No registrar en caja" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-900 border-slate-700">
+                        <SelectItem value="none" className="text-white hover:bg-slate-800">No registrar en caja</SelectItem>
+                        {cashAccounts.map((acc) => (
+                          <SelectItem key={acc.id} value={acc.id} className="text-white hover:bg-slate-800">{acc.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              <DialogFooter className="gap-3 pt-4 border-t border-slate-700">
+                <Button type="button" variant="secondary" onClick={() => setPayModalOpen(false)} disabled={isSubmitting}>Cancelar</Button>
+                <Button type="button" onClick={handleMarkAsPaid} disabled={isSubmitting}>
+                  {isSubmitting ? 'Guardando...' : 'Marcar como pagado'}
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
@@ -459,6 +597,7 @@ export default function CobrosPage() {
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Referencia</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Estado</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Fecha</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Acciones</th>
                 </tr>
               </thead>
               <tbody className="[&_tr:last-child]:border-0">
@@ -471,6 +610,18 @@ export default function CobrosPage() {
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{collection.reference_number || '-'}</td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{getStatusBadge(collection.status)}</td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{new Date(collection.due_date).toLocaleDateString()}</td>
+                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+                      {collection.status === 'pending' && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setCollectionToPay(collection); setPayModalOpen(true); setPayForm({ payment_method: 'transfer', cash_account_id: '' }); }}
+                        >
+                          Marcar como pagado
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

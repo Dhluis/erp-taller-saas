@@ -94,7 +94,7 @@ export async function getFinancialReport(
       
       const totalRevenue = revenueData?.reduce((sum, invoice) => sum + (invoice.total_amount ?? invoice.total ?? 0), 0) || 0
       
-      // Obtener gastos - purchase_orders usa total y order_date
+      // Obtener gastos - purchase_orders (OC recibidas) + pagos a proveedores
       const { data: expensesData } = await client
         .from('purchase_orders')
         .select('total_amount, order_date')
@@ -103,7 +103,19 @@ export async function getFinancialReport(
         .gte('order_date', start)
         .lte('order_date', end)
       
-      const totalExpenses = expensesData?.reduce((sum, order) => sum + (order.total_amount ?? order.total ?? 0), 0) || 0
+      let totalExpenses = expensesData?.reduce((sum, order) => sum + (order.total_amount ?? order.total ?? 0), 0) || 0
+
+      const { data: supplierPaymentsData } = await client
+        .from('payments')
+        .select('amount, payment_date')
+        .eq('organization_id', organizationId)
+        .not('supplier_id', 'is', null)
+        .in('status', ['completed', 'paid'])
+        .gte('payment_date', start)
+        .lte('payment_date', end)
+      
+      const supplierPaymentsTotal = supplierPaymentsData?.reduce((sum, p) => sum + Number(p.amount || 0), 0) || 0
+      totalExpenses += supplierPaymentsTotal
       const netProfit = totalRevenue - totalExpenses
       
       // Ingresos por mes - usar paid_date y total

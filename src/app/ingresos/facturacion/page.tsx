@@ -582,6 +582,8 @@ function RegisterPaymentModal({
     () => new Date().toISOString().split('T')[0]
   );
   const [notes, setNotes] = useState('');
+  const [cashAccountId, setCashAccountId] = useState('');
+  const [cashAccounts, setCashAccounts] = useState<Array<{ id: string; name: string }>>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const invoiceTotal = invoice ? (invoice.total_amount ?? invoice.total ?? 0) : 0;
@@ -593,8 +595,23 @@ function RegisterPaymentModal({
       setPaymentDate(new Date().toISOString().split('T')[0]);
       setReference('');
       setNotes('');
+      setCashAccountId('');
     }
   }, [open, invoice, remaining]);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch('/api/cash-accounts', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.success && res?.data?.items?.length) {
+          setCashAccounts(res.data.items.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name })));
+        } else {
+          setCashAccounts([]);
+        }
+      })
+      .catch(() => setCashAccounts([]));
+  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -615,6 +632,7 @@ function RegisterPaymentModal({
           payment_date: paymentDate,
           reference: reference || undefined,
           notes: notes || undefined,
+          cash_account_id: cashAccountId || undefined,
         }),
       });
       const json = await res.json();
@@ -672,6 +690,27 @@ function RegisterPaymentModal({
               </SelectContent>
             </Select>
           </div>
+          {cashAccounts.length > 0 && (
+            <div>
+              <Label>Cuenta de efectivo (opcional)</Label>
+              <Select value={cashAccountId || 'none'} onValueChange={(v) => setCashAccountId(v === 'none' ? '' : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="No registrar en caja" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No registrar en caja</SelectItem>
+                  {cashAccounts.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Si eliges una cuenta, el ingreso se registrará en Cuentas de efectivo.
+              </p>
+            </div>
+          )}
           <div>
             <Label>Referencia (transferencia, últimos 4 tarjeta)</Label>
             <Input

@@ -71,7 +71,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { amount, payment_method, payment_date, reference, notes } = body;
+    const { amount, payment_method, payment_date, reference, notes, cash_account_id } = body;
 
     if (typeof amount !== 'number' || amount <= 0) {
       return NextResponse.json(
@@ -165,6 +165,32 @@ export async function POST(
         })
         .eq('id', invoiceId);
       invoiceStatus = 'paid';
+    }
+
+    if (cash_account_id && typeof cash_account_id === 'string') {
+      const { data: profile } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', tenantContext.userId)
+        .single();
+      const { data: account } = await supabase
+        .from('cash_accounts')
+        .select('id')
+        .eq('id', cash_account_id)
+        .eq('organization_id', tenantContext.organizationId)
+        .single();
+      if (account && profile && payment?.id) {
+        await supabase.from('cash_account_movements').insert({
+          cash_account_id,
+          organization_id: tenantContext.organizationId,
+          movement_type: 'deposit',
+          amount,
+          notes: `Pago factura ${invoiceId}`,
+          reference_type: 'invoice_payment',
+          reference_id: payment.id,
+          created_by: profile.id,
+        });
+      }
     }
 
     return NextResponse.json({

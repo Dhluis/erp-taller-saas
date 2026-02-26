@@ -71,6 +71,7 @@ export default function DashboardPage() {
   const [clientesAtendidos, setClientesAtendidos] = useState(0);
   const [alertasInventario, setAlertasInventario] = useState(0);
   const [efectivoEnCaja, setEfectivoEnCaja] = useState(0);
+  const [gastosMes, setGastosMes] = useState(0);
   const [incomeData, setIncomeData] = useState<Array<{ date: string; ingresos: number; ordenes: number }>>([]);
 
   // Función para cargar datos de órdenes por estado
@@ -232,6 +233,21 @@ export default function DashboardPage() {
         } catch (e) {
           console.error('Error cargando cuentas de efectivo:', e);
           setEfectivoEnCaja(0);
+        }
+      }
+      // ✅ CARD "Gastos del Mes": OC recibidas + pagos a proveedores (mismo criterio que Reportes Financieros)
+      if (canViewFinancial) {
+        try {
+          const expensesRes = await fetch('/api/expenses/stats', { credentials: 'include', cache: 'no-store' });
+          const expensesJson = await expensesRes.json();
+          if (expensesJson.success && expensesJson.data) {
+            setGastosMes(expensesJson.data.monthlyExpenses ?? 0);
+          } else {
+            setGastosMes(0);
+          }
+        } catch (e) {
+          console.error('Error cargando gastos:', e);
+          setGastosMes(0);
         }
       }
 
@@ -477,6 +493,7 @@ export default function DashboardPage() {
   const stats = {
     ingresos: ingresos,
     efectivoEnCaja: efectivoEnCaja,
+    gastosMes: gastosMes,
     ordenesActivas: ordenesActivas,
     clientesAtendidos: clientesAtendidos,
     alertasInventario: alertasInventario,
@@ -548,6 +565,16 @@ export default function DashboardPage() {
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-cyan-400',
       bgColor: 'bg-cyan-500/10'
+    }] : []),
+    // ✅ Gastos del mes (Compras: OC recibidas + pagos a proveedores)
+    ...(permissions.canViewFinancialReports() ? [{
+      title: 'Gastos del Mes',
+      value: formatMoney(stats.gastosMes),
+      description: 'Compras y pagos a proveedores',
+      trend: '',
+      icon: () => <ModernIcons.Finanzas size={32} />,
+      color: 'text-rose-400',
+      bgColor: 'bg-rose-500/10'
     }] : []),
     {
       title: 'Órdenes Activas',
