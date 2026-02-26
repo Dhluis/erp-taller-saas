@@ -1,24 +1,26 @@
 // src/components/whatsapp/LeadStatusBadge.tsx
 import React from 'react'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Sparkles, 
-  Phone, 
-  CheckCircle2, 
-  Calendar, 
-  UserCheck, 
-  XCircle 
+import {
+  Sparkles,
+  Phone,
+  CheckCircle2,
+  FileText,
+  TrendingUp,
+  Trophy,
+  XCircle
 } from 'lucide-react'
+import type { LeadStatus } from '@/types/base'
 
-export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'appointment' | 'converted' | 'lost'
+export type { LeadStatus }
 
 interface LeadStatusBadgeProps {
-  status: LeadStatus | undefined | null
+  status: LeadStatus | string | undefined | null
   showIcon?: boolean
   size?: 'sm' | 'md' | 'lg'
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   new: {
     label: 'Nuevo',
     color: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -34,15 +36,20 @@ const statusConfig = {
     color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     icon: CheckCircle2,
   },
-  appointment: {
-    label: 'Cita Agendada',
+  proposal: {
+    label: 'Propuesta',
     color: 'bg-orange-100 text-orange-800 border-orange-200',
-    icon: Calendar,
+    icon: FileText,
   },
-  converted: {
-    label: 'Convertido',
+  negotiation: {
+    label: 'Negociación',
+    color: 'bg-amber-100 text-amber-800 border-amber-200',
+    icon: TrendingUp,
+  },
+  won: {
+    label: 'Ganado',
     color: 'bg-green-100 text-green-800 border-green-200',
-    icon: UserCheck,
+    icon: Trophy,
   },
   lost: {
     label: 'Perdido',

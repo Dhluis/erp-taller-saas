@@ -183,20 +183,11 @@ export async function PATCH(
       )
     }
 
-    // Validar estados
-    const validStatuses = ['new', 'contacted', 'qualified', 'appointment', 'converted', 'lost']
+    // Validar estados (statuses canónicos)
+    const validStatuses = ['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost']
     if (status && !validStatuses.includes(status)) {
       return NextResponse.json(
         { error: `Estado inválido. Valores permitidos: ${validStatuses.join(', ')}` },
-        { status: 400 }
-      )
-    }
-
-    // No permitir cambiar a 'converted' desde aquí
-    // Debe usar el endpoint /convert
-    if (status === 'converted') {
-      return NextResponse.json(
-        { error: 'Para convertir un lead a cliente, usa el endpoint /api/leads/:id/convert' },
         { status: 400 }
       )
     }
@@ -303,10 +294,10 @@ export async function DELETE(
       )
     }
 
-    // No permitir eliminar leads convertidos
-    if (existingLead.status === 'converted') {
+    // No permitir eliminar leads ganados/convertidos
+    if (existingLead.status === 'won') {
       return NextResponse.json(
-        { error: 'No se puede eliminar un lead que ya fue convertido a cliente' },
+        { error: 'No se puede eliminar un lead ganado. Cámbialo a perdido primero.' },
         { status: 400 }
       )
     }

@@ -14,7 +14,8 @@ import {
   Plus,
   Search,
   LogOut,
-  CreditCard
+  CreditCard,
+  TrendingUp
 } from "lucide-react"
 import { useSidebar } from '@/contexts/SidebarContext'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -128,6 +129,13 @@ export function Sidebar({ className }: SidebarProps) {
       badge: null,
       // Admin siempre puede ver, otros según permisos
       visible: showAllForAdmin || permissions.canRead('quotations')
+    },
+    {
+      href: "/leads",
+      label: "CRM / Leads",
+      icon: () => <TrendingUp size={20} className="text-blue-400" />,
+      badge: null,
+      visible: showAllForAdmin || permissions.canRead('customers')
     }
     // WhatsApp movido al TopBar
   ].filter(item => item.visible)
@@ -220,17 +228,9 @@ export function Sidebar({ className }: SidebarProps) {
     }
   ]
 
-  // ✅ MECÁNICOS: No ven botones de acción adicionales
-  const actionButtons = isMechanic ? [] : [
-    // ✅ CITAS movido al TopBar
-    {
-      href: "/leads",
-      label: "LEADS",
-      icon: () => <ModernIcons.Conversaciones size={20} />,
-      variant: "secondary" as const,
-      badge: undefined as string | number | undefined
-    }
-  ]
+  // ✅ MECÁNICOS: No ven botones de acción adicionales (Leads movido a mainNavItems)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const actionButtons: any[] = []
 
   // ✅ OPTIMIZACIÓN: useCallback para memoizar función isActive
   const isActive = useCallback((href: string) => {
