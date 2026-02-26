@@ -87,22 +87,24 @@ export async function GET(request: NextRequest) {
     }
 
     // Calcular estadísticas
+    const wonCount = leads.filter(l => l.status === 'won' || l.status === 'converted').length
     const stats = {
       total: leads.length,
-      
-      // Por estado
+
+      // Por estado (canonical + legacy)
       byStatus: {
         new: leads.filter(l => l.status === 'new').length,
         contacted: leads.filter(l => l.status === 'contacted').length,
         qualified: leads.filter(l => l.status === 'qualified').length,
-        appointment: leads.filter(l => l.status === 'appointment').length,
-        converted: leads.filter(l => l.status === 'converted').length,
-        lost: leads.filter(l => l.status === 'lost').length
+        proposal: leads.filter(l => l.status === 'proposal' || l.status === 'appointment').length,
+        negotiation: leads.filter(l => l.status === 'negotiation').length,
+        won: wonCount,
+        lost: leads.filter(l => l.status === 'lost').length,
       },
-      
+
       // Tasas
-      conversionRate: leads.length > 0 
-        ? ((leads.filter(l => l.status === 'converted').length / leads.length) * 100).toFixed(2)
+      conversionRate: leads.length > 0
+        ? ((wonCount / leads.length) * 100).toFixed(2)
         : '0.00',
       
       lossRate: leads.length > 0
@@ -112,9 +114,9 @@ export async function GET(request: NextRequest) {
       // Valores
       totalValue: leads.reduce((sum, l) => sum + (parseFloat(l.estimated_value) || 0), 0),
       convertedValue: leads
-        .filter(l => l.status === 'converted')
+        .filter(l => l.status === 'converted' || l.status === 'won')
         .reduce((sum, l) => sum + (parseFloat(l.estimated_value) || 0), 0),
-      
+
       averageValue: leads.length > 0
         ? (leads.reduce((sum, l) => sum + (parseFloat(l.estimated_value) || 0), 0) / leads.length).toFixed(2)
         : '0.00',

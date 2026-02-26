@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-const ALLOWED_CONVERT_STATUSES = ['qualified', 'appointment'] as const
+const ALLOWED_CONVERT_STATUSES = ['qualified', 'proposal', 'negotiation', 'won', 'appointment'] as const
 
 /**
  * POST /api/leads/:id/convert
@@ -61,7 +61,7 @@ export async function POST(
     }
 
     // Lead ya convertido → 400
-    if (lead.status === 'converted') {
+    if (lead.customer_id) {
       return NextResponse.json(
         {
           error: 'Este lead ya fue convertido a cliente',
@@ -71,11 +71,11 @@ export async function POST(
       )
     }
 
-    // Solo qualified o appointment pueden convertirse
+    // Solo pueden convertirse leads en etapas avanzadas del pipeline
     if (!ALLOWED_CONVERT_STATUSES.includes(lead.status as typeof ALLOWED_CONVERT_STATUSES[number])) {
       return NextResponse.json(
         {
-          error: 'Solo se pueden convertir leads en estado "Calificado" o "Cita agendada"',
+          error: 'Solo se pueden convertir leads en estado Calificado, Propuesta, Negociación o Ganado',
           current_status: lead.status
         },
         { status: 400 }

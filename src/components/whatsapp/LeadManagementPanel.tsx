@@ -278,7 +278,7 @@ export function LeadManagementPanel({
   }
 
   // Si ya es un lead, mostrar panel de gestión
-  const canConvert = ['qualified', 'appointment'].includes(lead.status) && !lead.customer_id
+  const canConvert = ['qualified', 'proposal', 'negotiation', 'won'].includes(lead.status) && !lead.customer_id
 
   return (
     <>
@@ -341,7 +341,9 @@ export function LeadManagementPanel({
                   <SelectItem value="new" className="hover:bg-bg-tertiary dark:hover:bg-gray-700">Nuevo</SelectItem>
                   <SelectItem value="contacted" className="hover:bg-bg-tertiary dark:hover:bg-gray-700">Contactado</SelectItem>
                   <SelectItem value="qualified" className="hover:bg-bg-tertiary dark:hover:bg-gray-700">Calificado</SelectItem>
-                  <SelectItem value="appointment" className="hover:bg-bg-tertiary dark:hover:bg-gray-700">Cita Agendada</SelectItem>
+                  <SelectItem value="proposal" className="hover:bg-bg-tertiary dark:hover:bg-gray-700">Propuesta</SelectItem>
+                  <SelectItem value="negotiation" className="hover:bg-bg-tertiary dark:hover:bg-gray-700">Negociación</SelectItem>
+                  <SelectItem value="won" className="hover:bg-bg-tertiary dark:hover:bg-gray-700">Ganado</SelectItem>
                   <SelectItem value="lost" className="hover:bg-bg-tertiary dark:hover:bg-gray-700">Perdido</SelectItem>
                 </SelectContent>
               </Select>
@@ -374,7 +376,7 @@ export function LeadManagementPanel({
           <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-amber-800">
-              Califica el lead primero para poder convertirlo a cliente
+              Avanza el lead a Calificado, Propuesta o Negociación para poder convertirlo a cliente
             </p>
           </div>
         )}

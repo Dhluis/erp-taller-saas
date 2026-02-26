@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { QuickActions } from '@/components/dashboard/QuickActions';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
@@ -14,7 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganization, useSession } from '@/lib/context/SessionContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { getAlertasInventario } from '@/lib/database/queries/dashboard';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PlanUsage } from '@/components/billing/plan-usage';
 import { CurrencySelectorGlobal } from '@/components/currency/CurrencySelectorGlobal';
@@ -73,6 +74,16 @@ export default function DashboardPage() {
   const [efectivoEnCaja, setEfectivoEnCaja] = useState(0);
   const [gastosMes, setGastosMes] = useState(0);
   const [incomeData, setIncomeData] = useState<Array<{ date: string; ingresos: number; ordenes: number }>>([]);
+
+  const [crmStats, setCrmStats] = useState<{
+    total: number
+    active: number
+    won: number
+    lost: number
+    conversionRate: string
+    totalValue: number
+    byStatus: Record<string, number>
+  } | null>(null);
 
   // Función para cargar datos de órdenes por estado
   const loadOrdersByStatus = useCallback(async () => {
@@ -452,6 +463,36 @@ export default function DashboardPage() {
     loadIncomeAndCustomers();
   }, [loadIncomeAndCustomers]);
 
+  const loadCrmStats = useCallback(async () => {
+    if (!organizationId || sessionLoading || !sessionReady) return;
+    try {
+      const res = await fetch('/api/leads/stats', { credentials: 'include', cache: 'no-store' });
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json.success && json.data) {
+        const d = json.data;
+        const byStatus: Record<string, number> = d.byStatus ?? {};
+        const won = byStatus.won ?? 0;
+        const lost = byStatus.lost ?? 0;
+        setCrmStats({
+          total: d.total ?? 0,
+          active: (d.total ?? 0) - won - lost,
+          won,
+          lost,
+          conversionRate: d.conversionRate ?? '0.00',
+          totalValue: d.totalValue ?? 0,
+          byStatus,
+        });
+      }
+    } catch {
+      // silently ignore
+    }
+  }, [organizationId, sessionLoading, sessionReady]);
+
+  useEffect(() => {
+    loadCrmStats();
+  }, [loadCrmStats]);
+
   // Mostrar loading mientras carga la sesión (el layout maneja redirecciones)
   // ✅ IMPORTANTE: Este return debe estar DESPUÉS de todos los hooks para evitar React error #310
   if (sessionLoading || !sessionReady || !organizationId) {
@@ -757,6 +798,76 @@ export default function DashboardPage() {
             );
           })}
         </div>
+
+        {/* CRM Pipeline Widget */}
+        {!permissions.isMechanic && (
+          <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-base font-semibold text-white">Pipeline CRM</h3>
+                <p className="text-xs text-gray-400">Leads activos en el pipeline comercial</p>
+              </div>
+              <Link
+                href="/leads"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-blue-400 hover:text-blue-300 border border-blue-500/40 hover:border-blue-400 rounded-lg transition-colors"
+              >
+                Ver Pipeline <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+
+            {/* KPI mini chips */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              {[
+                { label: 'Total Leads', value: crmStats ? crmStats.total.toString() : '…', color: 'text-blue-400' },
+                { label: 'Activos', value: crmStats ? crmStats.active.toString() : '…', color: 'text-purple-400' },
+                { label: 'Valor Pipeline', value: crmStats ? formatMoney(crmStats.totalValue) : '…', color: 'text-cyan-400' },
+                { label: 'Conversión', value: crmStats ? `${crmStats.conversionRate}%` : '…', color: 'text-green-400' },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="bg-gray-700/50 rounded-lg p-3 text-center">
+                  <p className={`text-lg font-bold ${color}`}>{value}</p>
+                  <p className="text-xs text-gray-400">{label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Mini pipeline stage bars */}
+            {!crmStats && (
+              <div className="flex items-center justify-center py-3">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+              </div>
+            )}
+            {crmStats && crmStats.total === 0 && (
+              <p className="text-center text-gray-500 text-sm py-2">No hay leads registrados</p>
+            )}
+            {crmStats && crmStats.total > 0 && (
+              <div className="space-y-2">
+                {[
+                  { key: 'new', label: 'Nuevo', color: 'bg-slate-400' },
+                  { key: 'contacted', label: 'Contactado', color: 'bg-blue-500' },
+                  { key: 'qualified', label: 'Calificado', color: 'bg-purple-500' },
+                  { key: 'proposal', label: 'Propuesta', color: 'bg-orange-500' },
+                  { key: 'negotiation', label: 'Negociación', color: 'bg-yellow-500' },
+                  { key: 'won', label: 'Ganado', color: 'bg-green-500' },
+                  { key: 'lost', label: 'Perdido', color: 'bg-red-500' },
+                ]
+                  .filter((s) => (crmStats.byStatus[s.key] ?? 0) > 0)
+                  .map(({ key, label, color }) => {
+                    const count = crmStats.byStatus[key] ?? 0;
+                    const pct = Math.round((count / crmStats.total) * 100);
+                    return (
+                      <div key={key} className="flex items-center gap-2 text-xs">
+                        <span className="w-20 text-gray-400 shrink-0">{label}</span>
+                        <div className="flex-1 bg-gray-700 rounded-full h-1.5">
+                          <div className={`${color} h-1.5 rounded-full`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-gray-300 w-14 text-right">{count} ({pct}%)</span>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Gráficos y Acciones Rápidas */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
