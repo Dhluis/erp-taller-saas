@@ -135,7 +135,7 @@ export function Sidebar({ className }: SidebarProps) {
       label: "CRM / Leads",
       icon: () => <TrendingUp size={20} className="text-blue-400" />,
       badge: null,
-      visible: showAllForAdmin || permissions.canRead('customers')
+      visible: true
     }
     // WhatsApp movido al TopBar
   ].filter(item => item.visible)
