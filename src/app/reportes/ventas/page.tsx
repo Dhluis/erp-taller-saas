@@ -385,7 +385,9 @@ export default function ReportesVentasPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${(report.summary?.total_sales || 0).toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Total del período</p>
+            <p className="text-xs text-muted-foreground">
+              {report.summary?.total_invoices ? 'Total del período' : 'Sin facturas en el período. Crea facturas en Facturación.'}
+            </p>
           </CardContent>
         </Card>
 
@@ -433,19 +435,25 @@ export default function ReportesVentasPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {(report.top_services || []).map((service, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium text-primary">{index + 1}</span>
-                    </div>
-                    <div>
-                      <p className="font-medium">{service.name}</p>
-                      <p className="text-sm text-muted-foreground">{service.quantity ?? 0} unidades</p>
+              {(report.top_services || []).length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4">
+                  No hay servicios (paquetes o servicios libres) en órdenes de trabajo en este período. Los servicios se registran al agregar líneas a las órdenes.
+                </p>
+              ) : (
+                (report.top_services || []).map((service, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium text-primary">{index + 1}</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">{service.name}</p>
+                        <p className="text-sm text-muted-foreground">{service.quantity ?? 0} unidades</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
