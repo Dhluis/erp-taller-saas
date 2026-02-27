@@ -1,13 +1,12 @@
 'use client'
 
-import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { Bars3Icon } from '@heroicons/react/24/outline'
 import ModernIcons from '@/components/icons/ModernIcons'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { LogoWithText } from '@/components/ui/Logo'
 import { NotificationBell } from '@/components/layout/NotificationBell'
-import { GlobalSearch } from '@/components/search/GlobalSearch'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useUserProfile } from '@/hooks/use-user-profile'
@@ -56,7 +55,6 @@ interface TopBarProps {
 }
 
 export function TopBar({ onMenuClick, title }: TopBarProps) {
-  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
@@ -85,18 +83,6 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
   const userName = profile?.full_name || 'Usuario'
   const userEmail = profile?.email || 'Cargando...'
   const userInitials = profile ? getInitials(profile.full_name) : 'U'
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setIsGlobalSearchOpen(true)
-      }
-    }
-    
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
 
   const handleSignOut = async () => {
     try {
@@ -196,7 +182,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
           {isMechanic ? (
             <Link href="/ordenes/kanban">
               <Button
-                variant={isOrdenesActive ? "default" : "outline"}
+                variant={isOrdenesActive ? "primary" : "outline"}
                 className={cn(
                   "transition-all duration-200 gap-2",
                   "min-h-[44px] min-w-[44px] md:min-w-auto", // ✅ Mobile-first: botones táctiles grandes
@@ -214,7 +200,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
               {/* Botones de navegación - movidos desde sidebar */}
               <Link href="/citas">
                 <Button
-                  variant={isCitasActive ? "default" : "outline"}
+                  variant={isCitasActive ? "primary" : "outline"}
                   className={cn(
                     "transition-all duration-200 gap-2",
                     isCitasActive 
@@ -229,7 +215,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
               
               <Link href="/clientes">
                 <Button
-                  variant={isClientesActive ? "default" : "outline"}
+                  variant={isClientesActive ? "primary" : "outline"}
                   className={cn(
                     "transition-all duration-200 gap-2",
                     isClientesActive 
@@ -244,7 +230,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
               
               <Link href="/ordenes">
                 <Button
-                  variant={isOrdenesActive ? "default" : "outline"}
+                  variant={isOrdenesActive ? "primary" : "outline"}
                   className={cn(
                     "transition-all duration-200 gap-2",
                     isOrdenesActive 
@@ -259,7 +245,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
               
               <Link href="/reportes">
                 <Button
-                  variant={isReportesActive ? "default" : "outline"}
+                  variant={isReportesActive ? "primary" : "outline"}
                   className={cn(
                     "transition-all duration-200 gap-2",
                     isReportesActive 
@@ -274,7 +260,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
               
               <Link href="/dashboard/whatsapp">
                 <Button
-                  variant={isWhatsAppActive ? "default" : "outline"}
+                  variant={isWhatsAppActive ? "primary" : "outline"}
                   className={cn(
                     "transition-all duration-200 gap-2",
                     isWhatsAppActive 
@@ -291,28 +277,6 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
         </div>
 
         <div className="flex items-center space-x-4">
-          {/* Global Search - Ahora funcional */}
-          <button
-            onClick={() => setIsGlobalSearchOpen(true)}
-            className="hidden md:flex items-center space-x-2 px-4 py-2 bg-bg-tertiary border border-border rounded-lg hover:bg-bg-tertiary/70 transition-colors cursor-pointer group"
-          >
-            <MagnifyingGlassIcon className="w-5 h-5 text-text-secondary group-hover:text-text-primary" />
-            <span className="text-sm text-text-muted group-hover:text-text-secondary">
-              Buscar...
-            </span>
-            <kbd className="hidden lg:inline-block px-2 py-1 text-xs font-semibold text-text-muted bg-bg-primary border border-border rounded">
-              Ctrl+K
-            </kbd>
-          </button>
-
-          {/* Mobile Search Button */}
-          <button
-            onClick={() => setIsGlobalSearchOpen(true)}
-            className="md:hidden p-2 hover:bg-bg-tertiary rounded-lg transition-colors"
-          >
-            <MagnifyingGlassIcon className="w-6 h-6 text-text-secondary" />
-          </button>
-          
           {/* Notifications */}
           <div>
             <NotificationBell />
@@ -445,12 +409,6 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
           </div>
         </div>
       </header>
-
-      {/* Global Search Modal */}
-      <GlobalSearch
-        open={isGlobalSearchOpen}
-        onOpenChange={setIsGlobalSearchOpen}
-      />
 
       {/* Password Change Dialog */}
       <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>

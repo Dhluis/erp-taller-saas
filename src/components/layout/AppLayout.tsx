@@ -1,10 +1,11 @@
 'use client'
 
-import { ReactNode, useState, useEffect } from 'react'
+import { ReactNode, useState } from 'react'
 import { useTheme } from '@/hooks/useTheme'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { Breadcrumb } from './Breadcrumb'
+import { FloatingAgentButton } from '@/components/agent/FloatingAgentButton'
 import { useSidebar } from '@/contexts/SidebarContext'
 import { cn } from '@/lib/utils'
 
@@ -55,6 +56,7 @@ export function AppLayout({ children, title, breadcrumbs }: AppLayoutProps) {
             </div>
           </main>
         </div>
+        <FloatingAgentButton />
       </div>
     </div>
   )

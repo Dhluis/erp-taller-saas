@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  Search, 
   Bell, 
   Settings, 
   User, 
@@ -13,7 +12,6 @@ import {
   Menu
 } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
-import { GlobalSearch } from '@/components/search/GlobalSearch'
 import { useUserProfile } from '@/hooks/use-user-profile'
 import { useSession } from '@/lib/context/SessionContext'
 
@@ -25,7 +23,6 @@ interface HeaderProps {
 export function Header({ title, onMenuClick }: HeaderProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
-  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
   const { colors } = useTheme()
   const { profile, getInitials } = useUserProfile()
   const { signOut } = useSession()
@@ -67,19 +64,6 @@ export function Header({ title, onMenuClick }: HeaderProps) {
 
   const unreadCount = notifications.length
 
-  // Atajos de teclado para abrir búsqueda global
-  useState(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setIsGlobalSearchOpen(true)
-      }
-    }
-    
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  })
-
   return (
     <>
       <header className="sticky top-0 z-30 bg-bg-secondary/80 backdrop-blur-md border-b border-border">
@@ -97,25 +81,6 @@ export function Header({ title, onMenuClick }: HeaderProps) {
             <h1 className="text-xl font-semibold text-text-primary">
               {title || 'Dashboard'}
             </h1>
-          </div>
-
-          {/* Center - Search (ahora funcional) */}
-          <div className="flex-1 max-w-md mx-8">
-            <button
-              onClick={() => setIsGlobalSearchOpen(true)}
-              className="w-full"
-            >
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-muted" />
-                <input
-                  type="text"
-                  placeholder="Buscar órdenes, clientes, productos... (Ctrl+K)"
-                  readOnly
-                  className="w-full pl-10 pr-4 py-2 bg-bg-tertiary border border-border rounded-md text-text-primary placeholder-text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer hover:bg-bg-tertiary/70 transition-colors"
-                  onClick={() => setIsGlobalSearchOpen(true)}
-                />
-              </div>
-            </button>
           </div>
 
           {/* Right side */}
@@ -234,12 +199,6 @@ export function Header({ title, onMenuClick }: HeaderProps) {
           </div>
         </div>
       </header>
-
-      {/* Global Search Modal */}
-      <GlobalSearch 
-        open={isGlobalSearchOpen} 
-        onOpenChange={setIsGlobalSearchOpen}
-      />
     </>
   )
 }
