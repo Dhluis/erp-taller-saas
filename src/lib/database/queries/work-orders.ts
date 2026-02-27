@@ -33,7 +33,8 @@ export type WorkOrderStatus =
   | 'in_repair'
   | 'waiting_parts'
   | 'completed'
-  | 'delivered';
+  | 'delivered'
+  | 'archived';
 
 export interface OrderItem {
   id: string;
@@ -789,7 +790,7 @@ export async function getWorkOrderStats() {
     approved: orders.filter((o) => o.status === 'approved').length,
     in_repair: orders.filter((o) => o.status === 'in_repair').length,
     waiting_parts: orders.filter((o) => o.status === 'waiting_parts').length,
-    completed: orders.filter((o) => o.status === 'completed').length,
+    completed: orders.filter((o) => o.status === 'completed' || o.status === 'archived').length,
     delivered: orders.filter((o) => o.status === 'delivered').length,
     total_revenue: orders.reduce((sum, o) => sum + (o.total_amount || 0), 0),
   };

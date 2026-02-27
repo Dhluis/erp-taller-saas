@@ -11,6 +11,46 @@ export interface EmailOptions {
 }
 
 /**
+ * Envía un email por SendGrid usando solo variables de entorno (sin config por organización).
+ * Útil para cotizaciones, invitaciones y cualquier envío que no dependa de organization_messaging_config.
+ * Requiere: SENDGRID_API_KEY, SMTP_FROM_EMAIL (opcional SMTP_FROM_NAME).
+ */
+export async function sendEmailSendGridGlobal(options: EmailOptions): Promise<boolean> {
+  const apiKey = process.env.SENDGRID_API_KEY?.trim();
+  if (!apiKey) {
+    console.warn('[SendGrid] SENDGRID_API_KEY no configurada.');
+    return false;
+  }
+
+  const fromEmail = process.env.SMTP_FROM_EMAIL?.trim() || 'noreply@eaglessystem.io';
+  const fromName = options.fromName || process.env.SMTP_FROM_NAME?.trim() || 'Eagles System';
+
+  try {
+    configureSendGrid();
+
+    const msg = {
+      to: options.to,
+      from: { email: fromEmail, name: fromName },
+      replyTo: options.replyTo || undefined,
+      subject: options.subject,
+      html: options.html,
+      text: options.text || options.html.replace(/<[^>]*>/g, ''),
+    };
+
+    await (sgMail as any).send(msg);
+
+    console.log('✅ [SendGrid] Email sent (global):', { to: options.to, subject: options.subject });
+    return true;
+  } catch (error: any) {
+    console.error('❌ [SendGrid] Error sending email:', error);
+    if (error.response) {
+      console.error('[SendGrid] Response:', error.response.body);
+    }
+    return false;
+  }
+}
+
+/**
  * Enviar email usando SendGrid (Twilio)
  * Compatible con templates existentes
  */
@@ -47,16 +87,7 @@ export async function sendEmailViaSendGrid(
       text: options.text || options.html.replace(/<[^>]*>/g, ''),
     };
 
-    // 4. Enviar
-    // @sendgrid/mail puede exportar como default o named export
-    if (sgMail.default && typeof sgMail.default.send === 'function') {
-      await sgMail.default.send(msg);
-    } else if (typeof sgMail.send === 'function') {
-      await sgMail.send(msg);
-    } else {
-      // Fallback: intentar acceder directamente
-      await (sgMail as any).send(msg);
-    }
+    await (sgMail as any).send(msg);
 
     console.log('✅ [SendGrid] Email sent:', {
       to: options.to,

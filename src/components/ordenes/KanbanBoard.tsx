@@ -104,6 +104,13 @@ const KANBAN_COLUMNS: Omit<KanbanColumnType, 'orders'>[] = [
     bgColor: 'bg-emerald-500/10',
     borderColor: 'border-emerald-500/30',
   },
+  {
+    id: 'archived',
+    title: 'Archivadas',
+    color: 'text-slate-400',
+    bgColor: 'bg-slate-700/20',
+    borderColor: 'border-slate-600/40',
+  },
 ];
 
 export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCreateOrder, canCreate = true }: KanbanBoardProps) {
@@ -402,7 +409,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
     console.log('🔄 [handleDragEnd] typeof newStatus:', typeof newStatus);
 
     // Validar que over.id sea un status válido (no un UUID de otra orden)
-    const validStatuses = ['reception', 'diagnosis', 'initial_quote', 'waiting_approval', 'disassembly', 'waiting_parts', 'assembly', 'testing', 'ready', 'completed'];
+    const validStatuses = ['reception', 'diagnosis', 'initial_quote', 'waiting_approval', 'disassembly', 'waiting_parts', 'assembly', 'testing', 'ready', 'completed', 'archived'];
     if (!validStatuses.includes(newStatus)) {
       console.warn('⚠️ [handleDragEnd] over.id no es un status válido, ignorando drop');
       return;
@@ -592,7 +599,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <Button
           size="sm"
-          variant={dateFilter === 'all' ? 'default' : 'outline'}
+          variant={dateFilter === 'all' ? 'primary' : 'outline'}
           onClick={() => {
             setDateFilter('all');
             setCustomDateRange({ from: undefined, to: undefined });
@@ -603,7 +610,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
 
         <Button
           size="sm"
-          variant={dateFilter === '7days' ? 'default' : 'outline'}
+          variant={dateFilter === '7days' ? 'primary' : 'outline'}
           onClick={() => setDateFilter('7days')}
         >
           Últimos 7 días
@@ -611,7 +618,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
 
         <Button
           size="sm"
-          variant={dateFilter === '30days' ? 'default' : 'outline'}
+          variant={dateFilter === '30days' ? 'primary' : 'outline'}
           onClick={() => setDateFilter('30days')}
         >
           Últimos 30 días
@@ -619,7 +626,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
 
         <Button
           size="sm"
-          variant={dateFilter === 'month' ? 'default' : 'outline'}
+          variant={dateFilter === 'month' ? 'primary' : 'outline'}
           onClick={() => setDateFilter('month')}
         >
           Este mes
@@ -630,7 +637,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
           <PopoverTrigger asChild>
             <Button
               size="sm"
-              variant={dateFilter === 'custom' ? 'default' : 'outline'}
+              variant={dateFilter === 'custom' ? 'primary' : 'outline'}
               className="justify-start text-left font-normal"
             >
               <CalendarIcon className="mr-2 h-4 w-4" />

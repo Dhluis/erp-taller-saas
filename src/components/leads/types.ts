@@ -20,6 +20,12 @@ export interface CRMLead {
   lost_reason?: string | null
   customer_id?: string | null
   whatsapp_conversation_id?: string | null
+  // Vehicle info
+  vehicle_brand?: string | null
+  vehicle_model?: string | null
+  vehicle_year?: number | null
+  vehicle_plate?: string | null
+  fault_description?: string | null
   created_at: string
   updated_at?: string | null
   // Joined relations from API

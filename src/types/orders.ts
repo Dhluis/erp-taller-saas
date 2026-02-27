@@ -11,7 +11,8 @@ export type OrderStatus =
   | 'completed'
   | 'cancelled'
   | 'pending'
-  | 'in_progress';
+  | 'in_progress'
+  | 'archived';
 
 export interface WorkOrder {
   id: string;

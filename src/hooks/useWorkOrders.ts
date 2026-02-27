@@ -32,7 +32,7 @@ export interface WorkOrder {
   organization_id: string
   customer_id: string
   vehicle_id: string
-  status: 'reception' | 'diagnosis' | 'initial_quote' | 'waiting_approval' | 'disassembly' | 'waiting_parts' | 'assembly' | 'testing' | 'ready' | 'completed' | 'cancelled'
+  status: 'reception' | 'diagnosis' | 'initial_quote' | 'waiting_approval' | 'disassembly' | 'waiting_parts' | 'assembly' | 'testing' | 'ready' | 'completed' | 'cancelled' | 'archived'
   description: string | null
   estimated_cost: number | null
   final_cost: number | null

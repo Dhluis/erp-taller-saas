@@ -1,19 +1,15 @@
 import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns'
 
 function getSupabaseClient() {
-  const cookieStore = cookies()
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-        set: (name: string, value: string, options: any) =>
-          cookieStore.set(name, value, options),
-        remove: (name: string, options: any) =>
-          cookieStore.set(name, '', options)
+        get: () => undefined,
+        set: () => {},
+        remove: () => {},
       }
     }
   )
@@ -63,7 +59,7 @@ export async function getDashboardKPIs(organizationId: string) {
       .from('work_orders')
       .select('total_amount')
       .eq('organization_id', organizationId)
-      .eq('status', 'completed')
+      .in('status', ['completed', 'archived'])
       .gte('created_at', startOfThisMonth.toISOString())
 
     if (revenueError) {
@@ -77,7 +73,7 @@ export async function getDashboardKPIs(organizationId: string) {
       .from('work_orders')
       .select('total_amount')
       .eq('organization_id', organizationId)
-      .eq('status', 'completed')
+      .in('status', ['completed', 'archived'])
       .gte('created_at', startOfLastMonth.toISOString())
       .lt('created_at', startOfThisMonth.toISOString())
 
@@ -98,17 +94,20 @@ export async function getDashboardKPIs(organizationId: string) {
       throw new Error(`Error al obtener clientes activos: ${customersError.message}`)
     }
 
-    // Productos con stock bajo
-    const { count: lowStockItems, error: stockError } = await supabase
+    // Productos con stock bajo (stock_quantity < min_stock)
+    const { data: lowStockData, error: stockError } = await supabase
       .from('products')
-      .select('*', { count: 'exact', head: true })
+      .select('stock_quantity, min_stock', { head: false })
       .eq('organization_id', organizationId)
       .eq('is_active', true)
-      .lt('stock_quantity', supabase.raw('min_stock'))
 
     if (stockError) {
       throw new Error(`Error al obtener productos con stock bajo: ${stockError.message}`)
     }
+
+    const lowStockItems = (lowStockData as any[] | null | undefined)?.filter((p) =>
+      (p.stock_quantity ?? 0) < (p.min_stock ?? 0)
+    ).length || 0
 
     const result = {
       orders: {
@@ -168,7 +167,7 @@ export async function getSalesChart(organizationId: string, days: number = 30) {
         acc[date] = { date, total: 0, completed: 0, pending: 0 }
       }
       acc[date].total += order.total_amount || 0
-      if (order.status === 'completed') {
+      if (order.status === 'completed' || order.status === 'archived') {
         acc[date].completed += order.total_amount || 0
       } else {
         acc[date].pending += order.total_amount || 0
@@ -315,7 +314,7 @@ export async function getTopProducts(organizationId: string, limit: number = 10)
     }
 
     // Agrupar por producto
-    const productStats = data.reduce((acc, order) => {
+    const productStats = (data || []).reduce((acc, order: any) => {
       if (order.products) {
         const productId = order.products.id
         if (!acc[productId]) {
@@ -368,14 +367,16 @@ export async function getLowStockItems(organizationId: string) {
       `)
       .eq('organization_id', organizationId)
       .eq('is_active', true)
-      .lt('stock_quantity', supabase.raw('min_stock'))
-      .order('stock_quantity', { ascending: true })
 
     if (error) {
       throw new Error(`Error al obtener productos con stock bajo: ${error.message}`)
     }
 
-    const result = data.map(item => ({
+    const lowItems = (data || []).filter((item) =>
+      (item.stock_quantity ?? 0) < (item.min_stock ?? 0)
+    ).sort((a, b) => (a.stock_quantity ?? 0) - (b.stock_quantity ?? 0))
+
+    const result = lowItems.map(item => ({
       ...item,
       deficit: item.min_stock - item.stock_quantity,
       status: item.stock_quantity === 0 ? 'out_of_stock' : 'low_stock'
@@ -475,6 +476,7 @@ function getStatusLabel(status: string): string {
     'pending': 'Pendiente',
     'in_progress': 'En Progreso',
     'completed': 'Completado',
+    'archived': 'Archivada',
     'cancelled': 'Cancelado'
   }
   return labels[status] || status

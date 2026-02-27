@@ -124,9 +124,9 @@ export async function getEmployeeStats(employeeId: string): Promise<EmployeeStat
   }
   
   const total_orders = orders?.length || 0
-  const completed = orders?.filter(o => o.status === 'completed') || []
+  const completed = orders?.filter(o => o.status === 'completed' || o.status === 'archived') || []
   const in_progress = orders?.filter(o => 
-    o.status !== 'completed' && o.status !== 'cancelled'
+    o.status !== 'completed' && o.status !== 'archived' && o.status !== 'cancelled'
   ) || []
   
   let avg_completion_time = null

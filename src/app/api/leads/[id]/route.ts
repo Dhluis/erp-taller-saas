@@ -157,7 +157,12 @@ export async function PATCH(
       assigned_to,
       notes,
       next_follow_up,
-      lost_reason
+      lost_reason,
+      vehicle_brand,
+      vehicle_model,
+      vehicle_year,
+      vehicle_plate,
+      fault_description,
     } = body
 
     // Preparar datos para actualizar
@@ -174,6 +179,11 @@ export async function PATCH(
     if (notes !== undefined) updateData.notes = notes
     if (next_follow_up !== undefined) updateData.next_follow_up = next_follow_up
     if (lost_reason !== undefined) updateData.lost_reason = lost_reason
+    if (vehicle_brand !== undefined) updateData.vehicle_brand = vehicle_brand
+    if (vehicle_model !== undefined) updateData.vehicle_model = vehicle_model
+    if (vehicle_year !== undefined) updateData.vehicle_year = vehicle_year
+    if (vehicle_plate !== undefined) updateData.vehicle_plate = vehicle_plate
+    if (fault_description !== undefined) updateData.fault_description = fault_description
 
     // Validar que no esté vacío
     if (Object.keys(updateData).length === 0) {

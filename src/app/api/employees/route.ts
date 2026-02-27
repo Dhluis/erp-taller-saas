@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClientFromRequest } from '@/lib/supabase/server'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { hasPermission, UserRole } from '@/lib/auth/permissions'
 import type { CreateEmployeeRequest } from '@/types/employee'
 
@@ -98,24 +97,30 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     console.log('🔄 POST /api/employees - Iniciando...')
-    
-    // 1. Validar autenticación y contexto multi-tenant
-    const { userId, organizationId } = await getTenantContext(request)
-    const supabase = await createClient()
-    
-    // 2. Obtener rol del usuario actual
-    const { data: currentUser, error: userError } = await (supabase as any)
+
+    const supabaseAuth = createClientFromRequest(request)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    const supabase = getSupabaseServiceClient()
+
+    // 2. Obtener rol y organización del usuario actual
+    const { data: currentUser, error: userError } = await supabase
       .from('users')
-      .select('role')
-      .eq('auth_user_id', userId)
+      .select('role, organization_id')
+      .eq('auth_user_id', user.id)
       .single()
-    
-    if (userError || !currentUser || !currentUser.role) {
+
+    if (userError || !currentUser || !currentUser.organization_id) {
       return NextResponse.json(
         { error: 'Usuario no encontrado' },
         { status: 404 }
       )
     }
+
+    const organizationId = currentUser.organization_id
     
     // 3. Validar permisos (solo admin puede crear empleados)
     const currentUserRole = currentUser.role as UserRole
@@ -157,7 +162,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Verificar que el email no exista en empleados
-      const { data: existingEmployee } = await (supabase as any)
+      const { data: existingEmployee } = await supabase
         .from('employees')
         .select('id')
         .eq('email', email)
@@ -173,7 +178,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Validar rol
-    const validRoles = ['mechanic', 'receptionist', 'supervisor']
+    const validRoles = ['mechanic', 'receptionist', 'supervisor', 'manager']
     if (role && !validRoles.includes(role)) {
       return NextResponse.json(
         { error: `Rol inválido. Debe ser uno de: ${validRoles.join(', ')}` },
@@ -182,7 +187,7 @@ export async function POST(request: NextRequest) {
     }
     
     // 6. Crear empleado
-    const { data: newEmployee, error: employeeError } = await (supabase as any)
+    const { data: newEmployee, error: employeeError } = await supabase
       .from('employees')
       .insert({
         organization_id: organizationId,

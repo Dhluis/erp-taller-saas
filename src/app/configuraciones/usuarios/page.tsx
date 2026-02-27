@@ -541,6 +541,7 @@ export default function UsuariosPage() {
           {profile?.role === 'ADMIN' && (
             <Button 
               onClick={handleOpenCreateModal}
+              disabled={!canCreateUser}
               title={!canCreateUser ? 'Has alcanzado el límite de usuarios de tu plan. Actualiza a Premium para crear más.' : undefined}
             >
               <Plus className="mr-2 h-4 w-4" /> 
@@ -829,7 +830,7 @@ export default function UsuariosPage() {
               </Button>
               <Button 
                 type="submit" 
-                disabled={isSubmitting}
+                disabled={isSubmitting || (!isEditMode && !canCreateUser)}
                 title={!isEditMode && !canCreateUser ? 'Has alcanzado el límite de usuarios de tu plan. Actualiza a Premium para crear más.' : undefined}
               >
                 {isSubmitting && (

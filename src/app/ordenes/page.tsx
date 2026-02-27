@@ -55,6 +55,7 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor
   cancelled: { label: 'Cancelado', color: 'text-red-700', bgColor: 'bg-red-100' },
   pending: { label: 'Pendiente', color: 'text-gray-700', bgColor: 'bg-gray-100' },
   in_progress: { label: 'En Proceso', color: 'text-blue-700', bgColor: 'bg-blue-100' },
+  archived: { label: 'Archivada', color: 'text-slate-600', bgColor: 'bg-slate-200' },
 };
 
 function OrdenesPageContent() {
@@ -282,7 +283,8 @@ function OrdenesPageContent() {
     const statusMap: Record<string, string> = {
       reception: 'Recepción', diagnosis: 'Diagnóstico', initial_quote: 'Cotización',
       waiting_approval: 'Esp. Aprobación', disassembly: 'Desarmado', waiting_parts: 'Esp. Piezas',
-      assembly: 'Armado', testing: 'Pruebas', ready: 'Listo', completed: 'Completado', cancelled: 'Cancelado'
+      assembly: 'Armado', testing: 'Pruebas', ready: 'Listo', completed: 'Completado',
+      cancelled: 'Cancelado', archived: 'Archivada'
     };
 
     const rows = workOrders.map(o => [
@@ -321,7 +323,8 @@ function OrdenesPageContent() {
     const statusMap: Record<string, string> = {
       reception: 'Recepción', diagnosis: 'Diagnóstico', initial_quote: 'Cotización',
       waiting_approval: 'Esp. Aprobación', disassembly: 'Desarmado', waiting_parts: 'Esp. Piezas',
-      assembly: 'Armado', testing: 'Pruebas', ready: 'Listo', completed: 'Completado', cancelled: 'Cancelado'
+      assembly: 'Armado', testing: 'Pruebas', ready: 'Listo', completed: 'Completado',
+      cancelled: 'Cancelado', archived: 'Archivada'
     };
 
     const doc = new jsPDF({ orientation: 'landscape' });
@@ -464,7 +467,7 @@ function OrdenesPageContent() {
             <div>
               <p className="text-slate-400 text-sm">En Proceso</p>
               <p className="text-2xl font-bold text-blue-400">
-                {workOrders.filter((o) => !['completed', 'cancelled'].includes(o.status)).length}
+                {workOrders.filter((o) => !['completed', 'cancelled', 'archived'].includes(o.status)).length}
               </p>
             </div>
             <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
@@ -478,7 +481,7 @@ function OrdenesPageContent() {
             <div>
               <p className="text-slate-400 text-sm">Completadas</p>
               <p className="text-2xl font-bold text-green-400">
-                {workOrders.filter((o) => o.status === 'completed').length}
+                {workOrders.filter((o) => ['completed', 'archived'].includes(o.status)).length}
               </p>
             </div>
             <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
@@ -494,7 +497,7 @@ function OrdenesPageContent() {
               <p className="text-2xl font-bold text-cyan-400">
                 {formatCurrency(
                   workOrders
-                    .filter((o) => o.status === 'completed')
+                    .filter((o) => ['completed', 'archived'].includes(o.status))
                     .reduce((sum, o) => sum + (o.total_amount || o.estimated_cost || 0), 0)
                 )}
               </p>

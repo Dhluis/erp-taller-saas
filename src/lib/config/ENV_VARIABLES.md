@@ -93,7 +93,46 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_xxx
 STRIPE_WEBHOOK_SECRET=whsec_xxx
 ```
 
-### **15. ÓRDENES DE TRABAJO**
+### **14b. MERCADOPAGO (BILLING - MX, AR, BR, CL, CO, PE, UY)**
+```bash
+# Access Token de producción o pruebas (desarrollo)
+MERCADOPAGO_ACCESS_TOKEN=APP_USR-xxx
+```
+Obligatoria si se usa MercadoPago para suscripciones en los países configurados en `shouldUseMercadoPago()`. El webhook debe ser configurado en el panel de MercadoPago apuntando a `{NEXT_PUBLIC_APP_URL}/api/billing/mercadopago/webhook` (topic: payment).
+
+### **14c. CRON – Expiración de suscripciones (downgrade automático)**
+```bash
+# Secreto para autorizar llamadas al cron de expiración (Vercel lo envía como Bearer en Authorization)
+CRON_SECRET=un_valor_aleatorio_largo_min_16_caracteres
+```
+Obligatoria en producción si usas el cron de Vercel (`vercel.json` → `crons`). El job llama a `/api/cron/expire-subscriptions` diariamente (06:00 UTC) y baja a Free las organizaciones Premium cuyo `current_period_end` ya pasó (MercadoPago y edge cases de Stripe). Si usas un cron externo, puedes llamar `GET /api/cron/expire-subscriptions?secret=<CRON_SECRET>`.
+
+### **15. EMAIL (un solo proveedor recomendado: SendGrid)**
+
+**Recomendación:** usar **solo SendGrid** para todo (cotizaciones, invitaciones, mensajería, notificaciones). Una sola API key y mejor entregabilidad.
+
+**Opción A – SendGrid (recomendada, un solo proveedor):**
+```bash
+SENDGRID_API_KEY=SG.xxx
+SMTP_FROM_EMAIL=noreply@tudominio.com
+SMTP_FROM_NAME=Eagles System
+```
+Con esto, todos los envíos (cotizaciones por email, invitaciones, panel Mensajería, notificaciones de órdenes) usan SendGrid. No hace falta configurar SMTP_* de Hostinger/otros.
+
+**Opción B – SMTP (Nodemailer):** si prefieres no usar SendGrid:
+```bash
+SMTP_HOST=smtp.ejemplo.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=tu_usuario
+SMTP_PASS=tu_contraseña
+SMTP_FROM_NAME=Eagles System
+SMTP_FROM_EMAIL=noreply@tudominio.com
+```
+
+**Prioridad:** si están configurados ambos, el código usa **SendGrid primero** y solo usa SMTP si no hay `SENDGRID_API_KEY`. Para un solo proveedor, configura solo SendGrid (Opción A). Para mensajería/notificaciones por organización, SendGrid usa además la tabla `organization_messaging_config` (email_enabled, email_from_name, etc.) cuando existe; si no, usa las variables de entorno anteriores.
+
+### **16. ÓRDENES DE TRABAJO**
 ```bash
 WORK_ORDER_NUMBER_PREFIX=WO
 ESTIMATED_HOURS_DEFAULT=2.0

@@ -150,7 +150,7 @@ export default function ReportesPage() {
           order.status === 'pending' || order.status === 'diagnosis' || order.status === 'reception'
         ).length || 0;
         const completedOrders = orders.filter((order: any) => 
-          order.status === 'completed' || order.status === 'completado'
+          order.status === 'completed' || order.status === 'completado' || order.status === 'archived'
         ).length || 0;
         const totalRevenue = orders.reduce((sum: number, order: any) => 
           sum + (order.total_amount || order.total || 0), 0

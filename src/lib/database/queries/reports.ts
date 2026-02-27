@@ -415,7 +415,9 @@ export async function getCustomersReport(organizationId: string) {
       total_orders: customer.work_orders?.length || 0,
       total_spent: customer.work_orders?.reduce((sum, order) => 
         sum + (order.total_amount || 0), 0) || 0,
-      completed_orders: customer.work_orders?.filter(order => order.status === 'completed').length || 0,
+      completed_orders: customer.work_orders?.filter(order => 
+        order.status === 'completed' || order.status === 'archived'
+      ).length || 0,
       last_order_date: customer.work_orders?.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]?.created_at
     })).sort((a, b) => b.total_spent - a.total_spent)

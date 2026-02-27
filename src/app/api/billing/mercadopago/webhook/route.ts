@@ -1,16 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
-import { createClient } from '@supabase/supabase-js'
-
-// Cliente con service role para bypass RLS
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-const mercadopago = new MercadoPagoConfig({
-  accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN!
-})
+import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,7 +34,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true })
     }
 
+    const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
+    if (!accessToken) {
+      console.error('[MP Webhook] MERCADOPAGO_ACCESS_TOKEN no configurada')
+      return NextResponse.json({ error: 'MercadoPago not configured' }, { status: 500 })
+    }
+
     // Obtener detalles del pago desde MercadoPago
+    const mercadopago = new MercadoPagoConfig({ accessToken })
     const paymentClient = new Payment(mercadopago)
     const payment = await paymentClient.get({ id: paymentId })
 
@@ -68,14 +65,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing organization_id' }, { status: 400 })
     }
 
-    // Calcular fecha de fin del período
-    const now = new Date()
-    const periodEnd = new Date(now)
+    const supabase = getSupabaseServiceClient()
 
-    if (planType === 'annual') {
-      periodEnd.setFullYear(periodEnd.getFullYear() + 1)
+    // Si ya es premium y tiene período vigente, extender desde current_period_end en lugar de reemplazar
+    const { data: existingOrg } = await supabase
+      .from('organizations')
+      .select('plan_tier, current_period_end')
+      .eq('id', organizationId)
+      .single()
+
+    const now = new Date()
+    let periodStart: Date
+    let periodEnd: Date
+
+    if (
+      existingOrg &&
+      (existingOrg as { plan_tier?: string }).plan_tier === 'premium' &&
+      (existingOrg as { current_period_end?: string | null }).current_period_end
+    ) {
+      const currentEnd = new Date((existingOrg as { current_period_end: string }).current_period_end)
+      if (currentEnd > now) {
+        // Extender desde el fin del período actual
+        periodStart = currentEnd
+        periodEnd = new Date(currentEnd)
+        if (planType === 'annual') {
+          periodEnd.setFullYear(periodEnd.getFullYear() + 1)
+        } else {
+          periodEnd.setMonth(periodEnd.getMonth() + 1)
+        }
+        console.log('[MP Webhook] Renovación: extendiendo período hasta', periodEnd.toISOString())
+      } else {
+        periodStart = now
+        periodEnd = new Date(now)
+        if (planType === 'annual') {
+          periodEnd.setFullYear(periodEnd.getFullYear() + 1)
+        } else {
+          periodEnd.setMonth(periodEnd.getMonth() + 1)
+        }
+      }
     } else {
-      periodEnd.setMonth(periodEnd.getMonth() + 1)
+      periodStart = now
+      periodEnd = new Date(now)
+      if (planType === 'annual') {
+        periodEnd.setFullYear(periodEnd.getFullYear() + 1)
+      } else {
+        periodEnd.setMonth(periodEnd.getMonth() + 1)
+      }
     }
 
     // Actualizar organización a Premium
@@ -85,7 +120,7 @@ export async function POST(request: NextRequest) {
         plan_tier: 'premium',
         subscription_status: 'active',
         mercadopago_payment_id: payment.id?.toString(),
-        current_period_start: now.toISOString(),
+        current_period_start: periodStart.toISOString(),
         current_period_end: periodEnd.toISOString(),
         updated_at: now.toISOString()
       })

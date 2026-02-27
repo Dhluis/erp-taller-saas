@@ -2,7 +2,7 @@ export interface CreateEmployeeRequest {
   name: string
   email?: string
   phone?: string
-  role?: 'mechanic' | 'receptionist' | 'supervisor'
+  role?: 'mechanic' | 'receptionist' | 'supervisor' | 'manager'
   specialties?: string[]
   hourly_rate?: number
   hire_date?: string

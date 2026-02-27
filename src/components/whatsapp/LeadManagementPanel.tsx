@@ -78,6 +78,11 @@ export function LeadManagementPanel({
   const [notes, setNotes] = useState(lead?.notes || '')
   const [selectedStatus, setSelectedStatus] = useState<LeadStatus>(lead?.status || 'new')
   const [leadScore, setLeadScore] = useState(lead?.lead_score || 0)
+  const [vehicleBrand, setVehicleBrand] = useState('')
+  const [vehicleModel, setVehicleModel] = useState('')
+  const [vehicleYear, setVehicleYear] = useState('')
+  const [vehiclePlate, setVehiclePlate] = useState('')
+  const [faultDescription, setFaultDescription] = useState('')
 
   // Crear lead desde conversación
   const handleCreateLead = async () => {
