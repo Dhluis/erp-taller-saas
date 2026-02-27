@@ -1,5 +1,10 @@
 /**
  * Herramientas ERP para el agente de IA - Búsqueda por organización
+ * Incluye: clientes, órdenes, vehículos, inventario y finanzas
+ *
+ * MULTITENANCY: Todas las funciones reciben organizationId obtenido en el API
+ * desde la sesión del usuario (users.organization_id). NUNCA se debe pasar
+ * organization_id desde el cliente; el API lo obtiene tras autenticar.
  */
 
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
@@ -25,6 +30,26 @@ export interface ERPSearchResult {
     customer_name: string
     url: string
   }>
+  inventory: Array<{
+    id: string
+    name: string
+    sku: string | null
+    current_stock: number
+    min_stock: number | null
+    unit: string
+    category: string | null
+    url: string
+  }>
+  invoices: Array<{
+    id: string
+    invoice_number: string
+    status: string
+    total_amount: number
+    paid_amount: number
+    balance: number
+    customer_name: string
+    url: string
+  }>
 }
 
 export async function erpSearch(organizationId: string, query: string): Promise<ERPSearchResult> {
@@ -32,7 +57,13 @@ export async function erpSearch(organizationId: string, query: string): Promise<
   const q = query.trim()
   const like = `%${q}%`
 
-  const result: ERPSearchResult = { customers: [], orders: [], vehicles: [] }
+  const result: ERPSearchResult = {
+    customers: [],
+    orders: [],
+    vehicles: [],
+    inventory: [],
+    invoices: [],
+  }
 
   if (!q || q.length < 2) return result
 
@@ -132,6 +163,49 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     })
   })
 
+  // Inventario / productos
+  const { data: inventoryItems } = await supabase
+    .from('inventory_items')
+    .select('id, name, sku, current_stock, min_stock, unit_price, category')
+    .eq('organization_id', organizationId)
+    .or(`name.ilike.${like},sku.ilike.${like},category.ilike.${like}`)
+    .limit(10)
+
+  inventoryItems?.forEach((item) => {
+    result.inventory.push({
+      id: item.id,
+      name: item.name,
+      sku: item.sku ?? null,
+      current_stock: Number(item.current_stock) ?? 0,
+      min_stock: item.min_stock != null ? Number(item.min_stock) : null,
+      unit: 'un',
+      category: item.category ?? null,
+      url: '/inventarios/movimientos',
+    })
+  })
+
+  // Facturas / notas de venta
+  const { data: invoicesByNumber } = await supabase
+    .from('sales_invoices')
+    .select('id, invoice_number, status, total_amount, paid_amount, balance, customer:customers(name)')
+    .eq('organization_id', organizationId)
+    .ilike('invoice_number', like)
+    .limit(5)
+
+  invoicesByNumber?.forEach((inv) => {
+    const customer = (inv as any).customer as { name: string } | null
+    result.invoices.push({
+      id: inv.id,
+      invoice_number: inv.invoice_number,
+      status: inv.status,
+      total_amount: Number(inv.total_amount) ?? 0,
+      paid_amount: Number(inv.paid_amount) ?? 0,
+      balance: Number(inv.balance) ?? 0,
+      customer_name: customer?.name ?? '',
+      url: `/ingresos/facturacion/${inv.id}`,
+    })
+  })
+
   return result
 }
 
@@ -148,4 +222,76 @@ export async function getOrdersCountByStatus(organizationId: string): Promise<Re
     counts[s] = (counts[s] || 0) + 1
   })
   return counts
+}
+
+/**
+ * Búsqueda específica de inventario por nombre, SKU o categoría.
+ * Para preguntas como "cuánto tengo en aceite", "stock de filtros", etc.
+ */
+export async function searchInventory(
+  organizationId: string,
+  query: string
+): Promise<Array<{ name: string; sku: string | null; current_stock: number; min_stock: number | null; category: string | null; url: string }>> {
+  const supabase = getSupabaseServiceClient()
+  const q = query.trim()
+  if (!q) return []
+
+  const like = `%${q}%`
+  const { data } = await supabase
+    .from('inventory_items')
+    .select('id, name, sku, current_stock, min_stock, category')
+    .eq('organization_id', organizationId)
+    .or(`name.ilike.${like},sku.ilike.${like},category.ilike.${like}`)
+    .limit(15)
+
+  return (data || []).map((item) => ({
+    name: item.name,
+    sku: item.sku ?? null,
+    current_stock: Number(item.current_stock) ?? 0,
+    min_stock: item.min_stock != null ? Number(item.min_stock) : null,
+    category: item.category ?? null,
+    url: '/inventarios/movimientos',
+  }))
+}
+
+/**
+ * Resumen financiero: facturas por estado, totales cobrado/pendiente.
+ */
+export interface FinanceSummary {
+  total_invoices: number
+  total_amount: number
+  total_paid: number
+  total_balance: number
+  by_status: Record<string, { count: number; total: number }>
+}
+
+export async function getFinanceSummary(organizationId: string): Promise<FinanceSummary> {
+  const supabase = getSupabaseServiceClient()
+  const { data } = await supabase
+    .from('sales_invoices')
+    .select('status, total_amount, paid_amount, balance')
+    .eq('organization_id', organizationId)
+
+  const by_status: Record<string, { count: number; total: number }> = {}
+  let total_amount = 0
+  let total_paid = 0
+  let total_balance = 0
+
+  data?.forEach((row) => {
+    const status = row.status || 'unknown'
+    if (!by_status[status]) by_status[status] = { count: 0, total: 0 }
+    by_status[status].count += 1
+    by_status[status].total += Number(row.total_amount) || 0
+    total_amount += Number(row.total_amount) || 0
+    total_paid += Number(row.paid_amount) || 0
+    total_balance += Number(row.balance) || 0
+  })
+
+  return {
+    total_invoices: data?.length ?? 0,
+    total_amount,
+    total_paid,
+    total_balance,
+    by_status,
+  }
 }

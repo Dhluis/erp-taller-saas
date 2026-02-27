@@ -6,6 +6,41 @@
 export interface Database {
   public: {
     Tables: {
+      organizations: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          description: string | null
+          plan_tier: string
+          subscription_status: string
+          trial_ends_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          description?: string | null
+          plan_tier?: string
+          subscription_status?: string
+          trial_ends_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          description?: string | null
+          plan_tier?: string
+          subscription_status?: string
+          trial_ends_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       customers: {
         Row: {
           id: string

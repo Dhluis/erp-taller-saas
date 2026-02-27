@@ -69,8 +69,11 @@ async function getPlanTier(organizationId: string): Promise<PlanTier> {
       return 'premium' // Trial activo → acceso Premium
     }
     // Trial expirado: lazy update a expired (opcional, no bloqueante)
-    supabase
-      .from('organizations')
+    // Cliente servidor tipa .update() como never; forzamos tipo para este uso.
+    const orgTable = supabase.from('organizations') as unknown as {
+      update: (v: { subscription_status: string }) => { eq: (col: string, id: string) => Promise<{ error: unknown }> }
+    }
+    void orgTable
       .update({ subscription_status: 'expired' })
       .eq('id', organizationId)
       .then(({ error: updateErr }) => {
@@ -339,5 +342,52 @@ export async function checkWhatsAppEnabled(userId: string): Promise<boolean> {
   } catch (error) {
     console.error('[checkWhatsAppEnabled] Error:', error)
     return false
+  }
+}
+
+/**
+ * Verifica si el Asistente de IA (agente ERP) está habilitado para la organización.
+ * Solo Premium (o trial activo) tiene acceso. Usado por POST /api/agent/query.
+ */
+export async function checkAIAgentEnabled(organizationId: string): Promise<{
+  allowed: boolean
+  planTier: PlanTier
+  error?: LimitError
+}> {
+  try {
+    const planTier = await getPlanTier(organizationId)
+    const limits = PLAN_LIMITS[planTier]
+    const aiEnabled = limits.ai_enabled
+
+    if (aiEnabled) {
+      return { allowed: true, planTier }
+    }
+
+    return {
+      allowed: false,
+      planTier,
+      error: {
+        type: 'limit_exceeded',
+        resource: 'work_order', // no hay 'ai_agent' en LimitedResource; mensaje se sobrescribe
+        message: 'El Asistente de IA está disponible solo en el plan Premium. Actualiza para consultar órdenes, clientes, inventario y finanzas con lenguaje natural.',
+        feature: 'ai_enabled',
+        upgrade_url: '/settings/billing',
+        plan_required: 'premium',
+      },
+    }
+  } catch (error: any) {
+    console.error('[checkAIAgentEnabled] Error:', error)
+    return {
+      allowed: false,
+      planTier: 'free',
+      error: {
+        type: 'limit_exceeded',
+        resource: 'work_order',
+        message: error?.message || 'Error al verificar acceso al Asistente de IA',
+        feature: 'ai_enabled',
+        upgrade_url: '/settings/billing',
+        plan_required: 'premium',
+      },
+    }
   }
 }

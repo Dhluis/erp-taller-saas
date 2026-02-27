@@ -4,34 +4,60 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { AgentChatPanel } from './AgentChatPanel'
+import { useBilling } from '@/hooks/useBilling'
+import { useLimitCheck } from '@/hooks/useLimitCheck'
+import { UpgradeModal } from '@/components/billing/upgrade-modal'
+import type { LimitError } from '@/types/billing'
 
 const FAVICON_SRC = '/eagles-logo-new.png'
 const FAVICON_FALLBACK = '/favicon.svg'
 
+const AI_AGENT_LIMIT_ERROR: LimitError = {
+  type: 'limit_exceeded',
+  resource: 'work_order',
+  message: 'El Asistente de IA está disponible solo en el plan Premium. Actualiza para consultar órdenes, clientes, inventario y finanzas con lenguaje natural.',
+  feature: 'ai_enabled',
+  upgrade_url: '/settings/billing',
+  plan_required: 'premium',
+}
+
 /**
  * Botón flotante del agente de IA - Esquina inferior derecha.
- * Usa el mismo icono que el favicon (eagles-logo-new.png).
+ * Solo visible/utilizable para planes Premium (o trial). Free ve modal de upgrade.
  */
 export function FloatingAgentButton() {
   const [open, setOpen] = useState(false)
   const [imgSrc, setImgSrc] = useState(FAVICON_SRC)
+  const { canUseAI, isLoading: billingLoading } = useBilling()
+  const { showUpgradeModal, closeUpgradeModal, showUpgrade, limitError } = useLimitCheck()
+
+  const handleOpenAgent = () => {
+    if (billingLoading) return
+    if (!canUseAI) {
+      showUpgrade(AI_AGENT_LIMIT_ERROR)
+      return
+    }
+    setOpen(true)
+  }
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        setOpen((prev) => !prev)
+        if (billingLoading) return
+        if (!canUseAI) showUpgrade(AI_AGENT_LIMIT_ERROR)
+        else setOpen(true)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [canUseAI, billingLoading, showUpgrade])
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={handleOpenAgent}
         aria-label="Abrir asistente de IA"
         className={cn(
           'fixed bottom-6 right-6 z-40',
@@ -62,7 +88,25 @@ export function FloatingAgentButton() {
         </span>
       </button>
 
-      <AgentChatPanel open={open} onOpenChange={setOpen} />
+      <AgentChatPanel
+        open={open}
+        onOpenChange={setOpen}
+        onLimitReached={(err) => showUpgrade({
+          type: 'limit_exceeded',
+          resource: 'work_order',
+          message: err.message,
+          feature: err.feature || 'ai_enabled',
+          upgrade_url: err.upgrade_url || '/settings/billing',
+          plan_required: 'premium',
+        })}
+      />
+
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={closeUpgradeModal}
+        limitError={limitError || undefined}
+        featureName="Asistente de IA"
+      />
     </>
   )
 }

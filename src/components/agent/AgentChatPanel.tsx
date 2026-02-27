@@ -28,6 +28,8 @@ const MAX_CONVERSATIONS = 50
 interface AgentChatPanelProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Llamado cuando la API responde 403 por plan (solo Premium). Muestra modal de upgrade. */
+  onLimitReached?: (err: { message: string; feature?: string; upgrade_url?: string }) => void
 }
 
 const WELCOME_MESSAGE: AgentMessage = {
@@ -66,7 +68,7 @@ function saveConversations(conversations: SavedConversation[]) {
   }
 }
 
-export function AgentChatPanel({ open, onOpenChange }: AgentChatPanelProps) {
+export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChatPanelProps) {
   const { organizationId } = useSession()
   const [view, setView] = useState<'chat' | 'history'>('chat')
   const [messages, setMessages] = useState<AgentMessage[]>([WELCOME_MESSAGE])
@@ -142,17 +144,26 @@ export function AgentChatPanel({ open, onOpenChange }: AgentChatPanelProps) {
         body: JSON.stringify({ message: trimmed }),
         credentials: 'include',
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
 
       if (!res.ok) {
-        throw new Error(data.error || 'Error al consultar al agente')
+        if (res.status === 403 && (data as { limit_reached?: boolean }).limit_reached && onLimitReached) {
+          onLimitReached({
+            message: (data as { error?: string }).error || 'El Asistente de IA es solo para plan Premium.',
+            feature: (data as { feature?: string }).feature,
+            upgrade_url: (data as { upgrade_url?: string }).upgrade_url,
+          })
+          setLoading(false)
+          return
+        }
+        throw new Error((data as { error?: string }).error || 'Error al consultar al agente')
       }
 
       const assistantMsg: AgentMessage = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: data.response || 'No pude generar una respuesta.',
-        links: data.links,
+        content: (data as { response?: string }).response || 'No pude generar una respuesta.',
+        links: (data as { links?: Array<{ label: string; url: string }> }).links,
       }
       newMessages = [...newMessages, assistantMsg]
       setMessages(newMessages)
