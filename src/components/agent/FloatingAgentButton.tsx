@@ -5,12 +5,16 @@ import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { AgentChatPanel } from './AgentChatPanel'
 
+const FAVICON_SRC = '/eagles-logo-new.png'
+const FAVICON_FALLBACK = '/favicon.svg'
+
 /**
  * Botón flotante del agente de IA - Esquina inferior derecha.
- * Estilo tecnológico: glow, anillo, logo del águila.
+ * Usa el mismo icono que el favicon (eagles-logo-new.png).
  */
 export function FloatingAgentButton() {
   const [open, setOpen] = useState(false)
+  const [imgSrc, setImgSrc] = useState(FAVICON_SRC)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -41,13 +45,15 @@ export function FloatingAgentButton() {
         )}
       >
         <span className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-500/10 to-transparent" />
-        <span className="relative w-8 h-8 flex items-center justify-center">
+        <span className="relative w-8 h-8 flex items-center justify-center overflow-hidden rounded-full">
           <Image
-            src="/logo-icon.svg"
-            alt="EAGLES IA"
+            src={imgSrc}
+            alt="EAGLES Asistente"
             width={32}
             height={32}
-            className="w-8 h-8 object-contain drop-shadow-[0_0_6px_rgba(0,217,255,0.5)]"
+            className="w-8 h-8 object-contain"
+            unoptimized
+            onError={() => setImgSrc(FAVICON_FALLBACK)}
           />
         </span>
         <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
