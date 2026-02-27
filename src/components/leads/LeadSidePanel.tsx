@@ -64,6 +64,13 @@ export function LeadSidePanel({
   const [localValue, setLocalValue] = useState('')
   const [savingValue, setSavingValue] = useState(false)
 
+  const [editingContact, setEditingContact] = useState(false)
+  const [localName, setLocalName] = useState('')
+  const [localPhone, setLocalPhone] = useState('')
+  const [localEmail, setLocalEmail] = useState('')
+  const [localCompany, setLocalCompany] = useState('')
+  const [savingContact, setSavingContact] = useState(false)
+
   const [deleting, setDeleting] = useState(false)
 
   // Reset state when lead changes
@@ -71,8 +78,13 @@ export function LeadSidePanel({
     if (lead) {
       setLocalNotes(lead.notes || '')
       setLocalValue(lead.estimated_value?.toString() || '')
+      setLocalName(lead.name || '')
+      setLocalPhone(lead.phone || '')
+      setLocalEmail(lead.email || '')
+      setLocalCompany(lead.company || '')
       setEditingNotes(false)
       setEditingValue(false)
+      setEditingContact(false)
       setMessages([])
     }
   }, [lead?.id])
@@ -144,6 +156,42 @@ export function LeadSidePanel({
       toast.error('Error al actualizar valor')
     } finally {
       setSavingValue(false)
+    }
+  }
+
+  const saveContact = async () => {
+    if (!lead) return
+    const name = localName.trim()
+    const phone = localPhone.trim()
+    if (!name) { toast.error('El nombre es obligatorio'); return }
+    if (!phone) { toast.error('El teléfono es obligatorio'); return }
+    setSavingContact(true)
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          phone,
+          email: localEmail.trim() || undefined,
+          company: localCompany.trim() || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      onLeadUpdated?.({
+        ...lead,
+        name,
+        phone,
+        email: localEmail.trim() || undefined,
+        company: localCompany.trim() || undefined,
+      })
+      setEditingContact(false)
+      toast.success('Contacto actualizado')
+    } catch (err: any) {
+      toast.error(err.message || 'Error al guardar contacto')
+    } finally {
+      setSavingContact(false)
     }
   }
 
@@ -245,7 +293,83 @@ export function LeadSidePanel({
         <div className="flex-1 overflow-y-auto">
           {/* Contacto */}
           <div className="p-4 border-b border-slate-800">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Contacto</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Contacto</h3>
+              {!editingContact && (
+                <button
+                  onClick={() => setEditingContact(true)}
+                  className="text-xs text-slate-500 hover:text-blue-400 flex items-center gap-1 transition-colors"
+                >
+                  <Edit2 className="w-3 h-3" />
+                  Editar
+                </button>
+              )}
+            </div>
+            {editingContact ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-slate-500 block mb-1">Nombre</label>
+                  <Input
+                    value={localName}
+                    onChange={(e) => setLocalName(e.target.value)}
+                    className="bg-slate-800 border-slate-600 text-white text-sm h-8"
+                    placeholder="Nombre del lead"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 block mb-1">Teléfono</label>
+                  <Input
+                    value={localPhone}
+                    onChange={(e) => setLocalPhone(e.target.value)}
+                    className="bg-slate-800 border-slate-600 text-white text-sm h-8"
+                    placeholder="Teléfono"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 block mb-1">Email</label>
+                  <Input
+                    type="email"
+                    value={localEmail}
+                    onChange={(e) => setLocalEmail(e.target.value)}
+                    className="bg-slate-800 border-slate-600 text-white text-sm h-8"
+                    placeholder="email@ejemplo.com"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 block mb-1">Empresa (opcional)</label>
+                  <Input
+                    value={localCompany}
+                    onChange={(e) => setLocalCompany(e.target.value)}
+                    className="bg-slate-800 border-slate-600 text-white text-sm h-8"
+                    placeholder="Empresa"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={saveContact}
+                    disabled={savingContact}
+                    className="bg-blue-600 hover:bg-blue-700 text-white h-7 text-xs"
+                  >
+                    {savingContact ? 'Guardando...' : 'Guardar'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setEditingContact(false)
+                      setLocalName(lead.name || '')
+                      setLocalPhone(lead.phone || '')
+                      setLocalEmail(lead.email || '')
+                      setLocalCompany(lead.company || '')
+                    }}
+                    className="text-slate-400 h-7 text-xs"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            ) : (
             <div className="space-y-2.5">
               <a
                 href={`tel:${lead.phone}`}
@@ -276,11 +400,23 @@ export function LeadSidePanel({
                 </div>
               )}
             </div>
+            )}
           </div>
 
           {/* Valor y Score */}
           <div className="p-4 border-b border-slate-800">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Oportunidad</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Oportunidad</h3>
+              {!editingValue && (
+                <button
+                  onClick={() => setEditingValue(true)}
+                  className="text-xs text-slate-500 hover:text-blue-400 flex items-center gap-1 transition-colors"
+                >
+                  <Edit2 className="w-3 h-3" />
+                  Editar
+                </button>
+              )}
+            </div>
 
             {/* Valor estimado */}
             <div className="flex items-center justify-between mb-3">
