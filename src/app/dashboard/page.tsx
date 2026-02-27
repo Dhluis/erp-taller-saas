@@ -62,7 +62,8 @@ export default function DashboardPage() {
     { name: 'Armado', value: 0, color: '#06b6d4' },
     { name: 'Pruebas', value: 0, color: '#14b8a6' },
     { name: 'Listo', value: 0, color: '#84cc16' },
-    { name: 'Completado', value: 0, color: '#10b981' }
+    { name: 'Completado', value: 0, color: '#10b981' },
+    { name: 'Archivadas', value: 0, color: '#64748b' }
   ]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -189,7 +190,8 @@ export default function DashboardPage() {
         { name: 'Armado', value: data.assembly || 0, color: '#06b6d4' },
         { name: 'Pruebas', value: data.testing || 0, color: '#14b8a6' },
         { name: 'Listo', value: data.ready || 0, color: '#84cc16' },
-        { name: 'Completado', value: data.completed || 0, color: '#10b981' }
+        { name: 'Completado', value: data.completed || 0, color: '#10b981' },
+        { name: 'Archivadas', value: data.archived || 0, color: '#64748b' }
       ];
       
       console.log('✅ Datos mapeados para gráfica:', updatedOrdersByStatus);

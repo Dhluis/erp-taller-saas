@@ -371,16 +371,26 @@ export async function getOrdenesPorEstado(organizationId: string): Promise<Orden
 
   const total = data?.length || 0;
 
-  // Mapeo de estados con colores
+  // Mapeo de estados con colores (incluye estados reales de BD: reception, diagnosis, ... y archived)
   const estadosConfig: { [key: string]: { label: string; color: string } } = {
+    reception: { label: 'Recepción', color: '#6b7280' },
+    diagnosis: { label: 'Diagnóstico', color: '#8b5cf6' },
+    initial_quote: { label: 'Cotización', color: '#3b82f6' },
+    waiting_approval: { label: 'Esperando Aprobación', color: '#f59e0b' },
+    disassembly: { label: 'Desarmado', color: '#ec4899' },
+    waiting_parts: { label: 'Esperando Piezas', color: '#f97316' },
+    assembly: { label: 'Armado', color: '#06b6d4' },
+    testing: { label: 'Pruebas', color: '#14b8a6' },
+    ready: { label: 'Listo', color: '#84cc16' },
+    completed: { label: 'Completado', color: '#22c55e' },
+    delivered: { label: 'Entregado', color: '#14b8a6' },
+    archived: { label: 'Archivadas', color: '#64748b' },
+    cancelled: { label: 'Cancelada', color: '#ef4444' },
     pending: { label: 'Pendiente', color: '#fbbf24' },
     in_progress: { label: 'En Proceso', color: '#3b82f6' },
     diagnosed: { label: 'Diagnosticado', color: '#8b5cf6' },
     approved: { label: 'Aprobado', color: '#10b981' },
     in_repair: { label: 'En Reparación', color: '#06b6d4' },
-    waiting_parts: { label: 'Esperando Piezas', color: '#f59e0b' },
-    completed: { label: 'Completado', color: '#22c55e' },
-    delivered: { label: 'Entregado', color: '#14b8a6' }
   };
 
   return Object.entries(conteo).map(([estado, cantidad]) => ({

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -107,9 +107,9 @@ const KANBAN_COLUMNS: Omit<KanbanColumnType, 'orders'>[] = [
   {
     id: 'archived',
     title: 'Archivadas',
-    color: 'text-slate-400',
-    bgColor: 'bg-slate-700/20',
-    borderColor: 'border-slate-600/40',
+    color: 'text-zinc-300',
+    bgColor: 'bg-zinc-500/20',
+    borderColor: 'border-zinc-500/40',
   },
 ];
 
@@ -131,6 +131,11 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
     from: undefined,
     to: undefined
   });
+
+  // Refs para scroll horizontal: barra arriba de las columnas (debajo del filtro)
+  const boardScrollRef = useRef<HTMLDivElement>(null);
+  const scrollBarRef = useRef<HTMLDivElement>(null);
+  const [scrollTrackWidth, setScrollTrackWidth] = useState(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -355,6 +360,28 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
       console.log('⚠️ [KanbanBoard] organizationId no disponible todavía, esperando...', { organizationId });
     }
   }, [organizationId, loadOrders]);
+
+  // Medir ancho del contenido del Kanban para la barra de scroll superior
+  useEffect(() => {
+    if (columns.length === 0) return;
+    const el = boardScrollRef.current;
+    if (!el) return;
+    const updateWidth = () => setScrollTrackWidth(el.scrollWidth);
+    updateWidth();
+    const ro = new ResizeObserver(updateWidth);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [columns]);
+
+  // Sincronizar scroll: barra superior <-> contenido
+  const handleScrollBarScroll = useCallback(() => {
+    if (scrollBarRef.current && boardScrollRef.current)
+      boardScrollRef.current.scrollLeft = scrollBarRef.current.scrollLeft;
+  }, []);
+  const handleBoardScroll = useCallback(() => {
+    if (scrollBarRef.current && boardScrollRef.current)
+      scrollBarRef.current.scrollLeft = boardScrollRef.current.scrollLeft;
+  }, []);
 
   // Cargar órdenes cuando cambie refreshKey (para botón Actualizar y después de crear orden)
   useEffect(() => {
@@ -708,6 +735,18 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
         )}
       </div>
 
+      {/* Barra de scroll horizontal: arriba de las tarjetas, debajo del filtro */}
+      {totalOrders > 0 && scrollTrackWidth > 0 && (
+        <div
+          ref={scrollBarRef}
+          onScroll={handleScrollBarScroll}
+          className="overflow-x-auto overflow-y-hidden h-3 mb-1 rounded scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800/50"
+          aria-hidden
+        >
+          <div style={{ minWidth: scrollTrackWidth, height: 1 }} />
+        </div>
+      )}
+
       {/* Empty state cuando no hay órdenes - Mostrar después de los filtros */}
       {totalOrders === 0 && !loading && !error && (
         <div className="flex items-center justify-center h-96">
@@ -744,7 +783,11 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-2 sm:gap-4 overflow-x-auto pb-4 min-h-[400px]">
+        <div
+          ref={boardScrollRef}
+          onScroll={handleBoardScroll}
+          className="flex gap-2 sm:gap-4 overflow-x-auto pb-4 min-h-[400px]"
+        >
           {columns.map(column => (
             <KanbanColumn
               key={column.id}

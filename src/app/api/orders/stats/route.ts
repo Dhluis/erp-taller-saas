@@ -24,12 +24,17 @@ export async function GET(request: NextRequest) {
     // Obtener organizationId, rol e id del perfil del usuario usando Service Role
     const supabaseAdmin = getSupabaseServiceClient()
     
-    const { data: userProfile, error: profileError } = await supabaseAdmin
+    const {
+      data: userProfileData,
+      error: profileError,
+    }: { data: { id: string; organization_id: string; role: string } | null; error: unknown } = await supabaseAdmin
       .from('users')
       .select('id, organization_id, role')
       .eq('auth_user_id', authUser.id)
       .single()
     
+    const userProfile = userProfileData
+
     if (profileError || !userProfile || !userProfile.organization_id) {
       console.error('❌ [GET /api/orders/stats] Error obteniendo perfil:', profileError)
       return NextResponse.json(
@@ -320,6 +325,11 @@ export async function GET(request: NextRequest) {
         dbStatus: 'completed', 
         name: 'Completado', 
         color: '#10b981' 
+      },
+      { 
+        dbStatus: 'archived', 
+        name: 'Archivadas', 
+        color: '#64748b' 
       }
     ]
 
