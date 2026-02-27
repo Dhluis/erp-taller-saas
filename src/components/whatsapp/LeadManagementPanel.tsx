@@ -83,6 +83,8 @@ export function LeadManagementPanel({
   const [vehicleYear, setVehicleYear] = useState('')
   const [vehiclePlate, setVehiclePlate] = useState('')
   const [faultDescription, setFaultDescription] = useState('')
+  const [customerNameInput, setCustomerNameInput] = useState(customerName)
+  const [customerPhoneInput, setCustomerPhoneInput] = useState(customerPhone)
 
   // Crear lead desde conversación
   const handleCreateLead = async () => {
@@ -95,7 +97,9 @@ export function LeadManagementPanel({
           conversation_id: conversationId,
           estimated_value: estimatedValue,
           notes,
-          lead_source: 'whatsapp'
+          lead_source: 'whatsapp',
+          name: customerNameInput?.trim() || customerName || customerPhone,
+          phone: customerPhoneInput?.trim() || customerPhone,
         })
       })
 
@@ -194,22 +198,23 @@ export function LeadManagementPanel({
   if (!lead) {
     return (
       <>
-        <Card className="p-4 border-dashed border-2">
-          <div className="flex items-center justify-between">
+        <Card className="p-4 border-dashed border-2 border-slate-700/60 bg-slate-900/40 rounded-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                 <Sparkles className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">Convertir en Lead</h3>
+                <h3 className="font-semibold text-sm sm:text-base">Convertir en Lead</h3>
                 <p className="text-xs text-muted-foreground">
                   Gestiona esta oportunidad en tu pipeline de ventas
                 </p>
               </div>
             </div>
-            <Button 
+            <Button
               onClick={() => setShowCreateDialog(true)}
               size="sm"
+              className="shrink-0 whitespace-nowrap px-3 text-xs sm:text-sm"
             >
               <Sparkles className="h-4 w-4 mr-2" />
               Marcar como Lead
@@ -228,13 +233,25 @@ export function LeadManagementPanel({
             </DialogHeader>
 
             <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="customer-info">Cliente</Label>
-                <Input
-                  id="customer-info"
-                  value={`${customerName} - ${customerPhone}`}
-                  disabled
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="customer-name">Nombre del cliente</Label>
+                  <Input
+                    id="customer-name"
+                    value={customerNameInput}
+                    onChange={(e) => setCustomerNameInput(e.target.value)}
+                    placeholder={customerName || 'Nombre del cliente'}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customer-phone">Teléfono</Label>
+                  <Input
+                    id="customer-phone"
+                    value={customerPhoneInput}
+                    onChange={(e) => setCustomerPhoneInput(e.target.value)}
+                    placeholder={customerPhone}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -369,7 +386,7 @@ export function LeadManagementPanel({
           <Button
             onClick={() => setShowConvertDialog(true)}
             className="w-full"
-            variant="default"
+            variant="primary"
           >
             <UserPlus className="h-4 w-4 mr-2" />
             Convertir a Cliente

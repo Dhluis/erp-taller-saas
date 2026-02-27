@@ -5,13 +5,16 @@ import { createClientFromRequest } from '@/lib/supabase/server'
 /**
  * POST /api/leads/from-conversation
  * Convertir una conversación de WhatsApp en un lead
- * 
+ *
  * Body:
  * - conversation_id: UUID (required)
  * - estimated_value?: number
  * - assigned_to?: UUID
  * - notes?: string
  * - lead_source?: string (default: 'whatsapp')
+ * - name?: string (opcional, para sobrescribir customer_name)
+ * - phone?: string (opcional, para sobrescribir customer_phone)
+ * - email?: string (opcional)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -29,12 +32,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtener organization_id del usuario
-    const { data: userData, error: userError } = await supabase
+    const {
+      data: userDataRaw,
+      error: userError,
+    }: { data: { organization_id: string } | null; error: unknown } = await supabase
       .from('users')
       .select('organization_id')
       .eq('auth_user_id', user.id)
       .single()
 
+    const userData = userDataRaw
     if (userError || !userData) {
       console.error('[Leads API] Error obteniendo usuario:', userError)
       return NextResponse.json(
@@ -52,7 +59,10 @@ export async function POST(request: NextRequest) {
       estimated_value = 0,
       assigned_to,
       notes,
-      lead_source = 'whatsapp'
+      lead_source = 'whatsapp',
+      name: bodyName,
+      phone: bodyPhone,
+      email: bodyEmail,
     } = body
 
     // Validaciones
@@ -64,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtener información de la conversación
-    const { data: conversation, error: convError } = await supabase
+    const { data: conversationRaw, error: convError } = await supabase
       .from('whatsapp_conversations')
       .select(`
         *,
@@ -80,6 +90,9 @@ export async function POST(request: NextRequest) {
       .eq('id', conversation_id)
       .eq('organization_id', organizationId)
       .single()
+
+    type ConvRow = { is_lead?: boolean; lead_id?: string | null; customer_name?: string | null; customer_phone?: string | null; email?: string | null }
+    const conversation = conversationRaw as ConvRow | null
 
     if (convError || !conversation) {
       console.error('[Leads API] Error obteniendo conversación:', convError)
@@ -112,26 +125,48 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Extraer información del contacto
-    const name = conversation.customer_name || conversation.customer_phone || 'Cliente WhatsApp'
-    const phone = conversation.customer_phone
-    const email = conversation.email || null
+    // Extraer información del contacto (permitiendo sobrescribir desde el body)
+    const cleanedName = (bodyName ?? '').toString().trim()
+    const cleanedPhone = (bodyPhone ?? '').toString().trim()
 
-    // Crear lead
-    const { data: lead, error: createError } = await supabase
+    const name =
+      cleanedName ||
+      conversation.customer_name ||
+      conversation.customer_phone ||
+      'Cliente WhatsApp'
+
+    const phone = cleanedPhone || (conversation.customer_phone ?? '')
+    const email = bodyEmail ?? conversation.email ?? null
+
+    // Crear lead (tipar payload para evitar 'never' en insert)
+    type LeadRow = {
+      organization_id: string
+      name: string
+      phone: string
+      email: string | null
+      estimated_value: number
+      lead_source: string
+      assigned_to?: string
+      notes?: string
+      status: string
+      whatsapp_conversation_id: string
+    }
+    const leadPayload: LeadRow = {
+      organization_id: organizationId,
+      name,
+      phone,
+      email,
+      estimated_value,
+      lead_source,
+      assigned_to,
+      notes,
+      status: 'new',
+      whatsapp_conversation_id: conversation_id
+    }
+
+    const { data: lead, error: createError } = await (supabase as any)
       .from('leads')
-      .insert({
-        organization_id: organizationId,
-        name,
-        phone,
-        email,
-        estimated_value,
-        lead_source,
-        assigned_to,
-        notes,
-        status: 'new',
-        whatsapp_conversation_id: conversation_id
-      })
+      .insert(leadPayload)
       .select(`
         *,
         assigned_user:users!leads_assigned_to_fkey(id, full_name, email)
@@ -155,18 +190,21 @@ export async function POST(request: NextRequest) {
             assigned_user:users!leads_assigned_to_fkey(id, full_name, email)
           `)
           .eq('organization_id', organizationId)
-        
-        if (!searchError && existingLeads && existingLeads.length > 0) {
+
+        type LeadWithPhone = { id: string; status: string; phone?: string | null; [key: string]: unknown }
+        const leadsList = (existingLeads || []) as LeadWithPhone[]
+
+        if (!searchError && leadsList.length > 0) {
           // Encontrar el lead que más coincida (por número completo)
-          const matchingLead = existingLeads.find(lead => {
-            const leadPhone = lead.phone?.replace(/\D/g, '') || ''
-            return leadPhone === normalizedPhone || 
+          const matchingLead = leadsList.find((item: LeadWithPhone) => {
+            const leadPhone = item.phone?.replace(/\D/g, '') || ''
+            return leadPhone === normalizedPhone ||
                    leadPhone.endsWith(normalizedPhone.slice(-10)) ||
                    normalizedPhone.endsWith(leadPhone.slice(-10))
-          }) || existingLeads[0]
+          }) || leadsList[0]
           
           // Vincular conversación con el lead existente
-          await supabase
+          await (supabase as any)
             .from('whatsapp_conversations')
             .update({
               is_lead: true,
@@ -197,8 +235,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Actualizar conversación de WhatsApp
-    const { error: updateConvError } = await supabase
+    // Actualizar conversación de WhatsApp (lead ya creado, no nulo aquí)
+    if (!lead) {
+      return NextResponse.json(
+        { error: 'Error inesperado al crear lead' },
+        { status: 500 }
+      )
+    }
+
+    const { error: updateConvError } = await (supabase as any)
       .from('whatsapp_conversations')
       .update({
         is_lead: true,
