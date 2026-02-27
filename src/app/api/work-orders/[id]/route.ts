@@ -31,11 +31,16 @@ export async function GET(
 
     // Obtener organization_id y rol del perfil del usuario usando Service Role Client
     const supabaseAdmin = getSupabaseServiceClient();
-    const { data: userProfile, error: profileError } = await supabaseAdmin
+    const {
+      data: userProfileData,
+      error: profileError,
+    }: { data: any; error: any } = await supabaseAdmin
       .from('users')
       .select('organization_id, role')
       .eq('auth_user_id', user.id)
       .single();
+
+    const userProfile = userProfileData as { organization_id: string; role: UserRole | string } | null;
 
     if (profileError || !userProfile?.organization_id) {
       console.error('❌ [API GET /work-orders/[id]] Error obteniendo perfil:', profileError)
@@ -71,7 +76,10 @@ export async function GET(
     
     // ✅ Obtener orden directamente usando supabaseAdmin (bypass RLS)
     // Esto evita problemas con RLS y garantiza que solo se obtengan órdenes de la organización correcta
-    const { data: order, error: orderError } = await supabaseAdmin
+    const {
+      data: order,
+      error: orderError,
+    }: { data: any; error: any } = await supabaseAdmin
       .from('work_orders')
       .select(`
         *,
@@ -149,38 +157,39 @@ export async function GET(
     }
 
     // ✅ DEBUG: Log de datos que se están devolviendo
+    const typedOrder: Record<string, any> = order as any;
     console.log('📤 [API GET /work-orders/[id]] Datos devueltos:', {
-      order_id: order.id,
-      has_customer: !!order.customer,
-      customer: order.customer ? {
-        id: order.customer.id,
-        name: order.customer.name,
-        phone: order.customer.phone,
-        email: order.customer.email,
+      order_id: typedOrder.id,
+      has_customer: !!typedOrder.customer,
+      customer: typedOrder.customer ? {
+        id: typedOrder.customer.id,
+        name: typedOrder.customer.name,
+        phone: typedOrder.customer.phone,
+        email: typedOrder.customer.email,
       } : null,
-      has_vehicle: !!order.vehicle,
-      vehicle: order.vehicle ? {
-        id: order.vehicle.id,
-        brand: order.vehicle.brand,
-        model: order.vehicle.model,
-        year: order.vehicle.year,
-        license_plate: order.vehicle.license_plate,
-        color: order.vehicle.color,
-        mileage: order.vehicle.mileage,
+      has_vehicle: !!typedOrder.vehicle,
+      vehicle: typedOrder.vehicle ? {
+        id: typedOrder.vehicle.id,
+        brand: typedOrder.vehicle.brand,
+        model: typedOrder.vehicle.model,
+        year: typedOrder.vehicle.year,
+        license_plate: typedOrder.vehicle.license_plate,
+        color: typedOrder.vehicle.color,
+        mileage: typedOrder.vehicle.mileage,
       } : null,
       has_inspection: !!inspection,
-      description: order.description,
-      estimated_cost: order.estimated_cost,
-      assigned_to: order.assigned_to,
-      has_assigned_user: !!(order as any).assigned_user,
+      description: typedOrder.description,
+      estimated_cost: typedOrder.estimated_cost,
+      assigned_to: typedOrder.assigned_to,
+      has_assigned_user: !!typedOrder.assigned_user,
     });
 
     return NextResponse.json({
       success: true,
       data: {
-        ...order,
-        inspection // ✅ Incluir datos de inspección en la respuesta
-      },
+        ...(typedOrder ?? {}),
+        inspection, // ✅ Incluir datos de inspección en la respuesta
+      } as any,
     });
   } catch (error) {
     console.error('Error fetching work order:', error);
@@ -215,11 +224,16 @@ export async function PUT(
 
     // Obtener organization_id y rol del perfil del usuario usando Service Role Client
     const supabaseAdmin = getSupabaseServiceClient();
-    const { data: userProfile, error: profileError } = await supabaseAdmin
+    const {
+      data: userProfileData,
+      error: profileError,
+    }: { data: any; error: any } = await supabaseAdmin
       .from('users')
       .select('organization_id, role')
       .eq('auth_user_id', user.id)
       .single();
+
+    const userProfile = userProfileData as { organization_id: string; role: UserRole | string } | null;
 
     if (profileError || !userProfile?.organization_id) {
       console.error('❌ [API PUT /work-orders/[id]] Error obteniendo perfil:', profileError)
@@ -338,7 +352,7 @@ export async function PUT(
     }
 
     // Actualizar la orden
-    const { data: updatedOrder, error: updateError } = await supabaseAdmin
+    const { data: updatedOrder, error: updateError } = await (supabaseAdmin as any)
       .from('work_orders')
       .update({
         ...body,
@@ -414,11 +428,12 @@ export async function PUT(
       // Crear factura automáticamente si no existe
       try {
         console.log('[Invoice] 🔍 Buscando factura existente para orden:', params.id);
-        const { data: existingInvoice } = await supabaseAdmin
+        const { data: existingInvoiceData } = await supabaseAdmin
           .from('invoices')
           .select('id')
           .eq('work_order_id', params.id)
           .maybeSingle();
+        const existingInvoice = existingInvoiceData as { id: string } | null;
         if (existingInvoice) {
           console.log('[Invoice] ⚠️ Ya existe factura:', existingInvoice.id, '- No se crea duplicado');
         } else {
@@ -430,7 +445,7 @@ export async function PUT(
           const total = servicesList.reduce((sum: number, s: any) => sum + (Number(s?.total_price) || 0), 0);
           console.log('[Invoice] 📋 Servicios encontrados:', servicesList.length);
           console.log('[Invoice] 💰 Total calculado:', total);
-          const newInvoice = await createInvoiceFromWorkOrder(params.id, supabaseAdmin, {
+          const newInvoice = await createInvoiceFromWorkOrder(params.id, supabaseAdmin as any, {
             organization_id: (updatedOrder as any).organization_id,
             customer_id: (updatedOrder as any).customer_id,
             status: 'completed',
@@ -476,7 +491,8 @@ export async function PUT(
         reception: 'Recepción', diagnosis: 'Diagnóstico', initial_quote: 'Cotización Inicial',
         waiting_approval: 'Esperando Aprobación', disassembly: 'Desarme', waiting_parts: 'Espera de Piezas',
         assembly: 'Armado', testing: 'Pruebas', ready: 'Listo para Entrega',
-        completed: 'Completada', cancelled: 'Cancelada', pending: 'Pendiente', in_progress: 'En Progreso',
+        completed: 'Completada', cancelled: 'Cancelada', archived: 'Archivada',
+        pending: 'Pendiente', in_progress: 'En Progreso',
       };
 
       // Cast para acceder a propiedades de la orden existente (prevOrder ya definido arriba)
@@ -547,7 +563,7 @@ export async function PUT(
     if (body.status && body.status !== prevOrder.status) {
       const notifyStatuses = ['waiting_approval', 'waiting_parts', 'ready', 'completed']
       if (notifyStatuses.includes(body.status)) {
-        notifyOrderStatus(organizationId, id, 'status_change', body.status)
+        notifyOrderStatus(organizationId, params.id, 'status_change', body.status)
           .catch(err => console.error('[WorkOrder PUT] Notify error:', err))
       }
     }
@@ -591,11 +607,16 @@ export async function DELETE(
 
     // Obtener organization_id y rol del perfil del usuario usando Service Role Client
     const supabaseAdmin = getSupabaseServiceClient();
-    const { data: userProfile, error: profileError } = await supabaseAdmin
+    const {
+      data: userProfileData,
+      error: profileError,
+    }: { data: any; error: any } = await supabaseAdmin
       .from('users')
       .select('organization_id, role')
       .eq('auth_user_id', user.id)
       .single();
+
+    const userProfile = userProfileData as { organization_id: string; role: UserRole | string } | null;
 
     if (profileError || !userProfile?.organization_id) {
       console.error('❌ [API DELETE /work-orders/[id]] Error obteniendo perfil:', profileError)
@@ -642,11 +663,12 @@ export async function DELETE(
     // ✅ VALIDACIÓN: Si es asesor, solo puede eliminar órdenes en 'reception' o 'cancelled'
     if (currentUserRole === 'ASESOR') {
       const allowedStatuses = ['reception', 'cancelled'];
-      if (!allowedStatuses.includes(existingOrder.status)) {
+      const existingStatus = (existingOrder as any).status as string;
+      if (!allowedStatuses.includes(existingStatus)) {
         return NextResponse.json(
           {
             success: false,
-            error: `No se puede eliminar una orden en estado "${existingOrder.status}". Solo se pueden eliminar órdenes en estado "reception" o "cancelled".`,
+            error: `No se puede eliminar una orden en estado "${existingStatus}". Solo se pueden eliminar órdenes en estado "reception" o "cancelled".`,
           },
           { status: 400 }
         );
@@ -654,7 +676,7 @@ export async function DELETE(
     }
     
     // ✅ SOFT DELETE: Usar Service Role Client para hacer soft delete directamente
-    const { error: deleteError } = await supabaseAdmin
+    const { error: deleteError } = await (supabaseAdmin as any)
       .from('work_orders')
       .update({
         deleted_at: new Date().toISOString(),

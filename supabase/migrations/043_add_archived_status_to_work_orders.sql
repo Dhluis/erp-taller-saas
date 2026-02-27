@@ -8,8 +8,8 @@
 -- NOTAS:
 --   - No toca RLS ni otras políticas de seguridad.
 --   - Solo actualiza el CHECK CONSTRAINT de la columna status.
---   - La lista incluye todos los estados actualmente usados
---     por el backend y la capa de queries.
+--   - La lista preserva todos los estados existentes en producción
+--     y agrega 'archived'.
 -- =====================================================
 
 ALTER TABLE public.work_orders
@@ -18,16 +18,18 @@ ALTER TABLE public.work_orders
 ALTER TABLE public.work_orders
   ADD CONSTRAINT work_orders_status_check
   CHECK (
-    status IN (
-      'pending',
-      'in_progress',
-      'diagnosed',
-      'approved',
-      'in_repair',
+    status = ANY (ARRAY[
+      'reception',
+      'diagnosis',
+      'initial_quote',
+      'waiting_approval',
+      'disassembly',
       'waiting_parts',
+      'assembly',
+      'testing',
+      'ready',
       'completed',
-      'delivered',
+      'cancelled',
       'archived'
-    )
+    ])
   );
-
