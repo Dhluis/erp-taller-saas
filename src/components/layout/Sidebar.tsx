@@ -173,7 +173,7 @@ export function Sidebar({ className }: SidebarProps) {
         { href: "/ingresos/ajustes-devoluciones", label: "Ajustes y devoluciones", icon: () => <RotateCcw size={18} className="text-amber-500" />, visible: permissions.canRead('invoices') },
         { href: "/ingresos/entregas", label: "Entregas", icon: () => <Package size={18} className="text-violet-400" />, visible: permissions.canRead('invoices') },
         { href: "/ingresos/cuentas-efectivo", label: "Cuentas de efectivo", icon: () => <Wallet size={18} className="text-emerald-400" />, visible: permissions.canPayInvoices() },
-        { href: "/ingresos/arqueo-caja", label: "Arqueo de caja", icon: () => <ClipboardCheck size={18} className="text-sky-400" />, visible: permissions.canPayInvoices() }
+        { href: "/ingresos/arqueo-caja", label: "Corte de caja/Arqueo de Caja", icon: () => <ClipboardCheck size={18} className="text-sky-400" />, visible: permissions.canPayInvoices() }
       ].filter(item => item.visible)
     },
     {

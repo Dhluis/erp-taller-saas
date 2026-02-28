@@ -70,11 +70,11 @@ export default function NuevoArqueoPage() {
   return (
     <AppLayout>
       <PageHeader
-        title="Nuevo arqueo de caja"
+        title="Nuevo corte de caja/arqueo de caja"
         description="Cierre de turno"
         breadcrumbs={[
           { label: 'Ingresos', href: '/ingresos' },
-          { label: 'Arqueo de caja', href: '/ingresos/arqueo-caja' },
+          { label: 'Corte de caja/Arqueo de Caja', href: '/ingresos/arqueo-caja' },
           { label: 'Nuevo', href: '/ingresos/arqueo-caja/nuevo' }
         ]}
       />

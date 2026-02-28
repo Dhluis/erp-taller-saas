@@ -24,6 +24,8 @@ import { getCompanySettings, updateCompanySettings, type CompanySettings } from 
 import { useAuth } from "@/hooks/useAuth"
 import { useOrganization } from "@/lib/context/SessionContext"
 import { SUPPORTED_CURRENCIES, useOrgCurrency, type OrgCurrencyCode } from "@/lib/context/CurrencyContext"
+import { detectLocaleFromTimezone, isDetectedSameAsSaved, type DetectedLocale } from "@/lib/locale/detect-locale"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 // Tipo del formulario (UI). La API usa company_name, working_hours, etc.; el form usa name, business_hours, billing, services.
 export type CompanySettingsForm = {
@@ -106,7 +108,7 @@ function apiToFormSettings(api: CompanySettings | null): CompanySettingsForm {
       ...hours
     },
     billing: {
-      currency: api.currency ?? DEFAULT_BILLING.currency,
+      currency: (api.base_currency ?? api.currency) ?? DEFAULT_BILLING.currency,
       tax_rate: api.tax_rate ?? DEFAULT_BILLING.tax_rate,
       invoice_prefix: (appDefaults.invoice_prefix as string) ?? DEFAULT_BILLING.invoice_prefix,
       payment_terms: typeof appDefaults.payment_terms === 'number' ? appDefaults.payment_terms : DEFAULT_BILLING.payment_terms
@@ -131,6 +133,7 @@ function formToApiSettings(form: CompanySettingsForm): Parameters<typeof updateC
     email: form.email || null,
     logo_url: form.logo || null,
     currency: form.billing.currency,
+    base_currency: form.billing.currency,
     tax_rate: form.billing.tax_rate,
     working_hours: form.business_hours,
     invoice_terms: `Pago a ${form.billing.payment_terms} días`,
@@ -152,12 +155,18 @@ export default function EmpresaPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [formData, setFormData] = useState<CompanySettingsForm>(getDefaultFormState())
+  const [detectedLocale, setDetectedLocale] = useState<DetectedLocale | null>(null)
 
   useEffect(() => {
     if (organizationId) {
       loadSettings()
     }
   }, [organizationId])
+
+  useEffect(() => {
+    if (isLoading) return
+    setDetectedLocale(detectLocaleFromTimezone())
+  }, [isLoading])
 
   const loadSettings = async () => {
     setIsLoading(true)
@@ -168,6 +177,32 @@ export default function EmpresaPage() {
       console.error('Error loading settings:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const applyDetectedCurrency = async () => {
+    if (!detectedLocale || !organizationId) return
+    const currency = detectedLocale.currencyCode
+    setIsSaving(true)
+    try {
+      await updateCompanySettings(organizationId, {
+        currency,
+        base_currency: currency,
+      })
+      setFormData(prev => ({
+        ...prev,
+        billing: { ...prev.billing, currency },
+      }))
+      if (currency in SUPPORTED_CURRENCIES) {
+        await setGlobalCurrency(currency as OrgCurrencyCode)
+      }
+      setDetectedLocale(null)
+      alert('Moneda actualizada. Ingresos, gastos y reportes usarán ' + currency + '.')
+    } catch (error) {
+      console.error('Error al aplicar moneda detectada:', error)
+      alert('No se pudo actualizar la moneda. Intenta de nuevo.')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -291,6 +326,25 @@ export default function EmpresaPage() {
           )}
         </div>
       </div>
+
+      {detectedLocale && !isDetectedSameAsSaved(detectedLocale, formData.billing?.currency) && (
+        <Alert className="border-primary/50 bg-primary/5">
+          <MapPin className="h-4 w-4 text-primary" />
+          <AlertDescription className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <span>
+              Según tu ubicación sugerimos: <strong>{detectedLocale.countryName}</strong> ({detectedLocale.currencyCode}). 
+              Así las cantidades (ingresos, gastos, reportes) serán exactas en tu moneda.
+            </span>
+            <Button
+              size="sm"
+              onClick={applyDetectedCurrency}
+              disabled={isSaving}
+            >
+              {isSaving ? 'Guardando...' : `Usar ${detectedLocale.currencyCode}`}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Información Básica */}
@@ -456,7 +510,7 @@ export default function EmpresaPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="currency">Moneda</Label>
+                <Label htmlFor="currency">Moneda del taller</Label>
                 <select 
                   id="currency"
                   value={(formData.billing ?? DEFAULT_BILLING).currency}
@@ -470,6 +524,9 @@ export default function EmpresaPage() {
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Ingresos, gastos y reportes se registran en esta moneda.
+                </p>
               </div>
               <div>
                 <Label htmlFor="tax_rate">Tasa de Impuesto (%)</Label>

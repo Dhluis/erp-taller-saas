@@ -133,6 +133,7 @@ export async function initializeCompanySettings(organizationId: string, initialD
         organization_id: organizationId,
         company_name: initialData.company_name || 'Mi Empresa',
         currency: initialData.currency || 'MXN',
+        base_currency: initialData.base_currency ?? initialData.currency ?? 'MXN',
         tax_rate: initialData.tax_rate || 16.00,
         working_hours: initialData.working_hours || {},
         appointment_defaults: initialData.appointment_defaults || {},
@@ -161,6 +162,7 @@ export function getDefaultCompanySettings(organizationId: string): CreateCompany
     organization_id: organizationId,
     company_name: 'Mi Empresa',
     currency: 'MXN',
+    base_currency: 'MXN',
     tax_rate: 16.00,
     working_hours: {
       monday: '9:00-18:00',
