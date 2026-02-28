@@ -688,7 +688,7 @@ export default function RegisterPage() {
                     🎉 Tu cuenta está lista. Empieza a usar Eagles System gratis.
                   </p>
                   <p className="text-slate-300 text-sm">
-                    Tu plan Free es permanente: hasta 20 clientes, 20 órdenes al mes, inventario y 2 usuarios. Sin tarjeta ni vencimiento. Mejora a Premium cuando lo necesites.
+                    Tu plan Free es permanente: hasta 20 clientes, 20 órdenes al mes, inventario y 2 usuarios. Sin tarjeta ni vencimiento. Mejora a Premium cuando lo necesites (asistente IA, WhatsApp, reportes avanzados, etc.).
                   </p>
                 </div>
               </div>

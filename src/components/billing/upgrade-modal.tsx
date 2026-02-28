@@ -29,7 +29,7 @@ export function UpgradeModal({ isOpen, onClose, limitError, featureName }: Upgra
         max_inventory_items: 'Productos en inventario',
         max_users: 'Usuarios',
         whatsapp_enabled: 'WhatsApp Business',
-        ai_enabled: 'IA Conversacional',
+        ai_enabled: 'Asistente IA',
         advanced_reports: 'Reportes Avanzados'
       }
       return featureMap[limitError.feature] || 'este recurso'
@@ -109,7 +109,7 @@ export function UpgradeModal({ isOpen, onClose, limitError, featureName }: Upgra
               </li>
               <li className="flex items-start gap-2">
                 <Check className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-slate-200">IA Conversacional</span>
+                <span className="text-slate-200">Asistente IA</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />

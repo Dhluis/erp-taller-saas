@@ -6,6 +6,7 @@ import {
   getOrdersCountByStatus,
   getRecentOrders,
   getOrdersByStatus,
+  getRecentCustomers,
   searchInventory,
   getFinanceSummary,
   getLowStockItems,
@@ -40,6 +41,7 @@ HERRAMIENTAS disponibles y cuándo usarlas:
 REGLAS:
 - Llama a la herramienta más específica para la pregunta.
 - Para preguntas de precio usa search_inventory.
+- Para "¿cuál es el último cliente?" o "clientes nuevos" usa get_recent_customers.
 - Para "¿cuál es la orden más reciente?" o "últimas órdenes" usa get_recent_orders.
 - Para "órdenes en proceso" o "qué hay en diagnóstico" usa get_orders_by_status.
 - Para conteos totales por estado usa get_orders_count_by_status.
@@ -116,6 +118,19 @@ export async function POST(request: NextRequest) {
               query: { type: 'string', description: 'Términos de búsqueda: nombre de cliente, modelo de auto, placa, producto, número de factura, etc.' },
             },
             required: ['query'],
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_recent_customers',
+          description: 'Retorna los clientes más recientemente registrados. Usar para: "¿cuál es el último cliente?", "últimos clientes registrados", "clientes nuevos".',
+          parameters: {
+            type: 'object',
+            properties: {
+              limit: { type: 'number', description: 'Cuántos clientes retornar. Por defecto 5.' },
+            },
           },
         },
       },
@@ -238,7 +253,21 @@ export async function POST(request: NextRequest) {
 
         let content: string
 
-        if (name === 'erp_search' && typeof args.query === 'string' && args.query.trim()) {
+        if (name === 'get_recent_customers') {
+          const limit = typeof args.limit === 'number' ? Math.min(args.limit, 10) : 5
+          const customers = await getRecentCustomers(organizationId, limit)
+          content = customers.length === 0
+            ? JSON.stringify({ mensaje: 'No hay clientes registrados.' })
+            : JSON.stringify(customers.map((c) => ({
+                nombre: c.name,
+                telefono: c.phone,
+                email: c.email,
+                fecha_registro: c.created_at,
+                url: c.url,
+              })))
+          links.push({ label: 'Ver clientes', url: '/clientes' })
+
+        } else if (name === 'erp_search' && typeof args.query === 'string' && args.query.trim()) {
           const sr = await erpSearch(organizationId, String(args.query).trim())
           content = JSON.stringify({
             clientes: sr.customers.map((c) => ({ nombre: c.name, telefono: c.phone, email: c.email, url: c.url })),

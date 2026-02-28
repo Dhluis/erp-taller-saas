@@ -201,6 +201,7 @@ export const FEATURES = {
     '✅ Inventario ilimitado',
     '✅ Usuarios ilimitados',
     '✅ WhatsApp con API oficial',
+    '✅ Asistente IA',
     '✅ Reportes avanzados',
     '✅ Soporte prioritario 24/7',
     '✅ Acceso a API',

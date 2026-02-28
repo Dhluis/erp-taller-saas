@@ -224,7 +224,7 @@ export const FEATURE_NAMES: Record<string, string> = {
   max_inventory_items: 'Productos en inventario',
   max_users: 'Usuarios',
   whatsapp_enabled: 'WhatsApp Business',
-  ai_enabled: 'IA Conversacional',
+  ai_enabled: 'Asistente IA',
   advanced_reports: 'Reportes Avanzados'
 }
 

@@ -29,7 +29,7 @@ const BILLING_FAQS = [
   },
   {
     question: '¿Cómo funciona el plan Free?',
-    answer: 'El plan Free es gratuito para siempre. Incluye hasta 20 clientes, 20 órdenes por mes, 30 productos en inventario y 2 usuarios. Sin tarjeta de crédito. Cuando quieras más capacidad o funciones Premium (WhatsApp, reportes avanzados, etc.), puedes actualizar en cualquier momento.',
+    answer: 'El plan Free es gratuito para siempre. Incluye hasta 20 clientes, 20 órdenes por mes, 30 productos en inventario y 2 usuarios. Sin tarjeta de crédito. Cuando quieras más capacidad o funciones Premium (WhatsApp, asistente IA, reportes avanzados, etc.), puedes actualizar en cualquier momento.',
   },
   {
     question: '¿Puedo tener varios usuarios en mi taller?',

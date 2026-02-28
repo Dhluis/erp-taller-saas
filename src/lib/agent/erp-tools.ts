@@ -81,7 +81,7 @@ export async function erpSearch(organizationId: string, query: string): Promise<
       name: c.name,
       phone: c.phone ?? null,
       email: c.email ?? null,
-      url: `/clientes/${c.id}`,
+      url: `/clientes`,
     })
   })
 
@@ -349,6 +349,31 @@ export async function getOrdersByStatus(
     .limit(limit)
 
   return ((data || []) as any[]).map(mapOrder)
+}
+
+/**
+ * Retorna los clientes más recientemente registrados.
+ */
+export async function getRecentCustomers(
+  organizationId: string,
+  limit = 5
+): Promise<Array<{ id: string; name: string; phone: string | null; email: string | null; created_at: string | null; url: string }>> {
+  const supabase = getSupabaseServiceClient()
+  const { data } = await supabase
+    .from('customers')
+    .select('id, name, phone, email, created_at')
+    .eq('organization_id', organizationId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  return ((data || []) as any[]).map((c) => ({
+    id: c.id,
+    name: c.name,
+    phone: c.phone ?? null,
+    email: c.email ?? null,
+    created_at: c.created_at ?? null,
+    url: `/clientes`,
+  }))
 }
 
 /**

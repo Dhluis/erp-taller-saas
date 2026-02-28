@@ -385,6 +385,7 @@ export default function LandingPage() {
                   "Órdenes ilimitadas",
                   "Inventario completo",
                   "Facturación y cobros",
+                  "Asistente IA",
                   "Soporte prioritario 24/7",
                   "Reportes avanzados",
                   "App móvil",
