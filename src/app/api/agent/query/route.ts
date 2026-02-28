@@ -155,12 +155,20 @@ export async function POST(request: NextRequest) {
       const toolResults: OpenAI.Chat.ChatCompletionMessageParam[] = []
 
       for (const tc of lastMessage.tool_calls) {
+        const callId = tc.id
         const name = tc.function?.name
-        const args = tc.function?.arguments ? JSON.parse(tc.function.arguments) : {}
+        let args: Record<string, unknown> = {}
+        try {
+          args = tc.function?.arguments ? JSON.parse(tc.function.arguments) : {}
+        } catch {
+          args = {}
+        }
 
-        if (name === 'erp_search' && args.query) {
-          const searchResult = await erpSearch(organizationId, args.query)
-          const summary = JSON.stringify({
+        let content: string
+
+        if (name === 'erp_search' && typeof args.query === 'string' && args.query.trim()) {
+          const searchResult = await erpSearch(organizationId, String(args.query).trim())
+          content = JSON.stringify({
             clientes: searchResult.customers.map((c) => ({
               nombre: c.name,
               telefono: c.phone,
@@ -204,14 +212,9 @@ export async function POST(request: NextRequest) {
           searchResult.orders.forEach((o) => links.push({ label: `Orden ${o.id.slice(0, 8)}... (${o.customer_name})`, url: o.url }))
           searchResult.customers.forEach((c) => links.push({ label: c.name, url: c.url }))
           searchResult.invoices.forEach((f) => links.push({ label: `Factura ${f.invoice_number}`, url: f.url }))
-          toolResults.push({
-            role: 'tool' as const,
-            tool_call_id: tc.id,
-            content: summary,
-          })
-        } else if (name === 'search_inventory' && args.query) {
-          const inventory = await searchInventory(organizationId, args.query)
-          const summary = JSON.stringify(
+        } else if (name === 'search_inventory' && typeof args.query === 'string' && args.query.trim()) {
+          const inventory = await searchInventory(organizationId, String(args.query).trim())
+          content = JSON.stringify(
             inventory.map((i) => ({
               producto: i.name,
               sku: i.sku,
@@ -221,30 +224,28 @@ export async function POST(request: NextRequest) {
               url: i.url,
             }))
           )
-          toolResults.push({
-            role: 'tool' as const,
-            tool_call_id: tc.id,
-            content: summary,
-          })
           if (inventory.length > 0) {
             links.push({ label: 'Ver inventario', url: '/inventarios/movimientos' })
           }
         } else if (name === 'get_orders_count_by_status') {
           const counts = await getOrdersCountByStatus(organizationId)
-          toolResults.push({
-            role: 'tool' as const,
-            tool_call_id: tc.id,
-            content: JSON.stringify(counts),
-          })
+          content = JSON.stringify(counts)
         } else if (name === 'get_finance_summary') {
           const finance = await getFinanceSummary(organizationId)
-          toolResults.push({
-            role: 'tool' as const,
-            tool_call_id: tc.id,
-            content: JSON.stringify(finance),
-          })
+          content = JSON.stringify(finance)
           links.push({ label: 'Facturación', url: '/ingresos/facturacion' })
+        } else {
+          content = JSON.stringify({
+            error: !name ? 'Herramienta sin nombre' : typeof args.query !== 'string' || !args.query?.trim() ? 'Falta el parámetro "query" o está vacío' : 'Herramienta no reconocida',
+            tool: name || 'unknown',
+          })
         }
+
+        toolResults.push({
+          role: 'tool',
+          tool_call_id: callId,
+          content,
+        })
       }
 
       currentMessages.push(...toolResults)

@@ -8,6 +8,7 @@
  */
 
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import type { TablesUpdate } from '@/types/supabase-simple'
 import { PLAN_LIMITS, PLAN_FEATURES, FEATURE_NAMES } from '@/types/billing'
 import type { LimitError, PlanTier, LimitedResource } from '@/types/billing'
 
@@ -69,12 +70,11 @@ async function getPlanTier(organizationId: string): Promise<PlanTier> {
       return 'premium' // Trial activo → acceso Premium
     }
     // Trial expirado: lazy update a expired (opcional, no bloqueante)
-    // Cliente servidor tipa .update() como never; forzamos tipo para este uso.
-    const orgTable = supabase.from('organizations') as unknown as {
-      update: (v: { subscription_status: string }) => { eq: (col: string, id: string) => Promise<{ error: unknown }> }
-    }
-    void orgTable
-      .update({ subscription_status: 'expired' })
+    const payload: TablesUpdate<'organizations'> = { subscription_status: 'expired' }
+    void supabase
+      .from('organizations')
+      // Cliente SSR no aplica el genérico de organizations a .update(); aserción necesaria.
+      .update(payload as never)
       .eq('id', organizationId)
       .then(({ error: updateErr }) => {
         if (updateErr) console.warn('[getPlanTier] Lazy update expired:', updateErr)
