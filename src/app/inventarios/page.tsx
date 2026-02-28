@@ -226,7 +226,7 @@ export default function InventariosPage() {
             </CardHeader>
             <CardContent className="p-6">
               <Link href="/inventarios/productos">
-                <Button variant="default" className="w-full">
+                <Button variant="primary" className="w-full">
                   Ver Productos
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -245,7 +245,7 @@ export default function InventariosPage() {
             </CardHeader>
             <CardContent className="p-6">
               <Link href="/inventarios/categorias">
-                <Button variant="default" className="w-full">
+                <Button variant="primary" className="w-full">
                   Ver Categorías
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>

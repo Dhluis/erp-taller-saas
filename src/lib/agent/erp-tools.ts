@@ -13,12 +13,12 @@ export interface ERPSearchResult {
   customers: Array<{ id: string; name: string; phone: string | null; email: string | null; url: string }>
   orders: Array<{
     id: string
-    order_number?: string
     status: string
     entry_date: string | null
     description: string | null
     customer_name: string
     vehicle_info: string
+    total_amount: number | null
     url: string
   }>
   vehicles: Array<{
@@ -36,7 +36,7 @@ export interface ERPSearchResult {
     sku: string | null
     current_stock: number
     min_stock: number | null
-    unit: string
+    unit_price: number
     category: string | null
     url: string
   }>
@@ -67,14 +67,15 @@ export async function erpSearch(organizationId: string, query: string): Promise<
 
   if (!q || q.length < 2) return result
 
-  const { data: customers } = await supabase
+  const { data: customersRaw } = await supabase
     .from('customers')
     .select('id, name, email, phone')
     .eq('organization_id', organizationId)
     .or(`name.ilike.${like},email.ilike.${like},phone.ilike.${like}`)
     .limit(5)
 
-  customers?.forEach((c) => {
+  const customers = (customersRaw || []) as any[]
+  customers.forEach((c) => {
     result.customers.push({
       id: c.id,
       name: c.name,
@@ -84,53 +85,46 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     })
   })
 
-  const { data: vehicles } = await supabase
+  const { data: vehiclesRaw } = await supabase
     .from('vehicles')
     .select('id, brand, model, year, license_plate, customer:customers(id, name)')
     .eq('organization_id', organizationId)
     .or(`brand.ilike.${like},model.ilike.${like},license_plate.ilike.${like}`)
     .limit(5)
 
-  vehicles?.forEach((v) => {
-    const customer = v.customer as { id: string; name: string } | null
+  const vehicles = (vehiclesRaw || []) as any[]
+  vehicles.forEach((v) => {
     result.vehicles.push({
       id: v.id,
       brand: v.brand || '',
       model: v.model || '',
       year: v.year ?? null,
       license_plate: v.license_plate ?? null,
-      customer_name: customer?.name || '',
+      customer_name: v.customer?.name || '',
       url: `/vehiculos`,
     })
   })
 
-  const { data: matchingCustomers } = await supabase
+  const { data: matchingCustomersRaw } = await supabase
     .from('customers')
     .select('id')
     .eq('organization_id', organizationId)
     .or(`name.ilike.${like},email.ilike.${like},phone.ilike.${like}`)
     .limit(10)
 
-  const { data: matchingVehicles } = await supabase
+  const { data: matchingVehiclesRaw } = await supabase
     .from('vehicles')
     .select('id')
     .eq('organization_id', organizationId)
     .or(`brand.ilike.${like},model.ilike.${like},license_plate.ilike.${like}`)
     .limit(10)
 
-  const customerIds = matchingCustomers?.map((c) => c.id) || []
-  const vehicleIds = matchingVehicles?.map((v) => v.id) || []
+  const customerIds = ((matchingCustomersRaw || []) as any[]).map((c) => c.id)
+  const vehicleIds = ((matchingVehiclesRaw || []) as any[]).map((v) => v.id)
 
   let ordersQuery = supabase
     .from('work_orders')
-    .select(`
-      id,
-      status,
-      description,
-      entry_date,
-      customer:customers(id, name),
-      vehicle:vehicles(id, brand, model, year, license_plate)
-    `)
+    .select(`id, status, description, entry_date, total_amount, customer:customers(id, name), vehicle:vehicles(id, brand, model, year, license_plate)`)
     .eq('organization_id', organizationId)
     .order('entry_date', { ascending: false })
     .limit(10)
@@ -147,67 +141,92 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     ordersQuery = ordersQuery.or(`description.ilike.${like},id.ilike.${like}`)
   }
 
-  const { data: orders } = await ordersQuery
-
-  orders?.forEach((o) => {
-    const customer = o.customer as { id: string; name: string } | null
-    const vehicle = o.vehicle as { brand: string; model: string; year: number; license_plate: string } | null
+  const { data: ordersRaw } = await ordersQuery
+  const orders = (ordersRaw || []) as any[]
+  orders.forEach((o) => {
     result.orders.push({
       id: o.id,
       status: o.status,
       entry_date: o.entry_date ?? null,
       description: o.description ?? null,
-      customer_name: customer?.name || 'Sin cliente',
-      vehicle_info: vehicle ? `${vehicle.brand || ''} ${vehicle.model || ''} ${vehicle.year || ''}`.trim() : '',
+      customer_name: o.customer?.name || 'Sin cliente',
+      vehicle_info: o.vehicle
+        ? `${o.vehicle.brand || ''} ${o.vehicle.model || ''} ${o.vehicle.year || ''}`.trim()
+        : '',
+      total_amount: o.total_amount != null ? Number(o.total_amount) : null,
       url: `/ordenes/${o.id}`,
     })
   })
 
-  // Inventario / productos (misma tabla que la página Productos: inventory)
-  const { data: inventoryItems } = await supabase
+  // Inventario — columnas reales: quantity, min_quantity, unit_price
+  const { data: inventoryRaw } = await supabase
     .from('inventory')
     .select('id, name, sku, quantity, min_quantity, unit_price, category:inventory_categories(name)')
     .eq('organization_id', organizationId)
     .or(`name.ilike.${like},sku.ilike.${like},description.ilike.${like}`)
     .limit(10)
 
-  inventoryItems?.forEach((item) => {
-    const cat = item.category as { name?: string } | null
-    const stock = Number((item as any).current_stock ?? (item as any).quantity) ?? 0
-    const minS = (item as any).min_stock ?? (item as any).min_quantity ?? (item as any).minimum_stock
+  const inventoryItems = (inventoryRaw || []) as any[]
+  inventoryItems.forEach((item) => {
     result.inventory.push({
       id: item.id,
       name: item.name,
       sku: item.sku ?? null,
-      current_stock: stock,
-      min_stock: minS != null ? Number(minS) : null,
-      unit: 'un',
-      category: cat?.name ?? null,
-      url: '/inventarios/movimientos',
+      current_stock: Number(item.quantity) || 0,
+      min_stock: item.min_quantity != null ? Number(item.min_quantity) : null,
+      unit_price: Number(item.unit_price) || 0,
+      category: item.category?.name ?? null,
+      url: '/inventarios/productos',
     })
   })
 
-  // Facturas / notas de venta
-  const { data: invoicesByNumber } = await supabase
-    .from('sales_invoices')
-    .select('id, invoice_number, status, total_amount, paid_amount, balance, customer:customers(name)')
+  // Facturas modernas (tabla invoices)
+  const { data: invoicesRaw } = await supabase
+    .from('invoices')
+    .select('id, invoice_number, status, total_amount, paid_date, customer:customers(name)')
     .eq('organization_id', organizationId)
     .ilike('invoice_number', like)
     .limit(5)
 
-  invoicesByNumber?.forEach((inv) => {
-    const customer = (inv as any).customer as { name: string } | null
+  const invoices = (invoicesRaw || []) as any[]
+  invoices.forEach((inv) => {
+    const amount = Number(inv.total_amount) || 0
+    const isPaid = inv.status === 'paid'
     result.invoices.push({
       id: inv.id,
       invoice_number: inv.invoice_number,
       status: inv.status,
-      total_amount: Number(inv.total_amount) ?? 0,
-      paid_amount: Number(inv.paid_amount) ?? 0,
-      balance: Number(inv.balance) ?? 0,
-      customer_name: customer?.name ?? '',
+      total_amount: amount,
+      paid_amount: isPaid ? amount : 0,
+      balance: isPaid ? 0 : amount,
+      customer_name: inv.customer?.name ?? '',
       url: `/ingresos/facturacion/${inv.id}`,
     })
   })
+
+  // También buscar en sales_invoices si faltan resultados
+  if (result.invoices.length < 5) {
+    const { data: salesRaw } = await supabase
+      .from('sales_invoices')
+      .select('id, invoice_number, status, total_amount, paid_amount, balance, customer:customers(name)')
+      .eq('organization_id', organizationId)
+      .ilike('invoice_number', like)
+      .limit(5 - result.invoices.length)
+
+    const salesInvoices = (salesRaw || []) as any[]
+    salesInvoices.forEach((inv) => {
+      result.invoices.push({
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        status: inv.status,
+        total_amount: Number(inv.total_amount) || 0,
+        paid_amount: Number(inv.paid_amount) || 0,
+        balance: Number(inv.balance) || 0,
+        customer_name: inv.customer?.name ?? '',
+        url: `/ingresos/facturacion/${inv.id}`,
+      })
+    })
+  }
 
   return result
 }
@@ -219,22 +238,42 @@ export async function getOrdersCountByStatus(organizationId: string): Promise<Re
     .select('status')
     .eq('organization_id', organizationId)
 
+  const statusLabels: Record<string, string> = {
+    reception: 'Recepción',
+    diagnosis: 'Diagnóstico',
+    in_progress: 'En proceso',
+    waiting_parts: 'Esperando repuestos',
+    waiting_approval: 'Esperando aprobación',
+    ready: 'Listo para entregar',
+    completed: 'Completado',
+    cancelled: 'Cancelado',
+  }
+
   const counts: Record<string, number> = {}
-  data?.forEach((row) => {
+  ;(data || []).forEach((row: any) => {
     const s = row.status || 'unknown'
-    counts[s] = (counts[s] || 0) + 1
+    const label = statusLabels[s] || s
+    counts[label] = (counts[label] || 0) + 1
   })
   return counts
 }
 
 /**
  * Búsqueda específica de inventario por nombre, SKU o descripción.
- * Usa la misma tabla que la página Productos (inventory) para consistencia.
+ * Columnas reales: quantity (stock actual), min_quantity (mínimo), unit_price.
  */
 export async function searchInventory(
   organizationId: string,
   query: string
-): Promise<Array<{ name: string; sku: string | null; current_stock: number; min_stock: number | null; category: string | null; url: string }>> {
+): Promise<Array<{
+  name: string
+  sku: string | null
+  current_stock: number
+  min_stock: number | null
+  unit_price: number
+  category: string | null
+  url: string
+}>> {
   const supabase = getSupabaseServiceClient()
   const q = query.trim()
   if (!q) return []
@@ -242,29 +281,98 @@ export async function searchInventory(
   const like = `%${q}%`
   const { data } = await supabase
     .from('inventory')
-    .select('id, name, sku, quantity, min_quantity, current_stock, min_stock, minimum_stock, category:inventory_categories(name)')
+    .select('id, name, sku, quantity, min_quantity, unit_price, category:inventory_categories(name)')
     .eq('organization_id', organizationId)
     .or(`name.ilike.${like},sku.ilike.${like},description.ilike.${like}`)
     .limit(15)
 
-  return (data || []).map((item) => {
-    const cat = item.category as { name?: string } | null
-    const row = item as Record<string, unknown>
-    const stock = Number(row.current_stock ?? row.quantity) ?? 0
-    const minS = row.min_stock ?? row.min_quantity ?? row.minimum_stock
-    return {
-      name: item.name,
-      sku: item.sku ?? null,
-      current_stock: stock,
-      min_stock: minS != null ? Number(minS) : null,
-      category: cat?.name ?? null,
-      url: '/inventarios/movimientos',
-    }
-  })
+  return ((data || []) as any[]).map((item) => ({
+    name: item.name,
+    sku: item.sku ?? null,
+    current_stock: Number(item.quantity) || 0,
+    min_stock: item.min_quantity != null ? Number(item.min_quantity) : null,
+    unit_price: Number(item.unit_price) || 0,
+    category: item.category?.name ?? null,
+    url: '/inventarios/productos',
+  }))
 }
 
 /**
- * Resumen financiero: facturas por estado, totales cobrado/pendiente.
+ * Productos con stock bajo o agotado (quantity <= min_quantity).
+ */
+export async function getLowStockItems(
+  organizationId: string
+): Promise<Array<{
+  name: string
+  sku: string | null
+  current_stock: number
+  min_stock: number
+  unit_price: number
+  category: string | null
+  url: string
+}>> {
+  const supabase = getSupabaseServiceClient()
+  const { data } = await supabase
+    .from('inventory')
+    .select('id, name, sku, quantity, min_quantity, unit_price, category:inventory_categories(name)')
+    .eq('organization_id', organizationId)
+    .gt('min_quantity', 0)
+    .order('name', { ascending: true })
+
+  return ((data || []) as any[])
+    .filter((item) => (Number(item.quantity) || 0) <= (Number(item.min_quantity) || 0))
+    .map((item) => ({
+      name: item.name,
+      sku: item.sku ?? null,
+      current_stock: Number(item.quantity) || 0,
+      min_stock: Number(item.min_quantity) || 0,
+      unit_price: Number(item.unit_price) || 0,
+      category: item.category?.name ?? null,
+      url: '/inventarios/productos',
+    }))
+}
+
+/**
+ * Estadísticas globales del inventario: total de productos, valor total en stock,
+ * cuántos con bajo stock y cuántos agotados.
+ */
+export interface InventoryStats {
+  total_products: number
+  total_stock_value: number
+  low_stock_count: number
+  out_of_stock_count: number
+}
+
+export async function getInventoryStats(organizationId: string): Promise<InventoryStats> {
+  const supabase = getSupabaseServiceClient()
+  const { data } = await supabase
+    .from('inventory')
+    .select('quantity, min_quantity, unit_price')
+    .eq('organization_id', organizationId)
+
+  let total_stock_value = 0
+  let low_stock_count = 0
+  let out_of_stock_count = 0
+
+  ;((data || []) as any[]).forEach((item) => {
+    const qty = Number(item.quantity) || 0
+    const minQty = Number(item.min_quantity) || 0
+    const price = Number(item.unit_price) || 0
+    total_stock_value += qty * price
+    if (qty === 0) out_of_stock_count++
+    else if (minQty > 0 && qty <= minQty) low_stock_count++
+  })
+
+  return {
+    total_products: (data || []).length,
+    total_stock_value,
+    low_stock_count,
+    out_of_stock_count,
+  }
+}
+
+/**
+ * Resumen financiero combinando tabla invoices (moderna) y sales_invoices (OTs).
  */
 export interface FinanceSummary {
   total_invoices: number
@@ -276,28 +384,63 @@ export interface FinanceSummary {
 
 export async function getFinanceSummary(organizationId: string): Promise<FinanceSummary> {
   const supabase = getSupabaseServiceClient()
-  const { data } = await supabase
+
+  // Tabla moderna (página de facturación principal)
+  const { data: invoicesRaw } = await supabase
+    .from('invoices')
+    .select('status, total_amount')
+    .eq('organization_id', organizationId)
+
+  // Tabla de ventas vinculadas a órdenes (tiene paid_amount y balance)
+  const { data: salesRaw } = await supabase
     .from('sales_invoices')
     .select('status, total_amount, paid_amount, balance')
     .eq('organization_id', organizationId)
+
+  const statusLabels: Record<string, string> = {
+    paid: 'Pagado',
+    pending: 'Pendiente',
+    partial: 'Pago parcial',
+    draft: 'Borrador',
+    sent: 'Enviado',
+    overdue: 'Vencido',
+    cancelled: 'Cancelado',
+  }
 
   const by_status: Record<string, { count: number; total: number }> = {}
   let total_amount = 0
   let total_paid = 0
   let total_balance = 0
 
-  data?.forEach((row) => {
-    const status = row.status || 'unknown'
-    if (!by_status[status]) by_status[status] = { count: 0, total: 0 }
-    by_status[status].count += 1
-    by_status[status].total += Number(row.total_amount) || 0
-    total_amount += Number(row.total_amount) || 0
+  ;((invoicesRaw || []) as any[]).forEach((row) => {
+    const raw = row.status || 'unknown'
+    const label = statusLabels[raw] || raw
+    if (!by_status[label]) by_status[label] = { count: 0, total: 0 }
+    const amount = Number(row.total_amount) || 0
+    by_status[label].count += 1
+    by_status[label].total += amount
+    total_amount += amount
+    if (raw === 'paid') {
+      total_paid += amount
+    } else if (raw !== 'cancelled' && raw !== 'draft') {
+      total_balance += amount
+    }
+  })
+
+  ;((salesRaw || []) as any[]).forEach((row) => {
+    const raw = row.status || 'unknown'
+    const label = `Ventas - ${statusLabels[raw] || raw}`
+    if (!by_status[label]) by_status[label] = { count: 0, total: 0 }
+    const amount = Number(row.total_amount) || 0
+    by_status[label].count += 1
+    by_status[label].total += amount
+    total_amount += amount
     total_paid += Number(row.paid_amount) || 0
     total_balance += Number(row.balance) || 0
   })
 
   return {
-    total_invoices: data?.length ?? 0,
+    total_invoices: ((invoicesRaw || []).length) + ((salesRaw || []).length),
     total_amount,
     total_paid,
     total_balance,
