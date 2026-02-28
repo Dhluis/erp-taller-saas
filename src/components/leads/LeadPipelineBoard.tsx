@@ -20,6 +20,8 @@ interface LeadPipelineBoardProps {
   organizationId: string
   searchQuery?: string
   refreshKey?: number
+  /** Si se proporciona, el board usa esta lista para renderizar (permite actualización inmediata al editar en el panel) */
+  leads?: CRMLead[]
   onLeadsLoaded?: (leads: CRMLead[]) => void
   onLeadClick?: (leadId: string) => void
 }
@@ -32,6 +34,7 @@ export function LeadPipelineBoard({
   organizationId,
   searchQuery = '',
   refreshKey = 0,
+  leads: leadsProp,
   onLeadsLoaded,
   onLeadClick,
 }: LeadPipelineBoardProps) {
@@ -103,6 +106,35 @@ export function LeadPipelineBoard({
       setLoading(false)
     }
   }, [organizationId, searchQuery, refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cuando el padre pasa una lista de leads actualizada (ej. tras editar en el panel), derivar columnas de ella para actualizar la UI al instante
+  useEffect(() => {
+    if (leadsProp && leadsProp.length > 0) {
+      const normalizeStatus = (s: string): LeadStatus => {
+        if (s === 'appointment') return 'proposal'
+        if (s === 'converted') return 'won'
+        if (VALID_STATUSES.includes(s as LeadStatus)) return s as LeadStatus
+        return 'new'
+      }
+      const normalized = leadsProp.map((l) => ({ ...l, status: normalizeStatus(l.status) }))
+      const filtered = searchQuery
+        ? normalized.filter((l) => {
+            const q = searchQuery.toLowerCase()
+            return (
+              l.name?.toLowerCase().includes(q) ||
+              l.phone?.includes(searchQuery) ||
+              l.email?.toLowerCase().includes(q) ||
+              l.company?.toLowerCase().includes(q)
+            )
+          })
+        : normalized
+      const newColumns: PipelineColumn[] = PIPELINE_COLUMNS.map((col) => ({
+        ...col,
+        leads: filtered.filter((l) => l.status === col.id),
+      }))
+      setColumns(newColumns)
+    }
+  }, [leadsProp, searchQuery])
 
   useEffect(() => {
     if (organizationId) {

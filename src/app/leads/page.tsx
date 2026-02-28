@@ -190,6 +190,7 @@ export default function LeadsPage() {
               organizationId={organizationId || ''}
               searchQuery={searchTerm}
               refreshKey={refreshKey}
+              leads={leads}
               onLeadsLoaded={handleLeadsLoaded}
               onLeadClick={openLeadPanel}
             />

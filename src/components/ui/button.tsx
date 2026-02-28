@@ -10,8 +10,8 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-white hover:bg-primary-dark shadow-primary",
-        primary: "bg-primary text-white hover:bg-primary-dark shadow-primary",
+        default: "bg-primary text-white hover:bg-primary-dark shadow-primary [&_a]:text-white [&_a:hover]:text-white [&_a_svg]:text-white",
+        primary: "bg-primary text-white hover:bg-primary-dark shadow-primary [&_a]:text-white [&_a:hover]:text-white [&_a_svg]:text-white",
         secondary: "bg-bg-tertiary text-text-primary border border-border hover:bg-bg-quaternary hover:border-primary/50",
         ghost: "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary",
         danger: "bg-error text-white hover:bg-error-dark",
@@ -57,12 +57,12 @@ export function Button({
   const baseClasses = 'inline-flex items-center justify-center rounded-md font-medium transition-all duration-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50'
   
   const variants = {
-    primary: 'bg-primary text-white hover:opacity-90 shadow-sm',
+    primary: 'bg-primary text-white hover:opacity-90 shadow-sm [&_a]:text-white [&_a:hover]:text-white [&_a_svg]:text-white',
     secondary: 'bg-bg-tertiary text-text-primary border border-border hover:bg-bg-quaternary hover:border-primary/50',
     ghost: 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary',
-    danger: 'bg-error text-white hover:bg-error-dark',
-    success: 'bg-success text-white hover:bg-success-dark',
-    warning: 'bg-warning text-white hover:bg-warning-dark',
+    danger: 'bg-error text-white hover:bg-error-dark [&_a]:text-white [&_a:hover]:text-white [&_a_svg]:text-white',
+    success: 'bg-success text-white hover:bg-success-dark [&_a]:text-white [&_a:hover]:text-white [&_a_svg]:text-white',
+    warning: 'bg-warning text-white hover:bg-warning-dark [&_a]:text-white [&_a:hover]:text-white [&_a_svg]:text-white',
     outline: 'border border-primary/50 bg-transparent text-primary hover:bg-primary/10 hover:border-primary',
   }
   
