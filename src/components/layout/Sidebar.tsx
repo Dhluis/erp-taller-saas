@@ -15,7 +15,12 @@ import {
   Search,
   LogOut,
   CreditCard,
-  TrendingUp
+  TrendingUp,
+  RotateCcw,
+  Package,
+  Wallet,
+  ClipboardCheck,
+  Receipt
 } from "lucide-react"
 import { useSidebar } from '@/contexts/SidebarContext'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -165,10 +170,10 @@ export function Sidebar({ className }: SidebarProps) {
       items: [
         { href: "/ingresos", label: "Facturación", icon: () => <ModernIcons.Facturacion size={18} />, visible: permissions.canRead('invoices') },
         { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Cobros size={18} />, visible: permissions.canPayInvoices() },
-        { href: "/ingresos/ajustes-devoluciones", label: "Ajustes y devoluciones", icon: () => <ModernIcons.Facturacion size={18} />, visible: permissions.canRead('invoices') },
-        { href: "/ingresos/entregas", label: "Entregas", icon: () => <ModernIcons.Reportes size={18} />, visible: permissions.canRead('invoices') },
-        { href: "/ingresos/cuentas-efectivo", label: "Cuentas de efectivo", icon: () => <ModernIcons.Finanzas size={18} />, visible: permissions.canPayInvoices() },
-        { href: "/ingresos/arqueo-caja", label: "Arqueo de caja", icon: () => <ModernIcons.Finanzas size={18} />, visible: permissions.canPayInvoices() }
+        { href: "/ingresos/ajustes-devoluciones", label: "Ajustes y devoluciones", icon: () => <RotateCcw size={18} className="text-amber-500" />, visible: permissions.canRead('invoices') },
+        { href: "/ingresos/entregas", label: "Entregas", icon: () => <Package size={18} className="text-violet-400" />, visible: permissions.canRead('invoices') },
+        { href: "/ingresos/cuentas-efectivo", label: "Cuentas de efectivo", icon: () => <Wallet size={18} className="text-emerald-400" />, visible: permissions.canPayInvoices() },
+        { href: "/ingresos/arqueo-caja", label: "Arqueo de caja", icon: () => <ClipboardCheck size={18} className="text-sky-400" />, visible: permissions.canPayInvoices() }
       ].filter(item => item.visible)
     },
     {
@@ -180,7 +185,7 @@ export function Sidebar({ className }: SidebarProps) {
         { href: "/compras", label: "Órdenes de Compra", icon: () => <ModernIcons.OrdenesCompra size={18} /> },
         { href: "/compras/proveedores", label: "Proveedores", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageSuppliers() },
         { href: "/compras/pagos", label: "Pagos", icon: () => <ModernIcons.Transfer size={18} />, visible: permissions.canPayInvoices() },
-        { href: "/compras/gastos", label: "Gastos", icon: () => <ModernIcons.Finanzas size={18} /> }
+        { href: "/compras/gastos", label: "Gastos", icon: () => <Receipt size={18} className="text-orange-400" /> }
       ].filter(item => item.visible !== false)
     },
     {
