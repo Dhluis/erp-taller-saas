@@ -163,23 +163,26 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     })
   })
 
-  // Inventario / productos
+  // Inventario / productos (misma tabla que la página Productos: inventory)
   const { data: inventoryItems } = await supabase
-    .from('inventory_items')
-    .select('id, name, sku, current_stock, min_stock, unit_price, category')
+    .from('inventory')
+    .select('id, name, sku, quantity, min_quantity, unit_price, category:inventory_categories(name)')
     .eq('organization_id', organizationId)
-    .or(`name.ilike.${like},sku.ilike.${like},category.ilike.${like}`)
+    .or(`name.ilike.${like},sku.ilike.${like},description.ilike.${like}`)
     .limit(10)
 
   inventoryItems?.forEach((item) => {
+    const cat = item.category as { name?: string } | null
+    const stock = Number((item as any).current_stock ?? (item as any).quantity) ?? 0
+    const minS = (item as any).min_stock ?? (item as any).min_quantity ?? (item as any).minimum_stock
     result.inventory.push({
       id: item.id,
       name: item.name,
       sku: item.sku ?? null,
-      current_stock: Number(item.current_stock) ?? 0,
-      min_stock: item.min_stock != null ? Number(item.min_stock) : null,
+      current_stock: stock,
+      min_stock: minS != null ? Number(minS) : null,
       unit: 'un',
-      category: item.category ?? null,
+      category: cat?.name ?? null,
       url: '/inventarios/movimientos',
     })
   })
@@ -225,8 +228,8 @@ export async function getOrdersCountByStatus(organizationId: string): Promise<Re
 }
 
 /**
- * Búsqueda específica de inventario por nombre, SKU o categoría.
- * Para preguntas como "cuánto tengo en aceite", "stock de filtros", etc.
+ * Búsqueda específica de inventario por nombre, SKU o descripción.
+ * Usa la misma tabla que la página Productos (inventory) para consistencia.
  */
 export async function searchInventory(
   organizationId: string,
@@ -238,20 +241,26 @@ export async function searchInventory(
 
   const like = `%${q}%`
   const { data } = await supabase
-    .from('inventory_items')
-    .select('id, name, sku, current_stock, min_stock, category')
+    .from('inventory')
+    .select('id, name, sku, quantity, min_quantity, current_stock, min_stock, minimum_stock, category:inventory_categories(name)')
     .eq('organization_id', organizationId)
-    .or(`name.ilike.${like},sku.ilike.${like},category.ilike.${like}`)
+    .or(`name.ilike.${like},sku.ilike.${like},description.ilike.${like}`)
     .limit(15)
 
-  return (data || []).map((item) => ({
-    name: item.name,
-    sku: item.sku ?? null,
-    current_stock: Number(item.current_stock) ?? 0,
-    min_stock: item.min_stock != null ? Number(item.min_stock) : null,
-    category: item.category ?? null,
-    url: '/inventarios/movimientos',
-  }))
+  return (data || []).map((item) => {
+    const cat = item.category as { name?: string } | null
+    const row = item as Record<string, unknown>
+    const stock = Number(row.current_stock ?? row.quantity) ?? 0
+    const minS = row.min_stock ?? row.min_quantity ?? row.minimum_stock
+    return {
+      name: item.name,
+      sku: item.sku ?? null,
+      current_stock: stock,
+      min_stock: minS != null ? Number(minS) : null,
+      category: cat?.name ?? null,
+      url: '/inventarios/movimientos',
+    }
+  })
 }
 
 /**

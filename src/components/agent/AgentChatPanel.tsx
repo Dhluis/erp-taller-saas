@@ -36,7 +36,7 @@ const WELCOME_MESSAGE: AgentMessage = {
   id: 'welcome',
   role: 'assistant',
   content:
-    'Hola. Soy el asistente del ERP. Puedes preguntar en lenguaje natural, por ejemplo: fechas de ingreso de vehículos, órdenes de trabajo por cliente, teléfonos de clientes, estado de órdenes, etc. Escribe tu pregunta abajo.',
+    'Hola! Soy Eagles Assistance, puedes preguntarme por ejemplo: fechas de ingreso de vehículos, órdenes de trabajo por cliente, teléfonos de clientes, estado de órdenes, inventario, finanzas, etc. Escribe tu pregunta abajo.',
 }
 
 const SUGGESTIONS = [
