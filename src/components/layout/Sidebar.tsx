@@ -44,8 +44,8 @@ export function Sidebar({ className }: SidebarProps) {
     sections.forEach(section => {
       const sectionRoutes: Record<string, string[]> = {
         'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos', '/service-packages'],
-        'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/cuentas-efectivo', '/ingresos/reportes'],
-        'compras': ['/compras', '/compras/proveedores', '/compras/pagos'],
+        'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/cuentas-efectivo', '/ingresos/ajustes-devoluciones', '/ingresos/entregas', '/ingresos/arqueo-caja', '/ingresos/reportes'],
+        'compras': ['/compras', '/compras/proveedores', '/compras/pagos', '/compras/gastos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/inventario', '/reportes/financieros'],
         'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/mensajeria', '/mensajeria/email', '/mensajeria/whatsapp', '/perfil']
       }
@@ -165,7 +165,10 @@ export function Sidebar({ className }: SidebarProps) {
       items: [
         { href: "/ingresos", label: "Facturación", icon: () => <ModernIcons.Facturacion size={18} />, visible: permissions.canRead('invoices') },
         { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Cobros size={18} />, visible: permissions.canPayInvoices() },
-        { href: "/ingresos/cuentas-efectivo", label: "Cuentas de efectivo", icon: () => <ModernIcons.Finanzas size={18} />, visible: permissions.canPayInvoices() }
+        { href: "/ingresos/ajustes-devoluciones", label: "Ajustes y devoluciones", icon: () => <ModernIcons.Facturacion size={18} />, visible: permissions.canRead('invoices') },
+        { href: "/ingresos/entregas", label: "Entregas", icon: () => <ModernIcons.Reportes size={18} />, visible: permissions.canRead('invoices') },
+        { href: "/ingresos/cuentas-efectivo", label: "Cuentas de efectivo", icon: () => <ModernIcons.Finanzas size={18} />, visible: permissions.canPayInvoices() },
+        { href: "/ingresos/arqueo-caja", label: "Arqueo de caja", icon: () => <ModernIcons.Finanzas size={18} />, visible: permissions.canPayInvoices() }
       ].filter(item => item.visible)
     },
     {
@@ -176,7 +179,8 @@ export function Sidebar({ className }: SidebarProps) {
       items: [
         { href: "/compras", label: "Órdenes de Compra", icon: () => <ModernIcons.OrdenesCompra size={18} /> },
         { href: "/compras/proveedores", label: "Proveedores", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageSuppliers() },
-        { href: "/compras/pagos", label: "Pagos", icon: () => <ModernIcons.Transfer size={18} />, visible: permissions.canPayInvoices() }
+        { href: "/compras/pagos", label: "Pagos", icon: () => <ModernIcons.Transfer size={18} />, visible: permissions.canPayInvoices() },
+        { href: "/compras/gastos", label: "Gastos", icon: () => <ModernIcons.Finanzas size={18} /> }
       ].filter(item => item.visible !== false)
     },
     {
@@ -258,8 +262,8 @@ export function Sidebar({ className }: SidebarProps) {
     const isParentOfCollapsibleSection = collapsibleSections.some(section => {
       const sectionRoutes: Record<string, string[]> = {
         'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos', '/service-packages'],
-        'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/cuentas-efectivo', '/ingresos/reportes'],
-        'compras': ['/compras', '/compras/proveedores', '/compras/pagos'],
+        'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/cuentas-efectivo', '/ingresos/ajustes-devoluciones', '/ingresos/entregas', '/ingresos/arqueo-caja', '/ingresos/reportes'],
+        'compras': ['/compras', '/compras/proveedores', '/compras/pagos', '/compras/gastos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/inventario', '/reportes/financieros'],
         'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/mensajeria', '/mensajeria/email', '/mensajeria/whatsapp', '/perfil']
       }

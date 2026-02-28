@@ -92,7 +92,19 @@ export async function getFinancialReport(
         .gte('paid_date', start)
         .lte('paid_date', end)
       
-      const totalRevenue = revenueData?.reduce((sum, invoice) => sum + (invoice.total_amount ?? invoice.total ?? 0), 0) || 0
+      let totalRevenue = revenueData?.reduce((sum, invoice) => sum + (invoice.total_amount ?? invoice.total ?? 0), 0) || 0
+
+      // Restar notas de crédito aplicadas en el período (por issued_at)
+      const { data: creditNotesData } = await client
+        .from('credit_notes')
+        .select('total_amount, issued_at')
+        .eq('organization_id', organizationId)
+        .eq('status', 'applied')
+        .not('issued_at', 'is', null)
+        .gte('issued_at', start)
+        .lte('issued_at', end)
+      const creditNotesDeduction = creditNotesData?.reduce((sum, n) => sum + Number(n.total_amount || 0), 0) || 0
+      totalRevenue = Math.max(0, totalRevenue - creditNotesDeduction)
       
       // Obtener gastos - purchase_orders (OC recibidas) + pagos a proveedores
       const { data: expensesData } = await client
@@ -116,6 +128,17 @@ export async function getFinancialReport(
       
       const supplierPaymentsTotal = supplierPaymentsData?.reduce((sum, p) => sum + Number(p.amount || 0), 0) || 0
       totalExpenses += supplierPaymentsTotal
+
+      // Gastos operativos (tabla expenses)
+      const { data: operationalExpensesData } = await client
+        .from('expenses')
+        .select('amount, expense_date, category')
+        .eq('organization_id', organizationId)
+        .gte('expense_date', start)
+        .lte('expense_date', end)
+      const operationalTotal = operationalExpensesData?.reduce((sum, e) => sum + Number(e.amount || 0), 0) || 0
+      totalExpenses += operationalTotal
+
       const netProfit = totalRevenue - totalExpenses
       
       // Ingresos por mes - usar paid_date y total
@@ -149,6 +172,15 @@ export async function getFinancialReport(
         },
         {}
       )
+      // Gastos operativos por categoría (tabla expenses)
+      const operationalByCategory: Record<string, number> = {}
+      operationalExpensesData?.forEach((e: { category?: string; amount?: number }) => {
+        const cat = e.category || 'Otros'
+        operationalByCategory[cat] = (operationalByCategory[cat] || 0) + Number(e.amount || 0)
+      })
+      Object.entries(operationalByCategory).forEach(([cat, amt]) => {
+        supplierTotals[cat] = (supplierTotals[cat] || 0) + amt
+      })
       const expensesByCategory = Object.entries(supplierTotals).map(([category, amount]) => ({
         category,
         amount
