@@ -179,13 +179,9 @@ export function LeadSidePanel({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      onLeadUpdated?.({
-        ...lead,
-        name,
-        phone,
-        email: localEmail.trim() || undefined,
-        company: localCompany.trim() || undefined,
-      })
+      // Usar el lead devuelto por el servidor para mantener la UI en sync
+      const updated = data.data ? { ...lead, ...data.data, name, phone, email: localEmail.trim() || undefined, company: localCompany.trim() || undefined } : { ...lead, name, phone, email: localEmail.trim() || undefined, company: localCompany.trim() || undefined }
+      onLeadUpdated?.(updated)
       setEditingContact(false)
       toast.success('Contacto actualizado')
     } catch (err: any) {

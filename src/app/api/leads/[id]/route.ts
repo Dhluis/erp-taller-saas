@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/server'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -37,7 +37,7 @@ export async function GET(
     }
 
     const organizationId = userData.organization_id
-    const leadId = params.id
+    const { id: leadId } = await params
 
     // Obtener lead
     const { data: lead, error: leadError } = await supabase
@@ -98,7 +98,7 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -127,7 +127,7 @@ export async function PATCH(
     }
 
     const organizationId = userData.organization_id
-    const leadId = params.id
+    const { id: leadId } = await params
 
     // Verificar que el lead existe y pertenece a la organización
     const { data: existingLead, error: checkError } = await supabase
@@ -258,7 +258,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -287,7 +287,7 @@ export async function DELETE(
     }
 
     const organizationId = userData.organization_id
-    const leadId = params.id
+    const { id: leadId } = await params
 
     // Verificar que el lead existe
     const { data: existingLead, error: checkError } = await supabase
