@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getNextDeliveryNumber } from '@/lib/database/queries/delivery-notes'
+import { isSupabaseTableMissingError, MIGRATION_045_MESSAGE } from '@/lib/supabase/table-missing'
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,6 +18,12 @@ export async function GET(request: NextRequest) {
     const nextNumber = await getNextDeliveryNumber(profile.organization_id)
     return NextResponse.json({ success: true, data: { delivery_number: nextNumber } })
   } catch (e) {
+    if (isSupabaseTableMissingError(e)) {
+      return NextResponse.json(
+        { success: false, error: MIGRATION_045_MESSAGE, code: 'MIGRATION_REQUIRED', migration: '045' },
+        { status: 503 }
+      )
+    }
     console.error('GET /api/delivery-notes/next-number:', e)
     return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
   }

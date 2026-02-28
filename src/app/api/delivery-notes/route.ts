@@ -11,6 +11,7 @@ import {
   createDeliveryNote,
   type CreateDeliveryNoteData
 } from '@/lib/database/queries/delivery-notes'
+import { isSupabaseTableMissingError, MIGRATION_045_MESSAGE } from '@/lib/supabase/table-missing'
 import { z } from 'zod'
 
 async function getOrg(request: NextRequest) {
@@ -46,6 +47,17 @@ export async function GET(request: NextRequest) {
     const list = await getDeliveryNotes(org.organizationId, { status, customer_id })
     return NextResponse.json({ success: true, data: list })
   } catch (e) {
+    if (isSupabaseTableMissingError(e)) {
+      return NextResponse.json(
+        {
+          success: true,
+          data: [],
+          migrationRequired: true,
+          message: MIGRATION_045_MESSAGE
+        },
+        { status: 200 }
+      )
+    }
     console.error('GET /api/delivery-notes:', e)
     return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
   }
@@ -74,6 +86,17 @@ export async function POST(request: NextRequest) {
     const note = await createDeliveryNote(org.organizationId, data, org.userId)
     return NextResponse.json({ success: true, data: note })
   } catch (e) {
+    if (isSupabaseTableMissingError(e)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: MIGRATION_045_MESSAGE,
+          code: 'MIGRATION_REQUIRED',
+          migration: '045'
+        },
+        { status: 503 }
+      )
+    }
     console.error('POST /api/delivery-notes:', e)
     return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
   }

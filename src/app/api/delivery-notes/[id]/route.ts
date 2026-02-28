@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getDeliveryNoteById, markDeliveryNoteDelivered } from '@/lib/database/queries/delivery-notes'
+import { isSupabaseTableMissingError, MIGRATION_045_MESSAGE } from '@/lib/supabase/table-missing'
 
 async function getOrg(request: NextRequest) {
   const supabase = createClientFromRequest(request)
@@ -29,6 +30,12 @@ export async function GET(
     if (!note) return NextResponse.json({ success: false, error: 'No encontrado' }, { status: 404 })
     return NextResponse.json({ success: true, data: note })
   } catch (e) {
+    if (isSupabaseTableMissingError(e)) {
+      return NextResponse.json(
+        { success: false, error: MIGRATION_045_MESSAGE, code: 'MIGRATION_REQUIRED', migration: '045' },
+        { status: 503 }
+      )
+    }
     console.error('GET /api/delivery-notes/[id]:', e)
     return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
   }
@@ -51,6 +58,12 @@ export async function PATCH(
     const updated = await getDeliveryNoteById(org.organizationId, id)
     return NextResponse.json({ success: true, data: updated })
   } catch (e) {
+    if (isSupabaseTableMissingError(e)) {
+      return NextResponse.json(
+        { success: false, error: MIGRATION_045_MESSAGE, code: 'MIGRATION_REQUIRED', migration: '045' },
+        { status: 503 }
+      )
+    }
     console.error('PATCH /api/delivery-notes/[id]:', e)
     return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
   }

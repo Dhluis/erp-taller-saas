@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getExpenseById } from '@/lib/database/queries/expenses'
+import { isSupabaseTableMissingError, MIGRATION_045_MESSAGE } from '@/lib/supabase/table-missing'
 
 async function getOrg(request: NextRequest) {
   const supabase = createClientFromRequest(request)
@@ -28,6 +29,12 @@ export async function GET(
     if (!expense) return NextResponse.json({ success: false, error: 'No encontrado' }, { status: 404 })
     return NextResponse.json({ success: true, data: expense })
   } catch (e) {
+    if (isSupabaseTableMissingError(e)) {
+      return NextResponse.json(
+        { success: false, error: MIGRATION_045_MESSAGE, code: 'MIGRATION_REQUIRED', migration: '045' },
+        { status: 503 }
+      )
+    }
     console.error('GET /api/expenses/[id]:', e)
     return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
   }

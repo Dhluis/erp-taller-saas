@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getCashClosureById } from '@/lib/database/queries/cash-closures'
+import { isSupabaseTableMissingError, MIGRATION_045_MESSAGE } from '@/lib/supabase/table-missing'
 
 export async function GET(
   request: NextRequest,
@@ -22,6 +23,12 @@ export async function GET(
     if (!closure) return NextResponse.json({ success: false, error: 'No encontrado' }, { status: 404 })
     return NextResponse.json({ success: true, data: closure })
   } catch (e) {
+    if (isSupabaseTableMissingError(e)) {
+      return NextResponse.json(
+        { success: false, error: MIGRATION_045_MESSAGE, code: 'MIGRATION_REQUIRED', migration: '045' },
+        { status: 503 }
+      )
+    }
     console.error('GET /api/cash-closures/[id]:', e)
     return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
   }

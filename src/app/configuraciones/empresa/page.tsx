@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { StandardBreadcrumbs } from "@/components/ui/breadcrumbs"
 import { 
   Building2, 
   MapPin, 
@@ -257,6 +258,11 @@ export default function EmpresaPage() {
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
+      <StandardBreadcrumbs
+        currentPage="Configuración de Empresa"
+        parentPages={[{ label: "Configuraciones", href: "/configuraciones/empresa" }]}
+        className="mb-2"
+      />
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Configuración de Empresa</h2>
         <div className="flex items-center space-x-2">

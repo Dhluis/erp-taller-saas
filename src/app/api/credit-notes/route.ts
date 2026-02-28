@@ -12,6 +12,7 @@ import {
   createCreditNote,
   type CreateCreditNoteData
 } from '@/lib/database/queries/credit-notes'
+import { isSupabaseTableMissingError, MIGRATION_045_MESSAGE } from '@/lib/supabase/table-missing'
 import { z } from 'zod'
 
 async function getOrg(request: NextRequest) {
@@ -48,6 +49,18 @@ export async function GET(request: NextRequest) {
     const stats = await getCreditNotesStats(org.organizationId)
     return NextResponse.json({ success: true, data: list, stats })
   } catch (e) {
+    if (isSupabaseTableMissingError(e)) {
+      return NextResponse.json(
+        {
+          success: true,
+          data: [],
+          stats: { total: 0, draft: 0, issued: 0, applied: 0, total_amount: 0 },
+          migrationRequired: true,
+          message: MIGRATION_045_MESSAGE
+        },
+        { status: 200 }
+      )
+    }
     console.error('GET /api/credit-notes:', e)
     return NextResponse.json(
       { success: false, error: e instanceof Error ? e.message : 'Error' },
@@ -78,6 +91,17 @@ export async function POST(request: NextRequest) {
     const note = await createCreditNote(org.organizationId, data, org.userId)
     return NextResponse.json({ success: true, data: note })
   } catch (e) {
+    if (isSupabaseTableMissingError(e)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: MIGRATION_045_MESSAGE,
+          code: 'MIGRATION_REQUIRED',
+          migration: '045'
+        },
+        { status: 503 }
+      )
+    }
     console.error('POST /api/credit-notes:', e)
     return NextResponse.json(
       { success: false, error: e instanceof Error ? e.message : 'Error' },
