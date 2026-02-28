@@ -134,14 +134,8 @@ export function Sidebar({ className }: SidebarProps) {
       badge: null,
       // Admin siempre puede ver, otros según permisos
       visible: showAllForAdmin || permissions.canRead('quotations')
-    },
-    {
-      href: "/leads",
-      label: "CRM / Leads",
-      icon: () => <TrendingUp size={20} className="text-blue-400" />,
-      badge: null,
-      visible: true
     }
+    // CRM / Leads movido al TopBar
     // WhatsApp movido al TopBar
   ].filter(item => item.visible)
 
@@ -402,25 +396,7 @@ export function Sidebar({ className }: SidebarProps) {
             </Button>
           </Link>
 
-          {/* CRM / Leads */}
-          {!isMechanic && (
-            <Link href="/leads">
-              <Button
-                variant={isActive("/leads") ? "primary" : "ghost"}
-                className={cn(
-                  "transition-all duration-200",
-                  isCollapsed
-                    ? "w-12 h-12 mx-auto mb-3 flex items-center justify-center rounded-xl hover:bg-gray-800/60"
-                    : "w-full gap-3 justify-start h-10",
-                  isActive("/leads") && "bg-primary text-white"
-                )}
-                title={isCollapsed ? "CRM / Leads" : ""}
-              >
-                <TrendingUp size={isCollapsed ? 24 : 16} className={isActive("/leads") ? "text-white" : "text-blue-400"} />
-                {!isCollapsed && <span className="text-sm font-medium">CRM / Leads</span>}
-              </Button>
-            </Link>
-          )}
+          {/* CRM / Leads movido al TopBar */}
 
           {/* ✅ Órdenes, Reportes y WhatsApp movidos al TopBar */}
         </div>
