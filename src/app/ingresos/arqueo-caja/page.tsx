@@ -41,11 +41,11 @@ export default function ArqueoCajaPage() {
   return (
     <AppLayout>
       <PageHeader
-        title="Corte de caja/Arqueo de Caja"
+        title="Corte de caja"
         description="Cierres de turno por cuenta de efectivo"
         breadcrumbs={[
           { label: 'Ingresos', href: '/ingresos' },
-          { label: 'Corte de caja/Arqueo de Caja', href: '/ingresos/arqueo-caja' }
+          { label: 'Corte de caja', href: '/ingresos/arqueo-caja' }
         ]}
       />
       <div className="space-y-4 p-4">

@@ -42,11 +42,11 @@ export default function DetalleArqueoPage() {
   return (
     <AppLayout>
       <PageHeader
-        title="Corte de caja/Arqueo de Caja"
+        title="Corte de caja"
         description={new Date(closure.closed_at).toLocaleString()}
         breadcrumbs={[
           { label: 'Ingresos', href: '/ingresos' },
-          { label: 'Corte de caja/Arqueo de Caja', href: '/ingresos/arqueo-caja' },
+          { label: 'Corte de caja', href: '/ingresos/arqueo-caja' },
           { label: 'Detalle', href: `/ingresos/arqueo-caja/${id}` }
         ]}
       />
