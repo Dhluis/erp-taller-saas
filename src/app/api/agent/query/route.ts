@@ -4,6 +4,8 @@ import OpenAI from 'openai'
 import {
   erpSearch,
   getOrdersCountByStatus,
+  getRecentOrders,
+  getOrdersByStatus,
   searchInventory,
   getFinanceSummary,
   getLowStockItems,
@@ -23,7 +25,11 @@ HERRAMIENTAS disponibles y cuándo usarlas:
 
 2. search_inventory(query): Buscar productos específicos en el inventario por nombre, SKU o tipo. Devuelve stock actual, stock mínimo y precio unitario. Usar para: "¿cuánto tengo de aceite?", "stock de filtros", "precio del producto X", "¿hay frenos?".
 
-3. get_orders_count_by_status(): Cantidad de órdenes por estado. Usar para: "¿cuántas órdenes tengo?", "resumen de órdenes", "órdenes en proceso", "estadísticas de trabajo".
+3. get_recent_orders(limit?): Retorna las órdenes más recientes con todos los detalles (cliente, vehículo, estado, fecha, monto). Usar para: "¿cuál es la orden más reciente?", "últimas órdenes", "qué órdenes entraron hoy/esta semana", "dame las últimas X órdenes".
+
+4. get_orders_by_status(status): Retorna las órdenes de un estado específico. Usar para: "¿qué órdenes están en proceso?", "órdenes listas para entregar", "órdenes esperando repuestos", "¿qué hay en diagnóstico?".
+
+5. get_orders_count_by_status(): Resumen numérico de cuántas órdenes hay en cada estado. Usar para preguntas generales de cantidad: "¿cuántas órdenes tengo en total?", "resumen de estados".
 
 4. get_finance_summary(): Resumen financiero completo: total facturado, total cobrado, pendiente de cobro, desglose por estado. Usar para: "resumen de finanzas", "cuánto he facturado", "¿cuánto me deben?", "ingresos del taller".
 
@@ -34,6 +40,9 @@ HERRAMIENTAS disponibles y cuándo usarlas:
 REGLAS:
 - Llama a la herramienta más específica para la pregunta.
 - Para preguntas de precio usa search_inventory.
+- Para "¿cuál es la orden más reciente?" o "últimas órdenes" usa get_recent_orders.
+- Para "órdenes en proceso" o "qué hay en diagnóstico" usa get_orders_by_status.
+- Para conteos totales por estado usa get_orders_count_by_status.
 - Para "¿qué necesito comprar?" usa get_low_stock_items.
 - Para resumen general de inventario usa get_inventory_stats.
 - Si no encuentras datos con una herramienta, indícalo claramente.
@@ -127,8 +136,36 @@ export async function POST(request: NextRequest) {
       {
         type: 'function',
         function: {
+          name: 'get_recent_orders',
+          description: 'Retorna las órdenes de trabajo más recientes con detalles completos (cliente, vehículo, estado, fecha de ingreso, monto). Usar para: "¿cuál es la orden más reciente?", "últimas órdenes", "qué entró hoy".',
+          parameters: {
+            type: 'object',
+            properties: {
+              limit: { type: 'number', description: 'Cuántas órdenes retornar. Por defecto 5, máximo 10.' },
+            },
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_orders_by_status',
+          description: 'Retorna las órdenes de trabajo de un estado específico. Usar para: "órdenes en proceso", "qué hay en diagnóstico", "órdenes listas para entregar", "esperando repuestos".',
+          parameters: {
+            type: 'object',
+            properties: {
+              status: { type: 'string', description: 'Estado en español o inglés: "en proceso", "diagnóstico", "listo", "completado", "recepción", "esperando repuestos", "esperando aprobación", "cancelado".' },
+              limit: { type: 'number', description: 'Cuántas órdenes retornar. Por defecto 10.' },
+            },
+            required: ['status'],
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
           name: 'get_orders_count_by_status',
-          description: 'Cantidad de órdenes de trabajo por estado (Recepción, Diagnóstico, En proceso, Completado, etc.). Usar para resúmenes de órdenes.',
+          description: 'Cantidad total de órdenes de trabajo por estado. Usar solo para resúmenes numéricos generales.',
           parameters: { type: 'object', properties: {} },
         },
       },
@@ -235,6 +272,48 @@ export async function POST(request: NextRequest) {
             }))
           )
           if (items.length > 0) links.push({ label: 'Ver inventario', url: '/inventarios/productos' })
+
+        } else if (name === 'get_recent_orders') {
+          const limit = typeof args.limit === 'number' ? Math.min(args.limit, 10) : 5
+          const orders = await getRecentOrders(organizationId, limit)
+          content = orders.length === 0
+            ? JSON.stringify({ mensaje: 'No hay órdenes de trabajo registradas.' })
+            : JSON.stringify(orders.map((o) => ({
+                id: o.id,
+                estado: o.status_label,
+                fecha_ingreso: o.entry_date,
+                fecha_estimada_entrega: o.estimated_completion,
+                descripcion: o.description,
+                cliente: o.customer_name,
+                telefono_cliente: o.customer_phone,
+                vehiculo: o.vehicle_info,
+                total: o.total_amount,
+                url: o.url,
+              })))
+          orders.forEach((o) => links.push({ label: `${o.vehicle_info || 'Orden'} — ${o.customer_name}`, url: o.url }))
+
+        } else if (name === 'get_orders_by_status') {
+          const statusArg = typeof args.status === 'string' ? args.status : ''
+          const limit = typeof args.limit === 'number' ? Math.min(args.limit, 10) : 10
+          if (!statusArg.trim()) {
+            content = JSON.stringify({ error: 'Se requiere el parámetro status.' })
+          } else {
+            const orders = await getOrdersByStatus(organizationId, statusArg, limit)
+            content = orders.length === 0
+              ? JSON.stringify({ mensaje: `No hay órdenes con el estado "${statusArg}".` })
+              : JSON.stringify(orders.map((o) => ({
+                  id: o.id,
+                  estado: o.status_label,
+                  fecha_ingreso: o.entry_date,
+                  descripcion: o.description,
+                  cliente: o.customer_name,
+                  telefono_cliente: o.customer_phone,
+                  vehiculo: o.vehicle_info,
+                  total: o.total_amount,
+                  url: o.url,
+                })))
+            orders.forEach((o) => links.push({ label: `${o.vehicle_info || 'Orden'} — ${o.customer_name}`, url: o.url }))
+          }
 
         } else if (name === 'get_orders_count_by_status') {
           const counts = await getOrdersCountByStatus(organizationId)

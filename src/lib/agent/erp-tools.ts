@@ -231,6 +231,54 @@ export async function erpSearch(organizationId: string, query: string): Promise<
   return result
 }
 
+// ─── Constantes compartidas para estados de órdenes ─────────────────────────
+
+export interface WorkOrderDetail {
+  id: string
+  status: string
+  status_label: string
+  entry_date: string | null
+  estimated_completion: string | null
+  description: string | null
+  customer_name: string
+  customer_phone: string | null
+  vehicle_info: string
+  total_amount: number | null
+  url: string
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  reception: 'Recepción',
+  diagnosis: 'Diagnóstico',
+  in_progress: 'En proceso',
+  waiting_parts: 'Esperando repuestos',
+  waiting_approval: 'Esperando aprobación',
+  ready: 'Listo para entregar',
+  completed: 'Completado',
+  cancelled: 'Cancelado',
+  testing: 'En pruebas',
+  initial_budget: 'Presupuesto inicial',
+  archived: 'Archivado',
+}
+
+function mapOrder(o: any): WorkOrderDetail {
+  return {
+    id: o.id,
+    status: o.status,
+    status_label: STATUS_LABELS[o.status] || o.status,
+    entry_date: o.entry_date ?? null,
+    estimated_completion: o.estimated_completion ?? null,
+    description: o.description ?? null,
+    customer_name: o.customer?.name || 'Sin cliente',
+    customer_phone: o.customer?.phone ?? null,
+    vehicle_info: o.vehicle
+      ? `${o.vehicle.brand || ''} ${o.vehicle.model || ''} ${o.vehicle.year || ''}`.trim()
+      : '',
+    total_amount: o.total_amount != null ? Number(o.total_amount) : null,
+    url: `/ordenes/${o.id}`,
+  }
+}
+
 export async function getOrdersCountByStatus(organizationId: string): Promise<Record<string, number>> {
   const supabase = getSupabaseServiceClient()
   const { data } = await supabase
@@ -238,24 +286,69 @@ export async function getOrdersCountByStatus(organizationId: string): Promise<Re
     .select('status')
     .eq('organization_id', organizationId)
 
-  const statusLabels: Record<string, string> = {
-    reception: 'Recepción',
-    diagnosis: 'Diagnóstico',
-    in_progress: 'En proceso',
-    waiting_parts: 'Esperando repuestos',
-    waiting_approval: 'Esperando aprobación',
-    ready: 'Listo para entregar',
-    completed: 'Completado',
-    cancelled: 'Cancelado',
-  }
-
   const counts: Record<string, number> = {}
   ;(data || []).forEach((row: any) => {
     const s = row.status || 'unknown'
-    const label = statusLabels[s] || s
+    const label = STATUS_LABELS[s] || s
     counts[label] = (counts[label] || 0) + 1
   })
   return counts
+}
+
+/**
+ * Retorna las órdenes de trabajo más recientes ordenadas por fecha de ingreso.
+ */
+export async function getRecentOrders(
+  organizationId: string,
+  limit = 5
+): Promise<WorkOrderDetail[]> {
+  const supabase = getSupabaseServiceClient()
+  const { data } = await supabase
+    .from('work_orders')
+    .select('id, status, description, entry_date, estimated_completion, total_amount, customer:customers(name, phone), vehicle:vehicles(brand, model, year, license_plate)')
+    .eq('organization_id', organizationId)
+    .order('entry_date', { ascending: false })
+    .limit(limit)
+
+  return ((data || []) as any[]).map(mapOrder)
+}
+
+/**
+ * Retorna órdenes filtradas por estado. Acepta nombre en español o en inglés.
+ */
+export async function getOrdersByStatus(
+  organizationId: string,
+  status: string,
+  limit = 10
+): Promise<WorkOrderDetail[]> {
+  const supabase = getSupabaseServiceClient()
+
+  // Mapeo inverso: español → clave de DB
+  const STATUS_KEYS: Record<string, string> = {
+    recepcion: 'reception', recepción: 'reception',
+    diagnostico: 'diagnosis', diagnóstico: 'diagnosis',
+    'en proceso': 'in_progress', proceso: 'in_progress', in_progress: 'in_progress',
+    'esperando repuestos': 'waiting_parts', repuestos: 'waiting_parts', waiting_parts: 'waiting_parts',
+    'esperando aprobacion': 'waiting_approval', aprobacion: 'waiting_approval', waiting_approval: 'waiting_approval',
+    listo: 'ready', ready: 'ready',
+    completado: 'completed', completed: 'completed',
+    cancelado: 'cancelled', cancelled: 'cancelled',
+    pruebas: 'testing', testing: 'testing',
+    archivado: 'archived', archived: 'archived',
+  }
+
+  const normalized = status.toLowerCase().trim()
+  const dbStatus = STATUS_KEYS[normalized] || normalized
+
+  const { data } = await supabase
+    .from('work_orders')
+    .select('id, status, description, entry_date, estimated_completion, total_amount, customer:customers(name, phone), vehicle:vehicles(brand, model, year, license_plate)')
+    .eq('organization_id', organizationId)
+    .eq('status', dbStatus)
+    .order('entry_date', { ascending: false })
+    .limit(limit)
+
+  return ((data || []) as any[]).map(mapOrder)
 }
 
 /**
