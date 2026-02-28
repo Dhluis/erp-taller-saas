@@ -43,7 +43,8 @@ import {
   CreditCard,
   Loader2,
   Eye,
-  EyeOff
+  EyeOff,
+  TrendingUp
 } from 'lucide-react'
 import { useSession } from '@/lib/context/SessionContext'
 import { createClient } from '@/lib/supabase/client'
@@ -79,6 +80,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
   const isOrdenesActive = pathname?.startsWith('/ordenes')
   const isReportesActive = pathname?.startsWith('/reportes')
   const isWhatsAppActive = pathname?.startsWith('/dashboard/whatsapp')
+  const isLeadsActive = pathname?.startsWith('/leads')
   
   const userName = profile?.full_name || 'Usuario'
   const userEmail = profile?.email || 'Cargando...'
@@ -255,6 +257,21 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
                 >
                   <ModernIcons.Reportes size={16} />
                   <span className="text-sm font-medium">Reportes</span>
+                </Button>
+              </Link>
+              
+              <Link href="/leads">
+                <Button
+                  variant={isLeadsActive ? "primary" : "outline"}
+                  className={cn(
+                    "transition-all duration-200 gap-2",
+                    isLeadsActive 
+                      ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                      : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
+                  )}
+                >
+                  <TrendingUp size={16} className={isLeadsActive ? "text-white" : "text-blue-400"} />
+                  <span className="text-sm font-medium">CRM / Leads</span>
                 </Button>
               </Link>
               
