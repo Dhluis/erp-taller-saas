@@ -194,6 +194,7 @@ Para problemas conocidos o mejoras:
 2. Verificar estado de WAHA
 3. Consultar documentación de cada servicio
 4. Revisar issues conocidos en este documento
+5. **Pendientes cerrados (Feb 2025):** Ver [ESTADO_AVANCE_PENDIENTES_100.md](../ESTADO_AVANCE_PENDIENTES_100.md) para el cierre de placeholders en cotizaciones, rate limit por usuario y Kanban de órdenes.
 
 ---
 
@@ -205,5 +206,5 @@ Versión estable actual: `c6cd22c` (fix visualización WhatsApp)
 
 ---
 
-**Última actualización:** Enero 2025
+**Última actualización:** Febrero 2025
 

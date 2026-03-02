@@ -571,25 +571,79 @@ export async function updateQuotationDiscount(
   return updatedQuotation;
 }
 
-// TODO: Implementar sistema de versionado cuando se necesite
-export async function saveQuotationVersion(quotationId: string, changes: any) {
-  console.log('saveQuotationVersion called:', quotationId, changes)
-  // Por ahora solo registrar en consola
-  return { success: true, message: 'Version tracking not implemented yet' }
+/**
+ * Guarda una versión snapshot de la cotización en quotation_versions.
+ * Incrementa automáticamente el version_number.
+ */
+export async function saveQuotationVersion(quotationId: string, data: any) {
+  try {
+    const supabase = createServerClient()
+
+    // Obtener el número de versión más alto actual
+    const { data: existing } = await supabase
+      .from('quotation_versions')
+      .select('version_number')
+      .eq('quotation_id', quotationId)
+      .order('version_number', { ascending: false })
+      .limit(1)
+      .single()
+
+    const nextVersion = existing ? (existing as any).version_number + 1 : 1
+
+    const { error } = await supabase
+      .from('quotation_versions')
+      .insert({
+        quotation_id: quotationId,
+        version_number: nextVersion,
+        data: data ?? {},
+      })
+
+    if (error) {
+      console.error('[saveQuotationVersion] Error:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, version: nextVersion }
+  } catch (err) {
+    console.error('[saveQuotationVersion] Unexpected error:', err)
+    return { success: false }
+  }
 }
 
+/**
+ * Registra un cambio de estado/acción en quotation_tracking.
+ * Firma: (quotationId, action, changes) — igual que los call sites existentes.
+ */
 export async function trackQuotationChange(
-  quotationId: string, 
-  changeType: string, 
-  userId: string,
-  changes: any
+  quotationId: string,
+  action: string,
+  changes?: Record<string, any>
 ) {
-  console.log('trackQuotationChange called:', {
-    quotationId,
-    changeType,
-    userId,
-    changes
-  })
-  // Por ahora solo registrar en consola
-  return { success: true, message: 'Change tracking not implemented yet' }
+  try {
+    const supabase = createServerClient()
+
+    const description = changes
+      ? Object.entries(changes)
+          .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+          .join(' | ')
+      : undefined
+
+    const { error } = await supabase
+      .from('quotation_tracking')
+      .insert({
+        quotation_id: quotationId,
+        action,
+        description: description ?? null,
+      })
+
+    if (error) {
+      console.error('[trackQuotationChange] Error:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (err) {
+    console.error('[trackQuotationChange] Unexpected error:', err)
+    return { success: false }
+  }
 }

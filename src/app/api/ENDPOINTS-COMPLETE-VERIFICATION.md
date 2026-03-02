@@ -128,25 +128,15 @@
 
 **¡El sistema está listo para producción!**
 
+---
 
+## Capa de datos y placeholders cerrados (Feb 2025)
 
+Los siguientes ítems que tenían stubs o comportamiento incompleto fueron implementados y quedan al 100%:
 
+- **Cotizaciones:** `saveQuotationVersion` y `trackQuotationChange` en `src/lib/database/queries/quotations.ts` — inserción real en `quotation_versions` y `quotation_tracking`.
+- **Rate limit por usuario:** En `src/lib/rate-limit/middleware.ts`, el `case 'user'` obtiene `user.id` del JWT de Supabase y usa la clave `user:{id}`.
+- **Kanban órdenes:** `KanbanBoardSimple` (`src/components/ordenes/KanbanBoardSimple.tsx`) carga desde `/api/work-orders`, maneja loading/error y navega con `router.push` al hacer click.
 
-
-
-
-
-
-
-
-
-
-
-
-<<<<<<< HEAD
-
-
-=======
->>>>>>> parent of b9214dc (landing page cambios)
-
+Detalle completo en **[ESTADO_AVANCE_PENDIENTES_100.md](../../../ESTADO_AVANCE_PENDIENTES_100.md)** (raíz del repo).
 

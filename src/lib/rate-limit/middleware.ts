@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, rateLimitConfigs } from './rate-limiter';
 import { getClientIp, getClientInfo, logClientInfo } from '../utils/get-client-info';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { createClientFromRequest } from '@/lib/supabase/server';
 import type { RateLimitConfig, RateLimitResult, RateLimitHeaders } from './types';
 
 /**
@@ -83,12 +84,16 @@ async function getIdentifier(
     }
 
     case 'user': {
-      // Implementar cuando tengas user context
-      // Por ahora, fallback a IP
-      console.warn(
-        '[Rate Limit] ⚠️ User identifier not implemented, falling back to IP'
-      );
-      return `ip:${getClientIp(request)}`;
+      try {
+        const supabase = createClientFromRequest(request);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) {
+          return `user:${user.id}`;
+        }
+        return `ip:${getClientIp(request)}`;
+      } catch {
+        return `ip:${getClientIp(request)}`;
+      }
     }
 
     case 'custom': {
