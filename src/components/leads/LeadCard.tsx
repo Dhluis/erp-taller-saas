@@ -70,30 +70,29 @@ export function LeadCard({ lead, onClick, isTerminal }: LeadCardProps) {
           : 'hover:bg-slate-800/70 hover:border-blue-500/30'
       } ${isTerminal ? 'cursor-default' : ''}`}
     >
-      {/* Header — área de drag - área táctil ampliada para mobile */}
+      {/* Header - SOLO DRAGGABLE - mismo patrón que OrderCard (puntitos GripVertical) */}
       <div
         {...(!isTerminal ? attributes : {})}
         {...(!isTerminal ? listeners : {})}
-        style={!isTerminal ? { touchAction: 'none', userSelect: 'none' } : undefined}
-        className={`flex items-center justify-between px-3 py-2.5 min-h-[44px] bg-slate-900/30 border-b border-slate-700/50 transition-colors touch-manipulation ${
+        className={`flex items-center justify-between px-4 py-3 min-h-[48px] bg-slate-900/30 border-b border-slate-700/50 transition-colors touch-manipulation ${
           isTerminal
             ? 'cursor-default'
             : 'cursor-grab active:cursor-grabbing hover:bg-slate-800/50'
         }`}
-        style={!isTerminal ? { touchAction: 'none', userSelect: 'none' } : undefined}
+        style={!isTerminal ? { touchAction: 'none', userSelect: 'none', WebkitTouchCallout: 'none' } : undefined}
       >
-        <span className="text-xs text-slate-500 font-medium pointer-events-none">
-          {formatDate(lead.created_at)}
-        </span>
-        <div className="flex items-center gap-1.5 pointer-events-none">
+        <div className="flex items-center gap-2 min-w-0 pointer-events-none">
+          <span className="text-xs text-slate-500 font-medium">
+            {formatDate(lead.created_at)}
+          </span>
           {lead.whatsapp_conversation_id && (
-            <MessageSquare className="w-3 h-3 text-green-400" />
+            <MessageSquare className="w-3 h-3 text-green-400 flex-shrink-0" />
           )}
-          <span className="text-xs text-slate-500">{sourceLabel}</span>
-          {!isTerminal && (
-            <GripVertical className="w-3.5 h-3.5 text-slate-600 group-hover:text-blue-400 transition-colors" />
-          )}
+          <span className="text-xs text-slate-500 truncate">{sourceLabel}</span>
         </div>
+        {!isTerminal && (
+          <GripVertical className="w-5 h-5 text-slate-500 group-hover:text-blue-400 transition-colors pointer-events-none flex-shrink-0" />
+        )}
       </div>
 
       {/* Contenido — clickeable */}

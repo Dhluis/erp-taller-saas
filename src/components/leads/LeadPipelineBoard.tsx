@@ -254,7 +254,7 @@ export function LeadPipelineBoard({
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 pb-4 min-h-[400px]">
+          <div className="flex gap-2 sm:gap-4 pb-4 min-h-[400px] overflow-x-auto overflow-y-hidden hide-scrollbar">
             {columns.map((column) => (
               <LeadPipelineColumn
                 key={column.id}
