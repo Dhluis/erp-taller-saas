@@ -64,43 +64,39 @@ export function LeadCard({ lead, onClick, isTerminal }: LeadCardProps) {
     <div
       ref={setNodeRef}
       style={style}
+      {...(!isTerminal ? attributes : {})}
+      {...(!isTerminal ? listeners : {})}
       className={`bg-slate-800/50 border border-slate-700/50 rounded-lg mb-3 overflow-hidden transition-all group ${
         isDragging
           ? 'ring-2 ring-blue-500 shadow-lg shadow-blue-500/50 z-50'
           : 'hover:bg-slate-800/70 hover:border-blue-500/30'
-      } ${isTerminal ? 'cursor-default' : ''}`}
+      } ${isTerminal ? 'cursor-default' : 'cursor-grab active:cursor-grabbing touch-manipulation'}`}
+      style={!isTerminal ? { touchAction: 'none', userSelect: 'none', WebkitTouchCallout: 'none' } : undefined}
     >
-      {/* Header - SOLO DRAGGABLE - mismo patrón que OrderCard (puntitos GripVertical) */}
-      <div
-        {...(!isTerminal ? attributes : {})}
-        {...(!isTerminal ? listeners : {})}
-        className={`flex items-center justify-between px-4 py-3 min-h-[48px] bg-slate-900/30 border-b border-slate-700/50 transition-colors touch-manipulation ${
-          isTerminal
-            ? 'cursor-default'
-            : 'cursor-grab active:cursor-grabbing hover:bg-slate-800/50'
-        }`}
-        style={!isTerminal ? { touchAction: 'none', userSelect: 'none', WebkitTouchCallout: 'none' } : undefined}
-      >
-        <div className="flex items-center gap-2 min-w-0 pointer-events-none">
-          <span className="text-xs text-slate-500 font-medium">
-            {formatDate(lead.created_at)}
-          </span>
+      {/* Header con GripVertical (puntitos) - indicador visual de arrastre */}
+      <div className="flex items-center justify-between px-4 py-3 min-h-[48px] bg-slate-900/30 border-b border-slate-700/50 transition-colors hover:bg-slate-800/50">
+        <span className="text-xs text-slate-500 font-medium">
+          {formatDate(lead.created_at)}
+        </span>
+        <div className="flex items-center gap-2">
           {lead.whatsapp_conversation_id && (
             <MessageSquare className="w-3 h-3 text-green-400 flex-shrink-0" />
           )}
-          <span className="text-xs text-slate-500 truncate">{sourceLabel}</span>
+          <span className="text-xs text-slate-500 hidden sm:inline">{sourceLabel}</span>
+          {!isTerminal && (
+            <GripVertical className="w-5 h-5 text-slate-500 group-hover:text-blue-400 transition-colors flex-shrink-0" />
+          )}
         </div>
-        {!isTerminal && (
-          <GripVertical className="w-5 h-5 text-slate-500 group-hover:text-blue-400 transition-colors pointer-events-none flex-shrink-0" />
-        )}
       </div>
 
-      {/* Contenido — clickeable */}
+      {/* Contenido — tap abre el lead; stopPropagation evita que el touch inicie drag */}
       <div
         onClick={(e) => {
           e.stopPropagation()
           onClick?.()
         }}
+        onPointerDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
         className="p-3 cursor-pointer hover:bg-slate-800/30 transition-colors"
       >
         {/* Nombre */}

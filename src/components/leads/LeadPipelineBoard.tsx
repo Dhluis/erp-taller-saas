@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -44,9 +44,13 @@ export function LeadPipelineBoard({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const boardScrollRef = useRef<HTMLDivElement>(null)
+  const scrollBarRef = useRef<HTMLDivElement>(null)
+  const [scrollTrackWidth, setScrollTrackWidth] = useState(0)
+
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } })
   )
 
   const loadLeads = useCallback(async () => {
@@ -141,6 +145,27 @@ export function LeadPipelineBoard({
       loadLeads()
     }
   }, [organizationId, loadLeads])
+
+  useEffect(() => {
+    if (columns.length === 0) return
+    const el = boardScrollRef.current
+    if (!el) return
+    const updateWidth = () => setScrollTrackWidth(el.scrollWidth)
+    updateWidth()
+    const ro = new ResizeObserver(updateWidth)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [columns])
+
+  const handleScrollBarScroll = useCallback(() => {
+    if (scrollBarRef.current && boardScrollRef.current)
+      boardScrollRef.current.scrollLeft = scrollBarRef.current.scrollLeft
+  }, [])
+
+  const handleBoardScroll = useCallback(() => {
+    if (scrollBarRef.current && boardScrollRef.current)
+      scrollBarRef.current.scrollLeft = boardScrollRef.current.scrollLeft
+  }, [])
 
   function handleDragStart(event: DragStartEvent) {
     const lead = columns.flatMap((c) => c.leads).find((l) => l.id === event.active.id)
@@ -254,7 +279,21 @@ export function LeadPipelineBoard({
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-2 sm:gap-4 pb-4 min-h-[400px] overflow-x-auto overflow-y-hidden hide-scrollbar">
+          {scrollTrackWidth > 0 && (
+            <div
+              ref={scrollBarRef}
+              onScroll={handleScrollBarScroll}
+              className="overflow-x-auto overflow-y-hidden h-3 mb-1 rounded scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800/50"
+              aria-hidden
+            >
+              <div style={{ minWidth: scrollTrackWidth, height: 1 }} />
+            </div>
+          )}
+          <div
+            ref={boardScrollRef}
+            onScroll={handleBoardScroll}
+            className="flex gap-2 sm:gap-4 pb-4 min-h-[400px] overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800/50"
+          >
             {columns.map((column) => (
               <LeadPipelineColumn
                 key={column.id}
