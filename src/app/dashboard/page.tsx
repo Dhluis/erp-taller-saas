@@ -40,6 +40,7 @@ export default function DashboardPage() {
   const { user } = useSession();
   const permissions = usePermissions();
   const canViewFinancial = permissions.canViewFinancialReports();
+  const canPayInvoices = permissions.canPayInvoices();
   const { formatMoney } = useOrgCurrency();
 
   // Compatibilidad: obtener organization para componentes que lo necesitan
@@ -233,7 +234,7 @@ export default function DashboardPage() {
         }
       }
       // ✅ CARD "Efectivo en caja": suma de saldos (quien puede cobros o ver reportes financieros)
-      if (canViewFinancial || permissions.canPayInvoices()) {
+      if (canViewFinancial || canPayInvoices) {
         try {
           const cashRes = await fetch('/api/cash-accounts', { credentials: 'include', cache: 'no-store' });
           const cashJson = await cashRes.json();
@@ -448,17 +449,19 @@ export default function DashboardPage() {
         
         setIncomeData(chartData);
         
-        console.log('💰 Datos dashboard:', {
-          clientesAtendidos: uniqueCustomers.size,
-          ordenesFiltradas: filteredOrders.length,
-          rango: { from: fromDate.toISOString(), to: toDate.toISOString() },
-          todasOrdenesConOrgId: filteredOrders.every((o: any) => o.organization_id === organizationId)
-        });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('💰 Datos dashboard:', {
+            clientesAtendidos: uniqueCustomers.size,
+            ordenesFiltradas: filteredOrders.length,
+            rango: { from: fromDate.toISOString(), to: toDate.toISOString() },
+            todasOrdenesConOrgId: filteredOrders.every((o: any) => o.organization_id === organizationId)
+          });
+        }
       }
     } catch (error) {
       console.error('Error cargando ingresos:', error);
     }
-  }, [organizationId, dateRange, customDateRange, sessionLoading, sessionReady, canViewFinancial, permissions.canPayInvoices]);
+  }, [organizationId, dateRange, customDateRange, sessionLoading, sessionReady, canViewFinancial, canPayInvoices]);
 
   // Cargar ingresos cuando cambia el filtro
   useEffect(() => {
@@ -523,14 +526,16 @@ export default function DashboardPage() {
   const ordenesCompletadas = ordersByStatus.find(item => item.name === 'Completado')?.value || 0;
   const ordenesPendientes = ordersByStatus.find(item => item.name === 'Recepción')?.value || 0;
 
-  console.log('📊 Estadísticas calculadas:', {
-    total: totalOrdenes,
-    activas: ordenesActivas,
-    completadas: ordenesCompletadas,
-    pendientes: ordenesPendientes,
-    ingresos,
-    clientesAtendidos
-  });
+  if (process.env.NODE_ENV === 'development') {
+    console.log('📊 Estadísticas calculadas:', {
+      total: totalOrdenes,
+      activas: ordenesActivas,
+      completadas: ordenesCompletadas,
+      pendientes: ordenesPendientes,
+      ingresos,
+      clientesAtendidos
+    });
+  }
 
   // Datos dinámicos para mostrar el dashboard
   const stats = {

@@ -158,7 +158,9 @@ export async function getClientesAtendidosDelMes(
 
 // Obtener alertas de inventario (productos con stock bajo)
 export async function getAlertasInventario(organizationId: string) {
-  console.log('🔍 [getAlertasInventario] Iniciando con organizationId:', organizationId);
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔍 [getAlertasInventario] Iniciando con organizationId:', organizationId);
+  }
   
   const { data, error } = await supabase
     .from('inventory')
@@ -174,7 +176,9 @@ export async function getAlertasInventario(organizationId: string) {
   // Filtrar productos donde quantity <= min_quantity
   const count = data?.filter(item => item.quantity <= (item.min_quantity || 0)).length || 0;
   
-  console.log('⚠️ [getAlertasInventario] Productos con stock bajo:', count);
+  if (process.env.NODE_ENV === 'development') {
+    console.log('⚠️ [getAlertasInventario] Productos con stock bajo:', count);
+  }
   return count || 0;
 }
 
