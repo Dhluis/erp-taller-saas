@@ -8,6 +8,7 @@ import type { CRMLead } from './types'
 interface LeadCardProps {
   lead: CRMLead
   onClick?: () => void
+  /** Si es true, la columna es terminal (Ganado/Perdido); la tarjeta sigue siendo arrastrable pero el backend puede ignorar el cambio. */
   isTerminal?: boolean
 }
 
@@ -22,13 +23,16 @@ export function LeadCard({ lead, onClick, isTerminal }: LeadCardProps) {
   } = useSortable({
     id: lead.id,
     data: { type: 'lead', lead },
-    disabled: isTerminal,
+    disabled: false, // Todas las tarjetas son arrastrables; la restricción de soltar en/desde terminal se aplica en el board
   })
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    touchAction: 'none' as const,
+    userSelect: 'none' as const,
+    WebkitTouchCallout: 'none' as const,
   }
 
   const formatDate = (dateString: string) => {
@@ -64,16 +68,15 @@ export function LeadCard({ lead, onClick, isTerminal }: LeadCardProps) {
     <div
       ref={setNodeRef}
       style={style}
-      {...(!isTerminal ? attributes : {})}
-      {...(!isTerminal ? listeners : {})}
+      {...attributes}
+      {...listeners}
       className={`bg-slate-800/50 border border-slate-700/50 rounded-lg mb-3 overflow-hidden transition-all group ${
         isDragging
           ? 'ring-2 ring-blue-500 shadow-lg shadow-blue-500/50 z-50'
           : 'hover:bg-slate-800/70 hover:border-blue-500/30'
-      } ${isTerminal ? 'cursor-default' : 'cursor-grab active:cursor-grabbing touch-manipulation'}`}
-      style={!isTerminal ? { touchAction: 'none', userSelect: 'none', WebkitTouchCallout: 'none' } : undefined}
+      } cursor-grab active:cursor-grabbing touch-manipulation`}
     >
-      {/* Header con GripVertical (puntitos) - indicador visual de arrastre */}
+      {/* Header con GripVertical (puntitos) - todas las tarjetas arrastrables */}
       <div className="flex items-center justify-between px-4 py-3 min-h-[48px] bg-slate-900/30 border-b border-slate-700/50 transition-colors hover:bg-slate-800/50">
         <span className="text-xs text-slate-500 font-medium">
           {formatDate(lead.created_at)}
@@ -83,9 +86,7 @@ export function LeadCard({ lead, onClick, isTerminal }: LeadCardProps) {
             <MessageSquare className="w-3 h-3 text-green-400 flex-shrink-0" />
           )}
           <span className="text-xs text-slate-500 hidden sm:inline">{sourceLabel}</span>
-          {!isTerminal && (
-            <GripVertical className="w-5 h-5 text-slate-500 group-hover:text-blue-400 transition-colors flex-shrink-0" />
-          )}
+          <GripVertical className="w-5 h-5 text-slate-500 group-hover:text-blue-400 transition-colors flex-shrink-0" />
         </div>
       </div>
 
