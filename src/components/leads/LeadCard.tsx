@@ -70,11 +70,12 @@ export function LeadCard({ lead, onClick, isTerminal }: LeadCardProps) {
           : 'hover:bg-slate-800/70 hover:border-blue-500/30'
       } ${isTerminal ? 'cursor-default' : ''}`}
     >
-      {/* Header — área de drag */}
+      {/* Header — área de drag - área táctil ampliada para mobile */}
       <div
         {...(!isTerminal ? attributes : {})}
         {...(!isTerminal ? listeners : {})}
-        className={`flex items-center justify-between px-3 py-1.5 bg-slate-900/30 border-b border-slate-700/50 transition-colors ${
+        style={!isTerminal ? { touchAction: 'none', userSelect: 'none' } : undefined}
+        className={`flex items-center justify-between px-3 py-2.5 min-h-[44px] bg-slate-900/30 border-b border-slate-700/50 transition-colors touch-manipulation ${
           isTerminal
             ? 'cursor-default'
             : 'cursor-grab active:cursor-grabbing hover:bg-slate-800/50'

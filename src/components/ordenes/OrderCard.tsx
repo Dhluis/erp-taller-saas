@@ -61,17 +61,17 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
         isDragging ? 'ring-2 ring-cyan-500 shadow-lg shadow-cyan-500/50 z-50' : ''
       }`}
     >
-      {/* Header - SOLO DRAGGABLE */}
+      {/* Header - SOLO DRAGGABLE - área táctil ampliada para mobile */}
       <div
         {...attributes}
         {...listeners}
-        className="flex items-center justify-between px-4 py-2 bg-slate-900/30 border-b border-slate-700/50 cursor-grab active:cursor-grabbing hover:bg-slate-800/50 transition-colors"
-        style={{ touchAction: 'none', userSelect: 'none' }}
+        className="flex items-center justify-between px-4 py-3 min-h-[48px] bg-slate-900/30 border-b border-slate-700/50 cursor-grab active:cursor-grabbing hover:bg-slate-800/50 transition-colors touch-manipulation"
+        style={{ touchAction: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
       >
         <span className="text-xs text-slate-500 font-medium pointer-events-none">
           {formatDate(order.entry_date || order.created_at)}
         </span>
-        <GripVertical className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 transition-colors pointer-events-none" />
+        <GripVertical className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 transition-colors pointer-events-none flex-shrink-0" />
       </div>
 
       {/* Contenido - SOLO CLICKEABLE */}

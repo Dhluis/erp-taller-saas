@@ -703,12 +703,12 @@ export default function CitasPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6 min-w-0 overflow-x-hidden">
       {/* Breadcrumbs */}
       <StandardBreadcrumbs currentPage="Gestión de Citas" />
 
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Gestión de Citas</h1>
           <p className="text-muted-foreground">
@@ -908,7 +908,7 @@ export default function CitasPage() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -958,15 +958,15 @@ export default function CitasPage() {
         </div>
       </div>
 
-      {/* Appointments Table */}
-      <div className="bg-card rounded-lg border">
+      {/* Appointments Table - scroll horizontal en mobile */}
+      <div className="bg-card rounded-lg border overflow-x-auto">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin mr-2" />
             <span>Cargando citas...</span>
           </div>
         ) : (
-          <Table>
+          <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Cliente</TableHead>
@@ -1079,10 +1079,10 @@ export default function CitasPage() {
       </div>
 
       {/* Calendario de Citas */}
-      <div className="bg-card rounded-lg border p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Calendario de Citas</h2>
-          <div className="flex items-center gap-2">
+      <div className="bg-card rounded-lg border p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h2 className="text-xl md:text-2xl font-bold">Calendario de Citas</h2>
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Button
               variant="outline"
               size="sm"
@@ -1103,12 +1103,13 @@ export default function CitasPage() {
           </div>
         </div>
 
-        {/* Navegación y Selector de Vista */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        {/* Navegación y Selector de Vista - stack en mobile */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex items-center justify-center gap-2">
             <Button
               variant="outline"
               size="sm"
+              className="min-h-[44px] min-w-[44px] touch-manipulation"
               onClick={() => {
                 const prevMonth = new Date(currentMonth)
                 prevMonth.setMonth(prevMonth.getMonth() - 1)
@@ -1117,12 +1118,13 @@ export default function CitasPage() {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="text-lg font-semibold min-w-[200px] text-center">
+            <h3 className="text-base md:text-lg font-semibold min-w-[140px] md:min-w-[200px] text-center">
               {currentMonth.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
             </h3>
             <Button
               variant="outline"
               size="sm"
+              className="min-h-[44px] min-w-[44px] touch-manipulation"
               onClick={() => {
                 const nextMonth = new Date(currentMonth)
                 nextMonth.setMonth(nextMonth.getMonth() + 1)
@@ -1132,24 +1134,27 @@ export default function CitasPage() {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 justify-center flex-wrap">
             <Button
-              variant={viewMode === 'month' ? 'default' : 'outline'}
+              variant={viewMode === 'month' ? 'primary' : 'outline'}
               size="sm"
+              className="min-h-[44px] touch-manipulation flex-1 sm:flex-initial min-w-[70px]"
               onClick={() => setViewMode('month')}
             >
               Mes
             </Button>
             <Button
-              variant={viewMode === 'week' ? 'default' : 'outline'}
+              variant={viewMode === 'week' ? 'primary' : 'outline'}
               size="sm"
+              className="min-h-[44px] touch-manipulation flex-1 sm:flex-initial min-w-[70px]"
               onClick={() => setViewMode('week')}
             >
               Semana
             </Button>
             <Button
-              variant={viewMode === 'day' ? 'default' : 'outline'}
+              variant={viewMode === 'day' ? 'primary' : 'outline'}
               size="sm"
+              className="min-h-[44px] touch-manipulation flex-1 sm:flex-initial min-w-[70px]"
               onClick={() => setViewMode('day')}
             >
               Día
@@ -1157,9 +1162,10 @@ export default function CitasPage() {
           </div>
         </div>
 
-        {/* Grid del Calendario */}
+        {/* Grid del Calendario - scroll horizontal en mobile */}
         {viewMode === 'month' && (
-          <div className="grid grid-cols-7 gap-1">
+          <div className="overflow-x-auto overflow-y-hidden hide-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+          <div className="grid grid-cols-7 gap-1 min-w-[320px] w-full">
             {/* Días de la semana */}
             {['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'].map((day) => (
               <div key={day} className="p-2 text-center text-sm font-medium text-muted-foreground">
@@ -1207,6 +1213,7 @@ export default function CitasPage() {
                 </div>
               )
             })}
+          </div>
           </div>
         )}
       </div>

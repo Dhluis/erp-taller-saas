@@ -6,6 +6,7 @@ import {
   DragOverlay,
   closestCenter,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragStartEvent,
@@ -138,11 +139,8 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
   const [scrollTrackWidth, setScrollTrackWidth] = useState(0);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 0, // Sin distancia mínima - activa inmediatamente
-      },
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } })
   );
 
   // ✅ DIAGNOSTICS ELIMINADO para reducir llamadas duplicadas
