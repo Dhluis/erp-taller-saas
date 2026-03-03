@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { AppLayout } from "@/components/layout/AppLayout"
@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   authors: [{ name: "EAGLES Team" }],
   creator: "EAGLES",
   publisher: "EAGLES",
+  manifest: "/manifest.json",
   formatDetection: {
     email: false,
     address: false,
@@ -31,12 +32,21 @@ export const metadata: Metadata = {
     ],
     shortcut: "/eagles-logo-new.png",
     apple: [
-      { url: "/eagles-logo-new.png", type: "image/png" },
+      { url: "/eagles-logo-square.png", type: "image/png" },
     ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "EAGLES ERP",
   },
   other: {
     "google": "notranslate",
   },
+}
+
+export const viewport: Viewport = {
+  themeColor: "#00D9FF",
 }
 
 export default function RootLayout({
