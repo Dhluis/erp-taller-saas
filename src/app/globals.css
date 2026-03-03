@@ -392,3 +392,12 @@
   z-index: 9997 !important;
   position: relative !important;
 }
+
+/* Ocultar scrollbar en nav móvil (TopBar) */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

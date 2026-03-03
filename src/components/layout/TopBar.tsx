@@ -169,25 +169,28 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
 
   return (
     <>
-      <header className="h-16 bg-bg-secondary border-b border-border flex items-center justify-between px-6 sticky top-0 z-30">
-        <div className="flex items-center space-x-4">
+      <header className="h-14 md:h-16 bg-bg-secondary border-b border-border flex items-center justify-between px-3 md:px-6 sticky top-0 z-30 gap-2">
+        <div className="flex items-center min-w-0 flex-1 gap-2">
           {onMenuClick && (
             <button
               onClick={onMenuClick}
-              className="lg:hidden p-2 hover:bg-bg-tertiary rounded-lg transition-colors"
+              className="lg:hidden flex-shrink-0 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-bg-tertiary rounded-lg transition-colors touch-manipulation"
+              aria-label="Abrir menú"
             >
               <Bars3Icon className="w-6 h-6 text-text-primary" />
             </button>
           )}
           
+          {/* ✅ Nav scrollable en mobile - evita que se corte CRM/WhatsApp */}
+          <nav className="flex items-center gap-2 overflow-x-auto overflow-y-hidden flex-1 min-w-0 hide-scrollbar flex-nowrap pr-2">
           {/* ✅ NAVEGACIÓN SIMPLIFICADA PARA MECÁNICOS - Solo Órdenes */}
           {isMechanic ? (
             <Link href="/ordenes/kanban">
               <Button
                 variant={isOrdenesActive ? "primary" : "outline"}
                 className={cn(
-                  "transition-all duration-200 gap-2",
-                  "min-h-[44px] min-w-[44px] md:min-w-auto", // ✅ Mobile-first: botones táctiles grandes
+                  "transition-all duration-200 gap-1.5 flex-shrink-0",
+                  "min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
                   isOrdenesActive 
                     ? "bg-primary text-bg-primary hover:bg-primary-dark" 
                     : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
@@ -200,107 +203,108 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
           ) : (
             <>
               {/* Botones de navegación - movidos desde sidebar */}
-              <Link href="/citas">
+              <Link href="/citas" className="flex-shrink-0" title="Citas">
                 <Button
                   variant={isCitasActive ? "primary" : "outline"}
                   className={cn(
-                    "transition-all duration-200 gap-2",
+                    "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
                     isCitasActive 
                       ? "bg-primary text-bg-primary hover:bg-primary-dark" 
                       : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
                   )}
                 >
-                  <ModernIcons.Citas size={16} />
-                  <span className="text-sm font-medium">Citas</span>
+                  <ModernIcons.Citas size={18} />
+                  <span className="text-sm font-medium hidden md:inline">Citas</span>
                 </Button>
               </Link>
               
-              <Link href="/clientes">
+              <Link href="/clientes" className="flex-shrink-0" title="Clientes">
                 <Button
                   variant={isClientesActive ? "primary" : "outline"}
                   className={cn(
-                    "transition-all duration-200 gap-2",
+                    "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
                     isClientesActive 
                       ? "bg-primary text-bg-primary hover:bg-primary-dark" 
                       : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
                   )}
                 >
-                  <ModernIcons.Clientes size={16} />
-                  <span className="text-sm font-medium">Clientes</span>
+                  <ModernIcons.Clientes size={18} />
+                  <span className="text-sm font-medium hidden md:inline">Clientes</span>
                 </Button>
               </Link>
               
-              <Link href="/ordenes">
+              <Link href="/ordenes" className="flex-shrink-0" title="Órdenes">
                 <Button
                   variant={isOrdenesActive ? "primary" : "outline"}
                   className={cn(
-                    "transition-all duration-200 gap-2",
+                    "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
                     isOrdenesActive 
                       ? "bg-primary text-bg-primary hover:bg-primary-dark" 
                       : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
                   )}
                 >
-                  <ModernIcons.Ordenes size={16} />
-                  <span className="text-sm font-medium">Órdenes</span>
+                  <ModernIcons.Ordenes size={18} />
+                  <span className="text-sm font-medium hidden md:inline">Órdenes</span>
                 </Button>
               </Link>
               
-              <Link href="/reportes">
+              <Link href="/reportes" className="flex-shrink-0" title="Reportes">
                 <Button
                   variant={isReportesActive ? "primary" : "outline"}
                   className={cn(
-                    "transition-all duration-200 gap-2",
+                    "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
                     isReportesActive 
                       ? "bg-primary text-bg-primary hover:bg-primary-dark" 
                       : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
                   )}
                 >
-                  <ModernIcons.Reportes size={16} />
-                  <span className="text-sm font-medium">Reportes</span>
+                  <ModernIcons.Reportes size={18} />
+                  <span className="text-sm font-medium hidden md:inline">Reportes</span>
                 </Button>
               </Link>
               
-              <Link href="/leads">
+              <Link href="/leads" className="flex-shrink-0" title="CRM / Leads">
                 <Button
                   variant={isLeadsActive ? "primary" : "outline"}
                   className={cn(
-                    "transition-all duration-200 gap-2",
+                    "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
                     isLeadsActive 
                       ? "bg-primary text-bg-primary hover:bg-primary-dark" 
                       : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
                   )}
                 >
-                  <TrendingUp size={16} className={isLeadsActive ? "text-white" : "text-blue-400"} />
-                  <span className="text-sm font-medium">CRM / Leads</span>
+                  <TrendingUp size={18} className={isLeadsActive ? "text-white" : "text-blue-400"} />
+                  <span className="text-sm font-medium hidden md:inline">CRM</span>
                 </Button>
               </Link>
               
-              <Link href="/dashboard/whatsapp">
+              <Link href="/dashboard/whatsapp" className="flex-shrink-0" title="WhatsApp">
                 <Button
                   variant={isWhatsAppActive ? "primary" : "outline"}
                   className={cn(
-                    "transition-all duration-200 gap-2",
+                    "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
                     isWhatsAppActive 
                       ? "bg-primary text-bg-primary hover:bg-primary-dark" 
                       : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
                   )}
                 >
-                  <ModernIcons.WhatsApp size={16} />
-                  <span className="text-sm font-medium">WhatsApp</span>
+                  <ModernIcons.WhatsApp size={18} />
+                  <span className="text-sm font-medium hidden md:inline">WhatsApp</span>
                 </Button>
               </Link>
             </>
           )}
+          </nav>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {/* Notifications */}
           <div>
             <NotificationBell />
           </div>
           
           {/* User Profile Dropdown */}
-          <div className="pl-4 border-l border-border">
+          <div className="pl-2 md:pl-4 md:border-l md:border-border border-transparent">
             <DropdownMenu open={isUserMenuOpen} onOpenChange={setIsUserMenuOpen}>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center space-x-3 px-2 py-1.5 rounded-lg hover:bg-bg-tertiary transition-colors cursor-pointer outline-none">

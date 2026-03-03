@@ -91,14 +91,16 @@ export default function DashboardPage() {
   const loadOrdersByStatus = useCallback(async () => {
     // ✅ No cargar si no hay organizationId o está cargando
     if (!organizationId || sessionLoading || !sessionReady) {
-      console.log('⚠️ Esperando organizationId...');
+      if (process.env.NODE_ENV === 'development') console.log('⚠️ Esperando organizationId...');
       return;
     }
     
     try {
-      console.log('🔄 Cargando estadísticas de órdenes...');
-      console.log('📅 Filtro de fecha activo:', dateRange);
-      console.log('🔍 Organization ID:', organizationId);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔄 Cargando estadísticas de órdenes...');
+        console.log('📅 Filtro de fecha activo:', dateRange);
+        console.log('🔍 Organization ID:', organizationId);
+      }
       setLoading(true);
       
       // Construir URL con parámetro de fecha
@@ -113,7 +115,7 @@ export default function DashboardPage() {
         url = `/api/orders/stats?timeFilter=custom&from=${fromISO}&to=${toISO}&organizationId=${organizationId}`;
       }
       
-      console.log('🔗 URL de la petición:', url);
+      if (process.env.NODE_ENV === 'development') console.log('🔗 URL de la petición:', url);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -123,7 +125,7 @@ export default function DashboardPage() {
         cache: 'no-store'
       });
       
-      console.log('📡 Response status:', response.status);
+      if (process.env.NODE_ENV === 'development') console.log('📡 Response status:', response.status);
       
       if (!response.ok) {
         console.warn(`⚠️ Error al cargar estadísticas: ${response.status}`);
@@ -134,50 +136,39 @@ export default function DashboardPage() {
       
       const data = await response.json();
       
-      // ✅ LOGS DETALLADOS PARA DIAGNÓSTICO
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('📊 DASHBOARD - DATOS RECIBIDOS DE LA API');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('Filtro aplicado:', dateRange);
-      if (dateRange === 'custom') {
-        console.log('Rango personalizado:', {
-          from: customDateRange.from?.toISOString(),
-          to: customDateRange.to?.toISOString()
-        });
-      }
-      console.log('Datos por estado:', data);
-      
-      // Mostrar información de debug si está disponible
-      if (data._debug) {
-        console.log('🔍 DEBUG INFO:');
-        console.log('  📊 Total órdenes en BD (sin filtro):', data._debug.totalOrdersInDB || 0);
-        console.log('  📅 Órdenes después de filtrar por fecha:', data._debug.ordersAfterDateFilter || 0);
-        console.log('  📆 Rango de fechas:', {
-          desde: data._debug.filterFrom,
-          hasta: data._debug.filterTo
-        });
-        console.log('  📋 Muestra de órdenes (primeras 3):', data._debug.sampleOrders || []);
-        console.log('  🏢 Organization ID:', data._debug.organizationId);
-        
-        // Si hay órdenes en BD pero no pasan el filtro, mostrar advertencia
-        if (data._debug.totalOrdersInDB > 0 && data._debug.ordersAfterDateFilter === 0) {
-          console.warn('⚠️ Hay órdenes en la BD pero ninguna está en el rango de fechas seleccionado');
-          console.warn('   Considera cambiar el filtro de fecha o verificar las fechas de las órdenes');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('📊 DASHBOARD - DATOS RECIBIDOS DE LA API');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('Filtro aplicado:', dateRange);
+        if (dateRange === 'custom') {
+          console.log('Rango personalizado:', {
+            from: customDateRange.from?.toISOString(),
+            to: customDateRange.to?.toISOString()
+          });
         }
-        
-        // Si no hay órdenes en BD, mostrar mensaje informativo
-        if (data._debug.totalOrdersInDB === 0) {
-          console.info('ℹ️ No hay órdenes en la base de datos para esta organización');
-          console.info('   Organization ID:', data._debug.organizationId);
+        console.log('Datos por estado:', data);
+        if (data._debug) {
+          console.log('🔍 DEBUG INFO:');
+          console.log('  📊 Total órdenes en BD (sin filtro):', data._debug.totalOrdersInDB || 0);
+          console.log('  📅 Órdenes después de filtrar por fecha:', data._debug.ordersAfterDateFilter || 0);
+          console.log('  📆 Rango de fechas:', { desde: data._debug.filterFrom, hasta: data._debug.filterTo });
+          console.log('  📋 Muestra de órdenes (primeras 3):', data._debug.sampleOrders || []);
+          console.log('  🏢 Organization ID:', data._debug.organizationId);
+          if (data._debug.totalOrdersInDB > 0 && data._debug.ordersAfterDateFilter === 0) {
+            console.warn('⚠️ Hay órdenes en la BD pero ninguna está en el rango de fechas seleccionado');
+          }
+          if (data._debug.totalOrdersInDB === 0) {
+            console.info('ℹ️ No hay órdenes en la base de datos para esta organización');
+          }
         }
+        const totalFromAPI = Object.entries(data)
+          .filter(([key]) => key !== 'success' && key !== 'total' && key !== '_debug')
+          .reduce((sum, [_, val]) => sum + (typeof val === 'number' ? val : 0), 0);
+        console.log('Total de órdenes (calculado):', totalFromAPI);
+        console.log('Total de órdenes (del API):', data.total);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       }
-      
-      const totalFromAPI = Object.entries(data)
-        .filter(([key]) => key !== 'success' && key !== 'total' && key !== '_debug')
-        .reduce((sum, [_, val]) => sum + (typeof val === 'number' ? val : 0), 0);
-      console.log('Total de órdenes (calculado):', totalFromAPI);
-      console.log('Total de órdenes (del API):', data.total);
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       
       // Mapear los datos de la API al formato esperado por la gráfica
       // Usar los nombres de campos en inglés que ahora devuelve el endpoint
@@ -195,16 +186,17 @@ export default function DashboardPage() {
         { name: 'Archivadas', value: data.archived || 0, color: '#64748b' }
       ];
       
-      console.log('✅ Datos mapeados para gráfica:', updatedOrdersByStatus);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Datos mapeados para gráfica:', updatedOrdersByStatus);
+        console.log('✅ Estado actualizado correctamente');
+      }
       setOrdersByStatus(updatedOrdersByStatus);
-      console.log('✅ Estado actualizado correctamente');
     } catch (error) {
       console.error('❌ Error al cargar estadísticas de órdenes:', error);
-      // Mantener datos por defecto en caso de error
-      console.log('ℹ️ Usando datos por defecto (vacíos)');
+      if (process.env.NODE_ENV === 'development') console.log('ℹ️ Usando datos por defecto (vacíos)');
     } finally {
       setLoading(false);
-      console.log('✅ Carga finalizada');
+      if (process.env.NODE_ENV === 'development') console.log('✅ Carga finalizada');
     }
   }, [dateRange, customDateRange, organizationId, sessionLoading]);
 
