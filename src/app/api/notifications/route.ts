@@ -2,6 +2,37 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest } from '@/lib/supabase/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
+// POST /api/notifications - Crear notificación de prueba
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = createClientFromRequest(request)
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+    const supabaseAdmin = getSupabaseServiceClient()
+    const { data: userProfile } = await (supabaseAdmin as any).from('users').select('organization_id').eq('auth_user_id', user.id).single()
+    if (!userProfile?.organization_id) return NextResponse.json({ error: 'Sin organización' }, { status: 403 })
+
+    const body = await request.json()
+    const { title = 'Test', message = 'Test', type = 'info' } = body
+
+    const { data, error } = await (supabaseAdmin as any)
+      .from('notifications')
+      .insert({ organization_id: userProfile.organization_id, type, title, message, read: false })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('[POST /api/notifications] Insert error:', error)
+      return NextResponse.json({ success: false, error: error.message, code: error.code, details: error.details }, { status: 500 })
+    }
+    return NextResponse.json({ success: true, data })
+  } catch (err: any) {
+    console.error('[POST /api/notifications] Exception:', err)
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 })
+  }
+}
+
 // GET /api/notifications - Listar notificaciones
 export async function GET(request: NextRequest) {
   try {

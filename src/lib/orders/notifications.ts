@@ -132,11 +132,10 @@ export async function notifyOrderStatus(
     }).catch((err) => console.warn('[OrderNotifications] Push send error:', err))
 
     // --- Notificación in-app (campana) ---
-    // Usar service client directamente (no necesita cookies de request).
-    // type debe estar en: 'info','warning','success','error','stock_low','order_completed','quotation_created'
+    // Solo campos confirmados: organization_id, type, title, message, read
+    // type válidos: 'info','warning','success','error','stock_low','order_completed','quotation_created'
     const notifType = status === 'completed' ? 'order_completed' : status === 'ready' ? 'success' : 'info'
-    const serviceClient = getSupabaseServiceClient()
-    serviceClient
+    const { error: notifError } = await (getSupabaseServiceClient() as any)
       .from('notifications')
       .insert({
         organization_id: organizationId,
@@ -144,12 +143,12 @@ export async function notifyOrderStatus(
         title: `${statusLabel}: ${customerName}`,
         message: `${vehicleInfo ? `${vehicleInfo}${plate} — ` : ''}Estado actualizado a "${statusLabel}"`,
         read: false,
-        data: { order_id: orderId, status, customer_name: customerName, vehicle: vehicleInfo, trigger },
       })
-      .then(({ error }: { error: any }) => {
-        if (error) console.warn('[OrderNotifications] In-app notify error:', error.message)
-        else console.log('[OrderNotifications] In-app notification created for status:', status)
-      })
+    if (notifError) {
+      console.error('[OrderNotifications] In-app notify FAILED:', notifError.message, '| code:', notifError.code, '| details:', notifError.details)
+    } else {
+      console.log('[OrderNotifications] ✅ In-app notification created | status:', status, '| org:', organizationId)
+    }
 
     result.sent = result.channels.length > 0
     return result
