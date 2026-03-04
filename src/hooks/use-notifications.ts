@@ -55,6 +55,8 @@ export function useNotifications() {
 
   useEffect(() => {
     loadNotifications()
+    const interval = setInterval(loadNotifications, 30_000)
+    return () => clearInterval(interval)
   }, [loadNotifications])
 
   return {

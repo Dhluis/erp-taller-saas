@@ -55,7 +55,7 @@ export async function createNotification(data: {
       .insert({
         ...data,
         priority: data.priority || 'medium',
-        is_read: false,
+        read: false,
         created_at: new Date().toISOString()
       })
       .select()
