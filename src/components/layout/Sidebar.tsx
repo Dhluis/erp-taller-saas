@@ -50,7 +50,7 @@ export function Sidebar({ className }: SidebarProps) {
         'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos', '/service-packages'],
         'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/cuentas-efectivo', '/ingresos/ajustes-devoluciones', '/ingresos/entregas', '/ingresos/arqueo-caja', '/ingresos/reportes'],
         'compras': ['/compras', '/compras/proveedores', '/compras/pagos', '/compras/gastos'],
-        'reportes': ['/reportes', '/reportes/ventas', '/reportes/inventario', '/reportes/financieros'],
+        'reportes': ['/reportes', '/reportes/ventas', '/reportes/ventas-por-items', '/reportes/inventario', '/reportes/financieros', '/reportes/operaciones'],
         'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/mensajeria', '/mensajeria/email', '/mensajeria/whatsapp', '/perfil']
       }
       
@@ -188,8 +188,10 @@ export function Sidebar({ className }: SidebarProps) {
       visible: showAllForAdmin || permissions.canRead('reports'),
       items: [
         { href: "/reportes/ventas", label: "Ventas", icon: () => <ModernIcons.Finanzas size={18} />, visible: permissions.canRead('reports') },
+        { href: "/reportes/ventas-por-items", label: "Ventas Por Ítems", icon: () => <ModernIcons.Finanzas size={18} />, visible: permissions.canViewFinancialReports() },
         { href: "/reportes/inventario", label: "Inventario", icon: () => <ModernIcons.Inventarios size={18} />, visible: permissions.canRead('reports') },
-        { href: "/reportes/financieros", label: "Financieros", icon: () => <ModernIcons.Financieros size={18} />, visible: permissions.canViewFinancialReports() }
+        { href: "/reportes/financieros", label: "Financieros", icon: () => <ModernIcons.Financieros size={18} />, visible: permissions.canViewFinancialReports() },
+        { href: "/reportes/operaciones", label: "Operaciones", icon: () => <ModernIcons.Reportes size={18} />, visible: permissions.canRead('reports') }
       ].filter(item => item.visible)
     },
     {
@@ -262,7 +264,7 @@ export function Sidebar({ className }: SidebarProps) {
         'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos', '/service-packages'],
         'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/cuentas-efectivo', '/ingresos/ajustes-devoluciones', '/ingresos/entregas', '/ingresos/arqueo-caja', '/ingresos/reportes'],
         'compras': ['/compras', '/compras/proveedores', '/compras/pagos', '/compras/gastos'],
-        'reportes': ['/reportes', '/reportes/ventas', '/reportes/inventario', '/reportes/financieros'],
+        'reportes': ['/reportes', '/reportes/ventas', '/reportes/ventas-por-items', '/reportes/inventario', '/reportes/financieros', '/reportes/operaciones'],
         'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/mensajeria', '/mensajeria/email', '/mensajeria/whatsapp', '/perfil']
       }
       const sectionRoutesList = sectionRoutes[section.key] || []

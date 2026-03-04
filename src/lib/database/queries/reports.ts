@@ -582,3 +582,197 @@ export async function getPerformanceMetrics(organizationId: string) {
     }
   }, { operation: 'getPerformanceMetrics', table: 'multiple' })
 }
+
+/**
+ * Obtener reporte de ventas por ítems (servicios/productos)
+ */
+export async function getItemsSalesReport(
+  organizationId: string,
+  startDate: string,
+  endDate: string
+) {
+  return executeWithErrorHandling(async () => {
+    const supabase = await createClient()
+
+    const { data: lines } = await (supabase as any)
+      .from('work_order_services')
+      .select('name, quantity, total_price, line_type')
+      .eq('organization_id', organizationId)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate + 'T23:59:59')
+
+    const items: any[] = lines || []
+
+    // Agrupar por nombre
+    const grouped: Record<string, { name: string; line_type: string; quantity: number; total_revenue: number; count: number }> = {}
+    for (const line of items) {
+      const key = line.name || 'Sin nombre'
+      if (!grouped[key]) {
+        grouped[key] = { name: key, line_type: line.line_type || 'free_service', quantity: 0, total_revenue: 0, count: 0 }
+      }
+      grouped[key].quantity += Number(line.quantity) || 0
+      grouped[key].total_revenue += Number(line.total_price) || 0
+      grouped[key].count += 1
+    }
+
+    const allItems = Object.values(grouped)
+    const totalRevenue = allItems.reduce((s, i) => s + i.total_revenue, 0)
+    const totalUnits = allItems.reduce((s, i) => s + i.quantity, 0)
+    const averagePrice = allItems.length > 0 ? totalRevenue / allItems.length : 0
+
+    // Desglose por tipo
+    const typeMap: Record<string, { count: number; revenue: number }> = {}
+    for (const line of items) {
+      const t = line.line_type || 'free_service'
+      if (!typeMap[t]) typeMap[t] = { count: 0, revenue: 0 }
+      typeMap[t].count += 1
+      typeMap[t].revenue += Number(line.total_price) || 0
+    }
+    const byType = Object.entries(typeMap).map(([type, v]) => ({ type, count: v.count, revenue: v.revenue }))
+
+    return {
+      summary: {
+        total_items_sold: allItems.length,
+        total_units: totalUnits,
+        total_revenue: totalRevenue,
+        average_price: averagePrice
+      },
+      by_revenue: allItems.sort((a, b) => b.total_revenue - a.total_revenue).slice(0, 15),
+      by_quantity: allItems.sort((a, b) => b.quantity - a.quantity).slice(0, 15),
+      by_type: byType,
+      period: { start_date: startDate, end_date: endDate }
+    }
+  }, { operation: 'getItemsSalesReport', table: 'work_order_services' })
+}
+
+/**
+ * Obtener reporte de operaciones (órdenes de trabajo y mecánicos)
+ */
+export async function getOperationsReport(
+  organizationId: string,
+  startDate: string,
+  endDate: string
+) {
+  return executeWithErrorHandling(async () => {
+    const supabase = await createClient()
+
+    // 1. Órdenes del período
+    const { data: orders } = await (supabase as any)
+      .from('work_orders')
+      .select('id, status, assigned_to, created_at, completed_at, total_amount')
+      .eq('organization_id', organizationId)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate + 'T23:59:59')
+
+    const allOrders: any[] = orders || []
+    const totalOrders = allOrders.length
+    const completedOrders = allOrders.filter(o => o.status === 'completed' || o.status === 'delivered' || o.status === 'archived').length
+    const pendingOrders = allOrders.filter(o => o.status === 'pending').length
+    const inProgressOrders = allOrders.filter(o => o.status === 'in_progress' || o.status === 'in_repair' || o.status === 'diagnosed').length
+    const completionRate = totalOrders > 0 ? (completedOrders / totalOrders) * 100 : 0
+
+    // Tiempo promedio de finalización (días)
+    const withCompletion = allOrders.filter(o => o.completed_at && o.created_at)
+    const avgDays = withCompletion.length > 0
+      ? withCompletion.reduce((sum, o) => {
+          const diff = new Date(o.completed_at).getTime() - new Date(o.created_at).getTime()
+          return sum + diff / (1000 * 60 * 60 * 24)
+        }, 0) / withCompletion.length
+      : 0
+
+    // 2. Desglose por estado
+    const statusCount: Record<string, number> = {}
+    for (const o of allOrders) {
+      statusCount[o.status] = (statusCount[o.status] || 0) + 1
+    }
+    const byStatus = Object.entries(statusCount).map(([status, count]) => ({
+      status,
+      count,
+      percentage: totalOrders > 0 ? (count / totalOrders) * 100 : 0
+    })).sort((a, b) => b.count - a.count)
+
+    // 3. Rendimiento por mecánico
+    const mechanicMap: Record<string, { assigned_to: string; assigned_orders: number; completed_orders: number; revenue: number }> = {}
+    for (const o of allOrders) {
+      const key = o.assigned_to || 'unassigned'
+      if (!mechanicMap[key]) mechanicMap[key] = { assigned_to: key, assigned_orders: 0, completed_orders: 0, revenue: 0 }
+      mechanicMap[key].assigned_orders += 1
+      if (o.status === 'completed' || o.status === 'delivered' || o.status === 'archived') {
+        mechanicMap[key].completed_orders += 1
+        mechanicMap[key].revenue += Number(o.total_amount) || 0
+      }
+    }
+
+    // Intentar enriquecer con nombre desde employees
+    const assignedIds = Object.keys(mechanicMap).filter(id => id !== 'unassigned')
+    let employeeNames: Record<string, string> = {}
+    if (assignedIds.length > 0) {
+      const { data: employees } = await (supabase as any)
+        .from('employees')
+        .select('id, name, user_id')
+        .eq('organization_id', organizationId)
+      if (employees) {
+        for (const emp of employees) {
+          if (emp.user_id && mechanicMap[emp.user_id]) employeeNames[emp.user_id] = emp.name
+          if (emp.id && mechanicMap[emp.id]) employeeNames[emp.id] = emp.name
+        }
+      }
+      // Fallback: buscar en users table
+      if (Object.keys(employeeNames).length < assignedIds.length) {
+        const { data: users } = await (supabase as any)
+          .from('users')
+          .select('auth_user_id, full_name, email')
+          .in('auth_user_id', assignedIds)
+        if (users) {
+          for (const u of users) {
+            if (!employeeNames[u.auth_user_id]) {
+              employeeNames[u.auth_user_id] = u.full_name || u.email || u.auth_user_id.slice(0, 8)
+            }
+          }
+        }
+      }
+    }
+
+    const byMechanic = Object.values(mechanicMap).map(m => ({
+      name: m.assigned_to === 'unassigned' ? 'Sin asignar' : (employeeNames[m.assigned_to] || m.assigned_to.slice(0, 8) + '...'),
+      assigned_orders: m.assigned_orders,
+      completed_orders: m.completed_orders,
+      revenue: m.revenue
+    })).sort((a, b) => b.assigned_orders - a.assigned_orders)
+
+    // 4. Servicios más realizados del período
+    const orderIds = allOrders.map(o => o.id)
+    let topServices: { name: string; count: number }[] = []
+    if (orderIds.length > 0) {
+      const { data: serviceLines } = await (supabase as any)
+        .from('work_order_services')
+        .select('name')
+        .eq('organization_id', organizationId)
+        .in('work_order_id', orderIds)
+      const svcCount: Record<string, number> = {}
+      for (const s of (serviceLines || []) as any[]) {
+        const n = s.name || 'Sin nombre'
+        svcCount[n] = (svcCount[n] || 0) + 1
+      }
+      topServices = Object.entries(svcCount)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10)
+    }
+
+    return {
+      summary: {
+        total_orders: totalOrders,
+        completed_orders: completedOrders,
+        completion_rate: completionRate,
+        avg_completion_days: avgDays,
+        pending_orders: pendingOrders,
+        in_progress_orders: inProgressOrders
+      },
+      by_status: byStatus,
+      by_mechanic: byMechanic,
+      top_services: topServices,
+      period: { start_date: startDate, end_date: endDate }
+    }
+  }, { operation: 'getOperationsReport', table: 'multiple' })
+}

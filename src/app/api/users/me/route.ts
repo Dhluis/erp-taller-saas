@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       .from('users')
       .select('id, auth_user_id, email, full_name, role, phone, is_active, organization_id, created_at, updated_at')
       .eq('auth_user_id', userId)
-      .single()
+      .single() as { data: any; error: any }
     
     if (error) {
       console.error('[GET /api/users/me] Error en query:', error)
@@ -64,9 +64,9 @@ export async function GET(request: NextRequest) {
               .select('id')
               .eq('email', authUser.email || '')
               .limit(1)
-              .single()
-            
-            if (existingOrg && !existingOrg.error) {
+              .single() as { data: any; error: any }
+
+            if (existingOrg?.id) {
               finalOrganizationId = existingOrg.id
               console.log('[GET /api/users/me] Organización encontrada por email:', finalOrganizationId)
             }
@@ -83,23 +83,23 @@ export async function GET(request: NextRequest) {
           }
           
           // Solo crear perfil si ya tiene organización válida
-          const { data: newUser, error: createError } = await supabaseAdmin
+          const { data: newUser, error: createError } = await (supabaseAdmin as any)
             .from('users')
             .insert({
-              id: authUser.id, // El id debe coincidir con auth.users.id
+              id: authUser.id,
               auth_user_id: authUser.id,
               email: authUser.email || '',
               full_name: userMetadata.full_name || authUser.email?.split('@')[0] || 'Usuario',
               organization_id: finalOrganizationId,
               workshop_id: null,
-              role: userMetadata.role || 'ADMIN', // Por defecto ADMIN para usuarios nuevos
+              role: userMetadata.role || 'ADMIN',
               phone: userMetadata.phone || null,
               is_active: true,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             })
             .select()
-            .single()
+            .single() as { data: any; error: any }
           
           if (createError) {
             console.error('[GET /api/users/me] Error creando perfil:', createError)

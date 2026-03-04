@@ -660,7 +660,24 @@ export default function DashboardPage() {
       icon: () => <ModernIcons.Check size={32} />,
       color: 'text-green-400',
       bgColor: 'bg-green-500/10'
-    }
+    },
+    ...(permissions.canViewFinancialReports() ? [{
+      title: 'Ticket Promedio',
+      value: formatMoney(stats.ordenesCompletadas > 0 ? stats.ingresos / stats.ordenesCompletadas : 0),
+      description: 'Por orden completada',
+      trend: '',
+      icon: () => <ModernIcons.Finanzas size={32} />,
+      color: 'text-teal-400',
+      bgColor: 'bg-teal-500/10'
+    }] : [{
+      title: 'Cotizaciones Activas',
+      value: (crmStats?.active ?? 0).toString(),
+      description: 'En seguimiento',
+      trend: '',
+      icon: () => <ModernIcons.Cotizaciones size={32} />,
+      color: 'text-indigo-400',
+      bgColor: 'bg-indigo-500/10'
+    }])
   ];
 
   return (
