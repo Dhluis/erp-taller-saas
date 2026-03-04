@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -8,98 +8,136 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Separator } from "@/components/ui/separator"
-import { 
-  Settings, 
-  Database, 
-  Shield, 
-  Bell, 
-  Globe, 
-  Mail, 
+import {
+  Settings,
+  Database,
+  Shield,
+  Bell,
   Save,
   RefreshCw,
   AlertTriangle,
   CheckCircle
 } from "lucide-react"
 import { useUserProfile } from "@/hooks/use-user-profile"
+import { useOrganization } from "@/lib/context/SessionContext"
+import { getCompanySettings, updateCompanySettings } from "@/lib/supabase/company-settings"
+import { toast } from "sonner"
+
+type SystemConfig = {
+  timezone: string
+  language: string
+  dbBackupEnabled: boolean
+  dbBackupFrequency: string
+  dbRetentionDays: number
+  sessionTimeout: number
+  passwordPolicy: string
+  twoFactorAuth: boolean
+  ipWhitelist: string
+  emailNotifications: boolean
+  smsNotifications: boolean
+  pushNotifications: boolean
+  notificationEmail: string
+  maintenanceMode: boolean
+  debugMode: boolean
+  logLevel: string
+}
+
+const DEFAULT_CONFIG: SystemConfig = {
+  timezone: "America/Mexico_City",
+  language: "es",
+  dbBackupEnabled: true,
+  dbBackupFrequency: "daily",
+  dbRetentionDays: 30,
+  sessionTimeout: 30,
+  passwordPolicy: "strong",
+  twoFactorAuth: false,
+  ipWhitelist: "",
+  emailNotifications: true,
+  smsNotifications: false,
+  pushNotifications: true,
+  notificationEmail: "",
+  maintenanceMode: false,
+  debugMode: false,
+  logLevel: "info"
+}
 
 export default function ConfiguracionesSistemaPage() {
   const { profile } = useUserProfile()
-  
-  // Obtener email dinámicamente, sin useState ni useEffect
-  const getNotificationEmail = () => profile?.email || "admin@sistema.com"
-  
-  const [settings, setSettings] = useState({
-    // Configuración general
-    systemName: "EAGLES SYSTEM",
-    systemVersion: "1.0.0",
-    timezone: "America/Mexico_City",
-    language: "es",
-    
-    // Configuración de base de datos
-    dbBackupEnabled: true,
-    dbBackupFrequency: "daily",
-    dbRetentionDays: 30,
-    
-    // Configuración de seguridad
-    sessionTimeout: 30,
-    passwordPolicy: "strong",
-    twoFactorAuth: false,
-    ipWhitelist: "",
-    
-    // Configuración de notificaciones
-    emailNotifications: true,
-    smsNotifications: false,
-    pushNotifications: true,
-    notificationEmail: getNotificationEmail(),
-    
-    // Configuración de integración
-    apiEnabled: true,
-    webhookUrl: "",
-    externalIntegrations: false,
-    
-    // Configuración de mantenimiento
-    maintenanceMode: false,
-    debugMode: false,
-    logLevel: "info"
-  })
+  const { organizationId } = useOrganization()
 
+  const [settings, setSettings] = useState<SystemConfig>({ ...DEFAULT_CONFIG })
+  const [appointmentDefaultsRest, setAppointmentDefaultsRest] = useState<Record<string, unknown>>({})
   const [isSaving, setIsSaving] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
 
+  // Cargar configuración desde DB
+  useEffect(() => {
+    if (!organizationId) return
+    const load = async () => {
+      try {
+        const data = await getCompanySettings(organizationId)
+        if (data?.appointment_defaults && typeof data.appointment_defaults === 'object') {
+          const appDef = data.appointment_defaults as Record<string, unknown>
+          const stored = (appDef.system_config ?? {}) as Partial<SystemConfig>
+          // Guardar el resto de appointment_defaults para no sobreescribirlos al guardar
+          const { system_config: _, ...rest } = appDef
+          setAppointmentDefaultsRest(rest)
+          setSettings({
+            ...DEFAULT_CONFIG,
+            notificationEmail: profile?.email || DEFAULT_CONFIG.notificationEmail,
+            ...stored
+          })
+        } else {
+          setSettings(prev => ({ ...prev, notificationEmail: profile?.email || prev.notificationEmail }))
+        }
+      } catch {
+        // Si falla la carga, seguir con defaults
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [organizationId, profile?.email])
+
   const handleSave = async () => {
+    if (!organizationId) {
+      toast.error("Organización no disponible")
+      return
+    }
     setIsSaving(true)
-    // Simular guardado
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setIsSaving(false)
-    setLastSaved(new Date())
+    try {
+      await updateCompanySettings(organizationId, {
+        appointment_defaults: {
+          ...appointmentDefaultsRest,
+          system_config: settings
+        }
+      })
+      setLastSaved(new Date())
+      toast.success("Configuración del sistema guardada")
+    } catch {
+      toast.error("Error al guardar la configuración")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleReset = () => {
-    // Resetear a valores por defecto
     setSettings({
-      systemName: "EAGLES SYSTEM",
-      systemVersion: "1.0.0",
-      timezone: "America/Mexico_City",
-      language: "es",
-      dbBackupEnabled: true,
-      dbBackupFrequency: "daily",
-      dbRetentionDays: 30,
-      sessionTimeout: 30,
-      passwordPolicy: "strong",
-      twoFactorAuth: false,
-      ipWhitelist: "",
-      emailNotifications: true,
-      smsNotifications: false,
-      pushNotifications: true,
-      notificationEmail: getNotificationEmail(),
-      apiEnabled: true,
-      webhookUrl: "",
-      externalIntegrations: false,
-      maintenanceMode: false,
-      debugMode: false,
-      logLevel: "info"
+      ...DEFAULT_CONFIG,
+      notificationEmail: profile?.email || DEFAULT_CONFIG.notificationEmail
     })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Cargando configuración...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -128,7 +166,7 @@ export default function ConfiguracionesSistemaPage() {
       {lastSaved && (
         <div className="flex items-center gap-2 text-sm text-green-600">
           <CheckCircle className="h-4 w-4" />
-          Última actualización: {(lastSaved || 0).toLocaleString()}
+          Última actualización: {lastSaved.toLocaleString()}
         </div>
       )}
 
@@ -144,22 +182,6 @@ export default function ConfiguracionesSistemaPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="systemName">Nombre del Sistema</Label>
-                <Input
-                  id="systemName"
-                  value={settings.systemName}
-                  onChange={(e) => setSettings({...settings, systemName: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="systemVersion">Versión</Label>
-                <Input
-                  id="systemVersion"
-                  value={settings.systemVersion}
-                  onChange={(e) => setSettings({...settings, systemVersion: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="timezone">Zona Horaria</Label>
                 <Select value={settings.timezone} onValueChange={(value) => setSettings({...settings, timezone: value})}>
                   <SelectTrigger>
@@ -168,6 +190,8 @@ export default function ConfiguracionesSistemaPage() {
                   <SelectContent>
                     <SelectItem value="America/Mexico_City">México (GMT-6)</SelectItem>
                     <SelectItem value="America/New_York">Nueva York (GMT-5)</SelectItem>
+                    <SelectItem value="America/Bogota">Colombia (GMT-5)</SelectItem>
+                    <SelectItem value="America/Argentina/Buenos_Aires">Argentina (GMT-3)</SelectItem>
                     <SelectItem value="Europe/Madrid">Madrid (GMT+1)</SelectItem>
                     <SelectItem value="UTC">UTC (GMT+0)</SelectItem>
                   </SelectContent>
@@ -208,7 +232,7 @@ export default function ConfiguracionesSistemaPage() {
                 onCheckedChange={(checked) => setSettings({...settings, dbBackupEnabled: checked})}
               />
             </div>
-            
+
             {settings.dbBackupEnabled && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -217,12 +241,12 @@ export default function ConfiguracionesSistemaPage() {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="hourly">Cada hora</SelectItem>
-                    <SelectItem value="daily">Diario</SelectItem>
-                    <SelectItem value="weekly">Semanal</SelectItem>
-                  </SelectContent>
-                </Select>
+                    <SelectContent>
+                      <SelectItem value="hourly">Cada hora</SelectItem>
+                      <SelectItem value="daily">Diario</SelectItem>
+                      <SelectItem value="weekly">Semanal</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="retentionDays">Días de Retención</Label>
@@ -230,7 +254,7 @@ export default function ConfiguracionesSistemaPage() {
                     id="retentionDays"
                     type="number"
                     value={settings.dbRetentionDays}
-                    onChange={(e) => setSettings({...settings, dbRetentionDays: parseInt(e.target.value)})}
+                    onChange={(e) => setSettings({...settings, dbRetentionDays: parseInt(e.target.value) || 30})}
                   />
                 </div>
               </div>
@@ -254,7 +278,7 @@ export default function ConfiguracionesSistemaPage() {
                   id="sessionTimeout"
                   type="number"
                   value={settings.sessionTimeout}
-                  onChange={(e) => setSettings({...settings, sessionTimeout: parseInt(e.target.value)})}
+                  onChange={(e) => setSettings({...settings, sessionTimeout: parseInt(e.target.value) || 30})}
                 />
               </div>
               <div className="space-y-2">
@@ -271,7 +295,7 @@ export default function ConfiguracionesSistemaPage() {
                 </Select>
               </div>
             </div>
-            
+
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Autenticación de Dos Factores</Label>
@@ -282,7 +306,7 @@ export default function ConfiguracionesSistemaPage() {
                 onCheckedChange={(checked) => setSettings({...settings, twoFactorAuth: checked})}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="ipWhitelist">Lista Blanca de IPs</Label>
               <Textarea
@@ -316,7 +340,7 @@ export default function ConfiguracionesSistemaPage() {
                   onCheckedChange={(checked) => setSettings({...settings, emailNotifications: checked})}
                 />
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Notificaciones SMS</Label>
@@ -327,7 +351,7 @@ export default function ConfiguracionesSistemaPage() {
                   onCheckedChange={(checked) => setSettings({...settings, smsNotifications: checked})}
                 />
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Notificaciones Push</Label>
@@ -339,7 +363,7 @@ export default function ConfiguracionesSistemaPage() {
                 />
               </div>
             </div>
-            
+
             {settings.emailNotifications && (
               <div className="space-y-2">
                 <Label htmlFor="notificationEmail">Email de Notificaciones</Label>
@@ -373,7 +397,7 @@ export default function ConfiguracionesSistemaPage() {
                 onCheckedChange={(checked) => setSettings({...settings, maintenanceMode: checked})}
               />
             </div>
-            
+
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Modo Debug</Label>
@@ -384,7 +408,7 @@ export default function ConfiguracionesSistemaPage() {
                 onCheckedChange={(checked) => setSettings({...settings, debugMode: checked})}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="logLevel">Nivel de Log</Label>
               <Select value={settings.logLevel} onValueChange={(value) => setSettings({...settings, logLevel: value})}>

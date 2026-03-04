@@ -263,10 +263,12 @@ export default function InventariosPage() {
               <p className="text-sm text-text-secondary mt-1">Análisis de inventario y movimientos</p>
             </CardHeader>
             <CardContent className="p-6">
-              <Button variant="outline" className="w-full">
-                Ver Reportes
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
+              <Link href="/reportes/inventario">
+                <Button variant="outline" className="w-full">
+                  Ver Reportes
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>
@@ -293,15 +295,19 @@ export default function InventariosPage() {
                 </Button>
               </Link>
               
-              <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
-                <TrendingUp className="h-6 w-6" />
-                <span className="text-sm font-medium">Ajuste de Stock</span>
-              </Button>
-              
-              <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
-                <Settings className="h-6 w-6" />
-                <span className="text-sm font-medium">Configuración</span>
-              </Button>
+              <Link href="/inventarios/movimientos">
+                <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
+                  <TrendingUp className="h-6 w-6" />
+                  <span className="text-sm font-medium">Ajuste de Stock</span>
+                </Button>
+              </Link>
+
+              <Link href="/configuraciones/empresa">
+                <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
+                  <Settings className="h-6 w-6" />
+                  <span className="text-sm font-medium">Configuración</span>
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
