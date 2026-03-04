@@ -46,7 +46,7 @@ export async function notifyOrderStatus(
         status,
         description,
         customer:customers(id, name, phone, email),
-        vehicle:vehicles(make, model, year, license_plate)
+        vehicle:vehicles(brand, model, year, license_plate)
       `)
       .eq('id', orderId)
       .eq('organization_id', organizationId)
@@ -69,7 +69,7 @@ export async function notifyOrderStatus(
     const statusLabel = STATUS_LABELS[status] || status
     const customerName = customer.name || 'Cliente'
     const vehicleInfo = vehicle
-      ? `${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year || ''}`.trim()
+      ? `${vehicle.brand || ''} ${vehicle.model || ''} ${vehicle.year || ''}`.trim()
       : ''
     const plate = vehicle?.license_plate ? ` (${vehicle.license_plate})` : ''
 

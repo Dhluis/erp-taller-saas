@@ -23,8 +23,17 @@ export async function sendMessage(
       return { success: false, error: 'Configuración de mensajería no encontrada' };
     }
     
-    // Normalizar número destino (eliminar espacios, guiones, etc.)
-    const normalizedTo = to.replace(/[^0-9+]/g, '');
+    // Normalizar número destino a formato E.164
+    // Elimina caracteres no numéricos (excepto +) y agrega +52 si es número mexicano de 10 dígitos
+    let normalizedTo = to.replace(/[^0-9+]/g, '')
+    if (!normalizedTo.startsWith('+')) {
+      // Sin código de país: asumimos México (+52)
+      if (normalizedTo.length === 10) {
+        normalizedTo = `+52${normalizedTo}`
+      } else if (normalizedTo.length === 12 && normalizedTo.startsWith('52')) {
+        normalizedTo = `+${normalizedTo}`
+      }
+    }
     
     // Enviar por Twilio WhatsApp API
     if (!config.whatsapp_api_number) {
