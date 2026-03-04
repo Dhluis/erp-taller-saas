@@ -102,15 +102,19 @@ async function getMessagingConfig(organizationId: string): Promise<MessagingConf
 /**
  * Envía mensaje por Twilio WhatsApp API
  */
+function cleanEnv(value: string | undefined): string {
+  return (value || '').replace(/\\r\\n|\\r|\\n|\r\n|\r|\n/g, '').replace(/^"|"$/g, '').trim()
+}
+
 async function sendTwilioWhatsAppMessage(
   from: string,
   to: string,
   body: string
 ): Promise<SendMessageResult> {
   try {
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    
+    const accountSid = cleanEnv(process.env.TWILIO_ACCOUNT_SID)
+    const authToken = cleanEnv(process.env.TWILIO_AUTH_TOKEN)
+
     if (!accountSid || !authToken) {
       return {
         success: false,
