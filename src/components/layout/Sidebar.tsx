@@ -188,10 +188,10 @@ export function Sidebar({ className }: SidebarProps) {
       visible: showAllForAdmin || permissions.canRead('reports'),
       items: [
         { href: "/reportes/ventas", label: "Ventas", icon: () => <ModernIcons.Finanzas size={18} />, visible: permissions.canRead('reports') },
-        { href: "/reportes/ventas-por-items", label: "Ventas Por Ítems", icon: () => <ModernIcons.Finanzas size={18} />, visible: permissions.canViewFinancialReports() },
+        { href: "/reportes/ventas-por-items", label: "Ventas Por Ítems", icon: () => <ModernIcons.Package size={18} />, visible: permissions.canViewFinancialReports() },
         { href: "/reportes/inventario", label: "Inventario", icon: () => <ModernIcons.Inventarios size={18} />, visible: permissions.canRead('reports') },
         { href: "/reportes/financieros", label: "Financieros", icon: () => <ModernIcons.Financieros size={18} />, visible: permissions.canViewFinancialReports() },
-        { href: "/reportes/operaciones", label: "Operaciones", icon: () => <ModernIcons.Reportes size={18} />, visible: permissions.canRead('reports') }
+        { href: "/reportes/operaciones", label: "Operaciones", icon: () => <ModernIcons.Ordenes size={18} />, visible: permissions.canRead('reports') }
       ].filter(item => item.visible)
     },
     {

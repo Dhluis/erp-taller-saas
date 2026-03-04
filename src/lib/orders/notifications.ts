@@ -6,6 +6,7 @@
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import { sendMessage } from '@/lib/messaging/sender'
 import { sendEmailViaSendGrid, EmailOptions } from '@/lib/messaging/email-service'
+import { createNotification, NotificationType } from '@/lib/notifications/service'
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente',
@@ -130,6 +131,18 @@ export async function notifyOrderStatus(
         url: '/dashboard/ordenes',
       }),
     }).catch((err) => console.warn('[OrderNotifications] Push send error:', err))
+
+    // --- Notificación in-app (campana) ---
+    const notifType: NotificationType = status === 'completed' ? 'order_completed' : 'system_alert'
+    const notifPriority = status === 'completed' || status === 'ready' ? 'high' : 'medium'
+    createNotification({
+      organization_id: organizationId,
+      type: notifType,
+      title: `${statusLabel}: ${customerName}`,
+      message: `${vehicleInfo ? `${vehicleInfo}${plate} — ` : ''}Estado actualizado a "${statusLabel}"`,
+      priority: notifPriority,
+      metadata: { order_id: orderId, status, customer_name: customerName, vehicle: vehicleInfo, trigger },
+    }).catch((err: any) => console.warn('[OrderNotifications] In-app notify error:', err))
 
     result.sent = result.channels.length > 0
     return result
