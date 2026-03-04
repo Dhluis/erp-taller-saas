@@ -26,6 +26,7 @@ import { useOrganization } from "@/lib/context/SessionContext"
 import { SUPPORTED_CURRENCIES, useOrgCurrency, type OrgCurrencyCode } from "@/lib/context/CurrencyContext"
 import { detectLocaleFromTimezone, isDetectedSameAsSaved, type DetectedLocale } from "@/lib/locale/detect-locale"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { toast } from 'sonner'
 
 // Tipo del formulario (UI). La API usa company_name, working_hours, etc.; el form usa name, business_hours, billing, services.
 export type CompanySettingsForm = {
@@ -197,10 +198,10 @@ export default function EmpresaPage() {
         await setGlobalCurrency(currency as OrgCurrencyCode)
       }
       setDetectedLocale(null)
-      alert('Moneda actualizada. Ingresos, gastos y reportes usarán ' + currency + '.')
+      toast.success('Moneda actualizada a ' + currency + '. Ingresos, gastos y reportes usarán esta moneda.')
     } catch (error) {
       console.error('Error al aplicar moneda detectada:', error)
-      alert('No se pudo actualizar la moneda. Intenta de nuevo.')
+      toast.error('No se pudo actualizar la moneda. Intenta de nuevo.')
     } finally {
       setIsSaving(false)
     }
@@ -227,12 +228,12 @@ export default function EmpresaPage() {
     const file = event.target.files?.[0]
     if (file) {
       if (!file.type.startsWith('image/')) {
-        alert('Por favor selecciona un archivo de imagen válido')
+        toast.error('Por favor selecciona un archivo de imagen válido')
         return
       }
-      
+
       if (file.size > 5 * 1024 * 1024) {
-        alert('El archivo es demasiado grande. Máximo 5MB')
+        toast.error('El archivo es demasiado grande. Máximo 5MB')
         return
       }
       
@@ -256,13 +257,13 @@ export default function EmpresaPage() {
           await setGlobalCurrency(formData.billing.currency as OrgCurrencyCode)
         }
         setIsEditing(false)
-        alert('Configuración guardada exitosamente')
+        toast.success('Configuración guardada exitosamente')
       } else {
-        alert('Error al guardar la configuración')
+        toast.error('Error al guardar la configuración')
       }
     } catch (error) {
       console.error('Error saving settings:', error)
-      alert('Error al guardar la configuración')
+      toast.error('Error al guardar la configuración')
     } finally {
       setIsSaving(false)
     }

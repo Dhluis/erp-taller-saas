@@ -4,8 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useSession } from '@/lib/context/SessionContext'
-import { 
-  updateUserProfile, 
+import {
   changeUserPassword,
   uploadUserAvatar,
   deleteUserAvatar,
@@ -59,23 +58,23 @@ export function useUserProfile() {
     try {
       setIsSaving(true)
       setError(null)
-      
-      // ✅ FIX: updateUserProfile está deprecada - actualizar vía Supabase directamente
-      // TODO: Implementar actualización real cuando sea necesario
-      console.warn('⚠️ updateProfile - Funcionalidad no implementada aún')
-      
-      // Por ahora, solo actualizar estado local (no persistir en DB)
-      if (profile) {
-        const updatedProfile = {
-          ...profile,
-          ...profileData,
-          updated_at: new Date().toISOString()
-        }
-      setProfile(updatedProfile)
-        console.log('✅ Perfil actualizado localmente (no persistido en DB)')
-      return updatedProfile
+
+      const res = await fetch('/api/users/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profileData)
+      })
+
+      if (!res.ok) {
+        const json = await res.json()
+        throw new Error(json.error || 'Error al actualizar perfil')
       }
-      throw new Error('No hay perfil cargado para actualizar')
+
+      const json = await res.json()
+      if (json.profile && profile) {
+        setProfile({ ...profile, ...json.profile })
+      }
+      return json.profile
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al actualizar el perfil'
       setError(errorMessage)
@@ -103,11 +102,19 @@ export function useUserProfile() {
     try {
       setIsSaving(true)
       setError(null)
-      
-      // ✅ FIX Bug 2: uploadUserAvatar está deprecada y lanza error
-      // TODO: Implementar subida real a Supabase Storage cuando sea necesario
-      console.warn('⚠️ uploadAvatar - Funcionalidad no implementada aún')
-      throw new Error('La subida de avatar aún no está implementada. Por favor, contacta al administrador.')
+
+      if (!profile?.id) throw new Error('Perfil no cargado')
+      const publicUrl = await uploadUserAvatar(file, profile.id)
+
+      // Persistir la URL en la DB
+      await fetch('/api/users/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar_url: publicUrl })
+      })
+
+      setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : prev)
+      return publicUrl
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al subir el avatar'
       setError(errorMessage)
@@ -115,17 +122,24 @@ export function useUserProfile() {
     } finally {
       setIsSaving(false)
     }
-  }, [])
+  }, [profile])
 
   const removeAvatar = useCallback(async () => {
     try {
       setIsSaving(true)
       setError(null)
-      
-      // ✅ FIX Bug 2: deleteUserAvatar y updateUserProfile están deprecadas
-      // TODO: Implementar eliminación real cuando sea necesario
-      console.warn('⚠️ removeAvatar - Funcionalidad no implementada aún')
-      throw new Error('La eliminación de avatar aún no está implementada. Por favor, contacta al administrador.')
+
+      if (profile?.avatar_url) {
+        await deleteUserAvatar(profile.avatar_url)
+      }
+
+      await fetch('/api/users/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar_url: null })
+      })
+
+      setProfile(prev => prev ? { ...prev, avatar_url: undefined } : prev)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al eliminar el avatar'
       setError(errorMessage)
@@ -133,7 +147,7 @@ export function useUserProfile() {
     } finally {
       setIsSaving(false)
     }
-  }, [])
+  }, [profile])
 
   const getInitials = useCallback((name: string) => {
     return name

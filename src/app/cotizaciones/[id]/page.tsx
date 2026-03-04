@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator"
 import { PageHeader } from '@/components/navigation/page-header'
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
+import { toast } from 'sonner'
 import { 
   ArrowLeft, 
   Download, 
@@ -146,7 +147,7 @@ export default function CotizacionDetailPage() {
       if (!response.ok) throw new Error('Error al convertir cotización')
 
       const data = await response.json()
-      alert(`Cotización convertida a orden: ${data.order_id}`)
+      toast.success(`Cotización convertida a orden exitosamente`)
       router.push(`/ordenes/${data.order_id}`)
     } catch (error) {
       console.error('Error converting quotation:', error)

@@ -20,9 +20,6 @@ export function useNotifications() {
       const allJson = await allRes.json()
       const unreadJson = await unreadRes.json()
 
-      console.log('[Notif] all status:', allRes.status, '| count:', (allJson.data || []).length, '| error:', allJson.error)
-      console.log('[Notif] unread status:', unreadRes.status, '| count:', (unreadJson.data || []).length, '| error:', unreadJson.error)
-
       setNotifications(allJson.data || [])
       setUnreadCount((unreadJson.data || []).length)
     } catch (error) {

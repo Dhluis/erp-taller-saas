@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageHeader } from '@/components/navigation/page-header';
 import { Plus, Pencil, Trash2, RefreshCw, X } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -283,12 +284,12 @@ export default function ServicePackagesPage() {
   const submitModal = async () => {
     const name = form.name.trim();
     if (!name) {
-      alert('El nombre es obligatorio.');
+      toast.error('El nombre es obligatorio.');
       return;
     }
     const price = parseFloat(form.price);
     if (isNaN(price) || price < 0) {
-      alert('El precio debe ser un número mayor o igual a 0.');
+      toast.error('El precio debe ser un número mayor o igual a 0.');
       return;
     }
     const rawVal = form.estimated_value.trim() ? parseFloat(form.estimated_value) : null;
@@ -318,7 +319,7 @@ export default function ServicePackagesPage() {
           setModalOpen(false);
           await fetchPackages();
         } else {
-          alert(json.error || 'Error al actualizar.');
+          toast.error(json.error || 'Error al actualizar.');
         }
       } else {
         const res = await fetch('/api/service-packages', {
@@ -331,12 +332,12 @@ export default function ServicePackagesPage() {
           setModalOpen(false);
           await fetchPackages();
         } else {
-          alert(json.error || 'Error al crear.');
+          toast.error(json.error || 'Error al crear.');
         }
       }
     } catch (e) {
       console.error(e);
-      alert('Error de conexión.');
+      toast.error('Error de conexión.');
     } finally {
       setSaving(false);
     }
@@ -360,11 +361,11 @@ export default function ServicePackagesPage() {
         setPackageToDelete(null);
         await fetchPackages();
       } else {
-        alert(json.error || 'Error al eliminar.');
+        toast.error(json.error || 'Error al eliminar.');
       }
     } catch (e) {
       console.error(e);
-      alert('Error de conexión.');
+      toast.error('Error de conexión.');
     } finally {
       setDeleting(false);
     }

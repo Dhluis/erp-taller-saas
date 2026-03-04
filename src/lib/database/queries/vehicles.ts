@@ -237,7 +237,6 @@ export async function searchVehicles(searchTerm: string) {
   return vehicles || []
 }
 
-// TODO: Implementar estas funciones cuando se necesiten
 export async function getVehiclesByCustomer(customerId: string) {
   const supabase = await createClient()
   

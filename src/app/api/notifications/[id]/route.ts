@@ -128,15 +128,11 @@ export async function PUT(
     }
 
     // ✅ Actualizar notificación usando supabaseAdmin
-    const { data: updatedNotification, error: updateError } = await supabaseAdmin
+    const { data: updatedNotification, error: updateError } = await (supabaseAdmin as any)
       .from('notifications')
-      .update({
-        read: true,
-        is_read: true, // Compatibilidad con ambos campos
-        updated_at: new Date().toISOString()
-      })
+      .update({ read: true })
       .eq('id', params.id)
-      .eq('organization_id', organizationId) // ✅ Validación explícita
+      .eq('organization_id', organizationId)
       .select()
       .single();
 

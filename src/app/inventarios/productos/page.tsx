@@ -17,6 +17,7 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline';
 import { RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 import { useInventory, type CreateInventoryItemData, type UpdateInventoryItemData, type InventoryItem } from '@/hooks/useInventory';
 import {
   AlertDialog,
@@ -153,7 +154,7 @@ export default function InventariosProductosPage() {
 
   const handleUpdateProduct = async () => {
     if (!selectedProduct || !editProduct.name || !editProduct.sku || !editProduct.unit_price || !editProduct.category_id) {
-      alert('Por favor completa los campos obligatorios');
+      toast.error('Por favor completa los campos obligatorios');
       return;
     }
 
@@ -184,7 +185,7 @@ export default function InventariosProductosPage() {
 
   const handleCreateProduct = async () => {
     if (!newProduct.name || !newProduct.sku || !newProduct.unit_price || !newProduct.category_id) {
-      alert('Por favor completa los campos obligatorios');
+      toast.error('Por favor completa los campos obligatorios');
       return;
     }
 

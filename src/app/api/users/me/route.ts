@@ -1,4 +1,4 @@
- import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServiceClient, createClientFromRequest } from '@/lib/supabase/server'
 
 // Endpoint para obtener el perfil del usuario actual
@@ -152,22 +152,53 @@ export async function GET(request: NextRequest) {
       name: user.full_name || ''
     }
     
-    return NextResponse.json({ 
+    return NextResponse.json({
       profile: mappedUser  // SessionContext espera 'profile', no 'user'
     })
   } catch (error: any) {
-    console.error('[GET /api/users/me] Error catch:', error)
-    console.error('[GET /api/users/me] Error stack:', error?.stack)
-    console.error('[GET /api/users/me] Error name:', error?.name)
-    console.error('[GET /api/users/me] Error message:', error?.message)
-    
+    console.error('[GET /api/users/me] Error catch:', error?.message)
     return NextResponse.json(
-      { 
-        error: error?.message || 'Error al obtener perfil',
-        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
-      },
+      { error: error?.message || 'Error al obtener perfil' },
       { status: 500 }
     )
+  }
+}
+
+// PATCH /api/users/me — actualizar perfil del usuario
+export async function PATCH(request: NextRequest) {
+  try {
+    const supabase = createClientFromRequest(request)
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !authUser) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { full_name, phone, avatar_url } = body
+
+    const updateData: Record<string, any> = { updated_at: new Date().toISOString() }
+    if (full_name !== undefined) updateData.full_name = full_name.trim()
+    if (phone !== undefined) updateData.phone = phone || null
+    if (avatar_url !== undefined) updateData.avatar_url = avatar_url || null
+
+    const supabaseAdmin = getSupabaseServiceClient()
+    const { data: updated, error } = await (supabaseAdmin as any)
+      .from('users')
+      .update(updateData)
+      .eq('auth_user_id', authUser.id)
+      .select('id, auth_user_id, email, full_name, role, phone, avatar_url, is_active, organization_id, created_at, updated_at')
+      .single()
+
+    if (error) {
+      console.error('[PATCH /api/users/me] Error:', error.message)
+      return NextResponse.json({ error: 'Error al actualizar perfil' }, { status: 500 })
+    }
+
+    return NextResponse.json({ profile: { ...updated, name: updated.full_name || '' } })
+  } catch (error: any) {
+    console.error('[PATCH /api/users/me] Error catch:', error?.message)
+    return NextResponse.json({ error: error?.message || 'Error interno' }, { status: 500 })
   }
 }
 

@@ -11,6 +11,7 @@ import { Plus, Edit, Trash2, Wrench, Package, User } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { safeFetch, safeDelete } from "@/lib/api"
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
+import { toast } from 'sonner'
 
 interface OrderItem {
   id: string
@@ -111,7 +112,13 @@ export function OrderItemsManager({ orderId, onTotalChange }: OrderItemsManagerP
   }
 
   const handleDeleteItem = async (itemId: string) => {
-    if (!confirm('¿Estás seguro de eliminar este item?')) return
+    toast('¿Eliminar este item?', {
+      action: { label: 'Eliminar', onClick: () => confirmDeleteItem(itemId) },
+      cancel: { label: 'Cancelar', onClick: () => {} }
+    })
+  }
+
+  const confirmDeleteItem = async (itemId: string) => {
 
     try {
       const result = await safeDelete(`/api/orders/${orderId}/items/${itemId}`)

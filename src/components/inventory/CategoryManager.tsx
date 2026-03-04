@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Package, Plus, Edit, Trash2, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -63,9 +64,10 @@ export default function CategoryManager({
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('¿Eliminar esta categoría? Esta acción no se puede deshacer.')) {
-      onDeleteCategory(id);
-    }
+    toast('¿Eliminar esta categoría?', {
+      action: { label: 'Eliminar', onClick: () => onDeleteCategory(id) },
+      cancel: { label: 'Cancelar', onClick: () => {} }
+    })
   };
 
   const handleCancel = () => {

@@ -126,46 +126,50 @@ export async function changeUserPassword(passwordData: ChangePasswordData): Prom
 
 /**
  * Subir avatar del usuario
+ * @returns URL pública del avatar subido
  */
-export async function uploadUserAvatar(file: File): Promise<string> {
+export async function uploadUserAvatar(file: File, userId: string): Promise<string> {
   return executeWithErrorHandling(
     async () => {
-      console.log('📸 uploadUserAvatar - Subiendo avatar:', file.name)
-      
-      // Validaciones del archivo
       if (!file.type.startsWith('image/')) {
         throw new Error('El archivo debe ser una imagen')
       }
-      
-      if (file.size > 5 * 1024 * 1024) { // 5MB
+      if (file.size > 5 * 1024 * 1024) {
         throw new Error('El archivo no puede ser mayor a 5MB')
       }
-      
-      // TODO: Implementar subida real a Supabase Storage
-      console.warn('⚠️ uploadUserAvatar - Función no implementada aún')
-      throw new Error('La subida de avatar aún no está implementada')
+
+      const supabase = getSupabaseClient()
+      const ext = file.name.split('.').pop() || 'jpg'
+      const path = `${userId}/${Date.now()}.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type })
+
+      if (uploadError) throw new Error('Error al subir imagen: ' + uploadError.message)
+
+      const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(path)
+      return publicUrlData.publicUrl
     },
-    {
-      operation: 'uploadUserAvatar',
-      table: 'storage.avatars'
-    }
+    { operation: 'uploadUserAvatar', table: 'storage.avatars' }
   )
 }
 
 /**
- * Eliminar avatar del usuario
+ * Eliminar avatar del usuario desde Supabase Storage
  */
-export async function deleteUserAvatar(): Promise<void> {
+export async function deleteUserAvatar(avatarUrl: string): Promise<void> {
   return executeWithErrorHandling(
     async () => {
-      // TODO: Implementar eliminación real de Supabase Storage
-      console.warn('⚠️ deleteUserAvatar - Función no implementada aún')
-      throw new Error('La eliminación de avatar aún no está implementada')
+      const supabase = getSupabaseClient()
+      // Extraer el path del bucket desde la URL pública
+      const match = avatarUrl.match(/avatars\/(.+)$/)
+      if (!match) return
+      const path = match[1]
+      const { error } = await supabase.storage.from('avatars').remove([path])
+      if (error) throw new Error('Error al eliminar avatar: ' + error.message)
     },
-    {
-      operation: 'deleteUserAvatar',
-      table: 'storage.avatars'
-    }
+    { operation: 'deleteUserAvatar', table: 'storage.avatars' }
   )
 }
 
@@ -183,7 +187,6 @@ export async function getUserSecuritySettings(): Promise<{
 }> {
   return executeWithErrorHandling(
     async () => {
-      // TODO: Implementar obtención real de configuración de seguridad
       console.log('🔒 getUserSecuritySettings - Obteniendo configuración de seguridad...')
       
       const securitySettings = {

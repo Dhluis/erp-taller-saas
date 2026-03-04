@@ -35,10 +35,11 @@ export async function POST(request: NextRequest) {
     const organizationId = userProfile.organization_id;
 
     // ✅ Obtener IDs de notificaciones no leídas del usuario o generales
-    const { data: unreadNotifications, error: fetchError } = await supabaseAdmin
+    const { data: unreadNotifications, error: fetchError } = await (supabaseAdmin as any)
       .from('notifications')
-      .select('id, read, is_read')
-      .eq('organization_id', organizationId) // ✅ Validación explícita
+      .select('id, read')
+      .eq('organization_id', organizationId)
+      .eq('read', false)
       .or(`user_id.eq.${user.id},user_id.is.null`);
 
     if (fetchError) {
@@ -49,13 +50,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Filtrar en memoria las que realmente están sin leer
-    const unreadIds = (unreadNotifications || [])
-      .filter((n: any) => {
-        const isRead = n.read !== undefined ? n.read : (n.is_read !== undefined ? n.is_read : true)
-        return !isRead
-      })
-      .map((n: any) => n.id);
+    const unreadIds = (unreadNotifications || []).map((n: any) => n.id);
 
     if (unreadIds.length === 0) {
       return NextResponse.json({
@@ -69,15 +64,11 @@ export async function POST(request: NextRequest) {
     }
 
     // ✅ Actualizar todas las notificaciones no leídas usando supabaseAdmin
-    const { data: updatedNotifications, error: updateError } = await supabaseAdmin
+    const { data: updatedNotifications, error: updateError } = await (supabaseAdmin as any)
       .from('notifications')
-      .update({
-        read: true,
-        is_read: true, // Compatibilidad con ambos campos
-        updated_at: new Date().toISOString()
-      })
+      .update({ read: true })
       .in('id', unreadIds)
-      .eq('organization_id', organizationId) // ✅ Validación explícita
+      .eq('organization_id', organizationId)
       .select();
 
     if (updateError) {

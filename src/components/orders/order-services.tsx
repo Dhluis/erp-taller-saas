@@ -33,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Plus, Trash2, Edit, Package, Wrench } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
+import { toast } from 'sonner'
 
 interface Service {
   id: string
@@ -222,7 +223,13 @@ export function OrderServices({ orderId, orderStatus, onTotalChange }: OrderServ
   }
 
   const handleDelete = async (itemId: string) => {
-    if (!confirm('¿Estás seguro de eliminar este item?')) return
+    toast('¿Eliminar este item?', {
+      action: { label: 'Eliminar', onClick: () => confirmDelete(itemId) },
+      cancel: { label: 'Cancelar', onClick: () => {} }
+    })
+  }
+
+  const confirmDelete = async (itemId: string) => {
 
     try {
       const response = await fetch(`/api/orders/${orderId}/items/${itemId}`, {

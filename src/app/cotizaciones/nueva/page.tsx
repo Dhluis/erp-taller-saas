@@ -35,6 +35,7 @@ import { TruckIcon } from '@heroicons/react/24/outline'
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 import { useCustomers } from '@/hooks/useCustomers'
 import { useVehicles } from '@/hooks/useVehicles'
+import { toast } from 'sonner'
 
 interface QuotationItem {
   id?: string
@@ -132,9 +133,8 @@ export default function NuevaCotizacionPage() {
   }
 
   const handleDeleteItem = (itemIndex: number) => {
-    if (confirm('¿Estás seguro de eliminar este item?')) {
-      setItems(prev => prev.filter((_, index) => index !== itemIndex))
-    }
+    setItems(prev => prev.filter((_, index) => index !== itemIndex))
+    toast.success('Item eliminado')
   }
 
   const calculateTotals = () => {
@@ -148,12 +148,12 @@ export default function NuevaCotizacionPage() {
 
   const handleSubmit = async (status: 'draft' | 'sent') => {
     if (!formData.client_id || !formData.vehicle_id) {
-      alert('Por favor selecciona un cliente y vehículo')
+      toast.error('Por favor selecciona un cliente y vehículo')
       return
     }
 
     if (items.length === 0) {
-      alert('Por favor agrega al menos un item a la cotización')
+      toast.error('Por favor agrega al menos un item a la cotización')
       return
     }
 
@@ -186,16 +186,11 @@ export default function NuevaCotizacionPage() {
 
       const result = await response.json()
       
-      if (status === 'draft') {
-        alert('Cotización guardada como borrador')
-      } else {
-        alert('Cotización enviada al cliente')
-      }
-
+      toast.success(status === 'draft' ? 'Cotización guardada como borrador' : 'Cotización enviada al cliente')
       router.push('/cotizaciones')
     } catch (error) {
       console.error('Error saving quotation:', error)
-      alert(error instanceof Error ? error.message : 'Error al guardar cotización')
+      toast.error(error instanceof Error ? error.message : 'Error al guardar cotización')
     } finally {
       setLoading(false)
     }

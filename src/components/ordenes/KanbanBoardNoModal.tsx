@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   DndContext,
   DragOverlay,
@@ -37,6 +38,7 @@ const KANBAN_COLUMNS: Omit<KanbanColumnType, 'orders'>[] = [
 ];
 
 export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
+  const router = useRouter();
   const [columns, setColumns] = useState<KanbanColumnType[]>([]);
   const [activeOrder, setActiveOrder] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,7 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
         orders: orders.filter(order => order.status === column.id)
       }));
 
-      setColumns(columnsWithOrders);
+      setColumns(columnsWithOrders as unknown as KanbanColumnType[]);
     } catch (err) {
       console.error('❌ [KanbanBoardNoModal] Error cargando órdenes:', err);
       setError('Error cargando órdenes');
@@ -156,8 +158,7 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
 
   // Manejar click en orden
   function handleOrderClick(orderId: string) {
-    console.log('📋 Click en orden:', orderId);
-    alert(`Click en orden: ${orderId}`);
+    router.push(`/ordenes/${orderId}`);
   }
 
   // Loading state
@@ -179,8 +180,8 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
         <div className="text-center">
           <div className="text-red-400 text-6xl mb-4">⚠️</div>
           <p className="text-red-400 mb-4">{error}</p>
-          <button 
-            onClick={loadOrders}
+          <button
+            onClick={() => loadOrders()}
             className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors"
           >
             Reintentar
@@ -201,8 +202,8 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
           <p className="text-slate-400 mb-6">
             Aún no hay órdenes de trabajo registradas. Crea la primera orden para comenzar.
           </p>
-          <button 
-            onClick={() => console.log('Crear primera orden')}
+          <button
+            onClick={() => router.push('/ordenes')}
             className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors font-medium"
           >
             Crear Primera Orden

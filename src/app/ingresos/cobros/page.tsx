@@ -40,6 +40,7 @@ import { getCollections, getCollectionStats, Collection } from "@/lib/supabase/c
 import { useErrorHandler } from "@/lib/utils/error-handler"
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 import { useSession } from '@/lib/context/SessionContext'
+import { toast } from 'sonner'
 
 export default function CobrosPage() {
   const router = useRouter()
@@ -148,7 +149,7 @@ export default function CobrosPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!organizationId) {
-      alert('No se pudo obtener la organización. Intenta recargar la página.')
+      toast.error('No se pudo obtener la organización. Intenta recargar la página.')
       return
     }
     setIsSubmitting(true)
@@ -185,13 +186,13 @@ export default function CobrosPage() {
           currency,
           cash_account_id: ''
         })
-        alert('Cobro registrado exitosamente' + (formData.status === 'paid' && formData.cash_account_id ? '. Ingreso registrado en cuenta de efectivo.' : '!'))
+        toast.success('Cobro registrado exitosamente' + (formData.status === 'paid' && formData.cash_account_id ? '. Ingreso registrado en cuenta de efectivo.' : ''))
       } else {
-        alert(data?.error || 'Error al registrar el cobro')
+        toast.error(data?.error || 'Error al registrar el cobro')
       }
     } catch (error) {
       console.error('Error creating collection:', error)
-      alert('Error al registrar el cobro')
+      toast.error('Error al registrar el cobro')
     } finally {
       setIsSubmitting(false)
     }
@@ -216,13 +217,13 @@ export default function CobrosPage() {
         setPayModalOpen(false)
         setCollectionToPay(null)
         setPayForm({ payment_method: 'transfer', cash_account_id: '' })
-        alert(payForm.cash_account_id ? 'Cobro marcado como pagado e ingreso registrado en cuenta de efectivo.' : 'Cobro marcado como pagado.')
+        toast.success(payForm.cash_account_id ? 'Cobro marcado como pagado. Ingreso registrado en cuenta de efectivo.' : 'Cobro marcado como pagado.')
       } else {
-        alert(data?.error || 'Error al marcar como pagado')
+        toast.error(data?.error || 'Error al marcar como pagado')
       }
     } catch (error) {
       console.error('Error marking as paid:', error)
-      alert('Error al marcar como pagado')
+      toast.error('Error al marcar como pagado')
     } finally {
       setIsSubmitting(false)
     }

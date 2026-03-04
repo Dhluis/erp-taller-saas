@@ -39,20 +39,19 @@ export function UserAvatar() {
   const getRoleBadge = (role: string) => {
     switch (role) {
       case "admin":
-        return <Badge variant="destructive" className="bg-red-500 text-xs">Admin</Badge>
+      case "ADMIN":
+        return <Badge variant="error" className="text-xs">Admin</Badge>
       case "manager":
-        return <Badge variant="default" className="bg-blue-500 text-xs">Manager</Badge>
+        return <Badge variant="info" className="text-xs">Manager</Badge>
       case "employee":
-        return <Badge variant="secondary" className="bg-green-500 text-xs">Employee</Badge>
+        return <Badge variant="success" className="text-xs">Employee</Badge>
       default:
-        return <Badge variant="outline" className="text-xs">{role}</Badge>
+        return <Badge variant="secondary" className="text-xs">{role}</Badge>
     }
   }
 
   const handleLogout = async () => {
-    if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-      await signOut()
-    }
+    await signOut()
   }
 
   return (

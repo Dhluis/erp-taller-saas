@@ -34,8 +34,8 @@ export async function getOrganizationConfig(
       return {
         currency: companySettings.currency || ERP_CONFIG.defaultCurrency,
         taxRate: companySettings.tax_rate || ERP_CONFIG.defaultTaxRate,
-        timezone: undefined, // TODO: Agregar timezone a company_settings si es necesario
-        language: undefined, // TODO: Agregar language a company_settings si es necesario
+        timezone: undefined,
+        language: undefined,
         lowStockThreshold: ERP_CONFIG.lowStockThreshold,
         criticalStockThreshold: ERP_CONFIG.criticalStockThreshold,
         quotationValidityDays: ERP_CONFIG.quotationValidityDays,

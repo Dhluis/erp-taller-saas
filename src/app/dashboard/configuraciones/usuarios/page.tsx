@@ -209,11 +209,14 @@ export default function UsuariosPage() {
     }
   }
 
-  const handleCancelInvitation = async (invitationId: string) => {
-    if (!confirm('¿Estás seguro de que quieres cancelar esta invitación?')) {
-      return
-    }
+  const handleCancelInvitation = (invitationId: string) => {
+    toast('¿Cancelar esta invitación?', {
+      action: { label: 'Cancelar invitación', onClick: () => confirmCancelInvitation(invitationId) },
+      cancel: { label: 'Mantener', onClick: () => {} }
+    })
+  }
 
+  const confirmCancelInvitation = async (invitationId: string) => {
     try {
       const response = await fetch(`/api/invitations?id=${invitationId}`, {
         method: 'DELETE'

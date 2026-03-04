@@ -16,6 +16,7 @@ import {
 import { ShoppingCart, Clock, CheckCircle, DollarSign, Package, Eye, XCircle } from 'lucide-react';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { useOrgCurrency } from '@/lib/context/CurrencyContext';
+import { toast } from 'sonner';
 
 interface PurchaseOrder {
   id: string;
@@ -90,8 +91,14 @@ export default function PurchaseOrdersPage() {
     router.push('/compras/ordenes/nueva');
   };
 
-  async function handleCancelOrder(orderId: string) {
-    if (!confirm('¿Cancelar esta orden de compra? Esta acción no se puede deshacer.')) return;
+  function handleCancelOrder(orderId: string) {
+    toast('¿Cancelar esta orden de compra?', {
+      action: { label: 'Cancelar orden', onClick: () => confirmCancelOrder(orderId) },
+      cancel: { label: 'Mantener', onClick: () => {} }
+    })
+  }
+
+  async function confirmCancelOrder(orderId: string) {
     try {
       const res = await fetch(`/api/purchase-orders/${orderId}`, {
         method: 'DELETE',

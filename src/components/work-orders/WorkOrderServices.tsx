@@ -374,7 +374,10 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
                     size="icon"
                     className="text-destructive hover:text-destructive"
                     onClick={() => {
-                      if (confirm('¿Eliminar este concepto?')) deleteService(svc.id)
+                      toast('¿Eliminar este concepto?', {
+                        action: { label: 'Eliminar', onClick: () => deleteService(svc.id) },
+                        cancel: { label: 'Cancelar', onClick: () => {} }
+                      })
                     }}
                   >
                     <Trash2 className="h-4 w-4" />

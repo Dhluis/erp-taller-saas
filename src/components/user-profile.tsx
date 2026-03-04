@@ -1,28 +1,19 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
 } from "@/components/ui/dialog"
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select"
 import {
   User,
   Mail,
@@ -36,107 +27,119 @@ import {
   Camera,
   Bell,
   Lock,
-  Globe,
-  LogOut
+  LogOut,
+  Eye,
+  EyeOff,
+  Trash2
 } from "lucide-react"
 import { useUserProfile } from "@/hooks/use-user-profile"
 import { useSession } from "@/lib/context/SessionContext"
-
-interface UserProfile {
-  id: string
-  name: string
-  email: string
-  role: string
-  status: string
-  phone?: string
-  address?: string
-  avatar?: string
-  lastLogin: string
-  createdAt: string
-  preferences: {
-    notifications: boolean
-    darkMode: boolean
-    language: string
-  }
-}
+import { toast } from "sonner"
 
 export function UserProfile() {
-  const { profile } = useUserProfile()
+  const { profile, isSaving, updateProfile, changePassword, uploadAvatar, removeAvatar } = useUserProfile()
   const { signOut } = useSession()
   const [isOpen, setIsOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-  
-  // Construir user directamente desde profile (sin estado)
-  const user = useMemo<UserProfile>(() => ({
-    id: profile?.id || '1',
-    name: profile?.full_name || 'Usuario',
-    email: profile?.email || 'Cargando...',
-    role: profile?.role || 'user',
-    status: 'active',
-    phone: profile?.phone || '',
-    address: profile?.address || '',
-    avatar: profile?.avatar_url || '',
-    lastLogin: new Date().toISOString(),
-    createdAt: profile?.created_at || new Date().toISOString(),
-    preferences: {
-      notifications: true,
-      darkMode: true,
-      language: 'es'
-    }
-  }), [profile])
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false)
+  const [showNewPwd, setShowNewPwd] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [formData, setFormData] = useState({
-    name: user.name,
-    email: user.email,
-    phone: user.phone || '',
-    address: user.address || ''
+    name: profile?.full_name || '',
+    phone: profile?.phone || '',
+  })
+
+  const [pwdForm, setPwdForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
   })
 
   const getRoleBadge = (role: string) => {
     switch (role) {
       case "admin":
-        return <Badge variant="destructive" className="bg-red-500">Administrador</Badge>
+      case "ADMIN":
+        return <Badge variant="error">Administrador</Badge>
       case "manager":
-        return <Badge variant="default" className="bg-blue-500">Gerente</Badge>
+        return <Badge variant="info">Gerente</Badge>
       case "employee":
-        return <Badge variant="secondary" className="bg-green-500">Empleado</Badge>
+        return <Badge variant="success">Empleado</Badge>
       default:
-        return <Badge variant="outline">{role}</Badge>
+        return <Badge variant="secondary">{role}</Badge>
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return <Badge variant="outline" className="bg-green-500 text-white">Activo</Badge>
-      case "inactive":
-        return <Badge variant="outline" className="bg-red-500 text-white">Inactivo</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
-    }
+  const handleEditClick = () => {
+    setFormData({
+      name: profile?.full_name || '',
+      phone: profile?.phone || '',
+    })
+    setIsEditing(true)
   }
 
-  const handleSave = () => {
-    // TODO: Implementar actualización de perfil vía API
-    setIsEditing(false)
-    alert('Perfil actualizado exitosamente')
+  const handleSave = async () => {
+    try {
+      await updateProfile({ full_name: formData.name, phone: formData.phone })
+      setIsEditing(false)
+      toast.success("Perfil actualizado correctamente")
+    } catch {
+      toast.error("Error al guardar el perfil")
+    }
   }
 
   const handleCancel = () => {
-    setFormData({
-      name: user.name,
-      email: user.email,
-      phone: user.phone || '',
-      address: user.address || ''
-    })
     setIsEditing(false)
+    setShowPasswordForm(false)
+  }
+
+  const handleChangePassword = async () => {
+    if (!pwdForm.newPassword || pwdForm.newPassword.length < 8) {
+      toast.error("La nueva contraseña debe tener al menos 8 caracteres")
+      return
+    }
+    if (pwdForm.newPassword !== pwdForm.confirmPassword) {
+      toast.error("Las contraseñas no coinciden")
+      return
+    }
+    try {
+      await changePassword({
+        currentPassword: pwdForm.currentPassword,
+        newPassword: pwdForm.newPassword
+      })
+      setPwdForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      setShowPasswordForm(false)
+      toast.success("Contraseña actualizada correctamente")
+    } catch (err: any) {
+      toast.error(err?.message || "Error al cambiar la contraseña")
+    }
+  }
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      await uploadAvatar(file)
+      toast.success("Foto de perfil actualizada")
+    } catch (err: any) {
+      toast.error(err?.message || "Error al subir la imagen")
+    }
+    e.target.value = ''
+  }
+
+  const handleRemoveAvatar = async () => {
+    try {
+      await removeAvatar()
+      toast.success("Foto de perfil eliminada")
+    } catch (err: any) {
+      toast.error(err?.message || "Error al eliminar la imagen")
+    }
   }
 
   const handleLogout = async () => {
-    if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-      await signOut()
-      setIsOpen(false)
-    }
+    await signOut()
+    setIsOpen(false)
   }
 
   return (
@@ -147,7 +150,7 @@ export function UserProfile() {
           Mi Perfil
         </Button>
       </DialogTrigger>
-      
+
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -160,7 +163,7 @@ export function UserProfile() {
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Información del usuario */}
+          {/* Información personal */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -168,12 +171,8 @@ export function UserProfile() {
                   <User className="h-5 w-5" />
                   Información Personal
                 </CardTitle>
-                {!isEditing && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setIsEditing(true)}
-                  >
+                {!isEditing && !showPasswordForm && (
+                  <Button variant="outline" size="sm" onClick={handleEditClick}>
                     <Edit className="h-4 w-4 mr-2" />
                     Editar
                   </Button>
@@ -181,30 +180,56 @@ export function UserProfile() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Avatar y nombre */}
+              {/* Avatar */}
               <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                  {user.avatar ? (
-                    <img 
-                      src={user.avatar} 
-                      alt={user.name}
-                      className="w-16 h-16 rounded-full object-cover"
-                    />
-                  ) : (
-                    <User className="h-8 w-8 text-primary" />
-                  )}
+                <div className="relative group w-16 h-16">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center overflow-hidden">
+                    {profile?.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt={profile.full_name}
+                        className="w-16 h-16 rounded-full object-cover"
+                      />
+                    ) : (
+                      <User className="h-8 w-8 text-primary" />
+                    )}
+                  </div>
+                  <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-white p-1 hover:text-cyan-400"
+                      title="Cambiar foto"
+                    >
+                      <Camera className="h-4 w-4" />
+                    </button>
+                    {profile?.avatar_url && (
+                      <button
+                        onClick={handleRemoveAvatar}
+                        className="text-white p-1 hover:text-red-400"
+                        title="Eliminar foto"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                  />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold">{user.name}</h3>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
+                  <h3 className="text-lg font-semibold">{profile?.full_name || 'Usuario'}</h3>
+                  <p className="text-sm text-muted-foreground">{profile?.email || ''}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    {getRoleBadge(user.role)}
-                    {getStatusBadge(user.status)}
+                    {profile?.role && getRoleBadge(profile.role)}
                   </div>
                 </div>
               </div>
 
-              {/* Formulario de edición */}
+              {/* Formulario edición */}
               {isEditing ? (
                 <div className="grid gap-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -217,17 +242,6 @@ export function UserProfile() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
                       <Label htmlFor="phone">Teléfono</Label>
                       <Input
                         id="phone"
@@ -235,19 +249,11 @@ export function UserProfile() {
                         onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="address">Dirección</Label>
-                      <Input
-                        id="address"
-                        value={formData.address}
-                        onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                      />
-                    </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={handleSave} size="sm">
+                    <Button onClick={handleSave} size="sm" disabled={isSaving}>
                       <Save className="h-4 w-4 mr-2" />
-                      Guardar
+                      {isSaving ? 'Guardando...' : 'Guardar'}
                     </Button>
                     <Button variant="outline" onClick={handleCancel} size="sm">
                       Cancelar
@@ -258,11 +264,11 @@ export function UserProfile() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{user.phone || 'No especificado'}</span>
+                    <span className="text-sm">{profile?.phone || 'No especificado'}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{user.address || 'No especificado'}</span>
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{profile?.email || ''}</span>
                   </div>
                 </div>
               )}
@@ -277,88 +283,83 @@ export function UserProfile() {
                 Información de Cuenta
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Último acceso</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(user.lastLogin).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Miembro desde</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Miembro desde</p>
+                  <p className="text-xs text-muted-foreground">
+                    {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : '—'}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Preferencias */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Preferencias
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bell className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Notificaciones</span>
+          {/* Cambiar contraseña */}
+          {showPasswordForm ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5" />
+                  Cambiar Contraseña
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label>Contraseña actual</Label>
+                  <div className="relative">
+                    <Input
+                      type={showCurrentPwd ? 'text' : 'password'}
+                      value={pwdForm.currentPassword}
+                      onChange={(e) => setPwdForm(p => ({ ...p, currentPassword: e.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2 top-2.5 text-muted-foreground"
+                      onClick={() => setShowCurrentPwd(v => !v)}
+                    >
+                      {showCurrentPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
-                <Switch 
-                  checked={user.preferences.notifications}
-                  onCheckedChange={(checked) => setUser(prev => ({
-                    ...prev,
-                    preferences: { ...prev.preferences, notifications: checked }
-                  }))}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Settings className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Modo oscuro</span>
+                <div>
+                  <Label>Nueva contraseña</Label>
+                  <div className="relative">
+                    <Input
+                      type={showNewPwd ? 'text' : 'password'}
+                      value={pwdForm.newPassword}
+                      onChange={(e) => setPwdForm(p => ({ ...p, newPassword: e.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2 top-2.5 text-muted-foreground"
+                      onClick={() => setShowNewPwd(v => !v)}
+                    >
+                      {showNewPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
-                <Switch 
-                  checked={user.preferences.darkMode}
-                  onCheckedChange={(checked) => setUser(prev => ({
-                    ...prev,
-                    preferences: { ...prev.preferences, darkMode: checked }
-                  }))}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Idioma</span>
+                <div>
+                  <Label>Confirmar nueva contraseña</Label>
+                  <Input
+                    type="password"
+                    value={pwdForm.confirmPassword}
+                    onChange={(e) => setPwdForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                  />
                 </div>
-                <Select 
-                  value={user.preferences.language}
-                  onValueChange={(value) => setUser(prev => ({
-                    ...prev,
-                    preferences: { ...prev.preferences, language: value }
-                  }))}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="es">Español</SelectItem>
-                    <SelectItem value="en">English</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex gap-2">
+                  <Button onClick={handleChangePassword} size="sm" disabled={isSaving}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {isSaving ? 'Guardando...' : 'Actualizar'}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowPasswordForm(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
 
           {/* Acciones */}
           <div className="flex gap-2 pt-4 border-t">
@@ -366,10 +367,12 @@ export function UserProfile() {
               <LogOut className="h-4 w-4 mr-2" />
               Cerrar Sesión
             </Button>
-            <Button variant="outline" className="flex-1">
-              <Lock className="h-4 w-4 mr-2" />
-              Cambiar Contraseña
-            </Button>
+            {!showPasswordForm && (
+              <Button variant="outline" className="flex-1" onClick={() => setShowPasswordForm(true)}>
+                <Lock className="h-4 w-4 mr-2" />
+                Cambiar Contraseña
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>

@@ -208,9 +208,16 @@ export function LeadSidePanel({
     }
   }
 
-  const deleteLead = async () => {
+  const deleteLead = () => {
     if (!lead) return
-    if (!confirm(`¿Eliminar el lead "${lead.name}"? Esta acción no se puede deshacer.`)) return
+    toast(`¿Eliminar el lead "${lead.name}"?`, {
+      action: { label: 'Eliminar', onClick: () => confirmDeleteLead() },
+      cancel: { label: 'Cancelar', onClick: () => {} }
+    })
+  }
+
+  const confirmDeleteLead = async () => {
+    if (!lead) return
     setDeleting(true)
     try {
       const res = await fetch(`/api/leads/${lead.id}`, { method: 'DELETE' })

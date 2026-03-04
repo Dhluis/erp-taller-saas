@@ -811,7 +811,6 @@ export interface WorkOrderStats {
   total_revenue: number;
 }
 
-// TODO: Implementar cuando se necesite
 export async function getOrderItemsByWorkOrder(workOrderId: string) {
   const supabase = getClient();
 
