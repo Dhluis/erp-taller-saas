@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   DndContext,
   DragOverlay,
-  closestCenter,
+  pointerWithin,
+  rectIntersection,
   PointerSensor,
   TouchSensor,
   useSensor,
@@ -12,6 +13,12 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core'
+
+function kanbanCollision(args: Parameters<typeof pointerWithin>[0]) {
+  const pointer = pointerWithin(args)
+  if (pointer.length > 0) return pointer
+  return rectIntersection(args)
+}
 import { toast } from 'sonner'
 import { LeadPipelineColumn } from './LeadPipelineColumn'
 import { LeadCard } from './LeadCard'
@@ -50,7 +57,7 @@ export function LeadPipelineBoard({
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } })
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } })
   )
 
   const loadLeads = useCallback(async () => {
@@ -275,7 +282,7 @@ export function LeadPipelineBoard({
       {totalLeads > 0 && (
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={kanbanCollision}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >

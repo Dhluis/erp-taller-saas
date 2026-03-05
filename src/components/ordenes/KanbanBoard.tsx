@@ -140,7 +140,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } })
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } })
   );
 
   // ✅ DIAGNOSTICS ELIMINADO para reducir llamadas duplicadas

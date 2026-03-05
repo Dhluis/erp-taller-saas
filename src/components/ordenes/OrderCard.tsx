@@ -65,7 +65,8 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
       <div
         {...attributes}
         {...listeners}
-        className="flex items-center justify-between px-4 py-3 min-h-[48px] bg-slate-900/30 border-b border-slate-700/50 cursor-grab active:cursor-grabbing hover:bg-slate-800/50 transition-colors touch-manipulation"
+        onContextMenu={(e) => e.preventDefault()}
+        className="flex items-center justify-between px-4 py-3 min-h-[48px] bg-slate-900/30 border-b border-slate-700/50 cursor-grab active:cursor-grabbing hover:bg-slate-800/50 transition-colors touch-none select-none"
         style={{ touchAction: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
       >
         <span className="text-xs text-slate-500 font-medium pointer-events-none">

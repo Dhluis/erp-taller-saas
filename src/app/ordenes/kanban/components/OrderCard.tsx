@@ -40,6 +40,9 @@ export function OrderCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    touchAction: 'none' as const,
+    userSelect: 'none' as const,
+    WebkitTouchCallout: 'none' as const,
   };
 
   // Buscar datos relacionados
@@ -67,6 +70,7 @@ export function OrderCard({
       style={style}
       {...attributes}
       {...listeners}
+      onContextMenu={(e) => e.preventDefault()}
       onClick={(e) => {
         console.log('OrderCard clicked:', { orderId: order.id, isDragging, isSortableDragging, hasOnClick: !!onClick });
         // Solo navegar si no estamos arrastrando
@@ -82,7 +86,7 @@ export function OrderCard({
         }
       }}
       className={`
-        cursor-grab active:cursor-grabbing transition-all duration-200
+        cursor-grab active:cursor-grabbing transition-all duration-200 touch-none select-none
         hover:shadow-md hover:scale-[1.02]
         ${isDragging || isSortableDragging ? 'opacity-50 shadow-lg' : ''}
         ${isDragging ? 'rotate-3' : ''}

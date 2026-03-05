@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import {
   DndContext,
   DragOverlay,
-  closestCenter,
+  pointerWithin,
+  rectIntersection,
   PointerSensor,
   TouchSensor,
   useSensor,
@@ -13,6 +14,12 @@ import {
   DragStartEvent,
   DragEndEvent,
 } from '@dnd-kit/core';
+
+function kanbanCollision(args: Parameters<typeof pointerWithin>[0]) {
+  const pointer = pointerWithin(args)
+  if (pointer.length > 0) return pointer
+  return rectIntersection(args)
+}
 import type { WorkOrder, OrderStatus, KanbanColumn as KanbanColumnType } from '@/types/orders';
 import { KanbanColumn } from './KanbanColumn';
 import { OrderCard } from './OrderCard';
@@ -47,7 +54,7 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } })
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } })
   );
 
   // Cargar órdenes
@@ -216,7 +223,7 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={kanbanCollision}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >

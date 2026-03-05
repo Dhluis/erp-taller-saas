@@ -25,9 +25,9 @@ export function LeadPipelineColumn({ column, onLeadClick }: LeadPipelineColumnPr
       : null
 
   return (
-    <div className="flex-shrink-0 w-[260px] sm:w-72">
+    <div ref={setNodeRef} className="flex-shrink-0 w-[260px] sm:w-72">
       {/* Header */}
-      <div className={`${column.bgColor} ${column.borderColor} border rounded-lg p-3 mb-3`}>
+      <div className={`${column.bgColor} ${column.borderColor} border rounded-lg p-3 mb-3 ${isOver ? 'ring-2 ring-blue-500/50' : ''}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             {column.isTerminal && <Lock className={`w-3.5 h-3.5 ${column.color}`} />}
@@ -47,7 +47,6 @@ export function LeadPipelineColumn({ column, onLeadClick }: LeadPipelineColumnPr
 
       {/* Zona de drop */}
       <div
-        ref={setNodeRef}
         className={`min-h-[200px] max-h-[calc(100vh-300px)] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent rounded-lg border-2 border-dashed transition-all duration-200 p-2 ${
           isOver
             ? 'border-blue-500/70 bg-blue-500/10 shadow-lg shadow-blue-500/20'

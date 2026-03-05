@@ -70,11 +70,12 @@ export function LeadCard({ lead, onClick, isTerminal }: LeadCardProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`bg-slate-800/50 border border-slate-700/50 rounded-lg mb-3 overflow-hidden transition-all group ${
+      onContextMenu={(e) => e.preventDefault()}
+      className={`bg-slate-800/50 border border-slate-700/50 rounded-lg mb-3 overflow-hidden transition-all group select-none ${
         isDragging
           ? 'ring-2 ring-blue-500 shadow-lg shadow-blue-500/50 z-50'
           : 'hover:bg-slate-800/70 hover:border-blue-500/30'
-      } cursor-grab active:cursor-grabbing touch-manipulation`}
+      } cursor-grab active:cursor-grabbing touch-none`}
     >
       {/* Header con GripVertical (puntitos) - todas las tarjetas arrastrables */}
       <div className="flex items-center justify-between px-4 py-3 min-h-[48px] bg-slate-900/30 border-b border-slate-700/50 transition-colors hover:bg-slate-800/50">

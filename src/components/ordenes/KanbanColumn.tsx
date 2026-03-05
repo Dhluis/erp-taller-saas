@@ -16,9 +16,9 @@ export function KanbanColumn({ column, onOrderClick }: KanbanColumnProps) {
   });
 
   return (
-    <div className="flex-shrink-0 w-[260px] sm:w-72 md:w-80">
+    <div ref={setNodeRef} className="flex-shrink-0 w-[260px] sm:w-72 md:w-80">
       {/* Header */}
-      <div className={`${column.bgColor} ${column.borderColor} border rounded-lg p-3 mb-3`}>
+      <div className={`${column.bgColor} ${column.borderColor} border rounded-lg p-3 mb-3 ${isOver ? 'ring-2 ring-cyan-500/50' : ''}`}>
         <div className="flex items-center justify-between">
           <h3 className={`font-semibold ${column.color}`}>{column.title}</h3>
           <span className={`${column.bgColor} ${column.color} px-2 py-0.5 rounded-full text-xs font-medium`}>
@@ -29,7 +29,6 @@ export function KanbanColumn({ column, onOrderClick }: KanbanColumnProps) {
 
       {/* Zona de drop */}
       <div
-        ref={setNodeRef}
         className={`min-h-[200px] max-h-[calc(100vh-280px)] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent rounded-lg border-2 border-dashed transition-all duration-200 p-2 ${
           isOver 
             ? 'border-cyan-500/70 bg-cyan-500/10 shadow-lg shadow-cyan-500/20' 
