@@ -11,44 +11,57 @@ import {
   getFinanceSummary,
   getLowStockItems,
   getInventoryStats,
+  getCashBalance,
+  getUpcomingAppointments,
+  getExpensesSummaryTool,
+  getCollectionsSummary,
+  getQuotationsSummary,
+  getActiveEmployees,
+  getLeadsSummary,
+  getPurchaseOrdersSummary,
+  getSuppliersList,
+  getDeliveryNotesSummary,
+  getCreditNotesSummary,
+  getCashClosuresSummary,
 } from '@/lib/agent/erp-tools'
 import { checkAIAgentEnabled } from '@/lib/billing/check-limits'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const SYSTEM_PROMPT = `Eres el asistente del ERP Eagles para un taller mecánico. Tienes acceso a TODOS los datos reales de la organización: clientes, órdenes de trabajo (OT), vehículos, inventario/productos y finanzas (facturas).
-Responde en español, de forma clara y concisa. Cuando encuentres datos, preséntales en formato legible (listas, tablas si hay varios registros). Incluye los enlaces cuando estén disponibles.
+const SYSTEM_PROMPT = `Eres el asistente del ERP Eagles para un taller mecánico. Tienes acceso a TODOS los datos reales de la organización.
+Responde en español, de forma clara y concisa. Cuando encuentres datos, preséntales en formato legible (listas o tabla). Incluye los enlaces cuando estén disponibles.
 
-HERRAMIENTAS disponibles y cuándo usarlas:
+HERRAMIENTAS disponibles:
 
-1. erp_search(query): Buscar por nombre de cliente, vehículo, marca, modelo, placa, descripción de orden o número de factura. Devuelve clientes, órdenes, vehículos, productos y facturas que coincidan.
-
-2. search_inventory(query): Buscar productos específicos en el inventario por nombre, SKU o tipo. Devuelve stock actual, stock mínimo y precio unitario. Usar para: "¿cuánto tengo de aceite?", "stock de filtros", "precio del producto X", "¿hay frenos?".
-
-3. get_recent_orders(limit?): Retorna las órdenes más recientes con todos los detalles (cliente, vehículo, estado, fecha, monto). Usar para: "¿cuál es la orden más reciente?", "últimas órdenes", "qué órdenes entraron hoy/esta semana", "dame las últimas X órdenes".
-
-4. get_orders_by_status(status): Retorna las órdenes de un estado específico. Usar para: "¿qué órdenes están en proceso?", "órdenes listas para entregar", "órdenes esperando repuestos", "¿qué hay en diagnóstico?".
-
-5. get_orders_count_by_status(): Resumen numérico de cuántas órdenes hay en cada estado. Usar para preguntas generales de cantidad: "¿cuántas órdenes tengo en total?", "resumen de estados".
-
-4. get_finance_summary(): Resumen financiero completo: total facturado, total cobrado, pendiente de cobro, desglose por estado. Usar para: "resumen de finanzas", "cuánto he facturado", "¿cuánto me deben?", "ingresos del taller".
-
-5. get_low_stock_items(): Lista de productos con stock igual o menor al mínimo. Usar para: "¿qué productos necesito reponer?", "inventario bajo", "productos agotados o por agotarse", "alertas de stock".
-
-6. get_inventory_stats(): Estadísticas generales del inventario: total de productos, valor total en stock, cantidad con bajo stock y agotados. Usar para: "resumen del inventario", "valor total del inventario", "cuántos productos tengo".
+1. erp_search(query): Buscar por nombre de cliente, vehículo, marca, modelo, placa, descripción de orden o número de factura.
+2. search_inventory(query): Buscar productos por nombre, SKU o tipo. Devuelve stock y precio.
+3. get_recent_orders(limit?): Órdenes de trabajo más recientes.
+4. get_orders_by_status(status): Órdenes por estado ("en proceso", "diagnóstico", "listo", "completado", etc.).
+5. get_orders_count_by_status(): Conteo de órdenes por estado.
+6. get_recent_customers(limit?): Clientes más recientes.
+7. get_finance_summary(): Total facturado, cobrado y pendiente de cobro (facturas).
+8. get_cash_balance(): Saldo real de cuentas de efectivo (caja chica, banco). Usar para "¿cuánto tengo en caja?", "saldo de efectivo".
+9. get_low_stock_items(): Productos con stock bajo o agotado.
+10. get_inventory_stats(): Resumen global del inventario.
+11. get_upcoming_appointments(days_ahead?, status?): Citas próximas. Usar para "citas de hoy", "citas de esta semana", "próximas citas". days_ahead por defecto 7.
+12. get_expenses_summary(from?, to?): Gastos por período y categoría. Usar para "¿cuánto gasté?", "gastos del mes", "gastos por categoría". Fechas en YYYY-MM-DD.
+13. get_collections_summary(): Cobros pendientes y vencidos. Usar para "cobros pendientes", "¿cuánto me deben?", "cobros vencidos".
+14. get_quotations_summary(): Cotizaciones por estado. Usar para "cotizaciones pendientes", "cotizaciones enviadas", "¿cuántas cotizaciones hay?".
+15. get_active_employees(): Lista de empleados/mecánicos activos. Usar para "¿cuántos mecánicos hay?", "lista de empleados", "mecánicos disponibles".
+16. get_leads_summary(): Prospectos/leads del CRM por estado. Usar para "leads", "prospectos", "clientes potenciales", "pipeline de ventas", "cuántos leads hay".
+17. get_purchase_orders(): Órdenes de compra a proveedores. Usar para "órdenes de compra", "compras pendientes", "pedidos a proveedores".
+18. get_suppliers(): Lista de proveedores activos. Usar para "proveedores", "lista de proveedores", "datos de proveedor".
+19. get_delivery_notes(): Notas de entrega (remisiones). Usar para "remisiones", "notas de entrega", "entregas pendientes".
+20. get_credit_notes(): Notas de crédito emitidas. Usar para "notas de crédito", "devoluciones", "créditos emitidos".
+21. get_cash_closures(): Historial de cortes de caja. Usar para "cortes de caja", "último corte", "historial de cierres de caja".
 
 REGLAS:
-- Llama a la herramienta más específica para la pregunta.
-- Para preguntas de precio usa search_inventory.
-- Para "¿cuál es el último cliente?" o "clientes nuevos" usa get_recent_customers.
-- Para "¿cuál es la orden más reciente?" o "últimas órdenes" usa get_recent_orders.
-- Para "órdenes en proceso" o "qué hay en diagnóstico" usa get_orders_by_status.
-- Para conteos totales por estado usa get_orders_count_by_status.
-- Para "¿qué necesito comprar?" usa get_low_stock_items.
-- Para resumen general de inventario usa get_inventory_stats.
-- Si no encuentras datos con una herramienta, indícalo claramente.
-- Nunca inventes datos — solo reporta lo que devuelvan las herramientas.`
+- Usa la herramienta más específica. Si el usuario pregunta por caja/efectivo usa get_cash_balance, NO get_finance_summary.
+- Para gastos usa get_expenses_summary, para cobros get_collections_summary, para citas get_upcoming_appointments.
+- Para búsquedas por nombre usa erp_search.
+- Nunca inventes datos — solo reporta lo que devuelvan las herramientas.
+- Si no hay datos, indícalo claramente.`
 
 function getOpenAIClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY
@@ -205,6 +218,114 @@ export async function POST(request: NextRequest) {
         function: {
           name: 'get_inventory_stats',
           description: 'Estadísticas globales del inventario: total de productos, valor total del stock, cuántos tienen bajo stock y cuántos están agotados.',
+          parameters: { type: 'object', properties: {} },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_cash_balance',
+          description: 'Saldo actual de las cuentas de efectivo del taller (caja chica, banco, etc.). Usar para: "¿cuánto tengo en caja?", "saldo de cuentas de efectivo", "dinero en caja", "saldo actual", "efectivo disponible".',
+          parameters: { type: 'object', properties: {} },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_upcoming_appointments',
+          description: 'Citas próximas del taller. Usar para: "citas de hoy", "citas de mañana", "citas de esta semana", "próximas citas", "agenda de citas", "citas pendientes", "citas confirmadas".',
+          parameters: {
+            type: 'object',
+            properties: {
+              days_ahead: { type: 'number', description: 'Días hacia adelante a buscar. 0 = solo hoy, 1 = hoy y mañana, 7 = esta semana. Por defecto 7.' },
+              status: { type: 'string', description: 'Filtrar por estado: "pending", "confirmed", "completed", "cancelled". Omitir para todos.' },
+            },
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_expenses_summary',
+          description: 'Resumen de gastos por período y categoría. Usar para: "¿cuánto gasté?", "gastos del mes", "gastos de esta semana", "gastos por categoría", "egresos", "¿cuánto gastamos en refacciones?".',
+          parameters: {
+            type: 'object',
+            properties: {
+              from: { type: 'string', description: 'Fecha inicio en formato YYYY-MM-DD. Si se omite, últimos 30 días.' },
+              to: { type: 'string', description: 'Fecha fin en formato YYYY-MM-DD. Si se omite, hoy.' },
+            },
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_collections_summary',
+          description: 'Cobros pendientes y vencidos de clientes. Usar para: "cobros pendientes", "cobros vencidos", "¿cuánto me deben?", "cuentas por cobrar", "clientes que deben".',
+          parameters: { type: 'object', properties: {} },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_quotations_summary',
+          description: 'Cotizaciones por estado. Usar para: "cotizaciones pendientes", "cotizaciones enviadas sin respuesta", "¿cuántas cotizaciones hay?", "resumen de cotizaciones".',
+          parameters: { type: 'object', properties: {} },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_active_employees',
+          description: 'Lista de empleados/mecánicos activos del taller. Usar para: "¿cuántos mecánicos hay?", "lista de empleados", "mecánicos disponibles", "¿quiénes trabajan aquí?".',
+          parameters: { type: 'object', properties: {} },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_leads_summary',
+          description: 'Resumen de leads y prospectos del CRM por estado. Usar para: "leads", "prospectos", "clientes potenciales", "pipeline de ventas", "cuántos leads tengo", "leads ganados o perdidos".',
+          parameters: { type: 'object', properties: {} },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_purchase_orders',
+          description: 'Órdenes de compra realizadas a proveedores. Usar para: "órdenes de compra", "compras pendientes", "pedidos a proveedores", "cuánto hay por pagar a proveedores".',
+          parameters: { type: 'object', properties: {} },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_suppliers',
+          description: 'Lista de proveedores activos registrados. Usar para: "proveedores", "lista de proveedores", "datos de proveedor", "¿con qué proveedores trabajamos?".',
+          parameters: { type: 'object', properties: {} },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_delivery_notes',
+          description: 'Notas de entrega (remisiones) por estado. Usar para: "remisiones", "notas de entrega", "entregas pendientes", "¿qué hay por entregar?".',
+          parameters: { type: 'object', properties: {} },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_credit_notes',
+          description: 'Notas de crédito emitidas. Usar para: "notas de crédito", "devoluciones", "créditos emitidos", "¿cuántas notas de crédito hay?".',
+          parameters: { type: 'object', properties: {} },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_cash_closures',
+          description: 'Historial de cortes de caja. Usar para: "cortes de caja", "último corte de caja", "historial de cierres", "¿cuándo fue el último corte?".',
           parameters: { type: 'object', properties: {} },
         },
       },
@@ -382,6 +503,142 @@ export async function POST(request: NextRequest) {
             productos_agotados: stats.out_of_stock_count,
           })
           links.push({ label: 'Ver inventario', url: '/inventarios/productos' })
+
+        } else if (name === 'get_cash_balance') {
+          const cash = await getCashBalance(organizationId)
+          content = JSON.stringify({
+            saldo_total: cash.total_balance,
+            cuentas: cash.accounts.map((a) => ({
+              nombre: a.name,
+              tipo: a.account_type,
+              saldo: a.current_balance,
+            })),
+          })
+          links.push({ label: 'Ver cuentas de efectivo', url: '/ingresos/cuentas-efectivo' })
+
+        } else if (name === 'get_upcoming_appointments') {
+          const daysAhead = typeof args.days_ahead === 'number' ? args.days_ahead : 7
+          const statusArg = typeof args.status === 'string' ? args.status : undefined
+          const appointments = await getUpcomingAppointments(organizationId, daysAhead, statusArg)
+          content = appointments.length === 0
+            ? JSON.stringify({ mensaje: 'No hay citas próximas en ese período.' })
+            : JSON.stringify(appointments.map((a) => ({
+                fecha: a.appointment_date,
+                estado: a.status,
+                servicio: a.service_type,
+                cliente: a.customer_name,
+                telefono: a.customer_phone,
+                vehiculo: a.vehicle_info,
+                notas: a.notes,
+              })))
+          links.push({ label: 'Ver citas', url: '/citas' })
+
+        } else if (name === 'get_expenses_summary') {
+          const fromArg = typeof args.from === 'string' ? args.from : undefined
+          const toArg = typeof args.to === 'string' ? args.to : undefined
+          const exp = await getExpensesSummaryTool(organizationId, fromArg, toArg)
+          content = JSON.stringify({
+            total_gastos: exp.total,
+            cantidad: exp.count,
+            por_categoria: exp.by_category,
+            recientes: exp.recent,
+          })
+          links.push({ label: 'Ver gastos', url: '/compras/gastos' })
+
+        } else if (name === 'get_collections_summary') {
+          const col = await getCollectionsSummary(organizationId)
+          content = JSON.stringify({
+            pendientes: col.pending_count,
+            total_pendiente: col.pending_total,
+            vencidos: col.overdue_count,
+            total_vencido: col.overdue_total,
+            cobrado_este_mes: col.paid_this_month,
+            detalle_pendientes: col.recent_pending,
+          })
+          links.push({ label: 'Ver cobros', url: '/ingresos/cobros' })
+
+        } else if (name === 'get_quotations_summary') {
+          const quot = await getQuotationsSummary(organizationId)
+          content = JSON.stringify({
+            total_cotizaciones: quot.total,
+            por_estado: quot.by_status,
+            pendientes_aprobacion: quot.pending_approval,
+          })
+          links.push({ label: 'Ver cotizaciones', url: '/cotizaciones' })
+
+        } else if (name === 'get_active_employees') {
+          const emps = await getActiveEmployees(organizationId)
+          content = emps.length === 0
+            ? JSON.stringify({ mensaje: 'No hay empleados activos registrados.' })
+            : JSON.stringify(emps.map((e) => ({
+                nombre: e.name,
+                rol: e.role,
+                especialidad: e.specialty,
+              })))
+          links.push({ label: 'Ver empleados', url: '/empleados' })
+
+        } else if (name === 'get_leads_summary') {
+          const leads = await getLeadsSummary(organizationId)
+          content = JSON.stringify({
+            total_leads: leads.total,
+            por_estado: leads.by_status,
+            valor_estimado_total: leads.estimated_value_total,
+            recientes: leads.recent,
+          })
+          links.push({ label: 'Ver leads', url: '/crm/leads' })
+
+        } else if (name === 'get_purchase_orders') {
+          const po = await getPurchaseOrdersSummary(organizationId)
+          content = JSON.stringify({
+            total_ordenes: po.total,
+            por_estado: po.by_status,
+            total_pendiente_pagar: po.pending_total,
+            recientes: po.recent,
+          })
+          links.push({ label: 'Ver órdenes de compra', url: '/compras/ordenes' })
+
+        } else if (name === 'get_suppliers') {
+          const suppliers = await getSuppliersList(organizationId)
+          content = suppliers.length === 0
+            ? JSON.stringify({ mensaje: 'No hay proveedores activos registrados.' })
+            : JSON.stringify(suppliers.map((s) => ({
+                nombre: s.name,
+                contacto: s.contact_person,
+                telefono: s.phone,
+                email: s.email,
+                terminos_pago: s.payment_terms,
+              })))
+          links.push({ label: 'Ver proveedores', url: '/compras/proveedores' })
+
+        } else if (name === 'get_delivery_notes') {
+          const dn = await getDeliveryNotesSummary(organizationId)
+          content = JSON.stringify({
+            total_remisiones: dn.total,
+            por_estado: dn.by_status,
+            recientes: dn.recent,
+          })
+          links.push({ label: 'Ver remisiones', url: '/remisiones' })
+
+        } else if (name === 'get_credit_notes') {
+          const cn = await getCreditNotesSummary(organizationId)
+          content = JSON.stringify({
+            total_notas: cn.total,
+            monto_total: cn.total_amount,
+            por_estado: cn.by_status,
+            recientes: cn.recent,
+          })
+          links.push({ label: 'Ver notas de crédito', url: '/ingresos/notas-credito' })
+
+        } else if (name === 'get_cash_closures') {
+          const cc = await getCashClosuresSummary(organizationId)
+          content = cc.total_closures === 0
+            ? JSON.stringify({ mensaje: 'No hay cortes de caja registrados.' })
+            : JSON.stringify({
+                total_cortes: cc.total_closures,
+                ultimo_corte: cc.last_closure,
+                historial: cc.recent,
+              })
+          links.push({ label: 'Ver cortes de caja', url: '/ingresos/cortes-caja' })
 
         } else {
           content = JSON.stringify({
