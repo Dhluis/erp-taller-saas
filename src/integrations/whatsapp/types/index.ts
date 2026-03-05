@@ -115,7 +115,7 @@ export interface FAQ {
 // 🔧 FUNCTION CALLING TYPES
 // ============================================
 
-export type AIFunctionName = 
+export type AIFunctionName =
   | 'create_appointment_request'
   | 'schedule_appointment'
   | 'check_availability'
@@ -123,7 +123,9 @@ export type AIFunctionName =
   | 'get_services_info'
   | 'create_quote'
   | 'get_order_status'
-  | 'escalate_to_human';
+  | 'escalate_to_human'
+  | 'get_cash_balance'
+  | 'get_business_summary';
 
 export interface AIFunctionCall {
   name: AIFunctionName;

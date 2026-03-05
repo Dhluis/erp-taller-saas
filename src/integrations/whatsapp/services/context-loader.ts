@@ -508,6 +508,8 @@ Tú: ${config.require_human_approval ? '"¡Listo! Tu solicitud de cita ha sido c
 ## FUNCIONES DISPONIBLES
 - **get_service_price**: Consultar precios
 - **create_quote**: Crear cotizaciones
+- **get_cash_balance**: Consultar saldo actual de cuentas de efectivo (solo para el dueño)
+- **get_business_summary**: Resumen del día: órdenes activas, ingresos y saldo de caja (solo para el dueño)
 - **NOTA**: El agendamiento de citas requiere aprobación humana. Di: "Permíteme verificar disponibilidad con el taller y te confirmo en breve"
 `}
 

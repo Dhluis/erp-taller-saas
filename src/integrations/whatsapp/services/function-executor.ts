@@ -77,6 +77,12 @@ export async function executeFunction(
           customerPhone
         );
 
+      case 'get_cash_balance':
+        return await getCashBalance(organizationId);
+
+      case 'get_business_summary':
+        return await getBusinessSummary(organizationId);
+
       default:
         return {
           success: false,
@@ -571,6 +577,125 @@ async function getServicesInfo(
       success: false,
       error: error.message || 'Error desconocido al obtener información de servicios'
     };
+  }
+}
+
+/**
+ * Obtiene el saldo actual de las cuentas de efectivo
+ */
+async function getCashBalance(organizationId: string): Promise<any> {
+  console.log('[FunctionExecutor] 💰 Consultando saldo de caja...');
+  try {
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
+    const supabase = getSupabaseServiceClient();
+
+    const { data: accounts, error } = await supabase
+      .from('cash_accounts')
+      .select('id, name, account_number, account_type, initial_balance')
+      .eq('organization_id', organizationId)
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) {
+      // Si la tabla no existe aún, devolver mensaje amigable
+      if (error.code === '42P01') {
+        return { success: true, data: { accounts: [], total_balance: 0, message: 'Módulo de cuentas de efectivo no configurado aún.' } };
+      }
+      return { success: false, error: `Error al consultar cuentas: ${error.message}` };
+    }
+
+    const results = await Promise.all(
+      (accounts || []).map(async (acc) => {
+        const { data: movs } = await supabase
+          .from('cash_account_movements')
+          .select('movement_type, amount')
+          .eq('cash_account_id', acc.id);
+        let delta = 0;
+        for (const m of movs || []) {
+          if (m.movement_type === 'deposit' || m.movement_type === 'adjustment') delta += Number(m.amount);
+          else if (m.movement_type === 'withdrawal') delta -= Number(m.amount);
+        }
+        return {
+          name: acc.name,
+          account_number: acc.account_number || '',
+          account_type: acc.account_type,
+          current_balance: Number(acc.initial_balance) + delta
+        };
+      })
+    );
+
+    const total = results.reduce((sum, a) => sum + a.current_balance, 0);
+
+    return {
+      success: true,
+      data: {
+        accounts: results,
+        total_balance: total,
+        message: results.length === 0
+          ? 'No hay cuentas de efectivo configuradas.'
+          : `Tienes ${results.length} cuenta(s) de efectivo con un total de $${total.toFixed(2)}`
+      }
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Error al obtener saldo de caja' };
+  }
+}
+
+/**
+ * Resumen general del negocio: órdenes pendientes, ingresos de hoy y saldo de caja
+ */
+async function getBusinessSummary(organizationId: string): Promise<any> {
+  console.log('[FunctionExecutor] 📊 Obteniendo resumen del negocio...');
+  try {
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
+    const supabase = getSupabaseServiceClient();
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // Órdenes pendientes e in_progress
+    const { data: pendingOrders } = await supabase
+      .from('work_orders')
+      .select('id, status')
+      .eq('organization_id', organizationId)
+      .in('status', ['pending', 'in_progress', 'waiting_parts', 'waiting_approval']);
+
+    // Órdenes completadas hoy
+    const { data: completedToday } = await supabase
+      .from('work_orders')
+      .select('id, total_amount')
+      .eq('organization_id', organizationId)
+      .eq('status', 'completed')
+      .gte('completed_at', todayStart.toISOString())
+      .lte('completed_at', todayEnd.toISOString());
+
+    const revenueToday = (completedToday || []).reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
+
+    // Saldo de caja
+    const cashResult = await getCashBalance(organizationId);
+    const totalCash = cashResult.success ? cashResult.data.total_balance : 0;
+
+    const pending = (pendingOrders || []).filter((o: any) => o.status === 'pending').length;
+    const inProgress = (pendingOrders || []).filter((o: any) => o.status === 'in_progress').length;
+    const waitingParts = (pendingOrders || []).filter((o: any) => o.status === 'waiting_parts').length;
+
+    return {
+      success: true,
+      data: {
+        pending_orders: pending,
+        in_progress_orders: inProgress,
+        waiting_parts_orders: waitingParts,
+        total_active_orders: (pendingOrders || []).length,
+        revenue_today: revenueToday,
+        completed_today: (completedToday || []).length,
+        cash_balance: totalCash,
+        message: `Hoy: ${(completedToday || []).length} órdenes completadas | Ingresos: $${revenueToday.toFixed(2)} | Activas: ${(pendingOrders || []).length} | Saldo caja: $${totalCash.toFixed(2)}`
+      }
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Error al obtener resumen del negocio' };
   }
 }
 

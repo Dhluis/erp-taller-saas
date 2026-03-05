@@ -464,6 +464,24 @@ async function processWithOpenAI(params: {
         },
         required: ['customer_name', 'services']
       }
+    },
+    {
+      name: 'get_cash_balance',
+      description: 'Consulta el saldo actual de las cuentas de efectivo del taller. Usa esta función cuando el dueño pregunte por el dinero disponible en caja, saldo de cuentas, cuánto efectivo hay, dinero en caja, etc.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: []
+      }
+    },
+    {
+      name: 'get_business_summary',
+      description: 'Obtiene un resumen general del negocio: órdenes de trabajo pendientes, ingresos del día y saldo de caja. Úsalo cuando el dueño pregunte por el estado general del taller, cuántas órdenes hay activas, qué tal va el día, resumen del negocio, etc.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: []
+      }
     }
   );
 
@@ -617,6 +635,24 @@ async function processWithAnthropic(params: {
           vehicle_model: { type: 'string' }
         },
         required: ['customer_name', 'services']
+      }
+    },
+    {
+      name: 'get_cash_balance',
+      description: 'Consulta el saldo actual de las cuentas de efectivo del taller. Usa cuando el dueño pregunte por el dinero en caja, saldo, cuánto efectivo hay, etc.',
+      input_schema: {
+        type: 'object',
+        properties: {},
+        required: []
+      }
+    },
+    {
+      name: 'get_business_summary',
+      description: 'Resumen general del negocio: órdenes activas, ingresos del día y saldo de caja. Úsalo cuando el dueño pregunte por el estado general del taller o qué tal va el día.',
+      input_schema: {
+        type: 'object',
+        properties: {},
+        required: []
       }
     }
   ];
