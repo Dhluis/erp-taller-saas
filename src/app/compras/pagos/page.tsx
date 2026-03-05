@@ -200,33 +200,33 @@ export default function PagosPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
+          <Card className="bg-green-500/10 border-green-500/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total pagado</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-green-400">Total pagado</CardTitle>
+              <DollarSign className="h-4 w-4 text-green-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-500">{formatMoney(stats.totalPaid)}</div>
+              <div className="text-2xl font-bold text-green-400">{formatMoney(stats.totalPaid)}</div>
               <p className="text-xs text-muted-foreground">Pagos completados</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-yellow-500/10 border-yellow-500/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pendiente</CardTitle>
-              <TrendingDown className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-yellow-400">Pendiente</CardTitle>
+              <TrendingDown className="h-4 w-4 text-yellow-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-amber-500">{formatMoney(stats.totalPending)}</div>
+              <div className="text-2xl font-bold text-yellow-400">{formatMoney(stats.totalPending)}</div>
               <p className="text-xs text-muted-foreground">Pagos pendientes</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-blue-500/10 border-blue-500/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Registros</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-blue-400">Registros</CardTitle>
+              <CreditCard className="h-4 w-4 text-blue-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-2xl font-bold text-blue-400">{stats.total}</div>
               <p className="text-xs text-muted-foreground">Pagos en el listado</p>
             </CardContent>
           </Card>

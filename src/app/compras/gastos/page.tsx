@@ -54,20 +54,20 @@ export default function GastosPage() {
       <div className="space-y-4 p-4">
         {stats && (
           <div className="grid gap-4 md:grid-cols-2">
-            <Card>
+            <Card className="bg-rose-500/10 border-rose-500/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total gastos</CardTitle>
+                <CardTitle className="text-sm font-medium text-rose-400">Total gastos</CardTitle>
               </CardHeader>
               <CardContent>
-                <span className="text-2xl font-bold">{formatMoney(stats.total)}</span>
+                <span className="text-2xl font-bold text-rose-400">{formatMoney(stats.total)}</span>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="bg-blue-500/10 border-blue-500/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Registros</CardTitle>
+                <CardTitle className="text-sm font-medium text-blue-400">Registros</CardTitle>
               </CardHeader>
               <CardContent>
-                <span className="text-2xl font-bold">{stats.count}</span>
+                <span className="text-2xl font-bold text-blue-400">{stats.count}</span>
               </CardContent>
             </Card>
           </div>

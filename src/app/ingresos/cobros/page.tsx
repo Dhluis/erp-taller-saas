@@ -531,43 +531,43 @@ export default function CobrosPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="bg-green-500/10 border-green-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Cobrado</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-green-400">Total Cobrado</CardTitle>
+            <DollarSign className="h-4 w-4 text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(stats.totalCollected || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-400">${(stats.totalCollected || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">+5.2% del mes pasado</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-yellow-500/10 border-yellow-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pendiente</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-yellow-400">Pendiente</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(stats.pendingAmount || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold text-yellow-400">${(stats.pendingAmount || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Monto por cobrar</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-blue-500/10 border-blue-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Cobros</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-blue-400">Total Cobros</CardTitle>
+            <TrendingUp className="h-4 w-4 text-blue-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalCollections}</div>
+            <div className="text-2xl font-bold text-blue-400">{stats.totalCollections}</div>
             <p className="text-xs text-muted-foreground">Transacciones registradas</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-cyan-500/10 border-cyan-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completados</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-cyan-400">Completados</CardTitle>
+            <CheckCircle className="h-4 w-4 text-cyan-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.completedCollections}</div>
+            <div className="text-2xl font-bold text-cyan-400">{stats.completedCollections}</div>
             <p className="text-xs text-muted-foreground">Cobros exitosos</p>
           </CardContent>
         </Card>

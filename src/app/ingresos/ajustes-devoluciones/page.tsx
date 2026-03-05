@@ -69,46 +69,46 @@ export default function AjustesDevolucionesPage() {
       <div className="space-y-4 p-4">
         {stats && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <Card>
+            <Card className="bg-blue-500/10 border-blue-500/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total notas</CardTitle>
+                <CardTitle className="text-sm font-medium text-blue-400">Total notas</CardTitle>
               </CardHeader>
               <CardContent>
-                <span className="text-2xl font-bold">{stats.total}</span>
+                <span className="text-2xl font-bold text-blue-400">{stats.total}</span>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="bg-green-500/10 border-green-500/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Monto total</CardTitle>
+                <CardTitle className="text-sm font-medium text-green-400">Monto total</CardTitle>
               </CardHeader>
               <CardContent>
-                <span className="text-2xl font-bold">
+                <span className="text-2xl font-bold text-green-400">
                   {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(stats.total_amount)}
                 </span>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="bg-cyan-500/10 border-cyan-500/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Emitidas</CardTitle>
+                <CardTitle className="text-sm font-medium text-cyan-400">Emitidas</CardTitle>
               </CardHeader>
               <CardContent>
-                <span className="text-2xl font-bold">{stats.issued}</span>
+                <span className="text-2xl font-bold text-cyan-400">{stats.issued}</span>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="bg-purple-500/10 border-purple-500/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Aplicadas</CardTitle>
+                <CardTitle className="text-sm font-medium text-purple-400">Aplicadas</CardTitle>
               </CardHeader>
               <CardContent>
-                <span className="text-2xl font-bold">{stats.applied}</span>
+                <span className="text-2xl font-bold text-purple-400">{stats.applied}</span>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="bg-yellow-500/10 border-yellow-500/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Borrador</CardTitle>
+                <CardTitle className="text-sm font-medium text-yellow-400">Borrador</CardTitle>
               </CardHeader>
               <CardContent>
-                <span className="text-2xl font-bold">{stats.draft}</span>
+                <span className="text-2xl font-bold text-yellow-400">{stats.draft}</span>
               </CardContent>
             </Card>
           </div>
