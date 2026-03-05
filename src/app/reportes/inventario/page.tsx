@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
+import { Input } from "@/components/ui/input"
 import { 
   Select,
   SelectContent,
@@ -39,6 +40,8 @@ export default function ReportesInventarioPage() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState("this_month")
+  const [customStart, setCustomStart] = useState("")
+  const [customEnd, setCustomEnd] = useState("")
 
   useEffect(() => {
     loadReport()
@@ -49,6 +52,7 @@ export default function ReportesInventarioPage() {
   }
 
   const loadReport = async () => {
+    if (selectedPeriod === 'custom' && (!customStart || !customEnd)) return
     setIsLoading(true)
     try {
       const res = await fetch('/api/reports/inventory')
@@ -126,6 +130,7 @@ export default function ReportesInventarioPage() {
               <SelectItem value="this_quarter">Este trimestre</SelectItem>
               <SelectItem value="this_year">Este año</SelectItem>
               <SelectItem value="last_year">Año pasado</SelectItem>
+              <SelectItem value="custom">Personalizado</SelectItem>
             </SelectContent>
           </Select>
           <Button>
@@ -133,6 +138,15 @@ export default function ReportesInventarioPage() {
           </Button>
         </div>
       </div>
+
+      {selectedPeriod === "custom" && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <Input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="w-[160px]" />
+          <span className="text-muted-foreground text-sm">—</span>
+          <Input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="w-[160px]" />
+          <Button variant="outline" size="sm" onClick={loadReport} disabled={!customStart || !customEnd}>Aplicar</Button>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-blue-500/10 border-blue-500/20">

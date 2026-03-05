@@ -57,12 +57,10 @@ export default function EntregasPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Comprobantes de entrega</CardTitle>
-            <Button asChild>
-              <Link href="/ingresos/entregas/nueva">
-                <Plus className="mr-2 h-4 w-4" />
-                Nueva entrega
-              </Link>
-            </Button>
+            <Link href="/ingresos/entregas/nueva" className="inline-flex items-center gap-2 h-10 px-4 text-sm bg-primary text-white hover:opacity-90 rounded-md font-medium shadow-sm">
+              <Plus className="h-4 w-4" />
+              Nueva entrega
+            </Link>
           </CardHeader>
           <CardContent>
             {loading ? (

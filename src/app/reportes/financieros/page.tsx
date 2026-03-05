@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
+import { Input } from "@/components/ui/input"
 import { 
   Select,
   SelectContent,
@@ -91,6 +92,8 @@ export default function ReportesFinancierosPage() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState("this_month")
+  const [customStart, setCustomStart] = useState("")
+  const [customEnd, setCustomEnd] = useState("")
   const [cashBalance, setCashBalance] = useState(0)
 
   useEffect(() => {
@@ -107,9 +110,12 @@ export default function ReportesFinancierosPage() {
 
   const loadReport = async () => {
     if (!organizationId) return
+    if (selectedPeriod === 'custom' && (!customStart || !customEnd)) return
     setIsLoading(true)
     try {
-      const { startDate, endDate } = getPeriodDates(selectedPeriod)
+      const { startDate, endDate } = selectedPeriod === 'custom'
+        ? { startDate: customStart, endDate: customEnd }
+        : getPeriodDates(selectedPeriod)
       const [data, cashRes] = await Promise.all([
         getFinancialReport(organizationId, startDate, endDate),
         fetch('/api/cash-accounts', { credentials: 'include' }).then(r => r.json())
@@ -183,6 +189,7 @@ export default function ReportesFinancierosPage() {
               <SelectItem value="this_quarter">Este trimestre</SelectItem>
               <SelectItem value="this_year">Este año</SelectItem>
               <SelectItem value="last_year">Año pasado</SelectItem>
+              <SelectItem value="custom">Personalizado</SelectItem>
             </SelectContent>
           </Select>
           <Button>
@@ -190,6 +197,15 @@ export default function ReportesFinancierosPage() {
           </Button>
         </div>
       </div>
+
+      {selectedPeriod === "custom" && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <Input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="w-[160px]" />
+          <span className="text-muted-foreground text-sm">—</span>
+          <Input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="w-[160px]" />
+          <Button variant="outline" size="sm" onClick={loadReport} disabled={!customStart || !customEnd}>Aplicar</Button>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-green-500/10 border-green-500/20">

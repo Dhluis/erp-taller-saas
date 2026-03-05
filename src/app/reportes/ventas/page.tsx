@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { useOrganization } from "@/lib/context/SessionContext"
 import { StandardBreadcrumbs } from "@/components/ui/breadcrumbs"
+import { Input } from "@/components/ui/input"
 
 /** Mapea período seleccionado a fechas ISO (YYYY-MM-DD) */
 function getPeriodDates(period: string): { startDate: string; endDate: string } {
@@ -80,6 +81,8 @@ export default function ReportesVentasPage() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState("this_month")
+  const [customStart, setCustomStart] = useState("")
+  const [customEnd, setCustomEnd] = useState("")
 
   useEffect(() => {
     if (ready && !organizationId) setIsLoading(false)
@@ -100,7 +103,8 @@ export default function ReportesVentasPage() {
         last_month: 'Mes pasado',
         this_quarter: 'Este trimestre',
         this_year: 'Este año',
-        last_year: 'Año pasado'
+        last_year: 'Año pasado',
+        custom: 'Personalizado'
       }
 
       const periodLabel = periodLabels[selectedPeriod] || 'Este mes'
@@ -317,9 +321,12 @@ export default function ReportesVentasPage() {
 
   const loadReport = async () => {
     if (!organizationId) return
+    if (selectedPeriod === 'custom' && (!customStart || !customEnd)) return
     setIsLoading(true)
     try {
-      const { startDate, endDate } = getPeriodDates(selectedPeriod)
+      const { startDate, endDate } = selectedPeriod === 'custom'
+        ? { startDate: customStart, endDate: customEnd }
+        : getPeriodDates(selectedPeriod)
       const res = await fetch(
         `/api/reports/sales?start_date=${startDate}&end_date=${endDate}`,
         { credentials: 'include' }
@@ -369,6 +376,7 @@ export default function ReportesVentasPage() {
               <SelectItem value="this_quarter" className="text-white hover:bg-slate-800 focus:bg-slate-800">Este trimestre</SelectItem>
               <SelectItem value="this_year" className="text-white hover:bg-slate-800 focus:bg-slate-800">Este año</SelectItem>
               <SelectItem value="last_year" className="text-white hover:bg-slate-800 focus:bg-slate-800">Año pasado</SelectItem>
+              <SelectItem value="custom" className="text-white hover:bg-slate-800 focus:bg-slate-800">Personalizado</SelectItem>
             </SelectContent>
           </Select>
           <Button onClick={handleExportPDF}>
@@ -376,6 +384,15 @@ export default function ReportesVentasPage() {
           </Button>
         </div>
       </div>
+
+      {selectedPeriod === "custom" && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <Input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="w-[160px]" />
+          <span className="text-muted-foreground text-sm">—</span>
+          <Input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="w-[160px]" />
+          <Button variant="outline" size="sm" onClick={loadReport} disabled={!customStart || !customEnd}>Aplicar</Button>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-green-500/10 border-green-500/20">

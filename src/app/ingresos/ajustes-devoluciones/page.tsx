@@ -116,12 +116,10 @@ export default function AjustesDevolucionesPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Notas de crédito</CardTitle>
-            <Button asChild>
-              <Link href="/ingresos/ajustes-devoluciones/nueva">
-                <Plus className="mr-2 h-4 w-4" />
-                Nueva nota
-              </Link>
-            </Button>
+            <Link href="/ingresos/ajustes-devoluciones/nueva" className="inline-flex items-center gap-2 h-10 px-4 text-sm bg-primary text-white hover:opacity-90 rounded-md font-medium shadow-sm">
+              <Plus className="h-4 w-4" />
+              Nueva nota
+            </Link>
           </CardHeader>
           <CardContent>
             {loading ? (

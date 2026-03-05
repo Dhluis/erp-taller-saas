@@ -75,12 +75,10 @@ export default function GastosPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Listado de gastos</CardTitle>
-            <Button asChild>
-              <Link href="/compras/gastos/nuevo">
-                <Plus className="mr-2 h-4 w-4" />
-                Nuevo gasto
-              </Link>
-            </Button>
+            <Link href="/compras/gastos/nuevo" className="inline-flex items-center gap-2 h-10 px-4 text-sm bg-primary text-white hover:opacity-90 rounded-md font-medium shadow-sm">
+              <Plus className="h-4 w-4" />
+              Nuevo gasto
+            </Link>
           </CardHeader>
           <CardContent>
             {loading ? (

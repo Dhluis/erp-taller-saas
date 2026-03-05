@@ -51,13 +51,11 @@ export default function ArqueoCajaPage() {
       <div className="space-y-4 p-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Historial de arqueos</CardTitle>
-            <Button asChild>
-              <Link href="/ingresos/arqueo-caja/nuevo">
-                <Plus className="mr-2 h-4 w-4" />
-                Nuevo arqueo
-              </Link>
-            </Button>
+            <CardTitle>Historial de cortes de caja</CardTitle>
+            <Link href="/ingresos/arqueo-caja/nuevo" className="inline-flex items-center gap-2 h-10 px-4 text-sm bg-primary text-white hover:opacity-90 rounded-md font-medium shadow-sm">
+              <Plus className="h-4 w-4" />
+              Nuevo corte
+            </Link>
           </CardHeader>
           <CardContent>
             {loading ? (
