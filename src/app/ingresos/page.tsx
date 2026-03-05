@@ -168,65 +168,79 @@ export default function IngresosPage() {
 
         {/* Estadísticas principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="bg-bg-secondary border border-border rounded-lg shadow-md">
+          <Card className="bg-green-500/10 border-green-500/20 rounded-lg shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-text-primary">Ingresos Totales</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-green-400">Ingresos Totales</CardTitle>
+              <DollarSign className="h-4 w-4 text-green-400" />
             </CardHeader>
             <CardContent className="p-6">
-              <div className="text-2xl font-bold text-text-primary">${stats.totalRevenue.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-green-400">${stats.totalRevenue.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">Acumulado del año</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-bg-secondary border border-border rounded-lg shadow-md">
+          <Card className="bg-blue-500/10 border-blue-500/20 rounded-lg shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-text-primary">Ingresos del Mes</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-blue-400">Ingresos del Mes</CardTitle>
+              <TrendingUp className="h-4 w-4 text-blue-400" />
             </CardHeader>
             <CardContent className="p-6">
-              <div className="text-2xl font-bold text-text-primary">${stats.monthlyRevenue.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-blue-400">${stats.monthlyRevenue.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
                 {new Date().toLocaleDateString('es', { month: 'long', year: 'numeric' })}
               </p>
             </CardContent>
           </Card>
 
-          <Card className="bg-bg-secondary border border-border rounded-lg shadow-md">
+          <Card className="bg-yellow-500/10 border-yellow-500/20 rounded-lg shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-text-primary">Facturas Pendientes</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-yellow-400">Facturas Pendientes</CardTitle>
+              <FileText className="h-4 w-4 text-yellow-400" />
             </CardHeader>
             <CardContent className="p-6">
-              <div className="text-2xl font-bold text-text-primary">{stats.pendingInvoices}</div>
+              <div className="text-2xl font-bold text-yellow-400">{stats.pendingInvoices}</div>
               <p className="text-xs text-muted-foreground">Por cobrar</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-bg-secondary border border-border rounded-lg shadow-md">
+          <Card className="bg-purple-500/10 border-purple-500/20 rounded-lg shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-text-primary">Valor Promedio</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-purple-400">Valor Promedio</CardTitle>
+              <BarChart3 className="h-4 w-4 text-purple-400" />
             </CardHeader>
             <CardContent className="p-6">
-              <div className="text-2xl font-bold text-text-primary">${stats.averageInvoiceValue.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-purple-400">${stats.averageInvoiceValue.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">Por factura</p>
             </CardContent>
           </Card>
+        </div>
 
-          {permissions.canPayInvoices() && (
-            <Card className="bg-bg-secondary border border-border rounded-lg shadow-md">
+        {/* Saldo en cuentas */}
+        {permissions.canPayInvoices() && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="bg-cyan-500/10 border-cyan-500/20 rounded-lg shadow-md">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-primary">Saldo en cuentas de efectivo</CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-cyan-400">Saldo en cuentas de efectivo</CardTitle>
+                <Wallet className="h-4 w-4 text-cyan-400" />
               </CardHeader>
               <CardContent className="p-6">
-                <div className="text-2xl font-bold text-text-primary">${cashBalance.toLocaleString()}</div>
+                <div className="text-2xl font-bold text-cyan-400">${cashBalance.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">Cajas y bancos</p>
               </CardContent>
             </Card>
-          )}
-        </div>
+
+            <Card className="bg-rose-500/10 border-rose-500/20 rounded-lg shadow-md">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-rose-400">Facturas Vencidas</CardTitle>
+                <FileText className="h-4 w-4 text-rose-400" />
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="text-2xl font-bold text-rose-400">{stats.overdueInvoices}</div>
+                <p className="text-xs text-muted-foreground">Requieren seguimiento</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Estado de facturas */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -350,47 +364,6 @@ export default function IngresosPage() {
           </Card>
         </div>
 
-        {/* Acciones rápidas adicionales */}
-        <Card className="bg-bg-secondary border border-border rounded-lg shadow-md">
-          <CardHeader className="p-6 border-b border-border">
-            <h3 className="text-lg font-semibold text-text-primary">Acciones Rápidas</h3>
-            <p className="text-sm text-text-secondary">Gestiona tus ingresos de manera eficiente</p>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Link href="/ingresos/facturacion">
-                <Button variant="ghost" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
-                  <Plus className="h-6 w-6" />
-                  <span className="text-sm font-medium">Nueva Factura</span>
-                </Button>
-              </Link>
-              <Link href="/ingresos/cobros">
-                <Button variant="ghost" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
-                  <CreditCard className="h-6 w-6" />
-                  <span className="text-sm font-medium">Registrar Cobro</span>
-                </Button>
-              </Link>
-              {permissions.canPayInvoices() && (
-                <Link href="/ingresos/cuentas-efectivo">
-                  <Button variant="ghost" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
-                    <Wallet className="h-6 w-6" />
-                    <span className="text-sm font-medium">Cuentas de efectivo</span>
-                  </Button>
-                </Link>
-              )}
-              <Link href="/ingresos/reportes">
-                <Button variant="ghost" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
-                  <BarChart3 className="h-6 w-6" />
-                  <span className="text-sm font-medium">Reportes</span>
-                </Button>
-              </Link>
-              <Button variant="ghost" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
-                <TrendingUp className="h-6 w-6" />
-                <span className="text-sm font-medium">Análisis</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </AppLayout>
   );

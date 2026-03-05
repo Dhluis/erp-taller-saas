@@ -8,14 +8,13 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 import { useInventory } from '@/hooks/useInventory';
 import { 
-  Package, 
-  Tag, 
-  TrendingUp, 
+  Package,
+  Tag,
+  TrendingUp,
   AlertTriangle,
   ArrowRight,
   Plus,
   BarChart3,
-  Settings,
   DollarSign
 } from 'lucide-react';
 
@@ -264,7 +263,7 @@ export default function InventariosPage() {
             </CardHeader>
             <CardContent className="p-6">
               <Link href="/reportes/inventario">
-                <Button variant="outline" className="w-full">
+                <Button variant="primary" className="w-full">
                   Ver Reportes
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -280,32 +279,25 @@ export default function InventariosPage() {
             <p className="text-sm text-text-secondary">Gestiona tu inventario de manera eficiente</p>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-3">
               <Link href="/inventarios/productos">
                 <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
                   <Plus className="h-6 w-6" />
                   <span className="text-sm font-medium">Nuevo Producto</span>
                 </Button>
               </Link>
-              
+
               <Link href="/inventarios/categorias">
                 <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
                   <Tag className="h-6 w-6" />
                   <span className="text-sm font-medium">Nueva Categoría</span>
                 </Button>
               </Link>
-              
+
               <Link href="/inventarios/movimientos">
                 <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
                   <TrendingUp className="h-6 w-6" />
                   <span className="text-sm font-medium">Ajuste de Stock</span>
-                </Button>
-              </Link>
-
-              <Link href="/configuraciones/empresa">
-                <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
-                  <Settings className="h-6 w-6" />
-                  <span className="text-sm font-medium">Configuración</span>
                 </Button>
               </Link>
             </div>

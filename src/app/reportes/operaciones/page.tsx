@@ -229,46 +229,46 @@ export default function ReportesOperacionesPage() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="bg-blue-500/10 border-blue-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Órdenes</CardTitle>
-            <ClipboardList className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-blue-400">Total Órdenes</CardTitle>
+            <ClipboardList className="h-4 w-4 text-blue-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{report.summary.total_orders}</div>
+            <div className="text-2xl font-bold text-blue-400">{report.summary.total_orders}</div>
             <p className="text-xs text-muted-foreground">Órdenes creadas en el período</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-green-500/10 border-green-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completadas</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-green-400">Completadas</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{report.summary.completed_orders}</div>
+            <div className="text-2xl font-bold text-green-400">{report.summary.completed_orders}</div>
             <p className="text-xs text-muted-foreground">{report.summary.completion_rate.toFixed(1)}% tasa de finalización</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-cyan-500/10 border-cyan-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tiempo Promedio</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-cyan-400">Tiempo Promedio</CardTitle>
+            <Clock className="h-4 w-4 text-cyan-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{report.summary.avg_completion_days.toFixed(1)}</div>
+            <div className="text-2xl font-bold text-cyan-400">{report.summary.avg_completion_days.toFixed(1)}</div>
             <p className="text-xs text-muted-foreground">días para completar</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-yellow-500/10 border-yellow-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
-            <ClipboardList className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-yellow-400">Pendientes</CardTitle>
+            <ClipboardList className="h-4 w-4 text-yellow-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{report.summary.pending_orders}</div>
+            <div className="text-2xl font-bold text-yellow-400">{report.summary.pending_orders}</div>
             <p className="text-xs text-muted-foreground">{report.summary.in_progress_orders} en progreso</p>
           </CardContent>
         </Card>

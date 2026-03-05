@@ -378,48 +378,48 @@ export default function ReportesVentasPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="bg-green-500/10 border-green-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ventas Totales</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-green-400">Ventas Totales</CardTitle>
+            <DollarSign className="h-4 w-4 text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(report.summary?.total_sales || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-400">${(report.summary?.total_sales || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               {report.summary?.total_invoices ? 'Total del período' : 'Sin facturas en el período. Crea facturas en Facturación.'}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-blue-500/10 border-blue-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Facturas</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-blue-400">Total Facturas</CardTitle>
+            <TrendingUp className="h-4 w-4 text-blue-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{report.summary?.total_invoices || 0}</div>
+            <div className="text-2xl font-bold text-blue-400">{report.summary?.total_invoices || 0}</div>
             <p className="text-xs text-muted-foreground">Facturas del período</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-purple-500/10 border-purple-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ticket Promedio</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-purple-400">Ticket Promedio</CardTitle>
+            <DollarSign className="h-4 w-4 text-purple-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(report.summary?.average_ticket || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold text-purple-400">${(report.summary?.average_ticket || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Por factura</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-cyan-500/10 border-cyan-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cobrado</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-cyan-400">Cobrado</CardTitle>
+            <TrendingUp className="h-4 w-4 text-cyan-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">${(report.summary?.paid_sales || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold text-cyan-400">${(report.summary?.paid_sales || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Facturas pagadas</p>
           </CardContent>
         </Card>

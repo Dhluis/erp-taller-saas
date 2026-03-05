@@ -135,46 +135,46 @@ export default function ReportesInventarioPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="bg-blue-500/10 border-blue-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Productos</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-blue-400">Total Productos</CardTitle>
+            <Package className="h-4 w-4 text-blue-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{report.totalProducts}</div>
+            <div className="text-2xl font-bold text-blue-400">{report.totalProducts}</div>
             <p className="text-xs text-muted-foreground">Productos en inventario</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-orange-500/10 border-orange-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Stock Bajo</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-orange-400">Stock Bajo</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-orange-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{report.lowStockProducts}</div>
+            <div className="text-2xl font-bold text-orange-400">{report.lowStockProducts}</div>
             <p className="text-xs text-muted-foreground">Necesitan reposición</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-green-500/10 border-green-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-green-400">Valor Total</CardTitle>
+            <DollarSign className="h-4 w-4 text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(report.totalValue || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-400">${(report.totalValue || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Valor del inventario</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-purple-500/10 border-purple-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Categorías</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-purple-400">Categorías</CardTitle>
+            <BarChart3 className="h-4 w-4 text-purple-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{report.categories.length}</div>
+            <div className="text-2xl font-bold text-purple-400">{report.categories.length}</div>
             <p className="text-xs text-muted-foreground">Categorías activas</p>
           </CardContent>
         </Card>
