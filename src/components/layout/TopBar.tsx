@@ -278,7 +278,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
                 </Button>
               </Link>
               
-              <Link href="/dashboard/whatsapp" className="flex-shrink-0" title="WhatsApp">
+              <Link href="/dashboard/whatsapp/conversaciones" className="flex-shrink-0" title="WhatsApp Conversaciones">
                 <Button
                   variant={isWhatsAppActive ? "primary" : "outline"}
                   className={cn(
