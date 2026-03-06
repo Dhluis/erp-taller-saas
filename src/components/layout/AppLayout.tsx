@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode, useState } from 'react'
+import { ReactNode, useState, createContext, useContext } from 'react'
 import { useTheme } from '@/hooks/useTheme'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
@@ -8,6 +8,9 @@ import { Breadcrumb } from './Breadcrumb'
 import { FloatingAgentButton } from '@/components/agent/FloatingAgentButton'
 import { useSidebar } from '@/contexts/SidebarContext'
 import { cn } from '@/lib/utils'
+
+// Prevents double-rendering when a page AND the root layout both wrap with AppLayout
+const AppLayoutMountedCtx = createContext(false)
 
 interface AppLayoutProps {
   children: ReactNode
@@ -26,39 +29,47 @@ interface AppLayoutProps {
  * usando el tema oscuro moderno
  */
 export function AppLayout({ children, title, breadcrumbs }: AppLayoutProps) {
+  const alreadyMounted = useContext(AppLayoutMountedCtx)
   const { isDark } = useTheme()
   const { isCollapsed } = useSidebar()
 
+  // If a parent already rendered AppLayout (e.g. root GlobalLayoutWrapper), just pass through
+  if (alreadyMounted) {
+    return <>{children}</>
+  }
+
   return (
-    <div className={`min-h-screen ${isDark ? 'dark' : ''}`}>
-      <div className="flex h-screen bg-bg-primary">
-        {/* Sidebar */}
-        <aside>
-          <Sidebar />
-        </aside>
-        
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300 relative z-20">
-          {/* TopBar */}
-          <TopBar title={title} />
-          
-          {/* Breadcrumb */}
-          {breadcrumbs && breadcrumbs.length > 0 && (
-            <div className="px-2 sm:px-4 md:px-6 py-2 sm:py-3 border-b border-border bg-bg-secondary">
-              <Breadcrumb items={breadcrumbs} />
-            </div>
-          )}
-          
-          {/* Main Content */}
-          <main className="flex-1 overflow-auto bg-bg-primary">
-            <div className="p-2 sm:p-4 md:p-6">
-              {children}
-            </div>
-          </main>
+    <AppLayoutMountedCtx.Provider value={true}>
+      <div className={`min-h-screen ${isDark ? 'dark' : ''}`}>
+        <div className="flex h-screen bg-bg-primary">
+          {/* Sidebar */}
+          <aside>
+            <Sidebar />
+          </aside>
+
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300 relative z-20">
+            {/* TopBar */}
+            <TopBar title={title} />
+
+            {/* Breadcrumb */}
+            {breadcrumbs && breadcrumbs.length > 0 && (
+              <div className="px-2 sm:px-4 md:px-6 py-2 sm:py-3 border-b border-border bg-bg-secondary">
+                <Breadcrumb items={breadcrumbs} />
+              </div>
+            )}
+
+            {/* Main Content */}
+            <main className="flex-1 overflow-auto bg-bg-primary">
+              <div className="p-2 sm:p-4 md:p-6">
+                {children}
+              </div>
+            </main>
+          </div>
+          <FloatingAgentButton />
         </div>
-        <FloatingAgentButton />
       </div>
-    </div>
+    </AppLayoutMountedCtx.Provider>
   )
 }
 

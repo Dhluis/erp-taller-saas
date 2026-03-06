@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { AppLayout } from "@/components/layout/AppLayout"
 import { Providers } from "@/components/providers/Providers"
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister"
+import { GlobalLayoutWrapper } from "@/components/layout/GlobalLayoutWrapper"
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -66,7 +66,9 @@ export default function RootLayout({
         <Providers>
           <ServiceWorkerRegister />
           <div className="min-h-screen bg-bg-primary text-text-primary">
-            {children}
+            <GlobalLayoutWrapper>
+              {children}
+            </GlobalLayoutWrapper>
           </div>
         </Providers>
       </body>
