@@ -8,9 +8,10 @@ import { OrderCard } from './OrderCard';
 interface KanbanColumnProps {
   column: KanbanColumnType;
   onOrderClick?: (orderId: string) => void;
+  onStatusChange?: (orderId: string, newStatus: string) => void;
 }
 
-export function KanbanColumn({ column, onOrderClick }: KanbanColumnProps) {
+export function KanbanColumn({ column, onOrderClick, onStatusChange }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
   });
@@ -44,6 +45,7 @@ export function KanbanColumn({ column, onOrderClick }: KanbanColumnProps) {
               key={order.id}
               order={order}
               onClick={() => onOrderClick?.(order.id)}
+              onStatusChange={onStatusChange ? (s) => onStatusChange(order.id, s) : undefined}
             />
           ))}
         </SortableContext>

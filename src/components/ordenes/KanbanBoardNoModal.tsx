@@ -119,17 +119,42 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
     }
   }
 
+  // Mover orden a un nuevo estado (usado tanto por drag-and-drop como por el botón móvil)
+  async function moveOrderToStatus(orderId: string, newStatus: string) {
+    const savedColumns = columns;
+
+    // Actualizar estado local inmediatamente
+    setColumns(prevColumns => {
+      const order = prevColumns.flatMap(col => col.orders).find(o => o.id === orderId);
+      return prevColumns
+        .map(column => ({ ...column, orders: column.orders.filter(o => o.id !== orderId) }))
+        .map(column =>
+          column.id === newStatus && order
+            ? { ...column, orders: [...column.orders, { ...order, status: newStatus as OrderStatus }] }
+            : column
+        );
+    });
+
+    try {
+      await updateWorkOrder(orderId, { status: newStatus as any });
+    } catch (err) {
+      console.error('❌ [moveOrderToStatus] Error actualizando orden:', err);
+      setColumns(savedColumns);
+      loadOrders();
+    }
+  }
+
   // Manejar fin de arrastre
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    
+
     if (!over) {
       setActiveOrder(null);
       return;
     }
 
     const orderId = active.id as string;
-    const newStatus = over.id as OrderStatus;
+    const newStatus = over.id as string;
 
     // Validar que over.id sea un status válido (no un UUID de otra orden)
     const validStatuses = ['reception', 'diagnosis', 'initial_quote', 'waiting_approval', 'disassembly', 'waiting_parts', 'assembly', 'testing', 'ready', 'completed'];
@@ -139,28 +164,14 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
       return;
     }
 
-    // Actualizar estado local inmediatamente
-    setColumns(prevColumns => 
-      prevColumns.map(column => ({
-        ...column,
-        orders: column.orders.filter(order => order.id !== orderId)
-      })).map(column => 
-        column.id === newStatus 
-          ? { ...column, orders: [...column.orders, { ...columns.flatMap(col => col.orders).find(order => order.id === orderId)!, status: newStatus }] }
-          : column
-      )
-    );
+    const currentColumn = columns.find(col => col.orders.some(o => o.id === orderId));
+    if (!currentColumn || currentColumn.id === newStatus) {
+      setActiveOrder(null);
+      return;
+    }
 
     setActiveOrder(null);
-
-    try {
-      await updateWorkOrder(orderId, { status: newStatus as any });
-      console.log('✅ [handleDragEnd] Orden actualizada:', orderId, '→', newStatus);
-    } catch (err) {
-      console.error('❌ [handleDragEnd] Error actualizando orden:', err);
-      // Recargar órdenes en caso de error
-      loadOrders();
-    }
+    await moveOrderToStatus(orderId, newStatus);
   }
 
   // Manejar click en orden
@@ -233,6 +244,7 @@ export function KanbanBoardNoModal({ organizationId }: KanbanBoardProps) {
             key={column.id}
             column={column}
             onOrderClick={handleOrderClick}
+            onStatusChange={moveOrderToStatus}
           />
         ))}
       </div>

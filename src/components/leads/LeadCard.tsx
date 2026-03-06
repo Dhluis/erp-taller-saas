@@ -3,16 +3,18 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { User, DollarSign, GripVertical, MessageSquare, Building2, Clock } from 'lucide-react'
-import type { CRMLead } from './types'
+import type { CRMLead, LeadStatus } from './types'
+import { PIPELINE_COLUMNS } from './types'
 
 interface LeadCardProps {
   lead: CRMLead
   onClick?: () => void
   /** Si es true, la columna es terminal (Ganado/Perdido); la tarjeta sigue siendo arrastrable pero el backend puede ignorar el cambio. */
   isTerminal?: boolean
+  onStatusChange?: (newStatus: LeadStatus) => void
 }
 
-export function LeadCard({ lead, onClick, isTerminal }: LeadCardProps) {
+export function LeadCard({ lead, onClick, isTerminal, onStatusChange }: LeadCardProps) {
   const {
     attributes,
     listeners,
@@ -145,6 +147,27 @@ export function LeadCard({ lead, onClick, isTerminal }: LeadCardProps) {
               {isFollowUpOverdue ? 'Vencido: ' : 'Seguimiento: '}
               {formatDate(lead.next_follow_up)}
             </span>
+          </div>
+        )}
+
+        {/* Mobile: Mover a (solo en touch / móvil, oculto si es columna terminal) */}
+        {onStatusChange && !isTerminal && (
+          <div
+            className="sm:hidden pt-2 pb-1"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+          >
+            <select
+              value=""
+              onChange={(e) => { if (e.target.value) onStatusChange(e.target.value as LeadStatus) }}
+              className="w-full text-xs bg-slate-700 border border-slate-600 text-slate-300 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500"
+            >
+              <option value="" disabled>→ Mover a...</option>
+              {PIPELINE_COLUMNS.filter(c => c.id !== lead.status).map(c => (
+                <option key={c.id} value={c.id}>{c.title}</option>
+              ))}
+            </select>
           </div>
         )}
 

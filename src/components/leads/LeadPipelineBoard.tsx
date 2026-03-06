@@ -179,27 +179,13 @@ export function LeadPipelineBoard({
     setActiveLead(lead || null)
   }
 
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    setActiveLead(null)
-
-    if (!over) return
-
-    const leadId = active.id as string
-    const newStatus = over.id as LeadStatus
-
-    if (!VALID_STATUSES.includes(newStatus)) return
-
+  async function moveLeadToStatus(leadId: string, newStatus: LeadStatus) {
     const currentColumn = columns.find((col) => col.leads.some((l) => l.id === leadId))
     if (!currentColumn || currentColumn.id === newStatus) return
-
-    // Bloquear drag DESDE columnas terminales
     if (currentColumn.isTerminal) return
 
-    // Guardar snapshot para revertir si falla
     const savedColumns = columns
 
-    // Actualización optimista
     setColumns((prev) =>
       prev.map((col) => {
         if (col.id === currentColumn.id) {
@@ -225,7 +211,6 @@ export function LeadPipelineBoard({
         throw new Error(errData.error || 'Error al actualizar')
       }
 
-      // Si mueve a "won", abrir panel via callback
       if (newStatus === 'won') {
         onLeadClick?.(leadId)
       }
@@ -234,6 +219,20 @@ export function LeadPipelineBoard({
       toast.error('Error al actualizar el estado del lead')
       setColumns(savedColumns)
     }
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    setActiveLead(null)
+
+    if (!over) return
+
+    const leadId = active.id as string
+    const newStatus = over.id as LeadStatus
+
+    if (!VALID_STATUSES.includes(newStatus)) return
+
+    await moveLeadToStatus(leadId, newStatus)
   }
 
   if (loading) {
@@ -306,6 +305,7 @@ export function LeadPipelineBoard({
                 key={column.id}
                 column={column}
                 onLeadClick={onLeadClick}
+                onStatusChange={moveLeadToStatus}
               />
             ))}
           </div>

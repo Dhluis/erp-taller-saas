@@ -9,9 +9,10 @@ import type { PipelineColumn } from './types'
 interface LeadPipelineColumnProps {
   column: PipelineColumn
   onLeadClick?: (leadId: string) => void
+  onStatusChange?: (leadId: string, newStatus: import('./types').LeadStatus) => void
 }
 
-export function LeadPipelineColumn({ column, onLeadClick }: LeadPipelineColumnProps) {
+export function LeadPipelineColumn({ column, onLeadClick, onStatusChange }: LeadPipelineColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id })
 
   const totalValue = column.leads.reduce((sum, l) => sum + (l.estimated_value || 0), 0)
@@ -63,6 +64,7 @@ export function LeadPipelineColumn({ column, onLeadClick }: LeadPipelineColumnPr
               lead={lead}
               isTerminal={column.isTerminal}
               onClick={() => onLeadClick?.(lead.id)}
+              onStatusChange={onStatusChange ? (s) => onStatusChange(lead.id, s) : undefined}
             />
           ))}
         </SortableContext>

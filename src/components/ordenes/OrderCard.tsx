@@ -3,16 +3,31 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { WorkOrder } from '@/types/orders';
-import { Car, User, Calendar, DollarSign, GripVertical, Camera } from 'lucide-react';
+import { Car, User, DollarSign, GripVertical, Camera } from 'lucide-react';
 import Image from 'next/image';
 import { useOrgCurrency } from '@/lib/context/CurrencyContext';
+
+const COLUMN_LABELS: Record<string, string> = {
+  reception: 'Recepción',
+  diagnosis: 'Diagnóstico',
+  initial_quote: 'Cotización',
+  waiting_approval: 'Aprobación',
+  disassembly: 'Desarmado',
+  waiting_parts: 'Piezas',
+  assembly: 'Armado',
+  testing: 'Pruebas',
+  ready: 'Listo',
+  completed: 'Completado',
+};
+const ALL_ORDER_STATUSES = Object.keys(COLUMN_LABELS);
 
 interface OrderCardProps {
   order: WorkOrder;
   onClick?: () => void;
+  onStatusChange?: (newStatus: string) => void;
 }
 
-export function OrderCard({ order, onClick }: OrderCardProps) {
+export function OrderCard({ order, onClick, onStatusChange }: OrderCardProps) {
   const { currency } = useOrgCurrency()
   const {
     attributes,
@@ -138,6 +153,27 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
                 />
               </div>
             )}
+          </div>
+        )}
+
+        {/* Mobile: Mover a (solo en touch / móvil) */}
+        {onStatusChange && (
+          <div
+            className="md:hidden pt-2 pb-1"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+          >
+            <select
+              value=""
+              onChange={(e) => { if (e.target.value) onStatusChange(e.target.value) }}
+              className="w-full text-xs bg-slate-700 border border-slate-600 text-slate-300 rounded px-2 py-1.5 focus:outline-none focus:border-cyan-500"
+            >
+              <option value="" disabled>→ Mover a...</option>
+              {ALL_ORDER_STATUSES.filter(s => s !== order.status).map(s => (
+                <option key={s} value={s}>{COLUMN_LABELS[s]}</option>
+              ))}
+            </select>
           </div>
         )}
 
