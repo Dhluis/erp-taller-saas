@@ -198,29 +198,23 @@ export function LeadManagementPanel({
   if (!lead) {
     return (
       <>
-        <Card className="p-4 border-dashed border-2 border-slate-700/60 bg-slate-900/40 rounded-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                <Sparkles className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm sm:text-base">Convertir en Lead</h3>
-                <p className="text-xs text-muted-foreground">
-                  Gestiona esta oportunidad en tu pipeline de ventas
-                </p>
-              </div>
+        <div className="flex items-center justify-between gap-2 py-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-7 w-7 shrink-0 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+              <Sparkles className="h-3.5 w-3.5 text-blue-600" />
             </div>
-            <Button
-              onClick={() => setShowCreateDialog(true)}
-              size="sm"
-              className="shrink-0 whitespace-nowrap px-3 text-xs sm:text-sm"
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              Marcar como Lead
-            </Button>
+            <span className="text-sm font-medium truncate">Convertir en Lead</span>
           </div>
-        </Card>
+          <Button
+            onClick={() => setShowCreateDialog(true)}
+            size="sm"
+            variant="outline"
+            className="shrink-0 h-7 px-2 text-xs"
+          >
+            <Sparkles className="h-3 w-3 mr-1" />
+            Marcar
+          </Button>
+        </div>
 
         {/* Dialog para crear lead */}
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>

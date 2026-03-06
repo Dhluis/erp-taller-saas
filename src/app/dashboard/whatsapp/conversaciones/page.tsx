@@ -1359,24 +1359,6 @@ export default function ConversacionesPage() {
                   {realtimeConnected ? "Actualizaciones en vivo" : "Conectando..."}
                 </span>
               </div>
-              <Button
-                variant="ghost"
-                className={cn(
-                  "px-4 py-2 rounded-none border-b-2 border-transparent hover:border-primary transition-colors",
-                  darkMode ? "text-gray-400 hover:text-cyan-400" : "text-gray-500 hover:text-blue-600"
-                )}
-              >
-                Ventas
-              </Button>
-              <Button
-                variant="ghost"
-                className={cn(
-                  "px-4 py-2 rounded-none border-b-2 border-transparent hover:border-primary transition-colors",
-                  darkMode ? "text-gray-400 hover:text-cyan-400" : "text-gray-500 hover:text-blue-600"
-                )}
-              >
-                Reclutamiento
-              </Button>
             </div>
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" className={darkMode ? "text-gray-400" : "text-gray-600"}>
@@ -2195,7 +2177,7 @@ export default function ConversacionesPage() {
 
         {/* Right Sidebar - Contact Details */}
         <div className={cn(
-          "w-80 border-l flex flex-col transition-colors pt-16",
+          "w-72 border-l flex flex-col transition-colors pt-16 overflow-x-hidden",
           darkMode ? "bg-gray-900 border-gray-800" : "bg-gray-50 border-gray-200"
         )}>
           {selectedConv && (
@@ -2257,48 +2239,18 @@ export default function ConversacionesPage() {
                       Información
                     </h4>
                     <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Último mensaje:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.lastMessage || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Cuenta:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.accountType || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>País:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.country || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Idioma:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.language || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Moneda:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.currency || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Iniciado:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.started || 'N/A'}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Estado:</span>
-                        <div className="flex items-center gap-1">
-                          {contactDetails?.status === 'resolved' && (
-                            <CheckCircle2 className={cn("w-4 h-4", darkMode ? "text-green-400" : "text-green-600")} />
-                          )}
-                          <span className={cn(
-                            "capitalize",
-                            darkMode ? "text-gray-300" : "text-gray-900"
-                          )}>
-                            Chat {contactDetails?.status === 'resolved' ? 'resuelto' : contactDetails?.status === 'active' ? 'activo' : 'archivado'}
-                          </span>
+                      {[
+                        { label: 'Iniciado', value: contactDetails?.started },
+                        { label: 'Estado', value: contactDetails?.status === 'resolved' ? 'Resuelto' : contactDetails?.status === 'active' ? 'Activo' : 'Archivado' },
+                        { label: 'Dispositivo', value: contactDetails?.device },
+                        { label: 'País', value: contactDetails?.country },
+                        { label: 'Idioma', value: contactDetails?.language },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex items-center gap-2">
+                          <span className={cn("shrink-0 w-20", darkMode ? "text-gray-400" : "text-gray-600")}>{label}:</span>
+                          <span className={cn("truncate", darkMode ? "text-gray-300" : "text-gray-900")}>{value || 'N/A'}</span>
                         </div>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className={darkMode ? "text-gray-400" : "text-gray-600"}>Dispositivo:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.device || 'N/A'}</span>
-                      </div>
+                      ))}
                     </div>
                   </div>
 
@@ -2378,18 +2330,18 @@ export default function ConversacionesPage() {
                       Contacto
                     </h4>
                     <div className="space-y-2 text-sm">
-                      <div>
-                        <span className={cn("block mb-1", darkMode ? "text-gray-400" : "text-gray-600")}>Nombre:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.name || 'Sin nombre'}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("shrink-0 w-14", darkMode ? "text-gray-400" : "text-gray-600")}>Nombre:</span>
+                        <span className={cn("truncate", darkMode ? "text-gray-300" : "text-gray-900")}>{contactDetails?.name || 'Sin nombre'}</span>
                       </div>
-                      <div>
-                        <span className={cn("block mb-1", darkMode ? "text-gray-400" : "text-gray-600")}>Correo:</span>
-                        <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails?.email || 'Sin correo'}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("shrink-0 w-14", darkMode ? "text-gray-400" : "text-gray-600")}>Correo:</span>
+                        <span className={cn("truncate", darkMode ? "text-gray-300" : "text-gray-900")}>{contactDetails?.email || 'Sin correo'}</span>
                       </div>
                       {contactDetails?.address && (
-                        <div>
-                          <span className={cn("block mb-1", darkMode ? "text-gray-400" : "text-gray-600")}>Dirección:</span>
-                          <span className={darkMode ? "text-gray-300" : "text-gray-900"}>{contactDetails.address || 'Sin dirección'}</span>
+                        <div className="flex items-start gap-2">
+                          <span className={cn("shrink-0 w-14", darkMode ? "text-gray-400" : "text-gray-600")}>Dir:</span>
+                          <span className={cn("truncate", darkMode ? "text-gray-300" : "text-gray-900")}>{contactDetails.address}</span>
                         </div>
                       )}
                     </div>
