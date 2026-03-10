@@ -20,28 +20,22 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server';
 // =====================================================
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  let context;
   try {
+    const { id: quotationId } = await params;
     const tenantContext = await getTenantContext(request);
+    
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'No autorizado: No se pudo obtener la organización',
-        },
+        { success: false, error: 'No autorizado: No se pudo obtener la organización' },
         { status: 403 }
       );
     }
 
     const organizationId = tenantContext.organizationId;
-    const context = createLogContext(
-      organizationId,
-      undefined,
-      'quotations-api',
-      'GET',
-      { quotationId: params.id }
-    );
+    context = createLogContext(organizationId, undefined, 'quotations-api', 'GET', { quotationId });
     logger.info('Obteniendo cotización por ID', context);
 
     // Obtener cotización usando Supabase directamente
@@ -52,39 +46,41 @@ export async function GET(
       .from('quotations')
       .select(`
         *,
-        customers (*),
-        vehicles (*),
-        quotation_items (*)
+        customer:customers(id, name, email, phone),
+        vehicle:vehicles(*),
+        items:quotation_items(*)
       `)
-      .eq('id', params.id)
+      .eq('id', quotationId)
       .eq('organization_id', organizationId)
       .single();
 
     if (error || !quotation) {
       logger.warn('Cotización no encontrada', context);
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Cotización no encontrada',
-        },
+        { success: false, error: 'Cotización no encontrada' },
         { status: 404 }
       );
     }
 
-    logger.info(`Cotización obtenida exitosamente: ${quotation.id}`, context);
+    // Mapear campos para compatibilidad con el modal
+    const responseData = {
+      ...quotation,
+      quotation_items: quotation.items || []
+    };
+
+    logger.info(`Cotización obtenida exitosamente: ${quotationId}`, context);
 
     return NextResponse.json({
       success: true,
-      data: quotation,
+      data: responseData,
     });
-  } catch (error) {
-    logger.error('Error al obtener cotización', context, error as Error);
+  } catch (err) {
+    const error = err as Error;
+    console.error('❌ [GET /api/quotations/[id]] Error:', error);
+    if (context) logger.error('Error al obtener cotización', context, error);
     
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Error al obtener cotización',
-      },
+      { success: false, error: error.message || 'Error al obtener cotización' },
       { status: 500 }
     );
   }
@@ -95,28 +91,22 @@ export async function GET(
 // =====================================================
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  let context;
   try {
+    const { id: quotationId } = await params;
     const tenantContext = await getTenantContext(request);
+    
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'No autorizado: No se pudo obtener la organización',
-        },
+        { success: false, error: 'No autorizado: No se pudo obtener la organización' },
         { status: 403 }
       );
     }
 
     const organizationId = tenantContext.organizationId;
-    const context = createLogContext(
-      organizationId,
-      undefined,
-      'quotations-api',
-      'PUT',
-      { quotationId: params.id }
-    );
+    context = createLogContext(organizationId, undefined, 'quotations-api', 'PUT', { quotationId });
     
     const body = await request.json();
     logger.info('Actualizando cotización', context, { updateData: body });
@@ -124,10 +114,7 @@ export async function PUT(
     // Validar datos de entrada
     if (!body || typeof body !== 'object') {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Datos de actualización inválidos',
-        },
+        { success: false, error: 'Datos de actualización inválidos' },
         { status: 400 }
       );
     }
@@ -139,27 +126,21 @@ export async function PUT(
     const { data: existingQuotation, error: checkError } = await supabase
       .from('quotations')
       .select('id, status')
-      .eq('id', params.id)
+      .eq('id', quotationId)
       .eq('organization_id', organizationId)
       .single();
 
     if (checkError || !existingQuotation) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Cotización no encontrada o no autorizada',
-        },
+        { success: false, error: 'Cotización no encontrada o no autorizada' },
         { status: 404 }
       );
     }
 
-    // Solo permitir editar borradores
-    if (existingQuotation.status !== 'draft' && body.status !== existingQuotation.status) {
+    // Solo permitir editar borradores o enviadas (no convertidas)
+    if (existingQuotation.status === 'converted') {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Solo se pueden editar cotizaciones en estado borrador',
-        },
+        { success: false, error: 'No se pueden editar cotizaciones que ya han sido convertidas' },
         { status: 400 }
       );
     }
@@ -170,28 +151,23 @@ export async function PUT(
       updated_at: new Date().toISOString(),
     };
 
-    if (body.customer_id) updateData.customer_id = body.customer_id;
-    if (body.vehicle_id) updateData.vehicle_id = body.vehicle_id;
-    if (body.valid_until) updateData.valid_until = body.valid_until;
-    if (body.terms_and_conditions !== undefined) updateData.terms_and_conditions = body.terms_and_conditions;
-    if (body.notes !== undefined) updateData.notes = body.notes;
-    if (body.status) updateData.status = body.status;
-    if (body.subtotal !== undefined) updateData.subtotal = body.subtotal;
-    if (body.tax_amount !== undefined) updateData.tax_amount = body.tax_amount;
-    if (body.discount_amount !== undefined) updateData.discount_amount = body.discount_amount;
-    if (body.total_amount !== undefined) updateData.total_amount = body.total_amount;
+    const allowedFields = [
+      'customer_id', 'vehicle_id', 'valid_until', 'terms_and_conditions',
+      'notes', 'status', 'subtotal', 'tax_amount', 'discount_amount', 'total_amount'
+    ];
+
+    allowedFields.forEach(field => {
+      if (body[field] !== undefined) {
+        updateData[field] = body[field];
+      }
+    });
 
     const { data: quotation, error: updateError } = await supabase
       .from('quotations')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', quotationId)
       .eq('organization_id', organizationId)
-      .select(`
-        *,
-        customers (*),
-        vehicles (*),
-        quotation_items (*)
-      `)
+      .select()
       .single();
 
     if (updateError) {
@@ -205,13 +181,13 @@ export async function PUT(
       await supabase
         .from('quotation_items')
         .delete()
-        .eq('quotation_id', params.id)
+        .eq('quotation_id', quotationId)
         .eq('organization_id', organizationId);
 
       // Insertar nuevos items
       if (body.items.length > 0) {
         const items = body.items.map((item: any) => ({
-          quotation_id: params.id,
+          quotation_id: quotationId,
           organization_id: organizationId,
           item_type: item.item_type || 'service',
           description: item.description,
@@ -242,16 +218,16 @@ export async function PUT(
         .from('quotations')
         .select(`
           *,
-          customers (*),
-          vehicles (*),
+          customer:customers(*),
+          vehicle:vehicles(*),
           quotation_items (*)
         `)
-        .eq('id', params.id)
+        .eq('id', quotationId)
         .eq('organization_id', organizationId)
         .single();
 
       if (!fetchError && updatedQuotation) {
-        logger.businessEvent('quotation_updated', 'quotation', params.id, context);
+        logger.businessEvent('quotation_updated', 'quotation', quotationId, context);
         return NextResponse.json({
           success: true,
           data: updatedQuotation,
@@ -259,20 +235,19 @@ export async function PUT(
       }
     }
 
-    logger.businessEvent('quotation_updated', 'quotation', params.id, context);
+    logger.businessEvent('quotation_updated', 'quotation', quotationId, context);
 
     return NextResponse.json({
       success: true,
       data: quotation,
     });
-  } catch (error) {
-    logger.error('Error al actualizar cotización', context, error as Error);
+  } catch (err) {
+    const error = err as Error;
+    console.error('❌ [PUT /api/quotations/[id]] Error:', error);
+    if (context) logger.error('Error al actualizar cotización', context, error);
     
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Error al actualizar cotización',
-      },
+      { success: false, error: error.message || 'Error al actualizar cotización' },
       { status: 500 }
     );
   }
@@ -283,28 +258,22 @@ export async function PUT(
 // =====================================================
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  let context;
   try {
+    const { id: quotationId } = await params;
     const tenantContext = await getTenantContext(request);
+    
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'No autorizado: No se pudo obtener la organización',
-        },
+        { success: false, error: 'No autorizado: No se pudo obtener la organización' },
         { status: 403 }
       );
     }
 
     const organizationId = tenantContext.organizationId;
-    const context = createLogContext(
-      organizationId,
-      undefined,
-      'quotations-api',
-      'DELETE',
-      { quotationId: params.id }
-    );
+    context = createLogContext(organizationId, undefined, 'quotations-api', 'DELETE', { quotationId });
     logger.info('Eliminando cotización', context);
 
     // Verificar que la cotización existe y pertenece a la organización
@@ -314,41 +283,22 @@ export async function DELETE(
     const { data: existingQuotation, error: checkError } = await supabase
       .from('quotations')
       .select('id, status')
-      .eq('id', params.id)
+      .eq('id', quotationId)
       .eq('organization_id', organizationId)
       .single();
 
     if (checkError || !existingQuotation) {
       logger.warn('Intento de eliminar cotización inexistente o no autorizada', context);
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Cotización no encontrada o no autorizada',
-        },
+        { success: false, error: 'Cotización no encontrada o no autorizada' },
         { status: 404 }
       );
     }
 
     // Verificar si la cotización puede ser eliminada
     if (existingQuotation.status === 'converted') {
-      logger.warn('Intento de eliminar cotización convertida', context);
       return NextResponse.json(
-        {
-          success: false,
-          error: 'No se puede eliminar una cotización que ya ha sido convertida',
-        },
-        { status: 400 }
-      );
-    }
-
-    // Solo permitir eliminar borradores
-    if (existingQuotation.status !== 'draft') {
-      logger.warn('Intento de eliminar cotización que no es borrador', context);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Solo se pueden eliminar cotizaciones en estado borrador',
-        },
+        { success: false, error: 'No se puede eliminar una cotización que ya ha sido convertida' },
         { status: 400 }
       );
     }
@@ -357,14 +307,14 @@ export async function DELETE(
     await supabase
       .from('quotation_items')
       .delete()
-      .eq('quotation_id', params.id)
+      .eq('quotation_id', quotationId)
       .eq('organization_id', organizationId);
 
     // Eliminar cotización
     const { error: deleteError } = await supabase
       .from('quotations')
       .delete()
-      .eq('id', params.id)
+      .eq('id', quotationId)
       .eq('organization_id', organizationId);
 
     if (deleteError) {
@@ -372,21 +322,20 @@ export async function DELETE(
       throw deleteError;
     }
 
-    logger.businessEvent('quotation_deleted', 'quotation', params.id, context);
+    logger.businessEvent('quotation_deleted', 'quotation', quotationId, context);
     logger.info('Cotización eliminada exitosamente', context);
 
     return NextResponse.json({
       success: true,
       message: 'Cotización eliminada correctamente',
     });
-  } catch (error) {
-    logger.error('Error al eliminar cotización', context, error as Error);
+  } catch (err) {
+    const error = err as Error;
+    console.error('❌ [DELETE /api/quotations/[id]] Error:', error);
+    if (context) logger.error('Error al eliminar cotización', context, error);
     
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Error al eliminar cotización',
-      },
+      { success: false, error: error.message || 'Error al eliminar cotización' },
       { status: 500 }
     );
   }
@@ -397,28 +346,22 @@ export async function DELETE(
 // =====================================================
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  let context;
   try {
+    const { id: quotationId } = await params;
     const tenantContext = await getTenantContext(request);
+    
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'No autorizado: No se pudo obtener la organización',
-        },
+        { success: false, error: 'No autorizado: No se pudo obtener la organización' },
         { status: 403 }
       );
     }
 
     const organizationId = tenantContext.organizationId;
-    const context = createLogContext(
-      organizationId,
-      undefined,
-      'quotations-api',
-      'PATCH',
-      { quotationId: params.id }
-    );
+    context = createLogContext(organizationId, undefined, 'quotations-api', 'PATCH', { quotationId });
     
     const body = await request.json();
     const { action, ...data } = body;
@@ -431,44 +374,35 @@ export async function PATCH(
       case 'update_status':
         if (!data.status) {
           return NextResponse.json(
-            {
-              success: false,
-              error: 'Estado requerido para actualizar',
-            },
+            { success: false, error: 'Estado requerido para actualizar' },
             { status: 400 }
           );
         }
-        result = await updateQuotationStatus(params.id, data.status);
-        logger.businessEvent('quotation_status_updated', 'quotation', params.id, context);
+        result = await updateQuotationStatus(quotationId, data.status);
+        logger.businessEvent('quotation_status_updated', 'quotation', quotationId, context);
         break;
 
       case 'update_discount':
         if (typeof data.discount !== 'number') {
           return NextResponse.json(
-            {
-              success: false,
-              error: 'Descuento debe ser un número válido',
-            },
+            { success: false, error: 'Descuento debe ser un número válido' },
             { status: 400 }
           );
         }
-        result = await updateQuotationDiscount(params.id, data.discount);
-        await recalculateQuotationTotals(organizationId, params.id);
-        logger.businessEvent('quotation_discount_updated', 'quotation', params.id, context);
+        result = await updateQuotationDiscount(quotationId, data.discount);
+        await recalculateQuotationTotals(organizationId, quotationId);
+        logger.businessEvent('quotation_discount_updated', 'quotation', quotationId, context);
         break;
 
       case 'recalculate_totals':
-        await recalculateQuotationTotals(organizationId, params.id);
-        result = await getQuotationById(params.id);
+        await recalculateQuotationTotals(organizationId, quotationId);
+        result = await getQuotationById(quotationId);
         logger.info('Totales de cotización recalculados', context);
         break;
 
       default:
         return NextResponse.json(
-          {
-            success: false,
-            error: `Acción no válida: ${action}`,
-          },
+          { success: false, error: `Acción no válida: ${action}` },
           { status: 400 }
         );
     }
@@ -477,14 +411,13 @@ export async function PATCH(
       success: true,
       data: result,
     });
-  } catch (error) {
-    logger.error('Error en actualización específica de cotización', context, error as Error);
+  } catch (err) {
+    const error = err as Error;
+    console.error('❌ [PATCH /api/quotations/[id]] Error:', error);
+    if (context) logger.error('Error en actualización específica de cotización', context, error);
     
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Error en actualización específica',
-      },
+      { success: false, error: error.message || 'Error en actualización específica' },
       { status: 500 }
     );
   }

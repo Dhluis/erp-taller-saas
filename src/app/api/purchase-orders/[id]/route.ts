@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { 
-  updatePurchaseOrder, 
-  cancelPurchaseOrder 
+import {
+  updatePurchaseOrder,
+  cancelPurchaseOrder
 } from '@/lib/database/queries/purchase-orders'
 import { createClientFromRequest } from '@/lib/supabase/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
@@ -9,36 +9,35 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server'
 // GET /api/purchase-orders/[id] - Obtener orden de compra por ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id: orderId } = await params;
     const supabase = createClientFromRequest(request);
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError || !user) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: false,
         error: 'No autorizado',
         data: null
       }, { status: 401 });
     }
-    
+
     const supabaseAdmin = getSupabaseServiceClient();
     const { data: userProfile } = await supabaseAdmin
       .from('users')
       .select('organization_id')
       .eq('auth_user_id', user.id)
       .single();
-    
+
     if (!userProfile?.organization_id) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: false,
         error: 'No se pudo obtener organización',
         data: null
       }, { status: 403 });
     }
-    
+
     // Query orden con supplier
     const { data: order, error: orderError } = await supabaseAdmin
       .from('purchase_orders')
@@ -52,64 +51,66 @@ export async function GET(
           phone
         )
       `)
-      .eq('id', orderId)
+      .eq('id', params.id)
       .eq('organization_id', userProfile.organization_id)
       .single();
-    
+
     if (orderError || !order) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: false,
         error: 'Orden no encontrada',
         data: null
       }, { status: 404 });
     }
-    
-    // 2. Query items con productos
-    let mappedItems: any[] = [];
-    try {
-      const { data: items, error: itemsError } = await supabaseAdmin
-        .from('purchase_order_items')
-        .select(`
+
+    // Query items con productos
+    const { data: items, error: itemsError } = await supabaseAdmin
+      .from('purchase_order_items')
+      .select(`
+        id,
+        product_id,
+        quantity,
+        quantity_received,
+        unit_cost,
+        total,
+        notes,
+        created_at,
+        product:inventory!product_id (
           id,
-          product_id,
-          quantity,
-          quantity_received,
-          unit_cost,
-          total,
-          notes,
-          created_at,
-          product:products (
-            id,
-            name,
-            code,
-            unit
-          )
-        `)
-        .eq('purchase_order_id', orderId)
-        .order('created_at', { ascending: true });
-      
-      if (itemsError) {
-        console.error('⚠️ Warning loading items:', itemsError);
-      } else if (items) {
-        // Mapear items con TODOS los campos
-        mappedItems = items.map((item: any) => ({
-          id: item.id,
-          product_id: item.product_id,
-          product_name: item.product?.name || 'Producto desconocido',
-          product_stock: item.product?.current_stock || 0,
-          quantity: Number(item.quantity) || 0,
-          quantity_received: Number(item.quantity_received) || 0,
-          unit_cost: Number(item.unit_cost) || 0,
-          total: Number(item.total || item.total_amount) || 0,
-          notes: item.notes
-        }));
-      }
-    } catch (e) {
-      console.error('⚠️ Exception loading items:', e);
+          name,
+          current_stock
+        )
+      `)
+      .eq('purchase_order_id', params.id)
+      .eq('organization_id', userProfile.organization_id)
+      .order('created_at', { ascending: true });
+
+    if (itemsError) {
+      console.error('❌ Error loading items:', itemsError);
+      return NextResponse.json({
+        success: false,
+        error: 'Error cargando items de la orden: ' + itemsError.message,
+        data: null
+      }, { status: 500 });
     }
-    
+
+    console.log('📦 Raw items from DB:', items);
+
+    // Mapear items con TODOS los campos
+    const mappedItems = (items || []).map((item: any) => ({
+      id: item.id,
+      product_id: item.product_id,
+      product_name: item.product?.name || 'Producto desconocido',
+      product_stock: item.product?.current_stock || 0,
+      quantity: Number(item.quantity) || 0,
+      quantity_received: Number(item.quantity_received) || 0,
+      unit_cost: Number(item.unit_cost) || 0,
+      total: Number(item.total_amount ?? item.total) || 0,
+      notes: item.notes
+    }));
+
     console.log('📦 Mapped items:', mappedItems);
-    
+
     return NextResponse.json({
       success: true,
       data: {
@@ -118,7 +119,7 @@ export async function GET(
       },
       error: null
     });
-    
+
   } catch (error) {
     console.error('❌ Error in GET /api/purchase-orders/[id]:', error);
     return NextResponse.json({
@@ -132,13 +133,12 @@ export async function GET(
 // PUT /api/purchase-orders/[id] - Actualizar orden de compra
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id: orderId } = await params;
     const body = await request.json()
-    
-    const updatedOrder = await updatePurchaseOrder(orderId, body)
+
+    const updatedOrder = await updatePurchaseOrder(params.id, body)
 
     return NextResponse.json(
       {
@@ -162,14 +162,13 @@ export async function PUT(
 // DELETE /api/purchase-orders/[id] - Cancelar orden de compra
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id: orderId } = await params;
     const { searchParams } = new URL(request.url)
     const reason = searchParams.get('reason')
-    
-    const cancelledOrder = await cancelPurchaseOrder(orderId, reason || undefined)
+
+    const cancelledOrder = await cancelPurchaseOrder(params.id, reason || undefined)
 
     return NextResponse.json(
       {

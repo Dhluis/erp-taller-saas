@@ -134,7 +134,7 @@ export function CreateQuotationModal({
           status: quotation.status || 'draft',
         })
         setSelectedCustomerId(quotation.customer_id || '')
-        setItems(quotation.quotation_items || [])
+        setItems(quotation.quotation_items || (quotation as any).items || [])
         if (quotation.vehicle_id) {
           loadVehiclesByCustomer(quotation.customer_id)
         }

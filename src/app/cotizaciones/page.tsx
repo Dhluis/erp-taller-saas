@@ -146,10 +146,29 @@ export default function QuotationsPage() {
   }
 
   // Handlers para acciones
-  const handleEdit = (quotation: Quotation) => {
+  const handleEdit = async (quotation: Quotation) => {
     console.log('🔄 [QuotationsPage] handleEdit llamado:', quotation.id)
-    setQuotationToEdit(quotation)
-    setIsEditModalOpen(true)
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/quotations/${quotation.id}`, {
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ [QuotationsPage] Cotización cargada para edición:', data)
+        setQuotationToEdit(data.data || quotation)
+      } else {
+        console.warn('⚠️ [QuotationsPage] Error al cargar cotización para edición, usando datos básicos')
+        setQuotationToEdit(quotation)
+      }
+    } catch (error) {
+      console.error('❌ [QuotationsPage] Error cargando cotización para edición:', error)
+      setQuotationToEdit(quotation)
+    } finally {
+      setLoading(false)
+      setIsEditModalOpen(true)
+    }
   }
 
   const handleView = async (quotation: Quotation) => {
