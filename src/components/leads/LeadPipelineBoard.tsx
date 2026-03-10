@@ -231,9 +231,19 @@ export function LeadPipelineBoard({
     if (!over) return
 
     const leadId = active.id as string
-    const newStatus = over.id as LeadStatus
+    
+    // Si caemos sobre otra tarjeta, extraemos su status de su data
+    const overData = over.data.current as any
+    let newStatus = over.id as LeadStatus
 
-    if (!VALID_STATUSES.includes(newStatus)) return
+    if (overData?.type === 'lead' && overData.lead) {
+      newStatus = overData.lead.status
+    }
+
+    if (!VALID_STATUSES.includes(newStatus)) {
+      console.warn('[LeadPipelineBoard] Status inválido al soltar:', newStatus)
+      return
+    }
 
     await moveLeadToStatus(leadId, newStatus)
   }
