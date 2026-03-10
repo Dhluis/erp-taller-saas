@@ -99,8 +99,6 @@ export function LeadCard({ lead, onClick, isTerminal, onStatusChange }: LeadCard
           e.stopPropagation()
           onClick?.()
         }}
-        onPointerDown={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
         className="p-3 cursor-pointer hover:bg-slate-800/30 transition-colors"
       >
         {/* Nombre */}
