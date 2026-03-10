@@ -64,51 +64,49 @@ export async function GET(
       }, { status: 404 });
     }
     
-    // Query items con productos
-    const { data: items, error: itemsError } = await supabaseAdmin
-      .from('purchase_order_items')
-      .select(`
-        id,
-        product_id,
-        quantity,
-        quantity_received,
-        unit_cost,
-        total,
-        notes,
-        created_at,
-        product:inventory!product_id (
+    // 2. Query items con productos
+    let mappedItems: any[] = [];
+    try {
+      const { data: items, error: itemsError } = await supabaseAdmin
+        .from('purchase_order_items')
+        .select(`
           id,
-          name,
-          current_stock
-        )
-      `)
-      .eq('purchase_order_id', orderId)
-      .eq('organization_id', userProfile.organization_id)
-      .order('created_at', { ascending: true });
-    
-    if (itemsError) {
-      console.error('❌ Error loading items:', itemsError);
-      return NextResponse.json({ 
-        success: false,
-        error: 'Error cargando items de la orden: ' + itemsError.message,
-        data: null
-      }, { status: 500 });
+          product_id,
+          quantity,
+          quantity_received,
+          unit_cost,
+          total,
+          notes,
+          created_at,
+          product:products (
+            id,
+            name,
+            code,
+            unit
+          )
+        `)
+        .eq('purchase_order_id', orderId)
+        .order('created_at', { ascending: true });
+      
+      if (itemsError) {
+        console.error('⚠️ Warning loading items:', itemsError);
+      } else if (items) {
+        // Mapear items con TODOS los campos
+        mappedItems = items.map((item: any) => ({
+          id: item.id,
+          product_id: item.product_id,
+          product_name: item.product?.name || 'Producto desconocido',
+          product_stock: item.product?.current_stock || 0,
+          quantity: Number(item.quantity) || 0,
+          quantity_received: Number(item.quantity_received) || 0,
+          unit_cost: Number(item.unit_cost) || 0,
+          total: Number(item.total || item.total_amount) || 0,
+          notes: item.notes
+        }));
+      }
+    } catch (e) {
+      console.error('⚠️ Exception loading items:', e);
     }
-    
-    console.log('📦 Raw items from DB:', items);
-    
-    // Mapear items con TODOS los campos
-    const mappedItems = (items || []).map((item: any) => ({
-      id: item.id,
-      product_id: item.product_id,
-      product_name: item.product?.name || 'Producto desconocido',
-      product_stock: item.product?.current_stock || 0,
-      quantity: Number(item.quantity) || 0,
-      quantity_received: Number(item.quantity_received) || 0,
-      unit_cost: Number(item.unit_cost) || 0,
-      total: Number(item.total_amount ?? item.total) || 0,
-      notes: item.notes
-    }));
     
     console.log('📦 Mapped items:', mappedItems);
     
