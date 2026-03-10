@@ -4,10 +4,11 @@ import { updatePurchaseOrderStatus } from '@/lib/database/queries/purchase-order
 // POST /api/purchase-orders/[id]/approve - Aprobar orden de compra
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const approvedOrder = await updatePurchaseOrderStatus(params.id, 'confirmed')
+    const { id: orderId } = await params;
+    const approvedOrder = await updatePurchaseOrderStatus(orderId, 'confirmed')
 
     return NextResponse.json(
       {

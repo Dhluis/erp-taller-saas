@@ -9,9 +9,10 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server'
 // GET /api/purchase-orders/[id] - Obtener orden de compra por ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: orderId } = await params;
     const supabase = createClientFromRequest(request);
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
@@ -51,7 +52,7 @@ export async function GET(
           phone
         )
       `)
-      .eq('id', params.id)
+      .eq('id', orderId)
       .eq('organization_id', userProfile.organization_id)
       .single();
     
@@ -81,7 +82,7 @@ export async function GET(
           current_stock
         )
       `)
-      .eq('purchase_order_id', params.id)
+      .eq('purchase_order_id', orderId)
       .eq('organization_id', userProfile.organization_id)
       .order('created_at', { ascending: true });
     
@@ -133,12 +134,13 @@ export async function GET(
 // PUT /api/purchase-orders/[id] - Actualizar orden de compra
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: orderId } = await params;
     const body = await request.json()
     
-    const updatedOrder = await updatePurchaseOrder(params.id, body)
+    const updatedOrder = await updatePurchaseOrder(orderId, body)
 
     return NextResponse.json(
       {
@@ -162,13 +164,14 @@ export async function PUT(
 // DELETE /api/purchase-orders/[id] - Cancelar orden de compra
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: orderId } = await params;
     const { searchParams } = new URL(request.url)
     const reason = searchParams.get('reason')
     
-    const cancelledOrder = await cancelPurchaseOrder(params.id, reason || undefined)
+    const cancelledOrder = await cancelPurchaseOrder(orderId, reason || undefined)
 
     return NextResponse.json(
       {

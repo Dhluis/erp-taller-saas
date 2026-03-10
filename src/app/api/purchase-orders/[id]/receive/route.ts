@@ -16,9 +16,10 @@ const receiveSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: orderId } = await params;
     // 1. Autenticación
     const supabase = createClientFromRequest(request);
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -55,13 +56,13 @@ export async function POST(
     const validatedData = receiveSchema.parse(body);
     
     console.log('📦 [Receive] Items recibidos del frontend:', validatedData.items);
-    console.log('📦 [Receive] Order ID:', params.id);
+    console.log('📦 [Receive] Order ID:', orderId);
     
     // 4. Verificar que la orden existe y pertenece a la organización
     const { data: order, error: orderError } = await supabaseAdmin
       .from('purchase_orders')
       .select('id, order_number, status, organization_id')
-      .eq('id', params.id)
+      .eq('id', orderId)
       .eq('organization_id', organizationId)
       .single();
     
@@ -105,14 +106,14 @@ export async function POST(
       // 6a. Verificar que el item pertenece a esta orden
       console.log('📦 [Receive] Buscando item en BD...', {
         item_id: item.id,
-        purchase_order_id: params.id
+        purchase_order_id: orderId
       });
       
       const { data: orderItem, error: itemError } = await supabaseAdmin
         .from('purchase_order_items')
         .select('id, quantity, quantity_received, unit_cost')
         .eq('id', item.id)
-        .eq('purchase_order_id', params.id)
+        .eq('purchase_order_id', orderId)
         .single();
       
       console.log('📦 [Receive] Resultado búsqueda:', {
@@ -200,7 +201,7 @@ export async function POST(
           unit_cost: itemData.unit_cost,
           total_cost: itemData.unit_cost ? (itemData.unit_cost * item.quantity_received) : null,
           reference_type: 'purchase_order',
-          reference_id: params.id,
+          reference_id: orderId,
           notes: `Recepción de Orden de Compra ${(order as any).order_number}`,
           created_by: userId
         });
@@ -230,7 +231,7 @@ export async function POST(
     const { data: updatedOrder } = await supabaseAdmin
       .from('purchase_orders')
       .select('id, order_number, status')
-      .eq('id', params.id)
+      .eq('id', orderId)
       .single();
     
     const orderData = order as { id: string; order_number: string; status: string };
@@ -239,7 +240,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       data: {
-        order_id: params.id,
+        order_id: orderId,
         order_number: orderData.order_number,
         items_processed: results.length,
         results,
