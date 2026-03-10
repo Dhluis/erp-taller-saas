@@ -163,9 +163,9 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
         }
       }
 
-      // Fetch
+      // Fetch con timeout más razonable (10s en lugar de 30s) para evitar colgar la página
       const result = await safeFetch<PaginatedResponse<CustomerListItem>>(url, { 
-        timeout: 30000,
+        timeout: 10000,
         headers: {
           'Cache-Control': 'no-cache'
         }
@@ -200,16 +200,23 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
         total: paginationData.total
       })
 
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMessage)
-      toast.error('Error al cargar clientes', { description: errorMessage })
-      console.error('❌ [useCustomers] Error:', err)
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.warn('⏸️ [useCustomers] Fetch abortado (timeout)');
+        setError('Tiempo de espera agotado al cargar clientes');
+      } else {
+        const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+        setError(errorMessage);
+        toast.error('Error al cargar clientes', { description: errorMessage });
+        console.error('❌ [useCustomers] Error:', err);
+      }
     } finally {
-      setLoading(false)
-      isFetching.current = false
+      if (isFetching.current) {
+        setLoading(false);
+        isFetching.current = false;
+      }
     }
-  }, [organizationId, ready, page, pageSize, search, filters, sortBy, sortOrder, enableCache])
+  }, [organizationId, ready, page, pageSize, search, filters, sortBy, sortOrder, enableCache]);
 
   // ==========================================
   // NAVIGATION ACTIONS

@@ -109,8 +109,7 @@ export async function POST(request: NextRequest) {
       const { data: existingLead, error: leadError } = await supabase
         .from('leads')
         .select(`
-          *,
-          assigned_user:users!leads_assigned_to_fkey(id, full_name, email)
+          *
         `)
         .eq('id', conversation.lead_id)
         .single()
@@ -168,8 +167,7 @@ export async function POST(request: NextRequest) {
       .from('leads')
       .insert(leadPayload)
       .select(`
-        *,
-        assigned_user:users!leads_assigned_to_fkey(id, full_name, email)
+        *
       `)
       .single()
 
@@ -186,8 +184,7 @@ export async function POST(request: NextRequest) {
         const { data: existingLeads, error: searchError } = await supabase
           .from('leads')
           .select(`
-            *,
-            assigned_user:users!leads_assigned_to_fkey(id, full_name, email)
+            *
           `)
           .eq('organization_id', organizationId)
 

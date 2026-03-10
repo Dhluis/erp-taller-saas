@@ -131,17 +131,17 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
           .from('company_settings')
           .select('currency, base_currency')
           .eq('organization_id', organizationId)
-          .single()
+          .maybeSingle()
 
         if (!res.error && res.data) {
           data = res.data as { currency?: string; base_currency?: string }
         } else if (res.error) {
-          // Fallback: solo currency (por si base_currency no existe aún o 406)
+          // Fallback: solo currency (por si base_currency no existe aún)
           const fallback = await supabase
             .from('company_settings')
             .select('currency')
             .eq('organization_id', organizationId)
-            .single()
+            .maybeSingle()
           if (!fallback.error && fallback.data) {
             data = fallback.data as { currency?: string }
           }

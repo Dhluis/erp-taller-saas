@@ -61,9 +61,8 @@ export async function GET(request: NextRequest) {
       .from('leads')
       .select(`
         *,
-        assigned_user:users!leads_assigned_to_fkey(id, full_name, email),
         customer:customers!leads_customer_id_fkey(id, name),
-        whatsapp_conversation:whatsapp_conversations!leads_whatsapp_conversation_id_fkey(id, customer_name, customer_phone, last_message, messages_count, last_message_at)
+        whatsapp_conversation:whatsapp_conversations!leads_whatsapp_conversation_id_fkey(id, customer_name, customer_phone, last_message, last_message_at)
       `, { count: 'exact' })
       .eq('organization_id', organizationId)
 
@@ -205,8 +204,7 @@ export async function POST(request: NextRequest) {
         status: 'new'
       })
       .select(`
-        *,
-        assigned_user:users!leads_assigned_to_fkey(id, full_name, email)
+        *
       `)
       .single()
 

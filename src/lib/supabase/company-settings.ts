@@ -44,9 +44,9 @@ export async function getCompanySettings(organizationId: string): Promise<Compan
         .from('company_settings')
         .select('*')
         .eq('organization_id', organizationId)
-        .single()
+        .maybeSingle()
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
+      if (error) {
         throw new Error(`Failed to fetch company settings: ${error.message}`)
       }
 
