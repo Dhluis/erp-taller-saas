@@ -26,9 +26,9 @@ export function LeadPipelineColumn({ column, onLeadClick, onStatusChange }: Lead
       : null
 
   return (
-    <div ref={setNodeRef} className="flex-shrink-0 w-[260px] sm:w-72">
+    <div ref={setNodeRef} className={`flex-shrink-0 w-[260px] sm:w-72 transition-colors duration-200 rounded-xl p-1 ${isOver ? 'bg-blue-500/5 ring-1 ring-blue-500/20' : ''}`}>
       {/* Header */}
-      <div className={`${column.bgColor} ${column.borderColor} border rounded-lg p-3 mb-3 ${isOver ? 'ring-2 ring-blue-500/50' : ''}`}>
+      <div className={`${column.bgColor} ${column.borderColor} border rounded-lg p-3 mb-3 transition-all duration-200 ${isOver ? 'ring-2 ring-blue-500/50 shadow-lg shadow-blue-500/10 scale-[1.02]' : ''}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             {column.isTerminal && <Lock className={`w-3.5 h-3.5 ${column.color}`} />}
@@ -48,7 +48,7 @@ export function LeadPipelineColumn({ column, onLeadClick, onStatusChange }: Lead
 
       {/* Zona de drop */}
       <div
-        className={`min-h-[200px] max-h-[calc(100vh-300px)] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent rounded-lg border-2 border-dashed transition-all duration-200 p-2 ${
+        className={`min-h-[250px] max-h-[calc(100vh-320px)] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent rounded-lg border-2 border-dashed transition-all duration-200 p-2 ${
           isOver
             ? 'border-blue-500/70 bg-blue-500/10 shadow-lg shadow-blue-500/20'
             : 'border-transparent hover:border-slate-600/50'

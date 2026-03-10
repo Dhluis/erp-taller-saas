@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  pointerWithin,
+  rectIntersection,
   PointerSensor,
   TouchSensor,
   useSensor,
@@ -214,6 +215,15 @@ export function LeadPipelineBoard({
     }
   }
 
+  function kanbanCollision(args: Parameters<typeof pointerWithin>[0]) {
+    // 1. Primero intentar por donde está exactamente el puntero (más intuitivo)
+    const pointerCollisions = pointerWithin(args)
+    if (pointerCollisions.length > 0) return pointerCollisions
+
+    // 2. Si no, por intersección de rectángulos (más permisivo)
+    return rectIntersection(args)
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     setActiveLead(null)
@@ -274,7 +284,7 @@ export function LeadPipelineBoard({
       {totalLeads > 0 && (
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
+          collisionDetection={kanbanCollision}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
