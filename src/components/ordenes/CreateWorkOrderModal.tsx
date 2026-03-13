@@ -56,6 +56,7 @@ import { useBilling } from '@/hooks/useBilling'
 import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
 import { useLimitCheck } from '@/hooks/useLimitCheck'
 import { UpgradeModal } from '@/components/billing/upgrade-modal'
+import { VoiceInput } from '@/components/ui/VoiceInput'
 
 interface CreateWorkOrderModalProps {
 
@@ -1687,40 +1688,37 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 <div className="relative">
 
-                <Input
-
-                  id="customer_name"
-
-                  name="customerName"
-
-                  required
-
-                  value={formData.customerName}
-
-                    onChange={(e) => {
-                      handleChange(e);
-                      // Mostrar dropdown automáticamente al escribir
-                      if (customers.length > 0) {
-                        setShowCustomerDropdown(true);
-                      }
-                    }}
-                    
-                    onBlur={() => {
-                      // Cerrar dropdown después de un pequeño delay para permitir clics
-                      setTimeout(() => {
-                        setShowCustomerDropdown(false)
-                      }, 200)
-                    }}
-
-                    placeholder="Escribe o selecciona un cliente"
-
-                  disabled={loading}
-
-                    className={`pr-10 ${errors.customerName ? 'border-red-500' : ''}`}
-
-                    autoComplete="off"
-
-                  />
+                  <div className="relative flex-1">
+                    <Input
+                      id="customer_name"
+                      name="customerName"
+                      required
+                      value={formData.customerName}
+                      onChange={(e) => {
+                        handleChange(e);
+                        // Mostrar dropdown automáticamente al escribir
+                        if (customers.length > 0) {
+                          setShowCustomerDropdown(true);
+                        }
+                      }}
+                      onBlur={() => {
+                        // Cerrar dropdown después de un pequeño delay para permitir clics
+                        setTimeout(() => {
+                          setShowCustomerDropdown(false)
+                        }, 200)
+                      }}
+                      placeholder="Escribe o selecciona un cliente"
+                      disabled={loading}
+                      className={`pr-20 ${errors.customerName ? 'border-red-500' : ''}`}
+                      autoComplete="off"
+                    />
+                    <div className="absolute right-10 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      <VoiceInput
+                        onTranscript={(text) => setFormData(prev => ({ ...prev, customerName: prev.customerName ? `${prev.customerName} ${text}` : text }))}
+                        className="h-8 w-8"
+                      />
+                    </div>
+                  </div>
 
                   {/* Botón de dropdown con flechita */}
                   <button
@@ -2331,23 +2329,22 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             <div>
 
-              <Label htmlFor="valuable_items" className="text-slate-300">Objetos de valor reportados</Label>
-
-              <Textarea
-
-                id="valuable_items"
-
-                value={formData.valuable_items}
-
-                onChange={(e) => setFormData({ ...formData, valuable_items: e.target.value })}
-
-                rows={2}
-
-                placeholder="Ej: Estéreo, GPS, herramientas en cajuela..."
-
-                className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
-
-              />
+              <div className="relative">
+                <Textarea
+                  id="valuable_items"
+                  value={formData.valuable_items}
+                  onChange={(e) => setFormData({ ...formData, valuable_items: e.target.value })}
+                  rows={2}
+                  placeholder="Ej: Estéreo, GPS, herramientas en cajuela..."
+                  className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 pr-12"
+                />
+                <div className="absolute right-2 top-2">
+                  <VoiceInput
+                    onTranscript={(text) => setFormData(prev => ({ ...prev, valuable_items: prev.valuable_items ? `${prev.valuable_items} ${text}` : text }))}
+                    className="h-8 w-8"
+                  />
+                </div>
+              </div>
 
             </div>
 
@@ -2417,23 +2414,22 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             <div>
 
-              <Label htmlFor="entry_reason" className="text-slate-300">Motivo de ingreso</Label>
-
-              <Textarea
-
-                id="entry_reason"
-
-                value={formData.entry_reason}
-
-                onChange={(e) => setFormData({ ...formData, entry_reason: e.target.value })}
-
-                rows={2}
-
-                placeholder="Ej: Cliente reporta ruido en motor, falla en arranque..."
-
-                className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
-
-              />
+              <div className="relative">
+                <Textarea
+                  id="entry_reason"
+                  value={formData.entry_reason}
+                  onChange={(e) => setFormData({ ...formData, entry_reason: e.target.value })}
+                  rows={2}
+                  placeholder="Ej: Cliente reporta ruido en motor, falla en arranque..."
+                  className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 pr-12"
+                />
+                <div className="absolute right-2 top-2">
+                  <VoiceInput
+                    onTranscript={(text) => setFormData(prev => ({ ...prev, entry_reason: prev.entry_reason ? `${prev.entry_reason} ${text}` : text }))}
+                    className="h-8 w-8"
+                  />
+                </div>
+              </div>
 
             </div>
 
@@ -2441,23 +2437,22 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             <div>
 
-              <Label htmlFor="procedures" className="text-slate-300">Procedimientos a realizar</Label>
-
-              <Textarea
-
-                id="procedures"
-
-                value={formData.procedures}
-
-                onChange={(e) => setFormData({ ...formData, procedures: e.target.value })}
-
-                rows={2}
-
-                placeholder="Ej: Revisión completa de motor, cambio de bujías..."
-
-                className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
-
-              />
+              <div className="relative">
+                <Textarea
+                  id="procedures"
+                  value={formData.procedures}
+                  onChange={(e) => setFormData({ ...formData, procedures: e.target.value })}
+                  rows={2}
+                  placeholder="Ej: Revisión completa de motor, cambio de bujías..."
+                  className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 pr-12"
+                />
+                <div className="absolute right-2 top-2">
+                  <VoiceInput
+                    onTranscript={(text) => setFormData(prev => ({ ...prev, procedures: prev.procedures ? `${prev.procedures} ${text}` : text }))}
+                    className="h-8 w-8"
+                  />
+                </div>
+              </div>
 
             </div>
 

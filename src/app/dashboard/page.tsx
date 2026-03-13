@@ -2,6 +2,7 @@
 
 import { AppLayout } from '@/components/layout/AppLayout';
 import { QuickActions } from '@/components/dashboard/QuickActions';
+import { EaglesMagicCreate } from '@/components/dashboard/EaglesMagicCreate';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -1078,7 +1079,8 @@ export default function DashboardPage() {
 
           {/* Columna Derecha: Acciones Rápidas (1/3) - Ocultar para mecánicos */}
           {!permissions.isMechanic && (
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 space-y-4 sm:space-y-6">
+              <EaglesMagicCreate onOrderCreated={handleOrderCreated} />
               <QuickActions onOrderCreated={handleOrderCreated} />
             </div>
           )}

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Package } from 'lucide-react';
+import { X, Package, Mic } from 'lucide-react';
 import { InventoryItem, InventoryCategory } from '@/hooks/useInventory';
+import { VoiceInput } from '@/components/ui/VoiceInput';
 
 interface InventoryFormProps {
   item?: InventoryItem | null;
@@ -133,16 +134,24 @@ export default function InventoryForm({
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Nombre del Producto *
             </label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className={`w-full px-4 py-2.5 bg-gray-800/50 border ${
-                errors.name ? 'border-red-500' : 'border-gray-600'
-              } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50`}
-              placeholder="Ej: Filtro de Aceite"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className={`w-full px-4 py-2.5 bg-gray-800/50 border ${
+                  errors.name ? 'border-red-500' : 'border-gray-600'
+                } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 pr-12`}
+                placeholder="Ej: Filtro de Aceite"
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                <VoiceInput
+                  onTranscript={(text) => setFormData(prev => ({ ...prev, name: prev.name ? `${prev.name} ${text}` : text }))}
+                  className="h-8 w-8"
+                />
+              </div>
+            </div>
             {errors.name && (
               <p className="mt-1 text-sm text-red-400">{errors.name}</p>
             )}
@@ -153,14 +162,22 @@ export default function InventoryForm({
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Descripción
             </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows={3}
-              className="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 resize-none"
-              placeholder="Descripción opcional del producto"
-            />
+            <div className="relative">
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                rows={3}
+                className="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 resize-none pr-12"
+                placeholder="Descripción opcional del producto"
+              />
+              <div className="absolute right-2 top-2">
+                <VoiceInput
+                  onTranscript={(text) => setFormData(prev => ({ ...prev, description: prev.description ? `${prev.description} ${text}` : text }))}
+                  className="h-8 w-8"
+                />
+              </div>
+            </div>
           </div>
 
           {/* SKU & Category */}

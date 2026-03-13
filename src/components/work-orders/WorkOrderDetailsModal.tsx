@@ -16,6 +16,7 @@ import AssignMechanicModal from '@/components/mecanicos/AssignMechanicModal'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Camera, MessageSquare } from 'lucide-react'
+import { EaglesAIActionButton } from './EaglesAIActionButton'
 
 interface WorkOrderDetailsModalProps {
   order: any | null
@@ -92,12 +93,15 @@ export function WorkOrderDetailsModal({
           </div>
           
           {/* Fila 2: Badge de estado */}
-          <div className="flex items-center gap-2">
-            <Badge 
-              className={`${statusInfo.color} text-white text-xs sm:text-sm px-2 py-1`}
-            >
-              {statusInfo.label}
-            </Badge>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Badge 
+                className={`${statusInfo.color} text-white text-xs sm:text-sm px-2 py-1`}
+              >
+                {statusInfo.label}
+              </Badge>
+            </div>
+            <EaglesAIActionButton order={order} />
           </div>
           
           {/* Fila 3: Metadata (fecha + contadores) */}
