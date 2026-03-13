@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,13 +10,22 @@ import { usePermissions } from '@/hooks/usePermissions'
 
 interface QuickActionsProps {
   onOrderCreated?: () => void
+  initialData?: any
 }
 
-export function QuickActions({ onOrderCreated }: QuickActionsProps) {
+export function QuickActions({ onOrderCreated, initialData }: QuickActionsProps) {
   const router = useRouter()
   const permissions = usePermissions()
   const [modalOpen, setModalOpen] = useState(false)
   const [prefilledServiceType, setPrefilledServiceType] = useState<string>('')
+
+  // Efecto para abrir el modal si llegan datos iniciales (desde Eagles AI)
+  useEffect(() => {
+    if (initialData) {
+      console.log('⚡ [QuickActions] Detectados datos iniciales de AI, abriendo modal...');
+      setModalOpen(true);
+    }
+  }, [initialData]);
 
   // Funciones para abrir modal con diferentes tipos de servicio
   const handleNewOrder = () => {
@@ -186,6 +195,7 @@ export function QuickActions({ onOrderCreated }: QuickActionsProps) {
         onOpenChange={setModalOpen}
         onSuccess={handleOrderCreated}
         prefilledServiceType={prefilledServiceType}
+        initialData={initialData}
       />
     </>
   )

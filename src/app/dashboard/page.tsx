@@ -3,8 +3,10 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { QuickActions } from '@/components/dashboard/QuickActions';
 import { EaglesMagicCreate } from '@/components/dashboard/EaglesMagicCreate';
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { EaglesInsights } from '@/components/dashboard/EaglesInsights';
+import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -36,6 +38,18 @@ import {
 } from 'recharts';
 
 export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+function DashboardContent() {
   // Obtener datos de sesión - el layout maneja la redirección al onboarding
   const { organizationId, loading: sessionLoading, isReady: sessionReady } = useOrganization();
   const { user } = useSession();
@@ -87,6 +101,30 @@ export default function DashboardPage() {
     totalValue: number
     byStatus: Record<string, number>
   } | null>(null);
+
+  const searchParams = useSearchParams();
+  const [magicCreateData, setMagicCreateData] = useState<any>(null);
+
+  // Efecto para capturar datos de Eagles AI de la URL
+  useEffect(() => {
+    const openMagicCreate = searchParams.get('openMagicCreate');
+    if (openMagicCreate === 'true') {
+      try {
+        const aiDataRaw = searchParams.get('aiData');
+        if (aiDataRaw) {
+          const parsedData = JSON.parse(decodeURIComponent(aiDataRaw));
+          console.log('✨ [Dashboard] Detectados datos de Eagles AI en URL:', parsedData);
+          setMagicCreateData(parsedData);
+          
+          // Limpiar la URL para evitar que se re-abra al refrescar
+          const newPath = window.location.pathname;
+          window.history.replaceState({}, '', newPath);
+        }
+      } catch (e) {
+        console.error('Error al parsear datos de AI de la URL:', e);
+      }
+    }
+  }, [searchParams]);
 
   // Función para cargar datos de órdenes por estado
   const loadOrdersByStatus = useCallback(async () => {
@@ -684,6 +722,9 @@ export default function DashboardPage() {
   return (
     <AppLayout>
       <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 md:px-6">
+        {/* eagles AI protagonista */}
+        {!permissions.isMechanic && <FloatingAIAssistant />}
+
         {/* Header */}
         <div className="flex items-center justify-between">
         <div>
@@ -782,6 +823,9 @@ export default function DashboardPage() {
             <span className="sm:hidden">{loading ? '...' : '↻'}</span>
           </button>
         </div>
+
+        {/* Insights de Eagles AI - Protagonismo Horizontal */}
+        {!permissions.isMechanic && <EaglesInsights />}
 
         {/* ✅ KPI Cards - Mobile-first: 1 col en móvil, 2 en tablet, 3 en desktop */}
         <div className={cn(
@@ -1080,8 +1124,7 @@ export default function DashboardPage() {
           {/* Columna Derecha: Acciones Rápidas (1/3) - Ocultar para mecánicos */}
           {!permissions.isMechanic && (
             <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-              <EaglesMagicCreate onOrderCreated={handleOrderCreated} />
-              <QuickActions onOrderCreated={handleOrderCreated} />
+              <QuickActions onOrderCreated={handleOrderCreated} initialData={magicCreateData} />
             </div>
           )}
         </div>

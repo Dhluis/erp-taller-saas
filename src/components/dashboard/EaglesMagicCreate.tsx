@@ -42,19 +42,14 @@ export function EaglesMagicCreate() {
         // Por ahora, simularemos que los datos se detectaron.
         console.log('Datos extraídos por Eagles AI:', result.data);
         
-        // Abrir modal de creación de orden (este widget asume que el usuario revisará)
-        // Podríamos guardar esto en un store global o pasar por URL
         const queryParams = new URLSearchParams();
-        if (result.data.customer?.name) queryParams.set('customerName', result.data.customer.name);
-        if (result.data.customer?.phone) queryParams.set('customerPhone', result.data.customer.phone);
-        if (result.data.vehicle?.brand) queryParams.set('vehicleBrand', result.data.vehicle.brand);
-        if (result.data.vehicle?.model) queryParams.set('vehicleModel', result.data.vehicle.model);
-        if (result.data.work_order?.description) queryParams.set('description', result.data.work_order.description);
+        queryParams.set('openMagicCreate', 'true');
+        queryParams.set('aiData', encodeURIComponent(JSON.stringify(result.data)));
 
         toast.info('Redirigiendo para completar el registro...');
-        // router.push(`/dashboard?openCreateModal=true&${queryParams.toString()}`);
+        router.push(`/dashboard?${queryParams.toString()}`);
         
-        // Para propósitos de demo/implementación inmediata, solo limpiamos
+        // Limpiamos el input
         setInput('');
       }
     } catch (error: any) {
@@ -87,7 +82,7 @@ export function EaglesMagicCreate() {
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder='Ej: "Juan Pérez trajo un iPhone 13 Pro con pantalla rota, presupuesto de $2500..."'
+            placeholder='Ej: "Juan Pérez trajo un Toyota Corolla 2018 con frenos gastados, presupuesto de $2500..."'
             className="min-h-[120px] bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-indigo-500/50 focus:border-indigo-500/50 resize-none pr-12"
           />
           <div className="absolute top-2 right-2">

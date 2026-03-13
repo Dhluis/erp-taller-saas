@@ -140,6 +140,74 @@ Intenta inferir el tipo de vehículo y el problema reportado.`;
       return NextResponse.json({ success: true, data: extractedData });
     }
 
+    if (action === 'get-insights') {
+      // Obtener datos críticos para insights
+      const [
+        { data: lowStock },
+        { data: activeOrders },
+        { data: recentCompletions }
+      ] = await Promise.all([
+        supabaseAdmin
+          .from('inventory')
+          .select('name, stock, min_stock, sku')
+          .lt('stock', 5) // Simplificado: stock bajo
+          .eq('organization_id', organizationId)
+          .limit(10),
+        supabaseAdmin
+          .from('work_orders')
+          .select('status, description, vehicle_id, vehicles(brand, model)')
+          .eq('organization_id', organizationId)
+          .not('status', 'eq', 'completed')
+          .limit(20),
+        supabaseAdmin
+          .from('work_orders')
+          .select('description, entry_date, updated_at')
+          .eq('status', 'completed')
+          .eq('organization_id', organizationId)
+          .order('updated_at', { ascending: false })
+          .limit(5)
+      ]);
+
+      const SYSTEM_PROMPT = `Eres el analista de negocios de Eagles System ERP. Tu tarea es generar 3 "insights" (recomendaciones accionables) basados en los datos del taller.
+Los datos incluyen inventario bajo, órdenes activas y trabajos recientes.
+Reglas:
+1. Sé profesional y directo.
+2. Identifica patrones (ej: "Muchos Toyota con frenos", "Falta stock de aceite").
+3. Asigna una importancia (HIGH, MEDIUM).
+4. Proporciona una acción sugerida y un link interno (ej: "/inventario", "/ordenes").
+5. Responde SIEMPRE en un JSON con este formato:
+{
+  "insights": [
+    {
+      "title": string,
+      "description": string,
+      "severity": "HIGH" | "MEDIUM",
+      "actionLabel": string,
+      "actionLink": string
+    }
+  ]
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { 
+            role: 'user', 
+            content: `Datos del taller:
+            Inventario bajo: ${JSON.stringify(lowStock)}
+            Órdenes activas: ${JSON.stringify(activeOrders)}
+            Recientes terminados: ${JSON.stringify(recentCompletions)}` 
+          }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.5,
+      });
+
+      const insightsData = JSON.parse(response.choices[0].message.content || '{"insights": []}');
+      return NextResponse.json({ success: true, ...insightsData });
+    }
+
     return NextResponse.json({ error: 'Acción no reconocida' }, { status: 400 });
   } catch (err: any) {
     console.error('[AI Assistant]', err);

@@ -46,10 +46,11 @@ import { toast } from 'sonner'
 
 import { useAuth } from '@/hooks/useAuth'
 import { useOrganization, useSession } from '@/lib/context/SessionContext'
+import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useCustomers } from '@/hooks/useCustomers'
 
-import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown, FileText, Upload, X, Check, ClipboardCheck, DollarSign, FileSignature, ArrowLeft, ArrowRight } from 'lucide-react'
+import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown, FileText, Upload, X, Check, ClipboardCheck, DollarSign, FileSignature, ArrowLeft, ArrowRight, Brain, Loader2, Plus } from 'lucide-react'
 import SignatureCanvas from 'react-signature-canvas'
 import { OrderCreationImageCapture, TemporaryImage } from './OrderCreationImageCapture'
 import { useBilling } from '@/hooks/useBilling'
@@ -75,6 +76,8 @@ interface CreateWorkOrderModalProps {
   appointmentId?: string | null  // ✅ ID de la cita para pre-llenar datos
 
   prefilledPhone?: string  // ✅ Teléfono pre-llenado (desde lead)
+
+  initialData?: any // ✅ Datos pre-llenados (desde Eagles AI)
 
 }
 
@@ -272,7 +275,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
   appointmentId,
 
-  prefilledPhone
+  prefilledPhone,
+
+  initialData
 
 }: CreateWorkOrderModalProps) {
   // ✅ Usar context si no se proporciona como prop
@@ -281,6 +286,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const organizationId = propOrganizationId ?? contextOrganizationId;
 
   const { profile } = useAuth()
+  const isMechanic = profile?.role === 'MECHANIC'
 
   const supabase = createClient()
   
@@ -292,6 +298,60 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const { limitError, showUpgradeModal, handleApiError, closeUpgradeModal, showUpgrade } = useLimitCheck()
 
   const [loading, setLoading] = useState(false)
+  const [isProcessingAI, setIsProcessingAI] = useState(false)
+
+  const handleGlobalVoiceTranscription = async (text: string) => {
+    if (!text.trim()) return;
+    
+    setIsProcessingAI(true);
+    try {
+      const response = await fetch('/api/ai-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'magic-create', payload: { text } })
+      });
+      
+      const result = await response.json();
+      if (result.success && result.data) {
+        const aiData = result.data;
+        const prefill: Partial<typeof INITIAL_FORM_DATA> = {};
+        
+        // — Cliente —
+        if (aiData.customer) {
+          if (aiData.customer.name) prefill.customerName = aiData.customer.name;
+          if (aiData.customer.phone) prefill.customerPhone = sanitize.phone(aiData.customer.phone);
+          if (aiData.customer.email) prefill.customerEmail = aiData.customer.email;
+        }
+        
+        // — Vehículo —
+        if (aiData.vehicle) {
+          if (aiData.vehicle.brand) prefill.vehicleBrand = aiData.vehicle.brand;
+          if (aiData.vehicle.model) prefill.vehicleModel = aiData.vehicle.model;
+          if (aiData.vehicle.year) prefill.vehicleYear = String(aiData.vehicle.year);
+          if (aiData.vehicle.plate) prefill.vehiclePlate = sanitize.plate(aiData.vehicle.plate);
+          if (aiData.vehicle.color) prefill.vehicleColor = aiData.vehicle.color;
+        }
+        
+        // — Orden —
+        if (aiData.work_order) {
+          if (aiData.work_order.description) prefill.description = aiData.work_order.description;
+          if (aiData.work_order.budget) prefill.estimated_cost = String(aiData.work_order.budget);
+          if (aiData.work_order.notes) {
+            prefill.entry_reason = aiData.work_order.notes;
+            if (!prefill.description) prefill.description = aiData.work_order.notes;
+          }
+        }
+        
+        setFormData(prev => ({ ...prev, ...prefill }));
+        toast.success('✨ Eagles AI ha completado el formulario');
+      }
+    } catch (error) {
+      console.error('Error in Modal Magic Create:', error);
+      toast.error('Error al procesar con Eagles AI');
+    } finally {
+      setIsProcessingAI(false);
+    }
+  };
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -868,6 +928,46 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     }
 
   }, [open, prefilledPhone])
+
+  useEffect(() => {
+
+    if (open && initialData) {
+      console.log('✨ [CreateWorkOrderModal] Pre-llenando con datos de Eagles AI:', initialData);
+      
+      const prefill: Partial<typeof INITIAL_FORM_DATA> = {};
+      
+      // — Cliente —
+      if (initialData.customer) {
+        if (initialData.customer.name) prefill.customerName = initialData.customer.name;
+        if (initialData.customer.phone) prefill.customerPhone = sanitize.phone(initialData.customer.phone);
+        if (initialData.customer.email) prefill.customerEmail = initialData.customer.email;
+      }
+      
+      // — Vehículo —
+      if (initialData.vehicle) {
+        if (initialData.vehicle.brand) prefill.vehicleBrand = initialData.vehicle.brand;
+        if (initialData.vehicle.model) prefill.vehicleModel = initialData.vehicle.model;
+        if (initialData.vehicle.year) prefill.vehicleYear = String(initialData.vehicle.year);
+        if (initialData.vehicle.plate) prefill.vehiclePlate = sanitize.plate(initialData.vehicle.plate);
+        if (initialData.vehicle.color) prefill.vehicleColor = initialData.vehicle.color;
+        if (initialData.vehicle.mileage) prefill.vehicleMileage = String(initialData.vehicle.mileage);
+      }
+      
+      // — Orden —
+      if (initialData.work_order) {
+        if (initialData.work_order.description) prefill.description = initialData.work_order.description;
+        if (initialData.work_order.budget) prefill.estimated_cost = String(initialData.work_order.budget);
+        if (initialData.work_order.notes) {
+          prefill.entry_reason = initialData.work_order.notes;
+          // Si no hay descripción principal, usar notas
+          if (!prefill.description) prefill.description = initialData.work_order.notes;
+        }
+      }
+      
+      setFormData(prev => ({ ...prev, ...prefill }));
+    }
+
+  }, [open, initialData])
 
   useEffect(() => {
 
@@ -1641,22 +1741,50 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-
       <DialogContent className="w-[95vw] max-w-[95vw] sm:w-[90vw] sm:max-w-4xl min-h-[80vh] max-h-[95vh] h-[85vh] overflow-hidden flex flex-col md:h-[88vh]">
-
-        <DialogHeader className="flex-shrink-0">
-
-          <DialogTitle>Nueva Orden de Trabajo</DialogTitle>
-
-          <DialogDescription>
-
-            La orden se creará en estado Recepción
-
+        <DialogHeader className="px-6 pt-6 pb-0">
+          <DialogTitle className="text-xl font-bold flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-blue-500" />
+              Ingresar Nueva Orden
+            </div>
+          </DialogTitle>
+          <DialogDescription className="text-slate-400">
+            Completa los datos para iniciar la recepción del vehículo.
           </DialogDescription>
-
         </DialogHeader>
 
-        <StepIndicator currentStep={currentStep} completedSteps={completedSteps} />
+        {/* Asistente de Voz Global (Magic Create Interno) */}
+        {!isMechanic && (
+          <div className="px-6 py-4 bg-slate-900/50 border-b border-slate-800">
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+              <div className="relative flex items-center gap-4 bg-[#0f172a] border border-pink-500/30 rounded-xl p-4 shadow-xl">
+                <div className="p-2 bg-pink-500/10 rounded-lg shrink-0">
+                  <Brain className={cn("h-6 w-6 text-pink-500", isProcessingAI && "animate-pulse")} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold text-pink-400 uppercase tracking-widest mb-1">Dictado Global Eagles AI</p>
+                  <p className="text-xs text-slate-400 truncate">Dicta cliente, auto y falla de una vez...</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {isProcessingAI ? (
+                    <Loader2 className="h-6 w-6 text-pink-500 animate-spin" />
+                  ) : (
+                    <VoiceInput
+                      onTranscript={handleGlobalVoiceTranscription}
+                      className="h-12 w-12 bg-pink-600 hover:bg-pink-500 text-white shadow-lg shadow-pink-500/20 rounded-full scale-110"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="px-6 pt-4">
+          <StepIndicator currentStep={currentStep} completedSteps={completedSteps} />
+        </div>
 
         <form
           onSubmit={(e) => {
@@ -1709,15 +1837,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                       }}
                       placeholder="Escribe o selecciona un cliente"
                       disabled={loading}
-                      className={`pr-20 ${errors.customerName ? 'border-red-500' : ''}`}
+                      className={`pr-10 ${errors.customerName ? 'border-red-500' : ''}`}
                       autoComplete="off"
                     />
-                    <div className="absolute right-10 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                      <VoiceInput
-                        onTranscript={(text) => setFormData(prev => ({ ...prev, customerName: prev.customerName ? `${prev.customerName} ${text}` : text }))}
-                        className="h-8 w-8"
-                      />
-                    </div>
                   </div>
 
                   {/* Botón de dropdown con flechita */}
@@ -1799,45 +1921,25 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 <Label htmlFor="customer_phone">Teléfono *</Label>
 
                 <div className="relative">
-
                   <Input
-
                     id="customer_phone"
-
                     name="customerPhone"
-
                     required
-
                     type="tel"
-
                     inputMode="numeric"
-
                     value={formData.customerPhone}
-
                     onChange={handleChange}
-
                     placeholder="4491234567"
-
                     disabled={loading}
-
                     maxLength={INPUT_LIMITS.PHONE_MAX}
-
                     className={`${errors.customerPhone ? 'border-red-500' : 'border-gray-700'} pr-10`}
-
                   />
-
                   {!errors.customerPhone && formData.customerPhone && (
-
                     <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
-
                   )}
-
                   {errors.customerPhone && (
-
                     <AlertCircle className="absolute right-3 top-2.5 h-5 w-5 text-red-500" />
-
                   )}
-
                 </div>
 
                 {errors.customerPhone && (
@@ -1855,40 +1957,24 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
               <Label htmlFor="customer_email">Email (opcional)</Label>
 
               <div className="relative">
-
-                <Input
-
-                  id="customer_email"
-
-                  name="customerEmail"
-
-                  type="email"
-
-                  value={formData.customerEmail}
-
-                  onChange={handleChange}
-
-                  placeholder="cliente@ejemplo.com"
-
-                  disabled={loading}
-
-                  className={`${errors.customerEmail ? 'border-red-500' : 'border-gray-700'} pr-10`}
-
-                />
-
-                {!errors.customerEmail && formData.customerEmail && (
-
-                  <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
-
-                )}
-
-                {errors.customerEmail && (
-
-                  <AlertCircle className="absolute right-3 top-2.5 h-5 w-5 text-red-500" />
-
-                )}
-
-              </div>
+                  <Input
+                    id="customer_email"
+                    name="customerEmail"
+                    type="email"
+                    value={formData.customerEmail}
+                    onChange={handleChange}
+                    placeholder="cliente@ejemplo.com"
+                    disabled={loading}
+                    className={`${errors.customerEmail ? 'border-red-500' : 'border-gray-700'} pr-20`}
+                  />
+                  
+                  {!errors.customerEmail && formData.customerEmail && (
+                    <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
+                  )}
+                  {errors.customerEmail && (
+                    <AlertCircle className="absolute right-3 top-2.5 h-5 w-5 text-red-500" />
+                  )}
+                </div>
 
               {errors.customerEmail && (
 
@@ -1918,25 +2004,19 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 <Label htmlFor="vehicle_brand">Marca *</Label>
 
-                <Input
-
-                  id="vehicle_brand"
-
-                  name="vehicleBrand"
-
-                  required
-
-                  value={formData.vehicleBrand}
-
-                  onChange={handleChange}
-
-                  placeholder="Toyota, Honda..."
-
-                  disabled={loading}
-
-                  className={errors.vehicleBrand ? 'border-red-500' : ''}
-
-                />
+                <div className="relative">
+                  <Input
+                    id="vehicle_brand"
+                    name="vehicleBrand"
+                    required
+                    value={formData.vehicleBrand}
+                    onChange={handleChange}
+                    placeholder="Toyota, Honda..."
+                    disabled={loading}
+                    className={`pr-10 ${errors.vehicleBrand ? 'border-red-500' : ''}`}
+                  />
+                  
+                </div>
 
                 {errors.vehicleBrand && (
 
@@ -1952,25 +2032,19 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 <Label htmlFor="vehicle_model">Modelo *</Label>
 
-                <Input
-
-                  id="vehicle_model"
-
-                  name="vehicleModel"
-
-                  required
-
-                  value={formData.vehicleModel}
-
-                  onChange={handleChange}
-
-                  placeholder="Corolla, Civic..."
-
-                  disabled={loading}
-
-                  className={errors.vehicleModel ? 'border-red-500' : ''}
-
-                />
+                <div className="relative">
+                  <Input
+                    id="vehicle_model"
+                    name="vehicleModel"
+                    required
+                    value={formData.vehicleModel}
+                    onChange={handleChange}
+                    placeholder="Corolla, Civic..."
+                    disabled={loading}
+                    className={`pr-10 ${errors.vehicleModel ? 'border-red-500' : ''}`}
+                  />
+                  
+                </div>
 
                 {errors.vehicleModel && (
 
@@ -1988,81 +2062,49 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
                 <Label htmlFor="vehicle_year">Año *</Label>
 
-                <div className="relative">
-
-                  <Input
-
-                    id="vehicle_year"
-
-                    name="vehicleYear"
-
-                    required
-
-                    inputMode="numeric"
-
-                    value={formData.vehicleYear}
-
-                    onChange={handleChange}
-
-                    placeholder="2020"
-
-                    disabled={loading}
-
-                    maxLength={4}
-
-                    className={`${errors.vehicleYear ? 'border-red-500' : 'border-gray-700'} pr-10`}
-
-                  />
-
-                  {!errors.vehicleYear && formData.vehicleYear && (
-
-                    <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
-
-                  )}
-
-                  {errors.vehicleYear && (
-
-                    <AlertCircle className="absolute right-3 top-2.5 h-5 w-5 text-red-500" />
-
-                  )}
-
-                </div>
+                  <div className="relative">
+                    <Input
+                      id="vehicle_year"
+                      name="vehicleYear"
+                      required
+                      inputMode="numeric"
+                      value={formData.vehicleYear}
+                      onChange={handleChange}
+                      placeholder="2020"
+                      disabled={loading}
+                      maxLength={4}
+                      className={`${errors.vehicleYear ? 'border-red-500' : 'border-gray-700'} pr-10`}
+                    />
+                    {!errors.vehicleYear && formData.vehicleYear && (
+                      <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
+                    )}
+                    {errors.vehicleYear && (
+                      <AlertCircle className="absolute right-3 top-2.5 h-5 w-5 text-red-500" />
+                    )}
+                  </div>
 
                 {errors.vehicleYear && (
-
                   <p className="text-xs text-red-500 mt-1">{errors.vehicleYear}</p>
-
                 )}
-
               </div>
-
-              
 
               <div>
 
                 <Label htmlFor="vehicle_plate">Placa *</Label>
 
-                <Input
-
-                  id="vehicle_plate"
-
-                  name="vehiclePlate"
-
-                  required
-
-                  value={formData.vehiclePlate}
-
-                  onChange={handleChange}
-
-                  placeholder="ABC-123-D"
-
-                  maxLength={INPUT_LIMITS.PLATE_MAX}
-
-                  className={`uppercase ${errors.vehiclePlate ? 'border-red-500' : ''}`}
-
-                  disabled={loading}
-
-                />
+                <div className="relative">
+                  <Input
+                    id="vehicle_plate"
+                    name="vehiclePlate"
+                    required
+                    value={formData.vehiclePlate}
+                    onChange={handleChange}
+                    placeholder="ABC-123-D"
+                    maxLength={INPUT_LIMITS.PLATE_MAX}
+                    className={`uppercase pr-10 ${errors.vehiclePlate ? 'border-red-500' : ''}`}
+                    disabled={loading}
+                  />
+                </div>
 
                 {errors.vehiclePlate && (
 
@@ -2166,18 +2208,12 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
               </div>
 
-              {errors.vehicleMileage && (
-
-                <p className="text-xs text-red-500 mt-1">{errors.vehicleMileage}</p>
-
-              )}
-
+                {errors.vehicleMileage && (
+                  <p className="text-xs text-red-500 mt-1">{errors.vehicleMileage}</p>
+                )}
               </div>
-
             </div>
-
           </div>
-
           </>
           )}
 
@@ -2336,14 +2372,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   onChange={(e) => setFormData({ ...formData, valuable_items: e.target.value })}
                   rows={2}
                   placeholder="Ej: Estéreo, GPS, herramientas en cajuela..."
-                  className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 pr-12"
+                  className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                 />
-                <div className="absolute right-2 top-2">
-                  <VoiceInput
-                    onTranscript={(text) => setFormData(prev => ({ ...prev, valuable_items: prev.valuable_items ? `${prev.valuable_items} ${text}` : text }))}
-                    className="h-8 w-8"
-                  />
-                </div>
               </div>
 
             </div>
@@ -2421,14 +2451,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   onChange={(e) => setFormData({ ...formData, entry_reason: e.target.value })}
                   rows={2}
                   placeholder="Ej: Cliente reporta ruido en motor, falla en arranque..."
-                  className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 pr-12"
+                  className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                 />
-                <div className="absolute right-2 top-2">
-                  <VoiceInput
-                    onTranscript={(text) => setFormData(prev => ({ ...prev, entry_reason: prev.entry_reason ? `${prev.entry_reason} ${text}` : text }))}
-                    className="h-8 w-8"
-                  />
-                </div>
               </div>
 
             </div>
@@ -2444,14 +2468,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   onChange={(e) => setFormData({ ...formData, procedures: e.target.value })}
                   rows={2}
                   placeholder="Ej: Revisión completa de motor, cambio de bujías..."
-                  className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 pr-12"
+                  className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                 />
-                <div className="absolute right-2 top-2">
-                  <VoiceInput
-                    onTranscript={(text) => setFormData(prev => ({ ...prev, procedures: prev.procedures ? `${prev.procedures} ${text}` : text }))}
-                    className="h-8 w-8"
-                  />
-                </div>
               </div>
 
             </div>
@@ -2503,67 +2521,69 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 <p className="text-xs text-red-500 mt-1">{errors.estimated_cost}</p>
               )}
             </div>
-          </div>
 
-            <Label htmlFor="assigned_to">Asignar Empleado (opcional)</Label>
-            <Select
-              name="assigned_to"
-              value={formData.assigned_to && formData.assigned_to !== '' ? formData.assigned_to : 'none'}
-              onValueChange={(value) => {
-                setFormData(prev => ({ ...prev, assigned_to: value === 'none' ? '' : value }))
-              }}
-              disabled={loading || loadingEmployees}
-            >
-              <SelectTrigger className="w-full h-11 bg-slate-900 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
-                <SelectValue
-                  placeholder={
-                    loadingEmployees
-                      ? "Cargando empleados..."
-                      : employees.length === 0
-                        ? "No hay empleados disponibles"
-                        : "Sin asignar"
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent className="z-[9999] bg-slate-900 text-white border border-slate-600 shadow-2xl" sideOffset={4} position="popper">
-                <SelectItem value="none" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
-                  Sin asignar
-                </SelectItem>
-                {employees.length > 0 ? (
-                  employees
-                    .filter(emp => emp.id && emp.id.trim() !== '')
-                    .map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id} className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            <span className="font-medium">{employee.name}</span>
-                            {employee.role && (
-                              <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
-                                {employee.role}
-                              </span>
+            <div>
+              <Label htmlFor="assigned_to">Asignar Empleado (opcional)</Label>
+              <Select
+                name="assigned_to"
+                value={formData.assigned_to && formData.assigned_to !== '' ? formData.assigned_to : 'none'}
+                onValueChange={(value) => {
+                  setFormData(prev => ({ ...prev, assigned_to: value === 'none' ? '' : value }))
+                }}
+                disabled={loading || loadingEmployees}
+              >
+                <SelectTrigger className="w-full h-11 bg-slate-900 border-slate-600 text-white focus-visible:border-primary focus-visible:ring-primary/40">
+                  <SelectValue
+                    placeholder={
+                      loadingEmployees
+                        ? "Cargando empleados..."
+                        : employees.length === 0
+                          ? "No hay empleados disponibles"
+                          : "Sin asignar"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent className="z-[9999] bg-slate-900 text-white border border-slate-600 shadow-2xl" sideOffset={4} position="popper">
+                  <SelectItem value="none" className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
+                    Sin asignar
+                  </SelectItem>
+                  {employees.length > 0 ? (
+                    employees
+                      .filter(emp => emp.id && emp.id.trim() !== '')
+                      .map((employee) => (
+                        <SelectItem key={employee.id} value={employee.id} className="text-white hover:bg-slate-800 focus:bg-primary/25 focus:text-white cursor-pointer">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4" />
+                              <span className="font-medium">{employee.name}</span>
+                              {employee.role && (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
+                                  {employee.role}
+                                </span>
+                              )}
+                            </div>
+                            {employee.email && (
+                              <span className="text-xs text-muted-foreground ml-6">{employee.email}</span>
                             )}
                           </div>
-                          {employee.email && (
-                            <span className="text-xs text-muted-foreground ml-6">{employee.email}</span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))
-                ) : (
-                  !loadingEmployees && (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      No hay empleados disponibles
-                    </div>
-                  )
-                )}
-              </SelectContent>
-            </Select>
-            {employees.length === 0 && !loadingEmployees && (
-              <p className="text-xs text-gray-500 mt-1">
-                No hay empleados disponibles. Los empleados deben tener rol MECANICO o ASESOR en la tabla users.
-              </p>
-            )}
+                        </SelectItem>
+                      ))
+                  ) : (
+                    !loadingEmployees && (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        No hay empleados disponibles
+                      </div>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
+              {employees.length === 0 && !loadingEmployees && (
+                <p className="text-xs text-gray-500 mt-1">
+                  No hay empleados disponibles. Los empleados deben tener rol MECANICO o ASESOR en la tabla users.
+                </p>
+              )}
+            </div>
+          </div>
 
           </>
           )}
