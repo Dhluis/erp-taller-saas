@@ -1741,7 +1741,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:w-[90vw] sm:max-w-4xl min-h-[80vh] max-h-[95vh] h-[85vh] overflow-hidden flex flex-col md:h-[88vh]">
+      <DialogContent className="w-[95vw] max-w-[95vw] sm:w-[90vw] sm:max-w-4xl min-h-[80vh] max-h-[95vh] h-[85vh] overflow-hidden flex flex-col p-0 md:h-[88vh]">
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="text-xl font-bold flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -1756,24 +1756,27 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
         {/* Asistente de Voz Global (Magic Create Interno) */}
         {!isMechanic && (
-          <div className="px-6 py-4 bg-slate-900/50 border-b border-slate-800">
+          <div className="px-6 py-2 bg-slate-900/50 border-b border-slate-800 flex-shrink-0">
             <div className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-              <div className="relative flex items-center gap-4 bg-[#0f172a] border border-pink-500/30 rounded-xl p-4 shadow-xl">
-                <div className="p-2 bg-pink-500/10 rounded-lg shrink-0">
-                  <Brain className={cn("h-6 w-6 text-pink-500", isProcessingAI && "animate-pulse")} />
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+              <div className="relative flex items-center gap-3 bg-[#0f172a] border border-pink-500/30 rounded-lg p-2 shadow-xl">
+                <div className="p-1.5 bg-pink-500/10 rounded-lg shrink-0">
+                  <Brain className={cn("h-5 w-5 text-pink-500", isProcessingAI && "animate-pulse")} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-bold text-pink-400 uppercase tracking-widest mb-1">Dictado Global Eagles AI</p>
-                  <p className="text-xs text-slate-400 truncate">Dicta cliente, auto y falla de una vez...</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Eagles AI</p>
+                    <span className="h-1 w-1 rounded-full bg-slate-600"></span>
+                    <p className="text-[10px] text-slate-400 truncate">Dictado inteligente para llenar toda la orden</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {isProcessingAI ? (
-                    <Loader2 className="h-6 w-6 text-pink-500 animate-spin" />
+                    <Loader2 className="h-5 w-5 text-pink-500 animate-spin" />
                   ) : (
                     <VoiceInput
                       onTranscript={handleGlobalVoiceTranscription}
-                      className="h-12 w-12 bg-pink-600 hover:bg-pink-500 text-white shadow-lg shadow-pink-500/20 rounded-full scale-110"
+                      className="h-9 w-9 bg-pink-600 hover:bg-pink-500 text-white shadow-lg shadow-pink-500/20 rounded-full"
                     />
                   )}
                 </div>
@@ -1782,7 +1785,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           </div>
         )}
 
-        <div className="px-6 pt-4">
+        <div className="px-6 pt-2 pb-1 bg-slate-900/30">
           <StepIndicator currentStep={currentStep} completedSteps={completedSteps} />
         </div>
 
@@ -1791,10 +1794,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             e.preventDefault()
             if (currentStep === 4) handleSubmit(e)
           }}
-          className="flex flex-col flex-1 min-h-0 min-w-0 space-y-0"
+          className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
 
-          <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-[320px] min-w-0 pr-2 pb-4 space-y-6">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6 min-h-0 min-w-0 custom-scrollbar">
           {currentStep === 1 && (
           <>
           {/* PASO 1: Datos del Cliente */}

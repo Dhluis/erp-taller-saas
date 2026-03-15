@@ -9,15 +9,36 @@ import { VoiceInput } from '@/components/ui/VoiceInput';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useBilling } from '@/hooks/useBilling';
+import { useLimitCheck } from '@/hooks/useLimitCheck';
+import { UpgradeModal } from '@/components/billing/upgrade-modal';
+
+const MAGIC_CREATE_LIMIT_ERROR = {
+  type: 'limit_exceeded' as const,
+  resource: 'work_order' as const,
+  message: 'Eagles AI Magic Create es una función Premium. Captura órdenes, citas e inventario instantáneamente con el poder de la Inteligencia Artificial.',
+  feature: 'ai_enabled',
+  upgrade_url: '/settings/billing',
+  plan_required: 'premium',
+};
 
 export function FloatingAIAssistant() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const router = useRouter();
+  const { canUseAI, isLoading: billingLoading } = useBilling();
+  const { showUpgradeModal, closeUpgradeModal, showUpgrade, limitError } = useLimitCheck();
 
   const handleMagicCreate = async () => {
     if (!input.trim()) return;
+    if (billingLoading) return;
+    
+    if (!canUseAI) {
+      showUpgrade(MAGIC_CREATE_LIMIT_ERROR);
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch('/api/ai-assistant', {
@@ -26,14 +47,37 @@ export function FloatingAIAssistant() {
         body: JSON.stringify({ action: 'magic-create', payload: { text: input } })
       });
       const result = await response.json();
-      if (result.success) {
+      
+      if (result.success && result.data) {
+        const actionType = result.data.action_type || 'work-order';
+        
+        // Guardar en sessionStorage para transferencia robusta
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('eagles_ai_pending_data', JSON.stringify(result.data));
+        }
+
         const queryParams = new URLSearchParams();
         queryParams.set('openMagicCreate', 'true');
-        queryParams.set('aiData', encodeURIComponent(JSON.stringify(result.data)));
-        router.push(`/dashboard?${queryParams.toString()}`);
+
+        let targetPath = '/dashboard';
+        let intentLabel = 'orden de trabajo';
+        
+        if (actionType === 'inventory') {
+          targetPath = '/inventarios/productos';
+          intentLabel = 'producto de inventario';
+        } else if (actionType === 'appointment') {
+          targetPath = '/citas';
+          intentLabel = 'cita';
+        }
+
+        toast.success(`Intención detectada: ${intentLabel}. Redirigiendo...`);
+        router.push(`${targetPath}?${queryParams.toString()}`);
         setInput('');
+      } else {
+        toast.error('No se pudo determinar la intención. Intenta ser más descriptivo.');
       }
     } catch (error) {
+      console.error('Error en Eagles AI:', error);
       toast.error('Error al procesar con Eagles AI');
     } finally {
       setLoading(false);
@@ -64,7 +108,7 @@ export function FloatingAIAssistant() {
         <div className="flex flex-col md:flex-row items-center gap-6">
           <div className="flex-1 w-full space-y-2">
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+              <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
                 Eagles AI <Sparkles className="h-4 w-4 text-pink-400 fill-pink-400/20" />
               </h2>
             </div>
@@ -123,6 +167,13 @@ export function FloatingAIAssistant() {
           </div>
         </div>
       </div>
+
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={closeUpgradeModal}
+        limitError={limitError || undefined}
+        featureName="Eagles AI Magic Create"
+      />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Check, Crown, Zap, TrendingDown, AlertCircle, Settings, Loader2, ChevronDown } from 'lucide-react'
+import { Check, X, Crown, Zap, TrendingDown, AlertCircle, Settings, Loader2, ChevronDown } from 'lucide-react'
 import { useBilling } from '@/hooks/useBilling'
 import { PRICING, FEATURES, detectUserCountry, getPricingByCountry, shouldUseMercadoPago, type CountryCode } from '@/lib/billing/constants'
 import { useSearchParams } from 'next/navigation'
@@ -232,6 +232,13 @@ export default function BillingPage() {
                   <span className="text-sm">{feature}</span>
                 </li>
               ))}
+              {/* No incluídos */}
+              {FEATURES.premium_only.map((feature, i) => (
+                <li key={`not-${i}`} className="flex items-center gap-2 opacity-60">
+                  <X className="h-4 w-4 text-red-500/70 flex-shrink-0" />
+                  <span className="text-sm text-muted-foreground line-through decoration-red-500/20">{feature}</span>
+                </li>
+              ))}
             </ul>
           </CardContent>
         </Card>
@@ -354,9 +361,11 @@ export default function BillingPage() {
             {/* Features */}
             <ul className="space-y-3 pt-4 border-t">
               {FEATURES.premium.map((feature, i) => (
-                <li key={i} className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  <span className="text-sm">{feature}</span>
+                <li key={i} className="flex items-center gap-2 group/feat">
+                  <div className="h-5 w-5 rounded-full bg-emerald-500/10 flex items-center justify-center group-hover/feat:bg-emerald-500/20 transition-colors">
+                    <Check className="h-3 w-3 text-emerald-500" />
+                  </div>
+                  <span className="text-sm font-medium">{feature.replace('✅ ', '')}</span>
                 </li>
               ))}
             </ul>

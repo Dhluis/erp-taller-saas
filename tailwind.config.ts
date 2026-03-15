@@ -92,7 +92,7 @@ const config: Config = {
           dark: '#2563EB',
         },
         // Bordes del tema EAGLES
-        border: {
+        borders: {
           DEFAULT: '#2D3748',
           light: '#374151',
           dark: '#1F2937',
@@ -100,7 +100,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
+        heading: ['var(--font-outfit)', 'Outfit', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
       boxShadow: {

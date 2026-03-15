@@ -84,6 +84,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     // - Usar organizationId en lugar de IP cuando sea posible
     // - Hacer fallback más permisivo cuando getTenantContext falla
     
+    if (pathname.startsWith('/mensajeria') || pathname.startsWith('/whatsapp')) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+
     if (pathname.startsWith('/api/')) {
       // Continuar con la request sin rate limiting global
       return NextResponse.next();

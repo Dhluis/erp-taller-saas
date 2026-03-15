@@ -72,8 +72,8 @@ export function QuickActions({ onOrderCreated, initialData }: QuickActionsProps)
   return (
     <>
       <Card className="shadow-sm hover:shadow-md transition-shadow">
-        <CardHeader className="border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-          <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+        <CardHeader className="border-b border-slate-700 bg-gradient-to-r from-slate-800 to-slate-900">
+          <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
             <span className="text-xl">⚡</span>
             Acciones Rápidas
           </CardTitle>

@@ -112,23 +112,70 @@ Fecha de ingreso: ${order.entry_date}.`
     }
 
     if (action === 'magic-create') {
-      const { text } = payload;
+      const { text, context = 'auto' } = payload;
       if (!text) return NextResponse.json({ error: 'Falta el texto' }, { status: 400 });
 
-      const SYSTEM_PROMPT = `Eres el extractor de datos de Eagles System ERP. Tu tarea es analizar un texto (dictado o escrito) y extraer información para crear un cliente, un vehículo y una orden de trabajo.
+      let systemPrompt = '';
+      
+      if (context === 'inventory') {
+        systemPrompt = `Eres el extractor de datos de inventario de Eagles System ERP. Tu tarea es analizar un texto y extraer información para crear un producto/pieza.
 Devuelve SIEMPRE un JSON válido con la siguiente estructura:
 {
+  "action_type": "inventory",
+  "product": { 
+    "name": string, 
+    "sku": string, 
+    "category_name": string, 
+    "unit_price": number, 
+    "stock": number, 
+    "minimum_stock": number, 
+    "description": string 
+  }
+}`;
+      } else if (context === 'appointment') {
+        systemPrompt = `Eres el extractor de datos de citas de Eagles System ERP. Tu tarea es analizar un texto y extraer información para agendar una cita.
+Devuelve SIEMPRE un JSON válido con la siguiente estructura:
+{
+  "action_type": "appointment",
+  "appointment": { 
+    "customer": { "name": string, "phone": string, "email": string },
+    "vehicle": { "brand": string, "model": string, "year": number, "plate": string },
+    "details": { "service_type": string, "date": string (ISO YYYY-MM-DD), "time": string (HH:mm), "notes": string, "duration_minutes": number }
+  }
+}`;
+      } else if (context === 'work-order') {
+        systemPrompt = `Eres el extractor de datos de Eagles System ERP. Tu tarea es analizar un texto y extraer información para crear un cliente, un vehículo y una orden de trabajo.
+Devuelve SIEMPRE un JSON válido con la siguiente estructura:
+{
+  "action_type": "work-order",
   "customer": { "name": string, "phone": string, "email": string },
   "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string },
   "work_order": { "description": string, "budget": number, "notes": string, "deadline": string }
-}
-Si no encuentras un campo, déjalo como string vacío o null.
-Intenta inferir el tipo de vehículo y el problema reportado.`;
+}`;
+      } else {
+        // Orchestrator mode (auto detect)
+        systemPrompt = `Eres el orquestador inteligente de Eagles System ERP. Tu tarea es analizar el texto del usuario y determinar con precisión qué desea hacer.
+
+### REGLAS DE INTENCIÓN:
+1. **inventory** (INVENTARIO): Si el usuario menciona "inventario", "agregar pieza", "repuesto", "stock", "producto", "sku", "precio de compra", "galones", "piezas", "cantidad".
+   - Estructura: { "action_type": "inventory", "product": { "name": string, "stock": number, "unit_price": number, "sku": string, "category_name": string } }
+
+2. **appointment** (CITA): Si el usuario menciona "cita", "agendar", "reservar", "programar", "venir el día...", "mañana a las...", "calendario".
+   - Estructura: { "action_type": "appointment", "appointment": { "customer": { "name": string, "phone": string }, "details": { "service_type": string, "date": "YYYY-MM-DD", "time": "HH:mm", "notes": string } } }
+
+3. **work-order** (ORDEN DE TRABAJO): Si el usuario menciona un problema mecánico, ruido, falla, "reparar", "componer", "trajo su carro", "abrir orden", "presupuesto de reparación".
+   - Estructura: { "action_type": "work-order", "customer": { "name": string, "phone": string }, "vehicle": { "brand": string, "model": string, "plate": string }, "work_order": { "description": string, "budget": number } }
+
+### CRÍTICO:
+- Devuelve SIEMPRE un JSON válido.
+- Si no hay una intención clara de inventario o cita, usa "work-order" como respaldo, pero sé estricto con las palabras clave de los otros.
+- En citas, si no mencionan fecha, asume la fecha de hoy.`;
+      }
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: text }
         ],
         response_format: { type: 'json_object' },

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { toast } from 'sonner'
 import { useOrganization } from '@/lib/context/SessionContext'
 import { createClient } from '@/lib/supabase/client'
@@ -44,8 +45,11 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  Wrench
+  Wrench,
+  Brain
 } from "lucide-react"
+import { VoiceInput } from "@/components/ui/VoiceInput"
+import { cn } from "@/lib/utils"
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal'
 import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
 // ✅ Removido: getAppointmentStats - ahora se usa API route
@@ -102,7 +106,21 @@ interface CreateAppointmentData {
   estimated_duration: number
 }
 
+import { Suspense } from "react"
+// ... imports
 export default function CitasPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+      </div>
+    }>
+      <CitasContent />
+    </Suspense>
+  );
+}
+
+function CitasContent() {
   // ✅ Obtener organizationId y workshopId directamente del contexto (más confiable)
   const { organizationId, workshopId, loading: orgLoading } = useOrganization()
 
@@ -111,8 +129,72 @@ export default function CitasPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [loadingStats, setLoadingStats] = useState(false)
+  const [isProcessingAI, setIsProcessingAI] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const searchParams = useSearchParams()
+  const processedRef = useRef(false);
+
+  // Efecto para capturar datos de Eagles AI de la URL
+  useEffect(() => {
+    if (processedRef.current) return;
+
+    const openMagicCreate = searchParams.get('openMagicCreate');
+    if (openMagicCreate === 'true') {
+      try {
+        console.log('🔍 [Citas] Buscando datos de AI en URL/Storage...');
+        let aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data');
+        if (!aiDataRaw) {
+          aiDataRaw = searchParams.get('aiData');
+        }
+
+        if (aiDataRaw) {
+          const parsedData = JSON.parse(aiDataRaw);
+          console.log('✨ [Citas] Datos encontrados:', parsedData);
+          
+          if (parsedData.action_type === 'appointment' && parsedData.appointment) {
+            processedRef.current = true;
+            const a = parsedData.appointment;
+            
+            setFormData({
+              customer_name: a.customer?.name || '',
+              customer_phone: a.customer?.phone || '',
+              customer_email: a.customer?.email || '',
+              vehicle_info: a.vehicle ? `${a.vehicle.brand} ${a.vehicle.model}` : '',
+              vehicle_brand: a.vehicle?.brand || '',
+              vehicle_model: a.vehicle?.model || '',
+              vehicle_year: a.vehicle?.year?.toString() || '',
+              vehicle_plate: a.vehicle?.plate || '',
+              service_type: a.details?.service_type || '',
+              appointment_date: a.details?.date || new Date().toISOString().split('T')[0],
+              appointment_time: a.details?.time || '10:00',
+              status: 'scheduled',
+              notes: a.details?.notes || 'Agendado vía Eagles AI',
+              estimated_duration: a.details?.duration_minutes || 60
+            });
+
+            console.log('🚀 [Citas] Abriendo diálogo de nueva cita...');
+            setIsDialogOpen(true);
+            toast.success('¡Eagles AI preparó los datos de la cita!');
+            
+            // Limpiar
+            sessionStorage.removeItem('eagles_ai_pending_data');
+            const newPath = window.location.pathname;
+            window.history.replaceState({}, '', newPath);
+          } else {
+            console.log('⏭️ [Citas] Datos no corresponden a citas:', parsedData.action_type);
+          }
+        } else {
+          console.log('⚠️ [Citas] No se encontraron datos de AI en el storage');
+        }
+      } catch (e) {
+        console.error('❌ [Citas] Error al procesar datos de AI:', e);
+      }
+    }
+  }, [searchParams]);
+
   const [currentMonth, setCurrentMonth] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month')
   const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false)
@@ -197,6 +279,48 @@ export default function CitasPage() {
       setFilteredAppointments(appointments)
     }
   }, [searchTerm, appointments])
+
+  const handleAppointmentVoiceTranscription = async (text: string) => {
+    setIsProcessingAI(true);
+    try {
+      const response = await fetch('/api/ai-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'magic-create',
+          payload: { text, context: 'appointment' }
+        })
+      });
+
+      const result = await response.json();
+      if (result.success && result.data?.appointment) {
+        const apt = result.data.appointment;
+        
+        setFormData(prev => ({
+          ...prev,
+          customer_name: apt.customer?.name || prev.customer_name,
+          customer_phone: apt.customer?.phone || prev.customer_phone,
+          customer_email: apt.customer?.email || prev.customer_email,
+          vehicle_brand: apt.vehicle?.brand || prev.vehicle_brand,
+          vehicle_model: apt.vehicle?.model || prev.vehicle_model,
+          vehicle_year: apt.vehicle?.year?.toString() || prev.vehicle_year,
+          vehicle_plate: apt.vehicle?.plate || prev.vehicle_plate,
+          service_type: apt.details?.service_type || prev.service_type,
+          appointment_date: apt.details?.date || prev.appointment_date,
+          appointment_time: apt.details?.time || prev.appointment_time,
+          notes: apt.details?.notes || prev.notes,
+          estimated_duration: apt.details?.duration_minutes || prev.estimated_duration
+        }));
+        
+        toast.success('¡IA procesó tu reserva con éxito!');
+      }
+    } catch (error) {
+      console.error('Error processing AI voice:', error);
+      toast.error('No se pudo procesar el dictado de IA');
+    } finally {
+      setIsProcessingAI(false);
+    }
+  };
 
   const loadData = async () => {
     if (!organizationId) {
@@ -741,6 +865,37 @@ export default function CitasPage() {
                 }
               </DialogDescription>
             </DialogHeader>
+
+            {/* Asistente de Voz AI */}
+            {!editingAppointment && (
+              <div className="py-3 px-4 bg-slate-900/40 rounded-lg border border-slate-800 -mx-1">
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+                  <div className="relative flex items-center gap-3 bg-[#0f172a] border border-pink-500/30 rounded-lg p-2 shadow-xl">
+                    <div className="p-1.5 bg-pink-500/10 rounded-lg shrink-0">
+                      <Brain className={cn("h-5 w-5 text-pink-500", isProcessingAI && "animate-pulse")} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Eagles AI</p>
+                        <span className="h-1 w-1 rounded-full bg-slate-600"></span>
+                        <p className="text-[10px] text-slate-400 truncate">Dicta fecha, cliente y auto...</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isProcessingAI ? (
+                        <Loader2 className="h-5 w-5 text-pink-500 animate-spin" />
+                      ) : (
+                        <VoiceInput
+                          onTranscript={handleAppointmentVoiceTranscription}
+                          className="h-9 w-9 bg-pink-600 hover:bg-pink-500 text-white shadow-lg shadow-pink-500/20 rounded-full"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
@@ -882,15 +1037,24 @@ export default function CitasPage() {
                 </div>
               </div>
               
-              <div>
+              <div className="relative">
                 <Label htmlFor="notes">Notas</Label>
-                <Textarea 
-                  id="notes" 
-                  value={formData.notes}
-                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                  placeholder="Notas adicionales sobre la cita"
-                  rows={3}
-                />
+                <div className="relative">
+                  <Textarea 
+                    id="notes" 
+                    value={formData.notes}
+                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                    placeholder="Notas adicionales sobre la cita"
+                    className="pr-12"
+                    rows={3}
+                  />
+                  <div className="absolute right-2 top-2">
+                    <VoiceInput
+                      onTranscript={(text) => setFormData(prev => ({ ...prev, notes: prev.notes ? `${prev.notes} ${text}` : text }))}
+                      className="h-8 w-8"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
             

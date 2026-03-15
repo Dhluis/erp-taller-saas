@@ -278,20 +278,6 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
                 </Button>
               </Link>
               
-              <Link href="/dashboard/whatsapp/conversaciones" className="flex-shrink-0" title="WhatsApp Conversaciones" target="_blank" rel="noopener noreferrer">
-                <Button
-                  variant={isWhatsAppActive ? "primary" : "outline"}
-                  className={cn(
-                    "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
-                    isWhatsAppActive 
-                      ? "bg-primary text-bg-primary hover:bg-primary-dark" 
-                      : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
-                  )}
-                >
-                  <ModernIcons.WhatsApp size={18} />
-                  <span className="text-sm font-medium hidden md:inline">WhatsApp</span>
-                </Button>
-              </Link>
             </>
           )}
           </nav>

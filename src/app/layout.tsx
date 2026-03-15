@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next"
-import { Inter } from "next/font/google"
+import { Inter, Outfit } from "next/font/google"
 import "./globals.css"
 import { Providers } from "@/components/providers/Providers"
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister"
@@ -8,6 +8,12 @@ import { GlobalLayoutWrapper } from "@/components/layout/GlobalLayoutWrapper"
 const inter = Inter({ 
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
+})
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-outfit",
   display: "swap",
 })
 
@@ -62,7 +68,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#00D9FF" />
         <meta name="color-scheme" content="dark" />
       </head>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${outfit.variable} font-sans antialiased`}>
         <Providers>
           <ServiceWorkerRegister />
           <div className="min-h-screen bg-bg-primary text-text-primary">

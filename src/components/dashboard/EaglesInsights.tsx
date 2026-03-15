@@ -95,13 +95,13 @@ export function EaglesInsights() {
             >
               <div className="flex justify-between items-start gap-3 mb-3">
                 <div className="flex-1">
-                  <h4 className="text-sm lg:text-base font-black text-slate-100 leading-tight group-hover/item:text-white transition-colors">
+                  <h4 className="text-sm lg:text-base font-bold text-slate-100 leading-tight group-hover/item:text-white transition-colors">
                     {insight.title}
                   </h4>
                 </div>
                 <Badge 
                   className={cn(
-                    "text-[9px] px-2 py-0.5 h-5 font-black border-none shadow-sm",
+                    "text-[9px] px-2 py-0.5 h-5 font-bold border-none shadow-sm",
                     insight.severity === 'HIGH' 
                       ? "bg-rose-500/20 text-rose-400" 
                       : "bg-amber-500/20 text-amber-400"
@@ -118,7 +118,7 @@ export function EaglesInsights() {
               <div className="mt-auto pt-4 border-t border-slate-800/50">
                 <Link 
                   href={insight.actionLink || '#'} 
-                  className="group/btn inline-flex items-center gap-2 text-xs font-black text-pink-400 hover:text-pink-300 transition-all uppercase tracking-wider"
+                  className="group/btn inline-flex items-center gap-2 text-xs font-bold text-pink-400 hover:text-pink-300 transition-all uppercase tracking-wider"
                 >
                   {insight.actionLabel}
                   <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/btn:translate-x-1.5" />

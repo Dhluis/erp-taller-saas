@@ -37,17 +37,22 @@ export function EaglesMagicCreate() {
 
       if (result.success && result.data) {
         toast.success('¡IA procesó los datos con éxito!');
-        // Aquí podríamos abrir el modal de creación con los datos pre-llenados
-        // O redirigir a una página de confirmación.
-        // Por ahora, simularemos que los datos se detectaron.
         console.log('Datos extraídos por Eagles AI:', result.data);
         
+        const actionType = result.data.action_type || 'work-order';
         const queryParams = new URLSearchParams();
         queryParams.set('openMagicCreate', 'true');
-        queryParams.set('aiData', encodeURIComponent(JSON.stringify(result.data)));
+        // Usar sessionStorage para evitar problemas de URL
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('eagles_ai_pending_data', JSON.stringify(result.data));
+        }
+
+        let targetPath = '/dashboard';
+        if (actionType === 'inventory') targetPath = '/inventarios/productos';
+        if (actionType === 'appointment') targetPath = '/citas';
 
         toast.info('Redirigiendo para completar el registro...');
-        router.push(`/dashboard?${queryParams.toString()}`);
+        router.push(`${targetPath}?${queryParams.toString()}`);
         
         // Limpiamos el input
         setInput('');
@@ -63,13 +68,13 @@ export function EaglesMagicCreate() {
     <Card className="overflow-hidden border-2 border-indigo-500/20 bg-slate-900/50 backdrop-blur-sm shadow-xl hover:shadow-indigo-500/10 transition-all duration-300">
       <CardHeader className="pb-3 border-b border-white/5 bg-gradient-to-r from-indigo-500/10 to-purple-500/10">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+          <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400">
               <Sparkles className="w-5 h-5" />
             </div>
             Creación Mágica (Eagles AI)
           </CardTitle>
-          <div className="px-2 py-0.5 rounded-full bg-indigo-500 text-[10px] font-bold text-white tracking-wider uppercase animate-pulse">
+          <div className="px-2 py-0.5 rounded-full bg-indigo-500 text-[10px] font-semibold text-white tracking-wider uppercase animate-pulse">
             Beta
           </div>
         </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PageHeader } from '@/components/navigation/page-header';
 import { Pagination } from '@/components/ui/pagination';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useSearchParams } from 'next/navigation';
 import { 
   MagnifyingGlassIcon,
   PlusIcon,
@@ -16,9 +17,11 @@ import {
   AdjustmentsHorizontalIcon,
   TrashIcon
 } from '@heroicons/react/24/outline';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Brain, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useInventory, type CreateInventoryItemData, type UpdateInventoryItemData, type InventoryItem } from '@/hooks/useInventory';
+import { VoiceInput } from '@/components/ui/VoiceInput';
+import { cn } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +33,22 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+import { Suspense } from 'react';
+// ... other imports
+
 export default function InventariosProductosPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+      </div>
+    }>
+      <InventariosContent />
+    </Suspense>
+  );
+}
+
+function InventariosContent() {
   const {
     items,
     categories,
@@ -82,6 +100,142 @@ export default function InventariosProductosPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<InventoryItem | null>(null);
+  const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const searchParams = useSearchParams();
+  const processedRef = useRef(false);
+
+  useEffect(() => {
+    if (processedRef.current) return;
+    
+    const openMagicCreate = searchParams.get('openMagicCreate');
+    if (openMagicCreate === 'true') {
+      try {
+        console.log('🔍 [Inventory] Buscando datos de AI en URL/Storage...');
+        let aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data');
+        if (!aiDataRaw) {
+          aiDataRaw = searchParams.get('aiData');
+        }
+
+        if (aiDataRaw) {
+          const parsedData = JSON.parse(aiDataRaw);
+          console.log('✨ [Inventory] Datos encontrados:', parsedData);
+          
+          if (parsedData.action_type === 'inventory' && parsedData.product) {
+            processedRef.current = true;
+            const p = parsedData.product;
+            
+            let foundCategoryId = '';
+            if (p.category_name && categories.length > 0) {
+              const cat = categories.find(c => 
+                c.name.toLowerCase().includes(p.category_name.toLowerCase())
+              );
+              if (cat) {
+                foundCategoryId = cat.id;
+                console.log('✅ [Inventory] Categoría auto-detectada:', cat.name);
+              }
+            }
+
+            setNewProduct({
+              name: p.name || '',
+              sku: p.sku || '',
+              unit_price: p.unit_price?.toString() || '',
+              stock: p.stock?.toString() || '',
+              minimum_stock: p.minimum_stock?.toString() || '5',
+              description: p.description || 'Producto agregado vía Eagles AI',
+              category_id: foundCategoryId || ''
+            });
+
+            console.log('🚀 [Inventory] Abriendo modal de nuevo producto...');
+            setShowNewProductModal(true);
+            toast.success('¡Eagles AI preparó los datos del producto!');
+            
+            // Limpiar
+            sessionStorage.removeItem('eagles_ai_pending_data');
+            const newPath = window.location.pathname;
+            window.history.replaceState({}, '', newPath);
+          } else {
+            console.log('⏭️ [Inventory] Datos no corresponden a inventario:', parsedData.action_type);
+          }
+        } else {
+          console.log('⚠️ [Inventory] No se encontraron datos de AI en el storage');
+        }
+      } catch (e) {
+        console.error('❌ [Inventory] Error al procesar datos de AI:', e);
+      }
+    }
+  }, [searchParams, categories]);
+
+  const handleInventoryVoiceTranscription = async (text: string) => {
+    setIsProcessingAI(true);
+    try {
+      const response = await fetch('/api/ai-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'magic-create',
+          payload: { text, context: 'inventory' }
+        })
+      });
+
+      const result = await response.json();
+      if (result.success && result.data?.product) {
+        const p = result.data.product;
+        
+        // Buscar categoría por nombre (opcional)
+        let foundCategoryId = '';
+        if (p.category_name) {
+          const cat = categories.find(c => 
+            c.name.toLowerCase().includes(p.category_name.toLowerCase())
+          );
+          if (cat) foundCategoryId = cat.id;
+        }
+
+        const updatedData = {
+          name: p.name,
+          sku: p.sku,
+          unit_price: p.unit_price?.toString(),
+          stock: p.stock?.toString(),
+          minimum_stock: p.minimum_stock?.toString(),
+          description: p.description,
+          category_id: foundCategoryId
+        };
+
+        // Si el modal de edición está abierto, actualizamos ese estado
+        if (showEditProductModal) {
+          setEditProduct(prev => ({
+            ...prev,
+            name: updatedData.name || prev.name,
+            sku: updatedData.sku || prev.sku,
+            unit_price: updatedData.unit_price || prev.unit_price,
+            stock: updatedData.stock || prev.stock,
+            minimum_stock: updatedData.minimum_stock || prev.minimum_stock,
+            description: updatedData.description || prev.description,
+            category_id: updatedData.category_id || prev.category_id
+          }));
+        } else {
+          // Si no, actualizamos el de nuevo producto
+          setNewProduct(prev => ({
+            ...prev,
+            name: updatedData.name || prev.name,
+            sku: updatedData.sku || prev.sku,
+            unit_price: updatedData.unit_price || prev.unit_price,
+            stock: updatedData.stock || prev.stock,
+            minimum_stock: updatedData.minimum_stock || prev.minimum_stock,
+            description: updatedData.description || prev.description,
+            category_id: updatedData.category_id || prev.category_id
+          }));
+          setShowNewProductModal(true);
+        }
+        
+        toast.success('¡IA procesó tu dictado con éxito!');
+      }
+    } catch (error) {
+      console.error('Error processing AI voice:', error);
+      toast.error('No se pudo procesar el dictado de IA');
+    } finally {
+      setIsProcessingAI(false);
+    }
+  };
 
   // Sincronizar búsqueda con debounce
   useEffect(() => {
@@ -459,10 +613,46 @@ export default function InventariosProductosPage() {
 
         {/* Modal para Nuevo Producto */}
         {showNewProductModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-black border border-border shadow-lg rounded-lg p-6 w-full max-w-md" style={{backgroundColor: '#000000'}}>
-              <h2 className="text-xl font-bold mb-4 text-text-primary">Nuevo Producto</h2>
-              <div className="space-y-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-[#0b0f1a] border border-slate-800 shadow-2xl rounded-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-6 pb-2">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <PlusIcon className="h-5 w-5 text-blue-500" />
+                  Nuevo Producto
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">Ingresa los detalles manualmente o usa la IA</p>
+              </div>
+
+              {/* Asistente de Voz AI */}
+              <div className="px-6 py-3 bg-slate-900/50 border-y border-slate-800 flex-shrink-0">
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+                  <div className="relative flex items-center gap-3 bg-[#0f172a] border border-pink-500/30 rounded-lg p-2 shadow-xl">
+                    <div className="p-1.5 bg-pink-500/10 rounded-lg shrink-0">
+                      <Brain className={cn("h-5 w-5 text-pink-500", isProcessingAI && "animate-pulse")} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Eagles AI</p>
+                        <span className="h-1 w-1 rounded-full bg-slate-600"></span>
+                        <p className="text-[10px] text-slate-400 truncate">Dicta nombre, SKU y precio...</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isProcessingAI ? (
+                        <Loader2 className="h-5 w-5 text-pink-500 animate-spin" />
+                      ) : (
+                        <VoiceInput
+                          onTranscript={handleInventoryVoiceTranscription}
+                          className="h-9 w-9 bg-pink-600 hover:bg-pink-500 text-white shadow-lg shadow-pink-500/20 rounded-full"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 pt-4 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
                 <div>
                   <label className="block text-sm font-medium mb-1 text-text-secondary">Nombre del Producto *</label>
                   <Input 
@@ -557,6 +747,35 @@ export default function InventariosProductosPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-black border border-border shadow-lg rounded-lg p-6 w-full max-w-md" style={{backgroundColor: '#000000'}}>
               <h2 className="text-xl font-bold mb-4 text-text-primary">Editar Producto</h2>
+              
+              {/* Asistente de Voz AI */}
+              <div className="mb-6 py-3 px-4 bg-slate-900/40 rounded-lg border border-slate-800">
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+                  <div className="relative flex items-center gap-3 bg-[#0f172a] border border-pink-500/30 rounded-lg p-2 shadow-xl">
+                    <div className="p-1.5 bg-pink-500/10 rounded-lg shrink-0">
+                      <Brain className={cn("h-5 w-5 text-pink-500", isProcessingAI && "animate-pulse")} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Eagles AI</p>
+                        <span className="h-1 w-1 rounded-full bg-slate-600"></span>
+                        <p className="text-[10px] text-slate-400 truncate">Actualiza datos con tu voz...</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isProcessingAI ? (
+                        <Loader2 className="h-5 w-5 text-pink-500 animate-spin" />
+                      ) : (
+                        <VoiceInput
+                          onTranscript={handleInventoryVoiceTranscription}
+                          className="h-9 w-9 bg-pink-600 hover:bg-pink-500 text-white shadow-lg shadow-pink-500/20 rounded-full"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1 text-text-secondary">Nombre del Producto *</label>

@@ -17,6 +17,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Camera, MessageSquare } from 'lucide-react'
 import { EaglesAIActionButton } from './EaglesAIActionButton'
+import { WorkOrderQRCode } from './WorkOrderQRCode'
 
 interface WorkOrderDetailsModalProps {
   order: any | null
@@ -101,7 +102,17 @@ export function WorkOrderDetailsModal({
                 {statusInfo.label}
               </Badge>
             </div>
-            <EaglesAIActionButton order={order} />
+            <div className="flex items-center gap-2">
+              <EaglesAIActionButton 
+                workOrderId={order.id} 
+                customerPhone={order.customer?.phone} 
+              />
+              <WorkOrderQRCode 
+                orderId={order.id} 
+                orderNumber={order.order_number} 
+                customerName={order.customer?.name} 
+              />
+            </div>
           </div>
           
           {/* Fila 3: Metadata (fecha + contadores) */}

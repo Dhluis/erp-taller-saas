@@ -105,23 +105,34 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const [magicCreateData, setMagicCreateData] = useState<any>(null);
 
-  // Efecto para capturar datos de Eagles AI de la URL
+  // Efecto para capturar datos de Eagles AI (Orden de Trabajo)
   useEffect(() => {
     const openMagicCreate = searchParams.get('openMagicCreate');
     if (openMagicCreate === 'true') {
       try {
-        const aiDataRaw = searchParams.get('aiData');
+        // Prioridad: sessionStorage > searchParams
+        let aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data');
+        if (!aiDataRaw) {
+          aiDataRaw = searchParams.get('aiData');
+        }
+
         if (aiDataRaw) {
-          const parsedData = JSON.parse(decodeURIComponent(aiDataRaw));
-          console.log('✨ [Dashboard] Detectados datos de Eagles AI en URL:', parsedData);
-          setMagicCreateData(parsedData);
+          const parsedData = JSON.parse(aiDataRaw);
+          console.log('✨ [Dashboard] Datos de Eagles AI:', parsedData);
           
-          // Limpiar la URL para evitar que se re-abra al refrescar
-          const newPath = window.location.pathname;
-          window.history.replaceState({}, '', newPath);
+          // Solo procesar si es una orden de trabajo (work-order)
+          if (parsedData.action_type === 'work-order' || !parsedData.action_type) {
+            setMagicCreateData(parsedData);
+            toast.info('IA preparó una orden de trabajo');
+            
+            // Limpiar
+            sessionStorage.removeItem('eagles_ai_pending_data');
+            const newPath = window.location.pathname;
+            window.history.replaceState({}, '', newPath);
+          }
         }
       } catch (e) {
-        console.error('Error al parsear datos de AI de la URL:', e);
+        console.error('❌ [Dashboard] Error al procesar datos de AI:', e);
       }
     }
   }, [searchParams]);
