@@ -698,7 +698,7 @@ function OrdenesPageContent() {
                               {order.vehicle?.brand} {order.vehicle?.model}
                             </div>
                             <div className="text-xs text-slate-400">
-                              {order.vehicle?.license_plate || 'Sin placa'}
+                                {order.vehicle?.license_plate || 'No registrada'}
                             </div>
                           </div>
                         </td>

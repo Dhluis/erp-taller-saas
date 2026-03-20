@@ -61,9 +61,9 @@ export default function WorkOrdersPage() {
     currentWorkOrder,
     stats,
     loading,
-    fetchWorkOrders,
-    searchWorkOrders,
-    fetchStats,
+    refresh,
+    setSearch,
+    setFilters,
     fetchWorkOrderById,
     createWorkOrder,
     updateWorkOrder,
@@ -73,7 +73,9 @@ export default function WorkOrdersPage() {
     updateOrderItem,
     deleteOrderItem,
     setCurrentWorkOrder,
-  } = useWorkOrders();
+    fetchStats,
+    fetchWorkOrdersByCustomer: _fetchByCustomer,
+  } = useWorkOrders({ autoLoad: true });
 
   // Estados UI
   const [searchTerm, setSearchTerm] = useState('');
@@ -86,26 +88,23 @@ export default function WorkOrdersPage() {
 
   // Cargar datos iniciales
   useEffect(() => {
-    fetchWorkOrders();
+    refresh();
     fetchStats();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Manejar búsqueda
   const handleSearch = () => {
-    if (searchTerm.trim()) {
-      searchWorkOrders(searchTerm);
-    } else {
-      fetchWorkOrders(selectedStatus !== 'all' ? selectedStatus : undefined);
-    }
+    setSearch(searchTerm.trim());
   };
 
   // Manejar cambio de filtro de estado
   const handleStatusFilterChange = (status: string) => {
     setSelectedStatus(status);
     if (status === 'all') {
-      fetchWorkOrders();
+      setFilters({});
     } else {
-      fetchWorkOrders(status);
+      setFilters({ status });
     }
     fetchStats();
   };
@@ -114,12 +113,13 @@ export default function WorkOrdersPage() {
   const handleClearFilters = () => {
     setSearchTerm('');
     setSelectedStatus('all');
-    fetchWorkOrders();
+    setSearch('');
+    setFilters({});
   };
 
   // Refrescar datos
   const handleRefresh = () => {
-    fetchWorkOrders(selectedStatus !== 'all' ? selectedStatus : undefined);
+    refresh();
     fetchStats();
   };
 
@@ -172,7 +172,7 @@ export default function WorkOrdersPage() {
 
   // Cambiar estado de orden (drag & drop simulado)
   const handleStatusChange = async (workOrderId: string, newStatus: WorkOrderStatus) => {
-    await updateWorkOrderStatus(workOrderId, newStatus);
+    await updateWorkOrderStatus(workOrderId, newStatus as string);
     fetchStats();
   };
 
@@ -411,7 +411,7 @@ export default function WorkOrdersPage() {
                         : 'N/A'}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {currentWorkOrder.vehicle?.license_plate || 'Sin placas'}
+                      {currentWorkOrder.vehicle?.license_plate || 'No registrada'}
                     </p>
                   </div>
                   <div>
@@ -428,12 +428,12 @@ export default function WorkOrdersPage() {
                     </p>
                     <p className="mt-1">{currentWorkOrder.description}</p>
                   </div>
-                  {currentWorkOrder.diagnosis && (
+                  {(currentWorkOrder as any).diagnosis && (
                     <div className="col-span-2">
                       <p className="text-sm font-medium text-muted-foreground">
                         Diagnóstico
                       </p>
-                      <p className="mt-1">{currentWorkOrder.diagnosis}</p>
+                      <p className="mt-1">{(currentWorkOrder as any).diagnosis}</p>
                     </div>
                   )}
                   {currentWorkOrder.estimated_completion && (
@@ -482,14 +482,14 @@ export default function WorkOrdersPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">IVA (16%):</span>
                       <span className="font-medium">
-                        ${currentWorkOrder.tax.toFixed(2)}
+                        ${((currentWorkOrder as any).tax_amount ?? (currentWorkOrder as any).tax ?? 0).toFixed(2)}
                       </span>
                     </div>
-                    {currentWorkOrder.discount > 0 && (
+                    {((currentWorkOrder as any).discount_amount ?? (currentWorkOrder as any).discount ?? 0) > 0 && (
                       <div className="flex justify-between text-sm text-green-600">
                         <span>Descuento:</span>
                         <span className="font-medium">
-                          -${currentWorkOrder.discount.toFixed(2)}
+                          -${((currentWorkOrder as any).discount_amount ?? (currentWorkOrder as any).discount ?? 0).toFixed(2)}
                         </span>
                       </div>
                     )}

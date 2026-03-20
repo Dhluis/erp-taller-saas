@@ -1,0 +1,201 @@
+node_modules/next/dist/build/templates/app-page.d.ts(11,25): error TS2307: Cannot find module 'VAR_MODULE_GLOBAL_ERROR' or its corresponding type declarations.
+node_modules/next/dist/build/webpack-config.d.ts(10,104): error TS2694: Namespace '"C:/Users/exclu/erp-taller-saas/node_modules/next/dist/compiled/webpack/webpack".webpack' has no exported member 'RuleSetUseItem'.
+node_modules/next/dist/build/webpack/loaders/next-app-loader/index.d.ts(1,13): error TS2613: Module '"C:/Users/exclu/erp-taller-saas/node_modules/next/dist/compiled/webpack/webpack"' has no default export. Did you mean to use 'import { webpack } from "C:/Users/exclu/erp-taller-saas/node_modules/next/dist/compiled/webpack/webpack"' instead?
+node_modules/next/dist/client/components/error-boundary.d.ts(1,8): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/client/components/http-access-fallback/error-boundary.d.ts(11,8): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/client/components/layout-router.d.ts(2,8): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/client/with-router.d.ts(1,8): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/lib/metadata/metadata.d.ts(1,8): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/next-devtools/dev-overlay/shared.d.ts(181,20): error TS2694: Namespace 'React' has no exported member 'ActionDispatch'.
+node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.d.ts(1,8): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/server/app-render/entry-base.d.ts(1,114): error TS2307: Cannot find module 'react-server-dom-webpack/server' or its corresponding type declarations.
+node_modules/next/dist/server/app-render/entry-base.d.ts(2,49): error TS2307: Cannot find module 'react-server-dom-webpack/static' or its corresponding type declarations.
+node_modules/next/dist/server/route-modules/app-page/vendored/rsc/entrypoints.d.ts(5,39): error TS2307: Cannot find module 'react/compiler-runtime' or its corresponding type declarations.
+node_modules/next/dist/server/route-modules/app-page/vendored/ssr/entrypoints.d.ts(5,39): error TS2307: Cannot find module 'react/compiler-runtime' or its corresponding type declarations.
+node_modules/next/dist/server/web/spec-extension/adapters/headers.d.ts(39,16): error TS2304: Cannot find name 'HeadersIterator'.
+node_modules/next/dist/server/web/spec-extension/adapters/headers.d.ts(40,13): error TS2304: Cannot find name 'HeadersIterator'.
+node_modules/next/dist/server/web/spec-extension/adapters/headers.d.ts(41,15): error TS2304: Cannot find name 'HeadersIterator'.
+node_modules/next/dist/server/web/spec-extension/adapters/headers.d.ts(42,26): error TS2304: Cannot find name 'HeadersIterator'.
+node_modules/next/dist/shared/lib/amp-context.shared-runtime.d.ts(1,8): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/app-router-context.shared-runtime.d.ts(4,8): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/head-manager-context.shared-runtime.d.ts(1,8): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/image-config-context.shared-runtime.d.ts(1,8): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/loadable-context.shared-runtime.d.ts(1,8): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/loadable.shared-runtime.d.ts(21,8): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/router-context.shared-runtime.d.ts(1,8): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/server-inserted-html.shared-runtime.d.ts(1,8): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/utils.d.ts(10,13): error TS1192: Module '"fs"' has no default export.
+node_modules/next/dist/types.d.ts(8,13): error TS1259: Module '"C:/Users/exclu/erp-taller-saas/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+src/app/tracking/[id]/page.tsx(5,23): error TS2307: Cannot find module '@/components/ui/badge' or its corresponding type declarations.
+src/app/tracking/[id]/page.tsx(6,75): error TS2307: Cannot find module '@/components/ui/card' or its corresponding type declarations.
+src/app/tracking/[id]/page.tsx(12,24): error TS2307: Cannot find module '@/components/ui/button' or its corresponding type declarations.
+src/app/tracking/[id]/page.tsx(13,58): error TS2307: Cannot find module '@/components/ui/tabs' or its corresponding type declarations.
+src/app/tracking/[id]/page.tsx(62,7): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(63,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(64,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(65,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(66,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(69,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(76,7): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(77,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(78,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(80,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(81,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(84,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(99,5): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(101,7): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(102,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(103,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(104,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(108,7): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(109,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(110,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(111,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(113,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(115,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(118,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(119,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(120,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(124,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(126,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(131,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(136,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(137,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(143,7): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(145,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(146,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(147,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(150,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(152,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(153,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(154,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(155,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(157,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(157,103): error TS2339: Property 'toUpperCase' does not exist on type 'string | string[]'.
+  Property 'toUpperCase' does not exist on type 'string[]'.
+src/app/tracking/[id]/page.tsx(162,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(163,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(164,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(165,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(167,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(170,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(175,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(183,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(184,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(190,42): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(190,94): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(193,27): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(196,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(197,27): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(200,27): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(201,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(204,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(220,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(222,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(223,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(225,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(228,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(229,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(230,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(231,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(236,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(237,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(238,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(242,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(243,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(244,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(245,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(248,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(249,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(250,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(251,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(252,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(256,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(257,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(258,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(259,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(263,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(264,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(265,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(266,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(270,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(271,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(272,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(273,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(279,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(280,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(281,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(282,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(284,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(292,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(293,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(295,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(298,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(299,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(303,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(304,71): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(305,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(306,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(307,27): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(308,27): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(315,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(316,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(317,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(322,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(332,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(333,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(334,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(336,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(338,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(341,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(343,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(344,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(345,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(350,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(351,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(352,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(353,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(359,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(360,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(361,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(369,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(370,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(372,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(373,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(374,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(375,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(376,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(380,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(383,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(384,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(385,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(386,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(388,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(389,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(390,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(395,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(396,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(397,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(398,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(403,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(404,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(405,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(407,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(408,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(409,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(417,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(418,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(419,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(420,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(421,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(422,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(423,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(429,7): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(430,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(431,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(437,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(438,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(440,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(444,7): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/tracking/[id]/page.tsx(444,14): error TS2322: Type '{ children: string; jsx: true; global: true; }' is not assignable to type 'DetailedHTMLProps<StyleHTMLAttributes<HTMLStyleElement>, HTMLStyleElement>'.
+  Property 'jsx' does not exist on type 'DetailedHTMLProps<StyleHTMLAttributes<HTMLStyleElement>, HTMLStyleElement>'.

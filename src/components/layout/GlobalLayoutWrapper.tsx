@@ -10,6 +10,8 @@ const PUBLIC_PREFIXES = [
   '/auth',
   '/onboarding',
   '/dashboard/whatsapp/conversaciones',
+  '/tracking',
+  '/tracking/',
 ]
 
 /**

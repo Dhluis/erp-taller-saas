@@ -218,7 +218,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         const vehicleTitle = `${brand} ${model}${year}`.trim() || 'Vehículo sin información';
         return {
           title: vehicleTitle,
-          subtitle: result.license_plate || 'Sin placa',
+          subtitle: result.license_plate || 'No registrada',
           badge: null,
         };
       case 'product':
@@ -303,16 +303,6 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
           ) : (
             <div className="py-2">
               {/* DEBUG: Mostrar total de resultados */}
-              {console.log('🎯 [GlobalSearch] RENDERIZANDO RESULTADOS:', {
-                total: allResults.length,
-                orders: results.orders.length,
-                customers: results.customers.length,
-                vehicles: results.vehicles.length,
-                products: results.products.length,
-                invoices: results.invoices.length,
-                suppliers: results.suppliers.length,
-              })}
-              
               {/* Órdenes */}
               {results.orders.length > 0 && (
                 <div className="mb-4">
@@ -533,7 +523,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                         </div>
                         <div className="flex items-center gap-2">
                           {formatted.badge && (
-                            <Badge variant="destructive" className="text-xs">
+                            <Badge variant="error" className="text-xs">
                               {formatted.badge}
                             </Badge>
                           )}

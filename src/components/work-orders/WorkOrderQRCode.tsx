@@ -15,8 +15,9 @@ interface WorkOrderQRCodeProps {
 export function WorkOrderQRCode({ orderId, orderNumber, customerName }: WorkOrderQRCodeProps) {
   const [showQR, setShowQR] = useState(false)
   
-  // URL de la página de seguimiento pública (que crearé a continuación)
-  const trackingUrl = `${window.location.origin}/tracking/${orderId}`
+  // URL de la página de seguimiento pública
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')
+  const trackingUrl = `${baseUrl}/tracking/${orderId}`
   
   // Mensaje para WhatsApp que el cliente enviará al escanear
   const whatsappMessage = encodeURIComponent(

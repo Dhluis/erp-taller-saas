@@ -1,45 +1,92 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
+import { updateSession } from '@/lib/supabase/middleware-robust'
 
-export function middleware(request: NextRequest) {
-  try {
-    const { pathname } = request.nextUrl
+// Rutas que requieren middleware (autenticación obligatoria)
+const MIDDLEWARE_ROUTES = [
+  '/dashboard',
+  '/inventario',
+  '/inventarios',
+  '/compras',
+  '/ingresos',
+  '/clientes',
+  '/vehiculos',
+  '/ordenes',
+  '/cobros',
+  '/pagos',
+  '/proveedores',
+  '/citas',
+  '/leads',
+  '/campanas',
+  '/facturas',
+  '/notificaciones',
+  '/usuarios',
+  '/configuracion',
+  '/cotizaciones',
+  '/perfil',
+  '/settings'
+]
 
-    // Rutas públicas que NO requieren autenticación
-    const publicRoutes = [
-      '/',
-      '/auth/login',
-      '/auth/register',
-      '/auth/signup',
-      '/auth/callback',
-      '/auth/forgot-password',
-      '/auth/reset-password',
-    ]
+// Rutas de autenticación (redirigir al dashboard si ya hay sesión)
+const AUTH_ROUTES = [
+  '/login',
+  '/auth/login',
+  '/register',
+  '/auth/register',
+  '/forgot-password',
+  '/reset-password'
+]
 
-    // Si es ruta pública, permitir acceso
-    if (publicRoutes.some(route => pathname === route || pathname.startsWith(route))) {
-      return NextResponse.next()
-    }
+// Rutas 100% públicas (nunca redirigir al login)
+const PUBLIC_ROUTES = [
+  '/',
+  '/tracking',
+  '/api/public',
+  '/auth/callback',
+  '/manifest.json',
+  '/favicon.ico'
+]
 
-    // Para todas las demás rutas, permitir acceso
-    return NextResponse.next()
-  } catch (error) {
-    console.error('Middleware error:', error)
-    // En caso de error, permitir acceso para evitar bloqueos
+/**
+ * Middleware principal
+ */
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  
+  // 1. Permitir siempre rutas públicas
+  const isPublic = PUBLIC_ROUTES.some(route => 
+    pathname === route || pathname.startsWith(`${route}/`) || pathname.startsWith(route)
+  )
+
+  if (isPublic) {
+    console.log(`🔓 [Middleware] Permitida ruta pública: ${pathname}`)
     return NextResponse.next()
   }
+
+  // 2. Manejar rutas que requieren autenticación
+  const isProtectedRoute = MIDDLEWARE_ROUTES.some(route => pathname.startsWith(route))
+  const isAuthRoute = AUTH_ROUTES.some(route => pathname.startsWith(route))
+
+  if (isProtectedRoute || isAuthRoute) {
+    console.log(`🔐 [Middleware] Protegiendo ruta: ${pathname}`)
+    return updateSession(request)
+  }
+
+  // 3. Por defecto, permitir acceso (Catch-all)
+  return NextResponse.next()
 }
 
+/**
+ * Configuración de middleware
+ */
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
+     * Match all request paths except for:
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public (public files)
+     * - images, icons, etc in public folder
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}
+}

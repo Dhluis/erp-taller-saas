@@ -9,6 +9,20 @@ export interface SearchResult {
   description: string;
   url: string;
   metadata?: Record<string, any>;
+  // Extra denormalized fields for fast access in the UI
+  email?: string | null;
+  phone?: string | null;
+  name?: string | null;
+  sku?: string | null;
+  current_stock?: number | null;
+  min_stock?: number | null;
+  category?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  year?: number | null;
+  license_plate?: string | null;
+  color?: string | null;
+  customer?: string | null;
 }
 
 /**
@@ -51,7 +65,7 @@ export async function GET(request: NextRequest) {
       .eq('auth_user_id', user.id)
       .single();
 
-    if (profileError || !userProfile?.organization_id) {
+    if (profileError || !userProfile) {
       console.error('[GET /api/search/global] Error obteniendo perfil:', profileError);
       return NextResponse.json(
         {
@@ -63,7 +77,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const organizationId = userProfile.organization_id;
+    const organizationId = (userProfile as any).organization_id as string;
+    if (!organizationId) {
+      return NextResponse.json({ success: false, error: 'Organización no configurada', data: [] }, { status: 403 });
+    }
 
     const results: SearchResult[] = [];
 
@@ -75,14 +92,14 @@ export async function GET(request: NextRequest) {
       .or(`name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`)
       .limit(5);
 
-    customers?.forEach(customer => {
+    const customersData = (customers ?? []) as any[];
+    customersData.forEach((customer: any) => {
       results.push({
         id: customer.id,
         type: 'customer',
         title: customer.name,
         description: customer.email || customer.phone || 'Cliente',
         url: `/clientes/${customer.id}`,
-        // ✅ Incluir campos directamente para que el componente pueda accederlos
         email: customer.email || null,
         phone: customer.phone || null,
         name: customer.name,
@@ -98,14 +115,14 @@ export async function GET(request: NextRequest) {
       .or(`name.ilike.%${query}%,sku.ilike.%${query}%,category.ilike.%${query}%`)
       .limit(5);
 
-    inventoryItems?.forEach(item => {
+    const inventoryData = (inventoryItems ?? []) as any[];
+    inventoryData.forEach((item: any) => {
       results.push({
         id: item.id,
         type: 'product',
         title: item.name,
         description: `SKU: ${item.sku || 'N/A'} - Stock: ${item.current_stock || 0}`,
         url: `/inventarios`,
-        // ✅ Incluir campos directamente
         name: item.name,
         sku: item.sku || null,
         current_stock: item.current_stock || 0,
@@ -131,27 +148,27 @@ export async function GET(request: NextRequest) {
       .or(`brand.ilike.%${query}%,model.ilike.%${query}%,license_plate.ilike.%${query}%`)
       .limit(5);
 
-    vehicles?.forEach(vehicle => {
+    const vehiclesData = (vehicles ?? []) as any[];
+    vehiclesData.forEach((vehicle: any) => {
       results.push({
         id: vehicle.id,
         type: 'vehicle',
         title: `${vehicle.brand || ''} ${vehicle.model || ''} ${vehicle.year || ''}`.trim(),
-        description: vehicle.license_plate || 'Sin placa',
+        description: vehicle.license_plate || 'No registrada',
         url: `/vehiculos`,
-        // ✅ Incluir campos directamente para que el componente pueda accederlos
         brand: vehicle.brand || null,
         model: vehicle.model || null,
         year: vehicle.year || null,
         license_plate: vehicle.license_plate || null,
         color: vehicle.color || null,
-        customer: (vehicle.customer as any)?.name || null,
+        customer: vehicle.customer?.name || null,
         metadata: { 
           brand: vehicle.brand, 
           model: vehicle.model, 
           year: vehicle.year,
           license_plate: vehicle.license_plate,
           color: vehicle.color,
-          customer: (vehicle.customer as any)?.name 
+          customer: vehicle.customer?.name 
         }
       });
     });
@@ -194,8 +211,8 @@ export async function GET(request: NextRequest) {
       .limit(10);
 
     // Buscar órdenes relacionadas con clientes que coinciden
-    const customerIds = matchingCustomers?.map(c => c.id) || [];
-    const vehicleIds = matchingVehicles?.map(v => v.id) || [];
+    const customerIds = ((matchingCustomers ?? []) as any[]).map((c: any) => c.id);
+    const vehicleIds = ((matchingVehicles ?? []) as any[]).map((v: any) => v.id);
     
     let ordersByRelation: any[] = [];
     if (customerIds.length > 0 || vehicleIds.length > 0) {
@@ -261,12 +278,13 @@ export async function GET(request: NextRequest) {
       .or(`invoice_number.ilike.%${query}%`)
       .limit(5);
 
-    invoices?.forEach(invoice => {
+    const invoicesData = (invoices ?? []) as any[];
+    invoicesData.forEach((invoice: any) => {
       results.push({
         id: invoice.id,
         type: 'invoice',
         title: `Factura ${invoice.invoice_number}`,
-        description: `${(invoice.customer as any)?.name || 'Cliente'} - $${invoice.total_amount}`,
+        description: `${invoice.customer?.name || 'Cliente'} - $${invoice.total_amount}`,
         url: `/ingresos/facturacion/${invoice.id}`,
         metadata: { status: invoice.status, amount: invoice.total_amount }
       });
@@ -280,7 +298,8 @@ export async function GET(request: NextRequest) {
       .or(`name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`)
       .limit(5);
 
-    suppliers?.forEach(supplier => {
+    const suppliersData = (suppliers ?? []) as any[];
+    suppliersData.forEach((supplier: any) => {
       results.push({
         id: supplier.id,
         type: 'supplier',

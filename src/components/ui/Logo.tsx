@@ -31,7 +31,11 @@ export function Logo({ size = 'md', variant = 'default', className }: LogoProps)
   )
 }
 
-export function LogoWithText({ size = 'md', variant = 'default', className }: LogoProps) {
+interface LogoWithTextProps extends LogoProps {
+  companyName?: string
+}
+
+export function LogoWithText({ size = 'md', variant = 'default', className, companyName }: LogoWithTextProps) {
   const textSizes = {
     sm: 'text-sm',
     md: 'text-base',
@@ -43,11 +47,11 @@ export function LogoWithText({ size = 'md', variant = 'default', className }: Lo
     <div className={cn('flex items-center space-x-2', className)}>
       <Logo size={size} variant={variant} />
       <div className="flex flex-col">
-        <span className={cn('font-bold text-text-primary', textSizes[size])}>
-          EAGLES
+        <span className={cn('font-bold text-text-primary uppercase tracking-tight', textSizes[size])}>
+          {companyName || 'FIXORA'}
         </span>
-        <span className={cn('text-xs text-text-secondary', size === 'sm' ? 'text-xs' : 'text-xs')}>
-          Eagles System
+        <span className={cn('text-[10px] text-text-secondary leading-none mt-0.5 font-medium tracking-wider uppercase opacity-70', size === 'sm' ? 'hidden' : 'block')}>
+          Sistema de Gestión
         </span>
       </div>
     </div>

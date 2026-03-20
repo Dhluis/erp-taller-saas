@@ -37,7 +37,7 @@ export default function TrackingPage() {
 
   const fetchOrder = async () => {
     try {
-      const resp = await fetch(`/api/public/orders/${id}`)
+      const resp = await fetch(`/api/public/orders/${id}`, { cache: 'no-store' })
       const data = await resp.json()
       if (data.success) {
         setOrder(data.data)
@@ -116,8 +116,8 @@ export default function TrackingPage() {
               )}
             </div>
             <div>
-              <h2 className="text-lg font-bold tracking-tight text-white leading-none whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px] md:max-w-xs">{order.company?.company_name || 'EAGLES'}</h2>
-              <p className="text-[10px] font-black tracking-[0.2em] text-primary uppercase mt-1">{order.company?.company_name ? 'TALLER MECÁNICO' : 'SYSTEM'}</p>
+              <h2 className="text-lg font-bold tracking-tight text-white leading-none whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px] md:max-w-xs">{order.company?.company_name || 'TALLER MECÁNICO'}</h2>
+              <p className="text-[10px] font-black tracking-[0.2em] text-primary uppercase mt-1">{order.company?.company_name ? 'SISTEMA DE SEGUIMIENTO' : 'GESTIÓN DE TALLER'}</p>
             </div>
           </div>
           
@@ -227,12 +227,19 @@ export default function TrackingPage() {
             
             <Card className="bg-slate-900/40 border-white/5 backdrop-blur-md overflow-hidden rounded-[2rem] hover:border-primary/20 transition-all group">
               <CardContent className="p-0 flex flex-col sm:flex-row">
-                <div className="w-full sm:w-[40%] h-64 sm:h-auto overflow-hidden bg-slate-950 relative">
-                  <img 
-                    src={order.images?.[0]?.url || "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?q=80&w=2070&auto=format&fit=crop"} 
-                    alt="Vehicle"
-                    className="w-full h-full object-cover opacity-60 group-hover:scale-110 transition-transform duration-1000"
-                  />
+                <div className="w-full sm:w-[40%] h-64 sm:h-auto overflow-hidden bg-slate-950/50 flex items-center justify-center relative border-r border-white/5">
+                  {order.images?.[0]?.url ? (
+                    <img 
+                      src={order.images[0].url} 
+                      alt="Vehículo"
+                      className="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-1000"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 opacity-20">
+                      <Car size={64} className="text-white" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-white">Sin imagen</span>
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
                   <div className="absolute bottom-6 left-6">
                     <Badge className="bg-primary/20 text-primary border-primary/30 backdrop-blur-md mb-2">Reparación Activa</Badge>
@@ -250,7 +257,7 @@ export default function TrackingPage() {
                       <p className="text-[10px] font-black tracking-widest text-slate-500 uppercase">Placas</p>
                       <p className="text-white font-bold flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-primary" />
-                        {order.vehicle?.license_plate || 'SIN PLACA'}
+                        {order.vehicle?.license_plate || 'NO REGISTRADA'}
                       </p>
                     </div>
                     <div className="space-y-1">
@@ -264,7 +271,7 @@ export default function TrackingPage() {
                       <p className="text-[10px] font-black tracking-widest text-slate-500 uppercase">Kilometraje</p>
                       <p className="text-white font-bold flex items-center gap-2">
                         <Gauge className="w-4 h-4 text-primary" />
-                        {order.vehicle?.mileage?.toLocaleString() || '---'} km
+                        {order.vehicle?.mileage?.toLocaleString() || 'No registrado'} km
                       </p>
                     </div>
                     <div className="space-y-1">
@@ -314,7 +321,7 @@ export default function TrackingPage() {
                   ) : (
                     <div className="flex flex-col items-center justify-center py-8 text-center gap-3 opacity-50">
                       <History className="w-8 h-8 text-slate-700" />
-                      <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest text-center">Sin actualizaciones aún</p>
+                      <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest text-center">Sin actividad registrada</p>
                     </div>
                   )}
 
@@ -401,12 +408,18 @@ export default function TrackingPage() {
                 </div>
                 
                 <div className="pt-6 border-t border-white/5 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20 bg-slate-800">
-                    <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(order.assigned_to || 'Mecanico')}&background=00D9FF&color=000`} alt="Avatar" />
+                  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20 bg-slate-800 flex items-center justify-center">
+                    {order.assigned_to ? (
+                      <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                        {order.assigned_to.charAt(0).toUpperCase()}
+                      </div>
+                    ) : (
+                      <User className="text-slate-600 w-6 h-6" />
+                    )}
                   </div>
                   <div>
-                    <p className="text-sm font-extrabold text-white">{order.assigned_to || 'Técnico Especialista'}</p>
-                    <p className="text-xs text-slate-500 font-medium tracking-tight">Especialista en Diagnóstico de Sistemas</p>
+                    <p className="text-sm font-extrabold text-white">{order.assigned_to || 'Técnico Asignado'}</p>
+                    <p className="text-xs text-slate-500 font-medium tracking-tight whitespace-nowrap">Especialista en Diagnóstico</p>
                   </div>
                 </div>
               </div>
@@ -416,7 +429,7 @@ export default function TrackingPage() {
           {/* Footer info */}
           <footer className="pt-12 text-center space-y-4">
             <div className="h-px w-24 bg-primary mx-auto opacity-30 shadow-[0_0_8px_rgba(0,217,255,0.6)]" />
-            <p className="text-[10px] text-slate-600 uppercase tracking-[0.4em] font-black">{order.company?.company_name || 'EAGLES SYSTEM ERP SOLUTIONS'}</p>
+            <p className="text-[10px] text-slate-600 uppercase tracking-[0.4em] font-black">{order.company?.company_name || 'SISTEMA DE GESTIÓN MECÁNICA'}</p>
             <div className="flex items-center justify-center gap-6 text-[10px] font-bold text-slate-700">
               <a href="#" className="hover:text-primary transition-colors">POLÍTICA DE PRIVACIDAD</a>
               <a href="#" className="hover:text-primary transition-colors">TÉRMINOS DE SERVICIO</a>
