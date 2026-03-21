@@ -20,6 +20,7 @@ import {
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
 export default function AnalisisFinancieroPage() {
+  const { currency } = useOrgCurrency()
   const [loading, setLoading] = useState(true)
   const [financialData, setFinancialData] = useState({
     cashFlow: {
@@ -125,7 +126,7 @@ export default function AnalisisFinancieroPage() {
 
   if (loading) {
     return (
-      <MainLayout title="Análisis Financiero" breadcrumbs={breadcrumbs}>
+      <MainLayout>
         <div className="space-y-6">
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>

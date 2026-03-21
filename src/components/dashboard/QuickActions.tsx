@@ -11,12 +11,23 @@ import { usePermissions } from '@/hooks/usePermissions'
 interface QuickActionsProps {
   onOrderCreated?: () => void
   initialData?: any
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function QuickActions({ onOrderCreated, initialData }: QuickActionsProps) {
+export function QuickActions({ onOrderCreated, initialData, open: externalOpen, onOpenChange: setExternalOpen }: QuickActionsProps) {
   const router = useRouter()
   const permissions = usePermissions()
-  const [modalOpen, setModalOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  const modalOpen = externalOpen !== undefined ? externalOpen : internalOpen
+  const setModalOpen = (isOpen: boolean) => {
+    if (setExternalOpen) {
+      setExternalOpen(isOpen)
+    } else {
+      setInternalOpen(isOpen)
+    }
+  }
   const [prefilledServiceType, setPrefilledServiceType] = useState<string>('')
 
   // Efecto para abrir el modal si llegan datos iniciales (desde Eagles AI)

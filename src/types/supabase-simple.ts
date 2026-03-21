@@ -183,15 +183,19 @@ export interface Database {
         Row: {
           id: string
           organization_id: string
+          work_order_id: string | null
           customer_id: string
           vehicle_id: string
           quotation_number: string
           status: string
           valid_until: string
+          description: string | null
           terms_and_conditions: string | null
           notes: string | null
           subtotal: number | null
+          tax: number | null
           tax_amount: number | null
+          discount: number | null
           discount_amount: number | null
           total_amount: number | null
           created_at: string
@@ -202,15 +206,19 @@ export interface Database {
         Insert: {
           id?: string
           organization_id: string
+          work_order_id?: string | null
           customer_id: string
           vehicle_id: string
-          quotation_number: string
+          quotation_number?: string
           status?: string
           valid_until: string
+          description?: string | null
           terms_and_conditions?: string | null
           notes?: string | null
           subtotal?: number | null
+          tax?: number | null
           tax_amount?: number | null
+          discount?: number | null
           discount_amount?: number | null
           total_amount?: number | null
           created_at?: string
@@ -221,21 +229,60 @@ export interface Database {
         Update: {
           id?: string
           organization_id?: string
+          work_order_id?: string | null
           customer_id?: string
           vehicle_id?: string
           quotation_number?: string
           status?: string
           valid_until?: string
+          description?: string | null
           terms_and_conditions?: string | null
           notes?: string | null
           subtotal?: number | null
+          tax?: number | null
           tax_amount?: number | null
+          discount?: number | null
           discount_amount?: number | null
           total_amount?: number | null
           created_at?: string
           updated_at?: string
           created_by?: string | null
           updated_by?: string | null
+        }
+      }
+      quotation_items: {
+        Row: {
+          id: string
+          quotation_id: string
+          item_type: string
+          item_name: string
+          description: string | null
+          quantity: number
+          unit_price: number
+          total_price: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          quotation_id: string
+          item_type: string
+          item_name: string
+          description?: string | null
+          quantity: number
+          unit_price: number
+          total_price?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          quotation_id?: string
+          item_type?: string
+          item_name?: string
+          description?: string | null
+          quantity?: number
+          unit_price?: number
+          total_price?: number | null
+          created_at?: string
         }
       }
       products: {
@@ -457,42 +504,48 @@ export interface Database {
         Row: {
           id: string
           organization_id: string
-          supplier_id: string
-          invoice_number: string
+          supplier_id: string | null
+          invoice_id: string | null
+          invoice_number: string | null
           amount: number
           payment_date: string
           payment_method: string
           reference: string | null
-          status: string
+          status: string | null
           notes: string | null
+          created_by: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           organization_id: string
-          supplier_id: string
-          invoice_number: string
+          supplier_id?: string | null
+          invoice_id?: string | null
+          invoice_number?: string | null
           amount: number
           payment_date: string
           payment_method: string
           reference?: string | null
-          status?: string
+          status?: string | null
           notes?: string | null
+          created_by?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           organization_id?: string
-          supplier_id?: string
-          invoice_number?: string
+          supplier_id?: string | null
+          invoice_id?: string | null
+          invoice_number?: string | null
           amount?: number
           payment_date?: string
           payment_method?: string
           reference?: string | null
-          status?: string
+          status?: string | null
           notes?: string | null
+          created_by?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -501,18 +554,26 @@ export interface Database {
         Row: {
           id: string
           organization_id: string
+          work_order_id: string | null
+          quotation_id: string | null
           customer_id: string
           vehicle_id: string
           invoice_number: string
-          status: string
-          due_date: string
+          description: string | null
+          status: string | null
+          due_date: string | null
           paid_date: string | null
           payment_method: string | null
           notes: string | null
           subtotal: number | null
+          tax: number | null
           tax_amount: number | null
+          discount: number | null
           discount_amount: number | null
+          total: number | null
           total_amount: number | null
+          paid_amount: number | null
+          balance: number | null
           created_at: string
           updated_at: string
           created_by: string | null
@@ -521,18 +582,26 @@ export interface Database {
         Insert: {
           id?: string
           organization_id: string
+          work_order_id?: string | null
+          quotation_id?: string | null
           customer_id: string
           vehicle_id: string
-          invoice_number: string
-          status?: string
-          due_date: string
+          invoice_number?: string
+          description?: string | null
+          status?: string | null
+          due_date?: string | null
           paid_date?: string | null
           payment_method?: string | null
           notes?: string | null
           subtotal?: number | null
+          tax?: number | null
           tax_amount?: number | null
+          discount?: number | null
           discount_amount?: number | null
+          total?: number | null
           total_amount?: number | null
+          paid_amount?: number | null
+          balance?: number | null
           created_at?: string
           updated_at?: string
           created_by?: string | null
@@ -541,22 +610,65 @@ export interface Database {
         Update: {
           id?: string
           organization_id?: string
+          work_order_id?: string | null
+          quotation_id?: string | null
           customer_id?: string
           vehicle_id?: string
           invoice_number?: string
-          status?: string
-          due_date?: string
+          description?: string | null
+          status?: string | null
+          due_date?: string | null
           paid_date?: string | null
           payment_method?: string | null
           notes?: string | null
           subtotal?: number | null
+          tax?: number | null
           tax_amount?: number | null
+          discount?: number | null
           discount_amount?: number | null
+          total?: number | null
           total_amount?: number | null
+          paid_amount?: number | null
+          balance?: number | null
           created_at?: string
           updated_at?: string
           created_by?: string | null
           updated_by?: string | null
+        }
+      }
+      invoice_items: {
+        Row: {
+          id: string
+          invoice_id: string
+          item_type: string
+          item_name: string
+          description: string | null
+          quantity: number
+          unit_price: number
+          total_price: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          invoice_id: string
+          item_type: string
+          item_name: string
+          description?: string | null
+          quantity: number
+          unit_price: number
+          total_price?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          invoice_id?: string
+          item_type?: string
+          item_name?: string
+          description?: string | null
+          quantity?: number
+          unit_price?: number
+          total_price?: number | null
+          created_at?: string
         }
       }
       employees: {

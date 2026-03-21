@@ -1,9 +1,10 @@
 // Eagles ERP — Custom Service Worker: Push Notifications
 // Este archivo se fusiona con el SW generado por @ducanh2912/next-pwa (Workbox)
 
-declare const self: ServiceWorkerGlobalScope;
+// @ts-ignore
+const sw = self as unknown as ServiceWorkerGlobalScope;
 
-self.addEventListener('push', (event) => {
+sw.addEventListener('push', (event) => {
   let data: { title?: string; body?: string; url?: string } = {};
   try {
     data = event.data?.json() ?? {};
@@ -20,19 +21,19 @@ self.addEventListener('push', (event) => {
     requireInteraction: false,
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(sw.registration.showNotification(title, options));
 });
 
-self.addEventListener('notificationclick', (event) => {
+sw.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = (event.notification.data as { url?: string })?.url ?? '/dashboard';
   event.waitUntil(
-    self.clients
+    sw.clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
         const existing = clientList.find((c) => c.url.includes(url) && 'focus' in c);
-        if (existing) return (existing as WindowClient).focus();
-        return self.clients.openWindow(url);
+        if (existing) return (existing as any).focus();
+        return sw.clients.openWindow(url);
       })
   );
 });

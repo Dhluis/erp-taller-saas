@@ -11,14 +11,8 @@ import { logger, createLogContext, measureExecutionTime, logSupabaseError } from
 // El organizationId debe obtenerse del contexto de autenticación o parámetros
 // import { getOrganizationId, validateOrganization } from '@/hooks/useOrganization';
 
-// Lazy initialization para evitar errores durante build time
-let supabase: ReturnType<typeof createClient> | null = null;
-function getSupabaseClient() {
-  if (!supabase) {
-    supabase = createClient();
-  }
-  return supabase;
-}
+// Initialize client
+const supabase = createClient();
 
 // =====================================================
 // TIPOS TYPESCRIPT
@@ -151,7 +145,7 @@ export async function getAllQuotations(organizationId: string, status?: string) 
       logger.info(`Cotizaciones obtenidas: ${data?.length || 0} registros`, context);
       return data as Quotation[];
     }, 'getAllQuotations', context);
-  }, 'Error al obtener cotizaciones');
+  }, { operation: 'getAllQuotations', table: 'quotations' });
 }
 
 // Obtener cotización por ID
@@ -171,7 +165,7 @@ export async function getQuotationById(id: string) {
 
     if (error) throw error;
     return data as Quotation;
-  }, 'Error al obtener cotización');
+  }, { operation: 'getQuotationById', table: 'quotations' });
 }
 
 // Crear cotización
@@ -208,10 +202,10 @@ export async function createQuotation(organizationId: string, quotationData: {
         throw error;
       }
 
-      logger.info(`Cotización creada exitosamente: ${data.id}`, context);
+      logger.info(`Cotización creada exitosamente: ${data?.id}`, context);
       return data as Quotation;
     }, 'createQuotation', context);
-  }, 'Error al crear cotización');
+  }, { operation: 'createQuotation', table: 'quotations' });
 }
 
 // Actualizar cotización
@@ -229,16 +223,16 @@ export async function updateQuotation(
 
     if (error) throw error;
     return data as Quotation;
-  }, 'Error al actualizar cotización');
+  }, { operation: 'updateQuotation', table: 'quotations' });
 }
 
 // Eliminar cotización
 export async function deleteQuotation(id: string) {
   return executeWithErrorHandling(async () => {
-    const { error } = await getSupabaseClient().from('quotations').delete().eq('id', id);
+    const { error } = await supabase.from('quotations').delete().eq('id', id);
 
     if (error) throw error;
-  }, 'Error al eliminar cotización');
+  }, { operation: 'deleteQuotation', table: 'quotations' });
 }
 
 // Actualizar estado de cotización
@@ -262,7 +256,7 @@ export async function updateQuotationStatus(
 
     if (error) throw error;
     return data as Quotation;
-  }, 'Error al actualizar estado de cotización');
+  }, { operation: 'updateQuotationStatus', table: 'quotations' });
 }
 
 // Actualizar descuento de cotización
@@ -277,7 +271,7 @@ export async function updateQuotationDiscount(id: string, discount: number) {
 
     if (error) throw error;
     return data as Quotation;
-  }, 'Error al actualizar descuento de cotización');
+  }, { operation: 'updateQuotationDiscount', table: 'quotations' });
 }
 
 // Buscar cotizaciones
@@ -298,7 +292,7 @@ export async function searchQuotations(organizationId: string, searchTerm: strin
 
     if (error) throw error;
     return data as Quotation[];
-  }, 'Error al buscar cotizaciones');
+  }, { operation: 'searchQuotations', table: 'quotations' });
 }
 
 // Obtener cotizaciones por cliente
@@ -316,7 +310,7 @@ export async function getQuotationsByCustomer(customerId: string) {
 
     if (error) throw error;
     return data as Quotation[];
-  }, 'Error al obtener cotizaciones del cliente');
+  }, { operation: 'getQuotationsByCustomer', table: 'quotations' });
 }
 
 // Obtener cotizaciones por orden de trabajo
@@ -334,7 +328,7 @@ export async function getQuotationsByWorkOrder(workOrderId: string) {
 
     if (error) throw error;
     return data as Quotation[];
-  }, 'Error al obtener cotizaciones de la orden de trabajo');
+  }, { operation: 'getQuotationsByWorkOrder', table: 'quotations' });
 }
 
 // =====================================================
@@ -352,7 +346,7 @@ export async function getQuotationItems(quotationId: string) {
 
     if (error) throw error;
     return data as QuotationItem[];
-  }, 'Error al obtener items de cotización');
+  }, { operation: 'getQuotationItems', table: 'quotation_items' });
 }
 
 // Crear item de cotización
@@ -373,7 +367,7 @@ export async function createQuotationItem(itemData: {
 
     if (error) throw error;
     return data as QuotationItem;
-  }, 'Error al crear item de cotización');
+  }, { operation: 'createQuotationItem', table: 'quotation_items' });
 }
 
 // Actualizar item de cotización
@@ -391,16 +385,16 @@ export async function updateQuotationItem(
 
     if (error) throw error;
     return data as QuotationItem;
-  }, 'Error al actualizar item de cotización');
+  }, { operation: 'updateQuotationItem', table: 'quotation_items' });
 }
 
 // Eliminar item de cotización
 export async function deleteQuotationItem(id: string) {
   return executeWithErrorHandling(async () => {
-    const { error } = await getSupabaseClient().from('quotation_items').delete().eq('id', id);
+    const { error } = await supabase.from('quotation_items').delete().eq('id', id);
 
     if (error) throw error;
-  }, 'Error al eliminar item de cotización');
+  }, { operation: 'deleteQuotationItem', table: 'quotation_items' });
 }
 
 // =====================================================
@@ -430,7 +424,7 @@ export async function getAllInvoices(organizationId: string, status?: string) {
 
     if (error) throw error;
     return data as SalesInvoice[];
-  }, 'Error al obtener notas de venta');
+  }, { operation: 'getAllInvoices', table: 'invoices' });
 }
 
 // Obtener nota de venta por ID
@@ -452,7 +446,7 @@ export async function getInvoiceById(id: string) {
 
     if (error) throw error;
     return data as SalesInvoice;
-  }, 'Error al obtener nota de venta');
+  }, { operation: 'getInvoiceById', table: 'invoices' });
 }
 
 // Crear nota de venta
@@ -477,7 +471,7 @@ export async function createInvoice(organizationId: string, invoiceData: {
 
     if (error) throw error;
     return data as SalesInvoice;
-  }, 'Error al crear nota de venta');
+  }, { operation: 'createInvoice', table: 'invoices' });
 }
 
 // Actualizar nota de venta
@@ -495,16 +489,16 @@ export async function updateInvoice(
 
     if (error) throw error;
     return data as SalesInvoice;
-  }, 'Error al actualizar nota de venta');
+  }, { operation: 'updateInvoice', table: 'invoices' });
 }
 
 // Eliminar nota de venta
 export async function deleteInvoice(id: string) {
   return executeWithErrorHandling(async () => {
-    const { error } = await getSupabaseClient().from('invoices').delete().eq('id', id);
+    const { error } = await supabase.from('invoices').delete().eq('id', id);
 
     if (error) throw error;
-  }, 'Error al eliminar nota de venta');
+  }, { operation: 'deleteInvoice', table: 'invoices' });
 }
 
 // Actualizar descuento de nota de venta
@@ -519,7 +513,7 @@ export async function updateInvoiceDiscount(id: string, discount: number) {
 
     if (error) throw error;
     return data as SalesInvoice;
-  }, 'Error al actualizar descuento de nota de venta');
+  }, { operation: 'updateInvoiceDiscount', table: 'invoices' });
 }
 
 // Buscar notas de venta
@@ -540,7 +534,7 @@ export async function searchInvoices(organizationId: string, searchTerm: string)
 
     if (error) throw error;
     return data as SalesInvoice[];
-  }, 'Error al buscar notas de venta');
+  }, { operation: 'searchInvoices', table: 'invoices' });
 }
 
 // Obtener notas de venta por cliente
@@ -558,7 +552,7 @@ export async function getInvoicesByCustomer(customerId: string) {
 
     if (error) throw error;
     return data as SalesInvoice[];
-  }, 'Error al obtener notas de venta del cliente');
+  }, { operation: 'getInvoicesByCustomer', table: 'invoices' });
 }
 
 // Obtener estadísticas de facturación
@@ -589,7 +583,7 @@ export async function getInvoiceStats(organizationId: string) {
     };
 
     return stats;
-  }, 'Error al obtener estadísticas de facturación');
+  }, { operation: 'getInvoiceStats', table: 'invoices' });
 }
 
 // =====================================================
@@ -607,7 +601,7 @@ export async function getInvoiceItems(invoiceId: string) {
 
     if (error) throw error;
     return (data ?? []) as InvoiceItem[];
-  }, 'Error al obtener items de nota de venta');
+  }, { operation: 'getInvoiceItems', table: 'invoice_items' });
 }
 
 // Crear item de nota de venta
@@ -635,7 +629,7 @@ export async function createInvoiceItem(itemData: {
 
     if (error) throw error;
     return data as InvoiceItem;
-  }, 'Error al crear item de nota de venta');
+  }, { operation: 'createInvoiceItem', table: 'invoice_items' });
 }
 
 // Actualizar item de nota de venta
@@ -663,7 +657,7 @@ export async function updateInvoiceItem(
 
     if (error) throw error;
     return data as InvoiceItem;
-  }, 'Error al actualizar item de nota de venta');
+  }, { operation: 'updateInvoiceItem', table: 'invoice_items' });
 }
 
 // Eliminar item de nota de venta
@@ -676,7 +670,7 @@ export async function deleteInvoiceItem(id: string) {
 
     if (error) throw error;
     return true;
-  }, 'Error al eliminar item de nota de venta');
+  }, { operation: 'deleteInvoiceItem', table: 'invoice_items' });
 }
 
 // =====================================================
@@ -709,7 +703,7 @@ export async function getAllPayments(organizationId: string, invoiceId?: string)
 
     if (error) throw error;
     return data as Payment[];
-  }, 'Error al obtener pagos');
+  }, { operation: 'getAllPayments', table: 'payments' });
 }
 
 // Obtener pago por ID
@@ -732,7 +726,7 @@ export async function getPaymentById(id: string) {
 
     if (error) throw error;
     return data as Payment;
-  }, 'Error al obtener pago');
+  }, { operation: 'getPaymentById', table: 'payments' });
 }
 
 // Crear pago
@@ -766,7 +760,7 @@ export async function createPayment(organizationId: string, paymentData: {
 
     if (error) throw error;
     return data as Payment;
-  }, 'Error al crear pago');
+  }, { operation: 'createPayment', table: 'payments' });
 }
 
 // Actualizar pago
@@ -793,16 +787,16 @@ export async function updatePayment(
 
     if (error) throw error;
     return data as Payment;
-  }, 'Error al actualizar pago');
+  }, { operation: 'updatePayment', table: 'payments' });
 }
 
 // Eliminar pago
 export async function deletePayment(id: string) {
   return executeWithErrorHandling(async () => {
-    const { error } = await getSupabaseClient().from('payments').delete().eq('id', id);
+    const { error } = await supabase.from('payments').delete().eq('id', id);
 
     if (error) throw error;
-  }, 'Error al eliminar pago');
+  }, { operation: 'deletePayment', table: 'payments' });
 }
 
 // Buscar pagos
@@ -828,7 +822,7 @@ export async function searchPayments(organizationId: string, searchTerm: string)
 
     if (error) throw error;
     return data as Payment[];
-  }, 'Error al buscar pagos');
+  }, { operation: 'searchPayments', table: 'payments' });
 }
 
 // Obtener pagos por nota de venta
@@ -851,7 +845,7 @@ export async function getPaymentsByInvoice(invoiceId: string) {
 
     if (error) throw error;
     return data as Payment[];
-  }, 'Error al obtener pagos de la nota de venta');
+  }, { operation: 'getPaymentsByInvoice', table: 'payments' });
 }
 
 // Obtener pagos por cliente
@@ -875,7 +869,7 @@ export async function getPaymentsByCustomer(organizationId: string, customerId: 
 
     if (error) throw error;
     return data as Payment[];
-  }, 'Error al obtener pagos del cliente');
+  }, { operation: 'getPaymentsByCustomer', table: 'payments' });
 }
 
 // Obtener estadísticas de pagos
@@ -902,7 +896,7 @@ export async function getPaymentStats(organizationId: string) {
     };
 
     return stats;
-  }, 'Error al obtener estadísticas de pagos');
+  }, { operation: 'getPaymentStats', table: 'payments' });
 }
 
 // =====================================================
@@ -919,7 +913,7 @@ export async function getTotalPaidByInvoice(invoiceId: string) {
 
     if (error) throw error;
     return data.reduce((sum, p) => sum + p.amount, 0);
-  }, 'Error al obtener total pagado de la nota de venta');
+  }, { operation: 'getTotalPaidByInvoice', table: 'payments' });
 }
 
 // Validar monto de pago
@@ -945,7 +939,7 @@ export async function validatePaymentAmount(invoiceId: string, amount: number) {
     }
 
     return true;
-  }, 'Error al validar monto de pago');
+  }, { operation: 'validatePaymentAmount', table: 'payments' });
 }
 
 // Recalcular totales de nota de venta
@@ -978,7 +972,7 @@ export async function recalculateInvoiceTotals(invoiceId: string) {
       .eq('id', invoiceId);
 
     if (error) throw error;
-  }, 'Error al recalcular totales de nota de venta');
+  }, { operation: 'recalculateInvoiceTotals', table: 'invoices' });
 }
 
 // Actualizar monto pagado de nota de venta
@@ -1021,7 +1015,7 @@ export async function updateInvoicePaidAmount(invoiceId: string, paidAmount: num
 
     if (error) throw error;
     return data as SalesInvoice;
-  }, 'Error al actualizar monto pagado de nota de venta');
+  }, { operation: 'updateInvoicePaidAmount', table: 'invoices' });
 }
 
 // Obtener métodos de pago disponibles
@@ -1114,7 +1108,7 @@ export async function createInvoiceFromWorkOrder(organizationId: string, workOrd
       logger.info(`Nota de venta creada exitosamente desde orden: ${invoice.id}`, context);
       return invoice as SalesInvoice;
     }, 'createInvoiceFromWorkOrder', context);
-  }, 'Error al crear nota de venta desde orden de trabajo');
+  }, { operation: 'createInvoiceFromWorkOrder', table: 'invoices' });
 }
 
 // Crear nota de venta desde cotización
@@ -1198,7 +1192,7 @@ export async function createInvoiceFromQuotation(organizationId: string, quotati
       logger.businessEvent('quotation_converted', 'quotation', quotationId, context);
       return invoice as SalesInvoice;
     }, 'createInvoiceFromQuotation', context);
-  }, 'Error al crear nota de venta desde cotización');
+  }, { operation: 'createInvoiceFromQuotation', table: 'invoices' });
 }
 
 // Crear cotización desde orden de trabajo
@@ -1282,7 +1276,7 @@ export async function createQuotationFromWorkOrder(organizationId: string, workO
       logger.info(`Cotización creada exitosamente desde orden: ${quotation.id}`, context);
       return quotation as Quotation;
     }, 'createQuotationFromWorkOrder', context);
-  }, 'Error al crear cotización desde orden de trabajo');
+  }, { operation: 'createQuotationFromWorkOrder', table: 'quotations' });
 }
 
 // Recalcular totales de cotización
@@ -1328,7 +1322,7 @@ export async function recalculateQuotationTotals(organizationId: string, quotati
 
       logger.info(`Totales recalculados: Subtotal: $${subtotal}, Tax: $${tax}, Total: $${total_amount}`, context);
     }, 'recalculateQuotationTotals', context);
-  }, 'Error al recalcular totales de cotización');
+  }, { operation: 'recalculateQuotationTotals', table: 'quotations' });
 }
 
 // Obtener cotizaciones vencidas
@@ -1360,7 +1354,7 @@ export async function getExpiredQuotations(organizationId: string) {
       logger.info(`Cotizaciones vencidas encontradas: ${data?.length || 0}`, context);
       return data as Quotation[];
     }, 'getExpiredQuotations', context);
-  }, 'Error al obtener cotizaciones vencidas');
+  }, { operation: 'getExpiredQuotations', table: 'quotations' });
 }
 
 // Marcar cotizaciones vencidas
@@ -1389,7 +1383,7 @@ export async function markExpiredQuotations(organizationId: string) {
       logger.businessEvent('quotations_expired', 'quotation', 'batch', context);
       return data as Quotation[];
     }, 'markExpiredQuotations', context);
-  }, 'Error al marcar cotizaciones vencidas');
+  }, { operation: 'markExpiredQuotations', table: 'quotations' });
 }
 
 // Obtener estadísticas de cotizaciones
@@ -1424,5 +1418,5 @@ export async function getQuotationStats(organizationId: string) {
       logger.info(`Estadísticas calculadas: ${stats.total} cotizaciones, ${stats.conversion_rate.toFixed(2)}% conversión`, context);
       return stats;
     }, 'getQuotationStats', context);
-  }, 'Error al obtener estadísticas de cotizaciones');
+  }, { operation: 'getQuotationStats', table: 'quotations' });
 }
