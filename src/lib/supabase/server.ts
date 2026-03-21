@@ -35,10 +35,10 @@ export async function getSupabaseServerClient(): Promise<SupabaseServerClient> {
           get(name: string) {
             return cookieStore.get(name)?.value
           },
-          set(name: string, value: string, options?: ResponseCookie['options']) {
+          set(name: string, value: string, options?: any) {
             cookieStore.set({ name, value, ...(options ?? {}) })
           },
-          remove(name: string, options?: ResponseCookie['options']) {
+          remove(name: string, options?: any) {
             cookieStore.set({ name, value: '', ...(options ?? {}) })
           },
         },
@@ -136,10 +136,10 @@ export function createClientFromRequest(request: NextRequest): SupabaseServerCli
         get(name: string) {
           return cookieMap.get(name)
         },
-        set(name: string, value: string, options?: ResponseCookie['options']) {
+        set(name: string, value: string, options?: any) {
           // No podemos setear cookies en API routes desde aquí
         },
-        remove(name: string, options?: ResponseCookie['options']) {
+        remove(name: string, options?: any) {
           // No podemos remover cookies en API routes desde aquí
         },
       },

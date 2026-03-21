@@ -7,6 +7,7 @@ import { WorkOrderNotes } from '@/components/work-orders/WorkOrderNotes'
 import { WorkOrderItems } from '@/components/work-orders/WorkOrderItems'
 import { WorkOrderServices } from '@/components/work-orders/WorkOrderServices'
 import WorkOrderDocuments from '@/components/work-orders/WorkOrderDocuments'
+import { WorkOrderTerms } from '@/components/work-orders/WorkOrderTerms'
 import { WorkOrderGeneralForm } from '@/components/work-orders/WorkOrderGeneralForm'
 import { WorkOrderHistory } from '@/components/work-orders/WorkOrderHistory'
 import { WorkOrderImage } from '@/lib/supabase/work-order-storage'
@@ -26,8 +27,8 @@ import {
   Edit,
   Save,
   X,
-  Loader2,
-  Package
+  Package,
+  ScrollText
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -91,7 +92,7 @@ export function WorkOrderDetailsTabs({
   })
   const [documents, setDocuments] = useState<any[]>(order?.documents || [])
   const [lastNotesUpdate, setLastNotesUpdate] = useState<number>(0)
-  const [sending, setSending] = useState(false)
+
 
   // ✅ Estado para modo de edición del tab General
   const [isEditingGeneral, setIsEditingGeneral] = useState(false)
@@ -169,46 +170,10 @@ export function WorkOrderDetailsTabs({
     console.log('✅ [WorkOrderDetailsTabs] Nota agregada sin refetch')
   }
 
-  const handleSendNotification = async () => {
-    if (!organizationId || !order?.id) return
-    setSending(true)
-    try {
-      const res = await fetch(`/api/work-orders/${order.id}/notify`, {
-        method: 'POST',
-        credentials: 'include',
-      })
-      const data = await res.json()
-      if (data.success) {
-        toast.success('Notificación enviada', {
-          description: data.message,
-        })
-      } else {
-        toast.error('No se pudo enviar la notificación', {
-          description: data.errors?.join(', ') || data.error || 'Error desconocido',
-        })
-      }
-    } catch {
-      toast.error('Error al enviar notificación')
-    } finally {
-      setSending(false)
-    }
-  }
-
   return (
     <>
-    <div className="flex justify-end mb-3">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleSendNotification}
-        disabled={sending}
-      >
-        {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-        Enviar al cliente
-      </Button>
-    </div>
     <Tabs defaultValue="general" className="w-full">
-      <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-1 p-1">
+      <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-1 p-1">
         {/* Tab: General */}
         <TabsTrigger 
           value="general" 
@@ -286,6 +251,15 @@ export function WorkOrderDetailsTabs({
           <History className="h-4 w-4" />
           <span className="hidden sm:inline">Historia</span>
         </TabsTrigger>
+
+        {/* Tab: Términos */}
+        <TabsTrigger
+          value="terminos"
+          className="flex items-center justify-center gap-1 px-2 py-2.5 text-xs sm:text-sm"
+        >
+          <ScrollText className="h-4 w-4" />
+          <span className="hidden sm:inline">Términos</span>
+        </TabsTrigger>
       </TabsList>
 
       {/* TAB GENERAL - Usando formulario completo replicado de creación */}
@@ -353,6 +327,11 @@ export function WorkOrderDetailsTabs({
       {/* TAB HISTORIA */}
       <TabsContent value="history" className="mt-6">
         <WorkOrderHistory orderId={order.id} />
+      </TabsContent>
+
+      {/* TAB TÉRMINOS Y CONDICIONES */}
+      <TabsContent value="terminos" className="mt-6">
+        <WorkOrderTerms organizationId={organizationId || ''} />
       </TabsContent>
     </Tabs>
     </>

@@ -83,7 +83,7 @@ import twilio from 'twilio';
  * Configurar cliente de SendGrid con API Key
  */
 export function configureSendGrid(): void {
-  const apiKey = process.env.SENDGRID_API_KEY;
+  const apiKey = cleanEnvVar(process.env.SENDGRID_API_KEY);
 
   if (!apiKey) {
     throw new Error(

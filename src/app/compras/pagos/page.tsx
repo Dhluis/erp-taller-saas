@@ -62,6 +62,9 @@ export default function PagosPage() {
   const [supplierFilter, setSupplierFilter] = useState<string>("all")
   const [modalOpen, setModalOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [draggedPayment, setDraggedPayment] = useState<SupplierPayment | null>(null);
+  const [confirmPaymentModal, setConfirmPaymentModal] = useState<SupplierPayment | null>(null);
+  const [confirmCashAccountId, setConfirmCashAccountId] = useState<string>("none");
   const [form, setForm] = useState({
     supplier_id: "",
     amount: "",
@@ -80,7 +83,12 @@ export default function PagosPage() {
       const params = new URLSearchParams()
       if (supplierFilter && supplierFilter !== "all") params.set("supplier_id", supplierFilter)
       const res = await fetch(`/api/supplier-payments?${params.toString()}`, { credentials: "include" })
-      const data = await res.json()
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("API Error 500 Body:", errorText);
+        toast.error("Error cargando pagos: " + errorText.substring(0, 50));
+      }
+      const data = await res.json().catch(() => null);
       if (data?.success && data?.data) {
         setPayments(data.data.items || [])
         setStats(data.data.stats || { total: 0, totalPaid: 0, totalPending: 0 })
@@ -164,6 +172,64 @@ export default function PagosPage() {
       setSubmitting(false)
     }
   }
+
+  const handleDrop = async (e: React.DragEvent, targetStatus: 'pending' | 'completed') => {
+    e.preventDefault();
+    if (!draggedPayment) return;
+    
+    const currentStatus = draggedPayment.status === 'completed' || draggedPayment.status === 'paid' ? 'completed' : 'pending';
+    if (currentStatus === targetStatus) {
+      setDraggedPayment(null);
+      return;
+    }
+
+    if (targetStatus === 'completed') {
+      setConfirmPaymentModal(draggedPayment);
+    } else {
+      try {
+        const res = await fetch(`/api/supplier-payments/${draggedPayment.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'pending' })
+        });
+        if (res.ok) {
+          toast.success('Regresado a pendiente');
+          loadPayments();
+        }
+      } catch (err) {
+        toast.error('Error al actualizar estado');
+      }
+    }
+    setDraggedPayment(null);
+  };
+
+  const submitStatusChange = async () => {
+    if (!confirmPaymentModal) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/supplier-payments/${confirmPaymentModal.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: 'completed',
+          cash_account_id: confirmCashAccountId === "none" ? null : confirmCashAccountId
+        })
+      });
+      const data = await res.json();
+      if (data?.success) {
+        toast.success(confirmCashAccountId !== "none" ? 'Pago completado y descontado' : 'Pago marcado como completado');
+        setConfirmPaymentModal(null);
+        setConfirmCashAccountId("none");
+        loadPayments();
+      } else {
+        toast.error(data?.error || 'Error al actualizar');
+      }
+    } catch (err) {
+      toast.error('Error de red');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const supplierNameById = Object.fromEntries(suppliers.map((s) => [s.id, s.name]))
 
@@ -266,32 +332,98 @@ export default function PagosPage() {
             ) : filteredPayments.length === 0 ? (
               <p className="py-8 text-center text-muted-foreground">No hay pagos registrados. Registra el primero con el botón superior.</p>
             ) : (
-              <div className="rounded-md border overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="h-10 px-4 font-medium">Proveedor</th>
-                      <th className="h-10 px-4 font-medium">Monto</th>
-                      <th className="h-10 px-4 font-medium">Fecha</th>
-                      <th className="h-10 px-4 font-medium">Método</th>
-                      <th className="h-10 px-4 font-medium">Referencia</th>
-                      <th className="h-10 px-4 font-medium">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPayments.map((p) => (
-                      <tr key={p.id} className="border-b">
-                        <td className="p-4 font-medium">{supplierNameById[p.supplier_id] ?? "—"}</td>
-                        <td className="p-4">{formatMoney(Number(p.amount))}</td>
-                        <td className="p-4">{new Date(p.payment_date).toLocaleDateString()}</td>
-                        <td className="p-4">{PAYMENT_METHODS.find((m) => m.value === p.payment_method)?.label ?? p.payment_method}</td>
-                        <td className="p-4 text-muted-foreground">{p.reference ?? "—"}</td>
-                        <td className="p-4">{getStatusBadge(p.status)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              (() => {
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const todayStr = today.toISOString().split('T')[0];
+
+                const pendingPayments = filteredPayments.filter(p => (p.status === 'pending' || (p.status !== 'completed' && p.status !== 'paid')) && p.payment_date >= todayStr);
+                const overduePayments = filteredPayments.filter(p => (p.status === 'pending' || (p.status !== 'completed' && p.status !== 'paid')) && p.payment_date < todayStr);
+                const completedPayments = filteredPayments.filter(p => p.status === 'completed' || p.status === 'paid');
+
+                const PaymentCard = ({ pago }: { pago: SupplierPayment }) => (
+                  <div 
+                    draggable
+                    onDragStart={() => setDraggedPayment(pago)}
+                    className="p-4 bg-slate-800/80 border border-slate-700 hover:border-slate-500 rounded-lg shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all flex flex-col gap-2"
+                  >
+                    <div className="flex justify-between items-start">
+                      <span className="font-semibold text-slate-100">{supplierNameById[pago.supplier_id] || 'Desconocido'}</span>
+                      <span className="text-[10px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-700">{PAYMENT_METHODS.find(m => m.value === pago.payment_method)?.label || pago.payment_method}</span>
+                    </div>
+                    <div className="text-2xl font-bold text-slate-100 font-mono">
+                      {formatMoney(Number(pago.amount))}
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-slate-400 mt-2 border-t border-slate-700/50 pt-2">
+                      <span className="flex items-center">
+                        <span className="mr-1">📅</span> {new Date(pago.payment_date).toLocaleDateString()}
+                      </span>
+                      {pago.reference && <span className="bg-slate-700/30 px-1.5 py-0.5 rounded truncate max-w-[100px]">{pago.reference}</span>}
+                    </div>
+                  </div>
+                );
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Vencidas */}
+                    <div 
+                      className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 flex flex-col gap-3 min-h-[400px]"
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => handleDrop(e, 'pending')}
+                    >
+                      <div className="flex items-center justify-between pb-2 border-b border-red-500/20">
+                        <h3 className="font-medium text-red-400 flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-red-500"></span>
+                          Vencidas
+                        </h3>
+                        <span className="bg-red-500/20 text-red-400 text-xs px-2 py-0.5 rounded-full">{overduePayments.length}</span>
+                      </div>
+                      <div className="flex flex-col gap-3 overflow-y-auto max-h-[600px] custom-scrollbar flex-1">
+                        {overduePayments.length === 0 && <div className="text-sm text-center text-slate-500 mt-4 italic border-2 border-dashed border-slate-800/50 p-6 rounded-lg">Cero deudas atrasadas</div>}
+                        {overduePayments.map(p => <PaymentCard key={p.id} pago={p} />)}
+                      </div>
+                    </div>
+
+                    {/* Pendientes */}
+                    <div 
+                      className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-4 flex flex-col gap-3 min-h-[400px]"
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => handleDrop(e, 'pending')}
+                    >
+                      <div className="flex items-center justify-between pb-2 border-b border-yellow-500/20">
+                        <h3 className="font-medium text-yellow-400 flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-yellow-500"></span>
+                          Al Corriente
+                        </h3>
+                        <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-0.5 rounded-full">{pendingPayments.length}</span>
+                      </div>
+                      <div className="flex flex-col gap-3 overflow-y-auto max-h-[600px] custom-scrollbar flex-1">
+                        {pendingPayments.length === 0 && <div className="text-sm text-center text-slate-500 mt-4 italic border-2 border-dashed border-slate-800/50 p-6 rounded-lg flex flex-col items-center justify-center gap-2">Arrastra cuentas aquí</div>}
+                        {pendingPayments.map(p => <PaymentCard key={p.id} pago={p} />)}
+                      </div>
+                    </div>
+
+                    {/* Pagadas */}
+                    <div 
+                      className="bg-green-500/5 border border-green-500/20 rounded-xl p-4 flex flex-col gap-3 min-h-[400px]"
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => handleDrop(e, 'completed')}
+                    >
+                      <div className="flex items-center justify-between pb-2 border-b border-green-500/20">
+                        <h3 className="font-medium text-green-400 flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                          Pagadas
+                        </h3>
+                        <span className="bg-green-500/20 text-green-400 text-xs px-2 py-0.5 rounded-full">{completedPayments.length}</span>
+                      </div>
+                      <div className="flex flex-col gap-3 overflow-y-auto max-h-[600px] custom-scrollbar flex-1">
+                        {completedPayments.length === 0 && <div className="text-sm text-center text-slate-500 mt-4 italic border-2 border-dashed border-slate-800/50 p-6 rounded-lg flex flex-col items-center justify-center gap-2">Arrastra facturas para pagar</div>}
+                        {completedPayments.map(p => <PaymentCard key={p.id} pago={p} />)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
             )}
           </CardContent>
         </Card>
@@ -401,6 +533,51 @@ export default function PagosPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!confirmPaymentModal} onOpenChange={(v) => !v && setConfirmPaymentModal(null)}>
+        <DialogContent className="max-w-sm border border-slate-700 bg-slate-900">
+          <DialogHeader>
+            <DialogTitle className="text-slate-100 flex items-center gap-2">
+              <span className="text-green-500 text-xl">✓</span>
+              Confirmar Pago a Proveedor
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Estás marcando como pagado <strong>{formatMoney(Number(confirmPaymentModal?.amount || 0))}</strong> a <strong>{supplierNameById[confirmPaymentModal?.supplier_id || ''] || 'Desconocido'}</strong>. 
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {cashAccounts.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-slate-300">¿Descontar de alguna cuenta de efectivo?</Label>
+                <Select value={confirmCashAccountId} onValueChange={setConfirmCashAccountId}>
+                  <SelectTrigger className="bg-slate-800 border-slate-700">
+                    <SelectValue placeholder="No descontar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Solo registrar pago, no descontar saldo</SelectItem>
+                    {cashAccounts.map((acc) => (
+                      <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500">
+                  Si seleccionas una cuenta, se agregará un retiro para restar este monto de tu saldo real.
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setConfirmPaymentModal(null)} disabled={submitting} className="hover:bg-slate-800 text-slate-300">
+              Cancelar
+            </Button>
+            <Button onClick={submitStatusChange} disabled={submitting} className="bg-green-600 hover:bg-green-700 text-white">
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar Pago
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </AppLayout>
   )
 }

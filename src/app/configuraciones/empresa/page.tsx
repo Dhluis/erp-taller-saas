@@ -18,9 +18,13 @@ import {
   Settings,
   Save,
   Upload,
-  Camera
+  Camera,
+  FileText,
+  Trash2,
+  Eye
 } from "lucide-react"
 import { getCompanySettings, updateCompanySettings, type CompanySettings } from "@/lib/supabase/company-settings"
+import { uploadTermsPdf, deleteTermsPdf } from "@/lib/supabase/terms-pdf"
 import { useAuth } from "@/hooks/useAuth"
 import { useOrganization } from "@/lib/context/SessionContext"
 import { SUPPORTED_CURRENCIES, useOrgCurrency, type OrgCurrencyCode } from "@/lib/context/CurrencyContext"
@@ -38,6 +42,7 @@ export type CompanySettingsForm = {
   email: string
   website: string
   logo: string
+  terms_pdf_url: string
   business_hours: {
     monday: string
     tuesday: string
@@ -82,6 +87,7 @@ function getDefaultFormState(): CompanySettingsForm {
     email: '',
     website: '',
     logo: '',
+    terms_pdf_url: '',
     business_hours: { ...DEFAULT_BUSINESS_HOURS },
     billing: { ...DEFAULT_BILLING },
     services: { ...DEFAULT_SERVICES },
@@ -104,6 +110,7 @@ function apiToFormSettings(api: CompanySettings | null): CompanySettingsForm {
     email: api.email ?? '',
     website: '',
     logo: api.logo_url ?? '',
+    terms_pdf_url: (api as any).terms_pdf_url ?? '',
     business_hours: {
       ...DEFAULT_BUSINESS_HOURS,
       ...hours
@@ -138,6 +145,7 @@ function formToApiSettings(form: CompanySettingsForm): Parameters<typeof updateC
     tax_rate: form.billing.tax_rate,
     working_hours: form.business_hours,
     invoice_terms: `Pago a ${form.billing.payment_terms} días`,
+    terms_pdf_url: form.terms_pdf_url || null,
     appointment_defaults: {
       default_duration: form.services.default_service_time,
       require_appointment: form.services.require_appointment,
@@ -155,6 +163,7 @@ export default function EmpresaPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false)
   const [formData, setFormData] = useState<CompanySettingsForm>(getDefaultFormState())
   const [detectedLocale, setDetectedLocale] = useState<DetectedLocale | null>(null)
 
@@ -243,6 +252,54 @@ export default function EmpresaPage() {
         handleInputChange('logo', result)
       }
       reader.readAsDataURL(file)
+    }
+  }
+
+  const handleTermsPdfUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !organizationId) return
+
+    if (file.type !== 'application/pdf') {
+      toast.error('Solo se permiten archivos PDF')
+      return
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('El archivo es demasiado grande. Máximo 10MB')
+      return
+    }
+
+    setIsUploadingPdf(true)
+    try {
+      const url = await uploadTermsPdf(organizationId, file)
+      // Save URL directly in company_settings
+      await updateCompanySettings(organizationId, { terms_pdf_url: url } as any)
+      handleInputChange('terms_pdf_url', url)
+      toast.success('¡Términos y condiciones subidos correctamente!')
+    } catch (error: any) {
+      console.error('Error uploading terms PDF:', error)
+      toast.error(error.message || 'Error al subir el PDF')
+    } finally {
+      setIsUploadingPdf(false)
+      // Reset file input
+      const input = document.getElementById('terms-pdf-upload') as HTMLInputElement
+      if (input) input.value = ''
+    }
+  }
+
+  const handleTermsPdfDelete = async () => {
+    if (!organizationId) return
+    setIsUploadingPdf(true)
+    try {
+      await deleteTermsPdf(organizationId)
+      await updateCompanySettings(organizationId, { terms_pdf_url: null } as any)
+      handleInputChange('terms_pdf_url', '')
+      toast.success('Términos y condiciones eliminados')
+    } catch (error: any) {
+      console.error('Error deleting terms PDF:', error)
+      toast.error('Error al eliminar el PDF')
+    } finally {
+      setIsUploadingPdf(false)
     }
   }
 
@@ -614,6 +671,96 @@ export default function EmpresaPage() {
               </div>
             </div>
           </div>
+        </div>
+        {/* Términos y Condiciones PDF */}
+        <div className="bg-card p-6 rounded-lg border lg:col-span-2">
+          <div className="flex items-center gap-2 mb-4">
+            <FileText className="h-5 w-5 text-indigo-500" />
+            <h2 className="text-xl font-semibold">Términos y Condiciones</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Sube el PDF de términos y condiciones de tu taller. <strong>Solo necesitas subirlo una vez</strong> y aparecerá automáticamente en todas las órdenes de trabajo.
+          </p>
+
+          {formData.terms_pdf_url ? (
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center p-4 rounded-lg border bg-indigo-500/5 border-indigo-500/20">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-2 rounded-lg bg-indigo-500/10">
+                  <FileText className="h-6 w-6 text-indigo-500" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Términos y condiciones configurados</p>
+                  <p className="text-xs text-muted-foreground">Aparecen en todas las órdenes de trabajo</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(formData.terms_pdf_url, '_blank', 'noopener,noreferrer')}
+                >
+                  <Eye className="h-4 w-4 mr-1" /> Ver
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                  onClick={handleTermsPdfDelete}
+                  disabled={isUploadingPdf}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" /> Eliminar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center p-8 rounded-lg border-2 border-dashed border-muted-foreground/30 text-center">
+              <FileText className="h-10 w-10 mb-3 text-muted-foreground/50" />
+              <p className="text-sm font-medium mb-1">Sin PDF configurado</p>
+              <p className="text-xs text-muted-foreground mb-4">Sube tu documento de términos y condiciones (máx. 10MB)</p>
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={handleTermsPdfUpload}
+                className="hidden"
+                id="terms-pdf-upload"
+                disabled={isUploadingPdf}
+              />
+              <Button
+                variant="outline"
+                onClick={() => document.getElementById('terms-pdf-upload')?.click()}
+                disabled={isUploadingPdf}
+              >
+                {isUploadingPdf ? (
+                  <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2" /> Subiendo...</>
+                ) : (
+                  <><Upload className="h-4 w-4 mr-2" /> Subir PDF</>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* Reemplazar PDF existente */}
+          {formData.terms_pdf_url && (
+            <div className="mt-3">
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={handleTermsPdfUpload}
+                className="hidden"
+                id="terms-pdf-replace"
+                disabled={isUploadingPdf}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => document.getElementById('terms-pdf-replace')?.click()}
+                disabled={isUploadingPdf}
+              >
+                {isUploadingPdf ? 'Subiendo...' : '↻ Reemplazar PDF'}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

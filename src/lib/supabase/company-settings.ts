@@ -23,6 +23,7 @@ const companySettingsSchema = z.object({
   tax_rate: z.number().min(0, 'La tasa de impuestos no puede ser negativa').max(100, 'La tasa de impuestos no puede ser mayor a 100').default(16.00),
   working_hours: z.record(z.string(), z.string()).default({}), // Ejemplo: { "monday": "9-5", "tuesday": "9-5" }
   invoice_terms: z.string().optional().nullable(),
+  terms_pdf_url: z.string().optional().nullable(),
   appointment_defaults: z.record(z.string(), z.any()).default({}), // Ejemplo: { "default_duration": 60, "default_status": "scheduled" }
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional(),
@@ -143,6 +144,7 @@ export async function initializeCompanySettings(organizationId: string, initialD
         tax_id: initialData.tax_id || null,
         logo_url: initialData.logo_url || null,
         invoice_terms: initialData.invoice_terms || null,
+        terms_pdf_url: initialData.terms_pdf_url || null,
       }
 
       return await createCompanySettings(defaultSettings)
@@ -179,6 +181,7 @@ export function getDefaultCompanySettings(organizationId: string): CreateCompany
       advance_booking_days: 30
     },
     invoice_terms: 'Pago a 30 días',
+    terms_pdf_url: null,
     email: null,
     phone: null,
     address: null,

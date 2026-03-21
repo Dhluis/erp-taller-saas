@@ -6,8 +6,12 @@ import { PageHeader } from '@/components/navigation/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
-import { Receipt, Plus } from 'lucide-react'
+import { Receipt, Plus, Brain, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import { VoiceInput } from '@/components/ui/VoiceInput'
+import { cn } from '@/lib/utils'
 
 interface Expense {
   id: string
@@ -20,10 +24,46 @@ interface Expense {
 }
 
 export default function GastosPage() {
+  const router = useRouter()
   const { formatMoney } = useOrgCurrency()
   const [list, setList] = useState<Expense[]>([])
   const [stats, setStats] = useState<{ total: number; count: number } | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isProcessingAI, setIsProcessingAI] = useState(false)
+
+  const handleVoiceTranscription = async (text: string) => {
+    if (!text.trim()) return
+    setIsProcessingAI(true)
+    toast.info('Analizando gasto con IA...')
+    
+    try {
+      const res = await fetch('/api/ai-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'magic-create', payload: { text, context: 'expense' } })
+      })
+      const data = await res.json()
+      
+      if (data.success && data.data?.expense) {
+        const ex = data.data.expense
+        toast.success('Gasto analizado. Confirma los datos.')
+        const params = new URLSearchParams()
+        if (ex.amount) params.set('amount', ex.amount.toString())
+        if (ex.category) params.set('category', ex.category)
+        if (ex.description) params.set('description', ex.description)
+        if (ex.payment_method) params.set('payment_method', ex.payment_method)
+        if (ex.cash_account_hint) params.set('cash_account_id', ex.cash_account_hint)
+        
+        router.push(`/compras/gastos/nuevo?${params.toString()}`)
+      } else {
+        toast.error('No se pudo extraer la información del gasto')
+      }
+    } catch (e) {
+      toast.error('Error de conexión con la IA')
+    } finally {
+      setIsProcessingAI(false)
+    }
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -52,6 +92,36 @@ export default function GastosPage() {
         ]}
       />
       <div className="space-y-4 p-4">
+        
+        {/* Asistente de Voz AI */}
+        <div className="py-2 px-4 bg-slate-900/40 rounded-lg border border-slate-800">
+          <div className="relative group">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+            <div className="relative flex items-center gap-3 bg-[#0f172a] border border-pink-500/30 rounded-lg p-2 shadow-xl">
+              <div className="p-1.5 bg-pink-500/10 rounded-lg shrink-0">
+                <Brain className={cn("h-5 w-5 text-pink-500", isProcessingAI && "animate-pulse")} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Eagles AI (Magia de Gastos)</p>
+                  <span className="h-1 w-1 rounded-full bg-slate-600"></span>
+                  <p className="text-[10px] text-slate-400 truncate hidden sm:block">"Compré 3 pizzas para el equipo por 300 pesos..."</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {isProcessingAI ? (
+                  <Loader2 className="h-5 w-5 text-pink-500 animate-spin" />
+                ) : (
+                  <VoiceInput
+                    onTranscript={handleVoiceTranscription}
+                    className="h-9 w-9 bg-pink-600 hover:bg-pink-500 text-white shadow-lg shadow-pink-500/20 rounded-full"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {stats && (
           <div className="grid gap-4 md:grid-cols-2">
             <Card className="bg-rose-500/10 border-rose-500/20">

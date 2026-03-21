@@ -108,6 +108,7 @@ export async function POST(request: NextRequest) {
       payment_date: rest.payment_date,
       payment_method: rest.payment_method,
       reference: rest.reference ?? null,
+      invoice_number: rest.reference || 'S/N',
       notes: rest.notes ?? null,
       status: rest.status
     }

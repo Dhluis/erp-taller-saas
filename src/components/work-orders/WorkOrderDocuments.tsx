@@ -140,8 +140,10 @@ export default function WorkOrderDocuments({
   }
 
   const handlePreview = (doc: WorkOrderDocument) => {
-    if (doc.type === 'application/pdf' || doc.type.startsWith('image/')) {
-      console.log('👁️ Abriendo preview:', doc.name)
+    if (doc.type === 'application/pdf') {
+      // Abrir PDF en nueva pestaña evita el bug "Sin título" del iframe
+      window.open(doc.url, '_blank', 'noopener,noreferrer')
+    } else if (doc.type.startsWith('image/')) {
       setPreviewDocument(doc)
     } else {
       toast.info('Vista previa no disponible para este tipo de archivo')

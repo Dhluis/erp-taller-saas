@@ -37,7 +37,7 @@ export function EaglesAIActionButton({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'draft-message',
-          payload: { workOrderId }
+          payload: { workOrderId, origin: window.location.origin }
         })
       });
 

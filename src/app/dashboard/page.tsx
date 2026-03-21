@@ -2,7 +2,6 @@
 
 import { AppLayout } from '@/components/layout/AppLayout';
 import { QuickActions } from '@/components/dashboard/QuickActions';
-import { ActionGrid } from '@/components/dashboard/ActionGrid';
 import { EaglesMagicCreate } from '@/components/dashboard/EaglesMagicCreate';
 import { EaglesInsights } from '@/components/dashboard/EaglesInsights';
 import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant';
@@ -105,7 +104,6 @@ function DashboardContent() {
 
   const searchParams = useSearchParams();
   const [magicCreateData, setMagicCreateData] = useState<any>(null);
-  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
 
   // Efecto para capturar datos de Eagles AI (Orden de Trabajo)
   useEffect(() => {
@@ -752,10 +750,6 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Action Grid (iOS Style) - NUEVO */}
-        {!permissions.isMechanic && (
-          <ActionGrid onNewOrder={() => setIsOrderModalOpen(true)} />
-        )}
 
         {/* Filtros de fecha - Responsive para mobile */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
@@ -1144,12 +1138,7 @@ function DashboardContent() {
           {/* Columna Derecha: Acciones Rápidas (1/3) - Ocultar para mecánicos */}
           {!permissions.isMechanic && (
             <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-              <QuickActions 
-                onOrderCreated={handleOrderCreated} 
-                initialData={magicCreateData} 
-                open={isOrderModalOpen}
-                onOpenChange={setIsOrderModalOpen}
-              />
+              <QuickActions onOrderCreated={handleOrderCreated} initialData={magicCreateData} />
             </div>
           )}
         </div>

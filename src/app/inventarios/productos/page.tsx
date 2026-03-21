@@ -17,7 +17,7 @@ import {
   AdjustmentsHorizontalIcon,
   TrashIcon
 } from '@heroicons/react/24/outline';
-import { RefreshCw, Brain, Loader2 } from 'lucide-react';
+import { RefreshCw, Brain, Loader2, Sparkles, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useInventory, type CreateInventoryItemData, type UpdateInventoryItemData, type InventoryItem } from '@/hooks/useInventory';
 import { VoiceInput } from '@/components/ui/VoiceInput';
@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 import { Suspense } from 'react';
-// ... other imports
+
 
 export default function InventariosProductosPage() {
   return (
@@ -101,8 +101,146 @@ function InventariosContent() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<InventoryItem | null>(null);
   const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [editingCell, setEditingCell] = useState<{ id: string, field: 'price' | 'stock' } | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [isAnalyzingCopilot, setIsAnalyzingCopilot] = useState(false);
+  const [copilotReport, setCopilotReport] = useState<string | null>(null);
+  const [showCopilotModal, setShowCopilotModal] = useState(false);
+
   const searchParams = useSearchParams();
   const processedRef = useRef(false);
+
+  // Funciones de Copiloto AI
+  const handleRunCopilot = async () => {
+    const lowStockItems = items.filter(
+      p => p.quantity <= (p.min_quantity || p.minimum_stock || 0)
+    ).map(p => ({
+      name: p.name,
+      sku: p.sku,
+      stock: p.quantity,
+      min_stock: p.min_quantity || p.minimum_stock || 0
+    }));
+
+    setIsAnalyzingCopilot(true);
+    setShowCopilotModal(true);
+    setCopilotReport(null);
+
+    try {
+      const res = await fetch('/api/ai-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'inventory-copilot',
+          payload: { items: lowStockItems }
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCopilotReport(data.report);
+      } else {
+        toast.error('Error generando el reporte del Copiloto');
+        setShowCopilotModal(false);
+      }
+    } catch (error) {
+      toast.error('Error de conexión con Eagles AI');
+      setShowCopilotModal(false);
+    } finally {
+      setIsAnalyzingCopilot(false);
+    }
+  };
+
+  // Funciones de selección masiva
+  const toggleSelection = (id: string) => setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  const toggleAll = () => setSelectedIds(prev => prev.length === items.length ? [] : items.map(i => i.id));
+
+  // Funciones de edición en línea (Inline Editing)
+  const startEditing = (id: string, field: 'price' | 'stock', value: string) => {
+    setEditingCell({ id, field });
+    setEditValue(value);
+  };
+
+  const saveEditing = async (product: InventoryItem) => {
+    if (!editingCell) return;
+    const { id, field } = editingCell;
+    const numValue = parseFloat(editValue);
+    
+    if (isNaN(numValue)) {
+      toast.error('Valor inválido');
+      setEditingCell(null);
+      return;
+    }
+
+    const isPrice = field === 'price';
+    const originalValue = isPrice ? product.unit_price : product.quantity;
+    
+    if (numValue !== originalValue) {
+      try {
+        const updateData: Partial<UpdateInventoryItemData> = isPrice 
+          ? { unit_price: numValue } 
+          : { quantity: numValue };
+        await updateItem(id, updateData as UpdateInventoryItemData);
+        toast.success(isPrice ? 'Precio actualizado' : 'Stock actualizado');
+      } catch (e) {
+        console.error(e);
+        toast.error('Error al actualizar');
+      }
+    }
+    setEditingCell(null);
+  };
+
+  // Acciones Masivas (Bulk Actions)
+  const handleBulkIncreasePrice = async () => {
+    if (selectedIds.length === 0) return;
+    setBulkProcessing(true);
+    try {
+      const promises = selectedIds.map(id => {
+        const product = items.find(i => i.id === id);
+        if (product) {
+          return updateItem(id, { unit_price: product.unit_price * 1.10 } as UpdateInventoryItemData);
+        }
+      });
+      await Promise.all(promises);
+      toast.success('Precios aumentados 10%');
+      setSelectedIds([]);
+    } catch(e) {
+      toast.error('Error al aumentar precios');
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleBulkExportCsv = () => {
+    if (selectedIds.length === 0) return;
+    const selectedProducts = items.filter(i => selectedIds.includes(i.id));
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + "SKU,Nombre,Categoría,Precio,Stock\n"
+      + selectedProducts.map(p => `${p.sku},${p.name},${p.category?.name || ''},${p.unit_price},${p.quantity}`).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "inventario_seleccionado.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Exportación completa');
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0 || !confirm('¿Estás seguro de eliminar los productos seleccionados?')) return;
+    setBulkProcessing(true);
+    try {
+      const promises = selectedIds.map(id => deleteItem(id));
+      await Promise.all(promises);
+      toast.success('Productos eliminados');
+      setSelectedIds([]);
+    } catch(e) {
+      toast.error('Error al eliminar masivamente');
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
 
   useEffect(() => {
     if (processedRef.current) return;
@@ -434,6 +572,14 @@ function InventariosContent() {
             <div className="flex gap-2">
               <Button
                 variant="outline"
+                className="bg-indigo-500/10 text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/20 hover:text-indigo-300"
+                onClick={handleRunCopilot}
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Copiloto AI
+              </Button>
+              <Button
+                variant="outline"
                 onClick={refresh}
                 disabled={loading}
               >
@@ -525,70 +671,123 @@ function InventariosContent() {
           </Card>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {items.map((product) => (
-              <Card key={product.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{product.name}</CardTitle>
-                      <p className="text-sm text-gray-600">SKU: {product.sku}</p>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      product.quantity > (product.min_quantity || product.minimum_stock || 0)
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {product.quantity > (product.min_quantity || product.minimum_stock || 0) ? 'En Stock' : 'Stock Bajo'}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Categoría:</span>
-                    <span className="text-sm font-medium">{product.category?.name || 'Sin categoría'}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Stock:</span>
-                    <span className="text-sm font-medium">{product.quantity} unidades</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Precio:</span>
-                    <span className="text-sm font-medium">${product.unit_price.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Stock Mínimo:</span>
-                    <span className="text-sm font-medium">{product.min_quantity || product.minimum_stock || 0} unidades</span>
-                  </div>
-                  <div className="flex gap-2 pt-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="flex-1"
-                      onClick={() => handleEditProduct(product)}
-                    >
-                      Editar
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="flex-1"
-                      onClick={() => handleViewDetails(product)}
-                    >
-                      Ver Detalles
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="destructive" 
-                      onClick={() => handleDeleteClick(product)}
-                      className="px-3 bg-red-600 hover:bg-red-700 text-white border-red-600"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              ))}
+            {selectedIds.length > 0 && (
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4 flex items-center justify-between">
+                <span className="text-sm text-blue-400 font-medium">{selectedIds.length} productos seleccionados</span>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleBulkIncreasePrice} disabled={bulkProcessing} className="border-blue-500/50 text-blue-400">
+                    {bulkProcessing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                    Subir Precio 10%
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleBulkExportCsv} disabled={bulkProcessing} className="border-green-500/50 text-green-400">
+                    Exportar CSV
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleBulkDelete} disabled={bulkProcessing} className="border-red-500/50 text-red-400 hover:bg-red-500/10">
+                    Eliminar
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-md border border-slate-700 bg-slate-900 overflow-x-auto shadow-sm">
+              <table className="w-full text-sm text-left text-slate-300">
+                <thead className="text-xs text-slate-400 uppercase bg-slate-800/50 border-b border-slate-700">
+                  <tr>
+                    <th className="px-4 py-3 w-12 text-center">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-slate-600 bg-slate-800 cursor-pointer" 
+                        checked={items.length > 0 && selectedIds.length === items.length}
+                        onChange={toggleAll}
+                      />
+                    </th>
+                    <th className="px-4 py-3 min-w-[200px]">Producto & SKU</th>
+                    <th className="px-4 py-3">Categoría</th>
+                    <th className="px-4 py-3 w-32">Precio (Und)</th>
+                    <th className="px-4 py-3 w-32">Stock</th>
+                    <th className="px-4 py-3 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((product) => {
+                    const isLowStock = product.quantity <= (product.min_quantity || product.minimum_stock || 0);
+                    return (
+                      <tr key={product.id} className="border-b border-slate-800 hover:bg-slate-800/40 transition-colors">
+                        <td className="px-4 py-3 text-center">
+                          <input 
+                            type="checkbox" 
+                            className="rounded border-slate-600 bg-slate-800 cursor-pointer" 
+                            checked={selectedIds.includes(product.id)}
+                            onChange={() => toggleSelection(product.id)}
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-slate-100">{product.name}</div>
+                          <div className="text-xs text-slate-500">{product.sku}</div>
+                        </td>
+                        <td className="px-4 py-3 text-slate-400">
+                          {product.category?.name || '---'}
+                        </td>
+                        <td 
+                          className="px-4 py-3 font-medium text-slate-200 cursor-pointer hover:bg-slate-800 rounded group transition-colors"
+                          onDoubleClick={() => startEditing(product.id, 'price', product.unit_price.toString())}
+                          title="Doble clic para editar"
+                        >
+                          {editingCell?.id === product.id && editingCell.field === 'price' ? (
+                            <Input 
+                              type="number" step="0.01" 
+                              className="h-8 w-24 text-sm px-2 bg-slate-900 border-blue-500 -ml-2" 
+                              value={editValue}
+                              autoFocus
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={() => saveEditing(product)}
+                              onKeyDown={(e) => e.key === 'Enter' && saveEditing(product)}
+                            />
+                          ) : (
+                            <div className="flex items-center w-full pb-0.5 border-b border-transparent group-hover:border-slate-500">
+                              ${product.unit_price.toFixed(2)}
+                            </div>
+                          )}
+                        </td>
+                        <td 
+                          className="px-4 py-3 cursor-pointer hover:bg-slate-800 rounded group transition-colors"
+                          onDoubleClick={() => startEditing(product.id, 'stock', product.quantity.toString())}
+                          title="Doble clic para editar"
+                        >
+                          {editingCell?.id === product.id && editingCell.field === 'stock' ? (
+                            <Input 
+                              type="number" 
+                              className="h-8 w-20 text-sm px-2 bg-slate-900 border-blue-500 -ml-2" 
+                              value={editValue}
+                              autoFocus
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={() => saveEditing(product)}
+                              onKeyDown={(e) => e.key === 'Enter' && saveEditing(product)}
+                            />
+                          ) : (
+                            <div className="flex items-center gap-2 pb-0.5 border-b border-transparent group-hover:border-slate-500 w-max">
+                              <span className={`font-medium ${isLowStock ? 'text-red-400' : 'text-slate-200'}`}>
+                                {product.quantity}
+                              </span>
+                              {isLowStock && <span className="bg-red-500/10 text-red-400 px-1 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider border border-red-500/20">Bajo</span>}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-white" onClick={() => handleEditProduct(product)}>
+                              <AdjustmentsHorizontalIcon className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/20" onClick={() => handleDeleteClick(product)}>
+                              <TrashIcon className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
 
             {/* Pagination */}
@@ -609,6 +808,45 @@ function InventariosContent() {
               </div>
             )}
           </>
+        )}
+
+        {/* Modal Copiloto AI */}
+        {showCopilotModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-[#0b0f1a] border border-slate-800 shadow-2xl shadow-indigo-500/10 rounded-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-6 border-b border-slate-800 flex justify-between items-start bg-slate-900/50">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Sparkles className="h-6 w-6 text-indigo-400" />
+                    Eagles Copilot
+                  </h2>
+                  <p className="text-sm text-slate-400 mt-1">Análisis inteligente de tu inventario crítico</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setShowCopilotModal(false)} className="text-slate-400 hover:text-white">
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+              <div className="p-6 overflow-y-auto">
+                {isAnalyzingCopilot ? (
+                  <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                    <Loader2 className="h-10 w-10 text-indigo-500 animate-spin" />
+                    <p className="text-slate-400 animate-pulse">Analizando niveles de stock y creando recomendaciones...</p>
+                  </div>
+                ) : (
+                  <div className="bg-slate-900/50 rounded-lg p-5 border border-slate-800 prose prose-invert max-w-none text-slate-300">
+                    <div className="whitespace-pre-wrap font-sans leading-relaxed text-[15px]">
+                      {copilotReport}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="p-4 border-t border-slate-800 bg-slate-900/80 flex justify-end">
+                <Button onClick={() => setShowCopilotModal(false)} className="bg-indigo-600 hover:bg-indigo-500 text-white">
+                  Entendido
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Modal para Nuevo Producto */}

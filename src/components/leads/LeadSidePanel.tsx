@@ -25,6 +25,8 @@ import { LeadStatusBadge } from '@/components/whatsapp/LeadStatusBadge'
 import { toast } from 'sonner'
 import type { CRMLead } from './types'
 import Link from 'next/link'
+import { useSession } from '@/lib/context/SessionContext'
+import { LeadAIActionButton } from './LeadAIActionButton'
 
 interface LeadSidePanelProps {
   lead: CRMLead | null
@@ -53,6 +55,7 @@ export function LeadSidePanel({
   onOpenOT,
   onLeadDeleted,
 }: LeadSidePanelProps) {
+  const { organizationId } = useSession()
   const [messages, setMessages] = useState<WhatsAppMessage[]>([])
   const [messagesLoading, setMessagesLoading] = useState(false)
 
@@ -600,6 +603,18 @@ export function LeadSidePanel({
 
         {/* Acciones — sticky footer */}
         <div className="p-4 border-t border-slate-700 flex-shrink-0 space-y-2">
+          {lead.status !== 'won' && lead.status !== 'lost' && (
+            <div className="pb-2 border-b border-slate-700/50 mb-2">
+              <LeadAIActionButton 
+                leadId={lead.id}
+                leadPhone={lead.phone || ''}
+                organizationId={organizationId || ''}
+                className="w-full bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/30"
+                variant="outline"
+              />
+            </div>
+          )}
+
           {lead.status === 'won' && !lead.customer_id && (
             <>
               <Button

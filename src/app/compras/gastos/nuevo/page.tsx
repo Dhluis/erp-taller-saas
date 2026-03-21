@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PageHeader } from '@/components/navigation/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,16 +17,19 @@ interface CashAccount { id: string; name: string }
 const CATEGORIES = ['Mantenimiento', 'Servicios', 'Suministros', 'Combustible', 'Otros']
 const PAYMENT_METHODS = [{ value: 'cash', label: 'Efectivo' }, { value: 'transfer', label: 'Transferencia' }, { value: 'card', label: 'Tarjeta' }, { value: 'other', label: 'Otro' }]
 
-export default function NuevoGastoPage() {
+function NuevoGastoContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { formatMoney } = useOrgCurrency()
   const [accounts, setAccounts] = useState<CashAccount[]>([])
-  const [amount, setAmount] = useState('')
-  const [category, setCategory] = useState('')
+  
+  // Pre-fill fields from AI Magic Create query parameters
+  const [amount, setAmount] = useState(searchParams.get('amount') || '')
+  const [category, setCategory] = useState(searchParams.get('category') || '')
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0])
-  const [description, setDescription] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('cash')
-  const [cashAccountId, setCashAccountId] = useState('')
+  const [description, setDescription] = useState(searchParams.get('description') || '')
+  const [paymentMethod, setPaymentMethod] = useState(searchParams.get('payment_method') || 'cash')
+  const [cashAccountId, setCashAccountId] = useState(searchParams.get('cash_account_id') || '')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -110,5 +113,13 @@ export default function NuevoGastoPage() {
         </Card>
       </div>
     </AppLayout>
+  )
+}
+
+export default function NuevoGastoPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-slate-400">Cargando...</div>}>
+      <NuevoGastoContent />
+    </Suspense>
   )
 }
