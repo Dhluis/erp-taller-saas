@@ -93,9 +93,9 @@ export default function PerfilPage() {
       });
 
       setMessage({ type: 'success', text: 'Perfil actualizado exitosamente' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
-      setMessage({ type: 'error', text: 'Error al actualizar el perfil' });
+      setMessage({ type: 'error', text: error?.message || 'Error al actualizar el perfil' });
     }
   };
 
@@ -121,6 +121,11 @@ export default function PerfilPage() {
         return;
       }
 
+      if (passwordData.currentPassword === passwordData.newPassword) {
+        setMessage({ type: 'error', text: 'La nueva contraseña debe ser diferente a la actual' });
+        return;
+      }
+
       if (passwordData.newPassword !== passwordData.confirmPassword) {
         setMessage({ type: 'error', text: 'Las contraseñas nuevas no coinciden' });
         return;
@@ -139,9 +144,9 @@ export default function PerfilPage() {
       });
 
       setMessage({ type: 'success', text: 'Contraseña cambiada exitosamente' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error changing password:', error);
-      setMessage({ type: 'error', text: 'Error al cambiar la contraseña' });
+      setMessage({ type: 'error', text: error?.message || 'Error al cambiar la contraseña' });
     }
   };
 
