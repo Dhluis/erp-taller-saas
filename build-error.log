@@ -1,0 +1,401 @@
+
+> erp-taller-saas@0.1.3 build
+> next build
+
+   Ôû▓ Next.js 15.5.7
+   - Environments: .env.local
+   - Experiments (use with caution):
+     Ô£ô forceSwcTransforms
+
+   Creating an optimized production build ...
+ Ô£ô (pwa) Compiling for server...
+ Ô£ô (pwa) Compiling for server...
+ Ô£ô (pwa) Compiling for client (static)...
+ Ôùï (pwa) Service worker won't be automatically registered as per the config, please call the following code in componentDidMount or useEffect:
+ Ôùï (pwa)   window.workbox.register()
+ Ôùï (pwa) You may also want to add @ducanh2912/next-pwa/workbox to compilerOptions.types in your tsconfig.json/jsconfig.json.
+ Ôùï (pwa) Service worker: C:\Users\exclu\erp-taller-saas\public\sw.js
+ Ôùï (pwa)   URL: /sw.js
+ Ôùï (pwa)   Scope: /
+ Ô£ô (pwa) Found a custom worker implementation at C:\Users\exclu\erp-taller-saas\worker\index.ts.
+ Ô£ô (pwa) Building the custom worker to C:\Users\exclu\erp-taller-saas\public\worker-908ec619abc15adf.js...
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (108kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ÔÜá Compiled with warnings in 8.4min
+
+./src/integrations/whatsapp/services/ai-agent.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./src/integrations/whatsapp/services/ai-agent.ts
+./src/app/api/whatsapp/test-agent/route.ts
+
+./node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+A Node.js API is used (process.versions at line: 35) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+Import trace for requested module:
+./node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+./node_modules/@supabase/realtime-js/dist/module/index.js
+./node_modules/@supabase/supabase-js/dist/module/index.js
+./node_modules/@supabase/ssr/dist/module/createServerClient.js
+./node_modules/@supabase/ssr/dist/module/index.js
+./src/lib/supabase/middleware-robust.ts
+
+./node_modules/@supabase/supabase-js/dist/module/index.js
+A Node.js API is used (process.version at line: 24) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+Import trace for requested module:
+./node_modules/@supabase/supabase-js/dist/module/index.js
+./node_modules/@supabase/ssr/dist/module/createServerClient.js
+./node_modules/@supabase/ssr/dist/module/index.js
+./src/lib/supabase/middleware-robust.ts
+
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+Ô£à Supabase browser client initialized
+­ƒôì Supabase URL: https://igshgleciwknpupbmvhn.s...
+Ô£à Supabase browser client initialized
+­ƒôì Supabase URL: https://igshgleciwknpupbmvhn.s...
+Ô£à Supabase browser client initialized
+­ƒôì Supabase URL: https://igshgleciwknpupbmvhn.s...
+­ƒöº Configuraci├│n de Supabase: { url: 'Configurado', anonKey: 'Configurado' }
+­ƒöº Configuraci├│n de Supabase: { url: 'Configurado', anonKey: 'Configurado' }
+­ƒöº Configuraci├│n de Supabase: { url: 'Configurado', anonKey: 'Configurado' }
+   Generating static pages (0/192) ...
+Ô£à Supabase browser client initialized
+­ƒôì Supabase URL: https://igshgleciwknpupbmvhn.s...
+Ô£à Supabase browser client initialized
+­ƒôì Supabase URL: https://igshgleciwknpupbmvhn.s...
+Ô£à Supabase browser client initialized
+­ƒôì Supabase URL: https://igshgleciwknpupbmvhn.s...
+­ƒöì [DEBUG] SUPABASE_URL: https://igshgleciwknpupbmvhn.supabase.co
+­ƒöì [DEBUG] ANON_KEY existe: true
+­ƒöì [DEBUG] ANON_KEY primeros 20 chars: eyJhbGciOiJIUzI1NiIs
+Ô£à Supabase browser client initialized
+­ƒôì Supabase URL: https://igshgleciwknpupbmvhn.s...
+­ƒöº Configuraci├│n de Supabase: { url: 'Configurado', anonKey: 'Configurado' }
+Ô£à Supabase browser client initialized
+­ƒôì Supabase URL: https://igshgleciwknpupbmvhn.s...
+­ƒôè [Inventory] Calculando estad├¡sticas...
+  Items: 0
+Ô£à [Inventory] Estad├¡sticas calculadas: {
+  totalProducts: 0,
+  lowStock: 0,
+  lowStockItems: [],
+  categories: 0,
+  totalValue: 0
+}
+­ƒöì [Dropdown] Filtrando clientes (memoizado): { customerNameLength: 0, totalCustomers: 0, customerName: '' }
+­ƒôï [Dropdown] Mostrando todos los clientes: 0
+[DashboardLayout] ÔÅ│ Mostrando loading (isLoading=true, isReady=false)
+[DashboardLayout] ÔÅ│ Mostrando loading (isLoading=true, isReady=false)
+   Generating static pages (48/192) 
+   Generating static pages (96/192) 
+   Generating static pages (144/192) 
+ Ô£ô Generating static pages (192/192)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                            Size  First Load JS
+Ôöî Ôùï /                                                 44 kB         198 kB
+Ôö£ Ôùï /_not-found                                        1 kB         105 kB
+Ôö£ Ôùï /admin/migrate-customers                        4.46 kB         161 kB
+Ôö£ Ôùï /admin/migrate-orders                           4.46 kB         161 kB
+Ôö£ Ôùï /analisis-financiero                            3.29 kB         265 kB
+Ôö£ Ôùï /api-docs                                       2.06 kB         106 kB
+Ôö£ ãÆ /api/agent/query                                  589 B         105 kB
+Ôö£ ãÆ /api/ai-assistant                                 589 B         105 kB
+Ôö£ ãÆ /api/appointments                                 589 B         105 kB
+Ôö£ ãÆ /api/appointments/stats                           589 B         105 kB
+Ôö£ ãÆ /api/auth/complete-example                        589 B         105 kB
+Ôö£ ãÆ /api/auth/demo                                    589 B         105 kB
+Ôö£ ãÆ /api/auth/example                                 589 B         105 kB
+Ôö£ ãÆ /api/auth/link-account                            589 B         105 kB
+Ôö£ ãÆ /api/auth/login                                   589 B         105 kB
+Ôö£ ãÆ /api/auth/logout                                  589 B         105 kB
+Ôö£ ãÆ /api/auth/me                                      589 B         105 kB
+Ôö£ ãÆ /api/auth/pattern                                 589 B         105 kB
+Ôö£ ãÆ /api/auth/register                                589 B         105 kB
+Ôö£ ãÆ /api/auth/test-validation                         589 B         105 kB
+Ôö£ ãÆ /api/auth/validate                                589 B         105 kB
+Ôö£ ãÆ /api/backups                                      589 B         105 kB
+Ôö£ ãÆ /api/backups/[id]                                 589 B         105 kB
+Ôö£ ãÆ /api/backups/[id]/restore                         589 B         105 kB
+Ôö£ ãÆ /api/backups/[id]/verify                          589 B         105 kB
+Ôö£ ãÆ /api/backups/cleanup                              589 B         105 kB
+Ôö£ ãÆ /api/backups/info                                 589 B         105 kB
+Ôö£ ãÆ /api/backups/schedule                             589 B         105 kB
+Ôö£ ãÆ /api/backups/stats                                589 B         105 kB
+Ôö£ ãÆ /api/billing/checkout                             589 B         105 kB
+Ôö£ ãÆ /api/billing/mercadopago/checkout                 589 B         105 kB
+Ôö£ ãÆ /api/billing/mercadopago/webhook                  589 B         105 kB
+Ôö£ ãÆ /api/billing/portal                               589 B         105 kB
+Ôö£ ãÆ /api/billing/webhook                              589 B         105 kB
+Ôö£ ãÆ /api/cash-accounts                                589 B         105 kB
+Ôö£ ãÆ /api/cash-accounts/[id]                           589 B         105 kB
+Ôö£ ãÆ /api/cash-accounts/[id]/movements                 589 B         105 kB
+Ôö£ ãÆ /api/cash-closures                                589 B         105 kB
+Ôö£ ãÆ /api/cash-closures/[id]                           589 B         105 kB
+Ôö£ ãÆ /api/collections                                  589 B         105 kB
+Ôö£ ãÆ /api/collections/[id]/pay                         589 B         105 kB
+Ôö£ ãÆ /api/conversions/quotation-to-invoice             589 B         105 kB
+Ôö£ ãÆ /api/conversions/work-order-to-invoice            589 B         105 kB
+Ôö£ ãÆ /api/conversions/work-order-to-quotation          589 B         105 kB
+Ôö£ ãÆ /api/credit-notes                                 589 B         105 kB
+Ôö£ ãÆ /api/credit-notes/[id]                            589 B         105 kB
+Ôö£ ãÆ /api/credit-notes/next-number                     589 B         105 kB
+Ôö£ ãÆ /api/cron/expire-subscriptions                    589 B         105 kB
+Ôö£ ãÆ /api/customers                                    589 B         105 kB
+Ôö£ ãÆ /api/customers-protected                          589 B         105 kB
+Ôö£ ãÆ /api/customers/[id]                               589 B         105 kB
+Ôö£ ãÆ /api/customers/[id]/vehicles                      589 B         105 kB
+Ôö£ ãÆ /api/debug-leads                                  589 B         105 kB
+Ôö£ ãÆ /api/delivery-notes                               589 B         105 kB
+Ôö£ ãÆ /api/delivery-notes/[id]                          589 B         105 kB
+Ôö£ ãÆ /api/delivery-notes/next-number                   589 B         105 kB
+Ôö£ ãÆ /api/docs/info                                    589 B         105 kB
+Ôö£ ãÆ /api/employees                                    589 B         105 kB
+Ôö£ ãÆ /api/exchange-rates                               589 B         105 kB
+Ôö£ ãÆ /api/expenses                                     589 B         105 kB
+Ôö£ ãÆ /api/expenses/[id]                                589 B         105 kB
+Ôö£ ãÆ /api/expenses/stats                               589 B         105 kB
+Ôö£ ãÆ /api/health                                       589 B         105 kB
+Ôö£ ãÆ /api/ingresos/stats                               589 B         105 kB
+Ôö£ ãÆ /api/inspections                                  589 B         105 kB
+Ôö£ ãÆ /api/inventory                                    589 B         105 kB
+Ôö£ ãÆ /api/inventory/[id]                               589 B         105 kB
+Ôö£ ãÆ /api/inventory/[id]/stock                         589 B         105 kB
+Ôö£ ãÆ /api/inventory/categories                         589 B         105 kB
+Ôö£ ãÆ /api/inventory/categories/[id]                    589 B         105 kB
+Ôö£ ãÆ /api/inventory/low-stock                          589 B         105 kB
+Ôö£ ãÆ /api/inventory/movements                          589 B         105 kB
+Ôö£ ãÆ /api/inventory/movements/[id]                     589 B         105 kB
+Ôö£ ãÆ /api/inventory/movements/stats                    589 B         105 kB
+Ôö£ ãÆ /api/inventory/stats                              589 B         105 kB
+Ôö£ ãÆ /api/invitations                                  589 B         105 kB
+Ôö£ ãÆ /api/invitations/resend                           589 B         105 kB
+Ôö£ ãÆ /api/invoices                                     589 B         105 kB
+Ôö£ ãÆ /api/invoices/[id]                                589 B         105 kB
+Ôö£ ãÆ /api/invoices/[id]/discount                       589 B         105 kB
+Ôö£ ãÆ /api/invoices/[id]/items                          589 B         105 kB
+Ôö£ ãÆ /api/invoices/[id]/items/[itemId]                 589 B         105 kB
+Ôö£ ãÆ /api/invoices/[id]/pay                            589 B         105 kB
+Ôö£ ãÆ /api/invoices/[id]/payments                       589 B         105 kB
+Ôö£ ãÆ /api/invoices/from-order                          589 B         105 kB
+Ôö£ ãÆ /api/invoices/overdue                             589 B         105 kB
+Ôö£ ãÆ /api/invoices/unpaid                              589 B         105 kB
+Ôö£ ãÆ /api/kpis/dashboard                               589 B         105 kB
+Ôö£ ãÆ /api/kpis/info                                    589 B         105 kB
+Ôö£ ãÆ /api/kpis/low-stock                               589 B         105 kB
+Ôö£ ãÆ /api/kpis/orders-status                           589 B         105 kB
+Ôö£ ãÆ /api/kpis/performance                             589 B         105 kB
+Ôö£ ãÆ /api/kpis/sales-chart                             589 B         105 kB
+Ôö£ ãÆ /api/kpis/top-customers                           589 B         105 kB
+Ôö£ ãÆ /api/kpis/top-products                            589 B         105 kB
+Ôö£ ãÆ /api/leads                                        589 B         105 kB
+Ôö£ ãÆ /api/leads/[id]                                   589 B         105 kB
+Ôö£ ãÆ /api/leads/[id]/convert                           589 B         105 kB
+Ôö£ ãÆ /api/leads/[id]/create-work-order                 589 B         105 kB
+Ôö£ ãÆ /api/leads/from-conversation                      589 B         105 kB
+Ôö£ ãÆ /api/leads/stats                                  589 B         105 kB
+Ôö£ ãÆ /api/messaging/activate-premium                   589 B         105 kB
+Ôö£ ãÆ /api/messaging/config                             589 B         105 kB
+Ôö£ ãÆ /api/messaging/send/email                         589 B         105 kB
+Ôö£ ãÆ /api/messaging/send/whatsapp                      589 B         105 kB
+Ôö£ ãÆ /api/messaging/start-trial                        589 B         105 kB
+Ôö£ ãÆ /api/messaging/stats                              589 B         105 kB
+Ôö£ ãÆ /api/messaging/test/email                         589 B         105 kB
+Ôö£ ãÆ /api/messaging/test/whatsapp                      589 B         105 kB
+Ôö£ ãÆ /api/messaging/twilio/webhook/[organizationId]    589 B         105 kB
+Ôö£ ãÆ /api/migrations/terms-pdf                         589 B         105 kB
+Ôö£ ãÆ /api/notifications                                589 B         105 kB
+Ôö£ ãÆ /api/notifications/[id]                           589 B         105 kB
+Ôö£ ãÆ /api/notifications/auto-check                     589 B         105 kB
+Ôö£ ãÆ /api/notifications/demo                           589 B         105 kB
+Ôö£ ãÆ /api/notifications/info                           589 B         105 kB
+Ôö£ ãÆ /api/notifications/mark-all-read                  589 B         105 kB
+Ôö£ ãÆ /api/notifications/stats                          589 B         105 kB
+Ôö£ ãÆ /api/notifications/test                           589 B         105 kB
+Ôö£ ãÆ /api/notifications/urgent                         589 B         105 kB
+Ôö£ ãÆ /api/orders                                       589 B         105 kB
+Ôö£ ãÆ /api/orders/[id]                                  589 B         105 kB
+Ôö£ ãÆ /api/orders/[id]/items                            589 B         105 kB
+Ôö£ ãÆ /api/orders/[id]/items/[itemId]                   589 B         105 kB
+Ôö£ ãÆ /api/orders/[id]/totals                           589 B         105 kB
+Ôö£ ãÆ /api/orders/stats                                 589 B         105 kB
+Ôö£ ãÆ /api/payments                                     589 B         105 kB
+Ôö£ ãÆ /api/payments/[id]                                589 B         105 kB
+Ôö£ ãÆ /api/payments/invoice/[invoiceId]                 589 B         105 kB
+Ôö£ ãÆ /api/protected-example                            589 B         105 kB
+Ôö£ ãÆ /api/public/orders/[id]                           589 B         105 kB
+Ôö£ ãÆ /api/purchase-orders                              589 B         105 kB
+Ôö£ ãÆ /api/purchase-orders/[id]                         589 B         105 kB
+Ôö£ ãÆ /api/purchase-orders/[id]/approve                 589 B         105 kB
+Ôö£ ãÆ /api/purchase-orders/[id]/receive                 589 B         105 kB
+Ôö£ ãÆ /api/push/send                                    589 B         105 kB
+Ôö£ ãÆ /api/push/subscribe                               589 B         105 kB
+Ôö£ ãÆ /api/quotations                                   589 B         105 kB
+Ôö£ ãÆ /api/quotations/[id]                              589 B         105 kB
+Ôö£ ãÆ /api/quotations/[id]/approve                      589 B         105 kB
+Ôö£ ãÆ /api/quotations/[id]/convert                      589 B         105 kB
+Ôö£ ãÆ /api/quotations/[id]/duplicate                    589 B         105 kB
+Ôö£ ãÆ /api/quotations/[id]/items                        589 B         105 kB
+Ôö£ ãÆ /api/quotations/[id]/items/[itemId]               589 B         105 kB
+Ôö£ ãÆ /api/quotations/[id]/reject                       589 B         105 kB
+Ôö£ ãÆ /api/quotations/[id]/send                         589 B         105 kB
+Ôö£ ãÆ /api/quotations/[id]/status                       589 B         105 kB
+Ôö£ ãÆ /api/quotations/bulk-status                       589 B         105 kB
+Ôö£ ãÆ /api/quotations/metrics                           589 B         105 kB
+Ôö£ ãÆ /api/reports/customers                            589 B         105 kB
+Ôö£ ãÆ /api/reports/dashboard                            589 B         105 kB
+Ôö£ ãÆ /api/reports/inventory                            589 B         105 kB
+Ôö£ ãÆ /api/reports/operaciones                          589 B         105 kB
+Ôö£ ãÆ /api/reports/performance                          589 B         105 kB
+Ôö£ ãÆ /api/reports/sales                                589 B         105 kB
+Ôö£ ãÆ /api/reports/suppliers                            589 B         105 kB
+Ôö£ ãÆ /api/reports/ventas-por-items                     589 B         105 kB
+Ôö£ ãÆ /api/search/global                                589 B         105 kB
+Ôö£ ãÆ /api/search/suggestions                           589 B         105 kB
+Ôö£ ãÆ /api/seed                                         589 B         105 kB
+Ôö£ ãÆ /api/seed/inventory                               589 B         105 kB
+Ôö£ ãÆ /api/service-packages                             589 B         105 kB
+Ôö£ ãÆ /api/service-packages/[id]                        589 B         105 kB
+Ôö£ ãÆ /api/services                                     589 B         105 kB
+Ôö£ ãÆ /api/supplier-payments                            589 B         105 kB
+Ôö£ ãÆ /api/supplier-payments/[id]                       589 B         105 kB
+Ôö£ ãÆ /api/suppliers                                    589 B         105 kB
+Ôö£ ãÆ /api/suppliers/[id]                               589 B         105 kB
+Ôö£ ãÆ /api/suppliers/[id]/payments                      589 B         105 kB
+Ôö£ ãÆ /api/suppliers/[id]/purchase-orders               589 B         105 kB
+Ôö£ ãÆ /api/suppliers/stats                              589 B         105 kB
+Ôö£ ãÆ /api/swagger.json                                 589 B         105 kB
+Ôö£ ãÆ /api/test-operations                              589 B         105 kB
+Ôö£ ãÆ /api/test-rate-limit                              589 B         105 kB
+Ôö£ ãÆ /api/test-rate-limit/debug-env                    589 B         105 kB
+Ôö£ ãÆ /api/test-rate-limit/diagnose                     589 B         105 kB
+Ôö£ ãÆ /api/test-rate-limit/env-check                    589 B         105 kB
+Ôö£ ãÆ /api/users                                        589 B         105 kB
+Ôö£ ãÆ /api/users/[id]                                   589 B         105 kB
+Ôö£ ãÆ /api/users/[id]/activate                          589 B         105 kB
+Ôö£ ãÆ /api/users/[id]/role                              589 B         105 kB
+Ôö£ ãÆ /api/users/me                                     589 B         105 kB
+Ôö£ ãÆ /api/users/stats                                  589 B         105 kB
+Ôö£ ãÆ /api/vehicles                                     589 B         105 kB
+Ôö£ ãÆ /api/vehicles/[id]                                589 B         105 kB
+Ôö£ ãÆ /api/vehicles/[id]/history                        589 B         105 kB
+Ôö£ ãÆ /api/vehicles/search                              589 B         105 kB
+Ôö£ ãÆ /api/verify-env                                   589 B         105 kB
+Ôö£ ãÆ /api/whatsapp/conversations                       589 B         105 kB
+Ôö£ ãÆ /api/whatsapp/conversations/[id]                  589 B         105 kB
+Ôö£ ãÆ /api/whatsapp/conversations/[id]/messages         589 B         105 kB
+Ôö£ ãÆ /api/whatsapp/diagnose                            589 B         105 kB
+Ôö£ ãÆ /api/whatsapp/test-agent                          589 B         105 kB
+Ôö£ ãÆ /api/work-orders                                  589 B         105 kB
+Ôö£ ãÆ /api/work-orders/[id]                             589 B         105 kB
+Ôö£ ãÆ /api/work-orders/[id]/history                     589 B         105 kB
+Ôö£ ãÆ /api/work-orders/[id]/images                      589 B         105 kB
+Ôö£ ãÆ /api/work-orders/[id]/images/delete               589 B         105 kB
+Ôö£ ãÆ /api/work-orders/[id]/images/upload               589 B         105 kB
+Ôö£ ãÆ /api/work-orders/[id]/items                       589 B         105 kB
+Ôö£ ãÆ /api/work-orders/[id]/notify                      589 B         105 kB
+Ôö£ ãÆ /api/work-orders/[id]/services                    589 B         105 kB
+Ôö£ ãÆ /api/work-orders/[id]/services/[serviceId]        589 B         105 kB
+Ôö£ ãÆ /api/work-orders/[id]/status                      589 B         105 kB
+Ôö£ ãÆ /api/work-orders/stats                            589 B         105 kB
+Ôö£ ãÆ /auth/callback                                    589 B         105 kB
+Ôö£ ãÆ /auth/forgot-password                            2.5 kB         151 kB
+Ôö£ ãÆ /auth/login                                     6.88 kB         199 kB
+Ôö£ ãÆ /auth/register                                  11.4 kB         168 kB
+Ôö£ ãÆ /auth/reset-password                            6.56 kB         172 kB
+Ôö£ ãÆ /auth/setup                                     1.13 kB         105 kB
+Ôö£ ãÆ /auth/suspended                                  3.6 kB         163 kB
+Ôö£ Ôùï /citas                                          12.4 kB         275 kB
+Ôö£ Ôùï /clientes                                       15.5 kB         344 kB
+Ôö£ Ôùï /cobros                                           550 B         105 kB
+Ôö£ Ôùï /comercial                                        589 B         105 kB
+Ôö£ Ôùï /compras                                        4.64 kB         270 kB
+Ôö£ Ôùï /compras/gastos                                 9.45 kB         275 kB
+Ôö£ ãÆ /compras/gastos/[id]                            6.56 kB         272 kB
+Ôö£ Ôùï /compras/gastos/nuevo                           7.16 kB         273 kB
+Ôö£ Ôùï /compras/ordenes                                8.52 kB         212 kB
+Ôö£ ãÆ /compras/ordenes/[id]                           5.88 kB         171 kB
+Ôö£ ãÆ /compras/ordenes/[id]/recibir                   7.28 kB         181 kB
+Ôö£ Ôùï /compras/ordenes/nueva                          8.77 kB         212 kB
+Ôö£ Ôùï /compras/pagos                                  10.9 kB         286 kB
+Ôö£ Ôùï /compras/proveedores                            5.81 kB         217 kB
+Ôö£ Ôùï /configuraciones/empresa                        11.8 kB         203 kB
+Ôö£ Ôùï /configuraciones/sistema                        8.51 kB         225 kB
+Ôö£ Ôùï /configuraciones/usuarios                       19.7 kB         246 kB
+Ôö£ ãÆ /cotizaciones                                     17 kB         292 kB
+Ôö£ ãÆ /cotizaciones/[id]                              9.58 kB         184 kB
+Ôö£ ãÆ /cotizaciones/nueva                             5.79 kB         226 kB
+Ôö£ Ôùï /dashboard                                       122 kB         439 kB
+Ôö£ Ôùï /dashboard/configuraciones/usuarios             8.83 kB         214 kB
+Ôö£ Ôùï /dashboard/whatsapp                              7.4 kB         198 kB
+Ôö£ Ôùï /dashboard/whatsapp/conversaciones              27.8 kB         245 kB
+Ôö£ Ôùï /dashboard/whatsapp/setup-api                   5.02 kB         203 kB
+Ôö£ Ôùï /dashboard/whatsapp/test                        1.84 kB         181 kB
+Ôö£ Ôùï /dashboard/whatsapp/train-agent                 6.03 kB         204 kB
+Ôö£ Ôùï /facturacion                                      559 B         105 kB
+Ôö£ Ôùï /icon.png                                           0 B            0 B
+Ôö£ Ôùï /ingresos                                       6.06 kB         272 kB
+Ôö£ Ôùï /ingresos/ajustes-devoluciones                  4.95 kB         271 kB
+Ôö£ ãÆ /ingresos/ajustes-devoluciones/[id]             5.11 kB         271 kB
+Ôö£ Ôùï /ingresos/ajustes-devoluciones/nueva            5.43 kB         271 kB
+Ôö£ Ôùï /ingresos/arqueo-caja                           6.74 kB         273 kB
+Ôö£ ãÆ /ingresos/arqueo-caja/[id]                      6.61 kB         272 kB
+Ôö£ Ôùï /ingresos/arqueo-caja/nuevo                     6.94 kB         273 kB
+Ôö£ Ôùï /ingresos/cobros                                10.6 kB         230 kB
+Ôö£ Ôùï /ingresos/cuentas-efectivo                       9.5 kB         282 kB
+Ôö£ Ôùï /ingresos/entregas                              4.59 kB         270 kB
+Ôö£ ãÆ /ingresos/entregas/[id]                         4.79 kB         271 kB
+Ôö£ Ôùï /ingresos/entregas/nueva                         5.3 kB         271 kB
+Ôö£ Ôùï /ingresos/facturacion                           13.3 kB         289 kB
+Ôö£ Ôùï /inventarios                                    5.19 kB         275 kB
+Ôö£ Ôùï /inventarios/alerts                             3.33 kB         265 kB
+Ôö£ Ôùï /inventarios/categorias                         5.15 kB         278 kB
+Ôö£ Ôùï /inventarios/movimientos                          10 kB         285 kB
+Ôö£ Ôùï /inventarios/productos                          12.4 kB         294 kB
+Ôö£ Ôùï /leads                                          19.3 kB         284 kB
+Ôö£ Ôùï /manifest.webmanifest                             589 B         105 kB
+Ôö£ Ôùï /mecanicos                                      7.58 kB         276 kB
+Ôö£ ãÆ /mecanicos/[id]                                 3.45 kB         168 kB
+Ôö£ Ôùï /mensajeria                                     4.09 kB         120 kB
+Ôö£ Ôùï /mensajeria/email                               2.39 kB         145 kB
+Ôö£ Ôùï /mensajeria/whatsapp                            2.02 kB         144 kB
+Ôö£ Ôùï /metricas                                       3.67 kB         266 kB
+Ôö£ Ôùï /metricas-rendimiento                           2.68 kB         265 kB
+Ôö£ Ôùï /notificaciones                                 3.64 kB         156 kB
+Ôö£ Ôùï /onboarding                                     1.13 kB         105 kB
+Ôö£ Ôùï /ordenes                                        11.8 kB         337 kB
+Ôö£ ãÆ /ordenes-trabajo                                14.3 kB         225 kB
+Ôö£ ãÆ /ordenes/[id]                                   6.07 kB         214 kB
+Ôö£ Ôùï /ordenes/kanban                                 15.4 kB         367 kB
+Ôö£ Ôùï /perfil                                         9.47 kB         275 kB
+Ôö£ Ôùï /productos                                      2.33 kB         264 kB
+Ôö£ Ôùï /proveedores                                    5.86 kB         234 kB
+Ôö£ Ôùï /reportes                                       15.8 kB         284 kB
+Ôö£ Ôùï /reportes/financieros                           5.88 kB         217 kB
+Ôö£ Ôùï /reportes/inventario                            5.96 kB         151 kB
+Ôö£ Ôùï /reportes/operaciones                           7.51 kB         201 kB
+Ôö£ Ôùï /reportes/ventas                                7.47 kB         201 kB
+Ôö£ Ôùï /reportes/ventas-por-items                      7.04 kB         201 kB
+Ôö£ Ôùï /service-packages                               9.65 kB         167 kB
+Ôö£ Ôùï /settings/billing                               9.16 kB         204 kB
+Ôö£ Ôùï /test-billing                                   7.76 kB         169 kB
+Ôö£ ãÆ /tracking/[id]                                  12.2 kB         133 kB
+Ôö£ Ôùï /usuarios                                        1.1 kB         105 kB
+Ôöö Ôùï /vehiculos                                      11.2 kB         292 kB
++ First Load JS shared by all                        104 kB
+  Ôö£ chunks/4696-2a6e45e0926e6880.js                 47.7 kB
+  Ôö£ chunks/4bd1b696-182b6b13bdad92e3.js             54.2 kB
+  Ôöö other shared chunks (total)                     2.38 kB
+
+
+ãÆ Middleware                                        70.6 kB
+
+Ôùï  (Static)   prerendered as static content
+ãÆ  (Dynamic)  server-rendered on demand
+
