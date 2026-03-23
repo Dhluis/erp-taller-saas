@@ -52,7 +52,7 @@ export async function GET(
         )
       `)
       .eq('id', params.id)
-      .eq('organization_id', userProfile.organization_id)
+      .eq('organization_id', (userProfile as any).organization_id)
       .single();
 
     if (orderError || !order) {
@@ -72,7 +72,7 @@ export async function GET(
         quantity,
         quantity_received,
         unit_cost,
-        total,
+        total_amount,
         notes,
         created_at,
         product:inventory!product_id (
@@ -82,7 +82,7 @@ export async function GET(
         )
       `)
       .eq('purchase_order_id', params.id)
-      .eq('organization_id', userProfile.organization_id)
+      .eq('organization_id', (userProfile as any).organization_id)
       .order('created_at', { ascending: true });
 
     if (itemsError) {
@@ -114,7 +114,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
-        ...order,
+        ...(order as any),
         items: mappedItems
       },
       error: null
