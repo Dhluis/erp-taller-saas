@@ -17,6 +17,12 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table"
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent
+} from "@/components/ui/tabs"
 import { 
   Dialog, 
   DialogContent, 
@@ -134,6 +140,7 @@ function CitasContent() {
   const [isProcessingAI, setIsProcessingAI] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [filterTab, setFilterTab] = useState<'upcoming' | 'history' | 'all'>('upcoming')
   const searchParams = useSearchParams()
   const processedRef = useRef(false);
 
@@ -261,11 +268,33 @@ function CitasContent() {
     }
   }, [organizationId, orgLoading])
 
-  // Filtrar citas cuando cambie el término de búsqueda
+  // Filtrar citas cuando cambie el término de búsqueda o la pestaña
   useEffect(() => {
+    let result = appointments
+
+    // 1. Filtrar por pestaña
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    if (filterTab === 'upcoming') {
+      result = appointments.filter(apt => {
+        const aptDate = new Date(apt.appointment_date)
+        const isActive = apt.status === 'scheduled' || apt.status === 'confirmed'
+        return aptDate >= today && isActive
+      })
+    } else if (filterTab === 'history') {
+      result = appointments.filter(apt => {
+        const aptDate = new Date(apt.appointment_date)
+        const isPast = aptDate < today
+        const isFinished = apt.status === 'completed' || apt.status === 'cancelled'
+        return isPast || isFinished
+      })
+    }
+
+    // 2. Filtrar por búsqueda
     if (searchTerm.trim()) {
       const query = searchTerm.toLowerCase()
-      const filtered = appointments.filter(appointment =>
+      result = result.filter(appointment =>
         (appointment.customer?.name || appointment.customer_name || '').toLowerCase().includes(query) ||
         (appointment.customer?.phone || appointment.customer_phone || '').toLowerCase().includes(query) ||
         (appointment.vehicle?.brand || '').toLowerCase().includes(query) ||
@@ -274,11 +303,10 @@ function CitasContent() {
         (appointment.vehicle_info || '').toLowerCase().includes(query) ||
         (appointment.service_type || '').toLowerCase().includes(query)
       )
-      setFilteredAppointments(filtered)
-    } else {
-      setFilteredAppointments(appointments)
     }
-  }, [searchTerm, appointments])
+    
+    setFilteredAppointments(result)
+  }, [searchTerm, appointments, filterTab])
 
   const handleAppointmentVoiceTranscription = async (text: string) => {
     setIsProcessingAI(true);
@@ -564,8 +592,8 @@ function CitasContent() {
       let customerId: string
       
       if (existingCustomer) {
-        console.log('✅ Cliente encontrado:', existingCustomer.id)
-        customerId = existingCustomer.id
+        console.log('✅ Cliente encontrado:', (existingCustomer as any).id)
+        customerId = (existingCustomer as any).id
       } else {
         console.log('➕ Creando nuevo cliente...')
         const { data: newCustomer, error: customerError } = await supabase
@@ -585,7 +613,7 @@ function CitasContent() {
           throw new Error(`Error creando cliente: ${customerError?.message || 'No se pudo crear el cliente'}`)
         }
         
-        customerId = newCustomer.id
+        customerId = (newCustomer as any).id
         console.log('✅ Cliente creado:', customerId)
       }
       
@@ -616,7 +644,7 @@ function CitasContent() {
             )
             
             if (existingVehicle) {
-              vehicleId = existingVehicle.id
+              vehicleId = (existingVehicle as any).id
               console.log('✅ Vehículo encontrado por placa:', vehicleId)
             }
           }
@@ -640,7 +668,7 @@ function CitasContent() {
           if (createResponse.ok) {
             const createResult = await createResponse.json()
             if (createResult.success && createResult.data) {
-              vehicleId = createResult.data.id
+              vehicleId = (createResult.data as any).id
               console.log('✅ Vehículo creado:', vehicleId)
             }
           }
@@ -1071,20 +1099,43 @@ function CitasContent() {
         </Dialog>
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar citas..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+      {/* Search, Filters and Tabs */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar citas..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Button variant="outline">
+            Filtros
+          </Button>
         </div>
-        <Button variant="outline">
-          Filtros
-        </Button>
+
+        <Tabs 
+          defaultValue="upcoming" 
+          value={filterTab} 
+          onValueChange={(value) => setFilterTab(value as any)}
+          className="w-full"
+        >
+          <TabsList className="grid w-full grid-cols-3 sm:w-[400px]">
+            <TabsTrigger value="upcoming" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              <span>Próximas</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              <span>Historial</span>
+            </TabsTrigger>
+            <TabsTrigger value="all" className="flex items-center gap-2">
+              <span>Todas</span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Stats Cards */}
@@ -1144,8 +1195,19 @@ function CitasContent() {
             <TableBody>
               {filteredAppointments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    {searchTerm ? 'No se encontraron citas con ese criterio' : 'No hay citas programadas'}
+                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Calendar className="h-8 w-8 opacity-20" />
+                      <p>
+                        {searchTerm 
+                          ? 'No se encontraron citas con ese criterio' 
+                          : filterTab === 'upcoming' 
+                            ? 'No hay citas próximas programadas' 
+                            : filterTab === 'history' 
+                              ? 'No hay historial de citas' 
+                              : 'No hay citas registradas'}
+                      </p>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (
