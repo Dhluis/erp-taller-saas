@@ -313,6 +313,7 @@
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -343,7 +344,6 @@
   -khtml-user-drag: none;
   -moz-user-drag: none;
   -o-user-drag: none;
-  user-drag: none;
 }
 
 /* Prevenir drag de imágenes e iconos */
@@ -351,7 +351,6 @@
 .kanban-card img {
   pointer-events: none;
   -webkit-user-drag: none;
-  user-drag: none;
 }
 
 /* Estilo personalizado para botones de subcategorías activos */

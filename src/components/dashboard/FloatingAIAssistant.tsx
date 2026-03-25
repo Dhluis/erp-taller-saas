@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Brain, Sparkles, Mic, Send, ChevronRight, Info, Loader2 } from 'lucide-react';
 import { VoiceInput } from '@/components/ui/VoiceInput';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useBilling } from '@/hooks/useBilling';
@@ -27,6 +27,7 @@ export function FloatingAIAssistant() {
   const [loading, setLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const { canUseAI, isLoading: billingLoading } = useBilling();
   const { showUpgradeModal, closeUpgradeModal, showUpgrade, limitError } = useLimitCheck();
 
@@ -71,7 +72,13 @@ export function FloatingAIAssistant() {
         }
 
         toast.success(`Intención detectada: ${intentLabel}. Redirigiendo...`);
+        
+        // Force refresh if already on the target path to ensure params are picked up
         router.push(`${targetPath}?${queryParams.toString()}`);
+        if (pathname === targetPath) {
+          router.refresh();
+        }
+        
         setInput('');
       } else {
         toast.error('No se pudo determinar la intención. Intenta ser más descriptivo.');

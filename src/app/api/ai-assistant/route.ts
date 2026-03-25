@@ -189,8 +189,8 @@ Devuelve SIEMPRE un JSON válido con la siguiente estructura:
     "sku": string, 
     "category_name": string, 
     "unit_price": number, 
-    "stock": number, 
-    "minimum_stock": number, 
+    "quantity": number, 
+    "min_quantity": number, 
     "description": string 
   }
 }`;
@@ -239,7 +239,7 @@ Reglas:
 
 ### REGLAS DE INTENCIÓN:
 1. **inventory** (INVENTARIO): Si el usuario menciona "inventario", "agregar pieza", "repuesto", "stock", "producto", "sku", "precio de compra", "galones", "piezas", "cantidad".
-   - Estructura: { "action_type": "inventory", "product": { "name": string, "stock": number, "unit_price": number, "sku": string, "category_name": string } }
+   - Estructura: { "action_type": "inventory", "product": { "name": string, "quantity": number, "unit_price": number, "sku": string, "category_name": string } }
 
 2. **appointment** (CITA): Si el usuario menciona "cita", "agendar", "reservar", "programar", "venir el día...", "mañana a las...", "calendario".
    - Estructura: { "action_type": "appointment", "appointment": { "customer": { "name": string, "phone": string }, "details": { "service_type": string, "date": "YYYY-MM-DD", "time": "HH:mm", "notes": string } } }
@@ -315,8 +315,8 @@ Reglas:
       ] = await Promise.all([
         supabaseAdmin
           .from('inventory')
-          .select('name, stock, min_stock, sku')
-          .lt('stock', 5) // Simplificado: stock bajo
+          .select('name, quantity, min_quantity, sku')
+          .lt('quantity', 5) // Simplificado: stock bajo
           .eq('organization_id', organizationId)
           .limit(10),
         supabaseAdmin

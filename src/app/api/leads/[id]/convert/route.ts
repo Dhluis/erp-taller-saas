@@ -16,7 +16,7 @@ const ALLOWED_CONVERT_STATUSES = ['qualified', 'proposal', 'negotiation', 'won',
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -44,7 +44,7 @@ export async function POST(
 
     const organizationId = userData.organization_id
     const workshopId = userData.workshop_id ?? null
-    const leadId = params.id
+    const { id: leadId } = await params
 
     const { data: lead, error: leadError } = await supabase
       .from('leads')

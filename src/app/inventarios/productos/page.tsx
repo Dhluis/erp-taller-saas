@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Button, IconButton } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageHeader } from '@/components/navigation/page-header';
@@ -277,8 +277,8 @@ function InventariosContent() {
               name: p.name || '',
               sku: p.sku || '',
               unit_price: p.unit_price?.toString() || '',
-              stock: p.stock?.toString() || '',
-              minimum_stock: p.minimum_stock?.toString() || '5',
+              stock: (p.quantity || p.stock)?.toString() || '',
+              minimum_stock: (p.min_quantity || p.minimum_stock)?.toString() || '5',
               description: p.description || 'Producto agregado vía Eagles AI',
               category_id: foundCategoryId || ''
             });
@@ -332,8 +332,8 @@ function InventariosContent() {
           name: p.name,
           sku: p.sku,
           unit_price: p.unit_price?.toString(),
-          stock: p.stock?.toString(),
-          minimum_stock: p.minimum_stock?.toString(),
+          stock: (p.quantity || p.stock)?.toString(),
+          minimum_stock: (p.min_quantity || p.minimum_stock)?.toString(),
           description: p.description,
           category_id: foundCategoryId
         };
@@ -775,12 +775,8 @@ function InventariosContent() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-1">
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-white" onClick={() => handleEditProduct(product)}>
-                              <AdjustmentsHorizontalIcon className="h-4 w-4" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/20" onClick={() => handleDeleteClick(product)}>
-                              <TrashIcon className="h-4 w-4" />
-                            </Button>
+                            <IconButton icon={<AdjustmentsHorizontalIcon className="h-4 w-4" />} size="sm" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-white" onClick={() => handleEditProduct(product)} />
+                            <IconButton icon={<TrashIcon className="h-4 w-4" />} size="sm" variant="ghost" className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/20" onClick={() => handleDeleteClick(product)} />
                           </div>
                         </td>
                       </tr>
@@ -822,9 +818,7 @@ function InventariosContent() {
                   </h2>
                   <p className="text-sm text-slate-400 mt-1">Análisis inteligente de tu inventario crítico</p>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setShowCopilotModal(false)} className="text-slate-400 hover:text-white">
-                  <X className="h-5 w-5" />
-                </Button>
+                <IconButton icon={<X className="h-5 w-5" />} size="md" variant="ghost" onClick={() => setShowCopilotModal(false)} className="text-slate-400 hover:text-white" />
               </div>
               <div className="p-6 overflow-y-auto">
                 {isAnalyzingCopilot ? (
@@ -899,56 +893,60 @@ function InventariosContent() {
                     onChange={(e) => handleInputChange('name', e.target.value)}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">SKU *</label>
-                  <Input 
-                    placeholder="Ej: PROD-001" 
-                    value={newProduct.sku}
-                    onChange={(e) => handleInputChange('sku', e.target.value)}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-text-secondary">SKU *</label>
+                    <Input 
+                      placeholder="Ej: PROD-001" 
+                      value={newProduct.sku}
+                      onChange={(e) => handleInputChange('sku', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-text-secondary">Categoría *</label>
+                    <Select value={newProduct.category_id} onValueChange={(value) => handleInputChange('category_id', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-bg-secondary border-border">
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">Categoría *</label>
-                  <Select value={newProduct.category_id} onValueChange={(value) => handleInputChange('category_id', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona una categoría" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-bg-secondary border-border">
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">Precio *</label>
-                  <Input 
-                    placeholder="0.00" 
-                    type="number" 
-                    step="0.01"
-                    value={newProduct.unit_price}
-                    onChange={(e) => handleInputChange('unit_price', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">Stock Inicial</label>
-                  <Input 
-                    placeholder="0" 
-                    type="number" 
-                    value={newProduct.stock}
-                    onChange={(e) => handleInputChange('stock', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">Stock Mínimo</label>
-                  <Input 
-                    placeholder="0" 
-                    type="number" 
-                    value={newProduct.minimum_stock}
-                    onChange={(e) => handleInputChange('minimum_stock', e.target.value)}
-                  />
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-text-secondary">Precio *</label>
+                    <Input 
+                      placeholder="0.00" 
+                      type="number" 
+                      step="0.01"
+                      value={newProduct.unit_price}
+                      onChange={(e) => handleInputChange('unit_price', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-text-secondary">Stock Inicial</label>
+                    <Input 
+                      placeholder="0" 
+                      type="number" 
+                      value={newProduct.stock}
+                      onChange={(e) => handleInputChange('stock', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-text-secondary">Stock Mínimo</label>
+                    <Input 
+                      placeholder="0" 
+                      type="number" 
+                      value={newProduct.minimum_stock}
+                      onChange={(e) => handleInputChange('minimum_stock', e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1 text-text-secondary">Descripción</label>
@@ -982,12 +980,18 @@ function InventariosContent() {
 
         {/* Modal para Editar Producto */}
         {showEditProductModal && selectedProduct && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-black border border-border shadow-lg rounded-lg p-6 w-full max-w-md" style={{backgroundColor: '#000000'}}>
-              <h2 className="text-xl font-bold mb-4 text-text-primary">Editar Producto</h2>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-[#0b0f1a] border border-slate-800 shadow-2xl rounded-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-6 pb-2">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <AdjustmentsHorizontalIcon className="h-5 w-5 text-blue-500" />
+                  Editar Producto
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">Actualiza los datos manualmente o con IA</p>
+              </div>
               
               {/* Asistente de Voz AI */}
-              <div className="mb-6 py-3 px-4 bg-slate-900/40 rounded-lg border border-slate-800">
+              <div className="px-6 py-3 bg-slate-900/50 border-y border-slate-800 flex-shrink-0">
                 <div className="relative group">
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
                   <div className="relative flex items-center gap-3 bg-[#0f172a] border border-pink-500/30 rounded-lg p-2 shadow-xl">
@@ -1014,7 +1018,8 @@ function InventariosContent() {
                   </div>
                 </div>
               </div>
-              <div className="space-y-4">
+
+              <div className="p-6 pt-4 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
                 <div>
                   <label className="block text-sm font-medium mb-1 text-text-secondary">Nombre del Producto *</label>
                   <Input 
@@ -1023,56 +1028,60 @@ function InventariosContent() {
                     onChange={(e) => handleEditInputChange('name', e.target.value)}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">SKU *</label>
-                  <Input 
-                    placeholder="Ej: PROD-001" 
-                    value={editProduct.sku}
-                    onChange={(e) => handleEditInputChange('sku', e.target.value)}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-text-secondary">SKU *</label>
+                    <Input 
+                      placeholder="Ej: PROD-001" 
+                      value={editProduct.sku}
+                      onChange={(e) => handleEditInputChange('sku', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-text-secondary">Categoría *</label>
+                    <Select value={editProduct.category_id} onValueChange={(value) => handleEditInputChange('category_id', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-bg-secondary border-border">
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">Categoría *</label>
-                  <Select value={editProduct.category_id} onValueChange={(value) => handleEditInputChange('category_id', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona una categoría" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-bg-secondary border-border">
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">Precio *</label>
-                  <Input 
-                    placeholder="0.00" 
-                    type="number" 
-                    step="0.01"
-                    value={editProduct.unit_price}
-                    onChange={(e) => handleEditInputChange('unit_price', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">Stock Actual</label>
-                  <Input 
-                    placeholder="0" 
-                    type="number" 
-                    value={editProduct.stock}
-                    onChange={(e) => handleEditInputChange('stock', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">Stock Mínimo</label>
-                  <Input 
-                    placeholder="0" 
-                    type="number" 
-                    value={editProduct.minimum_stock}
-                    onChange={(e) => handleEditInputChange('minimum_stock', e.target.value)}
-                  />
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-text-secondary">Precio *</label>
+                    <Input 
+                      placeholder="0.00" 
+                      type="number" 
+                      step="0.01"
+                      value={editProduct.unit_price}
+                      onChange={(e) => handleEditInputChange('unit_price', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-text-secondary">Stock Actual</label>
+                    <Input 
+                      placeholder="0" 
+                      type="number" 
+                      value={editProduct.stock}
+                      onChange={(e) => handleEditInputChange('stock', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-text-secondary">Stock Mínimo</label>
+                    <Input 
+                      placeholder="0" 
+                      type="number" 
+                      value={editProduct.minimum_stock}
+                      onChange={(e) => handleEditInputChange('minimum_stock', e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1 text-text-secondary">Descripción</label>
@@ -1083,7 +1092,7 @@ function InventariosContent() {
                   />
                 </div>
               </div>
-              <div className="flex gap-2 mt-6">
+              <div className="p-6 py-4 bg-slate-900/50 border-t border-slate-800 flex gap-2 shrink-0">
                 <Button 
                   variant="outline" 
                   className="flex-1"
@@ -1125,7 +1134,7 @@ function InventariosContent() {
               </AlertDialogCancel>
               <AlertDialogAction asChild>
                 <Button
-                  variant="destructive"
+                  variant="danger"
                   onClick={handleDeleteConfirm}
                   disabled={deleting}
                   className="bg-red-600 hover:bg-red-700 text-white border-red-600"

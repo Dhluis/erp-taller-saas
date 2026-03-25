@@ -52,6 +52,10 @@ export interface Database {
           notes: string | null
           created_at: string
           updated_at: string
+          lead_id: string | null
+          from_lead: boolean | null
+          converted_from_whatsapp: boolean | null
+          company: string | null
         }
         Insert: {
           id?: string
@@ -63,6 +67,10 @@ export interface Database {
           notes?: string | null
           created_at?: string
           updated_at?: string
+          lead_id?: string | null
+          from_lead?: boolean | null
+          converted_from_whatsapp?: boolean | null
+          company?: string | null
         }
         Update: {
           id?: string
@@ -74,6 +82,10 @@ export interface Database {
           notes?: string | null
           created_at?: string
           updated_at?: string
+          lead_id?: string | null
+          from_lead?: boolean | null
+          converted_from_whatsapp?: boolean | null
+          company?: string | null
         }
       }
       vehicles: {
@@ -183,69 +195,66 @@ export interface Database {
         Row: {
           id: string
           organization_id: string
-          work_order_id: string | null
           customer_id: string
-          vehicle_id: string
+          vehicle_id: string | null
           quotation_number: string
           status: string
-          valid_until: string
-          description: string | null
-          terms_and_conditions: string | null
+          issue_date: string
+          expiry_date: string | null
+          subtotal: number
+          tax_rate: number
+          tax_amount: number
+          discount_amount: number
+          total_amount: number
           notes: string | null
-          subtotal: number | null
-          tax: number | null
-          tax_amount: number | null
-          discount: number | null
-          discount_amount: number | null
-          total_amount: number | null
           created_at: string
           updated_at: string
+          work_order_id: string | null
+          terms_and_conditions: string | null
           created_by: string | null
           updated_by: string | null
         }
         Insert: {
           id?: string
           organization_id: string
-          work_order_id?: string | null
           customer_id: string
-          vehicle_id: string
-          quotation_number?: string
+          vehicle_id?: string | null
+          quotation_number: string
           status?: string
-          valid_until: string
-          description?: string | null
-          terms_and_conditions?: string | null
+          issue_date?: string
+          expiry_date?: string | null
+          subtotal: number
+          tax_rate?: number
+          tax_amount?: number
+          discount_amount?: number
+          total_amount: number
           notes?: string | null
-          subtotal?: number | null
-          tax?: number | null
-          tax_amount?: number | null
-          discount?: number | null
-          discount_amount?: number | null
-          total_amount?: number | null
           created_at?: string
           updated_at?: string
+          work_order_id?: string | null
+          terms_and_conditions?: string | null
           created_by?: string | null
           updated_by?: string | null
         }
         Update: {
           id?: string
           organization_id?: string
-          work_order_id?: string | null
           customer_id?: string
-          vehicle_id?: string
+          vehicle_id?: string | null
           quotation_number?: string
           status?: string
-          valid_until?: string
-          description?: string | null
-          terms_and_conditions?: string | null
+          issue_date?: string
+          expiry_date?: string | null
+          subtotal?: number
+          tax_rate?: number
+          tax_amount?: number
+          discount_amount?: number
+          total_amount?: number
           notes?: string | null
-          subtotal?: number | null
-          tax?: number | null
-          tax_amount?: number | null
-          discount?: number | null
-          discount_amount?: number | null
-          total_amount?: number | null
           created_at?: string
           updated_at?: string
+          work_order_id?: string | null
+          terms_and_conditions?: string | null
           created_by?: string | null
           updated_by?: string | null
         }
@@ -254,35 +263,35 @@ export interface Database {
         Row: {
           id: string
           quotation_id: string
-          item_type: string
-          item_name: string
-          description: string | null
+          item_type: 'service' | 'part'
+          description: string
           quantity: number
           unit_price: number
-          total_price: number | null
+          total_price: number
           created_at: string
+          item_name: string
         }
         Insert: {
           id?: string
           quotation_id: string
-          item_type: string
-          item_name: string
-          description?: string | null
+          item_type: 'service' | 'part'
+          description: string
           quantity: number
           unit_price: number
-          total_price?: number | null
+          total_price: number
           created_at?: string
+          item_name: string
         }
         Update: {
           id?: string
           quotation_id?: string
-          item_type?: string
-          item_name?: string
-          description?: string | null
+          item_type?: 'service' | 'part'
+          description?: string
           quantity?: number
           unit_price?: number
-          total_price?: number | null
+          total_price?: number
           created_at?: string
+          item_name?: string
         }
       }
       products: {
@@ -382,6 +391,71 @@ export interface Database {
           updated_at?: string
         }
       }
+      inventory: {
+        Row: {
+          id: string
+          organization_id: string
+          code: string
+          name: string
+          description: string
+          quantity: number
+          min_quantity: number
+          unit_price: number
+          category: string
+          created_at: string
+          updated_at: string
+          category_id: string
+          sku: string
+          barcode: string
+          current_stock: number
+          min_stock: number
+          max_stock: number
+          unit: string
+          status: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          code: string
+          name: string
+          description: string
+          quantity: number
+          min_quantity: number
+          unit_price: number
+          category: string
+          created_at?: string
+          updated_at?: string
+          category_id: string
+          sku: string
+          barcode: string
+          current_stock: number
+          min_stock: number
+          max_stock: number
+          unit: string
+          status: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          code?: string;
+          name?: string;
+          description?: string;
+          quantity?: number;
+          min_quantity?: number;
+          unit_price?: number;
+          category?: string;
+          created_at?: string;
+          updated_at?: string;
+          category_id?: string;
+          sku?: string;
+          barcode?: string;
+          current_stock?: number;
+          min_stock?: number;
+          max_stock?: number;
+          unit?: string;
+          status?: string;
+        }
+      }
       suppliers: {
         Row: {
           id: string
@@ -456,14 +530,15 @@ export interface Database {
           order_date: string
           expected_delivery_date: string | null
           status: string
-          subtotal: number | null
-          tax_amount: number | null
-          total_amount: number | null
+          subtotal: number
+          tax_amount: number
+          total: number
           notes: string | null
           created_at: string
           updated_at: string
           created_by: string | null
           updated_by: string | null
+          total_amount: number | null
         }
         Insert: {
           id?: string
@@ -473,14 +548,15 @@ export interface Database {
           order_date: string
           expected_delivery_date?: string | null
           status?: string
-          subtotal?: number | null
-          tax_amount?: number | null
-          total_amount?: number | null
+          subtotal: number
+          tax_amount?: number
+          total: number
           notes?: string | null
           created_at?: string
           updated_at?: string
           created_by?: string | null
           updated_by?: string | null
+          total_amount?: number | null
         }
         Update: {
           id?: string
@@ -490,14 +566,53 @@ export interface Database {
           order_date?: string
           expected_delivery_date?: string | null
           status?: string
-          subtotal?: number | null
-          tax_amount?: number | null
-          total_amount?: number | null
+          subtotal?: number
+          tax_amount?: number
+          total?: number
           notes?: string | null
           created_at?: string
           updated_at?: string
           created_by?: string | null
           updated_by?: string | null
+          total_amount?: number | null
+        }
+      }
+      purchase_order_items: {
+        Row: {
+          id: string
+          purchase_order_id: string
+          product_id: string
+          quantity: number
+          quantity_received: number | null
+          unit_cost: number
+          total_cost: number
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          purchase_order_id: string
+          product_id: string
+          quantity: number
+          quantity_received?: number | null
+          unit_cost: number
+          total_cost: number
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          purchase_order_id?: string
+          product_id?: string
+          quantity?: number
+          quantity_received?: number | null
+          unit_cost?: number
+          total_cost?: number
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
         }
       }
       payments: {
@@ -803,6 +918,14 @@ export interface Database {
           notes: string | null
           created_at: string
           updated_at: string
+          whatsapp_conversation_id: string | null
+          customer_id: string | null
+          lead_source: string | null
+          assigned_to: string | null
+          estimated_value: number | null
+          lead_score: number | null
+          converted_at: string | null
+          company: string | null
         }
         Insert: {
           id?: string
@@ -815,6 +938,14 @@ export interface Database {
           notes?: string | null
           created_at?: string
           updated_at?: string
+          whatsapp_conversation_id?: string | null
+          customer_id?: string | null
+          lead_source?: string | null
+          assigned_to?: string | null
+          estimated_value?: number | null
+          lead_score?: number | null
+          converted_at?: string | null
+          company?: string | null
         }
         Update: {
           id?: string
@@ -827,6 +958,14 @@ export interface Database {
           notes?: string | null
           created_at?: string
           updated_at?: string
+          whatsapp_conversation_id?: string | null
+          customer_id?: string | null
+          lead_source?: string | null
+          assigned_to?: string | null
+          estimated_value?: number | null
+          lead_score?: number | null
+          converted_at?: string | null
+          company?: string | null
         }
       }
       campaigns: {
@@ -1108,6 +1247,155 @@ export interface Database {
           updated_at?: string
         }
       }
+      users: {
+        Row: {
+          id: string
+          organization_id: string
+          auth_user_id: string
+          email: string
+          full_name: string
+          role: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+          workshop_id: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          auth_user_id: string
+          email: string
+          full_name: string
+          role: string
+          is_active: boolean
+          created_at?: string
+          updated_at?: string
+          workshop_id?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          auth_user_id?: string
+          email?: string
+          full_name?: string
+          role?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+          workshop_id?: string | null
+        }
+      }
+      whatsapp_conversations: {
+        Row: {
+          id: string
+          organization_id: string
+          customer_name: string
+          customer_phone: string
+          last_message: string | null
+          last_message_at: string | null
+          status: string
+          messages_count: number
+          unread_count: number
+          created_at: string
+          updated_at: string
+          customer_id: string | null
+          lead_status: string | null
+          lead_updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          customer_name: string
+          customer_phone: string
+          last_message?: string | null
+          last_message_at?: string | null
+          status?: string
+          messages_count?: number
+          unread_count?: number
+          created_at?: string
+          updated_at?: string
+          customer_id?: string | null
+          lead_status?: string | null
+          lead_updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          customer_name?: string
+          customer_phone?: string
+          last_message?: string | null
+          last_message_at?: string | null
+          status?: string
+          messages_count?: number
+          unread_count?: number
+          created_at?: string
+          updated_at?: string
+          customer_id?: string | null
+          lead_status?: string | null
+          lead_updated_at?: string | null
+        }
+      }
+      workshops: {
+        Row: {
+          id: string
+          organization_id: string
+          name: string
+          address: string | null
+          phone: string | null
+          email: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          name: string
+          address?: string | null
+          phone?: string | null
+          email?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          name?: string
+          address?: string | null
+          phone?: string | null
+          email?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      workshop_members: {
+        Row: {
+          id: string
+          workshop_id: string
+          user_id: string
+          role: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          workshop_id: string
+          user_id: string
+          role: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          workshop_id?: string
+          user_id?: string
+          role?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -1206,3 +1494,23 @@ export type InventoryMovementUpdate = TablesUpdate<'inventory_movements'>
 export type UserProfile = Tables<'user_profiles'>
 export type UserProfileInsert = TablesInsert<'user_profiles'>
 export type UserProfileUpdate = TablesUpdate<'user_profiles'>
+
+export type User = Tables<'users'>
+export type UserInsert = TablesInsert<'users'>
+export type UserUpdate = TablesUpdate<'users'>
+
+export type WhatsappConversation = Tables<'whatsapp_conversations'>
+export type WhatsappConversationInsert = TablesInsert<'whatsapp_conversations'>
+export type WhatsappConversationUpdate = TablesUpdate<'whatsapp_conversations'>
+
+export type InventoryItem = Tables<'inventory'>
+export type InventoryItemInsert = TablesInsert<'inventory'>
+export type InventoryItemUpdate = TablesUpdate<'inventory'>
+
+export type Workshop = Tables<'workshops'>
+export type WorkshopInsert = TablesInsert<'workshops'>
+export type WorkshopUpdate = TablesUpdate<'workshops'>
+
+export type WorkshopMember = Tables<'workshop_members'>
+export type WorkshopMemberInsert = TablesInsert<'workshop_members'>
+export type WorkshopMemberUpdate = TablesUpdate<'workshop_members'>
