@@ -151,9 +151,27 @@ export async function GET(request: NextRequest) {
       ...user,
       name: user.full_name || ''
     }
+
+    // ✅ NUEVO: Obtener workshops de la organización desde el servidor (evita consultas RLS en el cliente)
+    let workshops: any[] = []
+    if (user.organization_id) {
+      const { data: workshopsData, error: wError } = await supabaseAdmin
+        .from('workshops')
+        .select('id, name')
+        .eq('organization_id', user.organization_id)
+        .order('created_at', { ascending: true })
+      
+      if (wError) {
+        console.warn('[GET /api/users/me] Error obteniendo workshops (no crítico):', wError.message)
+      } else {
+        workshops = workshopsData || []
+        console.log(`[GET /api/users/me] Workshops encontrados: ${workshops.length}`)
+      }
+    }
     
     return NextResponse.json({
-      profile: mappedUser  // SessionContext espera 'profile', no 'user'
+      profile: mappedUser,
+      workshops // ✅ Incluir workshops para que SessionContext no tenga que consultarlos desde el browser
     })
   } catch (error: any) {
     console.error('[GET /api/users/me] Error catch:', error?.message)

@@ -211,6 +211,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       
       let profile: any = null
       let profileError: any = null
+      let apiWorkshops: { id: string; name: string }[] = [] // ✅ Workshops del API (evita consulta browser)
       
       try {
         // Usar endpoint API que usa Service Role (bypass RLS)
@@ -222,6 +223,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         if (response.ok) {
           const data = await response.json()
           profile = data.profile
+          // ✅ NUEVO: Extraer workshops del API para evitar consulta de browser con RLS
+          if (data.workshops && Array.isArray(data.workshops)) {
+            apiWorkshops = data.workshops
+          }
           console.log('✅ [Session] Perfil obtenido desde API')
         } else {
           const errorData = await response.json()
@@ -365,50 +370,37 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       let workshopsCount = 0
       
       if (organizationId) {
-        // Si el usuario tiene workshop_id asignado, usarlo
+        // ✅ NUEVO: Usar workshops del API en lugar de consultar desde el browser
+        // Esto evita el hang causado por RLS en el cliente de Supabase
+        workshopsCount = apiWorkshops.length
+        console.log(`📊 [Session] Workshops del API: ${workshopsCount}`)
+
         if (userWorkshopId) {
           workshopId = userWorkshopId
           console.log('✅ [Session] Usando workshop_id del perfil:', workshopId)
+        } else if (apiWorkshops.length === 1) {
+          workshopId = apiWorkshops[0].id
+          console.log('✅ [Session] Un solo workshop, usando automáticamente:', workshopId)
+        } else if (apiWorkshops.length > 1) {
+          console.log('⚠️ [Session] Múltiples workshops, usuario debe elegir')
         } else {
-          // Si no, buscar workshops de la organización
-          console.log('🔍 [Session] Buscando workshops de la organización...')
-          const { data: workshops, error: workshopsError } = await supabase
-            .from('workshops')
-            .select('id')
-            .eq('organization_id', organizationId)
-            .order('created_at', { ascending: true })
-          
-          if (workshopsError) {
-            console.error('⚠️ [Session] Error obteniendo workshops:', workshopsError)
-          } else {
-            workshopsCount = workshops?.length || 0
-            console.log(`📊 [Session] Workshops encontrados: ${workshopsCount}`)
-            
-            // Si solo hay 1 workshop, usar ese automáticamente
-            if (workshops && workshops.length === 1) {
-              workshopId = workshops[0].id
-              console.log('✅ [Session] Un solo workshop encontrado, usando automáticamente:', workshopId)
-            } else if (workshops && workshops.length > 1) {
-              console.log('⚠️ [Session] Múltiples workshops encontrados, workshop_id será null (usuario debe elegir)')
-              // workshopId permanece null - el usuario debe tener uno asignado o elegir
-            }
-          }
+          console.log('ℹ️ [Session] Sin workshops en la organización')
         }
-        
-        // Obtener datos completos del workshop si tenemos workshopId
+
+        // Resolver datos del workshop 
         if (workshopId) {
-          const { data: workshopData, error: workshopError } = await supabase
-            .from('workshops')
-            .select('*')
-            .eq('id', workshopId)
-            .single()
-          
-          if (workshopError) {
-            console.error('⚠️ [Session] Error obteniendo workshop:', workshopError)
-          } else {
+          workshop = apiWorkshops.find((w: any) => w.id === workshopId) || null
+          if (!workshop) {
+            // Si no está en la lista (workshop_id del perfil que no está en la org),
+            // hacer una sola consulta ligera como fallback
+            const { data: workshopData } = await supabase
+              .from('workshops')
+              .select('*')
+              .eq('id', workshopId)
+              .single()
             workshop = workshopData
-            console.log('✅ [Session] Workshop cargado:', workshop?.name)
           }
+          console.log('✅ [Session] Workshop:', workshop?.name)
         }
       }
 

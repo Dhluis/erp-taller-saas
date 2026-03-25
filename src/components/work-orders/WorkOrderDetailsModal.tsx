@@ -84,7 +84,8 @@ export function WorkOrderDetailsModal({
   const handleAssignSuccess = async () => {
     console.log('✅ [WorkOrderDetailsModal] Orden asignada, cerrando modal y refrescando...')
     setShowAssignMechanic(false)
-    
+    if (onUpdate) {
+      onUpdate()
     }
   }
 
