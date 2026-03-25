@@ -15,9 +15,15 @@ import { WorkOrderDetailsTabs } from './WorkOrderDetailsTabs'
 import AssignMechanicModal from '@/components/mecanicos/AssignMechanicModal'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Camera, MessageSquare } from 'lucide-react'
 import { EaglesAIActionButton } from './EaglesAIActionButton'
 import { WorkOrderQRCode } from './WorkOrderQRCode'
+import { Printer, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { downloadWorkOrderPDF } from '@/lib/utils/work-order-pdf'
+import { getCompanySettings } from '@/lib/supabase/company-settings'
+import { toast } from 'sonner'
+import { useEffect } from 'react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface WorkOrderDetailsModalProps {
   order: any | null
@@ -50,6 +56,22 @@ export function WorkOrderDetailsModal({
   onUpdate
 }: WorkOrderDetailsModalProps) {
   const [showAssignMechanic, setShowAssignMechanic] = useState(false)
+  const [isPrinting, setIsPrinting] = useState(false)
+  const [companySettings, setCompanySettings] = useState<any>(null)
+
+  useEffect(() => {
+    if (open && order?.organization_id) {
+      const loadSettings = async () => {
+        try {
+          const settings = await getCompanySettings(order.organization_id)
+          setCompanySettings(settings)
+        } catch (error) {
+          console.error('Error loading company settings:', error)
+        }
+      }
+      loadSettings()
+    }
+  }, [open, order?.organization_id])
   
   if (!order) return null
 
@@ -63,12 +85,24 @@ export function WorkOrderDetailsModal({
     console.log('✅ [WorkOrderDetailsModal] Orden asignada, cerrando modal y refrescando...')
     setShowAssignMechanic(false)
     
-    if (onUpdate) {
-      console.log('🔄 [WorkOrderDetailsModal] Llamando onUpdate...')
-      await onUpdate()
-      console.log('✅ [WorkOrderDetailsModal] onUpdate completado')
-    } else {
-      console.warn('⚠️ [WorkOrderDetailsModal] onUpdate no está definido!')
+    }
+  }
+
+  const handlePrint = async () => {
+    if (!order || !companySettings) {
+      toast.error('No se pudo cargar la información de la empresa para imprimir.')
+      return
+    }
+
+    try {
+      setIsPrinting(true)
+      await downloadWorkOrderPDF(order, companySettings)
+      toast.success('Orden generada con éxito')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      toast.error('Error al generar el PDF de la orden.')
+    } finally {
+      setIsPrinting(false)
     }
   }
 
@@ -112,6 +146,28 @@ export function WorkOrderDetailsModal({
                 orderNumber={order.order_number} 
                 customerName={order.customer?.name} 
               />
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9"
+                      onClick={handlePrint}
+                      disabled={isPrinting}
+                    >
+                      {isPrinting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Printer className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Imprimir Orden de Trabajo</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
           

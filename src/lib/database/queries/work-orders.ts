@@ -6,7 +6,7 @@ import { getOrganizationId } from '@/lib/auth/organization-client';
 import type { SupabaseServerClient } from '@/lib/supabase/server';
 
 // ✅ Tipo genérico que acepta tanto cliente del navegador como del servidor
-type GenericSupabaseClient = SupabaseClient<Database> | SupabaseServerClient;
+type GenericSupabaseClient = any;
 
 function getClient(): GenericSupabaseClient {
   return getSupabaseClient();
@@ -79,6 +79,13 @@ export interface WorkOrder {
     license_plate: string;
   };
   order_items?: OrderItem[];
+  // Términos y firma
+  customer_signature?: string | null;
+  terms_type?: 'text' | 'file';
+  terms_text?: string | null;
+  terms_accepted?: boolean;
+  terms_accepted_at?: string | null;
+  terms_file_url?: string | null;
 }
 
 export interface CreateWorkOrderData {
@@ -92,6 +99,13 @@ export interface CreateWorkOrderData {
   status?: WorkOrderStatus;
   workshop_id?: string;  // ✅ Agregar workshop_id opcional
   organization_id?: string;  // ✅ Agregar organization_id opcional
+  // Términos y firma
+  customer_signature?: string | null;
+  terms_type?: 'text' | 'file';
+  terms_text?: string | null;
+  terms_accepted?: boolean;
+  terms_accepted_at?: string | null;
+  terms_file_url?: string | null;
 }
 
 export interface UpdateWorkOrderData extends Partial<CreateWorkOrderData> {
@@ -317,15 +331,8 @@ export async function createWorkOrder(
   const supabase = supabaseClient || getClient();
   const organizationId = orderData.organization_id || await getOrganizationId();
 
-  // ✅ FILTRAR campos que NO existen en la tabla work_orders
-  // Estos campos vienen del frontend pero no están en el schema
+  // ✅ NO FILTRAR campos que ya existen en la tabla work_orders
   const {
-    customer_signature,
-    terms_accepted,
-    terms_accepted_at,
-    terms_file_url,
-    terms_type,
-    terms_text,
     diagnosis,  // ✅ diagnosis no existe en work_orders (usar notes si es necesario)
     ...validOrderData
   } = orderData as any;

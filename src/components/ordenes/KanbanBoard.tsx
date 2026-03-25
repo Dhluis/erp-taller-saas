@@ -24,6 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { getCompanySettings, type CompanySettings } from '@/lib/supabase/company-settings';
 
 interface KanbanBoardProps {
   organizationId: string;
@@ -122,6 +123,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   
   // Estados para filtro de fechas
   const [dateFilter, setDateFilter] = useState<'all' | '7days' | '30days' | 'month' | 'custom'>('all');
@@ -348,6 +350,12 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
   useEffect(() => {
     if (organizationId && typeof organizationId === 'string' && organizationId.length > 0) {
       console.log('🔄 [KanbanBoard] useEffect triggered - organizationId disponible:', organizationId);
+      
+      // Cargar configuración de empresa
+      getCompanySettings(organizationId)
+        .then(setCompanySettings)
+        .catch(err => console.error('Error loading company settings:', err));
+
       console.log('🔄 [KanbanBoard] Ejecutando loadOrders...');
       // ✅ FIX: Agregar un pequeño delay para asegurar que el estado se haya propagado
       const timeoutId = setTimeout(() => {
@@ -791,6 +799,7 @@ export function KanbanBoard({ organizationId, searchQuery = '', refreshKey, onCr
               key={column.id}
               column={column}
               onOrderClick={handleOrderClick}
+              companySettings={companySettings}
             />
           ))}
         </div>

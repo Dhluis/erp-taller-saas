@@ -24,7 +24,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Search, FileText, Edit, Trash2, Eye, Plus, Download, RefreshCw, User } from 'lucide-react';
+import { Search, FileText, Edit, Trash2, Eye, Plus, Download, RefreshCw, User, Printer, Loader2 } from 'lucide-react';
+import { downloadWorkOrderPDF } from '@/lib/utils/work-order-pdf';
+import { getCompanySettings } from '@/lib/supabase/company-settings';
 import {
   Select,
   SelectContent,
@@ -85,6 +87,8 @@ function OrdenesPageContent() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [assignedUsersMap, setAssignedUsersMap] = useState<Record<string, any>>({});
   const [showExportModal, setShowExportModal] = useState(false);
+  const [companySettings, setCompanySettings] = useState<any>(null);
+  const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
 
   // ==========================================
   // ✅ DEBOUNCE DE BÚSQUEDA
@@ -123,6 +127,17 @@ function OrdenesPageContent() {
   useEffect(() => {
     setSearch(debouncedSearch);
   }, [debouncedSearch, setSearch]);
+
+  // ==========================================
+  // ✅ CARGAR CONFIGURACIÓN DE EMPRESA
+  // ==========================================
+  useEffect(() => {
+    if (organizationId) {
+      getCompanySettings(organizationId)
+        .then(setCompanySettings)
+        .catch(err => console.error('Error loading company settings:', err));
+    }
+  }, [organizationId]);
 
   // Actualizar filtro de status en el backend (soporta uno o varios separados por coma)
   useEffect(() => {
@@ -773,6 +788,33 @@ function OrdenesPageContent() {
                               onClick={() => handleEditOrder(order)}
                             >
                               <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-slate-400 hover:text-white hover:bg-slate-700/50"
+                              title="Imprimir Orden"
+                              disabled={printingOrderId === order.id}
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!companySettings) return;
+                                try {
+                                  setPrintingOrderId(order.id);
+                                  await downloadWorkOrderPDF(order, companySettings);
+                                  toast.success('Orden generada con éxito');
+                                } catch (err) {
+                                  console.error('Error printing order:', err);
+                                  toast.error('Error al generar PDF');
+                                } finally {
+                                  setPrintingOrderId(null);
+                                }
+                              }}
+                            >
+                              {printingOrderId === order.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Printer className="w-4 h-4" />
+                              )}
                             </Button>
                             {(permissions.isAdmin || permissions.isAdvisor) && (
                               <Button

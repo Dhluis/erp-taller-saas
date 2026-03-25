@@ -9,9 +9,10 @@ interface KanbanColumnProps {
   column: KanbanColumnType;
   onOrderClick?: (orderId: string) => void;
   onStatusChange?: (orderId: string, newStatus: string) => void;
+  companySettings?: any;
 }
 
-export function KanbanColumn({ column, onOrderClick, onStatusChange }: KanbanColumnProps) {
+export function KanbanColumn({ column, onOrderClick, onStatusChange, companySettings }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
   });

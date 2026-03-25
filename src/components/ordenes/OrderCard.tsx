@@ -3,9 +3,11 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { WorkOrder } from '@/types/orders';
-import { Car, User, DollarSign, GripVertical, Camera } from 'lucide-react';
+import { Car, User, DollarSign, GripVertical, Camera, Printer, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { useOrgCurrency } from '@/lib/context/CurrencyContext';
+import { downloadWorkOrderPDF } from '@/lib/utils/work-order-pdf';
+import { useState } from 'react';
 
 const COLUMN_LABELS: Record<string, string> = {
   reception: 'Recepción',
@@ -25,9 +27,11 @@ interface OrderCardProps {
   order: WorkOrder;
   onClick?: () => void;
   onStatusChange?: (newStatus: string) => void;
+  companySettings?: any;
 }
 
-export function OrderCard({ order, onClick, onStatusChange }: OrderCardProps) {
+export function OrderCard({ order, onClick, onStatusChange, companySettings }: OrderCardProps) {
+  const [isPrinting, setIsPrinting] = useState(false);
   const { currency } = useOrgCurrency()
   const {
     attributes,
@@ -177,8 +181,31 @@ export function OrderCard({ order, onClick, onStatusChange }: OrderCardProps) {
           </div>
         )}
 
-        {/* Footer: Monto */}
-        <div className="flex items-center justify-end pt-3 border-t border-slate-700/50">
+        {/* Footer: Monto y Acciones */}
+        <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (isPrinting) return;
+              setIsPrinting(true);
+              try {
+                await downloadWorkOrderPDF(order, companySettings);
+              } catch (err) {
+                console.error('Error printing work order:', err);
+              } finally {
+                setIsPrinting(false);
+              }
+            }}
+            disabled={isPrinting}
+            className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-slate-700/50 rounded transition-colors"
+            title="Imprimir Orden"
+          >
+            {isPrinting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Printer className="w-4 h-4" />
+            )}
+          </button>
           <div className="flex items-center gap-1 text-sm font-semibold text-cyan-400">
             <DollarSign className="w-4 h-4" />
             <span>{formatCurrency(order.total_amount || order.estimated_cost)}</span>

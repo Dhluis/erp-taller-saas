@@ -149,6 +149,12 @@ export interface Database {
           total_amount: number | null
           created_at: string
           updated_at: string
+          customer_signature: string | null
+          terms_type: string | null
+          terms_text: string | null
+          terms_accepted: boolean | null
+          terms_accepted_at: string | null
+          terms_file_url: string | null
         }
         Insert: {
           id?: string
@@ -169,6 +175,12 @@ export interface Database {
           total_amount?: number | null
           created_at?: string
           updated_at?: string
+          customer_signature?: string | null
+          terms_type?: string | null
+          terms_text?: string | null
+          terms_accepted?: boolean | null
+          terms_accepted_at?: string | null
+          terms_file_url?: string | null
         }
         Update: {
           id?: string
@@ -187,6 +199,50 @@ export interface Database {
           tax_amount?: number | null
           discount_amount?: number | null
           total_amount?: number | null
+          created_at?: string
+          updated_at?: string
+          customer_signature?: string | null
+          terms_type?: string | null
+          terms_text?: string | null
+          terms_accepted?: boolean | null
+          terms_accepted_at?: string | null
+          terms_file_url?: string | null
+        }
+      }
+      order_items: {
+        Row: {
+          id: string
+          work_order_id: string
+          item_type: 'service' | 'part' | 'labor'
+          item_name: string
+          description: string | null
+          quantity: number
+          unit_price: number
+          total_price: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          work_order_id: string
+          item_type: 'service' | 'part' | 'labor'
+          item_name: string
+          description?: string | null
+          quantity: number
+          unit_price: number
+          total_price?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          work_order_id?: string
+          item_type?: 'service' | 'part' | 'labor'
+          item_name?: string
+          description?: string | null
+          quantity?: number
+          unit_price?: number
+          total_price?: number
           created_at?: string
           updated_at?: string
         }
