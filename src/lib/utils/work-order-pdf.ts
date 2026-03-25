@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -78,7 +78,7 @@ export const generateWorkOrderPDF = async ({ order, company }: WorkOrderPDFData)
   // --- DETALLES DE LA ORDEN (FECHAS, ESTADO) ---
   const entryDate = format(new Date(order.created_at), "PPP", { locale: es });
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: currentY,
     head: [['Fecha Ingreso', 'Estado', 'Kilometraje', 'Combustible']],
     body: [[
@@ -88,11 +88,11 @@ export const generateWorkOrderPDF = async ({ order, company }: WorkOrderPDFData)
       order.fuel_level || 'N/A'
     ]],
     theme: 'grid',
-    headStyles: { fillStyle: [0, 51, 153], textColor: 255 },
+    headStyles: { fillColor: [0, 51, 153], textColor: 255 },
     margin: { left: margin, right: margin }
   });
 
-  currentY = doc.lastAutoTable.finalY + 10;
+  currentY = (doc as any).lastAutoTable.finalY + 10;
 
   // --- DESCRIPCIÓN DEL SERVICIO ---
   doc.setFont('helvetica', 'bold');
@@ -109,7 +109,7 @@ export const generateWorkOrderPDF = async ({ order, company }: WorkOrderPDFData)
     doc.text('DETALLE DE CARGOS:', margin, currentY);
     currentY += 5;
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: currentY,
       head: [['Descripción', 'Cant', 'Precio Unit.', 'Total']],
       body: order.order_items.map((item: any) => [
@@ -123,7 +123,7 @@ export const generateWorkOrderPDF = async ({ order, company }: WorkOrderPDFData)
       margin: { left: margin, right: margin }
     });
     
-    currentY = doc.lastAutoTable.finalY + 10;
+    currentY = (doc as any).lastAutoTable.finalY + 10;
     
     // Totales
     doc.setFont('helvetica', 'bold');
