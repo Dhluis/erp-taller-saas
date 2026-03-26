@@ -111,6 +111,11 @@ export async function GET(
         estimated_cost: order.estimated_cost || null,
       },
 
+      customer_signature: order.customer_signature || null,
+      terms_accepted: order.terms_accepted || false,
+      terms_accepted_at: order.terms_accepted_at || null,
+      terms_file_url: order.terms_file_url || null,
+
       // ✅ NUEVO: Items de servicio / cotización
       order_items: (orderItemsRaw || []).map((item: any) => ({
         id: item.id,

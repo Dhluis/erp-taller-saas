@@ -41,15 +41,28 @@ export const generateWorkOrderPDF = async ({ order, company: providedCompany }: 
   // Priorizar empresa de la orden (refrescada por API) sobre el prop inyectado
   const company = order.company || providedCompany;
 
+  // Helper para asegurar que las URLs sean absolutas (especialmente para Supabase Storage)
+  const ensureAbsoluteUrl = (url: string | null | undefined) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    
+    // Si es un path relativo de Supabase Storage, construir la URL completa
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://igshgleciwknpupbmvhn.supabase.co';
+    // Asumimos que los archivos están en el bucket 'company-assets' o 'images'
+    const bucket = url.includes('terms') ? 'company-assets' : 'images';
+    return `${supabaseUrl}/storage/v1/object/public/${bucket}/${url}`;
+  };
+
   // --- HEADER: Empresa ---
-  if (company?.logo_url) {
+  const logoUrl = ensureAbsoluteUrl(company?.logo_url);
+  if (logoUrl) {
     try {
       // Intentar convertir logo a base64 para evitar problemas de carga asíncrona en jspdf
-      const logoBase64 = await fetchImageAsBase64(company.logo_url);
+      const logoBase64 = await fetchImageAsBase64(logoUrl);
       if (logoBase64) {
         doc.addImage(logoBase64, 'PNG', margin, currentY - 5, 30, 30);
       } else {
-        doc.addImage(company.logo_url, 'PNG', margin, currentY - 5, 30, 30);
+        doc.addImage(logoUrl, 'PNG', margin, currentY - 5, 30, 30);
       }
     } catch (e) {
       console.warn('Could not add logo to PDF:', e);
@@ -244,7 +257,7 @@ export const generateWorkOrderPDF = async ({ order, company: providedCompany }: 
 
   // --- TÉRMINOS Y CONDICIONES ---
   const termsText = order.terms_text || company?.terms_text;
-  const termsPdfUrl = order.terms_file_url || company?.terms_pdf_url;
+  const termsPdfUrl = ensureAbsoluteUrl(order.terms_file_url || company?.terms_pdf_url);
 
   if (termsText || termsPdfUrl) {
     if (currentY > pageHeight - 80) {

@@ -126,6 +126,20 @@ export default function TrackingPage() {
   const hasInspection = !!order.inspection
   const hasDiagnosis = !!order.diagnosis
 
+  // Helper para asegurar que las URLs sean absolutas (especialmente para Supabase Storage)
+  const ensureAbsoluteUrl = (url: string | null | undefined) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    
+    // Si es un path relativo de Supabase Storage, construir la URL completa
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://igshgleciwknpupbmvhn.supabase.co';
+    // Asumimos que los archivos están en el bucket 'company-assets' o 'images'
+    const bucket = url.includes('terms') ? 'company-assets' : 'images';
+    return `${supabaseUrl}/storage/v1/object/public/${bucket}/${url}`;
+  };
+
+  const workshopLogoUrl = ensureAbsoluteUrl(order.company?.logo_url);
+
   return (
     <div className="min-h-screen bg-[#020617] text-slate-200 font-sans selection:bg-primary/30 selection:text-white pb-24">
       {/* Background Glows */}
@@ -139,8 +153,8 @@ export default function TrackingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-20">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-primary to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 overflow-hidden">
-              {order.company?.logo_url ? (
-                <img src={order.company.logo_url} alt="Logo" className="w-full h-full object-cover" />
+              {workshopLogoUrl ? (
+                <img src={workshopLogoUrl} alt="Logo" className="w-full h-full object-cover" />
               ) : (
                 <Car className="text-white w-6 h-6" />
               )}
@@ -618,7 +632,7 @@ export default function TrackingPage() {
                     
                     {(order.terms_file_url || order.company?.terms_pdf_url) && (
                       <a 
-                        href={order.terms_file_url || order.company?.terms_pdf_url} 
+                        href={ensureAbsoluteUrl(order.terms_file_url || order.company?.terms_pdf_url) || '#'} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="mt-3 flex items-center gap-2 text-xs font-bold text-primary hover:text-white transition-colors"
@@ -627,6 +641,31 @@ export default function TrackingPage() {
                         VER DOCUMENTO COMPLETO (PDF)
                       </a>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* FIRMA DEL CLIENTE */}
+              {(order.customer_signature || order.terms_accepted) && (
+                <div className="pt-4 space-y-3">
+                  <div className="flex items-center gap-2 text-green-400">
+                    <CheckCheck className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Aprobación del Cliente</span>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center">
+                    {order.customer_signature ? (
+                      <div className="bg-white p-2 rounded-lg max-w-[200px]">
+                        <img src={order.customer_signature} alt="Firma del Cliente" className="max-h-24 object-contain" />
+                      </div>
+                    ) : (
+                      <div className="py-4 text-center">
+                        <Badge className="bg-green-500/20 text-green-400 border-green-500/30">✓ Aprobado Digitalmente</Badge>
+                      </div>
+                    )}
+                    <p className="text-[10px] text-slate-500 font-bold mt-2 uppercase">
+                      Confirmado por {order.customer_name} 
+                      {order.terms_accepted_at && ` - ${format(new Date(order.terms_accepted_at), 'dd/MM/yyyy HH:mm', { locale: es })}`}
+                    </p>
                   </div>
                 </div>
               )}
