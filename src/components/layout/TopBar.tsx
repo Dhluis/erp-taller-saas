@@ -79,7 +79,6 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
   const isClientesActive = pathname?.startsWith('/clientes')
   const isOrdenesActive = pathname?.startsWith('/ordenes')
   const isReportesActive = pathname?.startsWith('/reportes')
-  const isWhatsAppActive = pathname?.startsWith('/dashboard/whatsapp')
   const isLeadsActive = pathname?.startsWith('/leads')
   
   const userName = profile?.full_name || 'Usuario'

@@ -143,6 +143,17 @@ export async function GET(
         }
       }
     }
+    
+    // ✅ Obtener configuración de empresa para PDF/UI
+    let company = null;
+    if (order?.organization_id) {
+      const { data: companyData } = await supabaseAdmin
+        .from('company_settings')
+        .select('*')
+        .eq('organization_id', order.organization_id)
+        .maybeSingle();
+      company = companyData;
+    }
 
     if (orderError || !order) {
       console.error('❌ [API GET /work-orders/[id]] Error obteniendo orden:', orderError);
@@ -189,6 +200,7 @@ export async function GET(
       data: {
         ...(typedOrder ?? {}),
         inspection, // ✅ Incluir datos de inspección en la respuesta
+        company,    // ✅ Incluir datos de empresa para PDF/UI
       } as any,
     });
   } catch (error) {

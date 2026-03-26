@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select'
 import { Package, Wrench, Box, Plus, Pencil, Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { usePermissions } from '@/hooks/usePermissions'
 
 export type LineType = 'package' | 'free_service' | 'loose_product'
 
@@ -69,6 +70,7 @@ function stockStatusForPackage(pkg: ServicePackage): { ok: boolean; text: string
 }
 
 export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps) {
+  const { isMechanic } = usePermissions()
   const [services, setServices] = useState<WorkOrderServiceRow[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -352,7 +354,7 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
                     {svc.line_type === 'free_service' && <Wrench className="h-4 w-4 text-primary shrink-0" />}
                     {svc.line_type === 'loose_product' && <Box className="h-4 w-4 text-primary shrink-0" />}
                     <span className="font-medium truncate">{svc.name}</span>
-                    <span className="text-muted-foreground shrink-0">{formatMoney(Number(svc.total_price))}</span>
+                    {!isMechanic && <span className="text-muted-foreground shrink-0">{formatMoney(Number(svc.total_price))}</span>}
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
                     {svc.line_type === 'package' && stockStatus && (
@@ -389,7 +391,7 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
         )}
       </div>
 
-      {services.length > 0 && (
+      {services.length > 0 && !isMechanic && (
         <div className="flex justify-end border-t pt-4">
           <p className="text-lg font-semibold">
             Total estimado: {formatMoney(total)}
@@ -428,7 +430,7 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
                     return (
                       <SelectItem key={p.id} value={p.id} className="text-white focus:bg-slate-700 focus:text-white">
                         <span className="flex items-center gap-2">
-                          {p.name} – {formatMoney(p.price)}
+                          {p.name} {!isMechanic && `– ${formatMoney(p.price)}`}
                           {!st.ok && <span className="text-red-400 text-xs">(stock bajo)</span>}
                         </span>
                       </SelectItem>
@@ -447,18 +449,20 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-slate-200">Precio unitario</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  className="bg-slate-800/80 border-slate-600 text-white"
-                  value={formPackage.unit_price || ''}
-                  onChange={(e) => setFormPackage(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
-                />
-              </div>
-              <div>
+              {!isMechanic && (
+                <div>
+                  <Label className="text-slate-200">Precio unitario</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    className="bg-slate-800/80 border-slate-600 text-white"
+                    value={formPackage.unit_price || ''}
+                    onChange={(e) => setFormPackage(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
+                  />
+                </div>
+              )}
+              <div className={isMechanic ? "col-span-2" : ""}>
                 <Label className="text-slate-200">Cantidad</Label>
                 <Input
                   type="number"
@@ -507,17 +511,19 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Precio unitario</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={formFree.unit_price || ''}
-                  onChange={(e) => setFormFree(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
-                />
-              </div>
-              <div>
+              {!isMechanic && (
+                <div>
+                  <Label>Precio unitario</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={formFree.unit_price || ''}
+                    onChange={(e) => setFormFree(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
+                  />
+                </div>
+              )}
+              <div className={isMechanic ? "col-span-2" : ""}>
                 <Label>Cantidad</Label>
                 <Input
                   type="number"
@@ -583,17 +589,19 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Precio unitario</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={formProduct.unit_price || ''}
-                  onChange={(e) => setFormProduct(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
-                />
-              </div>
-              <div>
+              {!isMechanic && (
+                <div>
+                  <Label>Precio unitario</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={formProduct.unit_price || ''}
+                    onChange={(e) => setFormProduct(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
+                  />
+                </div>
+              )}
+              <div className={isMechanic ? "col-span-2" : ""}>
                 <Label>Cantidad</Label>
                 <Input
                   type="number"
@@ -640,17 +648,19 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
               </div>
             )}
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Precio unitario</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={formEdit.unit_price ?? ''}
-                  onChange={(e) => setFormEdit(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
-                />
-              </div>
-              <div>
+              {!isMechanic && (
+                <div>
+                  <Label>Precio unitario</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={formEdit.unit_price ?? ''}
+                    onChange={(e) => setFormEdit(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
+                  />
+                </div>
+              )}
+              <div className={isMechanic ? "col-span-2" : ""}>
                 <Label>Cantidad</Label>
                 <Input
                   type="number"

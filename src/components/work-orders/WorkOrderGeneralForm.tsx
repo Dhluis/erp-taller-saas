@@ -20,6 +20,7 @@ import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
 import { getNetworkErrorMessage, TOAST_MESSAGES } from '@/lib/constants/messages'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { usePermissions } from '@/hooks/usePermissions'
 import {
   logStatusChange,
   logFieldUpdate,
@@ -54,6 +55,7 @@ export function WorkOrderGeneralForm({
   onEditChange,
   onSave
 }: WorkOrderGeneralFormProps) {
+  const { isMechanic } = usePermissions()
   const { organizationId } = useOrganization()
   const { customers } = useCustomers()
   const supabase = createClient()
@@ -1060,35 +1062,37 @@ export function WorkOrderGeneralForm({
       </div>
 
       {/* Costo Estimado */}
-      <div className="space-y-4 bg-slate-900 p-4 rounded-lg border border-slate-700">
-        <div>
-          <Label htmlFor="estimated_cost" className="text-slate-300">
-            Costo Estimado (MXN) <span className="text-slate-500 text-xs">(Opcional)</span>
-          </Label>
-          {isEditing ? (
-            <div className="relative">
-              <Input
-                id="estimated_cost"
-                name="estimated_cost"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.estimated_cost}
-                onChange={handleChange}
-                placeholder="0.00"
-                className="pr-10"
-              />
-              {formData.estimated_cost && (
-                <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              ${formData.estimated_cost ? parseFloat(formData.estimated_cost).toFixed(2) : '0.00'}
-            </p>
-          )}
+      {!isMechanic && (
+        <div className="space-y-4 bg-slate-900 p-4 rounded-lg border border-slate-700">
+          <div>
+            <Label htmlFor="estimated_cost" className="text-slate-300">
+              Costo Estimado (MXN) <span className="text-slate-500 text-xs">(Opcional)</span>
+            </Label>
+            {isEditing ? (
+              <div className="relative">
+                <Input
+                  id="estimated_cost"
+                  name="estimated_cost"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.estimated_cost}
+                  onChange={handleChange}
+                  placeholder="0.00"
+                  className="pr-10"
+                />
+                {formData.estimated_cost && (
+                  <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                ${formData.estimated_cost ? parseFloat(formData.estimated_cost).toFixed(2) : '0.00'}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Estado y Asignación */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

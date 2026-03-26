@@ -58,16 +58,9 @@ import { VoiceInput } from "@/components/ui/VoiceInput"
 import { cn } from "@/lib/utils"
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal'
 import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
-// ✅ Removido: getAppointmentStats - ahora se usa API route
 import {
-  createAppointment,
-  updateAppointment,
-  deleteAppointment,
-  searchAppointments,
   subscribeToAppointments,
   type AppointmentStats,
-  type CreateAppointment,
-  type UpdateAppointment
 } from "@/lib/supabase/appointments"
 import type { Appointment as BaseAppointment } from "@/types/supabase-simple"
 
@@ -577,216 +570,62 @@ function CitasContent() {
     setIsSubmitting(true)
     
     try {
-      const supabase = createClient()
-      
-      // 1. BUSCAR O CREAR CLIENTE
-      console.log('🔍 Buscando cliente con teléfono:', formData.customer_phone)
-      
-      const { data: existingCustomer } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('phone', formData.customer_phone)
-        .eq('organization_id', organizationId)
-        .maybeSingle()
-      
-      let customerId: string
-      
-      if (existingCustomer) {
-        console.log('✅ Cliente encontrado:', (existingCustomer as any).id)
-        customerId = (existingCustomer as any).id
-      } else {
-        console.log('➕ Creando nuevo cliente...')
-        const { data: newCustomer, error: customerError } = await supabase
-          .from('customers')
-          .insert({
-            organization_id: organizationId,
-            workshop_id: workshopId || null, // ✅ workshop_id es opcional según schema
-            name: formData.customer_name,
-            phone: formData.customer_phone,
-            email: formData.customer_email || null
-          } as any)
-          .select()
-          .single()
-        
-        if (customerError || !newCustomer) {
-          console.error('❌ Error creando cliente:', customerError)
-          throw new Error(`Error creando cliente: ${customerError?.message || 'No se pudo crear el cliente'}`)
-        }
-        
-        customerId = (newCustomer as any).id
-        console.log('✅ Cliente creado:', customerId)
-      }
-      
-      // 2. BUSCAR O CREAR VEHÍCULO — solo si hay datos reales del vehículo
-      let vehicleId: string | null = null
-      console.log('🚗 Procesando información del vehículo...')
-
-      const brand = formData.vehicle_brand?.trim() || ''
-      const model = formData.vehicle_model?.trim() || ''
-      const plate = formData.vehicle_plate?.trim().toUpperCase() || ''
-      const hasVehicleData = brand || model || plate
-
-      if (hasVehicleData) {
-        // Solo crear/buscar vehículo si el usuario proporcionó datos reales
-        if (plate) {
-          // Buscar vehículo existente por placa
-          const searchResponse = await fetch(`/api/vehicles?search=${encodeURIComponent(plate)}&filter_customer_id=${customerId}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            cache: 'no-store',
-          })
-
-          if (searchResponse.ok) {
-            const searchResult = await searchResponse.json()
-            const existingVehicles = searchResult.data?.items || []
-            const existingVehicle = existingVehicles.find((v: any) => 
-              v.license_plate?.toUpperCase() === plate && v.customer_id === customerId
-            )
-            
-            if (existingVehicle) {
-              vehicleId = (existingVehicle as any).id
-              console.log('✅ Vehículo encontrado por placa:', vehicleId)
-            }
-          }
-        }
-
-        // Si no encontramos uno existente, crear uno nuevo (solo si hay marca y modelo)
-        if (!vehicleId && brand && model) {
-          const createResponse = await fetch('/api/vehicles', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              customer_id: customerId,
-              workshop_id: workshopId || null,
-              brand,
-              model,
-              license_plate: plate || null,
-              year: formData.vehicle_year ? parseInt(formData.vehicle_year) : null
-            }),
-          })
-
-          if (createResponse.ok) {
-            const createResult = await createResponse.json()
-            if (createResult.success && createResult.data) {
-              vehicleId = (createResult.data as any).id
-              console.log('✅ Vehículo creado:', vehicleId)
-            }
-          }
-
-          if (!vehicleId) {
-            console.warn('⚠️ No se pudo crear el vehículo, se creará la cita sin vehículo')
-          }
-        } else if (!vehicleId) {
-          console.log('ℹ️ Se necesitan marca y modelo para crear el vehículo, la cita se creará sin vehículo')
-        }
-      } else {
-        console.log('ℹ️ No se proporcionaron datos de vehículo, la cita se creará sin vehículo')
-      }
-      
-      // 3. CREAR O ACTUALIZAR LA CITA
-      // Normalizar fecha: asegurar que sea solo yyyy-MM-dd (sin timestamp)
-      let dateOnly = formData.appointment_date || ''
-      if (dateOnly.includes('T')) {
-        const parsed = new Date(dateOnly)
-        dateOnly = !isNaN(parsed.getTime())
-          ? parsed.toISOString().split('T')[0]
-          : dateOnly.split('T')[0]
-      }
-      
-      // Normalizar hora: asegurar formato HH:mm:ss
-      let appointmentTime = formData.appointment_time || '09:00'
-      if (!appointmentTime.includes(':')) {
-        appointmentTime = `${appointmentTime}:00`
-      }
-      if (appointmentTime.split(':').length === 2) {
-        appointmentTime = `${appointmentTime}:00`
-      }
-      
-      const appointmentDateTime = `${dateOnly}T${appointmentTime}`
-      
-      // Validar campos requeridos
-      if (!customerId || !organizationId || !formData.service_type || !dateOnly) {
-        throw new Error('Faltan campos requeridos para guardar la cita')
+      // ✅ El API route resuelve cliente, vehículo y cita en el servidor con service role (no RLS)
+      const payload = {
+        customer_name: formData.customer_name,
+        customer_phone: formData.customer_phone,
+        customer_email: formData.customer_email || null,
+        vehicle_brand: formData.vehicle_brand || null,
+        vehicle_model: formData.vehicle_model || null,
+        vehicle_year: formData.vehicle_year || null,
+        vehicle_plate: formData.vehicle_plate || null,
+        service_type: formData.service_type,
+        appointment_date: formData.appointment_date,
+        appointment_time: formData.appointment_time,
+        notes: formData.notes || null,
+        estimated_duration: formData.estimated_duration || 60,
       }
 
-      // ━━━━━━━━━━━━ MODO EDICIÓN: actualizar cita existente ━━━━━━━━━━━━
       if (editingAppointment) {
-        console.log('📝 [Citas] Actualizando cita existente:', editingAppointment.id)
-        
-        const updateData: Record<string, any> = {
-          customer_id: customerId,
-          service_type: formData.service_type,
-          appointment_date: appointmentDateTime,
-          duration: formData.estimated_duration,
-          notes: formData.notes || null,
-          status: formData.status || editingAppointment.status,
-          vehicle_id: vehicleId || null,
-        }
-        
-        console.log('📤 [Citas] Datos de actualización:', JSON.stringify(updateData, null, 2))
-        
-        try {
-          const result = await updateAppointment(editingAppointment.id, updateData as any)
-          
-          if (result && result.id) {
-            console.log('✅ [Citas] Cita actualizada exitosamente:', result.id)
-            toast.success('Cita actualizada exitosamente')
-            handleClose()
-            await loadData()
-          } else {
-            throw new Error('No se pudo actualizar la cita: respuesta inválida')
-          }
-        } catch (updateError) {
-          console.error('❌ [Citas] Error al actualizar cita:', updateError)
-          throw updateError
-        }
-
-      // ━━━━━━━━━━━━ MODO CREACIÓN: crear cita nueva ━━━━━━━━━━━━
+        // ━━━━ MODO EDICIÓN ━━━━
+        console.log('📝 [Citas] Actualizando cita via API:', editingAppointment.id)
+        const response = await fetch(`/api/appointments/${editingAppointment.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...payload, status: formData.status || editingAppointment.status }),
+        })
+        const result = await response.json()
+        if (!response.ok || !result.success) throw new Error(result.error || 'Error al actualizar la cita')
+        console.log('✅ [Citas] Cita actualizada:', result.data?.id)
+        toast.success('Cita actualizada exitosamente')
       } else {
-        console.log('➕ [Citas] Creando cita nueva')
-        
-        const appointmentData: Record<string, any> = {
-          customer_id: customerId,
-          service_type: formData.service_type,
-          appointment_date: appointmentDateTime,
-          duration: formData.estimated_duration,
-          notes: formData.notes || null,
-          organization_id: organizationId,
-          status: 'scheduled'
-        }
-        if (vehicleId) {
-          appointmentData.vehicle_id = vehicleId
-        }
-        
-        console.log('📤 [Citas] Datos de creación:', JSON.stringify(appointmentData, null, 2))
-        
-        try {
-          const result = await createAppointment(appointmentData as any)
-          
-          if (result && result.id) {
-            console.log('✅ [Citas] Cita creada exitosamente:', result.id)
-            toast.success('¡Cita creada exitosamente!')
-            handleClose()
-            await loadData()
-          } else {
-            throw new Error('No se pudo crear la cita: respuesta inválida del servidor')
-          }
-        } catch (createError) {
-          console.error('❌ [Citas] Error al crear cita:', createError)
-          throw createError
-        }
+        // ━━━━ MODO CREACIÓN ━━━━
+        console.log('➕ [Citas] Creando cita via API...')
+        const response = await fetch('/api/appointments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        const result = await response.json()
+        if (!response.ok || !result.success) throw new Error(result.error || 'Error al crear la cita')
+        console.log('✅ [Citas] Cita creada:', result.data?.id)
+        toast.success('¡Cita creada exitosamente!')
       }
+
+      handleClose()
+      await loadData()
       
     } catch (error) {
-      console.error('❌ Error completo al crear cita:', error)
-      console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
-      toast.error('Error al crear cita', {
+      console.error('❌ Error al guardar cita:', error)
+      toast.error('Error al guardar cita', {
         description: error instanceof Error ? error.message : 'Error desconocido'
       })
     } finally {
       setIsSubmitting(false)
     }
   }
+
+
 
   const handleDelete = (id: string) => {
     toast('¿Estás seguro de eliminar esta cita?', {
@@ -795,7 +634,9 @@ function CitasContent() {
         label: 'Eliminar',
         onClick: async () => {
           try {
-            await deleteAppointment(id)
+            const response = await fetch(`/api/appointments/${id}`, { method: 'DELETE' })
+            const result = await response.json()
+            if (!response.ok || !result.success) throw new Error(result.error || 'Error al eliminar')
             toast.success('Cita eliminada correctamente')
             loadData()
           } catch (error) {

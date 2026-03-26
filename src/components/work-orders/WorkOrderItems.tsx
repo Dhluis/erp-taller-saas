@@ -14,6 +14,8 @@ import { Plus, Trash2, Edit, Wrench, Package, User, DollarSign, Percent, Calcula
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { usePermissions } from '@/hooks/usePermissions'
+import { cn } from '@/lib/utils'
 
 interface WorkOrderItemsProps {
   orderId: string
@@ -75,6 +77,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 }
 
 export function WorkOrderItems({ orderId, orderStatus, onTotalChange }: WorkOrderItemsProps) {
+  const { isMechanic } = usePermissions()
   const [items, setItems] = useState<OrderItem[]>([])
   const [services, setServices] = useState<Service[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -357,22 +360,26 @@ export function WorkOrderItems({ orderId, orderStatus, onTotalChange }: WorkOrde
                       <span className="text-muted-foreground">Cantidad:</span>
                       <span className="ml-1 font-medium">{item.quantity}</span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Precio Unit.:</span>
-                      <span className="ml-1 font-medium">${item.unit_price.toFixed(2)}</span>
-                    </div>
-                    {item.discount_percent > 0 && (
-                      <div>
-                        <span className="text-muted-foreground">Descuento:</span>
-                        <span className="ml-1 font-medium text-orange-500">
-                          {item.discount_percent}% (-${item.discount_amount.toFixed(2)})
-                        </span>
-                      </div>
+                    {!isMechanic && (
+                      <>
+                        <div>
+                          <span className="text-muted-foreground">Precio Unit.:</span>
+                          <span className="ml-1 font-medium">${item.unit_price.toFixed(2)}</span>
+                        </div>
+                        {item.discount_percent > 0 && (
+                          <div>
+                            <span className="text-muted-foreground">Descuento:</span>
+                            <span className="ml-1 font-medium text-orange-500">
+                              {item.discount_percent}% (-${item.discount_amount.toFixed(2)})
+                            </span>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-muted-foreground">Total:</span>
+                          <span className="ml-1 font-bold text-lg">${item.total.toFixed(2)}</span>
+                        </div>
+                      </>
                     )}
-                    <div>
-                      <span className="text-muted-foreground">Total:</span>
-                      <span className="ml-1 font-bold text-lg">${item.total.toFixed(2)}</span>
-                    </div>
                   </div>
 
                   {/* Mecánico y estado */}
@@ -422,28 +429,30 @@ export function WorkOrderItems({ orderId, orderStatus, onTotalChange }: WorkOrde
           ))}
 
           {/* Resumen de totales */}
-          <Card className="p-4 bg-muted/30">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal:</span>
-                <span className="font-medium">${grandSubtotal.toFixed(2)}</span>
-              </div>
-              {grandDiscountAmount > 0 && (
+          {!isMechanic && (
+            <Card className="p-4 bg-muted/30">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Descuentos:</span>
-                  <span className="font-medium text-orange-500">-${grandDiscountAmount.toFixed(2)}</span>
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span className="font-medium">${grandSubtotal.toFixed(2)}</span>
                 </div>
-              )}
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">IVA:</span>
-                <span className="font-medium">${grandTaxAmount.toFixed(2)}</span>
+                {grandDiscountAmount > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Descuentos:</span>
+                    <span className="font-medium text-orange-500">-${grandDiscountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">IVA:</span>
+                  <span className="font-medium">${grandTaxAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between text-lg font-bold border-t pt-2">
+                  <span>TOTAL:</span>
+                  <span>${grandTotal.toFixed(2)}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between text-lg font-bold border-t pt-2">
-                <span>TOTAL:</span>
-                <span>${grandTotal.toFixed(2)}</span>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          )}
         </div>
       ) : (
         <Card className="p-12">
@@ -514,7 +523,7 @@ export function WorkOrderItems({ orderId, orderStatus, onTotalChange }: WorkOrde
                   <SelectContent>
                     {services.map((service) => (
                       <SelectItem key={service.id} value={service.id}>
-                        {service.name} - ${service.base_price.toFixed(2)}
+                        {service.name} {!isMechanic && `- $${service.base_price.toFixed(2)}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -532,7 +541,7 @@ export function WorkOrderItems({ orderId, orderStatus, onTotalChange }: WorkOrde
                   <SelectContent>
                     {products.map((product) => (
                       <SelectItem key={product.id} value={product.id}>
-                        {product.name} - ${product.price.toFixed(2)} (Stock: {product.stock_quantity})
+                        {product.name} {!isMechanic && `- $${product.price.toFixed(2)}`} (Stock: {product.stock_quantity})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -552,7 +561,7 @@ export function WorkOrderItems({ orderId, orderStatus, onTotalChange }: WorkOrde
             </div>
 
             {/* Cantidad y precio */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className={cn("grid gap-4", isMechanic ? "grid-cols-1" : "grid-cols-2")}>
               <div className="space-y-2">
                 <Label className="text-white">Cantidad *</Label>
                 <Input
@@ -563,43 +572,47 @@ export function WorkOrderItems({ orderId, orderStatus, onTotalChange }: WorkOrde
                   onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) || 0 })}
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-white">Precio Unitario *</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.unit_price}
-                  onChange={(e) => setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
+              {!isMechanic && (
+                <div className="space-y-2">
+                  <Label className="text-white">Precio Unitario *</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.unit_price}
+                    onChange={(e) => setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Descuento y IVA */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-white">Descuento (%)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={formData.discount_percent}
-                  onChange={(e) => setFormData({ ...formData, discount_percent: parseFloat(e.target.value) || 0 })}
-                />
+            {!isMechanic && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-white">Descuento (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={formData.discount_percent}
+                    onChange={(e) => setFormData({ ...formData, discount_percent: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white">IVA (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={formData.tax_percent}
+                    onChange={(e) => setFormData({ ...formData, tax_percent: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-white">IVA (%)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={formData.tax_percent}
-                  onChange={(e) => setFormData({ ...formData, tax_percent: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
+            )}
 
             {/* Mecánico y estado */}
             <div className="grid grid-cols-2 gap-4">
@@ -648,28 +661,30 @@ export function WorkOrderItems({ orderId, orderStatus, onTotalChange }: WorkOrde
             </div>
 
             {/* Preview de totales */}
-            <Card className="p-3 bg-[#1E293B] border-gray-700">
-              <div className="space-y-1 text-sm text-white">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Subtotal:</span>
-                  <span>${previewSubtotal.toFixed(2)}</span>
-                </div>
-                {formData.discount_percent > 0 && (
-                  <div className="flex justify-between text-orange-400">
-                    <span>Descuento ({formData.discount_percent}%):</span>
-                    <span>-${previewDiscountAmount.toFixed(2)}</span>
+            {!isMechanic && (
+              <Card className="p-3 bg-[#1E293B] border-gray-700">
+                <div className="space-y-1 text-sm text-white">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Subtotal:</span>
+                    <span>${previewSubtotal.toFixed(2)}</span>
                   </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-gray-400">IVA ({formData.tax_percent}%):</span>
-                  <span>${previewTaxAmount.toFixed(2)}</span>
+                  {formData.discount_percent > 0 && (
+                    <div className="flex justify-between text-orange-400">
+                      <span>Descuento ({formData.discount_percent}%):</span>
+                      <span>-${previewDiscountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">IVA ({formData.tax_percent}%):</span>
+                    <span>${previewTaxAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-base border-t border-gray-700 pt-1">
+                    <span>TOTAL:</span>
+                    <span>${previewTotal.toFixed(2)}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between font-bold text-base border-t border-gray-700 pt-1">
-                  <span>TOTAL:</span>
-                  <span>${previewTotal.toFixed(2)}</span>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            )}
 
             {/* Botones */}
             <div className="flex justify-end gap-2">

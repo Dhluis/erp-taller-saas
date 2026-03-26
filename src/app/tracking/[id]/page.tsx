@@ -599,6 +599,38 @@ export default function TrackingPage() {
               <p className="text-slate-400 leading-relaxed font-medium">
                 Esta es la descripción oficial de tu orden. Ante cualquier duda, puedes contactar con nuestro equipo de soporte técnico instantáneamente via WhatsApp.
               </p>
+              
+              {/* TÉRMINOS Y CONDICIONES */}
+              {(order.terms_text || order.terms_file_url || (order.company && (order.company.terms_text || order.company.terms_pdf_url))) && (
+                <div className="pt-4 space-y-3">
+                  <div className="flex items-center gap-2 text-primary">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Términos y Condiciones</span>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                    { (order.terms_text || order.company?.terms_text) ? (
+                      <p className="text-[11px] text-slate-400 line-clamp-3 hover:line-clamp-none transition-all cursor-pointer">
+                        {order.terms_text || order.company?.terms_text}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-slate-500 italic">Consulta los términos y condiciones del servicio.</p>
+                    )}
+                    
+                    {(order.terms_file_url || order.company?.terms_pdf_url) && (
+                      <a 
+                        href={order.terms_file_url || order.company?.terms_pdf_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="mt-3 flex items-center gap-2 text-xs font-bold text-primary hover:text-white transition-colors"
+                      >
+                        <FileText className="w-4 h-4" />
+                        VER DOCUMENTO COMPLETO (PDF)
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-4 pt-4">
                 <div className="px-5 py-3 bg-slate-950 rounded-2xl flex items-center gap-3 border border-white/5">
                   <Info className="w-5 h-5 text-primary" />

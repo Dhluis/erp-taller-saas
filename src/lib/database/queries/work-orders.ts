@@ -302,7 +302,8 @@ export async function getWorkOrderById(id: string) {
         year,
         license_plate
       ),
-      order_items(*)
+      order_items(*),
+      vehicle_inspections(*)
     `)
     .eq('id', id)
     .eq('organization_id', organizationId)

@@ -24,6 +24,7 @@ import { getCompanySettings } from '@/lib/supabase/company-settings'
 import { toast } from 'sonner'
 import { useEffect } from 'react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { usePermissions } from '@/hooks/usePermissions'
 
 interface WorkOrderDetailsModalProps {
   order: any | null
@@ -55,6 +56,7 @@ export function WorkOrderDetailsModal({
   userId,
   onUpdate
 }: WorkOrderDetailsModalProps) {
+  const { isMechanic } = usePermissions()
   const [showAssignMechanic, setShowAssignMechanic] = useState(false)
   const [isPrinting, setIsPrinting] = useState(false)
   const [companySettings, setCompanySettings] = useState<any>(null)
@@ -97,7 +99,9 @@ export function WorkOrderDetailsModal({
 
     try {
       setIsPrinting(true)
-      await downloadWorkOrderPDF(order, companySettings)
+      // ✅ Priorizar los settings que vienen de la orden (si la API los trajo)
+      const finalSettings = order.company || companySettings
+      await downloadWorkOrderPDF(order, finalSettings)
       toast.success('Orden generada con éxito')
     } catch (error) {
       console.error('Error generating PDF:', error)
@@ -147,28 +151,30 @@ export function WorkOrderDetailsModal({
                 orderNumber={order.order_number} 
                 customerName={order.customer?.name} 
               />
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-9 w-9"
-                      onClick={handlePrint}
-                      disabled={isPrinting}
-                    >
-                      {isPrinting ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Printer className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Imprimir Orden de Trabajo</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {!isMechanic && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9"
+                        onClick={handlePrint}
+                        disabled={isPrinting}
+                      >
+                        {isPrinting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Printer className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Imprimir Orden de Trabajo</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           </div>
           

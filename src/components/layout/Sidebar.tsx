@@ -51,7 +51,7 @@ export function Sidebar({ className }: SidebarProps) {
         'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/cuentas-efectivo', '/ingresos/ajustes-devoluciones', '/ingresos/entregas', '/ingresos/arqueo-caja', '/ingresos/reportes'],
         'compras': ['/compras', '/compras/proveedores', '/compras/pagos', '/compras/gastos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/ventas-por-items', '/reportes/inventario', '/reportes/financieros', '/reportes/operaciones'],
-        'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/mensajeria', '/mensajeria/email', '/mensajeria/whatsapp', '/perfil', '/dashboard/whatsapp/conversaciones']
+        'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/perfil']
       }
       
       if (sectionRoutes[section]?.some(route => pathname.startsWith(route))) {
@@ -203,9 +203,7 @@ export function Sidebar({ className }: SidebarProps) {
         { href: "/configuraciones/usuarios", label: "Usuarios", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageUsers() },
         { href: "/configuraciones/empresa", label: "Empresa", icon: () => <ModernIcons.Dashboard size={18} />, visible: permissions.canManageSettings() },
         { href: "/settings/billing", label: "Planes", icon: () => <CreditCard size={18} className="text-yellow-500" />, visible: permissions.canManageSettings() },
-        // ✅ OCULTADOS SEGÚN SOLICITUD
-        // { href: "/dashboard/whatsapp/conversaciones", label: "Conversaciones WA", icon: () => <ModernIcons.WhatsApp size={18} />, visible: true, target: '_blank' },
-        // { href: "/mensajeria", label: "Mensajería", icon: () => <ModernIcons.Conversaciones size={18} />, visible: permissions.canManageSettings() }
+
       ].filter(item => item.visible)
     }
   ].filter(section => section.visible && section.items.length > 0)
@@ -267,7 +265,7 @@ export function Sidebar({ className }: SidebarProps) {
         'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/cuentas-efectivo', '/ingresos/ajustes-devoluciones', '/ingresos/entregas', '/ingresos/arqueo-caja', '/ingresos/reportes'],
         'compras': ['/compras', '/compras/proveedores', '/compras/pagos', '/compras/gastos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/ventas-por-items', '/reportes/inventario', '/reportes/financieros', '/reportes/operaciones'],
-        'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/mensajeria', '/mensajeria/email', '/mensajeria/whatsapp', '/perfil', '/dashboard/whatsapp/conversaciones']
+        'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/perfil']
       }
       const sectionRoutesList = sectionRoutes[section.key] || []
       return sectionRoutesList.includes(href) && sectionRoutesList.some(route => 

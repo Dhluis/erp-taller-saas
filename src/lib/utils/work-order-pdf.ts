@@ -5,23 +5,52 @@ import { es } from 'date-fns/locale';
 
 interface WorkOrderPDFData {
   order: any;
-  company: any;
+  company?: any;
 }
 
 /**
- * Genera un PDF profesional para una orden de trabajo.
+ * Helper to fetch an image and convert it to base64 to avoid CORS/loading issues in jsPDF
  */
-export const generateWorkOrderPDF = async ({ order, company }: WorkOrderPDFData) => {
+const fetchImageAsBase64 = async (url: string): Promise<string | null> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.error('Error fetching image for PDF:', e);
+    return null;
+  }
+};
+
+/**
+ * Genera un PDF profesional y MUY completo para una orden de trabajo.
+ */
+export const generateWorkOrderPDF = async ({ order, company: providedCompany }: WorkOrderPDFData) => {
   const doc = new jsPDF() as any;
   const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
   const margin = 15;
   let currentY = 20;
+
+  // Priorizar empresa de la orden (refrescada por API) sobre el prop inyectado
+  const company = order.company || providedCompany;
 
   // --- HEADER: Empresa ---
   if (company?.logo_url) {
     try {
-      // Intentar cargar el logo si es una URL base64 o accesible
-      doc.addImage(company.logo_url, 'PNG', margin, currentY - 5, 30, 30);
+      // Intentar convertir logo a base64 para evitar problemas de carga asíncrona en jspdf
+      const logoBase64 = await fetchImageAsBase64(company.logo_url);
+      if (logoBase64) {
+        doc.addImage(logoBase64, 'PNG', margin, currentY - 5, 30, 30);
+      } else {
+        doc.addImage(company.logo_url, 'PNG', margin, currentY - 5, 30, 30);
+      }
     } catch (e) {
       console.warn('Could not add logo to PDF:', e);
     }
@@ -29,143 +58,258 @@ export const generateWorkOrderPDF = async ({ order, company }: WorkOrderPDFData)
 
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text(company?.company_name || 'Mi Taller', margin + 35, currentY + 5);
+  doc.setTextColor(30, 41, 59); // Slate 800
+  doc.text(company?.company_name || 'Eagles System', margin + 35, currentY + 5);
   
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100);
   doc.text(company?.address || '', margin + 35, currentY + 12);
   doc.text(`Tel: ${company?.phone || ''} | Email: ${company?.email || ''}`, margin + 35, currentY + 17);
   
-  // Título del documento a la derecha
+  // Título del documento
   doc.setFontSize(22);
   doc.setTextColor(0, 51, 153); // Azul corporativo
   doc.text('ORDEN DE TRABAJO', pageWidth - margin, currentY + 5, { align: 'right' });
   
-  doc.setFontSize(12);
-  doc.setTextColor(255, 0, 0); // Rojo para el número de orden
-  doc.text(`#${order.id?.slice(0, 8).toUpperCase()}`, pageWidth - margin, currentY + 15, { align: 'right' });
+  doc.setFontSize(14);
+  doc.setTextColor(220, 38, 38); // Rojo
+  const orderLabel = order.order_number ? `#${order.order_number}` : `#${order.id?.slice(0, 8).toUpperCase()}`;
+  doc.text(orderLabel, pageWidth - margin, currentY + 15, { align: 'right' });
   
   currentY += 40;
 
+  // --- ESCANEAR PARA TRACKING (QR Superior Derecha) ---
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://eaglessystem.io';
+  const trackingUrl = `${origin}/tracking/${order.id}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(trackingUrl)}&size=150x150`;
+  
+  try {
+    const qrBase64 = await fetchImageAsBase64(qrUrl);
+    if (qrBase64) {
+      // Render QR un poco más a la izquierda y abajo para no tapar el # de orden. Tamaño aumentado para escaneo fácil.
+      doc.addImage(qrBase64, 'PNG', pageWidth - margin - 25, currentY - 25, 25, 25);
+      doc.setFontSize(6);
+      doc.setTextColor(150);
+      doc.text('Seguimiento en línea', pageWidth - margin - 12.5, currentY + 3, { align: 'center' });
+    }
+  } catch (e) {
+    console.warn('Could not add Tracking QR to PDF:', e);
+  }
+
   // --- INFO CLIENTE Y VEHÍCULO ---
-  doc.setDrawColor(200);
-  doc.setLineWidth(0.1);
-  doc.line(margin, currentY, pageWidth - margin, currentY);
-  currentY += 10;
+  autoTable(doc, {
+    startY: currentY + 5,
+    head: [['DATOS DEL CLIENTE', 'DATOS DEL VEHÍCULO']],
+    body: [[
+      {
+        content: `Nombre: ${order.customer?.name || 'Cliente General'}\nTel: ${order.customer?.phone || 'N/A'}\nEmail: ${order.customer?.email || 'N/A'}`,
+        styles: { halign: 'left' }
+      },
+      {
+        content: `Vehículo: ${order.vehicle?.brand || ''} ${order.vehicle?.model || ''} (${order.vehicle?.year || ''})\nPlacas: ${order.vehicle?.license_plate || 'N/A'}\nVIN: ${order.vehicle?.vin || 'N/A'}\nColor: ${order.vehicle?.color || 'N/A'}`,
+        styles: { halign: 'left' }
+      }
+    ]],
+    theme: 'plain',
+    headStyles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', fontSize: 10 },
+    styles: { cellPadding: 5, fontSize: 9, lineColor: [226, 232, 240], lineWidth: 0.1 },
+    margin: { left: margin, right: margin }
+  });
 
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0);
-  doc.text('CLIENTE:', margin, currentY);
-  doc.text('VEHÍCULO:', pageWidth / 2, currentY);
-  
-  currentY += 6;
-  doc.setFont('helvetica', 'normal');
-  doc.text(order.customer?.name || 'Venta de Mostrador', margin, currentY);
-  doc.text(`${order.vehicle?.brand || ''} ${order.vehicle?.model || ''}`, pageWidth / 2, currentY);
-  
-  currentY += 5;
-  if (order.customer?.phone) doc.text(`Tel: ${order.customer.phone}`, margin, currentY);
-  doc.text(`Placa: ${order.vehicle?.license_plate || 'N/A'}`, pageWidth / 2, currentY);
-  
-  currentY += 5;
-  if (order.customer?.email) doc.text(`Email: ${order.customer.email}`, margin, currentY);
-  doc.text(`Color: ${order.vehicle?.color || 'N/A'} | VIN: ${order.vehicle?.vin || 'N/A'}`, pageWidth / 2, currentY);
+  currentY = (doc as any).lastAutoTable.finalY + 5;
 
-  currentY += 15;
+  // --- INSPECCIÓN Y ESTADO ---
+  const inspection = order.inspection || (order.vehicle_inspections && order.vehicle_inspections[0]);
+  const entryDateRaw = order.entry_date || order.created_at;
+  const entryDate = entryDateRaw ? format(new Date(entryDateRaw), "PPP", { locale: es }) : 'N/A';
 
-  // --- DETALLES DE LA ORDEN (FECHAS, ESTADO) ---
-  const entryDate = format(new Date(order.created_at), "PPP", { locale: es });
-  
   autoTable(doc, {
     startY: currentY,
-    head: [['Fecha Ingreso', 'Estado', 'Kilometraje', 'Combustible']],
+    head: [['Fecha Ingreso', 'Estado Actual', 'Kilometraje', 'Nivel Combustible']],
     body: [[
       entryDate,
-      order.status?.toUpperCase() || 'PENDIENTE',
+      order.status?.replace('_', ' ').toUpperCase() || 'RECEPCIÓN',
       order.vehicle?.mileage ? `${order.vehicle.mileage} KM` : 'N/A',
-      order.fuel_level || 'N/A'
+      inspection?.fuel_level === 'full' ? 'Lleno' : 
+      inspection?.fuel_level === 'three_quarters' ? '3/4' :
+      inspection?.fuel_level === 'half' ? '1/2' :
+      inspection?.fuel_level === 'quarter' ? '1/4' :
+      inspection?.fuel_level === 'empty' ? 'Vacío' : 'N/A'
     ]],
     theme: 'grid',
     headStyles: { fillColor: [0, 51, 153], textColor: 255 },
+    styles: { fontSize: 9, halign: 'center' },
     margin: { left: margin, right: margin }
   });
 
   currentY = (doc as any).lastAutoTable.finalY + 10;
 
-  // --- DESCRIPCIÓN DEL SERVICIO ---
-  doc.setFont('helvetica', 'bold');
-  doc.text('SOLICITUD / SÍNTOMAS:', margin, currentY);
-  currentY += 6;
-  doc.setFont('helvetica', 'normal');
-  const splitDesc = doc.splitTextToSize(order.description || 'Sin descripción', pageWidth - (margin * 2));
-  doc.text(splitDesc, margin, currentY);
-  currentY += splitDesc.length * 5 + 10;
+  // --- REVISIÓN DE FLUIDOS Y OBJETOS ---
+  if (inspection) {
+    const fluids = inspection.fluids_check || {};
+    const fluidLabels: Record<string, string> = {
+      aceite_motor: 'Aceite Motor',
+      aceite_transmision: 'Aceite Transm.',
+      liquido_frenos: 'Liq. Frenos',
+      refrigerante: 'Refrigerante',
+      limpia_parabrisas: 'Limpia Parabrisas'
+    };
 
-  // --- SERVICIOS Y REFACCIONES (ITEMS) ---
-  if (order.order_items && order.order_items.length > 0) {
-    doc.setFont('helvetica', 'bold');
-    doc.text('DETALLE DE CARGOS:', margin, currentY);
-    currentY += 5;
-    
+    const checkedFluids = Object.entries(fluids)
+      .filter(([key, val]) => val === true && fluidLabels[key])
+      .map(([key]) => fluidLabels[key])
+      .join(', ');
+
     autoTable(doc, {
       startY: currentY,
-      head: [['Descripción', 'Cant', 'Precio Unit.', 'Total']],
-      body: order.order_items.map((item: any) => [
+      head: [['REVISIÓN DE FLUIDOS (OK)', 'OBJETOS DE VALOR REPORTADOS']],
+      body: [[
+        checkedFluids || 'Ninguno marcado',
+        inspection.valuable_items || 'Sin objetos reportados'
+      ]],
+      theme: 'grid',
+      headStyles: { fillColor: [100, 116, 139], textColor: 255 },
+      styles: { fontSize: 8 },
+      margin: { left: margin, right: margin }
+    });
+    currentY = (doc as any).lastAutoTable.finalY + 10;
+  }
+
+  // --- MOTIVO DE INGRESO ---
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(30, 41, 59);
+  doc.text('MOTIVO DE INGRESO / SÍNTOMAS:', margin, currentY);
+  currentY += 5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  const splitDesc = doc.splitTextToSize(order.description || inspection?.entry_reason || 'Sin detalles', pageWidth - (margin * 2));
+  doc.text(splitDesc, margin, currentY);
+  currentY += splitDesc.length * 5 + 5;
+
+  // --- PROCEDIMIENTOS / DIAGNÓSTICO ---
+  if (inspection?.procedures || order.diagnosis) {
+    doc.setFont('helvetica', 'bold');
+    doc.text('DIAGNÓSTICO / TRABAJOS A REALIZAR:', margin, currentY);
+    currentY += 5;
+    doc.setFont('helvetica', 'normal');
+    const diagText = order.diagnosis || inspection?.procedures || '';
+    const splitDiag = doc.splitTextToSize(diagText, pageWidth - (margin * 2));
+    doc.text(splitDiag, margin, currentY);
+    currentY += splitDiag.length * 5 + 10;
+  }
+
+  // --- ITEMS Y COSTOS ---
+  const items = order.order_items || order.items || [];
+  if (items.length > 0) {
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Descripción del Servicio / Parte', 'Cant', 'P. Unit', 'Total']],
+      body: items.map((item: any) => [
         item.item_name,
         item.quantity,
-        `$${Number(item.unit_price).toFixed(2)}`,
-        `$${Number(item.total_price || item.quantity * item.unit_price).toFixed(2)}`
+        `$${Number(item.unit_price).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`,
+        `$${Number(item.total_price || item.quantity * item.unit_price).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
       ]),
       theme: 'striped',
-      headStyles: { fillColor: [100, 100, 100] },
+      headStyles: { fillColor: [51, 65, 85] },
+      styles: { fontSize: 9 },
+      columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
       margin: { left: margin, right: margin }
     });
     
-    currentY = (doc as any).lastAutoTable.finalY + 10;
+    currentY = (doc as any).lastAutoTable.finalY + 5;
     
-    // Totales
+    // Totales resumidos
+    const subtotal = Number(order.subtotal || 0);
+    const tax = Number(order.tax_amount || 0);
+    const total = Number(order.total_amount || 0);
+
     doc.setFont('helvetica', 'bold');
-    doc.text(`SUBTOTAL: $${Number(order.subtotal || 0).toFixed(2)}`, pageWidth - margin, currentY, { align: 'right' });
-    currentY += 6;
-    doc.text(`IVA: $${Number(order.tax_amount || 0).toFixed(2)}`, pageWidth - margin, currentY, { align: 'right' });
-    currentY += 10;
-    doc.setFontSize(14);
-    doc.text(`TOTAL: $${Number(order.total_amount || 0).toFixed(2)}`, pageWidth - margin, currentY, { align: 'right' });
+    doc.text(`SUBTOTAL: $${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
+    currentY += 5;
+    doc.text(`IVA (16%): $${tax.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
+    currentY += 7;
+    doc.setFontSize(12);
+    doc.setTextColor(0, 51, 153);
+    doc.text(`TOTAL: $${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
+    currentY += 15;
+  } else if (order.estimated_cost || order.total_amount) {
+    const cost = order.total_amount || order.estimated_cost;
+    doc.setFont('helvetica', 'bold');
+    doc.text(`COSTO ESTIMADO: $${Number(cost).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
     currentY += 15;
   }
 
   // --- TÉRMINOS Y CONDICIONES ---
-  if (order.terms_text || company?.terms_text) {
-    const terms = order.terms_text || company?.terms_text;
-    doc.setFontSize(8);
+  const termsText = order.terms_text || company?.terms_text;
+  const termsPdfUrl = order.terms_file_url || company?.terms_pdf_url;
+
+  if (termsText || termsPdfUrl) {
+    if (currentY > pageHeight - 80) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
     doc.text('TÉRMINOS Y CONDICIONES:', margin, currentY);
     currentY += 5;
-    doc.setFont('helvetica', 'normal');
-    const splitTerms = doc.splitTextToSize(terms, pageWidth - (margin * 2));
-    doc.text(splitTerms, margin, currentY);
-    currentY += splitTerms.length * 4 + 10;
+
+    if (termsText) {
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100);
+      const splitTerms = doc.splitTextToSize(termsText, pageWidth - (margin * 2));
+      doc.text(splitTerms, margin, currentY);
+      currentY += splitTerms.length * 3 + 5;
+    }
+
+    if (termsPdfUrl) {
+      const termsQrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(termsPdfUrl)}&size=120x120`;
+      try {
+        const termsQrBase64 = await fetchImageAsBase64(termsQrUrl);
+        if (termsQrBase64) {
+          doc.addImage(termsQrBase64, 'PNG', margin, currentY, 22, 22);
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'italic');
+          doc.text('Escanea para ver T&C en PDF', margin + 25, currentY + 11);
+          currentY += 28;
+        }
+      } catch (e) {
+        console.warn('Could not add Terms QR:', e);
+      }
+    }
   }
 
+  // --- LEYENDA LEGAL FINAL ---
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(150);
+  const legalLegend = 'Al firmar, el cliente acepta el presupuesto y autoriza los trabajos descritos bajo los términos del taller.';
+  doc.text(legalLegend, pageWidth / 2, pageHeight - 50, { align: 'center' });
+
   // --- FIRMAS ---
-  const signatureY = Math.max(currentY, doc.internal.pageSize.height - 60);
-  
-  // Líneas de firma
-  doc.setDrawColor(0);
-  doc.line(margin, signatureY, margin + 60, signatureY);
-  doc.line(pageWidth - margin - 60, signatureY, pageWidth - margin, signatureY);
+  const signatureY = pageHeight - 35;
+  doc.setDrawColor(200);
+  doc.setLineWidth(0.5);
+  doc.line(margin, signatureY, margin + 65, signatureY);
+  doc.line(pageWidth - margin - 65, signatureY, pageWidth - margin, signatureY);
   
   doc.setFontSize(9);
-  doc.text('Firma del Responsable', margin + 30, signatureY + 5, { align: 'center' });
-  doc.text('Firma del Cliente', pageWidth - margin - 30, signatureY + 5, { align: 'center' });
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(71, 85, 105);
+  doc.text('RESPONSABLE TALLER', margin + 32.5, signatureY + 5, { align: 'center' });
+  doc.text('FIRMA DEL CLIENTE', pageWidth - margin - 32.5, signatureY + 5, { align: 'center' });
 
-  // Poner la firma real si existe
-  if (order.customer_signature) {
+  // Firma del cliente
+  const signatureData = order.customer_signature || order.signature;
+  if (signatureData) {
     try {
-      // La firma suele venir como dataURL (base64)
-      doc.addImage(order.customer_signature, 'PNG', pageWidth - margin - 55, signatureY - 35, 50, 30);
+      // Si la firma viene como dataURL o base64, jspdf la maneja bien
+      doc.addImage(signatureData, 'PNG', pageWidth - margin - 60, signatureY - 25, 55, 20);
     } catch (e) {
       console.warn('Error adding signature image:', e);
     }
@@ -175,12 +319,12 @@ export const generateWorkOrderPDF = async ({ order, company }: WorkOrderPDFData)
   const totalPages = doc.internal.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(150);
+    doc.setFontSize(7);
+    doc.setTextColor(180);
     doc.text(
-      `Página ${i} de ${totalPages} - Generado por Eagles AI Assistant`,
+      `Página ${i} de ${totalPages} - Generado por Eagles System - ${company?.company_name || ''}`,
       pageWidth / 2,
-      doc.internal.pageSize.height - 10,
+      pageHeight - 10,
       { align: 'center' }
     );
   }
@@ -193,5 +337,5 @@ export const generateWorkOrderPDF = async ({ order, company }: WorkOrderPDFData)
  */
 export const downloadWorkOrderPDF = async (order: any, company: any) => {
   const doc = await generateWorkOrderPDF({ order, company });
-  doc.save(`Orden_${order.id?.slice(0, 8).toUpperCase()}.pdf`);
+  doc.save(`Orden_${order.order_number || order.id?.slice(0, 8).toUpperCase()}.pdf`);
 };
