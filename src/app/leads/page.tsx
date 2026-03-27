@@ -203,11 +203,6 @@ export default function LeadsPage() {
                 setSelectedLead(lead)
                 setIsPanelOpen(true)
               }}
-              onOpenConvertModal={setConvertModalLead}
-              onOpenOTModal={(lead) => {
-                setOtLead(lead)
-                setShowOTModal(true)
-              }}
               onLeadStatusChanged={handleStatusChanged}
             />
           </div>

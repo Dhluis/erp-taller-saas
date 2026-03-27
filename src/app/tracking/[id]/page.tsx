@@ -129,7 +129,7 @@ export default function TrackingPage() {
   // Helper para asegurar que las URLs sean absolutas (especialmente para Supabase Storage)
   const ensureAbsoluteUrl = (url: string | null | undefined) => {
     if (!url) return null;
-    if (url.startsWith('http')) return url;
+    if (url.startsWith('http') || url.startsWith('data:')) return url;
     
     // Si es un path relativo de Supabase Storage, construir la URL completa
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://igshgleciwknpupbmvhn.supabase.co';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MessageSquare, Sparkles, Loader2, Copy, ExternalLink } from 'lucide-react';
+import { MessageSquare, Sparkles, Loader2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -53,18 +53,7 @@ export function EaglesAIActionButton({
     }
   };
 
-  const handleSendWhatsApp = () => {
-    if (!customerPhone) {
-      toast.error('El cliente no tiene un teléfono registrado');
-      return;
-    }
 
-    // Limpiar el teléfono (solo dejar números)
-    const cleanPhone = customerPhone.replace(/\D/g, '');
-    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(draft)}`;
-    window.open(url, '_blank');
-    setOpen(false);
-  };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(draft);
@@ -94,7 +83,7 @@ export function EaglesAIActionButton({
               Borrador de Actualización (Eagles AI)
             </DialogTitle>
             <DialogDescription className="text-slate-400">
-              Revisa y edita el mensaje generado antes de enviarlo por WhatsApp.
+              Revisa y edita el mensaje generado por la IA, luego cópialo para enviarlo.
             </DialogDescription>
           </DialogHeader>
 
@@ -113,14 +102,7 @@ export function EaglesAIActionButton({
               className="border-slate-700 hover:bg-slate-800 text-slate-300"
             >
               <Copy className="w-4 h-4 mr-2" />
-              Copiar
-            </Button>
-            <Button
-              onClick={handleSendWhatsApp}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Enviar a WhatsApp
+              Copiar mensaje
             </Button>
           </DialogFooter>
         </DialogContent>

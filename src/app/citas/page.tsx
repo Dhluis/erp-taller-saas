@@ -722,7 +722,7 @@ function CitasContent() {
               Nueva Cita
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingAppointment ? 'Editar Cita' : 'Nueva Cita'}

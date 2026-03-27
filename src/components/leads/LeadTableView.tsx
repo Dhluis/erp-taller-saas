@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LeadStatusBadge } from '@/components/leads/LeadStatusBadge'
-import { Search, MessageSquare, UserPlus, Wrench } from 'lucide-react'
+import { Search } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { CRMLead, LeadStatus } from './types'
 
@@ -22,7 +23,7 @@ interface LeadTableViewProps {
 
 function OriginBadge({ lead }: { lead: CRMLead }) {
   const src = (lead.lead_source || '').toLowerCase()
-  if (lead.whatsapp_conversation_id || src === 'whatsapp')
+  if (src === 'whatsapp')
     return <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/50 text-xs">WhatsApp</Badge>
   if (src === 'web' || src === 'landing')
     return <Badge variant="secondary" className="bg-blue-500/20 text-blue-400 border-blue-500/50 text-xs">Web</Badge>
@@ -126,13 +127,12 @@ export function LeadTableView({
               <TableHead className="text-slate-400">Origen</TableHead>
               <TableHead className="text-slate-400">Estado</TableHead>
               <TableHead className="text-slate-400">Valor</TableHead>
-              <TableHead className="text-right text-slate-400">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-10 text-slate-500">
+                <TableCell colSpan={6} className="text-center py-10 text-slate-500">
                   Sin leads que mostrar
                 </TableCell>
               </TableRow>
@@ -178,42 +178,6 @@ export function LeadTableView({
                   </TableCell>
                   <TableCell className="font-medium text-white text-sm">
                     {formatCurrency(lead.estimated_value)}
-                  </TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex justify-end gap-1.5 flex-wrap">
-                      {lead.whatsapp_conversation_id && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-green-500/50 text-green-400 hover:bg-green-500/10 h-7 text-xs"
-                          onClick={() => onSelectLead(lead)}
-                        >
-                          <MessageSquare className="h-3 h-3 mr-1" />
-                          Chat
-                        </Button>
-                      )}
-                      {['qualified', 'proposal', 'negotiation', 'won'].includes(lead.status) && !lead.customer_id && (
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700 text-white h-7 text-xs"
-                          onClick={() => onOpenConvertModal(lead)}
-                        >
-                          <UserPlus className="h-3 w-3 mr-1" />
-                          Convertir
-                        </Button>
-                      )}
-                      {!['won', 'lost'].includes(lead.status) && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10 h-7 text-xs"
-                          onClick={() => onOpenOTModal(lead)}
-                        >
-                          <Wrench className="h-3 w-3 mr-1" />
-                          OT
-                        </Button>
-                      )}
-                    </div>
                   </TableCell>
                 </TableRow>
               ))

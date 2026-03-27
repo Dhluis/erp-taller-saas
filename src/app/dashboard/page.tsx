@@ -1,7 +1,6 @@
 'use client';
 
 import { AppLayout } from '@/components/layout/AppLayout';
-import { QuickActions } from '@/components/dashboard/QuickActions';
 import { EaglesMagicCreate } from '@/components/dashboard/EaglesMagicCreate';
 import { EaglesInsights } from '@/components/dashboard/EaglesInsights';
 import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant';
@@ -103,39 +102,6 @@ function DashboardContent() {
   } | null>(null);
 
   const searchParams = useSearchParams();
-  const [magicCreateData, setMagicCreateData] = useState<any>(null);
-
-  // Efecto para capturar datos de Eagles AI (Orden de Trabajo)
-  useEffect(() => {
-    const openMagicCreate = searchParams.get('openMagicCreate');
-    if (openMagicCreate === 'true') {
-      try {
-        // Prioridad: sessionStorage > searchParams
-        let aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data');
-        if (!aiDataRaw) {
-          aiDataRaw = searchParams.get('aiData');
-        }
-
-        if (aiDataRaw) {
-          const parsedData = JSON.parse(aiDataRaw);
-          console.log('✨ [Dashboard] Datos de Eagles AI:', parsedData);
-          
-          // Solo procesar si es una orden de trabajo (work-order)
-          if (parsedData.action_type === 'work-order' || !parsedData.action_type) {
-            setMagicCreateData(parsedData);
-            toast.info('IA preparó una orden de trabajo');
-            
-            // Limpiar
-            sessionStorage.removeItem('eagles_ai_pending_data');
-            const newPath = window.location.pathname;
-            window.history.replaceState({}, '', newPath);
-          }
-        }
-      } catch (e) {
-        console.error('❌ [Dashboard] Error al procesar datos de AI:', e);
-      }
-    }
-  }, [searchParams]);
 
   // Función para cargar datos de órdenes por estado
   const loadOrdersByStatus = useCallback(async () => {
@@ -944,10 +910,10 @@ function DashboardContent() {
           </div>
         )}
 
-        {/* Gráficos y Acciones Rápidas */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Columna Izquierda: Gráficos (2/3) */}
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+        {/* Gráficos y Estadísticas */}
+        <div className="grid grid-cols-1 gap-4 sm:gap-6">
+          {/* Gráficos */}
+          <div className="space-y-4 sm:space-y-6">
             {/* Gráfico de Ingresos */}
             <div className="bg-gray-800 rounded-lg p-3 sm:p-4 md:p-6 border border-gray-700">
               <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-4">
@@ -1135,12 +1101,7 @@ function DashboardContent() {
             </div>
           </div>
 
-          {/* Columna Derecha: Acciones Rápidas (1/3) - Ocultar para mecánicos */}
-          {!permissions.isMechanic && (
-            <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-              <QuickActions onOrderCreated={handleOrderCreated} initialData={magicCreateData} />
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Plan Usage - Mostrar uso del plan y límites */}

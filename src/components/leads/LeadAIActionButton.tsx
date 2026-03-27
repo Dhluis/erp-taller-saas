@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Sparkles, Send, RefreshCw, X } from 'lucide-react'
+import { Sparkles, RefreshCw } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -77,29 +77,7 @@ export function LeadAIActionButton({
     }
   }
 
-  const handleSendToWhatsApp = () => {
-    if (!draftedMessage) {
-      toast.error('Garantiza tener un mensaje antes de enviar')
-      return
-    }
 
-    if (!manualPhone) {
-      toast.error('Necesitas un número de teléfono válido')
-      return
-    }
-
-    // Clean phone number (remove spaces, dashes, parentheses)
-    const cleanedPhone = manualPhone.replace(/\D/g, '')
-
-    // Encode message for URL
-    const encodedMessage = encodeURIComponent(draftedMessage)
-
-    // Open WhatsApp locally (mobile app or web depending on device)
-    window.open(`https://wa.me/${cleanedPhone}?text=${encodedMessage}`, '_blank')
-    toast.success('Abriendo WhatsApp...')
-    setIsOpen(false)
-    if (onMessageSent) onMessageSent()
-  }
 
   return (
     <>
@@ -133,7 +111,7 @@ export function LeadAIActionButton({
           
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Mensaje con IA</label>
+              <label className="text-sm font-medium text-slate-300">Mensaje generado por IA</label>
               <Textarea
                 value={draftedMessage}
                 onChange={(e) => setDraftedMessage(e.target.value)}
@@ -141,18 +119,8 @@ export function LeadAIActionButton({
                 placeholder="El borrador generado aparecerá aquí..."
               />
               <p className="text-xs text-slate-500 text-right mt-1">
-                Puedes editar el mensaje libremente antes de enviar.
+                Puedes editar el mensaje libremente antes de copiarlo.
               </p>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Número de destino (WhatsApp)</label>
-              <Input
-                value={manualPhone}
-                onChange={(e) => setManualPhone(e.target.value)}
-                placeholder="ej. 5212345678"
-                className="bg-slate-800 border-slate-700 focus:border-green-500"
-              />
             </div>
           </div>
           
@@ -164,25 +132,15 @@ export function LeadAIActionButton({
             >
               Cancelar
             </Button>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={generateMessage}
-                disabled={isGenerating}
-                className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
-              >
-                <RefreshCw className={`mr-2 h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
-                Re-generar
-              </Button>
-              <Button
-                onClick={handleSendToWhatsApp}
-                className="bg-green-600 hover:bg-green-700 text-white"
-                disabled={isGenerating || !draftedMessage || !manualPhone}
-              >
-                <Send className="mr-2 h-4 w-4" />
-                Continuar a WhatsApp
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={generateMessage}
+              disabled={isGenerating}
+              className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
+              Re-generar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

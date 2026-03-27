@@ -2,7 +2,7 @@
 
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { User, DollarSign, GripVertical, MessageSquare, Building2, Clock } from 'lucide-react'
+import { User, DollarSign, GripVertical, Building2, Clock } from 'lucide-react'
 import type { CRMLead, LeadStatus } from './types'
 import { PIPELINE_COLUMNS } from './types'
 
@@ -85,9 +85,6 @@ export function LeadCard({ lead, onClick, isTerminal, onStatusChange }: LeadCard
           {formatDate(lead.created_at)}
         </span>
         <div className="flex items-center gap-2">
-          {lead.whatsapp_conversation_id && (
-            <MessageSquare className="w-3 h-3 text-green-400 flex-shrink-0" />
-          )}
           <span className="text-xs text-slate-500 hidden sm:inline">{sourceLabel}</span>
           <GripVertical className="w-5 h-5 text-slate-500 group-hover:text-blue-400 transition-colors flex-shrink-0" />
         </div>

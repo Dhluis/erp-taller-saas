@@ -1,12 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import {
   X,
   Phone,
   Mail,
   Building2,
-  MessageSquare,
   DollarSign,
   Calendar,
   Edit2,
@@ -14,9 +13,10 @@ import {
   Trash2,
   RotateCcw,
   Trophy,
-  ExternalLink,
   User,
+  Wrench,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -24,7 +24,6 @@ import { Badge } from '@/components/ui/badge'
 import { LeadStatusBadge } from '@/components/leads/LeadStatusBadge'
 import { toast } from 'sonner'
 import type { CRMLead } from './types'
-import Link from 'next/link'
 import { useSession } from '@/lib/context/SessionContext'
 import { LeadAIActionButton } from './LeadAIActionButton'
 
@@ -38,13 +37,6 @@ interface LeadSidePanelProps {
   onLeadDeleted?: (leadId: string) => void
 }
 
-interface WhatsAppMessage {
-  id: string
-  direction: 'inbound' | 'outbound'
-  content: string | null
-  timestamp: string
-  type: string
-}
 
 export function LeadSidePanel({
   lead,
@@ -56,8 +48,6 @@ export function LeadSidePanel({
   onLeadDeleted,
 }: LeadSidePanelProps) {
   const { organizationId } = useSession()
-  const [messages, setMessages] = useState<WhatsAppMessage[]>([])
-  const [messagesLoading, setMessagesLoading] = useState(false)
 
   const [editingNotes, setEditingNotes] = useState(false)
   const [localNotes, setLocalNotes] = useState('')
@@ -88,35 +78,8 @@ export function LeadSidePanel({
       setEditingNotes(false)
       setEditingValue(false)
       setEditingContact(false)
-      setMessages([])
     }
   }, [lead?.id])
-
-  // Cargar mensajes de WhatsApp
-  const loadMessages = useCallback(async () => {
-    if (!lead?.whatsapp_conversation_id) return
-    setMessagesLoading(true)
-    try {
-      const res = await fetch(
-        `/api/whatsapp/conversations/${lead.whatsapp_conversation_id}/messages?limit=5`
-      )
-      if (res.ok) {
-        const data = await res.json()
-        const items = data.data?.messages || data.data || []
-        setMessages(Array.isArray(items) ? items.slice(0, 5) : [])
-      }
-    } catch {
-      // Si falla, no mostrar error — simplemente sin mensajes
-    } finally {
-      setMessagesLoading(false)
-    }
-  }, [lead?.whatsapp_conversation_id])
-
-  useEffect(() => {
-    if (open && lead?.whatsapp_conversation_id) {
-      loadMessages()
-    }
-  }, [open, lead?.whatsapp_conversation_id, loadMessages])
 
   const saveNotes = async () => {
     if (!lead) return
@@ -280,7 +243,7 @@ export function LeadSidePanel({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <LeadStatusBadge status={lead.status} size="sm" />
-              <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">
+              <Badge variant="secondary" className="text-xs border-slate-600 text-slate-400">
                 {sourceLabel}
               </Badge>
             </div>
@@ -541,68 +504,11 @@ export function LeadSidePanel({
             )}
           </div>
 
-          {/* Preview WhatsApp */}
-          {lead.whatsapp_conversation_id && (
-            <div className="p-4 border-b border-slate-800">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-green-400" />
-                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Conversación WhatsApp
-                  </h3>
-                </div>
-                <Link
-                  href="/dashboard/whatsapp/conversaciones"
-                  className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  Ver completa
-                </Link>
-              </div>
-
-              {messagesLoading ? (
-                <div className="flex items-center justify-center py-4">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-400" />
-                </div>
-              ) : messages.length > 0 ? (
-                <div className="space-y-2">
-                  {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[80%] rounded-lg px-3 py-2 text-xs ${
-                          msg.direction === 'outbound'
-                            ? 'bg-cyan-700/60 text-white'
-                            : 'bg-slate-700/60 text-slate-200'
-                        }`}
-                      >
-                        <p className="leading-relaxed">
-                          {msg.content || <span className="text-slate-500 italic">[Multimedia]</span>}
-                        </p>
-                        <p className={`text-xs mt-1 ${msg.direction === 'outbound' ? 'text-cyan-300/70' : 'text-slate-500'}`}>
-                          {formatTime(msg.timestamp)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-slate-600 italic text-center py-3">Sin mensajes recientes</p>
-              )}
-
-              {lead.whatsapp_conversation?.last_message_at && (
-                <p className="text-xs text-slate-600 mt-2 text-center">
-                  Último mensaje: {formatDate(lead.whatsapp_conversation.last_message_at)}
-                </p>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Acciones — sticky footer */}
         <div className="p-4 border-t border-slate-700 flex-shrink-0 space-y-2">
+          {/* AI Follow-up (only for active leads) */}
           {lead.status !== 'won' && lead.status !== 'lost' && (
             <div className="pb-2 border-b border-slate-700/50 mb-2">
               <LeadAIActionButton 
@@ -615,74 +521,74 @@ export function LeadSidePanel({
             </div>
           )}
 
-          {lead.status === 'won' && !lead.customer_id && (
-            <>
-              <Button
-                className="w-full bg-green-600 hover:bg-green-700 text-white"
-                onClick={() => { onOpenConvert?.(lead); onClose() }}
-              >
-                <Trophy className="w-4 h-4 mr-2" />
-                Convertir a Cliente
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
-                onClick={() => { onOpenOT?.(lead); onClose() }}
-              >
-                Crear Orden de Trabajo
-              </Button>
-            </>
+          {/* Winning / Conversion Actions */}
+          {!lead.customer_id && ['qualified', 'proposal', 'negotiation', 'won'].includes(lead.status) && (
+            <Button
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+              onClick={() => { onOpenConvert?.(lead); onClose() }}
+            >
+              <Trophy className="w-4 h-4 mr-2" />
+              {lead.status === 'won' ? 'Convertir a Cliente' : 'Ganar y Convertir'}
+            </Button>
           )}
 
+          {/* Work Order Action (available for all active leads) */}
+          {lead.status !== 'lost' && (
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full border-orange-500/50 text-orange-400 hover:bg-orange-500/10",
+                lead.status === 'won' && lead.customer_id && "border-orange-500/70 bg-orange-500/5"
+              )}
+              onClick={() => { onOpenOT?.(lead); onClose() }}
+            >
+              <Wrench className="w-4 h-4 mr-2" />
+              Crear Orden de Trabajo
+            </Button>
+          )}
+
+          {/* Won Status Indicator */}
           {lead.status === 'won' && lead.customer_id && (
-            <>
-              <div className="flex items-center justify-center gap-2 py-2 bg-green-900/20 rounded-lg border border-green-500/20">
-                <Trophy className="w-4 h-4 text-green-400" />
-                <span className="text-sm text-green-400 font-medium">Ya es cliente</span>
-              </div>
-              <Button
-                variant="outline"
-                className="w-full border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
-                onClick={() => { onOpenOT?.(lead); onClose() }}
-              >
-                Crear Orden de Trabajo
-              </Button>
-            </>
+            <div className="flex items-center justify-center gap-2 py-2 bg-green-900/20 rounded-lg border border-green-500/20">
+              <Trophy className="w-4 h-4 text-green-400" />
+              <span className="text-sm text-green-400 font-medium">Ya es cliente</span>
+            </div>
           )}
 
-          {lead.status === 'lost' && (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1 border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
-                onClick={reactivateLead}
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Reactivar
-              </Button>
+          {/* Lost / Reactivation / Deletion */}
+          <div className="flex gap-2">
+            {lead.status === 'lost' ? (
+              <>
+                <Button
+                  variant="outline"
+                  className="flex-1 border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                  onClick={reactivateLead}
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Reactivar
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="flex-1 text-red-400 hover:bg-red-500/10"
+                  onClick={deleteLead}
+                  disabled={deleting}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {deleting ? 'Eliminando...' : 'Eliminar'}
+                </Button>
+              </>
+            ) : (
               <Button
                 variant="ghost"
-                className="flex-1 text-red-400 hover:bg-red-500/10"
+                className="w-full text-red-400 hover:bg-red-500/10 hover:text-red-300"
                 onClick={deleteLead}
                 disabled={deleting}
               >
                 <Trash2 className="w-4 h-4 mr-2" />
-                {deleting ? 'Eliminando...' : 'Eliminar'}
+                {deleting ? 'Eliminando...' : 'Eliminar lead'}
               </Button>
-            </div>
-          )}
-
-          {lead.status !== 'won' && lead.status !== 'lost' && (
-            <Button
-              variant="ghost"
-              className="w-full text-red-400 hover:bg-red-500/10 hover:text-red-300"
-              onClick={deleteLead}
-              disabled={deleting}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              {deleting ? 'Eliminando...' : 'Eliminar lead'}
-            </Button>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </>

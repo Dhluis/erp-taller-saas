@@ -202,35 +202,39 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
           ) : (
             <>
               {/* Botones de navegación - movidos desde sidebar */}
-              <Link href="/citas" className="flex-shrink-0" title="Citas">
-                <Button
-                  variant={isCitasActive ? "primary" : "outline"}
-                  className={cn(
-                    "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
-                    isCitasActive 
-                      ? "bg-primary text-bg-primary hover:bg-primary-dark" 
-                      : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
-                  )}
-                >
-                  <ModernIcons.Citas size={18} />
-                  <span className="text-sm font-medium hidden md:inline">Citas</span>
-                </Button>
-              </Link>
+              {(permissions.isAdmin || permissions.isAdvisor) && (
+                <Link href="/citas" className="flex-shrink-0" title="Citas">
+                  <Button
+                    variant={isCitasActive ? "primary" : "outline"}
+                    className={cn(
+                      "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
+                      isCitasActive 
+                        ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                        : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
+                    )}
+                  >
+                    <ModernIcons.Citas size={18} />
+                    <span className="text-sm font-medium hidden md:inline">Citas</span>
+                  </Button>
+                </Link>
+              )}
               
-              <Link href="/clientes" className="flex-shrink-0" title="Clientes">
-                <Button
-                  variant={isClientesActive ? "primary" : "outline"}
-                  className={cn(
-                    "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
-                    isClientesActive 
-                      ? "bg-primary text-bg-primary hover:bg-primary-dark" 
-                      : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
-                  )}
-                >
-                  <ModernIcons.Clientes size={18} />
-                  <span className="text-sm font-medium hidden md:inline">Clientes</span>
-                </Button>
-              </Link>
+              {(permissions.isAdmin || permissions.isAdvisor) && (
+                <Link href="/clientes" className="flex-shrink-0" title="Clientes">
+                  <Button
+                    variant={isClientesActive ? "primary" : "outline"}
+                    className={cn(
+                      "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
+                      isClientesActive 
+                        ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                        : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
+                    )}
+                  >
+                    <ModernIcons.Clientes size={18} />
+                    <span className="text-sm font-medium hidden md:inline">Clientes</span>
+                  </Button>
+                </Link>
+              )}
               
               <Link href="/ordenes" className="flex-shrink-0" title="Órdenes">
                 <Button
@@ -247,36 +251,39 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
                 </Button>
               </Link>
               
-              <Link href="/reportes" className="flex-shrink-0" title="Reportes">
-                <Button
-                  variant={isReportesActive ? "primary" : "outline"}
-                  className={cn(
-                    "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
-                    isReportesActive 
-                      ? "bg-primary text-bg-primary hover:bg-primary-dark" 
-                      : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
-                  )}
-                >
-                  <ModernIcons.Reportes size={18} />
-                  <span className="text-sm font-medium hidden md:inline">Reportes</span>
-                </Button>
-              </Link>
+              {(permissions.isAdmin || permissions.isAdvisor) && permissions.canRead('reports') && (
+                <Link href="/reportes" className="flex-shrink-0" title="Reportes">
+                  <Button
+                    variant={isReportesActive ? "primary" : "outline"}
+                    className={cn(
+                      "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
+                      isReportesActive 
+                        ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                        : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
+                    )}
+                  >
+                    <ModernIcons.Reportes size={18} />
+                    <span className="text-sm font-medium hidden md:inline">Reportes</span>
+                  </Button>
+                </Link>
+              )}
               
-              <Link href="/leads" className="flex-shrink-0" title="CRM / Leads">
-                <Button
-                  variant={isLeadsActive ? "primary" : "outline"}
-                  className={cn(
-                    "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
-                    isLeadsActive 
-                      ? "bg-primary text-bg-primary hover:bg-primary-dark" 
-                      : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
-                  )}
-                >
-                  <TrendingUp size={18} className={isLeadsActive ? "text-white" : "text-blue-400"} />
-                  <span className="text-sm font-medium hidden md:inline">CRM</span>
-                </Button>
-              </Link>
-              
+              {(permissions.isAdmin || permissions.isAdvisor) && (
+                <Link href="/leads" className="flex-shrink-0" title="CRM / Leads">
+                  <Button
+                    variant={isLeadsActive ? "primary" : "outline"}
+                    className={cn(
+                      "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
+                      isLeadsActive 
+                        ? "bg-primary text-bg-primary hover:bg-primary-dark" 
+                        : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
+                    )}
+                  >
+                    <TrendingUp size={18} className={isLeadsActive ? "text-white" : "text-blue-400"} />
+                    <span className="text-sm font-medium hidden md:inline">CRM</span>
+                  </Button>
+                </Link>
+              )}
             </>
           )}
           </nav>

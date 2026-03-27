@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { SidebarUserProfile } from "@/components/sidebar-user-profile"
+import { toast } from 'sonner'
+import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal'
 import ModernIcons from '@/components/icons/ModernIcons'
 import {
   ChevronDown,
@@ -35,7 +37,42 @@ export function Sidebar({ className }: SidebarProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>([])
   const { isCollapsed, toggleCollapse } = useSidebar()
   const permissions = usePermissions()
-  const { isLoading: sessionLoading } = useSession()
+  const { isLoading: sessionLoading, organizationId } = useSession()
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [magicCreateData, setMagicCreateData] = useState<any>(null)
+  const searchParams = useSearchParams()
+
+  // Efecto global para capturar datos de Eagles AI de la URL
+  useEffect(() => {
+    const openMagicCreate = searchParams.get('openMagicCreate');
+    if (openMagicCreate === 'true') {
+      try {
+        let aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data');
+        if (!aiDataRaw) {
+          aiDataRaw = searchParams.get('aiData');
+        }
+
+        if (aiDataRaw) {
+          const parsedData = JSON.parse(aiDataRaw);
+          console.log('✨ [Sidebar] Capturado Eagles AI global:', parsedData);
+          
+          if (parsedData.action_type === 'work-order' || !parsedData.action_type) {
+            setMagicCreateData(parsedData);
+            setIsModalOpen(true);
+            toast.info('IA preparó una orden de trabajo');
+            
+            // Limpiar URL y Storage
+            sessionStorage.removeItem('eagles_ai_pending_data');
+            const newPath = window.location.pathname;
+            window.history.replaceState({}, '', newPath);
+          }
+        }
+      } catch (e) {
+        console.error('❌ [Sidebar] Error al procesar datos de AI:', e);
+      }
+    }
+  }, [searchParams]);
+
   // Logo actualizado - EAGLES SYSTEM
   const logoUrl = "/eagles-logo-new.png"
 
@@ -377,7 +414,26 @@ export function Sidebar({ className }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
+        {/* 🔥 Botón Prominente: Nueva Orden de Trabajo */}
+        {permissions.canCreate('work_orders') && !isMechanic && (
+          <div className={cn("mb-6", isCollapsed ? "px-0" : "px-0")}>
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              className={cn(
+                "w-full transition-all duration-300 shadow-lg",
+                "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700",
+                "text-white border-none font-bold",
+                isCollapsed ? "h-12 w-12 p-0 mx-auto rounded-xl flex items-center justify-center" : "h-12 px-4 gap-3 justify-start rounded-xl"
+              )}
+              title={isCollapsed ? "Nueva Orden de Trabajo" : ""}
+            >
+              <Plus className={cn("h-5 w-5", isCollapsed ? "" : "mr-1")} />
+              {!isCollapsed && <span className="text-sm uppercase tracking-wide">Nueva Orden</span>}
+            </Button>
+          </div>
+        )}
+
         {/* Main Navigation */}
         <div className={isCollapsed ? "space-y-3" : "space-y-1"}>
           <Link href="/dashboard">
@@ -535,6 +591,19 @@ export function Sidebar({ className }: SidebarProps) {
       <div className="mt-auto space-y-2">
         <SidebarUserProfile />
       </div>
+
+      {/* Modal Global de Creación de Orden */}
+      <CreateWorkOrderModal
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        onSuccess={() => {
+          setIsModalOpen(false)
+          setMagicCreateData(null)
+          router.refresh()
+        }}
+        initialData={magicCreateData}
+        organizationId={organizationId}
+      />
     </div>
   )
 }
