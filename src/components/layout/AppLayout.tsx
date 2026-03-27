@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode, useState, createContext, useContext } from 'react'
+import { ReactNode, useState, createContext, useContext, Suspense } from 'react'
 import { useTheme } from '@/hooks/useTheme'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
@@ -44,7 +44,9 @@ export function AppLayout({ children, title, breadcrumbs }: AppLayoutProps) {
         <div className="flex h-screen bg-bg-primary">
           {/* Sidebar */}
           <aside>
-            <Sidebar />
+            <Suspense fallback={<div className="w-64 bg-bg-secondary h-full animate-pulse" />}>
+              <Sidebar />
+            </Suspense>
           </aside>
 
           {/* Main Content Area */}
