@@ -1100,8 +1100,6 @@ function DashboardContent() {
               </div>
             </div>
           </div>
-
-          </div>
         </div>
 
         {/* Plan Usage - Mostrar uso del plan y límites */}
