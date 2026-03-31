@@ -201,7 +201,7 @@ Devuelve SIEMPRE un JSON válido con la siguiente estructura:
   "action_type": "appointment",
   "appointment": { 
     "customer": { "name": string, "phone": string, "email": string },
-    "vehicle": { "brand": string, "model": string, "year": number, "plate": string },
+    "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string },
     "details": { "service_type": string, "date": string (ISO YYYY-MM-DD), "time": string (HH:mm), "notes": string, "duration_minutes": number }
   }
 }`;
@@ -212,8 +212,24 @@ Devuelve SIEMPRE un JSON válido con la siguiente estructura:
   "action_type": "work-order",
   "customer": { "name": string, "phone": string, "email": string },
   "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string },
-  "work_order": { "description": string, "budget": number, "notes": string, "deadline": string }
-}`;
+  "work_order": { "description": string, "budget": number, "notes": string, "deadline": string },
+  "inspection": {
+    "fuel_level": "vacio" | "1/4" | "1/2" | "3/4" | "lleno",
+    "fluids": {
+      "aceite_motor": boolean,
+      "aceite_transmision": boolean,
+      "liquido_frenos": boolean,
+      "liquido_embrague": boolean,
+      "refrigerante": boolean,
+      "aceite_hidraulico": boolean,
+      "limpia_parabrisas": boolean
+    }
+  }
+}
+
+Reglas de Inspección:
+- fuel_level: Mapea "vacio", "un cuarto", "mitad", "tres cuartos", "lleno" a las llaves correspondientes: "vacio", "1/4", "1/2", "3/4", "lleno". Por defecto usar null si no se menciona.
+- fluids: Si el usuario dice "revisar [fluido]" o "[fluido] bien" o "[fluido] ok", marca como true.`;
       } else if (context === 'expense') {
         systemPrompt = `Eres el extractor de datos de gastos de Eagles System ERP. Tu tarea es analizar un texto dictado por el gerente del taller y extraer información para registrar un gasto.
 Devuelve SIEMPRE un JSON válido con la siguiente estructura:
@@ -245,7 +261,16 @@ Reglas:
    - Estructura: { "action_type": "appointment", "appointment": { "customer": { "name": string, "phone": string }, "details": { "service_type": string, "date": "YYYY-MM-DD", "time": "HH:mm", "notes": string } } }
 
 3. **work-order** (ORDEN DE TRABAJO): Si el usuario menciona un problema mecánico, ruido, falla, "reparar", "componer", "trajo su carro", "abrir orden", "presupuesto de reparación".
-   - Estructura: { "action_type": "work-order", "customer": { "name": string, "phone": string }, "vehicle": { "brand": string, "model": string, "plate": string }, "work_order": { "description": string, "budget": number } }
+   - Estructura: { 
+       "action_type": "work-order", 
+       "customer": { "name": string, "phone": string, "email": string }, 
+       "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string }, 
+       "work_order": { "description": string, "budget": number },
+       "inspection": {
+         "fuel_level": "vacio" | "1/4" | "1/2" | "3/4" | "lleno",
+         "fluids": { "aceite_motor": boolean, "aceite_transmision": boolean, "liquido_frenos": boolean, "liquido_embrague": boolean, "refrigerante": boolean, "aceite_hidraulico": boolean, "limpia_parabrisas": boolean }
+       }
+     }
 
 4. **expense** (GASTO): Si el usuario menciona "compré", "gasté", "pagué", "ticket", "caja chica", "pizza", "comida", "almuerzo", "papelería".
    - Estructura: { "action_type": "expense", "expense": { "amount": number, "description": string, "category": string, "payment_method": string, "cash_account_hint": string } }
@@ -253,7 +278,8 @@ Reglas:
 ### CRÍTICO:
 - Devuelve SIEMPRE un JSON válido.
 - Si no hay una intención clara, usa "work-order" como respaldo, pero evalúa estrictamente sus palabras.
-- En citas, si no mencionan fecha, asume la fecha de hoy.`;
+- En citas, si no mencionan fecha, asume la fecha de hoy.
+- Para el correo electrónico, búscalo con patrones de "x@y.com".`;
       }
 
       const response = await openai.chat.completions.create({

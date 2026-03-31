@@ -247,7 +247,7 @@ export function CreateQuotationModal({
     if (field === 'quantity' || field === 'unit_price' || field === 'discount_percent' || field === 'tax_percent') {
       item[field] = parseFloat(value) || 0
     } else {
-      item[field] = value
+      ;(item as any)[field] = value
     }
 
     // Recalcular totales del item

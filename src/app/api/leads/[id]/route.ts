@@ -161,6 +161,7 @@ export async function PATCH(
       vehicle_model,
       vehicle_year,
       vehicle_plate,
+      vehicle_color,
       fault_description,
     } = body
 
@@ -182,6 +183,7 @@ export async function PATCH(
     if (vehicle_model !== undefined) updateData.vehicle_model = vehicle_model
     if (vehicle_year !== undefined) updateData.vehicle_year = vehicle_year
     if (vehicle_plate !== undefined) updateData.vehicle_plate = vehicle_plate
+    if (vehicle_color !== undefined) updateData.vehicle_color = vehicle_color
     if (fault_description !== undefined) updateData.fault_description = fault_description
 
     // Validar que no esté vacío

@@ -177,7 +177,14 @@ export async function POST(request: NextRequest) {
       estimated_value,
       lead_source = 'manual',
       assigned_to,
-      notes
+      notes,
+      // Detalle de vehículo
+      vehicle_brand,
+      vehicle_model,
+      vehicle_year,
+      vehicle_plate,
+      vehicle_color,
+      fault_description
     } = body
 
     // Validaciones
@@ -201,7 +208,14 @@ export async function POST(request: NextRequest) {
         lead_source,
         assigned_to,
         notes,
-        status: 'new'
+        status: 'new',
+        // Detalle de vehículo
+        vehicle_brand,
+        vehicle_model,
+        vehicle_year,
+        vehicle_plate,
+        vehicle_color,
+        fault_description
       })
       .select(`
         *
