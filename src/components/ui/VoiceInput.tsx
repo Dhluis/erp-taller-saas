@@ -16,7 +16,7 @@ const AI_VOICE_LIMIT_ERROR = {
   message: 'El dictado por voz con IA es una función Premium. Optimiza tu tiempo convirtiendo voz en texto al instante.',
   feature: 'ai_enabled',
   upgrade_url: '/settings/billing',
-  plan_required: 'premium',
+  plan_required: 'premium' as const,
 };
 
 interface VoiceInputProps {
@@ -65,7 +65,7 @@ export function VoiceInput({
       silenceTimerRef.current = setTimeout(() => {
         console.log('🔇 Silencio detectado, deteniendo...');
         stop();
-      }, 10000); // 10 segundos de tolerancia al silencio
+      }, 60000); // 60 segundos de tolerancia al silencio (antes 10)
     }
   };
 

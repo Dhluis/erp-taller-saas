@@ -60,7 +60,7 @@ export async function getAppointments(filters?: {
     async () => {
       const client = getSupabaseClient()
       
-      let query = client.from('appointments').select('*')
+      let query = (client.from('appointments') as any).select('*')
       
       if (filters) {
         if (filters.status) {
@@ -85,7 +85,6 @@ export async function getAppointments(filters?: {
       
       const { data, error } = await query
         .order('appointment_date', { ascending: true })
-        .order('appointment_date', { ascending: true })
       
       if (error) {
         throw new Error(`Failed to fetch appointments: ${error.message}`)
@@ -108,8 +107,8 @@ export async function getAppointmentStats(organizationId?: string): Promise<Appo
     async () => {
       const client = getSupabaseClient()
       
-      let query = client
-        .from('appointments')
+      let query = (client
+        .from('appointments') as any)
         .select('status, appointment_date')
       
       // ✅ Filtrar por organization_id si se proporciona
@@ -124,17 +123,17 @@ export async function getAppointmentStats(organizationId?: string): Promise<Appo
       }
       
       const total = data?.length || 0
-      const scheduled = data?.filter(a => a.status === 'scheduled').length || 0
-      const confirmed = data?.filter(a => a.status === 'confirmed').length || 0
-      const in_progress = data?.filter(a => a.status === 'in_progress').length || 0
-      const completed = data?.filter(a => a.status === 'completed').length || 0
-      const cancelled = data?.filter(a => a.status === 'cancelled').length || 0
-      const no_show = data?.filter(a => a.status === 'no_show').length || 0
+      const scheduled = data?.filter((a: any) => a.status === 'scheduled').length || 0
+      const confirmed = data?.filter((a: any) => a.status === 'confirmed').length || 0
+      const in_progress = data?.filter((a: any) => a.status === 'in_progress').length || 0
+      const completed = data?.filter((a: any) => a.status === 'completed').length || 0
+      const cancelled = data?.filter((a: any) => a.status === 'cancelled').length || 0
+      const no_show = data?.filter((a: any) => a.status === 'no_show').length || 0
       
       const today = new Date().toISOString().split('T')[0]
-      const todayCount = data?.filter(a => a.appointment_date === today).length || 0
+      const todayCount = data?.filter((a: any) => a.appointment_date === today).length || 0
       
-      const thisWeek = data?.filter(a => {
+      const thisWeek = data?.filter((a: any) => {
         const appointmentDate = new Date(a.appointment_date)
         const now = new Date()
         const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()))
@@ -142,7 +141,7 @@ export async function getAppointmentStats(organizationId?: string): Promise<Appo
         return appointmentDate >= startOfWeek && appointmentDate <= endOfWeek
       }).length || 0
       
-      const thisMonth = data?.filter(a => {
+      const thisMonth = data?.filter((a: any) => {
         const appointmentDate = new Date(a.appointment_date)
         const now = new Date()
         return appointmentDate.getMonth() === now.getMonth() && appointmentDate.getFullYear() === now.getFullYear()
@@ -178,7 +177,6 @@ export async function createAppointment(appointment: CreateAppointment): Promise
       
       console.log('🔍 [createAppointment] Datos recibidos:', appointment)
       
-      // ✅ Crear cita sin appointment_number (esa columna no existe en la tabla)
       const insertData: Record<string, any> = {
           customer_id: appointment.customer_id,
           service_type: appointment.service_type,
@@ -193,31 +191,16 @@ export async function createAppointment(appointment: CreateAppointment): Promise
         insertData.vehicle_id = appointment.vehicle_id
       }
 
-      const { data, error } = await client
-        .from('appointments')
-        .insert(insertData as any)
+      const { data, error } = await (client
+        .from('appointments') as any)
+        .insert(insertData)
         .select()
         .single()
       
-      console.log('📥 [createAppointment] Respuesta de Supabase:', { data, error })
-      
       if (error) {
-        console.error('❌ [createAppointment] Error de Supabase:', error)
-        console.error('❌ [createAppointment] Detalles del error:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        })
         throw new Error(`Failed to create appointment: ${error.message}`)
       }
       
-      if (!data) {
-        console.error('❌ [createAppointment] No se devolvió data de Supabase')
-        throw new Error('No se pudo crear la cita: respuesta vacía del servidor')
-      }
-      
-      console.log('✅ [createAppointment] Cita creada exitosamente:', data.id)
       return data
     },
     {
@@ -235,9 +218,9 @@ export async function updateAppointment(id: string, appointment: UpdateAppointme
     async () => {
       const client = getSupabaseClient()
       
-      const { data, error } = await client
-        .from('appointments')
-        .update(appointment as any)
+      const { data, error } = await (client
+        .from('appointments') as any)
+        .update(appointment)
         .eq('id', id)
         .select()
         .single()
@@ -263,8 +246,8 @@ export async function getAppointmentById(id: string): Promise<Appointment | null
     async () => {
       const client = getSupabaseClient()
       
-      const { data, error } = await client
-        .from('appointments')
+      const { data, error } = await (client
+        .from('appointments') as any)
         .select('*')
         .eq('id', id)
         .single()
@@ -293,12 +276,12 @@ export async function confirmAppointment(id: string): Promise<Appointment> {
     async () => {
       const client = getSupabaseClient()
       
-      const { data, error } = await client
-        .from('appointments')
+      const { data, error } = await (client
+        .from('appointments') as any)
         .update({
           status: 'confirmed',
           updated_at: new Date().toISOString()
-        } as any)
+        })
         .eq('id', id)
         .select()
         .single()
@@ -324,13 +307,13 @@ export async function completeAppointment(id: string, actualDuration?: number): 
     async () => {
       const client = getSupabaseClient()
       
-      const { data, error } = await client
-        .from('appointments')
+      const { data, error } = await (client
+        .from('appointments') as any)
         .update({
           status: 'completed',
           actual_duration: actualDuration,
           updated_at: new Date().toISOString()
-        } as any)
+        })
         .eq('id', id)
         .select()
         .single()
@@ -356,13 +339,13 @@ export async function cancelAppointment(id: string, reason?: string): Promise<Ap
     async () => {
       const client = getSupabaseClient()
       
-      const { data, error } = await client
-        .from('appointments')
+      const { data, error } = await (client
+        .from('appointments') as any)
         .update({
           status: 'cancelled',
           notes: reason ? `${reason}` : undefined,
           updated_at: new Date().toISOString()
-        } as any)
+        })
         .eq('id', id)
         .select()
         .single()
@@ -388,11 +371,10 @@ export async function searchAppointments(searchTerm: string): Promise<Appointmen
     async () => {
       const client = getSupabaseClient()
       
-      const { data, error } = await client
-        .from('appointments')
+      const { data, error } = await (client
+        .from('appointments') as any)
         .select('*')
-        .or(`appointment_number.ilike.%${searchTerm}%,service_type.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`)
-        .order('appointment_date', { ascending: true })
+        .or(`service_type.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`)
         .order('appointment_date', { ascending: true })
       
       if (error) {
@@ -416,8 +398,8 @@ export async function deleteAppointment(id: string): Promise<void> {
     async () => {
       const client = getSupabaseClient()
       
-      const { error } = await client
-        .from('appointments')
+      const { error } = await (client
+        .from('appointments') as any)
         .delete()
         .eq('id', id)
       

@@ -157,7 +157,7 @@ export function WorkOrderDetailsModal({
                     <TooltipTrigger asChild>
                       <Button
                         variant="outline"
-                        size="icon"
+                        size="sm"
                         className="h-9 w-9"
                         onClick={handlePrint}
                         disabled={isPrinting}

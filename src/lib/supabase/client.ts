@@ -5,9 +5,10 @@
  */
 
 import { createBrowserClient } from '@supabase/ssr'
+import type { SupabaseClient as OriginalSupabaseClient } from '@supabase/supabase-js'
 import { Database } from '@/types/supabase-simple'
 
-export type SupabaseClient = ReturnType<typeof createBrowserClient<Database>>
+export type SupabaseClient = OriginalSupabaseClient<Database, 'public'>
 
 let browserClient: SupabaseClient | null = null
 
@@ -47,7 +48,7 @@ export function getSupabaseClient(): SupabaseClient {
           'X-Client-Info': 'erp-taller-saas-browser',
           'X-App-Version': process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
         },
-        fetch: async (url, options = {}) => {
+        fetch: async (url, options: RequestInit = {}) => {
           const controller = new AbortController()
           // Auth (refresh token, etc.) puede tardar más: red lenta o proyecto Supabase en pausa
           const isAuthRequest = typeof url === 'string' && url.includes('/auth/')

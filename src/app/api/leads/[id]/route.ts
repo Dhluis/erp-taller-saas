@@ -23,8 +23,8 @@ export async function GET(
     }
 
     // Obtener organization_id del usuario
-    const { data: userData, error: userError } = await supabase
-      .from('users')
+    const { data: userData, error: userError } = await (supabase
+      .from('users') as any)
       .select('organization_id')
       .eq('auth_user_id', user.id)
       .single()
@@ -40,8 +40,8 @@ export async function GET(
     const { id: leadId } = await params
 
     // Obtener lead
-    const { data: lead, error: leadError } = await supabase
-      .from('leads')
+    const { data: lead, error: leadError } = await (supabase
+      .from('leads') as any)
       .select(`
         *,
         customer:customers!leads_customer_id_fkey(id, name, phone, email),
@@ -112,8 +112,8 @@ export async function PATCH(
     }
 
     // Obtener organization_id del usuario
-    const { data: userData, error: userError } = await supabase
-      .from('users')
+    const { data: userData, error: userError } = await (supabase
+      .from('users') as any)
       .select('organization_id')
       .eq('auth_user_id', user.id)
       .single()
@@ -129,8 +129,8 @@ export async function PATCH(
     const { id: leadId } = await params
 
     // Verificar que el lead existe y pertenece a la organización
-    const { data: existingLead, error: checkError } = await supabase
-      .from('leads')
+    const { data: existingLead, error: checkError } = await (supabase
+      .from('leads') as any)
       .select('id, status, whatsapp_conversation_id')
       .eq('id', leadId)
       .eq('organization_id', organizationId)
@@ -202,8 +202,8 @@ export async function PATCH(
     }
 
     // Actualizar lead
-    const { data: lead, error: updateError } = await supabase
-      .from('leads')
+    const { data: lead, error: updateError } = await (supabase
+      .from('leads') as any)
       .update(updateData)
       .eq('id', leadId)
       .eq('organization_id', organizationId)
@@ -223,14 +223,14 @@ export async function PATCH(
     }
 
     // Si cambió el status, actualizar conversación de WhatsApp
-    if (status && existingLead.whatsapp_conversation_id) {
-      await supabase
-        .from('whatsapp_conversations')
+    if (status && (existingLead as any)?.whatsapp_conversation_id) {
+      await (supabase
+        .from('whatsapp_conversations') as any)
         .update({
           lead_status: status,
           lead_updated_at: new Date().toISOString()
         })
-        .eq('id', existingLead.whatsapp_conversation_id)
+        .eq('id', (existingLead as any).whatsapp_conversation_id)
     }
 
     console.log('[Leads API] Lead actualizado:', leadId)
@@ -271,8 +271,8 @@ export async function DELETE(
     }
 
     // Obtener organization_id del usuario
-    const { data: userData, error: userError } = await supabase
-      .from('users')
+    const { data: userData, error: userError } = await (supabase
+      .from('users') as any)
       .select('organization_id')
       .eq('auth_user_id', user.id)
       .single()
@@ -288,8 +288,8 @@ export async function DELETE(
     const { id: leadId } = await params
 
     // Verificar que el lead existe
-    const { data: existingLead, error: checkError } = await supabase
-      .from('leads')
+    const { data: existingLead, error: checkError } = await (supabase
+      .from('leads') as any)
       .select('id, status, whatsapp_conversation_id')
       .eq('id', leadId)
       .eq('organization_id', organizationId)
@@ -303,7 +303,7 @@ export async function DELETE(
     }
 
     // No permitir eliminar leads ganados/convertidos
-    if (existingLead.status === 'won') {
+    if ((existingLead as any)?.status === 'won') {
       return NextResponse.json(
         { error: 'No se puede eliminar un lead ganado. Cámbialo a perdido primero.' },
         { status: 400 }
@@ -311,21 +311,21 @@ export async function DELETE(
     }
 
     // Actualizar conversación si existe
-    if (existingLead.whatsapp_conversation_id) {
-      await supabase
-        .from('whatsapp_conversations')
+    if ((existingLead as any)?.whatsapp_conversation_id) {
+      await (supabase
+        .from('whatsapp_conversations') as any)
         .update({
           is_lead: false,
           lead_id: null,
           lead_status: null,
           lead_updated_at: null
         })
-        .eq('id', existingLead.whatsapp_conversation_id)
+        .eq('id', (existingLead as any).whatsapp_conversation_id)
     }
 
     // Eliminar lead
-    const { error: deleteError } = await supabase
-      .from('leads')
+    const { error: deleteError } = await (supabase
+      .from('leads') as any)
       .delete()
       .eq('id', leadId)
       .eq('organization_id', organizationId)
@@ -353,4 +353,3 @@ export async function DELETE(
     )
   }
 }
-

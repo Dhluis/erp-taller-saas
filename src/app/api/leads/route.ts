@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Obtener organization_id del usuario
-    const { data: userData, error: userError } = await supabase
-      .from('users')
+    const { data: userData, error: userError } = await (supabase
+      .from('users') as any)
       .select('organization_id')
       .eq('auth_user_id', user.id)
       .single()
@@ -57,8 +57,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
 
     // Construir query
-    let query = supabase
-      .from('leads')
+    let query = (supabase
+      .from('leads') as any)
       .select(`
         *,
         customer:customers!leads_customer_id_fkey(id, name),
@@ -152,8 +152,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtener organization_id del usuario
-    const { data: userData, error: userError } = await supabase
-      .from('users')
+    const { data: userData, error: userError } = await (supabase
+      .from('users') as any)
       .select('organization_id')
       .eq('auth_user_id', user.id)
       .single()
@@ -189,8 +189,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear lead
-    const { data: lead, error: createError } = await supabase
-      .from('leads')
+    const { data: lead, error: createError } = await (supabase
+      .from('leads') as any)
       .insert({
         organization_id: organizationId,
         name,
@@ -225,7 +225,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('[Leads API] Lead creado exitosamente:', lead.id)
+    console.log('[Leads API] Lead creado exitosamente:', (lead as any)?.id)
 
     return NextResponse.json({
       success: true,
@@ -241,4 +241,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

@@ -75,10 +75,10 @@ interface QuotationItem {
 interface Quotation {
   id?: string
   customer_id: string
-  vehicle_id: string
-  valid_until: string
-  terms_and_conditions: string
-  notes: string
+  vehicle_id?: string
+  valid_until: string | null
+  terms_and_conditions: string | null
+  notes: string | null
   status: string
   quotation_items?: QuotationItem[]
 }

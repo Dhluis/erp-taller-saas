@@ -21,7 +21,7 @@ interface LeadAIActionButtonProps {
   onMessageSent?: () => void
   className?: string
   variant?: 'primary' | 'outline' | 'ghost' | 'secondary'
-  size?: 'default' | 'sm' | 'lg' | 'icon'
+  size?: 'sm' | 'md' | 'lg'
 }
 
 export function LeadAIActionButton({ 
@@ -31,7 +31,7 @@ export function LeadAIActionButton({
   onMessageSent,
   className,
   variant = 'outline',
-  size = 'default'
+  size = 'md'
 }: LeadAIActionButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)

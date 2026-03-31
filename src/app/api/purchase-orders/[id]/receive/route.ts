@@ -34,8 +34,8 @@ export async function POST(
     
     // 2. Get organization_id
     const supabaseAdmin = getSupabaseServiceClient();
-    const { data: userProfile } = await supabaseAdmin
-      .from('users')
+    const { data: userProfile } = await (supabaseAdmin
+      .from('users') as any)
       .select('organization_id, id')
       .eq('auth_user_id', user.id)
       .single();
@@ -59,8 +59,8 @@ export async function POST(
     console.log('📦 [Receive] Order ID:', orderId);
     
     // 4. Verificar que la orden existe y pertenece a la organización
-    const { data: order, error: orderError } = await supabaseAdmin
-      .from('purchase_orders')
+    const { data: order, error: orderError } = await (supabaseAdmin
+      .from('purchase_orders') as any)
       .select('id, order_number, status, organization_id')
       .eq('id', orderId)
       .eq('organization_id', organizationId)
@@ -75,7 +75,7 @@ export async function POST(
     }
     
     // 5. Validar que la orden no esté cancelada o ya recibida
-    if (order.status === 'cancelled') {
+    if ((order as any).status === 'cancelled') {
       return NextResponse.json({ 
         success: false,
         error: 'No se puede recibir una orden cancelada',
@@ -83,7 +83,7 @@ export async function POST(
       }, { status: 400 });
     }
     
-    if (order.status === 'received') {
+    if ((order as any).status === 'received') {
       return NextResponse.json({ 
         success: false,
         error: 'Esta orden ya fue recibida completamente',
@@ -109,8 +109,8 @@ export async function POST(
         purchase_order_id: orderId
       });
       
-      const { data: orderItem, error: itemError } = await supabaseAdmin
-        .from('purchase_order_items')
+      const { data: orderItem, error: itemError } = await (supabaseAdmin
+        .from('purchase_order_items') as any)
         .select('id, quantity, quantity_received, unit_cost')
         .eq('id', item.id)
         .eq('purchase_order_id', orderId)
@@ -150,8 +150,8 @@ export async function POST(
       }
       
       // 6c. Obtener stock ANTES de actualizar
-      const { data: product } = await supabaseAdmin
-        .from('inventory')
+      const { data: product } = await (supabaseAdmin
+        .from('inventory') as any)
         .select('current_stock')
         .eq('id', item.product_id)
         .single();
@@ -160,8 +160,8 @@ export async function POST(
       const previousStock = productData?.current_stock || 0;
       
       // 6d. Actualizar quantity_received en purchase_order_items
-      const { error: updateError } = await supabaseAdmin
-        .from('purchase_order_items')
+      const { error: updateError } = await (supabaseAdmin
+        .from('purchase_order_items') as any)
         .update({ 
           quantity_received: newTotalReceived 
         })
@@ -173,7 +173,7 @@ export async function POST(
       }
       
       // 6e. Incrementar stock usando la función SQL
-      const { error: stockError } = await supabaseAdmin
+      const { error: stockError } = await (supabaseAdmin as any)
         .rpc('increment_product_stock', {
           p_product_id: item.product_id,
           p_quantity: item.quantity_received
@@ -189,8 +189,8 @@ export async function POST(
       const newStock = previousStock + item.quantity_received;
       
       // 6f. Crear inventory_movement
-      const { error: movementError } = await supabaseAdmin
-        .from('inventory_movements')
+      const { error: movementError } = await (supabaseAdmin
+        .from('inventory_movements') as any)
         .insert({
           organization_id: organizationId,
           product_id: item.product_id,
@@ -228,8 +228,8 @@ export async function POST(
     //    el status de la orden si todos los items están completamente recibidos
     
     // 8. Obtener estado actualizado de la orden
-    const { data: updatedOrder } = await supabaseAdmin
-      .from('purchase_orders')
+    const { data: updatedOrder } = await (supabaseAdmin
+      .from('purchase_orders') as any)
       .select('id, order_number, status')
       .eq('id', orderId)
       .single();

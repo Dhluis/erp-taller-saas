@@ -39,8 +39,9 @@ export interface Quotation {
   discount?: number
   total_amount: number
   valid_until: string | null
-  description?: string
-  notes?: string
+  description?: string | null
+  notes?: string | null
+  terms_and_conditions?: string | null
   created_at: string
   updated_at: string
   organization_id: string
@@ -69,6 +70,7 @@ interface UseQuotationsReturn {
   // Data
   quotations: Quotation[]
   loading: boolean
+  setLoading: (loading: boolean) => void
   error: string | null
   
   // Pagination
@@ -228,15 +230,13 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
       )
 
       if (result.success && result.data) {
-        // ✅ FIX: Extraer items del objeto paginado
-        // safeFetch devuelve: { data: { success: true, data: { items: [], pagination: {} } } }
-        // O directamente: { data: { items: [], pagination: {} } }
-        const responseData = result.data?.data || result.data
-        const items = Array.isArray(responseData?.items) 
-          ? responseData.items 
-          : (Array.isArray(responseData) ? responseData : [])
+        // safeFetch devuelve APIResponse<PaginatedResponse<Quotation>>
+        // result.data es PaginatedResponse<Quotation>
+        // PaginatedResponse<T> tiene una propiedad data que contiene items y pagination
+        const paginatedData = result.data?.data;
+        const items = Array.isArray(paginatedData?.items) ? paginatedData.items : [];
         
-        const paginationData = responseData?.pagination || {
+        const paginationData = paginatedData?.pagination || {
           page: page,
           pageSize: pageSize,
           total: items.length,
@@ -263,8 +263,8 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
           responseStructure: {
             hasData: !!result.data,
             hasNestedData: !!result.data?.data,
-            hasItems: !!responseData?.items,
-            isArray: Array.isArray(responseData)
+            hasItems: !!paginatedData?.items,
+            isArray: Array.isArray(paginatedData)
           }
         })
       } else {
@@ -507,6 +507,7 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
   return {
     quotations: safeQuotations, // SIEMPRE es un array, NUNCA falla
     loading,
+    setLoading,
     error,
     pagination,
     goToPage,

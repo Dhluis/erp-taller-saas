@@ -1,17 +1,13 @@
-/**
- * Cliente Supabase para Servidor
- * Solo para uso en Server Components y API routes
- */
-
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient as createSupabaseSSRClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies'
 import type { NextRequest } from 'next/server'
 import { getConfig } from '../core/config'
 import { ConfigurationError, logError } from '../core/errors'
 import { Database } from '@/types/supabase-simple'
 
-export type SupabaseServerClient = ReturnType<typeof createServerClient<Database>>
+export type SupabaseServerClient = SupabaseClient<Database, 'public'>
 
 let serverClient: SupabaseServerClient | null = null
 
@@ -27,9 +23,9 @@ export async function getSupabaseServerClient(): Promise<SupabaseServerClient> {
     const config = getConfig()
     const cookieStore = await cookies()
     
-        serverClient = createServerClient<Database>(
-          config.NEXT_PUBLIC_SUPABASE_URL,
-          config.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    serverClient = createSupabaseSSRClient<Database>(
+      config.NEXT_PUBLIC_SUPABASE_URL,
+      config.NEXT_PUBLIC_SUPABASE_ANON_KEY,
           {
         cookies: {
           get(name: string) {
@@ -75,9 +71,9 @@ export function getSupabaseServiceClient(): SupabaseServerClient {
     `)
   }
 
-    return createServerClient<Database>(
-      config.NEXT_PUBLIC_SUPABASE_URL,
-      config.SUPABASE_SERVICE_ROLE_KEY,
+  return createSupabaseSSRClient<Database>(
+    config.NEXT_PUBLIC_SUPABASE_URL,
+    config.SUPABASE_SERVICE_ROLE_KEY,
       {
         cookies: {
           get() {
@@ -128,7 +124,7 @@ export function createClientFromRequest(request: NextRequest): SupabaseServerCli
     })
   }
   
-  return createServerClient<Database>(
+  return createSupabaseSSRClient<Database>(
     config.NEXT_PUBLIC_SUPABASE_URL,
     config.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {

@@ -19,7 +19,7 @@ const MAGIC_CREATE_LIMIT_ERROR = {
   message: 'Eagles AI Magic Create es una función Premium. Captura órdenes, citas e inventario instantáneamente con el poder de la Inteligencia Artificial.',
   feature: 'ai_enabled',
   upgrade_url: '/settings/billing',
-  plan_required: 'premium',
+  plan_required: 'premium' as const,
 };
 
 export function FloatingAIAssistant() {
