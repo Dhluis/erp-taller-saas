@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
-import { Button } from '@/components/ui/button';
+import { Button, IconButton } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -326,33 +326,31 @@ export default function CuentasEfectivoPage() {
                     <td className="p-4 font-medium text-text-primary">{formatMoney(Number(acc.current_balance))}</td>
                     <td className="p-4">
                       <div className="flex items-center justify-end gap-1">
-                        <Button
+                        <IconButton
                           variant="ghost"
-                          size="icon"
+                          size="md"
                           title="Ingresar"
                           onClick={() => {
                             setSelectedAccount(acc);
                             setMoveForm({ movement_type: 'deposit', amount: '', notes: '' });
                             setMoveOpen(true);
                           }}
-                        >
-                          <ArrowDownCircle className="h-5 w-5 text-green-600" />
-                        </Button>
-                        <Button
+                          icon={<ArrowUpCircle className="h-5 w-5 text-green-600" />}
+                        />
+                        <IconButton
                           variant="ghost"
-                          size="icon"
+                          size="md"
                           title="Retirar"
                           onClick={() => {
                             setSelectedAccount(acc);
                             setMoveForm({ movement_type: 'withdrawal', amount: '', notes: '' });
                             setMoveOpen(true);
                           }}
-                        >
-                          <ArrowUpCircle className="h-5 w-5 text-red-600" />
-                        </Button>
-                        <Button
+                          icon={<ArrowDownCircle className="h-5 w-5 text-red-600" />}
+                        />
+                        <IconButton
                           variant="ghost"
-                          size="icon"
+                          size="md"
                           title="Editar"
                           onClick={() => {
                             setSelectedAccount(acc);
@@ -364,9 +362,8 @@ export default function CuentasEfectivoPage() {
                             });
                             setEditOpen(true);
                           }}
-                        >
-                          <Pencil className="h-5 w-5 text-text-secondary" />
-                        </Button>
+                          icon={<Pencil className="h-5 w-5 text-text-secondary" />}
+                        />
                       </div>
                     </td>
                   </tr>
