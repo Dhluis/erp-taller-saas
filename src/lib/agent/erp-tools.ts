@@ -55,8 +55,24 @@ export interface ERPSearchResult {
 export async function erpSearch(organizationId: string, query: string): Promise<ERPSearchResult> {
   const supabase = getSupabaseServiceClient()
   const q = query.trim()
-  const words = q.split(/\s+/).filter(w => w.length > 0)
-  const like = `%${q}%`
+  let rawWords = q.split(/\s+/).filter(w => w.length > 0)
+  
+  const stopWords = new Set(['cliente', 'buscar', 'encuentra', 'auto', 'vehiculo', 'vehículo', 'placa', 'orden', 'factura', 'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'a', 'para', 'con', 'por', 'favor'])
+  let filteredWords = rawWords.filter(w => !stopWords.has(w.toLowerCase()))
+  
+  // Usar las palabras filtradas, a menos que se hayan filtrado todas
+  let words = filteredWords.length > 0 ? filteredWords : rawWords
+
+  // Convertir vocales a comodín '_' para coincidir con y sin tildes en PostgreSQL sin "unaccent"
+  const fuzzyWords = words.map(w =>
+    w.replace(/[aAáÁäÄ]/g, '_')
+     .replace(/[eEéÉëË]/g, '_')
+     .replace(/[iIíÍïÏ]/g, '_')
+     .replace(/[oOóÓöÖ]/g, '_')
+     .replace(/[uUúÚüÜ]/g, '_')
+  )
+
+  const like = `%${fuzzyWords.join('%')}%` // Para búsquedas generales combinadas si es necesario
 
   const result: ERPSearchResult = {
     customers: [],
@@ -77,7 +93,7 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     .eq('organization_id', organizationId)
     
   // Aplicar filtros por cada palabra para que sea "fuzzy"
-  words.forEach(word => {
+  fuzzyWords.forEach(word => {
     const w = `%${word}%`
     customerQuery = customerQuery.or(`name.ilike.${w},email.ilike.${w},phone.ilike.${w}`)
   })
@@ -101,7 +117,7 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     .select('id, brand, model, year, license_plate, customer:customers(id, name)')
     .eq('organization_id', organizationId)
 
-  words.forEach(word => {
+  fuzzyWords.forEach(word => {
     const w = `%${word}%`
     vehicleQuery = vehicleQuery.or(`brand.ilike.${w},model.ilike.${w},license_plate.ilike.${w}`)
   })
@@ -126,7 +142,7 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     .select('id')
     .eq('organization_id', organizationId)
     
-  words.forEach(word => {
+  fuzzyWords.forEach(word => {
     const w = `%${word}%`
     matchingCustomersQuery = matchingCustomersQuery.or(`name.ilike.${w},email.ilike.${w},phone.ilike.${w}`)
   })
@@ -138,7 +154,7 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     .select('id')
     .eq('organization_id', organizationId)
 
-  words.forEach(word => {
+  fuzzyWords.forEach(word => {
     const w = `%${word}%`
     matchingVehiclesQuery = matchingVehiclesQuery.or(`brand.ilike.${w},model.ilike.${w},license_plate.ilike.${w}`)
   })
@@ -165,7 +181,7 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     }
   } else {
     // Si no hay clientes o vehículos específicos, buscar en descripción o ID de orden
-    words.forEach(word => {
+    fuzzyWords.forEach(word => {
       const w = `%${word}%`
       ordersQuery = ordersQuery.or(`description.ilike.${w},id.ilike.${w}`)
     })
@@ -193,7 +209,7 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     .select('id, name, sku, quantity, min_quantity, unit_price, category:inventory_categories(name)')
     .eq('organization_id', organizationId)
 
-  words.forEach(word => {
+  fuzzyWords.forEach(word => {
     const w = `%${word}%`
     inventoryQuery = inventoryQuery.or(`name.ilike.${w},sku.ilike.${w},description.ilike.${w}`)
   })
