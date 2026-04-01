@@ -1,6 +1,5 @@
-'use client';
-
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 
 export function usePWAInstall() {
   const [installPrompt, setInstallPrompt] = useState<any>(null);
@@ -21,6 +20,21 @@ export function usePWAInstall() {
       // Guardar el evento para dispararlo luego
       setInstallPrompt(e);
       setIsInstallable(true);
+      
+      // ✅ Disparar notificación Sonner invitando a instalar
+      // Solo si no estamos ya en modo standalone y el usuario está en el sitio
+      if (!isStandaloneMode) {
+        toast('🚀 ¡Instala Eagles ERP!', {
+          description: 'Accede más rápido y recibe notificaciones instalando la app.',
+          action: {
+            label: 'Instalar',
+            onClick: () => {
+              e.prompt();
+            }
+          },
+          duration: 10000,
+        });
+      }
     };
 
     window.addEventListener('beforeinstallprompt', handler);

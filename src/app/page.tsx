@@ -36,26 +36,29 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen bg-white">
       {/* Header */}
-      <header className="border-b border-gray-200 bg-white/95 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Image
-              src="/eagles-logo-new.png"
-              alt="EAGLES SYSTEM"
-              width={120}
-              height={48}
-              className="h-10 w-auto object-contain"
-              priority
-            />
+            <div className="relative group">
+              <div className="absolute -inset-2 bg-cyan-500/10 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Image
+                src="/eagles-logo-new.png"
+                alt="EAGLES SYSTEM"
+                width={160}
+                height={64}
+                className="h-10 w-auto object-contain relative"
+                priority
+              />
+            </div>
           </div>
           <div className="flex items-center space-x-4">
             <Link href="/auth/login">
-              <Button variant="ghost" className="text-gray-700 hover:text-gray-900">
+              <Button variant="ghost" className="text-slate-300 hover:text-white hover:bg-slate-800">
                 Iniciar Sesión
               </Button>
             </Link>
             <Link href="/auth/register">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold shadow-lg shadow-cyan-500/20">
                 Empieza gratis hoy
               </Button>
             </Link>

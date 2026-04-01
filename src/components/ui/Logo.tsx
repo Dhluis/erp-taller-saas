@@ -20,11 +20,11 @@ export function Logo({ size = 'md', variant = 'default', className }: LogoProps)
   return (
     <div className={cn('flex items-center justify-center', sizeClasses[size], className)}>
       <Image
-        src="/eagles-logo-square.png"
+        src="/eagles-logo-new.png"
         alt="EAGLES Logo"
-        width={64}
+        width={160}
         height={64}
-        className="w-full h-full object-contain"
+        className="w-full h-auto object-contain"
         priority
       />
     </div>
