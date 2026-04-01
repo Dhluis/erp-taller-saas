@@ -281,8 +281,8 @@ Debes devolver un objeto con una propiedad "insights" que sea un array de 3 obje
 - actionLink: La ruta interna del dashboard para resolver el insight.
 
 Rutas válidas para actionLink:
-- Si es de inventario/stock: "/inventarios/productos"
-- Si es de órdenes de trabajo/carga: "/ordenes-trabajo"
+- Si es de inventario/stock: "/inventarios"
+- Si es de órdenes de trabajo/carga: "/ordenes"
 - Si es general: "/dashboard"
 
 Ejemplo de respuesta:
@@ -293,7 +293,7 @@ Ejemplo de respuesta:
       "description": "Tienes 3 productos con menos de 5 unidades.",
       "severity": "HIGH",
       "actionLabel": "GESTIONAR STOCK",
-      "actionLink": "/inventarios/productos"
+      "actionLink": "/inventarios"
     }
   ]
 }` 
