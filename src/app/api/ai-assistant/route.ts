@@ -214,7 +214,7 @@ Devuelve SIEMPRE un JSON válido con la siguiente estructura:
   "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string },
   "work_order": { "description": string, "budget": number, "notes": string, "deadline": string },
   "inspection": {
-    "fuel_level": "vacio" | "1/4" | "1/2" | "3/4" | "lleno",
+    "fuel_level": "empty" | "1/4" | "half" | "3/4" | "full",
     "fluids": {
       "aceite_motor": boolean,
       "aceite_transmision": boolean,
@@ -228,8 +228,8 @@ Devuelve SIEMPRE un JSON válido con la siguiente estructura:
 }
 
 Reglas de Inspección:
-- fuel_level: Mapea "vacio", "un cuarto", "mitad", "tres cuartos", "lleno" a las llaves correspondientes: "vacio", "1/4", "1/2", "3/4", "lleno". Por defecto usar null si no se menciona.
-- fluids: Si el usuario dice "revisar [fluido]" o "[fluido] bien" o "[fluido] ok", marca como true.`;
+- fuel_level: Mapea "vacio" -> "empty", "un cuarto" -> "1/4", "mitad" -> "half", "tres cuartos" -> "3/4", "lleno" -> "full". Por defecto usar null si no se menciona.
+- fluids: Si el usuario dice "revisar [fluido]" o "[fluido] bien" o "[fluido] ok", marca como true. Si dice "todos los fluidos están bien", pon todos en true.`;
       } else if (context === 'expense') {
         systemPrompt = `Eres el extractor de datos de gastos de Eagles System ERP. Tu tarea es analizar un texto dictado por el gerente del taller y extraer información para registrar un gasto.
 Devuelve SIEMPRE un JSON válido con la siguiente estructura:
@@ -267,7 +267,7 @@ Reglas:
        "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string }, 
        "work_order": { "description": string, "budget": number },
        "inspection": {
-         "fuel_level": "vacio" | "1/4" | "1/2" | "3/4" | "lleno",
+         "fuel_level": "empty" | "1/4" | "half" | "3/4" | "full",
          "fluids": { "aceite_motor": boolean, "aceite_transmision": boolean, "liquido_frenos": boolean, "liquido_embrague": boolean, "refrigerante": boolean, "aceite_hidraulico": boolean, "limpia_parabrisas": boolean }
        }
      }
@@ -277,6 +277,8 @@ Reglas:
 
 ### CRÍTICO:
 - Devuelve SIEMPRE un JSON válido.
+- **Nivel de combustible**: Mapea "vacio" -> "empty", "un cuarto" -> "1/4", "mitad" -> "half", "tres cuartos" -> "3/4", "lleno" -> "full".
+- **Fluidos**: Si dice "todos los fluidos bien", marca las 7 claves de `fluids` como true.
 - Si no hay una intención clara, usa "work-order" como respaldo, pero evalúa estrictamente sus palabras.
 - En citas, si no mencionan fecha, asume la fecha de hoy.
 - Para el correo electrónico, búscalo con patrones de "x@y.com".`;
