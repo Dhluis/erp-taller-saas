@@ -56,7 +56,8 @@ export async function erpSearch(organizationId: string, query: string): Promise<
   const supabase = getSupabaseServiceClient()
   const q = query.trim()
   const words = q.split(/\s+/).filter(w => w.length > 0)
-  
+  const like = `%${q}%`
+
   const result: ERPSearchResult = {
     customers: [],
     orders: [],
@@ -120,19 +121,29 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     })
   })
 
-  const { data: matchingCustomersRaw } = await supabase
+  let matchingCustomersQuery = supabase
     .from('customers')
     .select('id')
     .eq('organization_id', organizationId)
-    .or(`name.ilike.${like},email.ilike.${like},phone.ilike.${like}`)
-    .limit(10)
+    
+  words.forEach(word => {
+    const w = `%${word}%`
+    matchingCustomersQuery = matchingCustomersQuery.or(`name.ilike.${w},email.ilike.${w},phone.ilike.${w}`)
+  })
+  
+  const { data: matchingCustomersRaw } = await matchingCustomersQuery.limit(10)
 
-  const { data: matchingVehiclesRaw } = await supabase
+  let matchingVehiclesQuery = supabase
     .from('vehicles')
     .select('id')
     .eq('organization_id', organizationId)
-    .or(`brand.ilike.${like},model.ilike.${like},license_plate.ilike.${like}`)
-    .limit(10)
+
+  words.forEach(word => {
+    const w = `%${word}%`
+    matchingVehiclesQuery = matchingVehiclesQuery.or(`brand.ilike.${w},model.ilike.${w},license_plate.ilike.${w}`)
+  })
+
+  const { data: matchingVehiclesRaw } = await matchingVehiclesQuery.limit(10)
 
   const customerIds = ((matchingCustomersRaw || []) as any[]).map((c) => c.id)
   const vehicleIds = ((matchingVehiclesRaw || []) as any[]).map((v) => v.id)
@@ -153,7 +164,11 @@ export async function erpSearch(organizationId: string, query: string): Promise<
       ordersQuery = ordersQuery.in('vehicle_id', vehicleIds)
     }
   } else {
-    ordersQuery = ordersQuery.or(`description.ilike.${like},id.ilike.${like}`)
+    // Si no hay clientes o vehículos específicos, buscar en descripción o ID de orden
+    words.forEach(word => {
+      const w = `%${word}%`
+      ordersQuery = ordersQuery.or(`description.ilike.${w},id.ilike.${w}`)
+    })
   }
 
   const { data: ordersRaw } = await ordersQuery
@@ -173,13 +188,17 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     })
   })
 
-  // Inventario — columnas reales: quantity, min_quantity, unit_price
-  const { data: inventoryRaw } = await supabase
+  let inventoryQuery = supabase
     .from('inventory')
     .select('id, name, sku, quantity, min_quantity, unit_price, category:inventory_categories(name)')
     .eq('organization_id', organizationId)
-    .or(`name.ilike.${like},sku.ilike.${like},description.ilike.${like}`)
-    .limit(10)
+
+  words.forEach(word => {
+    const w = `%${word}%`
+    inventoryQuery = inventoryQuery.or(`name.ilike.${w},sku.ilike.${w},description.ilike.${w}`)
+  })
+
+  const { data: inventoryRaw } = await inventoryQuery.limit(10)
 
   const inventoryItems = (inventoryRaw || []) as any[]
   inventoryItems.forEach((item) => {
