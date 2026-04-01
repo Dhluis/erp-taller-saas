@@ -55,8 +55,8 @@ export interface ERPSearchResult {
 export async function erpSearch(organizationId: string, query: string): Promise<ERPSearchResult> {
   const supabase = getSupabaseServiceClient()
   const q = query.trim()
-  const like = `%${q}%`
-
+  const words = q.split(/\s+/).filter(w => w.length > 0)
+  
   const result: ERPSearchResult = {
     customers: [],
     orders: [],
@@ -64,15 +64,24 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     inventory: [],
     invoices: [],
   }
+ 
+  if (!q || words.length === 0) return result
+  
+  console.log(`🔍 [AI Assistant] Buscando: "${q}" (en ${words.length} palabras) en org: ${organizationId}`)
 
-  if (!q || q.length < 2) return result
-
-  const { data: customersRaw } = await supabase
+  // 1. Clientes
+  let customerQuery = supabase
     .from('customers')
     .select('id, name, email, phone')
     .eq('organization_id', organizationId)
-    .or(`name.ilike.${like},email.ilike.${like},phone.ilike.${like}`)
-    .limit(5)
+    
+  // Aplicar filtros por cada palabra para que sea "fuzzy"
+  words.forEach(word => {
+    const w = `%${word}%`
+    customerQuery = customerQuery.or(`name.ilike.${w},email.ilike.${w},phone.ilike.${w}`)
+  })
+
+  const { data: customersRaw } = await customerQuery.limit(15)
 
   const customers = (customersRaw || []) as any[]
   customers.forEach((c) => {
@@ -85,12 +94,18 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     })
   })
 
-  const { data: vehiclesRaw } = await supabase
+  // 2. Vehículos
+  let vehicleQuery = supabase
     .from('vehicles')
     .select('id, brand, model, year, license_plate, customer:customers(id, name)')
     .eq('organization_id', organizationId)
-    .or(`brand.ilike.${like},model.ilike.${like},license_plate.ilike.${like}`)
-    .limit(5)
+
+  words.forEach(word => {
+    const w = `%${word}%`
+    vehicleQuery = vehicleQuery.or(`brand.ilike.${w},model.ilike.${w},license_plate.ilike.${w}`)
+  })
+
+  const { data: vehiclesRaw } = await vehicleQuery.limit(10)
 
   const vehicles = (vehiclesRaw || []) as any[]
   vehicles.forEach((v) => {
@@ -127,7 +142,7 @@ export async function erpSearch(organizationId: string, query: string): Promise<
     .select(`id, status, description, entry_date, total_amount, customer:customers(id, name), vehicle:vehicles(id, brand, model, year, license_plate)`)
     .eq('organization_id', organizationId)
     .order('entry_date', { ascending: false })
-    .limit(10)
+    .limit(20)
 
   if (customerIds.length > 0 || vehicleIds.length > 0) {
     if (customerIds.length > 0 && vehicleIds.length > 0) {
@@ -308,7 +323,7 @@ export async function getRecentOrders(
     .select('id, status, description, entry_date, estimated_completion, total_amount, customer:customers(name, phone), vehicle:vehicles(brand, model, year, license_plate)')
     .eq('organization_id', organizationId)
     .order('entry_date', { ascending: false })
-    .limit(limit)
+    .limit(limit || 10)
 
   return ((data || []) as any[]).map(mapOrder)
 }
@@ -364,7 +379,7 @@ export async function getRecentCustomers(
     .select('id, name, phone, email, created_at')
     .eq('organization_id', organizationId)
     .order('created_at', { ascending: false })
-    .limit(limit)
+    .limit(limit || 10)
 
   return ((data || []) as any[]).map((c) => ({
     id: c.id,

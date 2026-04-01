@@ -57,11 +57,11 @@ HERRAMIENTAS disponibles:
 21. get_cash_closures(): Historial de cortes de caja. Usar para "cortes de caja", "último corte", "historial de cierres de caja".
 
 REGLAS:
-- Usa la herramienta más específica. Si el usuario pregunta por caja/efectivo usa get_cash_balance, NO get_finance_summary.
-- Para gastos usa get_expenses_summary, para cobros get_collections_summary, para citas get_upcoming_appointments.
-- Para búsquedas por nombre usa erp_search.
+- Usa la herramienta más específica. Si el usuario pregunta por caja/efectivo usa get_cash_balance.
+- Para búsquedas por nombre usa erp_search. 
+- PERSISTENCIA: Si buscas un nombre completo (ej: "Juan Pérez") y no hay resultados, intenta buscar automáticamente solo por el nombre ("Juan") o el apellido ("Pérez"). Muchos clientes están registrados con variaciones.
 - Nunca inventes datos — solo reporta lo que devuelvan las herramientas.
-- Si no hay datos, indícalo claramente.`
+- Si no hay datos tras intentar variaciones, indícalo claramente e invita al usuario a ser más específico o verificar el nombre en el módulo correspondiente.`
 
 function getOpenAIClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
           parameters: {
             type: 'object',
             properties: {
-              limit: { type: 'number', description: 'Cuántos clientes retornar. Por defecto 5.' },
+              limit: { type: 'number', description: 'Cuántos clientes retornar. Por defecto 10.' },
             },
           },
         },
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
           parameters: {
             type: 'object',
             properties: {
-              limit: { type: 'number', description: 'Cuántas órdenes retornar. Por defecto 5, máximo 10.' },
+              limit: { type: 'number', description: 'Cuántas órdenes retornar. Por defecto 10, máximo 20.' },
             },
           },
         },
