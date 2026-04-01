@@ -268,8 +268,37 @@ CRÍTICO:
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'Eres el analista de Eagles ERP. Genera 3 insights en JSON.' },
-          { role: 'user', content: `Datos: ${JSON.stringify({ lowStock, activeOrders, recentCompletions })}` }
+          { 
+            role: 'system', 
+            content: `Eres el analista experto de Eagles System ERP. Tu tarea es generar 3 insights estratégicos basados en los datos del taller.
+            
+Reglas de formato (JSON):
+Debes devolver un objeto con una propiedad "insights" que sea un array de 3 objetos con:
+- title: Título corto y directo (ej: "Stock Crítico de Aceite").
+- description: Explicación breve del hallazgo.
+- severity: "HIGH" (urgente) o "MEDIUM" (informativo/importante).
+- actionLabel: Texto corto para un botón de acción (ej: "REVISAR STOCK", "VER ÓRDENES"). MÁXIMO 20 caracteres.
+- actionLink: La ruta interna del dashboard para resolver el insight.
+
+Rutas válidas para actionLink:
+- Si es de inventario/stock: "/inventarios/productos"
+- Si es de órdenes de trabajo/carga: "/ordenes-trabajo"
+- Si es general: "/dashboard"
+
+Ejemplo de respuesta:
+{
+  "insights": [
+    {
+      "title": "Bajo Stock de Aceite",
+      "description": "Tienes 3 productos con menos de 5 unidades.",
+      "severity": "HIGH",
+      "actionLabel": "GESTIONAR STOCK",
+      "actionLink": "/inventarios/productos"
+    }
+  ]
+}` 
+          },
+          { role: 'user', content: `Datos actuales del taller: ${JSON.stringify({ lowStock, activeOrders, recentCompletions })}` }
         ],
         response_format: { type: 'json_object' },
         temperature: 0.5,

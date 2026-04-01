@@ -120,7 +120,7 @@ export function EaglesInsights() {
                   href={insight.actionLink || '#'} 
                   className="group/btn inline-flex items-center gap-2 text-xs font-bold text-pink-400 hover:text-pink-300 transition-all uppercase tracking-wider"
                 >
-                  {insight.actionLabel}
+                  {insight.actionLabel || 'VER DETALLES'}
                   <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/btn:translate-x-1.5" />
                 </Link>
               </div>
