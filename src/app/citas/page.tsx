@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import { toast } from 'sonner'
 import { useOrganization } from '@/lib/context/SessionContext'
+import { usePermissions } from '@/hooks/usePermissions'
+import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -122,6 +124,7 @@ export default function CitasPage() {
 function CitasContent() {
   // ✅ Obtener organizationId y workshopId directamente del contexto (más confiable)
   const { organizationId, workshopId, loading: orgLoading } = useOrganization()
+  const permissions = usePermissions()
 
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([])
@@ -699,6 +702,9 @@ function CitasContent() {
     <div className="p-4 md:p-6 space-y-4 md:space-y-6 min-w-0 overflow-x-hidden">
       {/* Breadcrumbs */}
       <StandardBreadcrumbs currentPage="Gestión de Citas" />
+
+      {/* Eagles AI */}
+      {!permissions.isMechanic && <FloatingAIAssistant />}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">

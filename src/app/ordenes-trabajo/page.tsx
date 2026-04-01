@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
+import { usePermissions } from '@/hooks/usePermissions';
+import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant';
 import { WorkOrderFilters } from '@/components/work-orders/WorkOrderFilters';
 import { WorkOrderStatsCards } from '@/components/work-orders/WorkOrderStatsCards';
 import { WorkOrderCard } from '@/components/work-orders/WorkOrderCard';
@@ -56,6 +58,7 @@ const kanbanColumns: {
 ];
 
 export default function WorkOrdersPage() {
+  const permissions = usePermissions();
   const {
     workOrders,
     currentWorkOrder,
@@ -194,6 +197,9 @@ export default function WorkOrdersPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Eagles AI */}
+      {!permissions.isMechanic && <FloatingAIAssistant />}
+
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>

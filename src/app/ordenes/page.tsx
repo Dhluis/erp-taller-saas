@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
+import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
 import { WorkOrderDetailsModal } from '@/components/work-orders/WorkOrderDetailsModal';
@@ -419,6 +420,9 @@ function OrdenesPageContent() {
     <div className="p-6 space-y-6">
       {/* Breadcrumbs */}
       <StandardBreadcrumbs currentPage="Órdenes de Trabajo" />
+
+      {/* Eagles AI */}
+      {!permissions.isMechanic && <FloatingAIAssistant />}
 
       {/* Header */}
       <div className="flex items-center justify-between">

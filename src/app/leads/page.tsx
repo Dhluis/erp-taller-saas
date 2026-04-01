@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input"
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { Plus, Search, LayoutGrid, List } from "lucide-react"
 import { useSession } from '@/lib/context/SessionContext'
+import { usePermissions } from '@/hooks/usePermissions'
+import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant'
 import { toast } from 'sonner'
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal'
 
@@ -21,6 +23,7 @@ type ViewMode = 'kanban' | 'table'
 
 export default function LeadsPage() {
   const { organizationId } = useSession()
+  const permissions = usePermissions()
   const [view, setView] = useState<ViewMode>('kanban')
   const [searchTerm, setSearchTerm] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
@@ -118,6 +121,14 @@ export default function LeadsPage() {
       {/* Toolbar */}
       <div className="flex-shrink-0 px-4 sm:px-6 pt-4 pb-3 border-b border-slate-800">
         <StandardBreadcrumbs currentPage="CRM / Pipeline" />
+        
+        {/* Eagles AI */}
+        {!permissions.isMechanic && (
+          <div className="mt-4">
+            <FloatingAIAssistant />
+          </div>
+        )}
+
         <div className="flex items-center gap-2 mt-3 flex-wrap">
           <h2 className="text-xl font-bold text-white flex-shrink-0">Pipeline CRM</h2>
           <div className="flex items-center gap-2 flex-1 justify-end flex-wrap">
@@ -204,6 +215,11 @@ export default function LeadsPage() {
                 setIsPanelOpen(true)
               }}
               onLeadStatusChanged={handleStatusChanged}
+              onOpenConvertModal={setConvertModalLead}
+              onOpenOTModal={(lead) => {
+                setOtLead(lead)
+                setShowOTModal(true)
+              }}
             />
           </div>
         )}
