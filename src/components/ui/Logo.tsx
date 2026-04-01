@@ -20,11 +20,11 @@ export function Logo({ size = 'md', variant = 'default', className }: LogoProps)
   return (
     <div className={cn('flex items-center justify-center', sizeClasses[size], className)}>
       <Image
-        src="/logo-icon.svg"
+        src="/eagles-logo-square.png"
         alt="EAGLES Logo"
         width={64}
         height={64}
-        className="w-full h-full"
+        className="w-full h-full object-contain"
         priority
       />
     </div>
@@ -48,7 +48,7 @@ export function LogoWithText({ size = 'md', variant = 'default', className, comp
       <Logo size={size} variant={variant} />
       <div className="flex flex-col">
         <span className={cn('font-bold text-text-primary uppercase tracking-tight', textSizes[size])}>
-          {companyName || 'FIXORA'}
+          {companyName || 'EAGLES SYSTEM'}
         </span>
         <span className={cn('text-[10px] text-text-secondary leading-none mt-0.5 font-medium tracking-wider uppercase opacity-70', size === 'sm' ? 'hidden' : 'block')}>
           Sistema de Gestión

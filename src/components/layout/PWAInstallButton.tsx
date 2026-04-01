@@ -78,10 +78,11 @@ export function PWAInstallButton({ isCollapsed, variant = 'sidebar' }: PWAInstal
           variant="ghost"
           size="sm"
           onClick={handleClick}
-          className="h-9 w-9 p-0 flex items-center justify-center rounded-lg hover:bg-bg-tertiary text-primary transition-colors border border-primary/20"
-          title="Instalar App"
+          className="h-9 px-3 gap-2 flex items-center justify-center rounded-lg hover:bg-bg-tertiary text-primary transition-colors border border-primary/20"
+          title="Instalar Aplicación (Eagles ERP)"
         >
           <Download className="h-4.5 w-4.5" />
+          <span className="text-xs font-semibold hidden md:inline">Instalar Aplicación</span>
         </Button>
         <IOSGuideContent onClose={() => setShowIOSGuide(false)} />
       </Dialog>
