@@ -62,7 +62,6 @@ export async function POST(request: NextRequest) {
       const { workOrderId, origin = 'https://eaglessystem.io' } = payload;
       if (!workOrderId) return NextResponse.json({ error: 'Falta workOrderId' }, { status: 400 });
 
-      // Obtener detalles de la orden
       const { data: order, error: orderError } = await supabaseAdmin
         .from('work_orders')
         .select(`
@@ -119,13 +118,12 @@ Enlace de seguimiento en vivo: ${trackingUrl}`
       const { leadId } = payload;
       if (!leadId) return NextResponse.json({ error: 'Falta leadId' }, { status: 400 });
 
-      // Obtener detalles del lead
-      const { data: rawLead, error: leadError } = await supabaseAdmin
+      const { data: rawLead, error: leadError } = await (supabaseAdmin
         .from('leads')
         .select('*')
         .eq('id', leadId)
         .eq('organization_id', organizationId)
-        .single();
+        .single() as any);
         
       const lead = rawLead as any;
 
@@ -174,40 +172,32 @@ Valor presupuestado/estimado: ${lead.estimated_value ? '$' + lead.estimated_valu
     }
 
     if (action === 'magic-create') {
-      const { text, context = 'auto' } = payload;
+      const { text, context = 'auto' } = payload || {};
       if (!text) return NextResponse.json({ error: 'Falta el texto' }, { status: 400 });
 
       let systemPrompt = '';
       
       if (context === 'inventory') {
-        systemPrompt = `Eres el extractor de datos de inventario de Eagles System ERP. Tu tarea es analizar un texto y extraer información para crear un producto/pieza.
-Devuelve SIEMPRE un JSON válido con la siguiente estructura:
+        systemPrompt = `Eres el extractor de datos de inventario de Eagles System ERP. Tu tarea es extraer información para crear un producto/pieza.
+Devuelve SIEMPRE un JSON válido:
 {
   "action_type": "inventory",
-  "product": { 
-    "name": string, 
-    "sku": string, 
-    "category_name": string, 
-    "unit_price": number, 
-    "quantity": number, 
-    "min_quantity": number, 
-    "description": string 
-  }
+  "product": { "name": string, "sku": string, "category_name": string, "unit_price": number, "quantity": number, "min_quantity": number, "description": string }
 }`;
       } else if (context === 'appointment') {
-        systemPrompt = `Eres el extractor de datos de citas de Eagles System ERP. Tu tarea es analizar un texto y extraer información para agendar una cita.
-Devuelve SIEMPRE un JSON válido con la siguiente estructura:
+        systemPrompt = `Eres el extractor de datos de citas. Extrae info para agendar una cita.
+JSON:
 {
   "action_type": "appointment",
   "appointment": { 
     "customer": { "name": string, "phone": string, "email": string },
     "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string },
-    "details": { "service_type": string, "date": string (ISO YYYY-MM-DD), "time": string (HH:mm), "notes": string, "duration_minutes": number }
+    "details": { "service_type": string, "date": string, "time": string, "notes": string, "duration_minutes": number }
   }
 }`;
       } else if (context === 'work-order') {
-        systemPrompt = `Eres el extractor de datos de Eagles System ERP. Tu tarea es analizar un texto y extraer información para crear un cliente, un vehículo y una orden de trabajo.
-Devuelve SIEMPRE un JSON válido con la siguiente estructura:
+        systemPrompt = `Eres el extractor de datos de Eagles ERP. Extrae info para crear cliente, vehículo y orden de trabajo.
+JSON:
 {
   "action_type": "work-order",
   "customer": { "name": string, "phone": string, "email": string },
@@ -215,73 +205,27 @@ Devuelve SIEMPRE un JSON válido con la siguiente estructura:
   "work_order": { "description": string, "budget": number, "notes": string, "deadline": string },
   "inspection": {
     "fuel_level": "empty" | "1/4" | "half" | "3/4" | "full",
-    "fluids": {
-      "aceite_motor": boolean,
-      "aceite_transmision": boolean,
-      "liquido_frenos": boolean,
-      "liquido_embrague": boolean,
-      "refrigerante": boolean,
-      "aceite_hidraulico": boolean,
-      "limpia_parabrisas": boolean
-    }
+    "fluids": { "aceite_motor": boolean, "aceite_transmision": boolean, "liquido_frenos": boolean, "liquido_embrague": boolean, "refrigerante": boolean, "aceite_hidraulico": boolean, "limpia_parabrisas": boolean }
   }
 }
-
-Reglas de Inspección:
-- fuel_level: Mapea "vacio" -> "empty", "un cuarto" -> "1/4", "mitad" -> "half", "tres cuartos" -> "3/4", "lleno" -> "full". Por defecto usar null si no se menciona.
-- fluids: Si el usuario dice "revisar [fluido]" o "[fluido] bien" o "[fluido] ok", marca como true. Si dice "todos los fluidos están bien", pon todos en true.`;
+Reglas:
+- fuel_level: "vacio"->empty, "un cuarto"->1/4, "mitad"->half, "tres cuartos"->3/4, "lleno"->full.
+- fluids: si dice que todos están bien, pon todos en true.`;
       } else if (context === 'expense') {
-        systemPrompt = `Eres el extractor de datos de gastos de Eagles System ERP. Tu tarea es analizar un texto dictado por el gerente del taller y extraer información para registrar un gasto.
-Devuelve SIEMPRE un JSON válido con la siguiente estructura:
+        systemPrompt = `Eres el extractor de datos de gastos.
+JSON:
 {
   "action_type": "expense",
-  "expense": { 
-    "amount": number, 
-    "description": string, 
-    "category": string, 
-    "payment_method": string,
-    "cash_account_hint": string
-  }
-}
-
-Reglas:
-- category: Clasifica razonablemente (ej. "Alimentos", "Refacciones", "Operativos", "Papelería").
-- payment_method: ("cash", "bank_transfer", "credit_card", "debit_card", "other").
-- cash_account_hint: Si menciona "caja chica", "efectivo en caja", etc., anótalo aquí para intentar deducirlo luego.
-- amount: Extraer el monto numérico exacto sin símbolos monetarios.`;
+  "expense": { "amount": number, "description": string, "category": string, "payment_method": string }
+}`;
       } else {
-        // Orchestrator mode (auto detect)
-        systemPrompt = `Eres el orquestador inteligente de Eagles System ERP. Tu tarea es analizar el texto del usuario y determinar con precisión qué desea hacer.
-
-### REGLAS DE INTENCIÓN:
-1. **inventory** (INVENTARIO): Si el usuario menciona "inventario", "agregar pieza", "repuesto", "stock", "producto", "sku", "precio de compra", "galones", "piezas", "cantidad".
-   - Estructura: { "action_type": "inventory", "product": { "name": string, "quantity": number, "unit_price": number, "sku": string, "category_name": string } }
-
-2. **appointment** (CITA): Si el usuario menciona "cita", "agendar", "reservar", "programar", "venir el día...", "mañana a las...", "calendario".
-   - Estructura: { "action_type": "appointment", "appointment": { "customer": { "name": string, "phone": string }, "details": { "service_type": string, "date": "YYYY-MM-DD", "time": "HH:mm", "notes": string } } }
-
-3. **work-order** (ORDEN DE TRABAJO): Si el usuario menciona un problema mecánico, ruido, falla, "reparar", "componer", "trajo su carro", "abrir orden", "presupuesto de reparación".
-   - Estructura: { 
-       "action_type": "work-order", 
-       "customer": { "name": string, "phone": string, "email": string }, 
-       "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string }, 
-       "work_order": { "description": string, "budget": number },
-       "inspection": {
-         "fuel_level": "empty" | "1/4" | "half" | "3/4" | "full",
-         "fluids": { "aceite_motor": boolean, "aceite_transmision": boolean, "liquido_frenos": boolean, "liquido_embrague": boolean, "refrigerante": boolean, "aceite_hidraulico": boolean, "limpia_parabrisas": boolean }
-       }
-     }
-
-4. **expense** (GASTO): Si el usuario menciona "compré", "gasté", "pagué", "ticket", "caja chica", "pizza", "comida", "almuerzo", "papelería".
-   - Estructura: { "action_type": "expense", "expense": { "amount": number, "description": string, "category": string, "payment_method": string, "cash_account_hint": string } }
-
-### CRÍTICO:
-- Devuelve SIEMPRE un JSON válido.
-- **Nivel de combustible**: Mapea "vacio" -> "empty", "un cuarto" -> "1/4", "mitad" -> "half", "tres cuartos" -> "3/4", "lleno" -> "full".
-- **Fluidos**: Si dice "todos los fluidos bien", marca las 7 claves de `fluids` como true.
-- Si no hay una intención clara, usa "work-order" como respaldo, pero evalúa estrictamente sus palabras.
-- En citas, si no mencionan fecha, asume la fecha de hoy.
-- Para el correo electrónico, búscalo con patrones de "x@y.com".`;
+        systemPrompt = `Eres el orquestador inteligente de Eagles System ERP. Analiza el texto y decide la acción.
+Acciones: inventory, appointment, work-order, expense.
+JSON requerido: similar a los anteriores según la acción.
+CRÍTICO: 
+- fuel_level DEBE ser: empty, 1/4, half, 3/4 o full.
+- fluids: marca como true si el usuario dice que están bien o que los revise.
+- extraer email si se menciona.`;
       }
 
       const response = await openai.chat.completions.create({
@@ -295,38 +239,18 @@ Reglas:
       });
 
       const extractedData = JSON.parse(response.choices[0].message.content || '{}');
-
       return NextResponse.json({ success: true, data: extractedData });
     }
 
     if (action === 'inventory-copilot') {
-      const { items } = payload;
-      if (!items || !Array.isArray(items)) {
-        return NextResponse.json({ error: 'Faltan los items del inventario' }, { status: 400 });
-      }
-
-      if (items.length === 0) {
-        return NextResponse.json({ success: true, report: '¡Todo excelente! Tu inventario está saludable y no detectamos productos por debajo del mínimo requerido.' });
-      }
-
-      const SYSTEM_PROMPT = `Eres Eagles Copilot, el asistente inteligente de compras e inventarios para un Taller Mecánico Premium.
-      Tu tarea es recibir una lista de productos que están bajos en stock y redactar una alerta ejecutiva corta pero urgente para el dueño/gerente del taller.
-      
-      REGLAS:
-      1. Sé directo, amigable pero muestra la urgencia si hay muchos productos en cero.
-      2. Agrupa o resalta los productos más importantes basándote en la información.
-      3. Sugiere hacer un pedido a sus proveedores pronto para no detener las reparaciones.
-      4. El tono debe ser moderno, eficiente y empático.
-      5. Devuelve SOLO el texto formateado (puedes usar Markdown usando negritas, listas o emojis para formato). Nada de introducciones previas ni JSON, solo el mensaje que leerá el usuario final.`;
+      const { items } = payload || {};
+      if (!items || !Array.isArray(items)) return NextResponse.json({ error: 'Faltan los items' }, { status: 400 });
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { 
-            role: 'user', 
-            content: `Aquí están los productos en riesgo de escasez (stock actual <= stock mínimo):\n\n${JSON.stringify(items, null, 2)}` 
-          }
+          { role: 'system', content: 'Eres Eagles Copilot. Redacta una alerta de stock bajo.' },
+          { role: 'user', content: JSON.stringify(items) }
         ],
         temperature: 0.7,
       });
@@ -335,72 +259,17 @@ Reglas:
     }
 
     if (action === 'get-insights') {
-      // Obtener datos críticos para insights
-      const [
-        { data: lowStock },
-        { data: activeOrders },
-        { data: recentCompletions }
-      ] = await Promise.all([
-        supabaseAdmin
-          .from('inventory')
-          .select('name, quantity, min_quantity, sku')
-          .lt('quantity', 5) // Simplificado: stock bajo
-          .eq('organization_id', organizationId)
-          .limit(10),
-        supabaseAdmin
-          .from('work_orders')
-          .select('status, description, vehicle_id, vehicles(brand, model)')
-          .eq('organization_id', organizationId)
-          .not('status', 'eq', 'completed')
-          .limit(20),
-        supabaseAdmin
-          .from('work_orders')
-          .select('description, entry_date, updated_at')
-          .eq('status', 'completed')
-          .eq('organization_id', organizationId)
-          .order('updated_at', { ascending: false })
-          .limit(5)
+      const [ { data: lowStock }, { data: activeOrders }, { data: recentCompletions } ] = await Promise.all([
+        supabaseAdmin.from('inventory').select('name, quantity').lt('quantity', 5).eq('organization_id', organizationId).limit(10),
+        supabaseAdmin.from('work_orders').select('status, description').eq('organization_id', organizationId).not('status', 'eq', 'completed').limit(20),
+        supabaseAdmin.from('work_orders').select('description').eq('status', 'completed').eq('organization_id', organizationId).order('updated_at', { ascending: false }).limit(5)
       ]);
-
-      const SYSTEM_PROMPT = `Eres el analista de negocios de Eagles System ERP. Tu tarea es generar 3 "insights" (recomendaciones accionables) basados en los datos del taller.
-Los datos incluyen inventario bajo, órdenes activas y trabajos recientes.
-
-### RUTAS VÁLIDAS (USA SOLO ESTAS):
-- /inventarios (Para temas de piezas, stock, productos)
-- /ordenes (Para temas de reparaciones, estados de vehículos)
-- /citas (Para agendar mantenimiento o revisiones)
-- /clientes (Para gestión de contactos)
-- /ingresos (Para temas de cobros, dinero, pagos)
-
-Reglas:
-1. Sé profesional y directo.
-2. Identifica patrones (ej: "Muchos Toyota con frenos", "Falta stock de aceite").
-3. Asigna una importancia (HIGH, MEDIUM).
-4. El "actionLink" DEBE ser una de las RUTAS VÁLIDAS mencionadas arriba. PROHIBIDO inventar rutas como /ordenes o /inventario.
-5. Responde SIEMPRE en un JSON con este formato:
-{
-  "insights": [
-    {
-      "title": string,
-      "description": string,
-      "severity": "HIGH" | "MEDIUM",
-      "actionLabel": string,
-      "actionLink": string
-    }
-  ]
-}`;
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { 
-            role: 'user', 
-            content: `Datos del taller:
-            Inventario bajo: ${JSON.stringify(lowStock)}
-            Órdenes activas: ${JSON.stringify(activeOrders)}
-            Recientes terminados: ${JSON.stringify(recentCompletions)}` 
-          }
+          { role: 'system', content: 'Eres el analista de Eagles ERP. Genera 3 insights en JSON.' },
+          { role: 'user', content: `Datos: ${JSON.stringify({ lowStock, activeOrders, recentCompletions })}` }
         ],
         response_format: { type: 'json_object' },
         temperature: 0.5,
