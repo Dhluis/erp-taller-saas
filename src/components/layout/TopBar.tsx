@@ -9,6 +9,7 @@ import { LogoWithText } from '@/components/ui/Logo'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { PWAInstallButton } from '@/components/layout/PWAInstallButton'
 import { useUserProfile } from '@/hooks/use-user-profile'
 import { usePermissions } from '@/hooks/usePermissions'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -290,6 +291,9 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* PWA Install Button */}
+          <PWAInstallButton variant="topbar" />
+
           {/* Notifications */}
           <div>
             <NotificationBell />
