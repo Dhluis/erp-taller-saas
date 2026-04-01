@@ -26,6 +26,7 @@ import {
 import { useSidebar } from '@/contexts/SidebarContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useSession } from '@/lib/context/SessionContext'
+import { PWAInstallButton } from '@/components/layout/PWAInstallButton'
 
 interface SidebarProps {
   className?: string
@@ -585,6 +586,9 @@ export function Sidebar({ className }: SidebarProps) {
             </Link>
           ))}
         </div>
+
+        {/* Instalar App (PWA) */}
+        <PWAInstallButton isCollapsed={isCollapsed} />
       </div>
 
       {/* Footer */}
