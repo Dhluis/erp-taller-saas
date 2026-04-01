@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Download, Share, PlusSquare, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import {
   Dialog,
@@ -42,7 +43,15 @@ export function PWAInstallButton({ isCollapsed, variant = 'sidebar' }: PWAInstal
     if (isIOS) {
       setShowIOSGuide(true)
     } else {
-      handleInstallClick()
+      // ✅ Mostrar Sonner Toast como primer respuesta al click, sustituyendo el prompt inmediato
+      toast('🦅 ¡Potencia tu experiencia!', {
+        description: 'Instala Eagles ERP como una aplicación para acceso rápido, notificaciones en tiempo real y mejor rendimiento.',
+        action: {
+          label: 'Instalar ahora',
+          onClick: () => handleInstallClick()
+        },
+        duration: 8000,
+      });
     }
   }
 
@@ -58,7 +67,7 @@ export function PWAInstallButton({ isCollapsed, variant = 'sidebar' }: PWAInstal
               "w-full flex items-center gap-2 border-primary/30 text-primary hover:bg-primary/10 transition-all",
               isCollapsed ? "h-12 w-12 p-0 justify-center rounded-xl" : "h-10 justify-start"
             )}
-            title="Instalar Aplicación"
+            title="Instalar Eagles ERP: Acceso rápido desde tu pantalla de inicio, notificaciones y carga instantánea."
           >
             <Download className="h-5 w-5 shrink-0" />
             {!isCollapsed && <span className="font-medium">Instalar App</span>}
@@ -79,7 +88,7 @@ export function PWAInstallButton({ isCollapsed, variant = 'sidebar' }: PWAInstal
           size="sm"
           onClick={handleClick}
           className="h-9 px-3 gap-2 flex items-center justify-center rounded-lg hover:bg-bg-tertiary text-primary transition-colors border border-primary/20"
-          title="Instalar Aplicación (Eagles ERP)"
+          title="Instalar Eagles ERP: Convierte esta web en una aplicación rápida y fluida en tu dispositivo."
         >
           <Download className="h-4.5 w-4.5" />
           <span className="text-xs font-semibold hidden md:inline">Instalar Aplicación</span>
