@@ -342,6 +342,14 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           }
         }
         
+        // — Inspección —
+        if (aiData.inspection) {
+          if (aiData.inspection.fuel_level) prefill.fuel_level = aiData.inspection.fuel_level;
+          if (aiData.inspection.fluids) {
+            prefill.fluids = { ...INITIAL_FORM_DATA.fluids, ...aiData.inspection.fluids };
+          }
+        }
+        
         setFormData(prev => ({ ...prev, ...prefill }));
         toast.success('✨ Eagles AI ha completado el formulario');
       }
@@ -721,15 +729,16 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           .in('role', assignableRoles) // ✅ Incluir MECANICO y ASESOR
         
         if (!allError && allMechanics) {
+          const mechanicsData = allMechanics as any[];
           console.log('📋 [loadEmployees] Todos los empleados (sin filtro is_active):', {
-            total: allMechanics.length,
-            active: allMechanics.filter(m => m.is_active).length,
-            inactive: allMechanics.filter(m => !m.is_active).length,
+            total: mechanicsData.length,
+            active: mechanicsData.filter(m => m.is_active).length,
+            inactive: mechanicsData.filter(m => !m.is_active).length,
             byRole: {
-              MECANICO: allMechanics.filter(m => m.role === 'MECANICO').length,
-              ASESOR: allMechanics.filter(m => m.role === 'ASESOR').length
+              MECANICO: mechanicsData.filter(m => m.role === 'MECANICO').length,
+              ASESOR: mechanicsData.filter(m => m.role === 'ASESOR').length
             },
-            employees: allMechanics.map(m => ({
+            employees: mechanicsData.map(m => ({
               name: m.full_name || m.email,
               is_active: m.is_active,
               role: m.role
@@ -961,6 +970,14 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           prefill.entry_reason = initialData.work_order.notes;
           // Si no hay descripción principal, usar notas
           if (!prefill.description) prefill.description = initialData.work_order.notes;
+        }
+      }
+      
+      // — Inspección —
+      if (initialData.inspection) {
+        if (initialData.inspection.fuel_level) prefill.fuel_level = initialData.inspection.fuel_level;
+        if (initialData.inspection.fluids) {
+          prefill.fluids = { ...INITIAL_FORM_DATA.fluids, ...initialData.inspection.fluids };
         }
       }
       
@@ -1337,7 +1354,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
         const { error: vehicleUpdateError } = await supabase
           .from('vehicles')
-          .update(vehicleUpdateData as any)
+          // @ts-ignore
+          .update(vehicleUpdateData)
           .eq('id', vehicleId)
 
         if (vehicleUpdateError) {
@@ -1385,23 +1403,24 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             })
           
           if (uploadError) {
+            const err = uploadError as any;
             console.error('❌ [CreateWorkOrderModal] Error subiendo archivo PDF:', {
-              error: uploadError,
-              message: uploadError.message,
-              statusCode: uploadError.statusCode,
-              statusText: uploadError.statusText,
-              errorContext: uploadError.errorContext,
+              error: err,
+              message: err.message,
+              statusCode: err.statusCode,
+              statusText: err.statusText,
+              errorContext: err.errorContext,
               fileName,
               bucket: 'work-order-documents'
             })
             
             // Mensaje de error más descriptivo
-            let errorMessage = uploadError.message || 'Error desconocido'
-            if (uploadError.statusCode === '400') {
+            let errorMessage = err.message || 'Error desconocido'
+            if (err.statusCode === '400') {
               errorMessage = 'El bucket no existe o el formato del archivo no es válido. Verifica la configuración del bucket.'
-            } else if (uploadError.statusCode === '403') {
+            } else if (err.statusCode === '403') {
               errorMessage = 'No tienes permisos para subir archivos. Verifica las políticas RLS.'
-            } else if (uploadError.statusCode === '413') {
+            } else if (err.statusCode === '413') {
               errorMessage = 'El archivo es demasiado grande. Máximo 50MB.'
             }
             
