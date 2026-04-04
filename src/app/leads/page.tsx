@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect, useRef } from "react"
+import { useState, useCallback, useEffect, useRef, Suspense } from "react"
 import { useSearchParams } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,7 +21,7 @@ import type { CRMLead, LeadStatus } from '@/components/leads/types'
 
 type ViewMode = 'kanban' | 'table'
 
-export default function LeadsPage() {
+function LeadsPageContent() {
   const { organizationId } = useSession()
   const permissions = usePermissions()
   const [view, setView] = useState<ViewMode>('kanban')
@@ -284,5 +284,13 @@ export default function LeadsPage() {
         onSuccess={handleOTCreated}
       />
     </div>
+  )
+}
+
+export default function LeadsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Cargando...</div>}>
+      <LeadsPageContent />
+    </Suspense>
   )
 }
