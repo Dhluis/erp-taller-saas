@@ -6,7 +6,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { SidebarUserProfile } from "@/components/sidebar-user-profile"
 import { toast } from 'sonner'
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal'
 import ModernIcons from '@/components/icons/ModernIcons'
@@ -416,24 +415,6 @@ export function Sidebar({ className }: SidebarProps) {
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
-        {/* 🔥 Botón Prominente: Nueva Orden de Trabajo */}
-        {permissions.canCreate('work_orders') && !isMechanic && (
-          <div className={cn("mb-6", isCollapsed ? "px-0" : "px-0")}>
-            <Button
-              onClick={() => setIsModalOpen(true)}
-              className={cn(
-                "w-full transition-all duration-300 shadow-lg",
-                "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700",
-                "text-white border-none font-bold",
-                isCollapsed ? "h-12 w-12 p-0 mx-auto rounded-xl flex items-center justify-center" : "h-12 px-4 gap-3 justify-start rounded-xl"
-              )}
-              title={isCollapsed ? "Nueva Orden de Trabajo" : ""}
-            >
-              <Plus className={cn("h-5 w-5", isCollapsed ? "" : "mr-1")} />
-              {!isCollapsed && <span className="text-sm uppercase tracking-wide">Nueva Orden</span>}
-            </Button>
-          </div>
-        )}
 
         {/* Main Navigation */}
         <div className={isCollapsed ? "space-y-3" : "space-y-1"}>
@@ -591,9 +572,33 @@ export function Sidebar({ className }: SidebarProps) {
         <PWAInstallButton isCollapsed={isCollapsed} />
       </div>
 
-      {/* Footer */}
-      <div className="mt-auto space-y-2">
-        <SidebarUserProfile />
+      {/* Footer - NUEVA ORDEN */}
+      <div className={cn(
+        "mt-auto border-t border-border bg-slate-900/40 backdrop-blur-sm transition-all duration-300",
+        isCollapsed ? "p-4" : "p-4"
+      )}>
+        {permissions.canCreate('work_orders') && !isMechanic && (
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            className={cn(
+              "w-full transition-all duration-300 shadow-xl group",
+              "bg-gradient-to-tr from-indigo-600 via-blue-600 to-violet-600 hover:from-indigo-500 hover:via-blue-500 hover:to-violet-500",
+              "text-white border-none font-bold",
+              isCollapsed 
+                ? "h-12 w-12 p-0 mx-auto rounded-xl flex items-center justify-center" 
+                : "h-12 px-5 gap-3 justify-start rounded-xl"
+            )}
+            title={isCollapsed ? "Nueva Orden de Trabajo" : ""}
+          >
+            <Plus className={cn(
+              "transition-transform duration-300 group-hover:rotate-90",
+              isCollapsed ? "h-6 w-6" : "h-5 w-5"
+            )} />
+            {!isCollapsed && (
+              <span className="text-sm font-bold uppercase tracking-wider">Nueva Orden</span>
+            )}
+          </Button>
+        )}
       </div>
 
       {/* Modal Global de Creación de Orden */}

@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation"
 import { toast } from 'sonner'
 import { useOrganization } from '@/lib/context/SessionContext'
 import { usePermissions } from '@/hooks/usePermissions'
-import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

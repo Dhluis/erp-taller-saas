@@ -22,7 +22,9 @@ import {
 } from '@/components/ui/select'
 import { Pagination } from '@/components/ui/pagination'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { Plus, Search, RefreshCw, FileText, Edit, Eye, Trash2, Loader2, AlertCircle } from 'lucide-react'
+import { Plus, Search, RefreshCw, FileText, Edit, Eye, Trash2, Loader2, AlertCircle, Brain, Mic } from 'lucide-react'
+import { useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -112,6 +114,31 @@ export default function QuotationsPage() {
   const [quotationToView, setQuotationToView] = useState<Quotation | null>(null)
   const [quotationToDelete, setQuotationToDelete] = useState<Quotation | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isProcessingAI, setIsProcessingAI] = useState(false)
+  const searchParams = useSearchParams()
+  const processedRef = useRef(false)
+
+  // Efecto para capturar datos de Eagles AI
+  useEffect(() => {
+    if (processedRef.current) return
+
+    const openMagicCreate = searchParams.get('openMagicCreate')
+    if (openMagicCreate === 'true') {
+      try {
+        const aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data')
+        if (aiDataRaw) {
+          const parsedData = JSON.parse(aiDataRaw)
+          if (parsedData.action_type === 'quotation') {
+            processedRef.current = true
+            setIsCreateModalOpen(true)
+            // El modal se encargará de leer los datos de sessionStorage
+          }
+        }
+      } catch (e) {
+        console.error('Error processing AI data:', e)
+      }
+    }
+  }, [searchParams])
 
   // Sincronizar búsqueda con debounce
   useEffect(() => {
@@ -302,6 +329,14 @@ export default function QuotationsPage() {
               <SelectItem value="converted">Convertida</SelectItem>
             </SelectContent>
           </Select>
+          <Button 
+            variant="outline" 
+            className="border-pink-500/30 bg-pink-500/5 hover:bg-pink-500/10 text-pink-400 gap-2"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            <Brain className="h-4 w-4" />
+            Voz (AI)
+          </Button>
         </div>
 
         {/* Tabla de cotizaciones */}

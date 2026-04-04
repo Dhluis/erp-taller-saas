@@ -8,7 +8,6 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 import { useInventory } from '@/hooks/useInventory';
 import { usePermissions } from '@/hooks/usePermissions';
-import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant';
 import { 
   Package,
   Tag,
@@ -79,9 +78,6 @@ export default function InventariosPage() {
       breadcrumbs={breadcrumbs}
     >
       <div className="space-y-8">
-        {/* Eagles AI */}
-        {!permissions.isMechanic && <FloatingAIAssistant />}
-
         {/* Page Header */}
         <PageHeader
           title="Gestión de Inventarios"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -45,6 +45,49 @@ export function CreateLeadDialog({ open, onOpenChange, editLead, onSuccess }: Cr
   )
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
+
+  // ✅ Nueva lógica: Detectar si hay datos de Eagles AI pendientes al abrir
+  useEffect(() => {
+    if (open && !editLead) {
+      handleMagicFill()
+    }
+  }, [open, editLead])
+
+  const handleMagicFill = () => {
+    try {
+      const aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data')
+      if (!aiDataRaw) return
+
+      const result = JSON.parse(aiDataRaw)
+      if (result.action_type !== 'lead' || !result.data?.lead) {
+        // Soporte para estructura anidada o plana
+        if (result.action_type === 'lead' || result.lead) {
+          // Continuar
+        } else {
+          return
+        }
+      }
+
+      const l = result.data?.lead || result.lead
+      console.log('✨ [LeadMagicFill] Aplicando datos de IA:', l)
+
+      if (l) {
+        setForm(prev => ({
+          ...prev,
+          name: l.name || prev.name,
+          phone: l.phone || prev.phone,
+          email: l.email || prev.email,
+          company: l.company || prev.company,
+          notes: l.notes || prev.notes,
+          estimated_value: l.estimated_value?.toString() || prev.estimated_value,
+        }))
+        toast.success('¡IA preparó los datos del prospecto!')
+        sessionStorage.removeItem('eagles_ai_pending_data')
+      }
+    } catch (error) {
+      console.error('Error in handleMagicFill leads:', error)
+    }
+  }
 
   const validate = () => {
     const e: Record<string, string> = {}

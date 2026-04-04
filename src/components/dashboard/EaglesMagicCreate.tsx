@@ -47,9 +47,11 @@ export function EaglesMagicCreate() {
           sessionStorage.setItem('eagles_ai_pending_data', JSON.stringify(result.data));
         }
 
-        let targetPath = '/dashboard';
+        let targetPath = '/ordenes';
         if (actionType === 'inventory') targetPath = '/inventarios/productos';
         if (actionType === 'appointment') targetPath = '/citas';
+        if (actionType === 'quotation') targetPath = '/cotizaciones';
+        if (actionType === 'lead') targetPath = '/leads';
 
         toast.info('Redirigiendo para completar el registro...');
         router.push(`${targetPath}?${queryParams.toString()}`);

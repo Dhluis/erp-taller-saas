@@ -39,6 +39,9 @@ import {
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
+import { VoiceInput } from '@/components/ui/VoiceInput'
+import { Brain, Loader2, Mic } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Customer {
   id: string
@@ -101,6 +104,7 @@ export function CreateQuotationModal({
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [items, setItems] = useState<QuotationItem[]>([])
+  const [isProcessingAI, setIsProcessingAI] = useState(false)
   const { currency } = useOrgCurrency()
 
   const [formData, setFormData] = useState({
@@ -159,9 +163,100 @@ export function CreateQuotationModal({
         setSelectedCustomerId('')
         setItems([])
         setVehicles([])
+
+        // ✅ Nueva lógica: Detectar si hay datos de Eagles AI pendientes
+        setTimeout(() => {
+          handleMagicFill()
+        }, 500)
       }
     }
   }, [open, quotation])
+
+  const handleMagicFill = () => {
+    try {
+      const aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data')
+      if (!aiDataRaw) return
+
+      const result = JSON.parse(aiDataRaw)
+      if (result.action_type !== 'quotation' || !result.data?.quotation) {
+        // Si no es para cotización, quizá sea genérico, intentamos extraer igual
+        if (result.action_type === 'quotation' || result.quotation) {
+          // Seguir adelante
+        } else {
+          return
+        }
+      }
+
+      const q = result.data?.quotation || result.quotation
+      const c = result.data?.customer || result.customer
+      const v = result.data?.vehicle || result.vehicle
+
+      console.log('✨ [MagicFill] Aplicando datos de IA:', { q, c, v })
+
+      // 1. Intentar emparejar cliente por nombre
+      if (c?.name && customers.length > 0) {
+        const foundCustomer = customers.find(cust => 
+          cust.name.toLowerCase().includes(c.name.toLowerCase())
+        )
+        if (foundCustomer) {
+          setFormData(prev => ({ ...prev, customer_id: foundCustomer.id }))
+          setSelectedCustomerId(foundCustomer.id)
+        } else {
+          toast.info(`Cliente "${c.name}" no encontrado. Por favor selecciónalo manualmente.`)
+        }
+      }
+
+      // 2. Mapear notas e ítems
+      if (q) {
+        if (q.notes) setFormData(prev => ({ ...prev, notes: q.notes }))
+        if (q.items && Array.isArray(q.items)) {
+          const newItems: QuotationItem[] = q.items.map((item: any) => ({
+            item_type: item.type === 'product' ? 'product' : 'service',
+            description: item.description || '',
+            quantity: item.quantity || 1,
+            unit_price: item.price || 0,
+            discount_percent: 0,
+            discount_amount: 0,
+            tax_percent: 16,
+            subtotal: (item.quantity || 1) * (item.price || 0),
+            tax_amount: (item.quantity || 1) * (item.price || 0) * 0.16,
+            total: (item.quantity || 1) * (item.price || 0) * 1.16,
+          }))
+          setItems(newItems)
+        }
+      }
+
+      toast.success('¡IA pobló el formulario con éxito!')
+      sessionStorage.removeItem('eagles_ai_pending_data')
+    } catch (error) {
+      console.error('Error in handleMagicFill:', error)
+    }
+  }
+
+  const handleVoiceTranscription = async (text: string) => {
+    if (!text.trim()) return
+    setIsProcessingAI(true)
+    try {
+      const res = await fetch('/api/ai-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'magic-create', 
+          payload: { text, context: 'quotation' } 
+        })
+      })
+      const result = await res.json()
+      if (result.success && result.data) {
+        // Re-usar la lógica de Magic Fill con los datos recién obtenidos
+        sessionStorage.setItem('eagles_ai_pending_data', JSON.stringify(result))
+        handleMagicFill()
+      }
+    } catch (e) {
+      toast.error('Error al procesar dictado')
+    } finally {
+      setIsProcessingAI(false)
+    }
+  }
 
   // Cargar vehículos cuando cambia el cliente
   useEffect(() => {
@@ -388,6 +483,37 @@ export function CreateQuotationModal({
               : 'Completa la información para crear una nueva cotización'}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Asistente de Voz AI */}
+        {(!quotation || quotation.status === 'draft') && (
+          <div className="py-2 px-4 bg-slate-900/40 rounded-lg border border-slate-800">
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+              <div className="relative flex items-center gap-3 bg-[#0f172a] border border-pink-500/30 rounded-lg p-2 shadow-xl">
+                <div className="p-1.5 bg-pink-500/10 rounded-lg shrink-0">
+                  <Brain className={cn("h-5 w-5 text-pink-500", isProcessingAI && "animate-pulse")} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Eagles AI (Asistente de Cotización)</p>
+                    <span className="h-1 w-1 rounded-full bg-slate-600"></span>
+                    <p className="text-[10px] text-slate-400 truncate hidden sm:block">"Cotiza un cambio de frenos para Luis de 1500 pesos..."</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {isProcessingAI ? (
+                    <Loader2 className="h-5 w-5 text-pink-500 animate-spin" />
+                  ) : (
+                    <VoiceInput
+                      onTranscript={handleVoiceTranscription}
+                      className="h-9 w-9 bg-pink-600 hover:bg-pink-500 text-white shadow-lg shadow-pink-500/20 rounded-full cursor-pointer"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-6">
           {/* Información Básica */}

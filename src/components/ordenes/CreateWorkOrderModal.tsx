@@ -980,6 +980,13 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           prefill.fluids = { ...INITIAL_FORM_DATA.fluids, ...initialData.inspection.fluids };
         }
       }
+
+      // — Detalles de Inspección (NUEVO) —
+      if (initialData.inspection_details) {
+        if (initialData.inspection_details.valuable_items) prefill.valuable_items = initialData.inspection_details.valuable_items;
+        if (initialData.inspection_details.entry_reason) prefill.entry_reason = initialData.inspection_details.entry_reason;
+        if (initialData.inspection_details.procedures) prefill.procedures = initialData.inspection_details.procedures;
+      }
       
       setFormData(prev => ({ ...prev, ...prefill }));
     }

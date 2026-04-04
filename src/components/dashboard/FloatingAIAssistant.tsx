@@ -60,7 +60,7 @@ export function FloatingAIAssistant() {
         const queryParams = new URLSearchParams();
         queryParams.set('openMagicCreate', 'true');
 
-        let targetPath = '/dashboard';
+        let targetPath = '/ordenes';
         let intentLabel = 'orden de trabajo';
         
         if (actionType === 'inventory') {
@@ -69,6 +69,12 @@ export function FloatingAIAssistant() {
         } else if (actionType === 'appointment') {
           targetPath = '/citas';
           intentLabel = 'cita';
+        } else if (actionType === 'quotation') {
+          targetPath = '/cotizaciones';
+          intentLabel = 'cotización';
+        } else if (actionType === 'lead') {
+          targetPath = '/leads';
+          intentLabel = 'prospecto (lead)';
         }
 
         toast.success(`Intención detectada: ${intentLabel}. Redirigiendo...`);

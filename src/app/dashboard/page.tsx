@@ -3,7 +3,6 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { EaglesMagicCreate } from '@/components/dashboard/EaglesMagicCreate';
 import { EaglesInsights } from '@/components/dashboard/EaglesInsights';
-import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -699,9 +698,6 @@ function DashboardContent() {
   return (
     <AppLayout>
       <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 md:px-6">
-        {/* eagles AI protagonista */}
-        {!permissions.isMechanic && <FloatingAIAssistant />}
-
         {/* Header */}
         <div className="flex items-center justify-between">
         <div>

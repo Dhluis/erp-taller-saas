@@ -204,13 +204,35 @@ JSON:
   "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string },
   "work_order": { "description": string, "budget": number, "notes": string, "deadline": string },
   "inspection": {
-    "fuel_level": "empty" | "1/4" | "half" | "3/4" | "full",
+    "fuel_level": "empty" | "quarter" | "half" | "three_quarters" | "full",
     "fluids": { "aceite_motor": boolean, "aceite_transmision": boolean, "liquido_frenos": boolean, "liquido_embrague": boolean, "refrigerante": boolean, "aceite_hidraulico": boolean, "limpia_parabrisas": boolean }
-  }
+  },
+  "inspection_details": { "valuable_items": string, "entry_reason": string, "procedures": string }
 }
 Reglas:
-- fuel_level: "vacio"->empty, "un cuarto"->1/4, "mitad"->half, "tres cuartos"->3/4, "lleno"->full.
-- fluids: si dice que todos están bien, pon todos en true.`;
+- fuel_level: "vacio"->empty, "un cuarto"->quarter, "mitad"->half, "tres cuartos"->three_quarters, "lleno"->full.
+- fluids: si dice que todos están bien, pon todos en true.
+- inspection_details: extrae cosas de valor o el motivo específico si se menciona.`;
+      } else if (context === 'quotation') {
+        systemPrompt = `Eres el extractor de datos para cotizaciones en Eagles System ERP.
+JSON:
+{
+  "action_type": "quotation",
+  "customer": { "name": string, "phone": string, "email": string },
+  "vehicle": { "brand": string, "model": string, "year": number, "plate": string },
+  "quotation": {
+    "items": [ { "type": "service" | "product", "description": string, "quantity": number, "price": number } ],
+    "notes": string,
+    "valid_until": string
+  }
+}`;
+      } else if (context === 'lead') {
+        systemPrompt = `Eres el extractor de prospectos (leads) para Eagles ERP.
+JSON:
+{
+  "action_type": "lead",
+  "lead": { "name": string, "phone": string, "email": string, "company": string, "notes": string, "estimated_value": number }
+}`;
       } else if (context === 'expense') {
         systemPrompt = `Eres el extractor de datos de gastos.
 JSON:
@@ -220,12 +242,13 @@ JSON:
 }`;
       } else {
         systemPrompt = `Eres el orquestador inteligente de Eagles System ERP. Analiza el texto y decide la acción.
-Acciones: inventory, appointment, work-order, expense.
+Acciones: inventory, appointment, work-order, expense, quotation, lead.
 JSON requerido: similar a los anteriores según la acción.
 CRÍTICO: 
-- fuel_level DEBE ser: empty, 1/4, half, 3/4 o full.
+- fuel_level DEBE ser: empty, quarter, half, three_quarters o full.
 - fluids: marca como true si el usuario dice que están bien o que los revise.
-- extraer email si se menciona.`;
+- extraer email si se menciona.
+- para cotización, extraer los ítems específicos si los menciona (ej: "cambio de aceite" + "filtro").`;
       }
 
       const response = await openai.chat.completions.create({

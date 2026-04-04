@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
+import { useSearchParams } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { Plus, Search, LayoutGrid, List } from "lucide-react"
 import { useSession } from '@/lib/context/SessionContext'
 import { usePermissions } from '@/hooks/usePermissions'
-import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant'
 import { toast } from 'sonner'
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal'
 
@@ -37,10 +37,33 @@ export default function LeadsPage() {
 
   // Dialogs
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [editLead, setEditLead] = useState<CRMLead | null>(null)
-  const [convertModalLead, setConvertModalLead] = useState<CRMLead | null>(null)
   const [otLead, setOtLead] = useState<CRMLead | null>(null)
   const [showOTModal, setShowOTModal] = useState(false)
+  const searchParams = useSearchParams()
+  const processedRef = useRef(false)
+
+  // Efecto para capturar datos de Eagles AI
+  useEffect(() => {
+    if (processedRef.current) return
+
+    const openMagicCreate = searchParams.get('openMagicCreate')
+    if (openMagicCreate === 'true') {
+      try {
+        const aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data')
+        if (aiDataRaw) {
+          const parsedData = JSON.parse(aiDataRaw)
+          if (parsedData.action_type === 'lead') {
+            processedRef.current = true
+            setEditLead(null)
+            setIsCreateOpen(true)
+            // El diálogo se encargará de leer los datos de sessionStorage
+          }
+        }
+      } catch (e) {
+        console.error('Error processing AI data:', e)
+      }
+    }
+  }, [searchParams])
 
   const openLeadPanel = useCallback(
     async (leadId: string) => {
@@ -122,13 +145,6 @@ export default function LeadsPage() {
       <div className="flex-shrink-0 px-4 sm:px-6 pt-4 pb-3 border-b border-slate-800">
         <StandardBreadcrumbs currentPage="CRM / Pipeline" />
         
-        {/* Eagles AI */}
-        {!permissions.isMechanic && (
-          <div className="mt-4">
-            <FloatingAIAssistant />
-          </div>
-        )}
-
         <div className="flex items-center gap-2 mt-3 flex-wrap">
           <h2 className="text-xl font-bold text-white flex-shrink-0">Pipeline CRM</h2>
           <div className="flex items-center gap-2 flex-1 justify-end flex-wrap">

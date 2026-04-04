@@ -259,7 +259,6 @@ function InventariosContent() {
           console.log('✨ [Inventory] Datos encontrados:', parsedData);
           
           if (parsedData.action_type === 'inventory' && parsedData.product) {
-            processedRef.current = true;
             const p = parsedData.product;
             
             let foundCategoryId = '';

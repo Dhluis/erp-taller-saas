@@ -8,6 +8,8 @@ import { Breadcrumb } from './Breadcrumb'
 import { FloatingAgentButton } from '@/components/agent/FloatingAgentButton'
 import { useSidebar } from '@/contexts/SidebarContext'
 import { cn } from '@/lib/utils'
+import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant'
+import { usePermissions } from '@/hooks/usePermissions'
 
 // Prevents double-rendering when a page AND the root layout both wrap with AppLayout
 const AppLayoutMountedCtx = createContext(false)
@@ -32,6 +34,8 @@ export function AppLayout({ children, title, breadcrumbs }: AppLayoutProps) {
   const alreadyMounted = useContext(AppLayoutMountedCtx)
   const { isDark } = useTheme()
   const { isCollapsed } = useSidebar()
+  const permissions = usePermissions()
+  const isMechanic = permissions.isMechanic
 
   // If a parent already rendered AppLayout (e.g. root GlobalLayoutWrapper), just pass through
   if (alreadyMounted) {
@@ -64,6 +68,11 @@ export function AppLayout({ children, title, breadcrumbs }: AppLayoutProps) {
             {/* Main Content */}
             <main className="flex-1 overflow-auto bg-bg-primary">
               <div className="p-2 sm:p-4 md:p-6">
+                {!isMechanic && (
+                  <div className="max-w-5xl mx-auto mb-6">
+                    <FloatingAIAssistant />
+                  </div>
+                )}
                 {children}
               </div>
             </main>

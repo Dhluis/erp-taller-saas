@@ -6,7 +6,6 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
-import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant';
 import { OrdersViewTabs } from '@/components/ordenes/OrdersViewTabs';
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
 import { WorkOrderDetailsModal } from '@/components/work-orders/WorkOrderDetailsModal';
@@ -90,6 +89,7 @@ function OrdenesPageContent() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [companySettings, setCompanySettings] = useState<any>(null);
   const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
+  const [aiData, setAiData] = useState<any>(null);
 
   // ==========================================
   // ✅ DEBOUNCE DE BÚSQUEDA
@@ -156,6 +156,31 @@ function OrdenesPageContent() {
       toast.error('Error al cargar órdenes', { description: error });
     }
   }, [error]);
+
+  // ✅ Capturar datos de la IA para creación mágica de OT
+  useEffect(() => {
+    const openMagic = searchParams.get('openMagicCreate') === 'true';
+    if (openMagic) {
+      const pendingData = sessionStorage.getItem('eagles_ai_pending_data');
+      if (pendingData) {
+        try {
+          const parsedData = JSON.parse(pendingData);
+          console.log('✨ [OrdenesPage] Detectados datos de IA para pre-llenar:', parsedData);
+          setAiData(parsedData);
+          setIsCreateModalOpen(true);
+          
+          // Limpiar el parámetro de la URL sin recargar
+          const newParams = new URLSearchParams(searchParams.toString());
+          newParams.delete('openMagicCreate');
+          router.replace(`${window.location.pathname}?${newParams.toString()}`);
+          
+          // Opcional: limpiar sessionStorage después de un tiempo o al cerrar
+        } catch (e) {
+          console.error('Error parsing AI pending data:', e);
+        }
+      }
+    }
+  }, [searchParams, router]);
 
   // Cargar usuarios asignados para mostrar en la tabla
   useEffect(() => {
@@ -420,9 +445,6 @@ function OrdenesPageContent() {
     <div className="p-6 space-y-6">
       {/* Breadcrumbs */}
       <StandardBreadcrumbs currentPage="Órdenes de Trabajo" />
-
-      {/* Eagles AI */}
-      {!permissions.isMechanic && <FloatingAIAssistant />}
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -860,7 +882,14 @@ function OrdenesPageContent() {
       {/* Modal de crear orden */}
       <CreateWorkOrderModal
         open={isCreateModalOpen}
-        onOpenChange={setIsCreateModalOpen}
+        onOpenChange={(open) => {
+          setIsCreateModalOpen(open);
+          if (!open) {
+            setAiData(null);
+            sessionStorage.removeItem('eagles_ai_pending_data');
+          }
+        }}
+        initialData={aiData}
         onSuccess={() => {
           refresh();
         }}
