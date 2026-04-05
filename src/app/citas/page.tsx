@@ -57,6 +57,7 @@ import {
 } from "lucide-react"
 import { VoiceInput } from "@/components/ui/VoiceInput"
 import { cn } from "@/lib/utils"
+import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant'
 import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal'
 import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
 import {

@@ -127,8 +127,8 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
         // Intentar con ambas columnas; si falla (ej. 406 por base_currency no migrada), solo currency
         let data: { currency?: string; base_currency?: string } | null = null
 
-        const res = await supabase
-          .from('company_settings')
+        const res = await (supabase
+          .from('company_settings') as any)
           .select('currency, base_currency')
           .eq('organization_id', organizationId)
           .maybeSingle()
@@ -137,8 +137,8 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
           data = res.data as { currency?: string; base_currency?: string }
         } else if (res.error) {
           // Fallback: solo currency (por si base_currency no existe aún)
-          const fallback = await supabase
-            .from('company_settings')
+          const fallback = await (supabase
+            .from('company_settings') as any)
             .select('currency')
             .eq('organization_id', organizationId)
             .maybeSingle()
@@ -173,8 +173,8 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(`${STORAGE_KEY}_${organizationId}`, code)
     try {
       const supabase = createClient()
-      await supabase
-        .from('company_settings')
+      await (supabase
+        .from('company_settings') as any)
         .update({ currency: code })
         .eq('organization_id', organizationId)
     } catch (err) {
