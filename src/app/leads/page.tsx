@@ -37,6 +37,8 @@ function LeadsPageContent() {
 
   // Dialogs
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [editLead, setEditLead] = useState<CRMLead | null>(null)
+  const [convertModalLead, setConvertModalLead] = useState<CRMLead | null>(null)
   const [otLead, setOtLead] = useState<CRMLead | null>(null)
   const [showOTModal, setShowOTModal] = useState(false)
   const searchParams = useSearchParams()
