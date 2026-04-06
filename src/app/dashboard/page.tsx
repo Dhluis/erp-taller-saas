@@ -803,33 +803,32 @@ function DashboardContent() {
         {/* Insights de Eagles AI - Protagonismo Horizontal */}
         {!permissions.isMechanic && <EaglesInsights />}
 
-        {/* ✅ KPI Cards - Mobile-first: 1 col en móvil, 2 en tablet, 3 en desktop */}
         <div className={cn(
-          "grid gap-3 sm:gap-4 md:gap-6",
+          "grid gap-4", // Simplificado a un solo gap y mejor manejo de columnas
           permissions.isMechanic 
-            ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" // Mecánicos: máximo 3 columnas
-            : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" // Otros: hasta 3 columnas
+            ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" 
+            : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
         )}>
           {kpiCards.map((kpi, index) => {
             const IconComponent = kpi.icon;
             return (
-              <div key={index} className={`${kpi.bgColor} rounded-lg p-4 sm:p-6 border ${kpi.bgColor.replace('/10', '/20')}`}>
-                <div className="flex items-center justify-between mb-3 sm:mb-4">
-                  <div className={`p-2 sm:p-3 rounded-lg ${kpi.bgColor}`}>
+              <div key={index} className={`${kpi.bgColor} rounded-xl p-5 sm:p-6 border ${kpi.bgColor.replace('/10', '/20')} flex flex-col justify-between transition-all hover:scale-[1.02]`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`p-3 rounded-xl ${kpi.bgColor}`}>
                     <div className={kpi.color}>
                       <IconComponent />
                     </div>
                   </div>
                   {kpi.trend && (
-                    <span className={`text-xs sm:text-sm ${kpi.trend.includes('↓') ? 'text-red-400' : 'text-green-400'}`}>
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${kpi.trend.includes('↓') ? 'text-red-400 bg-red-400/10' : 'text-green-400 bg-green-400/10'}`}>
                       {kpi.trend}
                     </span>
                   )}
                 </div>
                 <div className="space-y-1">
-                  <h3 className={`text-xl sm:text-2xl font-bold ${kpi.color}`}>{kpi.value}</h3>
-                  <p className="text-gray-400 text-xs sm:text-sm">{kpi.title}</p>
-                  <p className="text-gray-500 text-xs">{kpi.description}</p>
+                  <h3 className={`text-2xl sm:text-3xl font-bold tracking-tight ${kpi.color}`}>{kpi.value}</h3>
+                  <p className="text-gray-400 text-sm font-medium">{kpi.title}</p>
+                  <p className="text-gray-500 text-xs mt-1">{kpi.description}</p>
                 </div>
               </div>
             );
@@ -1082,12 +1081,15 @@ function DashboardContent() {
                       />
                     </PieChart>
                   </ResponsiveContainer>
-                  {/* Leyenda para mobile */}
-                  <div className="sm:hidden grid grid-cols-2 gap-2 w-full text-xs">
+                  {/* Leyenda para mobile - 1 columna y mejor espaciado */}
+                  <div className="sm:hidden flex flex-col gap-3 w-full text-xs bg-slate-900/40 p-4 rounded-xl border border-slate-700/30">
                     {ordersByStatus.map((entry, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                        <span className="text-gray-300">{entry.name} ({entry.value})</span>
+                      <div key={index} className="flex items-center justify-between group">
+                        <div className="flex items-center gap-3">
+                          <div className="w-3.5 h-3.5 rounded-full shadow-sm" style={{ backgroundColor: entry.color }} />
+                          <span className="text-gray-300 font-medium">{entry.name}</span>
+                        </div>
+                        <span className="text-gray-400 tabular-nums">({entry.value})</span>
                       </div>
                     ))}
                   </div>

@@ -135,9 +135,9 @@ export function FloatingAIAssistant() {
                 placeholder="Ej: 'Juan Pérez trajo un Corolla 2022 blanco con falla en frenos'..."
                 className={cn(
                   "w-full bg-white/5 border-slate-700/50 text-white placeholder:text-slate-500",
-                  "rounded-xl py-6 pl-6 pr-32 transition-all duration-300",
+                  "rounded-xl py-6 pl-6 pr-[120px] sm:pr-[200px] transition-all duration-300",
                   "focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 outline-none",
-                  "text-lg font-medium"
+                  "text-base sm:text-lg font-medium h-auto min-h-[64px]"
                 )}
               />
               

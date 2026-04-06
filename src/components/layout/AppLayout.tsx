@@ -47,7 +47,7 @@ export function AppLayout({ children, title, breadcrumbs }: AppLayoutProps) {
       <div className={`min-h-screen ${isDark ? 'dark' : ''}`}>
         <div className="flex h-screen bg-bg-primary">
           {/* Sidebar */}
-          <aside>
+          <aside className="hidden lg:block shrink-0">
             <Suspense fallback={<div className="w-64 bg-bg-secondary h-full animate-pulse" />}>
               <Sidebar />
             </Suspense>
