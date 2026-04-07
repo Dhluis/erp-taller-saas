@@ -113,7 +113,7 @@ export function WorkOrderDetailsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[98vw] sm:max-w-6xl max-h-[95vh] overflow-y-auto p-3 sm:p-6 lg:overflow-hidden lg:flex lg:flex-col">
+      <DialogContent className="max-w-[98vw] sm:max-w-6xl max-h-[95vh] overflow-y-auto p-3 sm:p-6">
         {/* DialogDescription para accesibilidad (oculto visualmente ya que hay header personalizado) */}
         <VisuallyHidden.Root>
           <DialogDescription>
