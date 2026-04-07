@@ -74,10 +74,22 @@ export default function CobrosPage() {
     fetch('/api/customers?limit=500', { credentials: 'include' })
       .then(r => r.json())
       .then(res => {
-        if (res.customers) setCustomers(res.customers)
-        else if (res.data) setCustomers(res.data)
+        // Handle paginated response: { success: true, data: { items: [], pagination: {} } }
+        if (res.data && Array.isArray(res.data.items)) {
+          setCustomers(res.data.items)
+        } else if (res.customers && Array.isArray(res.customers)) {
+          setCustomers(res.customers)
+        } else if (Array.isArray(res.data)) {
+          setCustomers(res.data)
+        } else {
+          console.warn('⚠️ [Cobros] Formato de clientes inesperado:', res)
+          setCustomers([])
+        }
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error('❌ [Cobros] Error cargando clientes:', err)
+        setCustomers([])
+      })
   }, [organizationId])
 
   // Load collections
@@ -118,9 +130,10 @@ export default function CobrosPage() {
   }
 
   const filteredCustomers = useMemo(() => {
-    if (!customerSearch) return customers.slice(0, 20)
+    const customersArray = Array.isArray(customers) ? customers : []
+    if (!customerSearch) return customersArray.slice(0, 20)
     const term = customerSearch.toLowerCase()
-    return customers.filter(c =>
+    return customersArray.filter(c =>
       c.name.toLowerCase().includes(term) ||
       (c.phone || '').includes(term) ||
       (c.email || '').toLowerCase().includes(term)
@@ -128,7 +141,8 @@ export default function CobrosPage() {
   }, [customers, customerSearch])
 
   const customerNameById = useMemo(() => {
-    return Object.fromEntries(customers.map(c => [c.id, c.name]))
+    const customersArray = Array.isArray(customers) ? customers : []
+    return Object.fromEntries(customersArray.map(c => [c.id, c.name]))
   }, [customers])
 
   const handleSubmit = async (e: React.FormEvent) => {
