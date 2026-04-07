@@ -27,6 +27,7 @@ import { getCompanySettings, updateCompanySettings, type CompanySettings } from 
 import { uploadTermsPdf, deleteTermsPdf } from "@/lib/supabase/terms-pdf"
 import { useAuth } from "@/hooks/useAuth"
 import { useOrganization } from "@/lib/context/SessionContext"
+import { usePermissions } from "@/hooks/usePermissions"
 import { SUPPORTED_CURRENCIES, useOrgCurrency, type OrgCurrencyCode } from "@/lib/context/CurrencyContext"
 import { detectLocaleFromTimezone, isDetectedSameAsSaved, type DetectedLocale } from "@/lib/locale/detect-locale"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -159,6 +160,7 @@ function formToApiSettings(form: CompanySettingsForm): Parameters<typeof updateC
 export default function EmpresaPage() {
   const { organization } = useAuth()
   const { organizationId } = useOrganization()
+  const permissions = usePermissions()
   const { setCurrency: setGlobalCurrency } = useOrgCurrency()
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -356,13 +358,15 @@ export default function EmpresaPage() {
         parentPages={[{ label: "Configuraciones", href: "/configuraciones/empresa" }]}
         className="mb-2"
       />
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Configuración de Empresa</h2>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Configuración de Empresa</h2>
         <div className="flex items-center space-x-2">
           {!isEditing ? (
-            <Button onClick={() => setIsEditing(true)}>
-              <Settings className="mr-2 h-4 w-4" /> Editar
-            </Button>
+            permissions.canManageSettings() && (
+              <Button onClick={() => setIsEditing(true)}>
+                <Settings className="mr-2 h-4 w-4" /> Editar
+              </Button>
+            )
           ) : (
             <>
               <Button variant="outline" onClick={() => setIsEditing(false)}>
