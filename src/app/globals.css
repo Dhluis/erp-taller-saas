@@ -423,78 +423,89 @@
    Radix Dialog modals without affecting desktop.
    ================================================ */
 @media (max-width: 639px) {
-  /* Inputs y selects dentro de dialogs – más compactos */
+  /* Inputs y selects dentro de dialogs – SUPER compactos */
   [data-slot="dialog-content"] input,
   [data-radix-dialog-content] input {
-    height: 2rem !important;      /* 32px en vez de 40px */
-    min-height: 2rem !important;
-    padding-top: 0.25rem !important;
-    padding-bottom: 0.25rem !important;
-    font-size: 0.75rem !important; /* 12px */
+    height: 1.65rem !important;    /* 26.4px */
+    min-height: 1.65rem !important;
+    padding-top: 0.1rem !important;
+    padding-bottom: 0.1rem !important;
+    padding-left: 0.4rem !important;
+    padding-right: 0.4rem !important;
+    font-size: 0.65rem !important;  /* 10.4px */
   }
 
   [data-slot="dialog-content"] select,
   [data-radix-dialog-content] select {
-    height: 2rem !important;
-    font-size: 0.75rem !important;
+    height: 1.65rem !important;
+    font-size: 0.65rem !important;
   }
 
   /* SelectTrigger de shadcn (Radix Select) */
   [data-slot="dialog-content"] [data-radix-select-trigger],
   [data-radix-dialog-content] [data-radix-select-trigger] {
-    height: 2rem !important;
-    font-size: 0.75rem !important;
-    padding-top: 0.25rem !important;
-    padding-bottom: 0.25rem !important;
+    height: 1.65rem !important;
+    font-size: 0.65rem !important;
+    padding-top: 0.1rem !important;
+    padding-bottom: 0.1rem !important;
+    padding-left: 0.4rem !important;
+    padding-right: 0.4rem !important;
   }
 
-  /* Labels más pequeños */
+  /* Labels SUPER pequeños */
   [data-slot="dialog-content"] label,
   [data-radix-dialog-content] label {
-    font-size: 0.7rem !important;  /* 11.2px */
-    margin-bottom: 0.15rem !important;
+    font-size: 0.6rem !important;   /* 9.6px */
+    margin-bottom: 0.05rem !important;
+    line-height: 1 !important;
+  }
+
+  /* Reducir espacio entre label e input */
+  [data-slot="dialog-content"] .space-y-2,
+  [data-radix-dialog-content] .space-y-2 {
+    row-gap: 0.15rem !important;   /* 2.4px */
   }
 
   /* Reducir gap entre secciones */
   [data-slot="dialog-content"] .space-y-4,
   [data-radix-dialog-content] .space-y-4 {
-    row-gap: 0.5rem !important;    /* 8px vs 16px */
+    row-gap: 0.3rem !important;    /* 4.8px */
   }
 
   [data-slot="dialog-content"] .space-y-6,
   [data-radix-dialog-content] .space-y-6 {
-    row-gap: 0.75rem !important;   /* 12px vs 24px */
+    row-gap: 0.45rem !important;   /* 7.2px */
   }
 
   [data-slot="dialog-content"] .gap-4,
   [data-radix-dialog-content] .gap-4 {
-    gap: 0.5rem !important;
+    gap: 0.3rem !important;
   }
 
   [data-slot="dialog-content"] .gap-3,
   [data-radix-dialog-content] .gap-3 {
-    gap: 0.4rem !important;
+    gap: 0.2rem !important;
   }
 
   /* Títulos de sección (h3) dentro del modal */
   [data-slot="dialog-content"] h3,
   [data-radix-dialog-content] h3 {
-    font-size: 0.75rem !important;
-    padding-bottom: 0.25rem !important;
-    margin-bottom: 0.25rem !important;
+    font-size: 0.65rem !important;
+    padding-bottom: 0.1rem !important;
+    margin-bottom: 0.1rem !important;
   }
 
   /* Mensajes de error */
   [data-slot="dialog-content"] p.text-xs,
   [data-radix-dialog-content] p.text-xs {
-    font-size: 0.65rem !important;
-    margin-top: 0.15rem !important;
+    font-size: 0.55rem !important;
+    margin-top: 0.05rem !important;
   }
 
   /* Íconos de validación (CheckCircle, AlertCircle) */
   [data-slot="dialog-content"] .absolute svg,
   [data-radix-dialog-content] .absolute svg {
-    width: 0.875rem !important;
-    height: 0.875rem !important;
+    width: 0.7rem !important;
+    height: 0.7rem !important;
   }
 }

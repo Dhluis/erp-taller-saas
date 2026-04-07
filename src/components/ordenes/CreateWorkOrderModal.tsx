@@ -224,7 +224,7 @@ const STEP_COLORS = [
 function StepIndicator({ currentStep, completedSteps }: { currentStep: number; completedSteps: number[] }) {
   const labels = ['Cliente y Vehículo', 'Inspección', 'Servicios y Costos', 'Términos y Firma']
   return (
-    <div className="flex items-center justify-between gap-1 py-2 px-2 sm:py-3 sm:px-4 bg-slate-900/90 rounded-lg border border-slate-600 mb-3 shadow-inner">
+    <div className="flex items-center justify-between gap-1 py-1.5 px-1.5 sm:py-3 sm:px-4 bg-slate-900/90 rounded-lg border border-slate-600 mb-1 sm:mb-3 shadow-inner">
       {[1, 2, 3, 4].map((step) => {
         const Icon = STEP_ICONS[step - 1]
         const colors = STEP_COLORS[step - 1]
@@ -1782,10 +1782,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
         {/* Asistente de Voz Global (Magic Create Interno) */}
         {!isMechanic && (
-          <div className="px-6 py-2 bg-slate-900/50 border-b border-slate-800 flex-shrink-0">
+          <div className="px-4 py-1 sm:px-6 sm:py-2 bg-slate-900/50 border-b border-slate-800 flex-shrink-0">
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-              <div className="relative flex items-center gap-3 bg-[#0f172a] border border-pink-500/30 rounded-lg p-2 shadow-xl">
+              <div className="relative flex items-center gap-3 bg-[#0f172a] border border-pink-500/30 rounded-lg p-1 sm:p-2 shadow-xl">
                 <div className="p-1.5 bg-pink-500/10 rounded-lg shrink-0">
                   <Brain className={cn("h-5 w-5 text-pink-500", isProcessingAI && "animate-pulse")} />
                 </div>
@@ -1793,7 +1793,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   <div className="flex items-center gap-2">
                     <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Eagles AI</p>
                     <span className="h-1 w-1 rounded-full bg-slate-600"></span>
-                    <p className="text-[10px] text-slate-400 truncate">Dictado inteligente para llenar toda la orden</p>
+                    <p className="text-[9px] sm:text-[10px] text-slate-400 truncate">Dictado inteligente para llenar toda la orden</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -1811,7 +1811,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           </div>
         )}
 
-        <div className="px-6 pt-2 pb-1 bg-slate-900/30">
+        <div className="px-4 pt-1 pb-0 sm:px-6 sm:pt-2 sm:pb-1 bg-slate-900/30">
           <StepIndicator currentStep={currentStep} completedSteps={completedSteps} />
         </div>
 
