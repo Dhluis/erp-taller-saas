@@ -131,6 +131,15 @@ export function getConfig(): AppConfig {
       configErrors = result.error.errors.map(err => 
         `${err.path.join('.')}: ${err.message}`
       )
+      
+      // 🚨 FIX PARA BUILD: Si estamos en fase de compilación, NO lanzar error
+      // Esto permite que Next.js complete el build aunque falten secretos de Supabase
+      if (process.env.NEXT_PHASE === 'phase-production-build') {
+        console.warn('⚠️ Configuración incompleta detectada durante el build. Usando valores parciales para evitar rotura del build.')
+        // Retornar lo que se pudo parsear o valores por defecto seguros
+        return rawEnv as unknown as AppConfig
+      }
+      
       throw new Error(`Configuración inválida: ${configErrors.join(', ')}`)
     }
 

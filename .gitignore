@@ -48,3 +48,6 @@ next-env.d.ts
 
 # MCP config (puede contener tokens; usar mcp.json.example como plantilla)
 .cursor/mcp.json
+
+.vercel
+.env*.local

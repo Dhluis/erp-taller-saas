@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic'
+
 import { AppLayout } from '@/components/layout/AppLayout';
 import { EaglesMagicCreate } from '@/components/dashboard/EaglesMagicCreate';
 import { EaglesInsights } from '@/components/dashboard/EaglesInsights';

@@ -19,6 +19,24 @@ export async function getSupabaseServerClient(): Promise<SupabaseServerClient> {
     return serverClient
   }
 
+  // 🚨 FIX PARA BUILD: Si estamos en fase de compilación, devolver un Proxy seguro
+  // Esto evita errores de cookies() y de configuración faltante que rompen el build
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    console.warn('⚠️ Returning safe recursive proxy for Supabase server client during build phase.')
+    
+    const createProxy = (): any => {
+      const fn = () => Promise.resolve({ data: null, error: null, session: null, user: null });
+      return new Proxy(fn, {
+        get: (target, prop) => {
+          if (prop === 'then') return undefined; // No tratar como promesa si no se ha llamado
+          return createProxy();
+        }
+      });
+    };
+    
+    return createProxy();
+  }
+
   try {
     const config = getConfig()
     const cookieStore = await cookies()

@@ -20,20 +20,57 @@ export function getSupabaseClient(): SupabaseClient {
     return browserClient
   }
 
+  // 🚨 FIX CRÍTICO PARA BUILD: Si estamos en fase de compilación, devolver un Proxy seguro INMEDIATAMENTE
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    const createProxy = (): any => {
+      const fn = () => Promise.resolve({ data: null, error: null, session: null, user: null });
+      return new Proxy(fn, {
+        get: (target, prop) => {
+          if (prop === 'then') return undefined; // No tratar como promesa si no se llama
+          return createProxy();
+        }
+      });
+    };
+    return createProxy();
+  }
+
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
     if (!url || !anonKey) {
+      // Durante el build de Next.js (static generation), process.env puede no tener todas las variables.
+      // No queremos romper el build si este cliente se importa en una ruta que el build intenta evaluar.
+      const isBuildStep = process.env.NODE_ENV === 'production' && !process.env.NEXT_RUNTIME;
+      
       const errorMsg = `
 ❌ SUPABASE CONFIGURATION ERROR:
    Missing required environment variables:
    - NEXT_PUBLIC_SUPABASE_URL: ${url ? '✅' : '❌'}
    - NEXT_PUBLIC_SUPABASE_ANON_KEY: ${anonKey ? '✅' : '❌'}
    
+   Context: ${isBuildStep ? 'Next.js Build Step' : 'Runtime'}
    Please check your .env.local file and ensure these variables are set.
       `
-      console.error(errorMsg)
+      console.warn(errorMsg)
+      
+      // En lugar de lanzar un error que rompa el build, retornamos un proxy recursivo seguro
+      if (process.env.NEXT_PHASE === 'phase-production-build') {
+        console.warn('⚠️ Returning safe recursive proxy for Supabase client during build phase.')
+        
+        const createProxy = (): any => {
+          const fn = () => Promise.resolve({ data: null, error: null, session: null, user: null });
+          return new Proxy(fn, {
+            get: (target, prop) => {
+              if (prop === 'then') return undefined; // Evitar que parezca una promesa si no se llama
+              return createProxy();
+            }
+          });
+        };
+        
+        return createProxy();
+      }
+      
       throw new Error('Supabase configuration missing. Check your .env.local file.')
     }
 

@@ -11,15 +11,40 @@ import { NextResponse, type NextRequest } from 'next/server'
  * Crear cliente Supabase para middleware
  */
 export function createSupabaseMiddlewareClient(request: NextRequest) {
+  // 🚨 FIX PARA BUILD: Si estamos en fase de compilación, devolver un Proxy seguro
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    const createProxy = (): any => {
+      const fn = () => Promise.resolve({ data: null, error: null, session: null, user: null });
+      return new Proxy(fn, {
+        get: (target, prop) => {
+          if (prop === 'then') return undefined;
+          return createProxy();
+        }
+      });
+    };
+    return { supabase: createProxy(), response: NextResponse.next() };
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    // No lanzar error aquí para no romper el middleware si se carga en build
+    return { 
+      supabase: createServerClient('https://placeholder.supabase.co', 'placeholder', { cookies: {} }), 
+      response 
+    }
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         get(name: string) {

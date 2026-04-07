@@ -1,12 +1,14 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Página de Gestión de Usuarios e Invitaciones
  * Permite a administradores gestionar usuarios y enviar invitaciones
  */
 import { useState, useEffect } from 'react'
 import { useSession } from '@/lib/context/SessionContext'
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -87,10 +89,7 @@ export default function UsuariosPage() {
     message: ''
   })
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const supabase = createClient()
 
   // Verificar permisos de admin
   useEffect(() => {
