@@ -6,10 +6,12 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'Eagles ERP',
     description: 'Sistema de gestión integral para talleres automotrices',
     start_url: '/dashboard',
+    scope: '/',
     display: 'standalone',
     background_color: '#0a0a0a',
     theme_color: '#00D9FF',
     orientation: 'portrait',
+    categories: ['business', 'productivity'],
     icons: [
       {
         src: '/eagles-logo-square.png',
