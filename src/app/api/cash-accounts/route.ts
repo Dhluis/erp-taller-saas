@@ -84,9 +84,12 @@ export async function GET(request: NextRequest) {
 const createSchema = z.object({
   name: z.string().min(1, 'Nombre requerido'),
   account_number: z.string().optional().default(''),
-  account_type: z.enum(['cash', 'bank']).default('cash'),
+  account_type: z.enum(['cash', 'bank', 'card']).default('cash'),
   initial_balance: z.number().default(0),
-  notes: z.string().optional().default('')
+  notes: z.string().optional().default(''),
+  bank_name: z.string().optional().nullable(),
+  last_four_digits: z.string().optional().nullable(),
+  card_brand: z.string().optional().nullable(),
 })
 
 export async function POST(request: NextRequest) {
@@ -113,10 +116,14 @@ export async function POST(request: NextRequest) {
         account_type: parsed.data.account_type,
         initial_balance: parsed.data.initial_balance,
         notes: parsed.data.notes || null,
+        bank_name: parsed.data.bank_name || null,
+        last_four_digits: parsed.data.last_four_digits || null,
+        card_brand: parsed.data.card_brand || null,
         is_active: true
       })
       .select()
       .single()
+
 
     if (error) {
       console.error('Error creating cash_account:', error)

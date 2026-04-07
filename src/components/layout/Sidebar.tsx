@@ -78,15 +78,14 @@ export function Sidebar({ className }: SidebarProps) {
 
   // Inicializar secciones expandidas solo si la ruta actual está dentro de una sección
   useEffect(() => {
-    const sections = ['inventarios', 'ingresos', 'compras', 'reportes', 'configuraciones']
+    const sections = ['inventarios', 'finanzas', 'reportes', 'configuraciones']
     const activeSections: string[] = []
     
     // Verificar si la ruta actual está dentro de alguna sección
     sections.forEach(section => {
       const sectionRoutes: Record<string, string[]> = {
         'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos', '/service-packages'],
-        'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/cuentas-efectivo', '/ingresos/ajustes-devoluciones', '/ingresos/entregas', '/ingresos/arqueo-caja', '/ingresos/reportes'],
-        'compras': ['/compras', '/compras/proveedores', '/compras/pagos', '/compras/gastos'],
+        'finanzas': ['/finanzas', '/finanzas/cobros', '/finanzas/cuentas', '/finanzas/compras', '/finanzas/pagos-gastos', '/ingresos', '/ingresos/facturacion', '/ingresos/cuentas-efectivo', '/ingresos/ajustes-devoluciones', '/ingresos/entregas', '/ingresos/arqueo-caja', '/cobros', '/compras', '/compras/pagos', '/compras/gastos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/ventas-por-items', '/reportes/inventario', '/reportes/financieros', '/reportes/operaciones'],
         'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/perfil']
       }
@@ -193,29 +192,18 @@ export function Sidebar({ className }: SidebarProps) {
       ]
     },
     {
-      key: 'ingresos',
-      label: 'Ingresos',
+      key: 'finanzas',
+      label: 'Finanzas',
       icon: () => <ModernIcons.Finanzas size={20} />,
-      visible: showAllForAdmin || permissions.canRead('invoices') || permissions.canPayInvoices(),
+      visible: showAllForAdmin || permissions.canRead('invoices') || permissions.canPayInvoices() || permissions.canManagePurchases(),
       items: [
-        { href: "/ingresos", label: "Facturación", icon: () => <ModernIcons.Facturacion size={18} />, visible: permissions.canRead('invoices') },
-        { href: "/cobros", label: "Cobros", icon: () => <ModernIcons.Cobros size={18} />, visible: permissions.canPayInvoices() },
-        { href: "/ingresos/ajustes-devoluciones", label: "Ajustes y devoluciones", icon: () => <RotateCcw size={18} className="text-amber-500" />, visible: permissions.canRead('invoices') },
-        { href: "/ingresos/entregas", label: "Entregas", icon: () => <Package size={18} className="text-violet-400" />, visible: permissions.canRead('invoices') },
-        { href: "/ingresos/cuentas-efectivo", label: "Cuentas de efectivo", icon: () => <Wallet size={18} className="text-emerald-400" />, visible: permissions.canPayInvoices() },
-        { href: "/ingresos/arqueo-caja", label: "Corte de caja", icon: () => <ClipboardCheck size={18} className="text-sky-400" />, visible: permissions.canPayInvoices() }
-      ].filter(item => item.visible)
-    },
-    {
-      key: 'compras',
-      label: 'Compras',
-      icon: () => <ModernIcons.Pagos size={20} />,
-      visible: showAllForAdmin || permissions.canManagePurchases(),
-      items: [
-        { href: "/compras", label: "Órdenes de Compra", icon: () => <ModernIcons.OrdenesCompra size={18} /> },
-        { href: "/compras/proveedores", label: "Proveedores", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageSuppliers() },
-        { href: "/compras/pagos", label: "Pagos", icon: () => <ModernIcons.Transfer size={18} />, visible: permissions.canPayInvoices() },
-        { href: "/compras/gastos", label: "Gastos", icon: () => <Receipt size={18} className="text-orange-400" /> }
+        { href: "/finanzas", label: "Movimientos del Día", icon: () => <ClipboardCheck size={18} className="text-cyan-400" />, visible: true },
+        { href: "/ingresos/facturacion", label: "Facturación", icon: () => <ModernIcons.Facturacion size={18} />, visible: permissions.canRead('invoices') },
+        { href: "/finanzas/cobros", label: "Cobros", icon: () => <ModernIcons.Cobros size={18} />, visible: permissions.canPayInvoices() },
+        { href: "/finanzas/cuentas", label: "Cuentas", icon: () => <Wallet size={18} className="text-emerald-400" />, visible: permissions.canPayInvoices() },
+        { href: "/finanzas/compras", label: "Órdenes de Compra", icon: () => <ModernIcons.OrdenesCompra size={18} />, visible: permissions.canManagePurchases() },
+        { href: "/finanzas/pagos-gastos", label: "Pagos y Gastos", icon: () => <Receipt size={18} className="text-orange-400" />, visible: permissions.canPayInvoices() },
+        { href: "/proveedores", label: "Proveedores", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageSuppliers() },
       ].filter(item => item.visible !== false)
     },
     {
