@@ -224,7 +224,7 @@ const STEP_COLORS = [
 function StepIndicator({ currentStep, completedSteps }: { currentStep: number; completedSteps: number[] }) {
   const labels = ['Cliente y Vehículo', 'Inspección', 'Servicios y Costos', 'Términos y Firma']
   return (
-    <div className="flex items-center justify-between gap-2 py-3 px-4 bg-slate-900/90 rounded-lg border border-slate-600 mb-4 shadow-inner">
+    <div className="flex items-center justify-between gap-1 py-2 px-2 sm:py-3 sm:px-4 bg-slate-900/90 rounded-lg border border-slate-600 mb-3 shadow-inner">
       {[1, 2, 3, 4].map((step) => {
         const Icon = STEP_ICONS[step - 1]
         const colors = STEP_COLORS[step - 1]
@@ -239,12 +239,12 @@ function StepIndicator({ currentStep, completedSteps }: { currentStep: number; c
         return (
           <div
             key={step}
-            className={`flex items-center gap-2 flex-1 min-w-0 ${step < 4 ? 'border-r border-slate-600 pr-2' : ''}`}
+            className={`flex items-center gap-1.5 flex-1 min-w-0 ${step < 4 ? 'border-r border-slate-600 pr-1.5 sm:pr-2' : ''}`}
           >
             <div
-              className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${circleClass}`}
+              className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-200 ${circleClass}`}
             >
-              {isCompleted ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+              {isCompleted ? <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : <Icon className="h-4 w-4 sm:h-5 sm:w-5" />}
             </div>
             <div className="min-w-0 flex-1 hidden sm:block">
               <span className={`text-xs font-medium block truncate ${labelClass}`}>
@@ -1767,8 +1767,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:w-[90vw] sm:max-w-4xl min-h-[80vh] max-h-[95vh] h-[85vh] overflow-hidden flex flex-col p-0 md:h-[88vh]">
-        <DialogHeader className="px-6 pt-6 pb-0">
+      <DialogContent className="w-[98vw] max-w-[98vw] sm:w-[92vw] sm:max-w-3xl min-h-[85vh] max-h-[95vh] h-[90vh] sm:h-[88vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="px-4 pt-4 pb-0 sm:px-6 sm:pt-6">
           <DialogTitle className="text-xl font-bold flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Plus className="h-5 w-5 text-blue-500" />
@@ -1823,7 +1823,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
 
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6 min-h-0 min-w-0 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-6 sm:py-4 space-y-4 sm:space-y-6 min-h-0 min-w-0 custom-scrollbar">
           {currentStep === 1 && (
           <>
           {/* PASO 1: Datos del Cliente */}
@@ -1837,7 +1837,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
 
               <div className="relative">
 
@@ -2027,7 +2027,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
 
               <div>
 
@@ -2085,7 +2085,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
 
               <div>
 
@@ -2167,7 +2167,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
 
               <div>
 
@@ -2625,7 +2625,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
               </h3>
 
               {/* Selección de tipo: Texto o Archivo */}
-              <div className="flex gap-4 mb-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4">
                 <Button
                   type="button"
                   variant={formData.terms_type === 'text' ? 'primary' : 'outline'}
@@ -2656,7 +2656,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                     id="terms_text"
                     name="terms_text"
                     required={formData.terms_type === 'text'}
-                    rows={8}
+                    rows={5}
                     placeholder="Ej: El cliente acepta que el taller no se hace responsable de...&#10;&#10;1. Garantías sobre piezas usadas&#10;2. Daños causados por el mal uso del vehículo&#10;3. ..."
                     value={formData.terms_text}
                     onChange={(e) => setFormData(prev => ({ ...prev, terms_text: e.target.value }))}
