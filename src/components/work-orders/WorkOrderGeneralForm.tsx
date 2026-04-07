@@ -381,7 +381,7 @@ export function WorkOrderGeneralForm({
         if (Object.keys(vehicleUpdate).length > 0) {
           const { data: vehicleData, error: vehicleError } = await supabase
             .from('vehicles')
-            .update(vehicleUpdate as any)
+            .update(vehicleUpdate as unknown as Record<string, string>)
             .eq('id', order.vehicle_id)
             .select()
 
@@ -417,7 +417,7 @@ export function WorkOrderGeneralForm({
         if (Object.keys(customerUpdate).length > 0) {
           const { error: customerError } = await supabase
             .from('customers')
-            .update(customerUpdate as any)
+            .update(customerUpdate as unknown as Record<string, string>)
             .eq('id', order.customer_id)
 
           if (customerError) {
@@ -456,8 +456,9 @@ export function WorkOrderGeneralForm({
       if (existingInspection) {
         const { error: updateError } = await supabase
           .from('vehicle_inspections')
-          .update(inspectionData as any)
-          .eq('id', (existingInspection as any).id)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .update(inspectionData as unknown as any)
+          .eq('id', (existingInspection as { id: string }).id)
         
         if (updateError) {
           console.error('[WorkOrderGeneralForm] Error actualizando inspección:', updateError)
