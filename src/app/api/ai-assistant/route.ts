@@ -241,14 +241,62 @@ JSON:
   "expense": { "amount": number, "description": string, "category": string, "payment_method": string }
 }`;
       } else {
-        systemPrompt = `Eres el orquestador inteligente de Eagles System ERP. Analiza el texto y decide la acción.
-Acciones: inventory, appointment, work-order, expense, quotation, lead.
-JSON requerido: similar a los anteriores según la acción.
+        systemPrompt = `Eres el orquestador inteligente de Eagles System ERP. Analiza el texto y extrae TODA la información en el siguiente formato JSON estricto, seleccionando el action_type adecuado.
+Acciones posibles: inventory, appointment, work-order, expense, quotation, lead.
+
+Estructuras JSON requeridas según la acción:
+
+- Si es "work-order" (orden de trabajo, reparación, auto en taller):
+{
+  "action_type": "work-order",
+  "customer": { "name": string, "phone": string, "email": string },
+  "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string },
+  "work_order": { "description": string, "budget": number, "notes": string, "deadline": string },
+  "inspection": { "fuel_level": "empty" | "quarter" | "half" | "three_quarters" | "full", "fluids": { "aceite_motor": boolean, "aceite_transmision": boolean, "liquido_frenos": boolean, "liquido_embrague": boolean, "refrigerante": boolean, "aceite_hidraulico": boolean, "limpia_parabrisas": boolean } },
+  "inspection_details": { "valuable_items": string, "entry_reason": string, "procedures": string }
+}
+
+- Si es "appointment" (cita futura):
+{
+  "action_type": "appointment",
+  "appointment": { 
+    "customer": { "name": string, "phone": string, "email": string },
+    "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string },
+    "details": { "service_type": string, "date": string, "time": string, "notes": string, "duration_minutes": number }
+  }
+}
+
+- Si es "inventory" (producto o refacción):
+{
+  "action_type": "inventory",
+  "product": { "name": string, "sku": string, "category_name": string, "unit_price": number, "quantity": number, "min_quantity": number, "description": string }
+}
+
+- Si es "quotation" (cotización, presupuesto):
+{
+  "action_type": "quotation",
+  "customer": { "name": string, "phone": string, "email": string },
+  "vehicle": { "brand": string, "model": string, "year": number, "plate": string },
+  "quotation": { "items": [ { "type": "service" | "product", "description": string, "quantity": number, "price": number } ], "notes": string, "valid_until": string }
+}
+
+- Si es "lead" (prospecto de ventas):
+{
+  "action_type": "lead",
+  "lead": { "name": string, "phone": string, "email": string, "company": string, "notes": string, "estimated_value": number }
+}
+
+- Si es "expense" (gasto del taller):
+{
+  "action_type": "expense",
+  "expense": { "amount": number, "description": string, "category": string, "payment_method": string }
+}
+
 CRÍTICO: 
-- fuel_level DEBE ser: empty, quarter, half, three_quarters o full.
+- Extrae la mayor cantidad de información posible del texto del usuario y ponla en los campos correspondientes.
+- fuel_level DEBE ser exacto: "empty", "quarter", "half", "three_quarters" o "full". Si dice "vacio"->empty, "un cuarto"->quarter, "mitad"->half, "tres cuartos"->three_quarters, "lleno"->full.
 - fluids: marca como true si el usuario dice que están bien o que los revise.
-- extraer email si se menciona.
-- para cotización, extraer los ítems específicos si los menciona (ej: "cambio de aceite" + "filtro").`;
+- extraer email y teléfono si se mencionan.`;
       }
 
       const response = await openai.chat.completions.create({
