@@ -50,7 +50,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useCustomers } from '@/hooks/useCustomers'
 
-import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown, FileText, Upload, X, Check, ClipboardCheck, DollarSign, FileSignature, ArrowLeft, ArrowRight, Brain, Loader2, Plus } from 'lucide-react'
+import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown, FileText, Upload, X, Check, ClipboardCheck, DollarSign, FileSignature, ArrowLeft, ArrowRight, Brain, Loader2, Plus, Activity, BatteryWarning, CircleOff, Thermometer, ShieldAlert, Disc, Settings, RefreshCw, CircleDot, DoorOpen, Droplets, Droplet as Oil, Gauge, Navigation } from 'lucide-react'
 import SignatureCanvas from 'react-signature-canvas'
 import { OrderCreationImageCapture, TemporaryImage } from './OrderCreationImageCapture'
 import { useBilling } from '@/hooks/useBilling'
@@ -211,7 +211,27 @@ const INITIAL_FORM_DATA = {
 
   authorize_test_drive: false,
 
+  dashboard_indicators: {} as Record<string, boolean>,
+
 }
+
+// Tipos y constantes para Testigos (Dashboard Indicators)
+const DASHBOARD_INDICATORS = [
+  { id: 'check_engine', label: 'Check Engine', icon: Activity },
+  { id: 'battery', label: 'Batería', icon: BatteryWarning },
+  { id: 'oil', label: 'Aceite', icon: Oil },
+  { id: 'brake', label: 'Frenos', icon: CircleOff },
+  { id: 'abs', label: 'ABS', icon: CircleOff },
+  { id: 'temperature', label: 'Temperatura', icon: Thermometer },
+  { id: 'airbag', label: 'Bolsas de Aire', icon: ShieldAlert },
+  { id: 'tpms', label: 'TPMS', icon: Disc },
+  { id: 'transmission', label: 'Transmisión', icon: Settings },
+  { id: 'stability', label: 'Estabilidad', icon: RefreshCw },
+  { id: 'steering', label: 'Dirección', icon: CircleDot },
+  { id: 'door_open', label: 'Puerta Abierta', icon: DoorOpen },
+  { id: 'low_fuel', label: 'Bajo Combustible', icon: Fuel },
+  { id: 'washer_fluid', label: 'Limpiaparabrisas', icon: Droplets }
+]
 
 // Wizard: indicador de pasos con color por paso (1=Cliente, 2=Inspección, 3=Costos, 4=Términos)
 const STEP_ICONS = [User, ClipboardCheck, DollarSign, FileSignature]
@@ -1638,6 +1658,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           authorize_test_drive: formData.authorize_test_drive,
 
+          dashboard_indicators: formData.dashboard_indicators,
+
         } as any)
 
       if (inspectionError) {
@@ -2388,6 +2410,44 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
               </div>
 
+            </div>
+
+            {/* Testigos del Tablero (Dashboard Indicators) */}
+            <div>
+              <Label className="flex items-center gap-2 mb-3 text-slate-300">
+                <Gauge className="h-4 w-4 text-orange-500" />
+                Testigos del tablero encendidos
+              </Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                {DASHBOARD_INDICATORS.map((indicator) => {
+                  const Icon = indicator.icon
+                  const isActive = !!formData.dashboard_indicators[indicator.id]
+                  return (
+                    <button
+                      key={indicator.id}
+                      type="button"
+                      onClick={() => setFormData({
+                        ...formData,
+                        dashboard_indicators: {
+                          ...formData.dashboard_indicators,
+                          [indicator.id]: !isActive
+                        }
+                      })}
+                      className={cn(
+                        "flex flex-col items-center justify-center p-3 rounded-lg border transition-all duration-200 min-h-[80px]",
+                        isActive 
+                          ? "bg-orange-500/20 border-orange-500/50 text-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.15)]" 
+                          : "bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700/80 hover:text-slate-300"
+                      )}
+                    >
+                      <Icon className={cn("h-6 w-6 mb-2", isActive && "animate-pulse")} />
+                      <span className="text-[10px] font-medium text-center leading-tight">
+                        {indicator.label}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
             {/* Objetos de valor */}

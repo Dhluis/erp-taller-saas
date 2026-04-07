@@ -25,6 +25,7 @@ import {
 } from "lucide-react"
 import { getCompanySettings, updateCompanySettings, type CompanySettings } from "@/lib/supabase/company-settings"
 import { uploadTermsPdf, deleteTermsPdf } from "@/lib/supabase/terms-pdf"
+import { uploadCompanyLogo } from "@/lib/supabase/logo-storage"
 import { useAuth } from "@/hooks/useAuth"
 import { useOrganization } from "@/lib/context/SessionContext"
 import { usePermissions } from "@/hooks/usePermissions"
@@ -165,6 +166,7 @@ export default function EmpresaPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
   const [isUploadingPdf, setIsUploadingPdf] = useState(false)
   const [formData, setFormData] = useState<CompanySettingsForm>(getDefaultFormState())
   const [detectedLocale, setDetectedLocale] = useState<DetectedLocale | null>(null)
@@ -235,25 +237,35 @@ export default function EmpresaPage() {
     }))
   }
 
-  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        toast.error('Por favor selecciona un archivo de imagen válido')
-        return
-      }
+    if (!file || !organizationId) return
 
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('El archivo es demasiado grande. Máximo 5MB')
-        return
-      }
-      
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        handleInputChange('logo', result)
-      }
-      reader.readAsDataURL(file)
+    if (!file.type.startsWith('image/')) {
+      toast.error('Por favor selecciona un archivo de imagen válido')
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('El archivo es demasiado grande. Máximo 5MB')
+      return
+    }
+
+    setIsUploadingLogo(true)
+    try {
+      const url = await uploadCompanyLogo(organizationId, file)
+      // Save URL directly in company_settings
+      await updateCompanySettings(organizationId, { logo_url: url } as any)
+      handleInputChange('logo', url)
+      toast.success('¡Logo actualizado correctamente!')
+    } catch (error: any) {
+      console.error('Error uploading logo:', error)
+      toast.error(error.message || 'Error al subir el logo')
+    } finally {
+      setIsUploadingLogo(false)
+      // Reset file input
+      const input = document.getElementById('logo-upload') as HTMLInputElement
+      if (input) input.value = ''
     }
   }
 
@@ -521,9 +533,19 @@ export default function EmpresaPage() {
                     variant="outline" 
                     size="sm" 
                     onClick={() => document.getElementById('logo-upload')?.click()}
+                    disabled={isUploadingLogo}
                   >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Subir Logo
+                    {isUploadingLogo ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                        Subiendo...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Subir Logo
+                      </>
+                    )}
                   </Button>
                 </div>
                 {formData.logo && (

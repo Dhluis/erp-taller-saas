@@ -42,7 +42,7 @@ export async function getCompanySettings(organizationId: string): Promise<Compan
       const client = getSupabaseClient()
 
       const { data, error } = await client
-        .from('company_settings')
+        .from('company_settings' as any)
         .select('*')
         .eq('organization_id', organizationId)
         .maybeSingle()
@@ -66,18 +66,23 @@ export async function getCompanySettings(organizationId: string): Promise<Compan
 export async function updateCompanySettings(organizationId: string, settingsData: UpdateCompanySettings): Promise<CompanySettings> {
   return executeWithErrorHandling(
     async () => {
-      const validatedData = companySettingsSchema.partial().omit({ created_at: true, updated_at: true, organization_id: true }).parse(settingsData)
+      const validatedData = companySettingsSchema.partial().omit({ created_at: true, updated_at: true }).parse({
+        ...settingsData,
+        organization_id: organizationId
+      })
       const client = getSupabaseClient()
 
       const { data, error } = await client
-        .from('company_settings')
-        .update(validatedData)
-        .eq('organization_id', organizationId)
+        .from('company_settings' as any)
+        .upsert(validatedData as any, { 
+          onConflict: 'organization_id',
+          ignoreDuplicates: false 
+        })
         .select()
         .single()
 
       if (error) {
-        throw new Error(`Failed to update company settings: ${error.message}`)
+        throw new Error(`Failed to save company settings: ${error.message}`)
       }
 
       return data
@@ -99,8 +104,8 @@ export async function createCompanySettings(settingsData: CreateCompanySettings)
       const client = getSupabaseClient()
 
       const { data, error } = await client
-        .from('company_settings')
-        .insert(validatedData)
+        .from('company_settings' as any)
+        .insert(validatedData as any)
         .select()
         .single()
 
