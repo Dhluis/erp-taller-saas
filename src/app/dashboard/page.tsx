@@ -956,7 +956,7 @@ function DashboardContent() {
             <div className="bg-gray-800 rounded-lg p-3 sm:p-4 md:p-6 border border-gray-700">
               <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-4">Órdenes por Estado</h3>
               <p className="text-gray-400 text-xs sm:text-sm mb-3 sm:mb-4">Distribución de órdenes en el flujo de trabajo</p>
-              <div className="h-64 sm:h-80 md:h-[500px] lg:h-[600px]">
+              <div className="h-auto min-h-[300px] md:h-[500px] lg:h-[600px]">
                 {loading ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
@@ -975,14 +975,14 @@ function DashboardContent() {
                 ) : (
                 <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
                   {/* Mobile: Pie chart pequeño con leyenda debajo */}
-                  <ResponsiveContainer width="100%" height={250} className="sm:hidden">
+                  <ResponsiveContainer width="100%" height={220} className="sm:hidden mt-2">
                     <PieChart>
                       <Pie
                         data={ordersByStatus}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        outerRadius={80}
+                        outerRadius={75}
                         fill="#8884d8"
                         dataKey="value"
                       >
