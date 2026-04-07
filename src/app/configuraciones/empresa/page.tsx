@@ -199,14 +199,13 @@ export default function EmpresaPage() {
     const currency = detectedLocale.currencyCode
     setIsSaving(true)
     try {
-      await updateCompanySettings(organizationId, {
-        currency,
-        base_currency: currency,
-      })
-      setFormData(prev => ({
-        ...prev,
-        billing: { ...prev.billing, currency },
-      }))
+      // Merge with current formData to satisfy NOT NULL constraints (e.g. company_name)
+      const updatedForm = {
+        ...formData,
+        billing: { ...formData.billing, currency }
+      }
+      await updateCompanySettings(organizationId, formToApiSettings(updatedForm))
+      setFormData(updatedForm)
       if (currency in SUPPORTED_CURRENCIES) {
         await setGlobalCurrency(currency as OrgCurrencyCode)
       }
@@ -254,16 +253,14 @@ export default function EmpresaPage() {
     setIsUploadingLogo(true)
     try {
       const url = await uploadCompanyLogo(organizationId, file)
-      // Save URL directly in company_settings
-      await updateCompanySettings(organizationId, { logo_url: url } as any)
+      // Only update local form state. Full save (with company_name) happens on handleSave.
       handleInputChange('logo', url)
-      toast.success('¡Logo actualizado correctamente!')
+      toast.success('Logo listo. Haz clic en Guardar para aplicar los cambios.')
     } catch (error: any) {
       console.error('Error uploading logo:', error)
       toast.error(error.message || 'Error al subir el logo')
     } finally {
       setIsUploadingLogo(false)
-      // Reset file input
       const input = document.getElementById('logo-upload') as HTMLInputElement
       if (input) input.value = ''
     }
@@ -286,16 +283,14 @@ export default function EmpresaPage() {
     setIsUploadingPdf(true)
     try {
       const url = await uploadTermsPdf(organizationId, file)
-      // Save URL directly in company_settings
-      await updateCompanySettings(organizationId, { terms_pdf_url: url } as any)
+      // Only update local form state. Full save happens on handleSave.
       handleInputChange('terms_pdf_url', url)
-      toast.success('¡Términos y condiciones subidos correctamente!')
+      toast.success('PDF listo. Haz clic en Guardar para aplicar los cambios.')
     } catch (error: any) {
       console.error('Error uploading terms PDF:', error)
       toast.error(error.message || 'Error al subir el PDF')
     } finally {
       setIsUploadingPdf(false)
-      // Reset file input
       const input = document.getElementById('terms-pdf-upload') as HTMLInputElement
       if (input) input.value = ''
     }
@@ -306,9 +301,9 @@ export default function EmpresaPage() {
     setIsUploadingPdf(true)
     try {
       await deleteTermsPdf(organizationId)
-      await updateCompanySettings(organizationId, { terms_pdf_url: null } as any)
+      // Only update local form state. Full save happens on handleSave.
       handleInputChange('terms_pdf_url', '')
-      toast.success('Términos y condiciones eliminados')
+      toast.success('Términos y condiciones eliminados. Haz clic en Guardar para confirmar.')
     } catch (error: any) {
       console.error('Error deleting terms PDF:', error)
       toast.error('Error al eliminar el PDF')
