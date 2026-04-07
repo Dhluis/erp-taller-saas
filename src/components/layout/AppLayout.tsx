@@ -36,6 +36,7 @@ export function AppLayout({ children, title, breadcrumbs }: AppLayoutProps) {
   const { isCollapsed } = useSidebar()
   const permissions = usePermissions()
   const isMechanic = permissions.isMechanic
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // If a parent already rendered AppLayout (e.g. root GlobalLayoutWrapper), just pass through
   if (alreadyMounted) {
@@ -46,17 +47,33 @@ export function AppLayout({ children, title, breadcrumbs }: AppLayoutProps) {
     <AppLayoutMountedCtx.Provider value={true}>
       <div className={`min-h-screen ${isDark ? 'dark' : ''}`}>
         <div className="flex h-screen bg-bg-primary">
-          {/* Sidebar */}
-          <aside className="hidden lg:block shrink-0">
+          {/* Desktop Sidebar */}
+          <aside className="hidden lg:block shrink-0 relative z-20">
             <Suspense fallback={<div className="w-64 bg-bg-secondary h-full animate-pulse" />}>
               <Sidebar />
             </Suspense>
           </aside>
 
+          {/* Mobile Sidebar Overlay */}
+          {isMobileMenuOpen && (
+            <div className="fixed inset-0 z-[100] lg:hidden">
+              <div 
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+                onClick={() => setIsMobileMenuOpen(false)}
+              />
+              <div className="absolute left-0 top-0 h-full bg-bg-secondary shadow-2xl transition-transform transform translate-x-0">
+                <Suspense fallback={<div className="w-64 bg-bg-secondary h-full animate-pulse" />}>
+                  {/* Pasamos una clase adicional para forzar que en el drawer nunca parezca colapsado visualmente ocupe 64 */}
+                  <Sidebar className="!w-64" />
+                </Suspense>
+              </div>
+            </div>
+          )}
+
           {/* Main Content Area */}
-          <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300 relative z-20">
+          <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300 relative z-10">
             {/* TopBar */}
-            <TopBar title={title} />
+            <TopBar title={title} onMenuClick={() => setIsMobileMenuOpen(true)} />
 
             {/* Breadcrumb */}
             {breadcrumbs && breadcrumbs.length > 0 && (
