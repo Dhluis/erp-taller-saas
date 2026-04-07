@@ -86,7 +86,7 @@ export function AppLayout({ children, title, breadcrumbs }: AppLayoutProps) {
             <main className="flex-1 overflow-auto bg-bg-primary">
               <div className="p-2 sm:p-4 md:p-6">
                 {!isMechanic && (
-                  <div className="max-w-5xl mx-auto mb-6">
+                  <div className="max-w-5xl mx-auto mb-2 sm:mb-6">
                     <FloatingAIAssistant />
                   </div>
                 )}

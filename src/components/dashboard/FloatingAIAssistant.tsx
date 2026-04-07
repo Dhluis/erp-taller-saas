@@ -98,13 +98,13 @@ export function FloatingAIAssistant() {
   };
 
   return (
-    <div className="w-full mb-8 perspective-1000">
+    <div className="w-full mb-2 sm:mb-6 perspective-1000">
       <div 
         className={cn(
           "relative transition-all duration-700 ease-out transform",
           "bg-gradient-to-r from-[#1e293b]/80 via-[#0f172a]/90 to-[#1e293b]/80",
-          "backdrop-blur-xl border border-pink-500/20 rounded-2xl shadow-[0_0_50px_-12px_rgba(236,72,153,0.3)]",
-          "p-4 md:p-6",
+          "backdrop-blur-xl border border-pink-500/20 rounded-xl sm:rounded-2xl shadow-[0_0_50px_-12px_rgba(236,72,153,0.3)]",
+          "p-3 sm:p-4 md:p-6",
           isExpanded ? "scale-[1.02] border-pink-500/40" : "scale-100"
         )}
       >
@@ -112,17 +112,17 @@ export function FloatingAIAssistant() {
         <div className="absolute -top-3 -left-3">
           <div className="relative">
             <div className="absolute inset-0 bg-pink-500 blur-md opacity-20 animate-pulse" />
-            <div className="relative bg-[#0f172a] border border-pink-500/30 p-2 rounded-xl shadow-lg">
-              <Brain className="h-6 w-6 text-pink-500" />
+            <div className="relative bg-[#0f172a] border border-pink-500/30 p-1.5 sm:p-2 rounded-xl shadow-lg">
+              <Brain className="h-4 w-4 sm:h-6 sm:w-6 text-pink-500" />
             </div>
           </div>
         </div>
 
         <div className="flex flex-col md:flex-row items-center gap-6">
-          <div className="flex-1 w-full space-y-2">
-            <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-                Eagles AI <Sparkles className="h-4 w-4 text-pink-400 fill-pink-400/20" />
+          <div className="flex-1 w-full space-y-1 sm:space-y-2">
+            <div className="flex items-center gap-2 mb-0.5 sm:mb-1 pl-5 sm:pl-0">
+              <h2 className="text-sm sm:text-xl font-bold text-white tracking-tight flex items-center gap-1.5 sm:gap-2">
+                Eagles AI <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 text-pink-400 fill-pink-400/20" />
               </h2>
             </div>
             
@@ -134,28 +134,28 @@ export function FloatingAIAssistant() {
                 onKeyDown={(e) => e.key === 'Enter' && handleMagicCreate()}
                 placeholder="Ej: 'Juan trae un Corolla 2022 con fallas...'"
                 className={cn(
-                  "w-full bg-white/5 border-slate-700/50 text-white placeholder:text-slate-500",
-                  "rounded-xl py-6 pl-6 pr-[140px] sm:pr-[250px] transition-all duration-300",
+                  "w-full bg-white/5 border border-slate-700/50 text-white placeholder:text-slate-500",
+                  "rounded-xl pl-3 sm:pl-6 pr-[90px] sm:pr-[140px] md:pr-[250px] transition-all duration-300",
                   "focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 outline-none",
-                  "text-base sm:text-lg font-medium h-auto min-h-[64px]"
+                  "text-sm sm:text-base md:text-lg font-medium h-11 sm:h-14 md:min-h-[64px]"
                 )}
               />
               
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 sm:gap-2">
                 <VoiceInput
                   onTranscript={(text) => setInput(prev => prev ? `${prev} ${text}` : text)}
-                  className="h-10 w-10 bg-slate-800/50 hover:bg-slate-700 text-white rounded-lg transition-colors"
+                  className="h-7 w-7 sm:h-9 sm:w-9 md:h-10 md:w-10 bg-slate-800/50 hover:bg-slate-700 text-white rounded-lg transition-colors"
                 />
                 <Button
                   onClick={handleMagicCreate}
                   disabled={loading || !input.trim()}
-                  className="h-12 bg-pink-600 hover:bg-pink-500 text-white rounded-xl shadow-lg shadow-pink-500/20 gap-2 px-6"
+                  className="h-8 sm:h-10 md:h-12 bg-pink-600 hover:bg-pink-500 text-white rounded-xl shadow-lg shadow-pink-500/20 gap-1 sm:gap-2 px-2.5 sm:px-4 md:px-6 text-xs sm:text-sm"
                 >
                   {loading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 sm:h-5 sm:w-5 animate-spin" />
                   ) : (
                     <>
-                      <Send className="h-5 w-5" />
+                      <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
                       <span className="hidden sm:inline">Crear con IA</span>
                     </>
                   )}
