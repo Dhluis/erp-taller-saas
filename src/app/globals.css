@@ -400,3 +400,101 @@
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* custom scrollbar for modals */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100,116,139,0.4) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(100,116,139,0.4);
+  border-radius: 2px;
+}
+
+/* ================================================
+   MODAL FORMS — COMPACT ON MOBILE (< 640px)
+   Reduce field height, font, and spacing inside
+   Radix Dialog modals without affecting desktop.
+   ================================================ */
+@media (max-width: 639px) {
+  /* Inputs y selects dentro de dialogs – más compactos */
+  [data-slot="dialog-content"] input,
+  [data-radix-dialog-content] input {
+    height: 2rem !important;      /* 32px en vez de 40px */
+    min-height: 2rem !important;
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+    font-size: 0.75rem !important; /* 12px */
+  }
+
+  [data-slot="dialog-content"] select,
+  [data-radix-dialog-content] select {
+    height: 2rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* SelectTrigger de shadcn (Radix Select) */
+  [data-slot="dialog-content"] [data-radix-select-trigger],
+  [data-radix-dialog-content] [data-radix-select-trigger] {
+    height: 2rem !important;
+    font-size: 0.75rem !important;
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+  }
+
+  /* Labels más pequeños */
+  [data-slot="dialog-content"] label,
+  [data-radix-dialog-content] label {
+    font-size: 0.7rem !important;  /* 11.2px */
+    margin-bottom: 0.15rem !important;
+  }
+
+  /* Reducir gap entre secciones */
+  [data-slot="dialog-content"] .space-y-4,
+  [data-radix-dialog-content] .space-y-4 {
+    row-gap: 0.5rem !important;    /* 8px vs 16px */
+  }
+
+  [data-slot="dialog-content"] .space-y-6,
+  [data-radix-dialog-content] .space-y-6 {
+    row-gap: 0.75rem !important;   /* 12px vs 24px */
+  }
+
+  [data-slot="dialog-content"] .gap-4,
+  [data-radix-dialog-content] .gap-4 {
+    gap: 0.5rem !important;
+  }
+
+  [data-slot="dialog-content"] .gap-3,
+  [data-radix-dialog-content] .gap-3 {
+    gap: 0.4rem !important;
+  }
+
+  /* Títulos de sección (h3) dentro del modal */
+  [data-slot="dialog-content"] h3,
+  [data-radix-dialog-content] h3 {
+    font-size: 0.75rem !important;
+    padding-bottom: 0.25rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  /* Mensajes de error */
+  [data-slot="dialog-content"] p.text-xs,
+  [data-radix-dialog-content] p.text-xs {
+    font-size: 0.65rem !important;
+    margin-top: 0.15rem !important;
+  }
+
+  /* Íconos de validación (CheckCircle, AlertCircle) */
+  [data-slot="dialog-content"] .absolute svg,
+  [data-radix-dialog-content] .absolute svg {
+    width: 0.875rem !important;
+    height: 0.875rem !important;
+  }
+}
