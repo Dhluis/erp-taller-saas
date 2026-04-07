@@ -173,25 +173,25 @@ export function WorkOrderDetailsTabs({
   return (
     <>
     <Tabs defaultValue="general" className="w-full">
-      <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-1 p-1">
+      <TabsList className="flex overflow-x-auto sm:grid w-full sm:grid-cols-4 lg:grid-cols-8 gap-1 p-1 bg-slate-900/50 border border-slate-700/50 hide-scrollbar no-scrollbar">
         {/* Tab: General */}
         <TabsTrigger 
           value="general" 
-          className="flex items-center justify-center gap-1 px-2 py-2.5 text-xs sm:text-sm"
+          className="flex-shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-2 py-2 sm:py-2.5 text-xs sm:text-sm transition-all"
         >
-          <ClipboardList className="h-4 w-4" />
-          <span className="hidden sm:inline">General</span>
+          <ClipboardList className="h-3.5 w-3.5 sm:h-4 w-4" />
+          <span className="sm:inline">General</span>
         </TabsTrigger>
 
         {/* Tab: Fotos */}
         <TabsTrigger 
           value="photos" 
-          className="flex items-center justify-center gap-1 px-2 py-2.5 text-xs sm:text-sm relative"
+          className="flex-shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-2 py-2 sm:py-2.5 text-xs sm:text-sm relative transition-all"
         >
-          <Camera className="h-4 w-4" />
-          <span className="hidden sm:inline">Fotos</span>
+          <Camera className="h-3.5 w-3.5 sm:h-4 w-4" />
+          <span className="sm:inline">Fotos</span>
           {images.length > 0 && (
-            <span className="absolute -top-1 -right-1 sm:static sm:ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] sm:text-xs text-primary-foreground leading-none">
+            <span className="ml-1 sm:ml-1 rounded-full bg-pink-600 px-1.5 py-0.5 text-[10px] text-white leading-none font-bold">
               {images.length}
             </span>
           )}
@@ -200,30 +200,30 @@ export function WorkOrderDetailsTabs({
         {/* Tab: Items */}
         <TabsTrigger 
           value="items" 
-          className="flex items-center justify-center gap-1 px-2 py-2.5 text-xs sm:text-sm"
+          className="flex-shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-2 py-2 sm:py-2.5 text-xs sm:text-sm transition-all"
         >
-          <Receipt className="h-4 w-4" />
-          <span className="hidden sm:inline">Items</span>
+          <Receipt className="h-3.5 w-3.5 sm:h-4 w-4" />
+          <span className="sm:inline">Items</span>
         </TabsTrigger>
 
         {/* Tab: Servicios */}
         <TabsTrigger 
           value="services" 
-          className="flex items-center justify-center gap-1 px-2 py-2.5 text-xs sm:text-sm"
+          className="flex-shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-2 py-2 sm:py-2.5 text-xs sm:text-sm transition-all"
         >
-          <Package className="h-4 w-4" />
-          <span className="hidden sm:inline">Servicios</span>
+          <Package className="h-3.5 w-3.5 sm:h-4 w-4" />
+          <span className="sm:inline">Servicios</span>
         </TabsTrigger>
 
         {/* Tab: Notas */}
         <TabsTrigger 
           value="notes" 
-          className="flex items-center justify-center gap-1 px-2 py-2.5 text-xs sm:text-sm relative"
+          className="flex-shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-2 py-2 sm:py-2.5 text-xs sm:text-sm relative transition-all"
         >
-          <MessageSquare className="h-4 w-4" />
-          <span className="hidden sm:inline">Notas</span>
+          <MessageSquare className="h-3.5 w-3.5 sm:h-4 w-4" />
+          <span className="sm:inline">Notas</span>
           {notes.length > 0 && (
-            <span className="absolute -top-1 -right-1 sm:static sm:ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] sm:text-xs text-primary-foreground leading-none">
+            <span className="ml-1 sm:ml-1 rounded-full bg-pink-600 px-1.5 py-0.5 text-[10px] text-white leading-none font-bold">
               {notes.length}
             </span>
           )}
@@ -232,12 +232,12 @@ export function WorkOrderDetailsTabs({
         {/* Tab: Documentos */}
         <TabsTrigger 
           value="documents" 
-          className="flex items-center justify-center gap-1 px-2 py-2.5 text-xs sm:text-sm relative"
+          className="flex-shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-2 py-2 sm:py-2.5 text-xs sm:text-sm relative transition-all"
         >
-          <Folder className="h-4 w-4" />
-          <span className="hidden sm:inline">Documentos</span>
+          <Folder className="h-3.5 w-3.5 sm:h-4 w-4" />
+          <span className="sm:inline">Docs</span>
           {documents.length > 0 && (
-            <span className="absolute -top-1 -right-1 sm:static sm:ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] sm:text-xs text-primary-foreground leading-none">
+            <span className="ml-1 sm:ml-1 rounded-full bg-pink-600 px-1.5 py-0.5 text-[10px] text-white leading-none font-bold">
               {documents.length}
             </span>
           )}
@@ -246,19 +246,19 @@ export function WorkOrderDetailsTabs({
         {/* Tab: Historia */}
         <TabsTrigger 
           value="history" 
-          className="flex items-center justify-center gap-1 px-2 py-2.5 text-xs sm:text-sm"
+          className="flex-shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-2 py-2 sm:py-2.5 text-xs sm:text-sm transition-all"
         >
-          <History className="h-4 w-4" />
-          <span className="hidden sm:inline">Historia</span>
+          <History className="h-3.5 w-3.5 sm:h-4 w-4" />
+          <span className="sm:inline">Historia</span>
         </TabsTrigger>
 
         {/* Tab: Términos */}
         <TabsTrigger
           value="terminos"
-          className="flex items-center justify-center gap-1 px-2 py-2.5 text-xs sm:text-sm"
+          className="flex-shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-2 py-2 sm:py-2.5 text-xs sm:text-sm transition-all"
         >
-          <ScrollText className="h-4 w-4" />
-          <span className="hidden sm:inline">Términos</span>
+          <ScrollText className="h-3.5 w-3.5 sm:h-4 w-4" />
+          <span className="sm:inline">Términos</span>
         </TabsTrigger>
       </TabsList>
 

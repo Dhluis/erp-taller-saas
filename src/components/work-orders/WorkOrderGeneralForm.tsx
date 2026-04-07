@@ -588,19 +588,19 @@ export function WorkOrderGeneralForm({
       {/* ─── PRIMERA SECCIÓN: Datos del Cliente, Vehículo y Descripción ─── */}
       <div className="rounded-xl border border-slate-700/80 bg-slate-900/40 overflow-hidden">
         {/* Datos del Cliente */}
-        <div className="p-5 border-b border-slate-700/80">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-              <User className="h-4 w-4 text-cyan-400" />
+        <div className="p-4 sm:p-5 border-b border-slate-700/80">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <User className="h-3.5 w-3.5 text-cyan-400" />
             </div>
-            <h3 className="font-semibold text-sm text-slate-100 tracking-tight">
+            <h3 className="font-semibold text-xs sm:text-sm text-slate-100 tracking-tight">
               Datos del Cliente
             </h3>
             <div className="flex-1 h-px bg-gradient-to-r from-cyan-500/30 to-transparent" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2 relative">
-              <Label htmlFor="customer_name" className="text-slate-400 text-xs font-medium uppercase tracking-wider">Nombre *</Label>
+              <Label htmlFor="customer_name" className="text-slate-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">Nombre *</Label>
               {isEditing ? (
                 <>
                   <div className="relative mt-1">
@@ -655,7 +655,7 @@ export function WorkOrderGeneralForm({
               )}
             </div>
             <div>
-              <Label htmlFor="customer_phone" className="text-slate-400 text-xs font-medium uppercase tracking-wider">Teléfono *</Label>
+              <Label htmlFor="customer_phone" className="text-slate-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">Teléfono *</Label>
               {isEditing ? (
                 <div className="relative mt-1">
                   <Input
@@ -701,19 +701,19 @@ export function WorkOrderGeneralForm({
         </div>
 
         {/* Datos del Vehículo */}
-        <div className="p-5 border-b border-slate-700/80">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-              <Wrench className="h-4 w-4 text-cyan-400" />
+        <div className="p-4 sm:p-5 border-b border-slate-700/80">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <Wrench className="h-3.5 w-3.5 text-cyan-400" />
             </div>
-            <h3 className="font-semibold text-sm text-slate-100 tracking-tight">
+            <h3 className="font-semibold text-xs sm:text-sm text-slate-100 tracking-tight">
               Datos del Vehículo
             </h3>
             <div className="flex-1 h-px bg-gradient-to-r from-cyan-500/30 to-transparent" />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
             <div>
-              <Label htmlFor="vehicle_brand" className="text-slate-400 text-xs font-medium uppercase tracking-wider">Marca *</Label>
+              <Label htmlFor="vehicle_brand" className="text-slate-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">Marca *</Label>
               {isEditing ? (
                 <Input
                   id="vehicle_brand"
@@ -728,7 +728,7 @@ export function WorkOrderGeneralForm({
               )}
             </div>
             <div>
-              <Label htmlFor="vehicle_model" className="text-slate-400 text-xs font-medium uppercase tracking-wider">Modelo *</Label>
+              <Label htmlFor="vehicle_model" className="text-slate-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">Modelo *</Label>
               {isEditing ? (
                 <Input
                   id="vehicle_model"
@@ -827,10 +827,10 @@ export function WorkOrderGeneralForm({
                 onChange={handleChange}
                 placeholder="17 caracteres"
                 maxLength={17}
-                className="max-w-xs bg-slate-800/80 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 mt-1"
+                className="max-w-xs bg-slate-800/80 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 mt-1 h-8 text-xs"
               />
             ) : (
-              <p className="text-sm text-slate-200 mt-1 font-mono">{formData.vehicleVin || '—'}</p>
+              <p className="text-xs sm:text-sm text-slate-200 mt-1 font-mono">{formData.vehicleVin || '—'}</p>
             )}
           </div>
         </div>
@@ -881,13 +881,13 @@ export function WorkOrderGeneralForm({
                 { value: 'quarter', label: '1/4', color: 'bg-orange-500' },
                 { value: 'half', label: '1/2', color: 'bg-yellow-500' },
                 { value: 'three_quarters', label: '3/4', color: 'bg-lime-500' },
-                { value: 'full', label: 'Lleno', color: 'bg-green-500' },
+                { value: 'full', label: 'Full', color: 'bg-green-500' },
               ].map((level) => (
                 <button
                   key={level.value}
                   type="button"
                   onClick={() => setFormData({ ...formData, fuel_level: level.value })}
-                  className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                  className={`flex-1 px-1 py-1.5 sm:px-3 sm:py-2 rounded-lg text-[9px] sm:text-xs font-medium transition-all ${
                     formData.fuel_level === level.value
                       ? `${level.color} text-white shadow-lg`
                       : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
@@ -927,7 +927,7 @@ export function WorkOrderGeneralForm({
               ].map((fluid) => (
                 <label
                   key={fluid.key}
-                  className="flex items-center gap-2 px-3 py-2 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors border border-slate-700"
+                  className="flex items-center gap-2 px-2 py-1.5 sm:px-3 sm:py-2 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors border border-slate-700"
                 >
                   <input
                     type="checkbox"
@@ -938,14 +938,14 @@ export function WorkOrderGeneralForm({
                         fluids: { ...formData.fluids, [fluid.key]: e.target.checked },
                       })
                     }
-                    className="w-4 h-4 rounded"
+                    className="w-3.5 h-3.5 rounded border-slate-600"
                   />
-                  <span className="text-sm text-slate-300">{fluid.label}</span>
+                  <span className="text-[11px] sm:text-sm text-slate-300 whitespace-nowrap overflow-hidden text-ellipsis">{fluid.label}</span>
                 </label>
               ))}
             </div>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-1 mt-1">
               {Object.entries(formData.fluids).map(([key, checked]) => {
                 const labels: Record<string, string> = {
                   aceite_motor: 'Aceite de motor',

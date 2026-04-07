@@ -113,7 +113,7 @@ export function WorkOrderDetailsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="max-w-[98vw] sm:max-w-6xl max-h-[95vh] overflow-y-auto p-3 sm:p-6 lg:overflow-hidden lg:flex lg:flex-col">
         {/* DialogDescription para accesibilidad (oculto visualmente ya que hay header personalizado) */}
         <VisuallyHidden.Root>
           <DialogDescription>
@@ -132,25 +132,28 @@ export function WorkOrderDetailsModal({
             <DialogClose className="shrink-0" />
           </div>
           
-          {/* Fila 2: Badge de estado */}
-          <div className="flex items-center justify-between gap-2">
+          {/* Fila 2: Badge de estado + Acciones (Responsivo) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1 sm:px-0">
             <div className="flex items-center gap-2">
               <Badge 
-                className={`${statusInfo.color} text-white text-xs sm:text-sm px-2 py-1`}
+                className={`${statusInfo.color} text-white text-[10px] sm:text-sm px-2 py-0.5 sm:py-1 font-bold whitespace-nowrap`}
               >
                 {statusInfo.label}
               </Badge>
             </div>
-            <div className="flex items-center gap-2">
+            
+            <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
               <EaglesAIActionButton 
                 workOrderId={order.id} 
                 customerPhone={order.customer?.phone} 
               />
-              <WorkOrderQRCode 
-                orderId={order.id} 
-                orderNumber={order.order_number} 
-                customerName={order.customer?.name} 
-              />
+              <div className="flex-shrink-0">
+                <WorkOrderQRCode 
+                  orderId={order.id} 
+                  orderNumber={order.order_number} 
+                  customerName={order.customer?.name} 
+                />
+              </div>
               {!isMechanic && (
                 <TooltipProvider>
                   <Tooltip>
@@ -179,9 +182,9 @@ export function WorkOrderDetailsModal({
           </div>
           
           {/* Fila 3: Metadata (fecha + contadores) */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              📅 Creada el {format(new Date(order.created_at), 'dd/MM/yyyy')}
+          <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-4 text-[10px] sm:text-sm text-muted-foreground px-1 sm:px-0">
+            <span className="flex items-center gap-1 shrink-0">
+              📅 {format(new Date(order.created_at), 'dd/MM/yyyy')}
             </span>
             
             {(imagesCount > 0 || notesCount > 0) && (
