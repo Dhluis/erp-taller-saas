@@ -14,7 +14,6 @@ import {
   Mail, 
   Globe, 
   CreditCard,
-  Users,
   Settings,
   Save,
   Upload,
@@ -60,11 +59,6 @@ export type CompanySettingsForm = {
     invoice_prefix: string
     payment_terms: number
   }
-  services: {
-    default_service_time: number
-    require_appointment: boolean
-    send_notifications: boolean
-  }
   created_at: string
   updated_at: string
 }
@@ -74,9 +68,6 @@ const DEFAULT_BUSINESS_HOURS: CompanySettingsForm['business_hours'] = {
 }
 const DEFAULT_BILLING: CompanySettingsForm['billing'] = {
   currency: 'MXN', tax_rate: 16, invoice_prefix: 'FAC', payment_terms: 30
-}
-const DEFAULT_SERVICES: CompanySettingsForm['services'] = {
-  default_service_time: 120, require_appointment: true, send_notifications: true
 }
 
 function getDefaultFormState(): CompanySettingsForm {
@@ -92,7 +83,6 @@ function getDefaultFormState(): CompanySettingsForm {
     terms_pdf_url: '',
     business_hours: { ...DEFAULT_BUSINESS_HOURS },
     billing: { ...DEFAULT_BILLING },
-    services: { ...DEFAULT_SERVICES },
     created_at: '',
     updated_at: ''
   }
@@ -123,11 +113,6 @@ function apiToFormSettings(api: CompanySettings | null): CompanySettingsForm {
       invoice_prefix: (appDefaults.invoice_prefix as string) ?? DEFAULT_BILLING.invoice_prefix,
       payment_terms: typeof appDefaults.payment_terms === 'number' ? appDefaults.payment_terms : DEFAULT_BILLING.payment_terms
     },
-    services: {
-      default_service_time: (appDefaults.default_duration as number) ?? DEFAULT_SERVICES.default_service_time,
-      require_appointment: typeof appDefaults.require_appointment === 'boolean' ? appDefaults.require_appointment : DEFAULT_SERVICES.require_appointment,
-      send_notifications: typeof appDefaults.send_notifications === 'boolean' ? appDefaults.send_notifications : DEFAULT_SERVICES.send_notifications
-    },
     created_at: api.created_at ?? '',
     updated_at: api.updated_at ?? ''
   }
@@ -149,9 +134,6 @@ function formToApiSettings(form: CompanySettingsForm): Parameters<typeof updateC
     invoice_terms: `Pago a ${form.billing.payment_terms} días`,
     terms_pdf_url: form.terms_pdf_url || null,
     appointment_defaults: {
-      default_duration: form.services.default_service_time,
-      require_appointment: form.services.require_appointment,
-      send_notifications: form.services.send_notifications,
       invoice_prefix: form.billing.invoice_prefix,
       payment_terms: form.billing.payment_terms
     }
@@ -646,53 +628,7 @@ export default function EmpresaPage() {
           </div>
         </div>
 
-        {/* Configuración de Servicios */}
-        <div className="bg-card p-6 rounded-lg border">
-          <div className="flex items-center gap-2 mb-4">
-            <Users className="h-5 w-5 text-orange-500" />
-            <h2 className="text-xl font-semibold">Configuración de Servicios</h2>
-          </div>
-          
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="default_service_time">Tiempo de Servicio por Defecto (min)</Label>
-              <Input 
-                id="default_service_time" 
-                type="number"
-                value={(formData.services ?? DEFAULT_SERVICES).default_service_time}
-                onChange={(e) => handleNestedInputChange('services', 'default_service_time', parseInt(e.target.value))}
-                disabled={!isEditing}
-                placeholder="120"
-              />
-            </div>
-            
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="require_appointment">Requerir Cita</Label>
-                <input
-                  type="checkbox"
-                  id="require_appointment"
-                  checked={(formData.services ?? DEFAULT_SERVICES).require_appointment}
-                  onChange={(e) => handleNestedInputChange('services', 'require_appointment', e.target.checked)}
-                  disabled={!isEditing}
-                  className="h-4 w-4"
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="send_notifications">Enviar Notificaciones</Label>
-                <input
-                  type="checkbox"
-                  id="send_notifications"
-                  checked={(formData.services ?? DEFAULT_SERVICES).send_notifications}
-                  onChange={(e) => handleNestedInputChange('services', 'send_notifications', e.target.checked)}
-                  disabled={!isEditing}
-                  className="h-4 w-4"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+
         {/* Términos y Condiciones PDF */}
         <div className="bg-card p-6 rounded-lg border lg:col-span-2">
           <div className="flex items-center gap-2 mb-4">

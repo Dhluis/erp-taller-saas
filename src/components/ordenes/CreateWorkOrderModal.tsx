@@ -50,7 +50,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useCustomers } from '@/hooks/useCustomers'
 
-import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown, FileText, Upload, X, Check, ClipboardCheck, DollarSign, FileSignature, ArrowLeft, ArrowRight, Brain, Loader2, Plus, Activity, BatteryWarning, CircleOff, Thermometer, ShieldAlert, Disc, Settings, RefreshCw, CircleDot, DoorOpen, Droplets, Droplet as Oil, Gauge, Navigation } from 'lucide-react'
+import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown, FileText, Upload, X, Check, ClipboardCheck, DollarSign, FileSignature, ArrowLeft, ArrowRight, Brain, Loader2, Plus, Activity, BatteryWarning, CircleOff, Thermometer, ShieldAlert, Disc, Settings, RefreshCw, CircleDot, DoorOpen, Droplets, Droplet as Oil, Gauge, Navigation, CircleParking, UserRound } from 'lucide-react'
 import SignatureCanvas from 'react-signature-canvas'
 import { OrderCreationImageCapture, TemporaryImage } from './OrderCreationImageCapture'
 import { useBilling } from '@/hooks/useBilling'
@@ -215,22 +215,169 @@ const INITIAL_FORM_DATA = {
 
 }
 
+// Icono personalizado para Check Engine
+const CheckEngineIcon = (props: any) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M8 6h8v12H8z" />
+    <path d="M21 10v4" />
+    <path d="M3 10v4" />
+    <path d="M8 10h-2" />
+    <path d="M18 10h-2" />
+    <path d="M10 4v2" />
+    <path d="M14 4v2" />
+    <path d="M10 18v2" />
+    <path d="M14 18v2" />
+    <circle cx="12" cy="12" r="1.5" />
+  </svg>
+)
+
+// Icono personalizado para Cinturón
+const SeatbeltIcon = (props: any) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 4a4 4 0 0 0-4 4v8a4 4 0 0 0 8 0V8a4 4 0 0 0-4-4z" />
+    <path d="M7 12h10" />
+    <path d="M4 21h16" />
+    <path d="M6 3l12 18" />
+  </svg>
+)
+
+// Icono personalizado para Aceite
+const OilIcon = (props: any) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 17h16c1.1 0 2-.9 2-2s-.9-2-2-2h-3v-2a3 3 0 0 0-3-3H4c-1.1 0-2 .9-2 2v7z" />
+    <path d="M18 13l4-2" />
+    <path d="M10 8v2" />
+    <path d="M8 17v2h4v-2" />
+  </svg>
+)
+
+// Icono personalizado para Frenos
+const BrakeIcon = (props: any) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 8v4" />
+    <path d="M12 16h.01" />
+    <path d="M7 7c-.7 1.3-1 2.8-1 4.3s.3 3 1 4.3" />
+    <path d="M17 7c.7 1.3 1 2.8 1 4.3s-.3 3-1 4.3" />
+  </svg>
+)
+
+// Icono personalizado para ABS
+const ABSIcon = (props: any) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9" />
+    <text x="5" y="15" fontSize="7" fontWeight="bold" stroke="none" fill="currentColor">ABS</text>
+    <path d="M7 7c-.7 1.3-1 2.8-1 4.3s.3 3 1 4.3" />
+    <path d="M17 7c.7 1.3 1 2.8 1 4.3s-.3 3-1 4.3" />
+  </svg>
+)
+
+// Icono personalizado para Batería
+const BatteryIcon = (props: any) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="6" width="16" height="12" rx="2" />
+    <path d="M8 4v2" />
+    <path d="M16 4v2" />
+    <path d="M7 12h2" />
+    <path d="M14 12h4" />
+    <path d="M16 10v4" />
+  </svg>
+)
+
+// Icono personalizado para Temperatura
+const TempIcon = (props: any) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 4.5V14a2 2 0 1 1-4 0V4.5a2 2 0 1 1 4 0z" />
+    <path d="M10 9h4" />
+    <path d="M10 6h4" />
+    <path d="M4 18c2-2 6-2 8 0s6 2 8 0" />
+    <path d="M4 21c2-2 6-2 8 0s6 2 8 0" />
+  </svg>
+)
+
+// Icono personalizado para Airbag
+const AirbagIcon = (props: any) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="7" r="3" />
+    <path d="M19 21c0-2-2-4-7-4s-7 2-7 4" />
+    <circle cx="12" cy="14" r="5" />
+    <path d="M12 12v4" />
+    <path d="M10 14h4" />
+  </svg>
+)
+
+// Icono personalizado para Neumáticos (TPMS)
+const TPMSIcon = (props: any) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M7 4h10c.5 0 1 .4 1.2 1.1s-.4 3.4-.6 4.9h-11.2c-.2-1.5-.8-4.2-.6-4.9S6.5 4 7 4z" />
+    <path d="M5.5 10c-.8 2.5-1 5-1 7s1.5 3 7.5 3s7.5-1 7.5-3s-.2-4.5-1-7" />
+    <path d="M12 13v3" />
+    <path d="M12 18h.01" />
+  </svg>
+)
+
+// Icono personalizado para Transmisión
+const TransIcon = (props: any) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3l2 3.5m-4 0L12 3M6 12l3.5 2m0-4L6 12M12 21l-2-3.5m4 0l-2 3.5M18 12l-3.5-2m0 4l3.5-2" />
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 10v2" />
+    <path d="M12 14h.01" />
+  </svg>
+)
+
+// Icono personalizado para Estabilidad
+const StabilityIcon = (props: any) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 16h16l-2-4H6l-2 4z" />
+    <path d="M6 16v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2" />
+    <path d="M14 16v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2" />
+    <path d="M10 12l-2 2" />
+    <path d="M14 12l2 2" />
+    <path d="M8 21c2-3 4-3 6 0" />
+    <path d="M8 18c2-3 4-3 6 0" />
+  </svg>
+)
+
+// Icono personalizado para Dirección
+const SteeringIcon = (props: any) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 12l4-8" />
+    <path d="M12 12l-4-8" />
+    <path d="M12 12v9" />
+    <circle cx="12" cy="12" r="2" />
+    <circle cx="16" cy="18" r="1.5" strokeDasharray="1 1" />
+    <path d="M18 18h2" />
+  </svg>
+)
+
+// Icono personalizado para Luces
+const LightsIcon = (props: any) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5H7V7h3z" />
+    <path d="M17 12h3M17 8l2-2M17 16l2 2" />
+  </svg>
+)
+
 // Tipos y constantes para Testigos (Dashboard Indicators)
 const DASHBOARD_INDICATORS = [
-  { id: 'check_engine', label: 'Check Engine', icon: Activity },
-  { id: 'battery', label: 'Batería', icon: BatteryWarning },
-  { id: 'oil', label: 'Aceite', icon: Oil },
-  { id: 'brake', label: 'Frenos', icon: CircleOff },
-  { id: 'abs', label: 'ABS', icon: CircleOff },
-  { id: 'temperature', label: 'Temperatura', icon: Thermometer },
-  { id: 'airbag', label: 'Bolsas de Aire', icon: ShieldAlert },
-  { id: 'tpms', label: 'TPMS', icon: Disc },
-  { id: 'transmission', label: 'Transmisión', icon: Settings },
-  { id: 'stability', label: 'Estabilidad', icon: RefreshCw },
-  { id: 'steering', label: 'Dirección', icon: CircleDot },
+  { id: 'check_engine', label: 'Check Engine', icon: CheckEngineIcon },
+  { id: 'battery', label: 'Batería', icon: BatteryIcon },
+  { id: 'oil', label: 'Aceite', icon: OilIcon },
+  { id: 'brake', label: 'Frenos', icon: BrakeIcon },
+  { id: 'abs', label: 'ABS', icon: ABSIcon },
+  { id: 'temperature', label: 'Temperatura', icon: TempIcon },
+  { id: 'airbag', label: 'Bolsas de Aire', icon: AirbagIcon },
+  { id: 'tpms', label: 'Presión Llantas', icon: TPMSIcon },
+  { id: 'lights', label: 'Luces', icon: LightsIcon },
+  { id: 'transmission', label: 'Transmisión', icon: TransIcon },
+  { id: 'stability', label: 'Estabilidad', icon: StabilityIcon },
+  { id: 'steering', label: 'Dirección', icon: SteeringIcon },
+  { id: 'handbrake', label: 'Freno de Mano', icon: CircleParking },
+  { id: 'seatbelt', label: 'Cinturón', icon: SeatbeltIcon },
   { id: 'door_open', label: 'Puerta Abierta', icon: DoorOpen },
-  { id: 'low_fuel', label: 'Bajo Combustible', icon: Fuel },
-  { id: 'washer_fluid', label: 'Limpiaparabrisas', icon: Droplets }
+  { id: 'low_fuel', label: 'Bajo Combustible', icon: Fuel }
 ]
 
 // Wizard: indicador de pasos con color por paso (1=Cliente, 2=Inspección, 3=Costos, 4=Términos)
