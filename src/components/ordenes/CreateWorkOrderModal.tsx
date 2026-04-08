@@ -1337,7 +1337,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       newErrors.terms_text = 'Los términos y condiciones son requeridos'
     }
 
-    if (formData.terms_type === 'file' && !formData.terms_file) {
+    // Solo pedir archivo si el modo es file Y no hay un archivo de empresa precargado
+    if (formData.terms_type === 'file' && !formData.terms_file && !companyTermsPdfUrl) {
       newErrors.terms_file = 'Debes subir un archivo PDF con los términos y condiciones'
     }
 
@@ -2964,34 +2965,41 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                     <p className="text-red-400 text-xs mt-1">{errors.terms_file}</p>
                   )}
                   <div className="mt-2">
-                    {/* ✅ NUEVO: Mostrar PDF de empresa si está configurado y no se subió otro */}
+                    {/* ✅ UI Limpia: Mostrar PDF de empresa si está configurado y no se subió otro */}
                     {!formData.terms_file && companyTermsPdfUrl ? (
-                      <div className="border border-emerald-500/40 rounded-lg p-4 bg-emerald-500/5">
+                      <div className="border border-emerald-500/40 rounded-lg p-5 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-emerald-400" />
+                          <div className="flex items-center gap-3">
+                            <div className="bg-emerald-500/20 p-2 rounded-full">
+                              <FileText className="h-5 w-5 text-emerald-400" />
+                            </div>
                             <div>
-                              <p className="text-sm text-white font-medium">PDF de Empresa precargado</p>
-                              <p className="text-xs text-slate-400">Configurado en Ajustes → Empresa</p>
+                              <p className="text-sm text-white font-semibold flex items-center gap-2">
+                                Términos de Empresa
+                                <span className="bg-emerald-500 text-[10px] px-1.5 py-0.5 rounded text-white font-bold uppercase tracking-wider">Activo</span>
+                              </p>
+                              <p className="text-[11px] text-slate-400">Documento institucional detectado automáticamente</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <a
-                              href={companyTermsPdfUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-cyan-400 hover:text-cyan-300 underline"
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(companyTermsPdfUrl, '_blank')}
+                              className="text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 h-8"
                             >
-                              Ver PDF
-                            </a>
+                              <Eye className="w-3.5 h-3.5 mr-1" /> Ver Actual
+                            </Button>
                           </div>
                         </div>
-                        <p className="text-xs text-emerald-400/80 mt-2">
-                          ✅ Se usará este PDF al generar la orden. Puedes subir uno diferente si lo necesitas.
-                        </p>
-                        <div className="mt-3">
-                          <label htmlFor="terms_file_override" className="cursor-pointer text-xs text-slate-400 hover:text-slate-300 underline">
-                            Subir un PDF diferente para esta orden
+                        
+                        <div className="mt-4 pt-3 border-t border-emerald-500/20 flex items-center justify-between">
+                          <p className="text-[10px] text-emerald-400/70 italic">
+                            No necesitas hacer nada más. Este PDF se adjuntará a la orden.
+                          </p>
+                          <label htmlFor="terms_file_override" className="cursor-pointer text-[10px] text-slate-500 hover:text-cyan-400 underline transition-colors">
+                            Cambiar por otro PDF
                           </label>
                           <input
                             type="file"
@@ -3004,7 +3012,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                         </div>
                       </div>
                     ) : !formData.terms_file ? (
-                      <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center hover:border-cyan-500 transition-colors">
+                      <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center hover:border-cyan-500 transition-colors bg-slate-900/30">
                         <input
                           type="file"
                           id="terms_file"
