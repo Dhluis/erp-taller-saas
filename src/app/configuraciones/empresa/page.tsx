@@ -113,6 +113,8 @@ function apiToFormSettings(api: CompanySettings | null): CompanySettingsForm {
       invoice_prefix: (appDefaults.invoice_prefix as string) ?? DEFAULT_BILLING.invoice_prefix,
       payment_terms: typeof appDefaults.payment_terms === 'number' ? appDefaults.payment_terms : DEFAULT_BILLING.payment_terms
     },
+    // ✅ Híbrido: Cargar desde columna directa O desde backup en appointment_defaults
+    terms_pdf_url: (api as any).terms_pdf_url || (appDefaults.terms_pdf_url as string) || '',
     created_at: api.created_at ?? '',
     updated_at: api.updated_at ?? ''
   }
@@ -135,7 +137,9 @@ function formToApiSettings(form: CompanySettingsForm): Parameters<typeof updateC
     terms_pdf_url: form.terms_pdf_url || null,
     appointment_defaults: {
       invoice_prefix: form.billing.invoice_prefix,
-      payment_terms: form.billing.payment_terms
+      payment_terms: form.billing.payment_terms,
+      // ✅ Backup híbrido para asegurar persistencia si falla la columna terms_pdf_url
+      terms_pdf_url: form.terms_pdf_url || null 
     }
   }
 }

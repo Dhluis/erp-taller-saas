@@ -447,7 +447,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
 }: CreateWorkOrderModalProps) {
   // ✅ Usar context si no se proporciona como prop
-  const { organizationId: contextOrganizationId } = useOrganization();
+  const { organizationId: contextOrganizationId, companySettings } = useOrganization();
   const { workshopId: sessionWorkshopId, hasMultipleWorkshops, user, isReady } = useSession();
   const organizationId = propOrganizationId ?? contextOrganizationId;
 
@@ -951,63 +951,36 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     }
   }, [organizationId, sessionWorkshopId, hasMultipleWorkshops, supabase])
 
-  // ✅ Estado para URL del PDF de términos de empresa (pre-cargado desde configuraciones)
+  // ✅ Estado para URL del PDF de términos de empresa (ahora desde Contexto Global)
   const [companyTermsPdfUrl, setCompanyTermsPdfUrl] = useState<string | null>(null)
 
-  // ✅ Cargar términos de empresa de forma independiente
+  // ✅ Sincronizar términos desde el contexto global (SessionContext)
   useEffect(() => {
-    if (!open || !organizationId) return
+    if (!open || !companySettings) return
 
-    const fetchTerms = async () => {
-      try {
-        console.log('🔍 [Modal] Intentando cargar términos para org:', organizationId)
-        // Usar query directa para evitar dependencias circulares o caches del helper
-        const { data: settings, error } = await supabase
-          .from('company_settings' as any)
-          .select('terms_pdf_url, terms_text, terms_and_conditions')
-          .eq('organization_id', organizationId)
-          .maybeSingle()
-
-        if (error) {
-          console.error('❌ [Modal] Error SQL al cargar términos:', error)
-          return
-        }
-
-        if (settings) {
-          const s = settings as any
-          console.log('✅ [Modal] Respuesta de settings recibida:', {
-            terms_pdf_url: s.terms_pdf_url ? 'PRESENTE' : 'NULO',
-            has_text: !!(s.terms_text || s.terms_and_conditions)
-          })
-
-          if (s.terms_pdf_url) {
-            setCompanyTermsPdfUrl(s.terms_pdf_url)
-          }
-
-          const termsText = s.terms_text || s.terms_and_conditions
-          
-          // ✅ Priorizar PDF: Si hay PDF de empresa, forzar modo 'file' por defecto
-          if (s.terms_pdf_url && !formData.terms_file) {
-            console.log('📂 [Modal] Priorizando PDF de empresa detectedo')
-            setFormData(prev => ({ ...prev, terms_type: 'file' }))
-            // Si también hay texto, lo guardamos pero el modo principal será file
-            if (termsText && !formData.terms_text) {
-              setFormData(prev => ({ ...prev, terms_text: termsText }))
-            }
-          } else if (termsText && !formData.terms_text) {
-            // Si solo hay texto, modo text
-            setFormData(prev => ({ ...prev, terms_text: termsText, terms_type: 'text' }))
-          }
-        } else {
-          console.warn('⚠️ [Modal] No se encontró fila en company_settings para esta org')
-        }
-      } catch (e) {
-        console.error('❌ [Modal] Excepción cargando términos:', e)
-      }
+    console.log('📂 [Modal] Cargando configuración desde contexto global')
+    
+    const pdfUrl = companySettings.terms_pdf_url
+    const termsText = companySettings.terms_text || companySettings.terms_and_conditions
+    
+    if (pdfUrl) {
+      setCompanyTermsPdfUrl(pdfUrl)
     }
 
-    fetchTerms()
-  }, [open, organizationId, supabase])
+    // ✅ Priorizar PDF: Si hay PDF en la configuración global, forzar modo 'file' por defecto
+    if (pdfUrl && !formData.terms_file) {
+      console.log('📂 [Modal] Aplicando PDF global por defecto')
+      setFormData(prev => ({ 
+        ...prev, 
+        terms_type: 'file',
+        // No sobreescribir si ya hay un texto manual
+        terms_text: prev.terms_text || termsText || '' 
+      }))
+    } else if (termsText && !formData.terms_text) {
+      // Si solo hay texto, modo text
+      setFormData(prev => ({ ...prev, terms_text: termsText, terms_type: 'text' }))
+    }
+  }, [open, companySettings])
 
   // ✅ FIX #2: Esperar a que la sesión esté lista antes de cargar empleados
   useEffect(() => {

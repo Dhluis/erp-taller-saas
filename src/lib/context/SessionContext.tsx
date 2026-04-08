@@ -19,6 +19,8 @@ interface SessionState {
   error: string | null
   // Multi-workshop support
   hasMultipleWorkshops: boolean // ✅ Indicador si la org tiene múltiples workshops
+  // Config
+  companySettings: any | null // ✅ Configuración global (PDF de términos, etc)
 }
 
 interface SessionContextType extends SessionState {
@@ -46,7 +48,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     isLoading: true,
     isReady: false,
     error: null,
-    hasMultipleWorkshops: false
+    hasMultipleWorkshops: false,
+    companySettings: null
   }
   
   const [state, setState] = useState<SessionState>(initialState)
@@ -137,8 +140,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             workshop: null,
             isLoading: false,
             isReady: true,
-            error: null, // No es un error, es estado normal
-            hasMultipleWorkshops: false
+            error: null,
+            hasMultipleWorkshops: false,
+            companySettings: null
           }
           currentStateRef.current = noUserState
           setState(noUserState)
@@ -162,7 +166,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           isLoading: false,
           isReady: true,
           error: friendlyError,
-          hasMultipleWorkshops: false
+          hasMultipleWorkshops: false,
+          companySettings: null
         }
         currentStateRef.current = noUserState
         setState(noUserState)
@@ -181,7 +186,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           isLoading: false,
           isReady: true,
           error: null,
-          hasMultipleWorkshops: false
+          hasMultipleWorkshops: false,
+          companySettings: null
         }
         currentStateRef.current = noUserState
         setState(noUserState)
@@ -211,7 +217,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       
       let profile: any = null
       let profileError: any = null
-      let apiWorkshops: { id: string; name: string }[] = [] // ✅ Workshops del API (evita consulta browser)
+      let apiWorkshops: { id: string; name: string }[] = []
+      let apiCompanySettings: any = null // ✅ Configuración de empresa
       
       try {
         // Usar endpoint API que usa Service Role (bypass RLS)
@@ -227,7 +234,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           if (data.workshops && Array.isArray(data.workshops)) {
             apiWorkshops = data.workshops
           }
-          console.log('✅ [Session] Perfil obtenido desde API')
+          // ✅ NUEVO: Extraer configuración de empresa
+          if (data.companySettings) {
+            apiCompanySettings = data.companySettings
+          }
+          console.log('✅ [Session] Perfil y configuración obtenidos desde API')
         } else {
           const errorData = await response.json()
           profileError = {
@@ -295,7 +306,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               isLoading: false,
               isReady: true,
               error: null,
-              hasMultipleWorkshops: false
+              hasMultipleWorkshops: false,
+              companySettings: null
             }
             currentStateRef.current = errorState
             setState(errorState)
@@ -335,7 +347,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           isLoading: false,
           isReady: true,
           error: 'Perfil no encontrado (null)',
-          hasMultipleWorkshops: false
+          hasMultipleWorkshops: false,
+          companySettings: null
         }
         currentStateRef.current = errorState
         setState(errorState)
@@ -414,7 +427,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         isLoading: false,
         isReady: true,
         error: null,
-        hasMultipleWorkshops: workshopsCount > 1
+        hasMultipleWorkshops: workshopsCount > 1,
+        companySettings: apiCompanySettings // ✅ Guardar configuración (PDF, etc)
       }
       
       currentStateRef.current = newState
@@ -697,7 +711,7 @@ export function useSession() {
 // Permiten migración gradual sin romper código existente
 
 export function useOrganization() {
-  const { organizationId, workshopId, isReady, isLoading } = useSession()
+  const { organizationId, workshopId, isReady, isLoading, companySettings } = useSession()
   
   return {
     organizationId,
@@ -705,6 +719,7 @@ export function useOrganization() {
     ready: isReady,
     isReady,
     loading: isLoading,
+    companySettings,
     // Compatibilidad con código que espera `organization` object
     organization: organizationId ? { id: organizationId, organization_id: organizationId } : null
   }

@@ -152,9 +152,12 @@ export async function GET(request: NextRequest) {
       name: user.full_name || ''
     }
 
-    // ✅ NUEVO: Obtener workshops de la organización desde el servidor (evita consultas RLS en el cliente)
+    // ✅ NUEVO: Obtener workshops y configuración de la organización desde el servidor
     let workshops: any[] = []
+    let companySettings: any = null
+
     if (user.organization_id) {
+      // 1. Obtener workshops
       const { data: workshopsData, error: wError } = await supabaseAdmin
         .from('workshops')
         .select('id, name')
@@ -167,11 +170,35 @@ export async function GET(request: NextRequest) {
         workshops = workshopsData || []
         console.log(`[GET /api/users/me] Workshops encontrados: ${workshops.length}`)
       }
+
+      // 2. Obtener configuración de empresa (incluyendo PDF de términos)
+      const { data: settingsData, error: sError } = await supabaseAdmin
+        .from('company_settings')
+        .select('*')
+        .eq('organization_id', user.organization_id)
+        .maybeSingle()
+      
+      if (sError) {
+        console.warn('[GET /api/users/me] Error obteniendo company_settings (no crítico):', sError.message)
+      } else {
+        companySettings = settingsData
+        console.log('[GET /api/users/me] Configuración de empresa obtenida:', companySettings ? 'Encontrada' : 'No encontrada')
+      }
+    }
+    
+    // ✅ Híbrido: Asegurar que el PDF esté disponible incluso si la columna falla
+    if (companySettings) {
+      const appDefaults = companySettings.appointment_defaults || {}
+      if (!companySettings.terms_pdf_url && appDefaults.terms_pdf_url) {
+        console.log('[GET /api/users/me] Recuperando terms_pdf_url del backup JSONB')
+        companySettings.terms_pdf_url = appDefaults.terms_pdf_url
+      }
     }
     
     return NextResponse.json({
       profile: mappedUser,
-      workshops // ✅ Incluir workshops para que SessionContext no tenga que consultarlos desde el browser
+      workshops, // ✅ Incluir workshops
+      companySettings // ✅ Incluir configuración global (PDF, etc)
     })
   } catch (error: any) {
     console.error('[GET /api/users/me] Error catch:', error?.message)
