@@ -985,11 +985,18 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           }
 
           const termsText = s.terms_text || s.terms_and_conditions
-          if (termsText && !formData.terms_text) {
-            setFormData(prev => ({ ...prev, terms_text: termsText, terms_type: 'text' }))
-          } else if (s.terms_pdf_url && !formData.terms_file) {
-            // Si hay PDF y no hay texto/archivo manual, poner modo file
+          
+          // ✅ Priorizar PDF: Si hay PDF de empresa, forzar modo 'file' por defecto
+          if (s.terms_pdf_url && !formData.terms_file) {
+            console.log('📂 [Modal] Priorizando PDF de empresa detectedo')
             setFormData(prev => ({ ...prev, terms_type: 'file' }))
+            // Si también hay texto, lo guardamos pero el modo principal será file
+            if (termsText && !formData.terms_text) {
+              setFormData(prev => ({ ...prev, terms_text: termsText }))
+            }
+          } else if (termsText && !formData.terms_text) {
+            // Si solo hay texto, modo text
+            setFormData(prev => ({ ...prev, terms_text: termsText, terms_type: 'text' }))
           }
         } else {
           console.warn('⚠️ [Modal] No se encontró fila en company_settings para esta org')
@@ -2672,7 +2679,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             {/* Objetos de valor */}
 
             <div>
-
+              <Label htmlFor="valuable_items" className="flex items-center gap-2 mb-2 text-slate-300">
+                <ClipboardCheck className="h-4 w-4 text-emerald-500" />
+                Objetos de valor encontrados
+              </Label>
               <div className="relative">
                 <Textarea
                   id="valuable_items"
@@ -2683,7 +2693,6 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                 />
               </div>
-
             </div>
 
           </div>
@@ -2751,7 +2760,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             {/* Motivo */}
 
             <div>
-
+              <Label htmlFor="entry_reason" className="text-xs font-medium text-slate-400 mb-1.5 block">
+                ¿Qué reporta el cliente? (Motivo de ingreso)
+              </Label>
               <div className="relative">
                 <Textarea
                   id="entry_reason"
@@ -2762,13 +2773,14 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                 />
               </div>
-
             </div>
 
             {/* Procedimientos */}
 
             <div>
-
+              <Label htmlFor="procedures" className="text-xs font-medium text-slate-400 mb-1.5 block">
+                Trabajos a realizar / Notas iniciales
+              </Label>
               <div className="relative">
                 <Textarea
                   id="procedures"
@@ -2779,7 +2791,6 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                 />
               </div>
-
             </div>
 
           </div>
@@ -2894,9 +2905,23 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             </div>
           </div>
             <div className="space-y-4 pt-4 border-t border-slate-700">
-              <h3 className="font-semibold text-sm border-b pb-2">
-                Términos y Condiciones
+              <h3 className="font-semibold text-sm border-b border-slate-700 pb-2 flex items-center gap-2 text-slate-300">
+                <Shield className="h-4 w-4" />
+                Términos, Condiciones y Firma
               </h3>
+
+              {/* ✅ Banner de PDF de Empresa Detectado */}
+              {companyTermsPdfUrl && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 flex items-center gap-3">
+                  <div className="bg-emerald-500/20 p-2 rounded-full">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-emerald-400">PDF de Empresa Detectado</p>
+                    <p className="text-[10px] text-emerald-500/80">Se utilizarán automáticamente los términos configurados en tu taller.</p>
+                  </div>
+                </div>
+              )}
 
               {/* Selección de tipo: Texto o Archivo */}
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4">
@@ -2910,17 +2935,20 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   <FileText className="h-4 w-4" />
                   Escribir Términos
                 </Button>
-                <Button
+                 <Button
                   type="button"
                   variant={formData.terms_type === 'file' ? 'primary' : 'outline'}
                   onClick={() => setFormData(prev => ({ ...prev, terms_type: 'file', terms_text: '' }))}
                   disabled={loading}
-                  className="flex items-center gap-2"
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2",
+                    formData.terms_type === 'file' && companyTermsPdfUrl && "bg-emerald-600 hover:bg-emerald-700 border-emerald-500"
+                  )}
                 >
                   {companyTermsPdfUrl || formData.terms_file ? (
                     <>
-                      <FileText className="h-4 w-4" />
-                      Ver PDF
+                      <Check className="h-4 w-4" />
+                      PDF Listo
                     </>
                   ) : (
                     <>
@@ -3091,9 +3119,17 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           {/* Firma digital del cliente - Paso 4 */}
           <div className="pt-4 border-t border-slate-700">
-            <Label className="text-sm font-medium mb-3 block">
-              Firma Digital del Cliente *
-            </Label>
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-sm font-medium block">
+                Firma Digital del Cliente *
+              </Label>
+              {companyTermsPdfUrl && formData.terms_type === 'file' && (
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-800 rounded border border-slate-700">
+                  <FileText className="h-3 w-3 text-cyan-400" />
+                  <span className="text-[10px] text-slate-400">Aceptando PDF de Empresa</span>
+                </div>
+              )}
+            </div>
             <div
               ref={signatureContainerRef}
               className="bg-white rounded-lg p-3 sm:p-4 border border-slate-600 min-h-[220px] sm:min-h-[180px] touch-none select-none"
