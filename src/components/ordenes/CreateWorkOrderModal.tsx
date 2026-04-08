@@ -951,6 +951,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     }
   }, [organizationId, sessionWorkshopId, hasMultipleWorkshops, supabase])
 
+  // ✅ Estado para URL del PDF de términos de empresa (pre-cargado desde configuraciones)
+  const [companyTermsPdfUrl, setCompanyTermsPdfUrl] = useState<string | null>(null)
+
   // ✅ FIX #2: Esperar a que la sesión esté lista antes de cargar empleados
   useEffect(() => {
     if (open && isReady && user && organizationId) {
@@ -963,6 +966,47 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       })
       loadSystemUsers()
       loadEmployees()
+
+      // ✅ NUEVO: Cargar términos predeterminados de la empresa
+      const loadCompanyTerms = async () => {
+        try {
+          const { data: settings } = await supabase
+            .from('company_settings')
+            .select('terms_and_conditions, terms_pdf_url, terms_text')
+            .eq('organization_id', organizationId)
+            .maybeSingle()
+
+          if (settings) {
+            const s = settings as any
+            // Guardar URL del PDF de empresa para mostrarlo en la UI
+            if (s.terms_pdf_url) {
+              setCompanyTermsPdfUrl(s.terms_pdf_url)
+            }
+            // Pre-rellenar el texto de términos si existe y el form aún está vacío
+            const termsText = s.terms_text || s.terms_and_conditions
+            if (termsText) {
+              setFormData(prev => {
+                if (!prev.terms_text) {
+                  return { ...prev, terms_text: termsText, terms_type: 'text' }
+                }
+                return prev
+              })
+            } else if (s.terms_pdf_url) {
+              // Si solo hay PDF de empresa, cambiar modo a 'file' para que se muestre
+              setFormData(prev => {
+                if (!prev.terms_file) {
+                  return { ...prev, terms_type: 'file' }
+                }
+                return prev
+              })
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ [Modal] No se pudieron cargar términos de empresa:', e)
+        }
+      }
+      loadCompanyTerms()
+
     } else {
       console.log('⏳ [useEffect] Esperando condiciones:', {
         open,
@@ -1828,8 +1872,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       if (appointmentId) {
         console.log('🔄 [CreateWorkOrderModal] Marcando cita como completada:', appointmentId);
         try {
-          const { error: aptError } = await supabase
-            .from('appointments')
+          const { error: aptError } = await (supabase
+            .from('appointments') as any)
             .update({ status: 'completed' })
             .eq('id', appointmentId);
           if (aptError) {
@@ -2893,12 +2937,51 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
               {/* Subida de archivo PDF */}
               {formData.terms_type === 'file' && (
                 <div>
-                  <Label htmlFor="terms_file">Subir documento PDF con términos y condiciones *</Label>
+                  <Label htmlFor="terms_file">Documento PDF de términos y condiciones *</Label>
                   {errors.terms_file && (
                     <p className="text-red-400 text-xs mt-1">{errors.terms_file}</p>
                   )}
                   <div className="mt-2">
-                    {!formData.terms_file ? (
+                    {/* ✅ NUEVO: Mostrar PDF de empresa si está configurado y no se subió otro */}
+                    {!formData.terms_file && companyTermsPdfUrl ? (
+                      <div className="border border-emerald-500/40 rounded-lg p-4 bg-emerald-500/5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-emerald-400" />
+                            <div>
+                              <p className="text-sm text-white font-medium">PDF de Empresa precargado</p>
+                              <p className="text-xs text-slate-400">Configurado en Ajustes → Empresa</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={companyTermsPdfUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-cyan-400 hover:text-cyan-300 underline"
+                            >
+                              Ver PDF
+                            </a>
+                          </div>
+                        </div>
+                        <p className="text-xs text-emerald-400/80 mt-2">
+                          ✅ Se usará este PDF al generar la orden. Puedes subir uno diferente si lo necesitas.
+                        </p>
+                        <div className="mt-3">
+                          <label htmlFor="terms_file_override" className="cursor-pointer text-xs text-slate-400 hover:text-slate-300 underline">
+                            Subir un PDF diferente para esta orden
+                          </label>
+                          <input
+                            type="file"
+                            id="terms_file_override"
+                            accept=".pdf,application/pdf"
+                            onChange={handleTermsFileChange}
+                            disabled={loading}
+                            className="hidden"
+                          />
+                        </div>
+                      </div>
+                    ) : !formData.terms_file ? (
                       <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center hover:border-cyan-500 transition-colors">
                         <input
                           type="file"
