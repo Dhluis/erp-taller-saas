@@ -50,7 +50,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useCustomers } from '@/hooks/useCustomers'
 
-import { AlertCircle, CheckCircle2, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown, FileText, Upload, X, Check, ClipboardCheck, DollarSign, FileSignature, ArrowLeft, ArrowRight, Brain, Loader2, Plus, Activity, BatteryWarning, CircleOff, Thermometer, ShieldAlert, Disc, Settings, RefreshCw, CircleDot, DoorOpen, Droplets, Droplet as Oil, Gauge, Navigation, CircleParking, UserRound } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Eye, User, Droplet, Fuel, Shield, Clipboard, Wrench, ChevronDown, FileText, Upload, X, Check, ClipboardCheck, DollarSign, FileSignature, ArrowLeft, ArrowRight, Brain, Loader2, Plus, Activity, BatteryWarning, CircleOff, Thermometer, ShieldAlert, Disc, Settings, RefreshCw, CircleDot, DoorOpen, Droplets, Droplet as Oil, Gauge, Navigation, CircleParking, UserRound } from 'lucide-react'
 import SignatureCanvas from 'react-signature-canvas'
 import { OrderCreationImageCapture, TemporaryImage } from './OrderCreationImageCapture'
 import { useBilling } from '@/hooks/useBilling'
