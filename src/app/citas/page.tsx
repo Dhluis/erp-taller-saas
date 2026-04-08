@@ -383,6 +383,8 @@ function CitasContent() {
         cache: 'no-store',
       });
 
+      let statsData = stats; // Fallback to current stats if fetch fails
+
       if (statsResponse.ok) {
         const statsResult = await statsResponse.json();
         if (statsResult.success && statsResult.data) {
@@ -405,11 +407,11 @@ function CitasContent() {
 
   const getStatusBadge = (status: Appointment['status']) => {
     const statusConfig = {
-      scheduled: { label: 'Programada', variant: 'secondary' as const, color: 'text-blue-600' },
-      completed: { label: 'Completada', variant: 'default' as const, color: 'text-green-600' },
-      cancelled: { label: 'Cancelada', variant: 'destructive' as const, color: 'text-red-600' }
+      scheduled: { label: 'Programada', variant: 'info' as const, color: 'text-info' },
+      completed: { label: 'Completada', variant: 'success' as const, color: 'text-success' },
+      cancelled: { label: 'Cancelada', variant: 'error' as const, color: 'text-error' }
     }
-    const config = statusConfig[status as 'scheduled' | 'completed' | 'cancelled'] || { label: status, variant: 'outline', color: '' }
+    const config = statusConfig[status as 'scheduled' | 'completed' | 'cancelled'] || { label: status, variant: 'info', color: '' }
     return <Badge variant={config.variant} className={config.color}>{config.label}</Badge>
   }
 
@@ -481,7 +483,6 @@ function CitasContent() {
       vehicle_plate: vehiclePlate,
       service_type: appointment.service_type,
       appointment_date: dateOnly,
-      appointment_time: timeOnly,
       appointment_time: timeOnly,
       status: (appointment.status as 'scheduled' | 'completed' | 'cancelled') || 'scheduled',
       notes: appointment.notes || '',
