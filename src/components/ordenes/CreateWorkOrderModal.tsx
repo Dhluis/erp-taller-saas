@@ -954,6 +954,54 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   // ✅ Estado para URL del PDF de términos de empresa (pre-cargado desde configuraciones)
   const [companyTermsPdfUrl, setCompanyTermsPdfUrl] = useState<string | null>(null)
 
+  // ✅ Cargar términos de empresa de forma independiente
+  useEffect(() => {
+    if (!open || !organizationId) return
+
+    const fetchTerms = async () => {
+      try {
+        console.log('🔍 [Modal] Intentando cargar términos para org:', organizationId)
+        // Usar query directa para evitar dependencias circulares o caches del helper
+        const { data: settings, error } = await supabase
+          .from('company_settings' as any)
+          .select('terms_pdf_url, terms_text, terms_and_conditions')
+          .eq('organization_id', organizationId)
+          .maybeSingle()
+
+        if (error) {
+          console.error('❌ [Modal] Error SQL al cargar términos:', error)
+          return
+        }
+
+        if (settings) {
+          const s = settings as any
+          console.log('✅ [Modal] Respuesta de settings recibida:', {
+            terms_pdf_url: s.terms_pdf_url ? 'PRESENTE' : 'NULO',
+            has_text: !!(s.terms_text || s.terms_and_conditions)
+          })
+
+          if (s.terms_pdf_url) {
+            setCompanyTermsPdfUrl(s.terms_pdf_url)
+          }
+
+          const termsText = s.terms_text || s.terms_and_conditions
+          if (termsText && !formData.terms_text) {
+            setFormData(prev => ({ ...prev, terms_text: termsText, terms_type: 'text' }))
+          } else if (s.terms_pdf_url && !formData.terms_file) {
+            // Si hay PDF y no hay texto/archivo manual, poner modo file
+            setFormData(prev => ({ ...prev, terms_type: 'file' }))
+          }
+        } else {
+          console.warn('⚠️ [Modal] No se encontró fila en company_settings para esta org')
+        }
+      } catch (e) {
+        console.error('❌ [Modal] Excepción cargando términos:', e)
+      }
+    }
+
+    fetchTerms()
+  }, [open, organizationId, supabase])
+
   // ✅ FIX #2: Esperar a que la sesión esté lista antes de cargar empleados
   useEffect(() => {
     if (open && isReady && user && organizationId) {
@@ -966,47 +1014,6 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       })
       loadSystemUsers()
       loadEmployees()
-
-      // ✅ NUEVO: Cargar términos predeterminados de la empresa
-      const loadCompanyTerms = async () => {
-        try {
-          const { data: settings } = await supabase
-            .from('company_settings')
-            .select('terms_and_conditions, terms_pdf_url, terms_text')
-            .eq('organization_id', organizationId)
-            .maybeSingle()
-
-          if (settings) {
-            const s = settings as any
-            // Guardar URL del PDF de empresa para mostrarlo en la UI
-            if (s.terms_pdf_url) {
-              setCompanyTermsPdfUrl(s.terms_pdf_url)
-            }
-            // Pre-rellenar el texto de términos si existe y el form aún está vacío
-            const termsText = s.terms_text || s.terms_and_conditions
-            if (termsText) {
-              setFormData(prev => {
-                if (!prev.terms_text) {
-                  return { ...prev, terms_text: termsText, terms_type: 'text' }
-                }
-                return prev
-              })
-            } else if (s.terms_pdf_url) {
-              // Si solo hay PDF de empresa, cambiar modo a 'file' para que se muestre
-              setFormData(prev => {
-                if (!prev.terms_file) {
-                  return { ...prev, terms_type: 'file' }
-                }
-                return prev
-              })
-            }
-          }
-        } catch (e) {
-          console.warn('⚠️ [Modal] No se pudieron cargar términos de empresa:', e)
-        }
-      }
-      loadCompanyTerms()
-
     } else {
       console.log('⏳ [useEffect] Esperando condiciones:', {
         open,
@@ -1583,9 +1590,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       }
 
       // Subir archivo PDF de términos si existe
-      let termsFileUrl: string | null = null
+      let termsFileUrl: string | null = companyTermsPdfUrl // ✅ Usar el PDF de empresa por defecto si existe
+      
       if (formData.terms_type === 'file' && formData.terms_file) {
         try {
+          console.log('📤 [CreateWorkOrderModal] Se detectó nuevo archivo PDF, subiendo...')
           // Validar que el archivo es PDF
           if (formData.terms_file.type !== 'application/pdf') {
             throw new Error('El archivo debe ser un PDF válido')
@@ -1675,6 +1684,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           })
           throw uploadErr // Re-lanzar para detener el proceso de creación
         }
+      } else if (formData.terms_type === 'file' && companyTermsPdfUrl) {
+        console.log('ℹ️ [CreateWorkOrderModal] Usando PDF pre-configurado de la empresa:', companyTermsPdfUrl)
+        termsFileUrl = companyTermsPdfUrl
       }
 
       // ✅ Crear orderData con workshop_id opcional
