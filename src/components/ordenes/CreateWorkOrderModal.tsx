@@ -380,19 +380,18 @@ const DASHBOARD_INDICATORS = [
   { id: 'low_fuel', label: 'Bajo Combustible', icon: Fuel }
 ]
 
-// Wizard: indicador de pasos con color por paso (1=Cliente, 2=Inspección, 3=Costos, 4=Términos)
-const STEP_ICONS = [User, ClipboardCheck, DollarSign, FileSignature]
+// Wizard: indicador de pasos con color por paso (1=Cliente, 2=Inspección, 3=Servicios + Firma)
+const STEP_ICONS = [User, ClipboardCheck, FileSignature]
 const STEP_COLORS = [
   { active: 'bg-cyan-500 ring-cyan-400 text-white', label: 'text-cyan-400', pending: 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' },
   { active: 'bg-amber-500 ring-amber-400 text-white', label: 'text-amber-400', pending: 'bg-amber-500/20 text-amber-400 border border-amber-500/50' },
-  { active: 'bg-emerald-500 ring-emerald-400 text-white', label: 'text-emerald-400', pending: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' },
   { active: 'bg-violet-500 ring-violet-400 text-white', label: 'text-violet-400', pending: 'bg-violet-500/20 text-violet-400 border border-violet-500/50' },
 ]
 function StepIndicator({ currentStep, completedSteps }: { currentStep: number; completedSteps: number[] }) {
-  const labels = ['Cliente y Vehículo', 'Inspección', 'Servicios y Costos', 'Términos y Firma']
+  const labels = ['Cliente y Vehículo', 'Inspección', 'Servicios y Firma']
   return (
     <div className="flex items-center justify-between gap-1 py-1.5 px-1.5 sm:py-3 sm:px-4 bg-slate-900/90 rounded-lg border border-slate-600 mb-1 sm:mb-3 shadow-inner">
-      {[1, 2, 3, 4].map((step) => {
+      {[1, 2, 3].map((step) => {
         const Icon = STEP_ICONS[step - 1]
         const colors = STEP_COLORS[step - 1]
         const isActive = currentStep === step
@@ -406,7 +405,7 @@ function StepIndicator({ currentStep, completedSteps }: { currentStep: number; c
         return (
           <div
             key={step}
-            className={`flex items-center gap-1.5 flex-1 min-w-0 ${step < 4 ? 'border-r border-slate-600 pr-1.5 sm:pr-2' : ''}`}
+            className={`flex items-center gap-1.5 flex-1 min-w-0 ${step < 3 ? 'border-r border-slate-600 pr-1.5 sm:pr-2' : ''}`}
           >
             <div
               className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-200 ${circleClass}`}
@@ -417,7 +416,7 @@ function StepIndicator({ currentStep, completedSteps }: { currentStep: number; c
               <span className={`text-xs font-medium block truncate ${labelClass}`}>
                 {labels[step - 1]}
               </span>
-              <span className="text-xs text-slate-500">{step}/4</span>
+              <span className="text-xs text-slate-500">{step}/3</span>
             </div>
           </div>
         )
@@ -608,7 +607,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
   // Recalibrar canvas cuando el usuario llega al paso de firma (contenedor ya en DOM)
   useEffect(() => {
-    if (!open || currentStep !== 4) return
+    if (!open || currentStep !== 3) return
     const timer = setTimeout(() => {
       if (signatureContainerRef.current && signatureRef.current) {
         const container = signatureContainerRef.current
@@ -1829,14 +1828,17 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
       if (appointmentId) {
         console.log('🔄 [CreateWorkOrderModal] Marcando cita como completada:', appointmentId);
         try {
-          await fetch(`/api/appointments/${appointmentId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'completed' }),
-          });
-          console.log('✅ [CreateWorkOrderModal] Cita marcada como completada');
+          const { error: aptError } = await supabase
+            .from('appointments')
+            .update({ status: 'completed' })
+            .eq('id', appointmentId);
+          if (aptError) {
+            console.error('⚠️ [CreateWorkOrderModal] Error al completar cita:', aptError);
+          } else {
+            console.log('✅ [CreateWorkOrderModal] Cita marcada como completada');
+          }
         } catch (aptError) {
-          console.error('⚠️ [CreateWorkOrderModal] Error al completar cita:', aptError);
+          console.error('⚠️ [CreateWorkOrderModal] Error inesperado al completar cita:', aptError);
         }
       }
 
@@ -1916,8 +1918,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const handleNext = () => {
     const stepValidations: Record<number, string[]> = {
       1: ['customerName', 'customerPhone', 'customerEmail', 'vehicleBrand', 'vehicleModel', 'vehicleYear', 'vehiclePlate'],
-      2: [],
-      3: []
+      2: []
     }
     const fieldsToValidate = stepValidations[currentStep] || []
     const stepErrors: Record<string, string> = {}
@@ -2002,7 +2003,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         <form
           onSubmit={(e) => {
             e.preventDefault()
-            if (currentStep === 4) handleSubmit(e)
+            if (currentStep === 3) handleSubmit(e)
           }}
           className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
@@ -2742,7 +2743,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           {currentStep === 3 && (
           <>
-          {/* ========== PASO 3: COSTO ESTIMADO Y ASIGNACIÓN ========== */}
+          {/* ========== PASO 3: SERVICIOS, COSTOS Y FIRMA ========== */}
+          {/* --- Costo y Asignación --- */}
           <div className="space-y-4 bg-slate-900 p-4 rounded-lg border border-slate-700">
             <div>
               <Label htmlFor="estimated_cost" className="text-slate-300">
@@ -2835,12 +2837,6 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
               )}
             </div>
           </div>
-
-          </>
-          )}
-
-          {currentStep === 4 && (
-          <>
             <div className="space-y-4 pt-4 border-t border-slate-700">
               <h3 className="font-semibold text-sm border-b pb-2">
                 Términos y Condiciones
@@ -3055,12 +3051,12 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           {/* Botones de navegación del wizard - siempre visibles al pie */}
           <div className="flex justify-between gap-3 pt-4 pb-1 border-t border-slate-700 flex-shrink-0 bg-slate-900/50 -mx-6 px-6 -mb-1 rounded-b-lg min-w-0">
-            {currentStep === 4 ? (
+            {currentStep === 3 ? (
               <>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setCurrentStep(3)}
+                  onClick={() => setCurrentStep(2)}
                   disabled={loading}
                   className="gap-2"
                 >
