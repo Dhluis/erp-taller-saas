@@ -12,7 +12,6 @@ import { Appointment, AppointmentInsert, AppointmentUpdate } from '@/types/supab
 export interface AppointmentStats {
   total: number
   scheduled: number
-  confirmed: number
   in_progress: number
   completed: number
   cancelled: number
@@ -124,7 +123,6 @@ export async function getAppointmentStats(organizationId?: string): Promise<Appo
       
       const total = data?.length || 0
       const scheduled = data?.filter((a: any) => a.status === 'scheduled').length || 0
-      const confirmed = data?.filter((a: any) => a.status === 'confirmed').length || 0
       const in_progress = data?.filter((a: any) => a.status === 'in_progress').length || 0
       const completed = data?.filter((a: any) => a.status === 'completed').length || 0
       const cancelled = data?.filter((a: any) => a.status === 'cancelled').length || 0
@@ -150,7 +148,6 @@ export async function getAppointmentStats(organizationId?: string): Promise<Appo
       return {
         total,
         scheduled,
-        confirmed,
         in_progress,
         completed,
         cancelled,

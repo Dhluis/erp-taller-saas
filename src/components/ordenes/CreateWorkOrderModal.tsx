@@ -1825,6 +1825,21 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
       
 
+      // ✅ NUEVO: Si la orden viene de una cita, marcar la cita como completada automáticamente
+      if (appointmentId) {
+        console.log('🔄 [CreateWorkOrderModal] Marcando cita como completada:', appointmentId);
+        try {
+          await fetch(`/api/appointments/${appointmentId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'completed' }),
+          });
+          console.log('✅ [CreateWorkOrderModal] Cita marcada como completada');
+        } catch (aptError) {
+          console.error('⚠️ [CreateWorkOrderModal] Error al completar cita:', aptError);
+        }
+      }
+
       onOpenChange(false)
 
       resetForm()

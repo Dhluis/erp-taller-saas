@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
         type: 'function',
         function: {
           name: 'get_upcoming_appointments',
-          description: 'Citas próximas del taller. Usar para: "citas de hoy", "citas de mañana", "citas de esta semana", "próximas citas", "agenda de citas", "citas pendientes", "citas confirmadas".',
+          description: 'Citas próximas del taller. Usar para: "citas de hoy", "citas de mañana", "citas de esta semana", "próximas citas", "agenda de citas", "citas pendientes".',
           parameters: {
             type: 'object',
             properties: {

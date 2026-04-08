@@ -14,14 +14,20 @@ async function resolveOrg(request: NextRequest) {
     .eq('auth_user_id', user.id)
     .single();
 
-  if (profileError || !userProfile?.organization_id) {
+  if (profileError || !userProfile) {
     return { user, organizationId: null, workshopId: null, error: 'No se pudo obtener la organización del usuario' };
+  }
+
+  const profile = userProfile as any;
+
+  if (!profile.organization_id) {
+    return { user, organizationId: null, workshopId: null, error: 'Usuario sin organización asignada' };
   }
 
   return {
     user,
-    organizationId: userProfile.organization_id as string,
-    workshopId: (userProfile as any).workshop_id as string | null,
+    organizationId: profile.organization_id as string,
+    workshopId: profile.workshop_id as string | null,
     error: null,
   };
 }
@@ -151,18 +157,30 @@ export async function PUT(
 
     const appointmentDateTime = `${dateOnly}T${timeStr}`;
 
-    const updateData: Record<string, any> = {
-      service_type,
-      appointment_date: appointmentDateTime,
-      duration: estimated_duration || 60,
-      notes: notes || null,
-      status: newStatus || 'scheduled',
-      vehicle_id: vehicleId,
-    };
+    const updateData: Record<string, any> = {};
+    
+    // Only update fields provided in the body
+    if (service_type !== undefined) updateData.service_type = service_type;
+    
+    if (appointment_date !== undefined || appointment_time !== undefined) {
+      // If we are updating date/time, we need a base date or keep existing
+      let dateBase = appointment_date || (existing as any).appointment_date?.split('T')[0] || '';
+      let timeBase = appointment_time || (existing as any).appointment_date?.split('T')[1]?.substring(0, 8) || '09:00:00';
+      
+      if (!timeBase.includes(':')) timeBase = `${timeBase}:00:00`;
+      else if (timeBase.split(':').length === 2) timeBase = `${timeBase}:00`;
+      
+      updateData.appointment_date = `${dateBase}T${timeBase}`;
+    }
+    
+    if (estimated_duration !== undefined) updateData.duration = estimated_duration;
+    if (notes !== undefined) updateData.notes = notes;
+    if (newStatus !== undefined) updateData.status = newStatus;
+    if (vehicleId !== undefined) updateData.vehicle_id = vehicleId;
     if (customerId) updateData.customer_id = customerId;
 
-    const { data: updatedAppointment, error: updateError } = await supabaseAdmin
-      .from('appointments')
+    const { data: updatedAppointment, error: updateError } = await (supabaseAdmin
+      .from('appointments') as any)
       .update(updateData)
       .eq('id', id)
       .select(`*, customer:customers(id, name, phone, email), vehicle:vehicles(id, brand, model, year, license_plate)`)

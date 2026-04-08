@@ -102,7 +102,7 @@ interface CreateAppointmentData {
   service_type: string
   appointment_date: string
   appointment_time: string
-  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled'
+  status: 'scheduled' | 'completed' | 'cancelled'
   notes?: string
   estimated_duration: number
 }
@@ -206,7 +206,6 @@ function CitasContent() {
   const [stats, setStats] = useState<AppointmentStats>({
     total: 0,
     scheduled: 0,
-    confirmed: 0,
     in_progress: 0,
     completed: 0,
     cancelled: 0,
@@ -275,7 +274,7 @@ function CitasContent() {
     if (filterTab === 'upcoming') {
       result = appointments.filter(apt => {
         const aptDate = new Date(apt.appointment_date)
-        const isActive = apt.status === 'scheduled' || apt.status === 'confirmed'
+        const isActive = apt.status === 'scheduled' || apt.status === 'in_progress'
         return aptDate >= today && isActive
       })
     } else if (filterTab === 'history') {
@@ -384,19 +383,6 @@ function CitasContent() {
         cache: 'no-store',
       });
 
-      let statsData = {
-        total: 0,
-        scheduled: 0,
-        confirmed: 0,
-        in_progress: 0,
-        completed: 0,
-        cancelled: 0,
-        no_show: 0,
-        today: 0,
-        thisWeek: 0,
-        thisMonth: 0
-      };
-
       if (statsResponse.ok) {
         const statsResult = await statsResponse.json();
         if (statsResult.success && statsResult.data) {
@@ -420,20 +406,19 @@ function CitasContent() {
   const getStatusBadge = (status: Appointment['status']) => {
     const statusConfig = {
       scheduled: { label: 'Programada', variant: 'secondary' as const, color: 'text-blue-600' },
-      confirmed: { label: 'Confirmada', variant: 'default' as const, color: 'text-green-600' },
       completed: { label: 'Completada', variant: 'default' as const, color: 'text-green-600' },
       cancelled: { label: 'Cancelada', variant: 'destructive' as const, color: 'text-red-600' }
     }
-    const config = statusConfig[status]
+    const config = statusConfig[status as 'scheduled' | 'completed' | 'cancelled'] || { label: status, variant: 'outline', color: '' }
     return <Badge variant={config.variant} className={config.color}>{config.label}</Badge>
   }
 
   const getStatusIcon = (status: Appointment['status']) => {
     switch (status) {
       case 'scheduled': return <Clock className="h-4 w-4 text-blue-500" />
-      case 'confirmed': return <CheckCircle className="h-4 w-4 text-green-500" />
       case 'completed': return <CheckCircle className="h-4 w-4 text-green-500" />
       case 'cancelled': return <XCircle className="h-4 w-4 text-red-500" />
+      default: return null
     }
   }
 
@@ -497,7 +482,8 @@ function CitasContent() {
       service_type: appointment.service_type,
       appointment_date: dateOnly,
       appointment_time: timeOnly,
-      status: (appointment.status as 'scheduled' | 'confirmed' | 'completed' | 'cancelled') || 'scheduled',
+      appointment_time: timeOnly,
+      status: (appointment.status as 'scheduled' | 'completed' | 'cancelled') || 'scheduled',
       notes: appointment.notes || '',
       estimated_duration: appointment.estimated_duration || appointment.duration || 60
     })
@@ -983,7 +969,7 @@ function CitasContent() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-card p-4 rounded-lg border">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-blue-500" />
@@ -1006,14 +992,6 @@ function CitasContent() {
             <span className="text-sm font-medium">Completadas</span>
           </div>
           <p className="text-2xl font-bold mt-2">{stats.completed}</p>
-        </div>
-        
-        <div className="bg-card p-4 rounded-lg border">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-yellow-500" />
-            <span className="text-sm font-medium">Confirmadas</span>
-          </div>
-          <p className="text-2xl font-bold mt-2">{stats.confirmed}</p>
         </div>
       </div>
 

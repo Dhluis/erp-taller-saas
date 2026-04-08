@@ -63,10 +63,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const data = appointments || [];
+    const data = (appointments || []) as any[];
     const total = data.length;
     const scheduled = data.filter(a => a.status === 'scheduled').length;
-    const confirmed = data.filter(a => a.status === 'confirmed').length;
     const in_progress = data.filter(a => a.status === 'in_progress').length;
     const completed = data.filter(a => a.status === 'completed').length;
     const cancelled = data.filter(a => a.status === 'cancelled').length;
@@ -96,7 +95,6 @@ export async function GET(request: NextRequest) {
     const stats = {
       total,
       scheduled,
-      confirmed,
       in_progress,
       completed,
       cancelled,
