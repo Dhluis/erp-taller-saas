@@ -2905,8 +2905,17 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   disabled={loading}
                   className="flex items-center gap-2"
                 >
-                  <Upload className="h-4 w-4" />
-                  Subir PDF
+                  {companyTermsPdfUrl || formData.terms_file ? (
+                    <>
+                      <FileText className="h-4 w-4" />
+                      Ver PDF
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" />
+                      Subir PDF
+                    </>
+                  )}
                 </Button>
               </div>
 
