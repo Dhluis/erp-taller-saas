@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Check, X, Crown, Zap, TrendingDown, AlertCircle, Settings, Loader2, ChevronDown } from 'lucide-react'
 import { useBilling } from '@/hooks/useBilling'
-import { PRICING, FEATURES, detectUserCountry, getPricingByCountry, shouldUseMercadoPago, type CountryCode } from '@/lib/billing/constants'
+import { PRICING, FEATURES, detectUserCountry, getPricingByCountry, type CountryCode } from '@/lib/billing/constants'
 import { useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
@@ -82,32 +82,19 @@ export default function BillingPage() {
   const isPremium = plan?.plan_tier === 'premium'
   const isActive = plan?.subscription_status === 'active'
   const pricing = getPricingByCountry(userCountry)
-  const useMercadoPago = shouldUseMercadoPago(userCountry)
 
   const handleCheckout = async (planType: 'monthly' | 'annual') => {
     setIsLoadingCheckout(true)
     try {
-      if (useMercadoPago) {
-        const response = await fetch('/api/billing/mercadopago/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plan: planType, country: userCountry }),
-        })
-        const data = await response.json()
-        if (!response.ok) throw new Error(data.error || 'Error al crear checkout')
-        if (data.checkoutUrl) window.location.href = data.checkoutUrl
-        else throw new Error('No se recibió URL de checkout')
-      } else {
-        const response = await fetch('/api/billing/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plan: planType }),
-        })
-        const data = await response.json()
-        if (!response.ok) throw new Error(data.error || 'Error al crear sesión de pago')
-        if (data.url) window.location.href = data.url
-        else throw new Error('No se recibió URL de checkout')
-      }
+      const response = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planType, country: userCountry }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Error al crear sesión de pago')
+      if (data.url) window.location.href = data.url
+      else throw new Error('No se recibió URL de checkout')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No se pudo procesar el pago'
       toast({ title: 'Error', description: message, variant: 'destructive' })
@@ -355,7 +342,7 @@ export default function BillingPage() {
 
             {!isPremium && (
               <p className="text-xs text-muted-foreground mt-2">
-                💳 Pago procesado por {useMercadoPago ? 'MercadoPago' : 'Stripe'}
+                💳 Pago procesado por Stripe
               </p>
             )}
             {/* Features */}

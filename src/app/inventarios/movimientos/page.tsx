@@ -217,18 +217,36 @@ export default function MovimientosInventarioPage() {
     }
   }
 
+  const movementTypeLabels: Record<string, string> = {
+    entry: 'Entrada',
+    exit: 'Salida',
+    adjustment: 'Ajuste',
+    transfer: 'Transferencia',
+  }
+
+  const referenceTypeLabels: Record<string, string> = {
+    purchase: 'Compra',
+    sale: 'Venta',
+    adjustment: 'Ajuste',
+    work_order: 'Orden de Trabajo',
+    return: 'Devolución',
+    transfer: 'Transferencia',
+    collection: 'Cobro',
+    payment: 'Pago',
+  }
+
   const handleExportCSV = () => {
     if (movements.length === 0) { toast.error('No hay movimientos para exportar'); return }
     const headers = ['Producto', 'Tipo', 'Cantidad', 'Stock Anterior', 'Stock Nuevo', 'Costo Unitario', 'Costo Total', 'Referencia', 'Notas', 'Fecha']
     const rows = movements.map(m => [
       m.inventory?.name ?? 'N/A',
-      m.movement_type,
+      movementTypeLabels[m.movement_type] ?? m.movement_type,
       m.quantity,
       m.previous_stock,
       m.new_stock,
       m.unit_cost ?? '',
       m.total_cost ?? '',
-      m.reference_type ?? '',
+      referenceTypeLabels[m.reference_type ?? ''] ?? m.reference_type ?? '',
       m.notes ?? '',
       formatDate(m.created_at),
     ])
@@ -244,14 +262,14 @@ export default function MovimientosInventarioPage() {
   }
 
   const getTypeBadge = (type: string) => {
-    const map: Record<string, { label: string; className: string }> = {
-      entry: { label: 'Entrada', className: 'text-green-600 border-green-600' },
-      exit: { label: 'Salida', className: 'text-red-600 border-red-600' },
-      adjustment: { label: 'Ajuste', className: 'text-blue-600 border-blue-600' },
-      transfer: { label: 'Transferencia', className: 'text-yellow-600 border-yellow-600' },
+    const map: Record<string, { label: string; variant: 'success' | 'error' | 'info' | 'warning' | 'secondary' }> = {
+      entry: { label: movementTypeLabels.entry, variant: 'success' },
+      exit: { label: movementTypeLabels.exit, variant: 'error' },
+      adjustment: { label: movementTypeLabels.adjustment, variant: 'info' },
+      transfer: { label: movementTypeLabels.transfer, variant: 'warning' },
     }
-    const t = map[type] ?? { label: type, className: '' }
-    return <Badge variant="outline" className={t.className}>{t.label}</Badge>
+    const t = map[type] ?? { label: type, variant: 'secondary' }
+    return <Badge variant={t.variant}>{t.label}</Badge>
   }
 
   const selectedItem = inventoryItems.find(i => i.id === form.product_id)
@@ -461,7 +479,7 @@ export default function MovimientosInventarioPage() {
                             <div>{formatCurrency(m.unit_cost)}</div>
                             {m.total_cost && <div className="text-xs text-muted-foreground">Total: {formatCurrency(m.total_cost)}</div>}
                           </td>
-                          <td className="p-3 text-muted-foreground">{m.reference_type ?? '-'}</td>
+                          <td className="p-3 text-muted-foreground">{referenceTypeLabels[m.reference_type ?? ''] ?? m.reference_type ?? '-'}</td>
                           <td className="p-3 text-muted-foreground max-w-xs truncate">{m.notes ?? '-'}</td>
                           <td className="p-3 text-muted-foreground whitespace-nowrap">{formatDate(m.created_at)}</td>
                         </tr>

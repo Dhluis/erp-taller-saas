@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe/server'
 import { createClient } from '@/lib/supabase/server'
-import { PRICING } from '@/lib/billing/constants'
+import { PRICING, getPricingByCountry, CountryCode } from '@/lib/billing/constants'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,34 +15,47 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Obtener datos del usuario y organización
-    const { data: profile } = await supabase
+    const { data: profile } = (await supabase
       .from('users')
       .select('organization_id, full_name, email')
       .eq('auth_user_id', user.id)
-      .single()
+      .single()) as { data: any }
 
-    if (!profile?.organization_id) {
+    if (!profile) {
+      return NextResponse.json({ error: 'Perfil no encontrado' }, { status: 404 })
+    }
+
+    if (!profile.organization_id) {
       return NextResponse.json({ error: 'Organización no encontrada' }, { status: 404 })
     }
 
-    const { data: org } = await supabase
+    const { data: org } = (await supabase
       .from('organizations')
       .select('name, stripe_customer_id')
       .eq('id', profile.organization_id)
-      .single()
+      .single()) as { data: any }
 
     // 3. Obtener el plan seleccionado del body
     const body = await request.json()
-    const { plan } = body // 'monthly' o 'annual'
+    const { plan, country } = body // 'monthly' o 'annual', y código de país opcional
 
     if (!plan || !['monthly', 'annual'].includes(plan)) {
       return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
     }
 
-    const priceId = PRICING[plan as 'monthly' | 'annual'].stripePriceId
+    // Obtener el precio correcto basado en el país (soporte multi-moneda)
+    const pricingConfig = getPricingByCountry(country as CountryCode)
+    
+    // Castear a any temporalmente para acceder a stripePriceId ya que no todos los países lo tienen definido aún
+    const countryPlan = (pricingConfig as any)[plan as 'monthly' | 'annual']
+    const priceId = countryPlan?.stripePriceId || PRICING[plan as 'monthly' | 'annual'].stripePriceId
 
     // 4. Crear o recuperar Stripe Customer
-    let customerId = org?.stripe_customer_id
+    if (!org) {
+      return NextResponse.json({ error: 'Datos de organización no encontrados' }, { status: 404 })
+    }
+
+    let customerId = org.stripe_customer_id
 
     if (!customerId) {
       const customer = await stripe.customers.create({
