@@ -9,7 +9,15 @@ export async function GET(request: NextRequest) {
     
     if (!hasPermission) {
       return NextResponse.json(
-        { error: 'No autorizado. Se requiere rol de administrador.' },
+        { 
+          error: 'No autorizado. Se requiere rol de administrador.',
+          debug: {
+            user_found: !!user,
+            profile_found: !!profile,
+            detected_role: profile?.role || 'NONE',
+            user_id: user?.id || 'NONE'
+          }
+        },
         { status: 403 }
       )
     }
