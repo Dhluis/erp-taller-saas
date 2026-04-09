@@ -94,6 +94,60 @@ export function createSupabaseMiddlewareClient(request: NextRequest) {
 }
 
 /**
+ * Obtener perfil de usuario (con caché en Redis)
+ */
+async function getCachedUserProfile(supabase: any, user: { id: string, email?: string }) {
+  const cacheKey = `${REDIS_KEYS.SESSION_PROFILE}:${user.id}`
+  let profile: any = null
+
+  // 1. Intentar obtener de Redis
+  try {
+    profile = await getRedisValue(cacheKey)
+    if (profile) {
+      await incrementCounter(REDIS_KEYS.METRICS.CACHE_HITS, 86400 * 30).catch(() => {})
+      return { profile, fromCache: true }
+    }
+    await incrementCounter(REDIS_KEYS.METRICS.CACHE_MISSES, 86400 * 30).catch(() => {})
+  } catch (cacheError) {
+    console.warn('[Middleware Cache] ⚠️ Error leyendo caché:', cacheError)
+  }
+
+  // 2. Si no hay en caché, consultar DB (system_users)
+  let { data: dbProfile, error: profileError } = await (supabase as any)
+    .from('system_users')
+    .select('*')
+    .eq('auth_user_id', user.id)
+    .single()
+
+  // Fallback por email si el id no mapea directo
+  if (profileError && user.email) {
+    const { data: profileFallback, error: profileErrorFallback } = await (supabase as any)
+      .from('system_users')
+      .select('*')
+      .eq('email', user.email)
+      .single()
+    
+    if (profileFallback) {
+      dbProfile = profileFallback
+      profileError = null
+    }
+  }
+
+  if (profileError || !dbProfile) {
+    return { profile: null, error: profileError }
+  }
+
+  // 3. Guardar en Redis (TTL 5 min)
+  try {
+    await setRedisValue(cacheKey, dbProfile, 300)
+  } catch (saveError) {
+    console.warn('[Middleware Cache] ⚠️ Error guardando en caché:', saveError)
+  }
+
+  return { profile: dbProfile, fromCache: false }
+}
+
+/**
  * Actualizar sesión de usuario
  */
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
@@ -102,76 +156,22 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     
     const { data: { session }, error } = await supabase.auth.getSession()
 
-    if (error) {
-      console.error('Error getting session:', error)
+    if (error || !session) {
+      if (error) console.error('Error getting session:', error)
       return redirectToLogin(request)
     }
 
-    // Si no hay sesión, redirigir al login
-    if (!session) {
+    const { profile, error: profileError } = await getCachedUserProfile(supabase, session.user)
+
+    if (profileError || !profile) {
+      console.error('User profile not found:', profileError)
       return redirectToLogin(request)
     }
 
-    // Verificar si el usuario tiene perfil (con fallback por email)
-    const cacheKey = `${REDIS_KEYS.SESSION_PROFILE}:${session.user.id}`
-    let profile: any = null
-
-    // 1. Intentar obtener de Redis
-    try {
-      profile = await getRedisValue(cacheKey)
-      if (profile) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[Middleware Cache] 🚀 HIT: ${cacheKey}`)
-        }
-        await incrementCounter(REDIS_KEYS.METRICS.CACHE_HITS, 86400 * 30).catch(() => {})
-      } else {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[Middleware Cache] 🔍 MISS: ${cacheKey}`)
-        }
-        await incrementCounter(REDIS_KEYS.METRICS.CACHE_MISSES, 86400 * 30).catch(() => {})
-      }
-    } catch (cacheError) {
-      console.warn('[Middleware Cache] ⚠️ Error leyendo caché:', cacheError)
-    }
-
-    // 2. Si no hay en caché, consultar DB
-    if (!profile) {
-      let { data: dbProfile, error: profileError } = await supabase
-        .from('system_users')
-        .select('*')
-        .eq('auth_user_id', session.user.id)
-        .single()
-
-      // Si falla con auth_user_id, intentar con email
-      if (profileError && (profileError.code === '42703' || profileError.message?.includes('auth_user_id does not exist'))) {
-        const { data: profileFallback, error: profileErrorFallback } = await supabase
-          .from('system_users')
-          .select('*')
-          .eq('email', session.user.email)
-          .single()
-        
-        dbProfile = profileFallback
-        profileError = profileErrorFallback
-      }
-
-      if (profileError || !dbProfile) {
-        console.error('User profile not found:', profileError)
-        return redirectToLogin(request)
-      }
-
-      profile = dbProfile
-
-      // 3. Guardar en Redis (TTL 5 min = 300s)
-      try {
-        await setRedisValue(cacheKey, profile, 300)
-      } catch (saveError) {
-        console.warn('[Middleware Cache] ⚠️ Error guardando en caché:', saveError)
-      }
-    }
-
-    // Si el perfil no está activo, redirigir al login
-    if (profile.status !== 'active' && profile.is_active === false) { 
-      // Nota: Soporta ambos nombres de columna (status o is_active) según la tabla
+    // Verificar si el perfil está activo (soporta status e is_active)
+    const isActive = profile.status === 'active' || profile.is_active === true || profile.is_active === 'true'
+    
+    if (!isActive) {
       console.error('User profile is inactive')
       return redirectToLogin(request)
     }
@@ -233,7 +233,7 @@ export async function handleLogout(request: NextRequest): Promise<NextResponse> 
 }
 
 /**
- * Verificar permisos de usuario
+ * Verificar permisos de usuario (usando caché)
  */
 export async function checkUserPermissions(
   request: NextRequest,
@@ -248,36 +248,22 @@ export async function checkUserPermissions(
       return { hasPermission: false }
     }
 
-    // Obtener perfil del usuario (con fallback por email)
-    let { data: profile, error: profileError } = await supabase
-      .from('system_users')
-      .select('*')
-      .eq('auth_user_id', session.user.id)
-      .single()
+    const { profile, error: profileError } = await getCachedUserProfile(supabase, session.user)
 
-    // Si falla con auth_user_id, intentar con email
-    if (profileError && (profileError.code === '42703' || profileError.message?.includes('auth_user_id does not exist'))) {
-      const { data: profileFallback, error: profileErrorFallback } = await supabase
-        .from('system_users')
-        .select('*')
-        .eq('email', session.user.email)
-        .single()
-      
-      profile = profileFallback
-      profileError = profileErrorFallback
-    }
-
-    if (profileError || !profile || profile.status !== 'active') {
+    if (profileError || !profile) {
       return { hasPermission: false }
     }
 
-    // Si no se requieren roles específicos, cualquier usuario autenticado tiene permiso
+    // Si no se requieren roles específicos, cualquier usuario activo tiene permiso
     if (requiredRoles.length === 0) {
       return { hasPermission: true, user: session.user, profile }
     }
 
-    // Verificar si el usuario tiene alguno de los roles requeridos
-    const hasPermission = requiredRoles.includes(profile.role)
+    // Normalizar roles para comparación case-insensitive
+    const normalizedRequired = requiredRoles.map(r => r.toUpperCase())
+    const userRole = (profile.role || '').toUpperCase()
+    
+    const hasPermission = normalizedRequired.includes(userRole)
     
     return { hasPermission, user: session.user, profile }
   } catch (error) {
