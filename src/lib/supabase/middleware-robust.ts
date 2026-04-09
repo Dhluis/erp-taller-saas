@@ -37,9 +37,14 @@ export function createSupabaseMiddlewareClient(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    // No lanzar error aquí para no romper el middleware si se carga en build
     return { 
-      supabase: createServerClient('https://placeholder.supabase.co', 'placeholder', { cookies: {} }), 
+      supabase: createServerClient('https://placeholder.supabase.co', 'placeholder', { 
+        cookies: {
+          get(name: string) { return undefined },
+          set(name: string, value: string, options: any) {},
+          remove(name: string, options: any) {},
+        } 
+      }), 
       response 
     }
   }
