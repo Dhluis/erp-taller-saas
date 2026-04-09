@@ -242,9 +242,35 @@ export async function checkUserPermissions(
   try {
     const { supabase } = createSupabaseMiddlewareClient(request)
     
-    const { data: { session }, error } = await supabase.auth.getSession()
+    let { data: { session }, error } = await supabase.auth.getSession()
 
-    if (error || !session) {
+    // ✅ FIX ROBUSTO PARA API ROUTES: 
+    // Si no hay sesión, intentar recrear el cliente parseando cookies manualmente de los headers
+    if (!session || error) {
+      const cookieHeader = request.headers.get('cookie') || ''
+      if (cookieHeader) {
+        const { createServerClient } = await import('@supabase/ssr')
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        
+        const cookieMap = new Map<string, string>()
+        cookieHeader.split(';').forEach(c => {
+          const [name, ...valueParts] = c.trim().split('=')
+          if (name && valueParts.length > 0) cookieMap.set(name.trim(), valueParts.join('=').trim())
+        })
+
+        const fallbackClient = createServerClient(supabaseUrl, supabaseAnonKey, {
+          cookies: {
+            get(name) { return cookieMap.get(name) },
+            set() {}, remove() {}
+          }
+        })
+        const { data: { session: fallbackSession } } = await fallbackClient.auth.getSession()
+        if (fallbackSession) session = fallbackSession
+      }
+    }
+
+    if (!session) {
       return { hasPermission: false }
     }
 
