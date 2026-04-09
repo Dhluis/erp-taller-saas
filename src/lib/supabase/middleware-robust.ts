@@ -5,6 +5,8 @@
 
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getRedisValue, setRedisValue, incrementCounter, REDIS_KEYS } from '@/lib/rate-limit/redis'
+import { invalidateUserProfileCache } from '@/lib/database/queries/users'
 // cookies de 'next/headers' no está disponible en middleware, usar request.cookies directamente
 
 /**
@@ -111,31 +113,65 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     }
 
     // Verificar si el usuario tiene perfil (con fallback por email)
-    let { data: profile, error: profileError } = await supabase
-      .from('system_users')
-      .select('*')
-      .eq('auth_user_id', session.user.id)
-      .single()
+    const cacheKey = `${REDIS_KEYS.SESSION_PROFILE}:${session.user.id}`
+    let profile: any = null
 
-    // Si falla con auth_user_id, intentar con email
-    if (profileError && (profileError.code === '42703' || profileError.message?.includes('auth_user_id does not exist'))) {
-      const { data: profileFallback, error: profileErrorFallback } = await supabase
-        .from('system_users')
-        .select('*')
-        .eq('email', session.user.email)
-        .single()
-      
-      profile = profileFallback
-      profileError = profileErrorFallback
+    // 1. Intentar obtener de Redis
+    try {
+      profile = await getRedisValue(cacheKey)
+      if (profile) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Middleware Cache] 🚀 HIT: ${cacheKey}`)
+        }
+        await incrementCounter(REDIS_KEYS.METRICS.CACHE_HITS, 86400 * 30).catch(() => {})
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Middleware Cache] 🔍 MISS: ${cacheKey}`)
+        }
+        await incrementCounter(REDIS_KEYS.METRICS.CACHE_MISSES, 86400 * 30).catch(() => {})
+      }
+    } catch (cacheError) {
+      console.warn('[Middleware Cache] ⚠️ Error leyendo caché:', cacheError)
     }
 
-    if (profileError || !profile) {
-      console.error('User profile not found:', profileError)
-      return redirectToLogin(request)
+    // 2. Si no hay en caché, consultar DB
+    if (!profile) {
+      let { data: dbProfile, error: profileError } = await supabase
+        .from('system_users')
+        .select('*')
+        .eq('auth_user_id', session.user.id)
+        .single()
+
+      // Si falla con auth_user_id, intentar con email
+      if (profileError && (profileError.code === '42703' || profileError.message?.includes('auth_user_id does not exist'))) {
+        const { data: profileFallback, error: profileErrorFallback } = await supabase
+          .from('system_users')
+          .select('*')
+          .eq('email', session.user.email)
+          .single()
+        
+        dbProfile = profileFallback
+        profileError = profileErrorFallback
+      }
+
+      if (profileError || !dbProfile) {
+        console.error('User profile not found:', profileError)
+        return redirectToLogin(request)
+      }
+
+      profile = dbProfile
+
+      // 3. Guardar en Redis (TTL 5 min = 300s)
+      try {
+        await setRedisValue(cacheKey, profile, 300)
+      } catch (saveError) {
+        console.warn('[Middleware Cache] ⚠️ Error guardando en caché:', saveError)
+      }
     }
 
     // Si el perfil no está activo, redirigir al login
-    if (profile.status !== 'active') {
+    if (profile.status !== 'active' && profile.is_active === false) { 
+      // Nota: Soporta ambos nombres de columna (status o is_active) según la tabla
       console.error('User profile is inactive')
       return redirectToLogin(request)
     }
@@ -181,6 +217,12 @@ export async function handleLogout(request: NextRequest): Promise<NextResponse> 
   try {
     const { supabase, response } = createSupabaseMiddlewareClient(request)
     
+    // Invalidad caché antes de salir
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      await invalidateUserProfileCache(user.id)
+    }
+
     await supabase.auth.signOut()
     
     return NextResponse.redirect(new URL('/auth/login', request.url))

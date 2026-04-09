@@ -3,6 +3,7 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server'
 import { hasPermission, UserRole } from '@/lib/auth/permissions'
 import { createClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { invalidateUserProfileCache } from '@/lib/database/queries/users'
 
 // Cliente de Supabase con permisos de Service Role (para operaciones administrativas)
 function getSupabaseAdmin() {
@@ -228,6 +229,11 @@ async function updateUserHandler(
       name: updatedUser.full_name || ''
     }
     
+    // Invalidad caché
+    if (updatedUser.auth_user_id) {
+      await invalidateUserProfileCache(updatedUser.auth_user_id);
+    }
+
     return NextResponse.json({
       success: true,
       user: mappedUser,
@@ -693,6 +699,11 @@ export async function DELETE(
     console.log('🎉 [DELETE USER] PROCESO COMPLETADO')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     
+    // Invalidad caché
+    if (targetUser.auth_user_id) {
+      await invalidateUserProfileCache(targetUser.auth_user_id);
+    }
+
     return NextResponse.json({
       success: true,
       message: `Usuario ${userToDelete.full_name || userToDelete.email} eliminado exitosamente`,

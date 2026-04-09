@@ -1,6 +1,22 @@
 import { createClient } from '@/lib/supabase/server'
 import { executeWithErrorHandling } from '@/lib/core/errors'
 import { UserRole } from '@/lib/auth/permissions'
+import { deleteRedisKey, REDIS_KEYS } from '@/lib/rate-limit/redis'
+
+/**
+ * Invalida el caché del perfil del usuario en Redis
+ */
+export async function invalidateUserProfileCache(userId: string) {
+  try {
+    const key = `${REDIS_KEYS.SESSION_PROFILE}:${userId}`;
+    await deleteRedisKey(key);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Cache Invalidation] 🔄 Invalidaded: ${key}`);
+    }
+  } catch (error) {
+    console.warn('[Cache Invalidation] ⚠️ Error invalidando caché:', error);
+  }
+}
 
 /**
  * =====================================================
@@ -206,6 +222,12 @@ export async function updateUser(
       .single()
 
     if (error) throw error
+    
+    // Invalidad caché tras actualizar usando auth_user_id
+    if (updatedUser?.auth_user_id) {
+      await invalidateUserProfileCache(updatedUser.auth_user_id);
+    }
+    
     return updatedUser
   }, { operation: 'updateUser', table: 'system_users' })
 }
@@ -254,6 +276,12 @@ export async function deactivateUser(id: string, updated_by: string) {
       .single()
 
     if (error) throw error
+    
+    // Invalidad caché tras desactivar usando auth_user_id
+    if (deactivatedUser?.auth_user_id) {
+      await invalidateUserProfileCache(deactivatedUser.auth_user_id);
+    }
+    
     return deactivatedUser
   }, { operation: 'deactivateUser', table: 'system_users' })
 }
@@ -278,6 +306,12 @@ export async function activateUser(id: string, updated_by: string) {
       .single()
 
     if (error) throw error
+    
+    // Invalidad caché tras activar usando auth_user_id
+    if (activatedUser?.auth_user_id) {
+      await invalidateUserProfileCache(activatedUser.auth_user_id);
+    }
+    
     return activatedUser
   }, { operation: 'activateUser', table: 'system_users' })
 }
@@ -330,6 +364,12 @@ export async function changeUserRole(
       .single()
 
     if (error) throw error
+    
+    // Invalidad caché tras cambiar rol usando auth_user_id
+    if (updatedUser?.auth_user_id) {
+      await invalidateUserProfileCache(updatedUser.auth_user_id);
+    }
+    
     return updatedUser
   }, { operation: 'changeUserRole', table: 'system_users' })
 }
@@ -448,6 +488,12 @@ export async function updateLastLogin(id: string) {
       .single()
 
     if (error) throw error
+
+    // Invalidad caché tras login usando auth_user_id
+    if (data?.auth_user_id) {
+      await invalidateUserProfileCache(data.auth_user_id);
+    }
+
     return data
   }, { operation: 'updateLastLogin', table: 'system_users' })
 }

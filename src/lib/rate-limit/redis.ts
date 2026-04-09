@@ -1,6 +1,17 @@
 import { Redis } from '@upstash/redis';
 
 /**
+ * Prefijos de claves para Redis
+ */
+export const REDIS_KEYS = {
+  SESSION_PROFILE: 'session:profile',
+  METRICS: {
+    CACHE_HITS: 'metrics:session_cache:hits',
+    CACHE_MISSES: 'metrics:session_cache:misses',
+  }
+} as const;
+
+/**
  * Cliente singleton de Upstash Redis para rate limiting
  */
 class RedisClient {

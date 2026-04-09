@@ -7,6 +7,7 @@ import { getSupabaseClient } from '../supabase'
 import { executeWithErrorHandling } from '../core/errors'
 import { z } from 'zod'
 import { SystemUser, SystemUserInsert, SystemUserUpdate } from '@/types/supabase-simple'
+import { invalidateUserProfileCache } from '../database/queries/users'
 // Esquema de validación para usuarios del sistema
 const systemUserSchema = z.object({
   id: z.string().uuid().optional(),
@@ -200,6 +201,11 @@ export async function updateSystemUser(id: string, userData: UpdateSystemUser): 
         throw new Error(`Failed to update system user: ${error.message}`)
       }
 
+      // Invalidad caché usando auth_user_id
+      if (data?.auth_user_id) {
+        await invalidateUserProfileCache(data.auth_user_id)
+      }
+
       return data
     },
     {
@@ -244,6 +250,14 @@ export async function deleteSystemUser(id: string): Promise<void> {
     async () => {
       const client = getSupabaseClient()
 
+      // 1. Obtener auth_user_id ANTES de eliminar el registro
+      const { data: user } = await client
+        .from('system_users')
+        .select('auth_user_id')
+        .eq('id', id)
+        .single()
+
+      // 2. Eliminar registro
       const { error } = await client
         .from('system_users')
         .delete()
@@ -251,6 +265,11 @@ export async function deleteSystemUser(id: string): Promise<void> {
 
       if (error) {
         throw new Error(`Failed to delete system user: ${error.message}`)
+      }
+
+      // 3. Invalidad caché con el auth_user_id correcto
+      if (user?.auth_user_id) {
+        await invalidateUserProfileCache(user.auth_user_id)
       }
     },
     {
@@ -311,6 +330,11 @@ export async function toggleUserStatus(id: string, isActive: boolean): Promise<S
         throw new Error(`Failed to toggle user status: ${error.message}`)
       }
 
+      // Invalidad caché usando auth_user_id
+      if (data?.auth_user_id) {
+        await invalidateUserProfileCache(data.auth_user_id)
+      }
+
       return data
     },
     {
@@ -337,6 +361,11 @@ export async function updateLastLogin(id: string): Promise<SystemUser> {
 
       if (error) {
         throw new Error(`Failed to update last login: ${error.message}`)
+      }
+
+      // Invalidad caché usando auth_user_id
+      if (data?.auth_user_id) {
+        await invalidateUserProfileCache(data.auth_user_id)
       }
 
       return data
