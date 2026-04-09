@@ -1339,15 +1339,15 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
     // Solo pedir archivo si el modo es file Y no hay un archivo de empresa precargado
     if (formData.terms_type === 'file' && !formData.terms_file && !companyTermsPdfUrl) {
-      newErrors.terms_file = 'Debes subir un archivo PDF con los términos y condiciones'
+      newErrors.terms_file = 'Por favor, selecciona el archivo PDF de los términos.'
     }
 
     if (!formData.terms_accepted) {
-      newErrors.terms_accepted = 'El cliente debe aceptar los términos y condiciones'
+      newErrors.terms_accepted = '¡Casi listo! Por favor, recuerda marcar la aceptación de los términos.'
     }
 
     if (!formData.customer_signature) {
-      newErrors.customer_signature = 'El cliente debe firmar digitalmente'
+      newErrors.customer_signature = 'Necesitamos la firma del cliente para autorizar el servicio.'
     }
 
     
@@ -1369,7 +1369,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     if (Object.keys(newErrors).length > 0) {
 
       const errorList = Object.values(newErrors).slice(0, 3).join('. ')
-      toast.error('No se puede crear la orden', {
+      toast.warning('Casi listo: Completa estos pasos', {
         description: errorList + (Object.keys(newErrors).length > 3 ? ' ...' : ''),
         duration: 6000,
       })
@@ -3087,14 +3087,14 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   checked={formData.terms_accepted}
                   onChange={(e) => setFormData(prev => ({ ...prev, terms_accepted: e.target.checked }))}
                   disabled={loading}
-                  className={`mt-1 h-4 w-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 ${errors.terms_accepted ? 'border-red-500' : ''}`}
+                  className={`mt-1 h-4 w-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 ${errors.terms_accepted ? 'border-amber-500 bg-amber-500/10' : ''}`}
                 />
                 <Label htmlFor="terms_accepted" className="text-sm text-slate-300 cursor-pointer">
                   El cliente acepta los términos y condiciones *
                 </Label>
               </div>
               {errors.terms_accepted && (
-                <p className="text-red-400 text-xs mt-1 ml-6">{errors.terms_accepted}</p>
+                <p className="text-amber-500 text-xs mt-1 ml-6 animate-pulse font-medium">{errors.terms_accepted}</p>
               )}
             </div>
 
@@ -3158,7 +3158,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
               </div>
             )}
             {errors.customer_signature && (
-              <p className="text-red-400 text-xs mt-2">{errors.customer_signature}</p>
+              <p className="text-amber-500 text-xs mt-2 animate-pulse font-medium">{errors.customer_signature}</p>
             )}
             <p className="text-xs text-slate-400 mt-2">
               El cliente debe firmar digitalmente para autorizar el servicio
