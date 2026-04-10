@@ -1,7 +1,7 @@
+import { NextRequest, NextResponse } from 'next/server';
 // src/app/api/migrations/terms-pdf/route.ts
 // One-time migration to add terms_pdf_url column to company_settings.
 // Safe to call multiple times (IF NOT EXISTS).
-import { NextResponse } from 'next/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
 export async function POST() {

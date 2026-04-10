@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API Route para Notas de Venta por ID
  * Maneja operaciones GET, PUT, DELETE para notas de venta específicas
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import {
   updateInvoice,
   updateInvoiceDiscount,

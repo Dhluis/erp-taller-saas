@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API: Cobros (Collections)
  * POST /api/collections - Crear cobro y opcionalmente registrar ingreso en cuenta de efectivo
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 

@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * POST /api/work-orders/[id]/images/upload
  * Sube archivos a Supabase Storage con service role y persiste en work_orders.images.
  * Usar este endpoint al crear una orden para evitar problemas de permisos RLS en Storage.
  */
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest } from '@/lib/supabase/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 

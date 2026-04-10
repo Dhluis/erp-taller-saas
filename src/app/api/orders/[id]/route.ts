@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServiceClient, createClientFromRequest } from '@/lib/supabase/server'
 import { updateWorkOrder, updateWorkOrderStatus, deleteWorkOrder } from '@/lib/database/queries/work-orders'
 import { hasPermission, canAccessWorkOrder, UserRole } from '@/lib/auth/permissions'

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { getBackupSchedule, setBackupSchedule } from '@/lib/database/queries/backups'
 import { scheduleBackups } from '@/lib/backup/service'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'

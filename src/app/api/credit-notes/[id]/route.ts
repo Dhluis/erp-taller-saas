@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * GET /api/credit-notes/[id] - Obtener una nota
  * PATCH /api/credit-notes/[id] - Actualizar estado
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getCreditNoteById, updateCreditNoteStatus, type CreditNoteStatus } from '@/lib/database/queries/credit-notes'
 import { isSupabaseTableMissingError, MIGRATION_045_MESSAGE } from '@/lib/supabase/table-missing'

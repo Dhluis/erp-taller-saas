@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 
 // GET /api/backups/info - Información del sistema de backup
 export async function GET(request: NextRequest) {

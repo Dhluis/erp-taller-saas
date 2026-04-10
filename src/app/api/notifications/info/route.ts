@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 
 // GET /api/notifications/info - Información del sistema de notificaciones
 export async function GET(request: NextRequest) {

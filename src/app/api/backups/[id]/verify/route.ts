@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { verifyBackupIntegrity } from '@/lib/backup/service'
 import { requireAuth, validateAccess } from '@/lib/auth/validation'
 

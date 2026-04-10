@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, validateAccess } from '@/lib/auth/validation'
 
 // GET /api/auth/demo - Demostrar funciones de validación

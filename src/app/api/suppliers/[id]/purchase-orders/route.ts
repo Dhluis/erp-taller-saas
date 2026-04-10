@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { getPurchaseOrdersBySupplier } from '@/lib/database/queries/purchase-orders'
 
 // GET /api/suppliers/[id]/purchase-orders - Obtener órdenes de compra del proveedor

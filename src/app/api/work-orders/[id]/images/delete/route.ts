@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * POST /api/work-orders/[id]/images/delete
  * Elimina imágenes de Supabase Storage y actualiza work_orders.images (JSONB).
  * Body: { paths: string[] } - paths tal como están en work_orders.images[].path
  */
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest } from '@/lib/supabase/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 

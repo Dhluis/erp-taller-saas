@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API Route para Descuento de Nota de Venta
  * Maneja la actualización del descuento de una nota de venta específica
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import {
   getInvoiceById,
   updateInvoiceDiscount,

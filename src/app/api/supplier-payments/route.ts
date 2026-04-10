@@ -1,10 +1,10 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API: Pagos a proveedores (Compras)
  * GET /api/supplier-payments - Listar pagos a proveedores (supplier_id no nulo)
  * POST /api/supplier-payments - Registrar pago y opcional retiro en cuenta de efectivo
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 

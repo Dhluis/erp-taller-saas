@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { generateSwaggerSpec } from '@/lib/swagger/generator'
 
 // GET /api/swagger.json - Obtener definición OpenAPI generada automáticamente

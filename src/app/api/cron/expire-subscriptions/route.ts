@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { expireSubscriptions } from '@/lib/billing/expire-subscriptions'
 
 function isAuthorized(request: NextRequest): boolean {

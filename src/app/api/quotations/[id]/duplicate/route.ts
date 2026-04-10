@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { getQuotationById, createQuotation } from '@/lib/database/queries/quotations'
 import { addQuotationItem } from '@/lib/database/queries/quotation-items'
 

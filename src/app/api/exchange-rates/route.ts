@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import type { CurrencyCode } from '@/lib/utils/currency-converter'
 
 interface ExchangeRateResponse {

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getAppUrl, cleanEnvVar } from '@/lib/utils/env';
 
 export async function GET() {

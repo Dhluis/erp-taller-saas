@@ -1,6 +1,6 @@
+import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic'
 
-import { NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/auth/auth-helpers'
 
 /**

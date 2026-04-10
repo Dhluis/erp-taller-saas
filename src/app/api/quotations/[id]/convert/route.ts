@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API Route para Conversión de Cotizaciones
  * Maneja la conversión de cotizaciones a notas de venta
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import {
   getQuotationById,
   updateQuotationStatus,

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { getUrgentNotifications } from '@/lib/database/queries/notifications'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 

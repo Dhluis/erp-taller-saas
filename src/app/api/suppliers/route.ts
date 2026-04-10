@@ -1,10 +1,10 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API Route: Suppliers
  * GET /api/suppliers - Listar proveedores
  * POST /api/suppliers - Crear proveedor
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 

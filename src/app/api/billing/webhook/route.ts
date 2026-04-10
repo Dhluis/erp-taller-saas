@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { hasPermission, UserRole } from '@/lib/auth/permissions'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 import type { CreateUserRequest } from '@/types/user'

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { getQuotationById, trackQuotationChange, saveQuotationVersion } from '@/lib/database/queries/quotations'
 import { createClient } from '@/lib/supabase/server'
 import { notifyQuotationApproved } from '@/lib/notifications/service'

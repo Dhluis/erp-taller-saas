@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { getUnpaidTotals, checkAndUpdateOverdueInvoices } from '@/lib/database/queries/invoices'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 

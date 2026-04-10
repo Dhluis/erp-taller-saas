@@ -1,8 +1,8 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * GET /api/expenses/stats - Gastos del mes (OC recibidas + pagos a proveedores)
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 

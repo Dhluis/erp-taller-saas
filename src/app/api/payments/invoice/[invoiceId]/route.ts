@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API Route para Pagos por Nota de Venta
  * Maneja la obtención de pagos asociados a una nota de venta específica
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import {
   getPaymentsByInvoice,
   getInvoiceById,

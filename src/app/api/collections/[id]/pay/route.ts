@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API: Marcar cobro como pagado y opcionalmente registrar ingreso en cuenta de efectivo
  * PUT /api/collections/[id]/pay
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 

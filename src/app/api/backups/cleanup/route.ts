@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { cleanupOldBackups } from '@/lib/database/queries/backups'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 

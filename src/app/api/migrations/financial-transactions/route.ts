@@ -1,8 +1,8 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * Migration: Financial Transactions + Cash Accounts extension
  * POST /api/migrations/financial-transactions
  */
-import { NextResponse } from 'next/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
 export async function POST() {

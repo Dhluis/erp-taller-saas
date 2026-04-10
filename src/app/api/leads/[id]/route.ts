@@ -1,5 +1,5 @@
+import { NextRequest, NextResponse } from 'next/server';
 // src/app/api/leads/[id]/route.ts
-import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 /**

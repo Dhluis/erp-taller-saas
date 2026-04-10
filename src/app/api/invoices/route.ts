@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API Route para Notas de Venta
  * Maneja operaciones GET, POST para la colección de notas de venta
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import {
   createInvoice,
   createInvoiceFromWorkOrder,

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { getPaymentHistory } from '@/lib/database/queries/suppliers'
 
 // GET /api/suppliers/[id]/payments - Obtener historial de pagos del proveedor

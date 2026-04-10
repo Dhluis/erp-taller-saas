@@ -1,10 +1,10 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API: Notas de crédito (Ajustes y devoluciones)
  * GET /api/credit-notes - Listar
  * POST /api/credit-notes - Crear
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import {
   getCreditNotes,

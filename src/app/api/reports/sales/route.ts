@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { getSalesReport } from '@/lib/database/queries/reports'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 import { canViewFinancialReports, UserRole } from '@/lib/auth/permissions'

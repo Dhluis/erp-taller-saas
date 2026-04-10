@@ -1,8 +1,8 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * GET /api/cash-closures/[id]
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getCashClosureById } from '@/lib/database/queries/cash-closures'
 import { isSupabaseTableMissingError, MIGRATION_045_MESSAGE } from '@/lib/supabase/table-missing'

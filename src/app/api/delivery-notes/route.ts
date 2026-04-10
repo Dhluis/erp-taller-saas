@@ -1,10 +1,10 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API: Entregas (comprobantes de entrega)
  * GET /api/delivery-notes - Listar
  * POST /api/delivery-notes - Crear
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import {
   getDeliveryNotes,

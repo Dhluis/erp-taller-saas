@@ -1,6 +1,6 @@
+import { NextRequest, NextResponse } from 'next/server';
 // ✅ CORRECTO: API route para ejecutar seed de datos de prueba
 
-import { NextRequest, NextResponse } from 'next/server';
 import { seedDatabase, cleanSeedData } from '@/lib/database/seed-simple';
 import { handleAPIError, createErrorResponse } from '@/lib/errors/APIError';
 

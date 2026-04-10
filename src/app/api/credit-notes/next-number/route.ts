@@ -1,8 +1,8 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * GET /api/credit-notes/next-number
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getNextCreditNoteNumber } from '@/lib/database/queries/credit-notes'
 import { isSupabaseTableMissingError, MIGRATION_045_MESSAGE } from '@/lib/supabase/table-missing'

@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API Route para Actualización Masiva de Estados de Cotizaciones
  * Maneja operaciones en lote para cambiar estados de múltiples cotizaciones
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import {
   updateQuotationStatus,
   getQuotationById,

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { redisHealthCheck, getRedis, REDIS_KEYS } from '@/lib/rate-limit/redis'
 import { createClientFromRequest } from '@/lib/supabase/server'
 

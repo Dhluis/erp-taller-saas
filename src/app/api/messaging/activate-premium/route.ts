@@ -1,3 +1,4 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * ACTIVACIÓN TIER PREMIUM - Twilio WhatsApp API
  * 
@@ -5,7 +6,6 @@
  * para activar tier premium de mensajería
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
 import twilio from 'twilio';
 import { getAppUrl } from '@/lib/utils/env';

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { updateStock } from '@/lib/database/queries/products'
 
 export async function POST(

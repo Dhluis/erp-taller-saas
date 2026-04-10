@@ -1,10 +1,10 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API: Cuentas de efectivo
  * GET /api/cash-accounts - Listar cuentas con saldo actual
  * POST /api/cash-accounts - Crear cuenta
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getOrganizationId } from '@/lib/auth/organization-server'
 import { z } from 'zod'

@@ -1,5 +1,5 @@
+import { NextRequest, NextResponse } from 'next/server';
 // src/app/api/leads/[id]/create-work-order/route.ts
-import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createWorkOrder } from '@/lib/database/queries/work-orders'
 

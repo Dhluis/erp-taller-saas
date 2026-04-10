@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { markInvoiceAsPaid } from '@/lib/database/queries/invoices'
 
 // POST /api/invoices/[id]/pay - Marcar factura como pagada

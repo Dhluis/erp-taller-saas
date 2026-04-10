@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { calculateOrderTotals } from '@/lib/database/queries/order-items'
 import { getOrganizationId } from '@/lib/auth/organization-server'
 

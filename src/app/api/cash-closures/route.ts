@@ -1,10 +1,10 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API: Arqueo de caja (cierres por cuenta)
  * GET /api/cash-closures - Listar
  * POST /api/cash-closures - Crear cierre
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getCashClosures, createCashClosure } from '@/lib/database/queries/cash-closures'
 import { isSupabaseTableMissingError, MIGRATION_045_MESSAGE } from '@/lib/supabase/table-missing'

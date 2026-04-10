@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * GET /api/delivery-notes/[id]
  * PATCH /api/delivery-notes/[id] - Marcar como entregado
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getDeliveryNoteById, markDeliveryNoteDelivered } from '@/lib/database/queries/delivery-notes'
 import { isSupabaseTableMissingError, MIGRATION_045_MESSAGE } from '@/lib/supabase/table-missing'

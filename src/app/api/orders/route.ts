@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { getAllWorkOrders, createWorkOrder } from '@/lib/database/queries/work-orders'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 import { checkResourceLimit } from '@/lib/billing/check-limits'

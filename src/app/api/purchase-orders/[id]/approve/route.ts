@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { updatePurchaseOrderStatus } from '@/lib/database/queries/purchase-orders'
 
 // POST /api/purchase-orders/[id]/approve - Aprobar orden de compra

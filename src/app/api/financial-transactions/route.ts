@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API: Financial Transactions (Libro de Movimientos)
  * GET /api/financial-transactions — List with filters
  * POST /api/financial-transactions — Create transaction
  */
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 
 async function getOrgId(request: NextRequest) {

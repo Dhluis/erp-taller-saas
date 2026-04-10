@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { validateAccess, requireAuth, validateAccessWithAuth } from '@/lib/auth/validation'
 
 // POST /api/auth/validate - Validar acceso de usuario

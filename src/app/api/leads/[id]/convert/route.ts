@@ -1,5 +1,5 @@
+import { NextRequest, NextResponse } from 'next/server';
 // src/app/api/leads/[id]/convert/route.ts
-import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 const ALLOWED_CONVERT_STATUSES = ['qualified', 'proposal', 'negotiation', 'won', 'appointment'] as const

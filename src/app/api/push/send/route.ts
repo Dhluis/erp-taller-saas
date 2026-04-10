@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import webpush from 'web-push'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 

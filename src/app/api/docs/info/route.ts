@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 
 // GET /api/docs/info - Información del sistema de documentación
 export async function GET(request: NextRequest) {

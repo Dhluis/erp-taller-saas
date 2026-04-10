@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API Route para Cotizaciones
  * Maneja operaciones GET, POST para la colección de cotizaciones
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import {
   getAllQuotations,
   createQuotation,

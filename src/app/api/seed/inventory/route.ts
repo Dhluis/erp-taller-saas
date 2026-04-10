@@ -1,6 +1,6 @@
+import { NextRequest, NextResponse } from 'next/server';
 // ✅ CORRECTO: API route para ejecutar seed de datos de inventario
 
-import { NextRequest, NextResponse } from 'next/server';
 import { seedInventoryData, cleanInventoryData } from '@/lib/database/seed-inventory';
 import { handleAPIError, createErrorResponse } from '@/lib/errors/APIError';
 

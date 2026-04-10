@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { searchVehicles } from '@/lib/database/queries/vehicles'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 

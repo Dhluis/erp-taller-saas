@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API Route para Cotizaciones por ID
  * Maneja operaciones GET, PUT, DELETE para cotizaciones específicas
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import {
   getQuotationById,
   updateQuotation,

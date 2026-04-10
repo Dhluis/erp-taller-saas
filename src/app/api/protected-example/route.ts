@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { withAccessValidation, withRoleValidation, withOrganizationValidation } from '@/lib/auth/validation'
 
 // GET /api/protected-example - Ejemplo de endpoint protegido con validación de acceso

@@ -1,3 +1,4 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * INICIAR TRIAL - Activa prueba gratis de 7 días
  * 
@@ -5,7 +6,6 @@
  * se activa el trial con Twilio (tier basic)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';

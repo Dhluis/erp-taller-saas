@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { getVehicleWithHistory } from '@/lib/database/queries/vehicles'
 
 // GET /api/vehicles/[id]/history - Historial de servicios del vehículo

@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API Route para Actualizar Estado de Cotización
  * Endpoint específico para manejar cambios de estado de cotizaciones
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import {
   updateQuotationStatus,
   getQuotationById,

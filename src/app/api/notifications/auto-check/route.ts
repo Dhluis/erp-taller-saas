@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { checkAndCreateAutomaticNotifications } from '@/lib/notifications/service'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 

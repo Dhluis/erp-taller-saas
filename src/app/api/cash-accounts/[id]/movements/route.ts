@@ -1,10 +1,10 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API: Movimientos de una cuenta de efectivo
  * GET /api/cash-accounts/[id]/movements - Listar movimientos
  * POST /api/cash-accounts/[id]/movements - Crear movimiento (ingreso/retiro)
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 

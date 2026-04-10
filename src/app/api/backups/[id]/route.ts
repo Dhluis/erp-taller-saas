@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { getBackupById, deleteBackup } from '@/lib/database/queries/backups'
 import { restoreBackup, verifyBackupIntegrity } from '@/lib/backup/service'
 import { requireAuth, validateAccess } from '@/lib/auth/validation'

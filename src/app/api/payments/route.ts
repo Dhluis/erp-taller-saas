@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API Route para Pagos
  * Maneja operaciones GET, POST para la colección de pagos
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import {
   getAllPayments,
   createPayment,

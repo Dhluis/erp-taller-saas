@@ -1,8 +1,8 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * GET /api/expenses/[id]
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getExpenseById } from '@/lib/database/queries/expenses'
 import { isSupabaseTableMissingError, MIGRATION_045_MESSAGE } from '@/lib/supabase/table-missing'

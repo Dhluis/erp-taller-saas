@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, validateAccess } from '@/lib/auth/validation'
 import { getAllCustomers } from '@/lib/database/queries/customers'
 

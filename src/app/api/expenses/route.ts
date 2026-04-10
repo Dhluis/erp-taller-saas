@@ -1,10 +1,10 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API: Gastos (egresos operativos)
  * GET /api/expenses - Listar
  * POST /api/expenses - Crear
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getExpenses, getExpensesStats, createExpense, type CreateExpenseData } from '@/lib/database/queries/expenses'
 import { isSupabaseTableMissingError, MIGRATION_045_MESSAGE } from '@/lib/supabase/table-missing'

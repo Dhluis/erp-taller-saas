@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 // src/app/api/leads/route.ts
-import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getOrganizationId } from "@/lib/auth/organization-server";
 

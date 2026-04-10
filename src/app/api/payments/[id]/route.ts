@@ -1,9 +1,9 @@
+import { NextRequest, NextResponse } from 'next/server';
 /**
  * API Route para Pagos por ID
  * Maneja operaciones GET, PUT, DELETE para pagos específicos
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import {
   getPaymentById,
   updatePayment,
