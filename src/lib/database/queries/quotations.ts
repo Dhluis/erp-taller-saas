@@ -30,8 +30,8 @@ export interface Quotation {
   description: string;
   notes: string | null;
   subtotal: number;
-  tax: number;
-  discount: number;
+  tax_amount: number;
+  discount_amount: number;
   total_amount: number;
   valid_until: string | null;
   converted_at: string | null;
@@ -175,14 +175,14 @@ export async function createQuotation(data: CreateQuotationData): Promise<Quotat
     valid_until: data.valid_until || null,
     status: 'pending' as QuotationStatus,
     subtotal: 0,
-    tax: 0,
-    discount: 0,
+    tax_amount: 0,
+    discount_amount: 0,
     total_amount: 0,
   };
 
   const { data: quotation, error } = await supabase
     .from('quotations')
-    .insert(quotationData as any)
+    .insert(quotationData)
     .select(`
       *,
       customer:customers(id, name, email, phone),
@@ -210,7 +210,7 @@ export async function updateQuotation(
     .update({
       ...data,
       updated_at: new Date().toISOString(),
-    } as any)
+    })
     .eq('id', id)
     .select(`
       *,
@@ -504,16 +504,16 @@ export async function recalculateQuotationTotals(quotationId: string): Promise<v
   // Obtener items y calcular totales
   const items = await getQuotationItems(quotationId);
   const subtotal = items.reduce((sum, item) => sum + item.total_price, 0);
-  const tax = subtotal * 0.16; // 16% IVA en México
+  const tax = subtotal * 0.16; // 16% IVA
   
-  // Obtener descuento actual
+  // Obtener descuento actual para el cálculo final
   const { data: quotation } = await supabase
     .from('quotations')
-    .select('discount')
+    .select('discount_amount')
     .eq('id', quotationId)
     .single();
   
-  const discount = quotation?.discount || 0;
+  const discount = quotation?.discount_amount || 0;
   const total_amount = subtotal + tax - discount;
 
   // Actualizar cotización
@@ -521,8 +521,8 @@ export async function recalculateQuotationTotals(quotationId: string): Promise<v
     .from('quotations')
     .update({
       subtotal,
-      tax,
-      total_amount,
+      tax_amount: tax,
+      total_amount: total_amount,
       updated_at: new Date().toISOString(),
     })
     .eq('id', quotationId);
@@ -530,14 +530,14 @@ export async function recalculateQuotationTotals(quotationId: string): Promise<v
 
 export async function updateQuotationDiscount(
   quotationId: string,
-  discount: number
+  discountAmount: number
 ): Promise<Quotation> {
   const supabase = await createServerClient();
   
   // Obtener totales actuales
   const { data: quotation } = await supabase
     .from('quotations')
-    .select('subtotal, tax')
+    .select('subtotal, tax_amount')
     .eq('id', quotationId)
     .single();
 
@@ -545,15 +545,16 @@ export async function updateQuotationDiscount(
     throw new Error('Cotización no encontrada');
   }
 
-  const total_amount = quotation.subtotal + quotation.tax - discount;
+  const tax = quotation.tax_amount || 0;
+  const total_amount = (quotation.subtotal || 0) + tax - discountAmount;
 
   const { data: updatedQuotation, error } = await supabase
     .from('quotations')
     .update({
-      discount,
+      discount_amount: discountAmount,
       total_amount,
       updated_at: new Date().toISOString(),
-    } as any)
+    })
     .eq('id', quotationId)
     .select(`
       *,

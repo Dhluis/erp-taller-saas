@@ -789,109 +789,19 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
       {/* Imágenes por categoría */}
       {images.length > 0 ? (
         <div className="space-y-6">
-          {Object.entries(imagesByCategory).map(([category, categoryImages]) => {
-            return (
-              <div key={category} className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${getCategoryInfo(category).color}`} />
-                  <h4 className="font-semibold">
-                    {getCategoryInfo(category).label} ({categoryImages.length})
-                  </h4>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                  {categoryImages.map((image, index) => {
-                    const globalIndex = images.indexOf(image)
-                    
-                    return (
-                      <Card 
-                        key={globalIndex} 
-                        className="relative group overflow-hidden cursor-pointer"
-                      >
-                        <div className="aspect-square relative" onClick={() => openImageDetail(image)}>
-                          {imageLoadErrors.has(image.path) ? (
-                            <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-lg text-muted-foreground text-xs text-center p-2">
-                              No se pudo cargar la imagen
-                            </div>
-                          ) : (
-                            <Image
-                              src={image.thumbnailUrl || image.url}
-                              alt={image.description || image.name}
-                              fill
-                              className="object-cover"
-                              sizes="(max-width: 768px) 50vw, 20vw"
-                              loading="lazy"
-                              placeholder="blur"
-                              blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
-                              onError={() => markImageError(image.path)}
-                            />
-                          )}
-                        </div>
-
-                        {/* Overlay con info */}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              className="h-8 w-8 p-0"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                openImageDetail(image)
-                              }}
-                              title="Ver detalles"
-                            >
-                              <ZoomIn className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              className="h-8 w-8 p-0"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                openImageDetail(image)
-                                setEditingCategory(true)
-                                setEditingDescription(true)
-                              }}
-                              title="Editar categoría y descripción"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="danger"
-                              className="h-8 w-8 p-0"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDelete(globalIndex)
-                              }}
-                              disabled={deletingIndex === globalIndex}
-                              title="Eliminar"
-                            >
-                              {deletingIndex === globalIndex ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <X className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-
-                          <div className="text-white text-xs space-y-1">
-                            {image.description && (
-                              <p className="line-clamp-2">{image.description}</p>
-                            )}
-                            <p className="text-white/70">
-                              {format(new Date(image.uploadedAt), 'dd/MM/yyyy HH:mm', { locale: es })}
-                            </p>
-                          </div>
-                        </div>
-                      </Card>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
+          {Object.entries(imagesByCategory).map(([category, categoryImages]) => (
+            <CategoryGallery
+              key={category}
+              category={category as ImageCategory}
+              categoryImages={categoryImages}
+              images={images}
+              onDelete={handleDelete}
+              onOpenDetail={openImageDetail}
+              deletingIndex={deletingIndex}
+              imageLoadErrors={imageLoadErrors}
+              markImageError={markImageError}
+            />
+          ))}
         </div>
       ) : (
         <Card className="p-12">
@@ -902,6 +812,7 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
           </div>
         </Card>
       )}
+
 
       {/* Modal de imagen en detalle — overlay oscuro para no confundir con las imágenes de atrás */}
       <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
@@ -1078,3 +989,166 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
 
   return true
 })
+
+/** Componente de galería para cada categoría con paginación integrada */
+function CategoryGallery({ 
+  category, 
+  categoryImages, 
+  images, 
+  onDelete, 
+  onOpenDetail, 
+  deletingIndex, 
+  imageLoadErrors, 
+  markImageError 
+}: { 
+  category: ImageCategory, 
+  categoryImages: WorkOrderImage[], 
+  images: WorkOrderImage[], 
+  onDelete: (index: number) => void, 
+  onOpenDetail: (image: WorkOrderImage) => void, 
+  deletingIndex: number | null, 
+  imageLoadErrors: Set<string>, 
+  markImageError: (path: string) => void 
+}) {
+  const { paginatedItems, hasMore, loadMore, total, showing } = useImagePagination(categoryImages, { itemsPerPage: 5 })
+  
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <div className={`w-3 h-3 rounded-full ${getCategoryInfo(category).color}`} />
+        <h4 className="font-semibold">
+          {getCategoryInfo(category).label} ({total})
+        </h4>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {paginatedItems.map((image) => {
+          const globalIndex = images.indexOf(image)
+          return (
+            <ImageCard
+              key={image.path}
+              image={image}
+              globalIndex={globalIndex}
+              onDelete={onDelete}
+              onOpenDetail={onOpenDetail}
+              deletingIndex={deletingIndex}
+              imageLoadErrors={imageLoadErrors}
+              markImageError={markImageError}
+            />
+          )
+        })}
+      </div>
+
+      {hasMore && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full mt-2 text-muted-foreground hover:text-primary"
+          onClick={loadMore}
+        >
+          <ChevronDown className="h-4 w-4 mr-2" />
+          Ver más ({total - showing} restantes)
+        </Button>
+      )}
+    </div>
+  )
+}
+
+/** Componente de tarjeta de imagen individual con Lazy Loading e Intersection Observer */
+function ImageCard({ 
+  image, 
+  globalIndex, 
+  onDelete, 
+  onOpenDetail, 
+  deletingIndex, 
+  imageLoadErrors, 
+  markImageError 
+}: { 
+  image: WorkOrderImage, 
+  globalIndex: number, 
+  onDelete: (index: number) => void, 
+  onOpenDetail: (image: WorkOrderImage) => void, 
+  deletingIndex: number | null, 
+  imageLoadErrors: Set<string>, 
+  markImageError: (path: string) => void 
+}) {
+  const { ref, hasIntersected } = useIntersectionObserver()
+
+  return (
+    <Card 
+      ref={ref}
+      className="relative group overflow-hidden cursor-pointer bg-muted/20"
+    >
+      <div className="aspect-square relative" onClick={() => onOpenDetail(image)}>
+        {hasIntersected ? (
+          imageLoadErrors.has(image.path) ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-lg text-muted-foreground text-xs text-center p-2">
+              No se pudo cargar la imagen
+            </div>
+          ) : (
+            <Image
+              src={image.thumbnailUrl || image.url}
+              alt={image.description || image.name}
+              fill
+              className="object-cover transition-transform duration-300 group-hover:scale-110"
+              sizes="(max-width: 768px) 50vw, 20vw"
+              loading="lazy"
+              placeholder="blur"
+              blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
+              onError={() => markImageError(image.path)}
+            />
+          )
+        ) : (
+          <div className="absolute inset-0 bg-muted animate-pulse rounded-lg flex items-center justify-center">
+            <ImageIcon className="h-6 w-6 text-muted-foreground opacity-20" />
+          </div>
+        )}
+      </div>
+
+      {/* Overlay con info */}
+      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
+        <div className="flex justify-end gap-1">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-8 w-8 p-0"
+            onClick={(e) => {
+              e.stopPropagation()
+              onOpenDetail(image)
+            }}
+            title="Ver detalles"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            className="h-8 w-8 p-0"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(globalIndex)
+            }}
+            disabled={deletingIndex === globalIndex}
+            title="Eliminar"
+          >
+            {deletingIndex === globalIndex ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <X className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+
+        <div className="text-white text-xs space-y-1">
+          {image.description && (
+            <p className="line-clamp-2">{image.description}</p>
+          )}
+          <p className="text-white/70">
+            {format(new Date(image.uploadedAt), 'dd/MM HH:mm', { locale: es })}
+          </p>
+        </div>
+      </div>
+    </Card>
+  )
+}
+

@@ -306,17 +306,12 @@ export async function POST(request: NextRequest) {
     if (body.items && body.items.length > 0) {
       const items = body.items.map((item: any) => ({
         quotation_id: quotation.id,
-        organization_id: organizationId,
         item_type: item.item_type || 'service',
+        item_name: item.description || 'Item',
         description: item.description,
         quantity: item.quantity,
         unit_price: item.unit_price,
-        discount_percent: item.discount_percent || 0,
-        discount_amount: item.discount_amount || 0,
-        tax_percent: item.tax_percent || 16,
-        subtotal: item.subtotal,
-        tax_amount: item.tax_amount,
-        total: item.total,
+        total_price: item.total,
         service_id: item.service_id || null,
         inventory_id: item.inventory_id || null,
       }));

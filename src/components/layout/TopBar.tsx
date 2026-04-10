@@ -169,7 +169,10 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
 
   return (
     <>
-      <header className="h-14 md:h-16 bg-bg-secondary border-b border-border flex items-center justify-between px-3 md:px-6 sticky top-0 z-30 gap-2">
+      <header className={cn(
+        "h-14 md:h-20 flex items-center justify-between px-3 md:px-8 sticky top-0 z-30 gap-2 transition-all duration-300",
+        "bg-[#0a0c10]/80 backdrop-blur-xl border-b border-white/5 shadow-2xl shadow-black/20"
+      )}>
         <div className="flex items-center min-w-0 flex-1 gap-2">
           {onMenuClick && (
             <button
@@ -180,6 +183,13 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
               <Bars3Icon className="w-6 h-6 text-text-primary" />
             </button>
           )}
+
+          {/* Logo visible solo en mobile/tablet cuando el sidebar está oculto */}
+          <div className="lg:hidden flex-shrink-0 ml-1">
+            <Link href="/dashboard">
+              <LogoWithText size="sm" className="scale-90 origin-left" />
+            </Link>
+          </div>
           
           {/* ✅ Nav scrollable en mobile - evita que se corte CRM/WhatsApp */}
           <nav className="flex items-center gap-2 overflow-x-auto overflow-y-hidden flex-1 min-w-0 hide-scrollbar flex-nowrap pr-2">
@@ -208,10 +218,10 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
                   <Button
                     variant={isCitasActive ? "primary" : "outline"}
                     className={cn(
-                      "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
+                      "transition-all duration-300 gap-2 h-11 px-4 rounded-xl font-semibold",
                       isCitasActive 
-                        ? "bg-primary text-bg-primary hover:bg-primary-dark" 
-                        : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20 border-0" 
+                        : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
                     )}
                   >
                     <ModernIcons.Citas size={18} />

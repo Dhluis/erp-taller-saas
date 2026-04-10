@@ -39,8 +39,8 @@ interface QuotationFormProps {
     validUntil: string;
     items: QuotationItem[];
     subtotal: number;
-    tax: number;
-    total: number;
+    tax_amount: number;
+    total_amount: number;
   };
   onSave: (quotation: any) => void;
   onSend: (quotation: any) => void;
@@ -65,8 +65,8 @@ export function QuotationForm({
     validUntil: quotation?.validUntil || '',
     items: quotation?.items || [],
     subtotal: quotation?.subtotal || 0,
-    tax: quotation?.tax || 0,
-    total: quotation?.total || 0
+    tax_amount: quotation?.tax_amount || 0,
+    total_amount: quotation?.total_amount || 0
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -94,15 +94,15 @@ export function QuotationForm({
 
   const handleItemsChange = (items: QuotationItem[]) => {
     const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-    const tax = subtotal * 0.16; // 16% IVA
-    const total = subtotal + tax;
+    const tax_amount = subtotal * 0.16; // 16% IVA
+    const total_amount = subtotal + tax_amount;
 
     setFormData(prev => ({
       ...prev,
       items,
       subtotal,
-      tax,
-      total
+      tax_amount,
+      total_amount
     }));
   };
 
@@ -265,12 +265,12 @@ export function QuotationForm({
             </div>
             <div className="flex justify-between">
               <span>IVA (16%):</span>
-              <span>{formatCurrency(formData.tax)}</span>
+              <span>{formatCurrency(formData.tax_amount)}</span>
             </div>
             <Separator />
             <div className="flex justify-between text-lg font-semibold">
               <span>Total:</span>
-              <span>{formatCurrency(formData.total)}</span>
+              <span>{formatCurrency(formData.total_amount)}</span>
             </div>
           </div>
         </CardContent>

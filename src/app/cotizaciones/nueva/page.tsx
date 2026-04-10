@@ -167,7 +167,7 @@ export default function NuevaCotizacionPage() {
         subtotal: totals.subtotal,
         discount_amount: totals.totalDiscounts,
         tax_amount: totals.totalTax,
-        total: totals.grandTotal,
+        total_amount: totals.grandTotal,
         items: items
       }
 

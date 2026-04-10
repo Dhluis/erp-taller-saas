@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
+import { useSession } from '@/lib/context/SessionContext'
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl'
@@ -17,11 +18,14 @@ const sizeClasses = {
 }
 
 export function Logo({ size = 'md', variant = 'default', className }: LogoProps) {
+  const { companySettings } = useSession()
+  const logoUrl = companySettings?.logo_url || "/eagles-logo-new.png"
+
   return (
     <div className={cn('flex items-center justify-center', sizeClasses[size], className)}>
       <Image
-        src="/eagles-logo-new.png"
-        alt="EAGLES Logo"
+        src={logoUrl}
+        alt={companySettings?.company_name || "EAGLES Logo"}
         width={160}
         height={64}
         className="w-full h-auto object-contain"
@@ -35,7 +39,10 @@ interface LogoWithTextProps extends LogoProps {
   companyName?: string
 }
 
-export function LogoWithText({ size = 'md', variant = 'default', className, companyName }: LogoWithTextProps) {
+export function LogoWithText({ size = 'md', variant = 'default', className, companyName: propCompanyName }: LogoWithTextProps) {
+  const { companySettings } = useSession()
+  const companyName = propCompanyName || companySettings?.company_name || 'EAGLES SYSTEM'
+  
   const textSizes = {
     sm: 'text-sm',
     md: 'text-base',
@@ -48,10 +55,10 @@ export function LogoWithText({ size = 'md', variant = 'default', className, comp
       <Logo size={size} variant={variant} />
       <div className="flex flex-col">
         <span className={cn('font-bold text-text-primary uppercase tracking-tight', textSizes[size])}>
-          {companyName || 'EAGLES SYSTEM'}
+          {companyName}
         </span>
         <span className={cn('text-[10px] text-text-secondary leading-none mt-0.5 font-medium tracking-wider uppercase opacity-70', size === 'sm' ? 'hidden' : 'block')}>
-          Sistema de Gestión
+          {companySettings?.company_name ? 'Taller Automotriz' : 'Sistema de Gestión'}
         </span>
       </div>
     </div>

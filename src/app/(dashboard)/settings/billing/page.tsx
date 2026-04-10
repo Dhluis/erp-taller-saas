@@ -197,38 +197,56 @@ export default function BillingPage() {
       {/* Comparación de Planes */}
       <div className="grid md:grid-cols-2 gap-8">
         {/* Plan Free */}
-        <Card className={!isPremium ? 'border-2 border-primary' : ''}>
+        <Card className={cn(
+          "relative overflow-hidden transition-all duration-300 hover:shadow-lg",
+          !isPremium 
+            ? "border-2 border-primary ring-1 ring-primary/20 shadow-primary/5 shadow-xl" 
+            : "border-border/60 hover:border-primary/30"
+        )}>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-blue-500" />
+                <div className="p-2 rounded-lg bg-blue-500/10">
+                  <Zap className="h-5 w-5 text-blue-500" />
+                </div>
                 <CardTitle>Plan Free</CardTitle>
               </div>
-              {!isPremium && <Badge>ACTUAL</Badge>}
+              {!isPremium && <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">PLAN ACTUAL</Badge>}
             </div>
-            <div className="mt-4">
-              <span className="text-4xl font-bold">$0</span>
-              <span className="text-muted-foreground ml-2">para siempre</span>
+            <div className="mt-6">
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-bold">$0</span>
+                <span className="text-muted-foreground">/siempre</span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                Ideal para mini-talleres que recién comienzan.
+              </p>
             </div>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-3">
+            <ul className="space-y-4">
               {FEATURES.free.map((feature, i) => (
-                <li key={i} className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  <span className="text-sm">{feature}</span>
+                <li key={i} className="flex items-start gap-3 group/feat">
+                  <div className="mt-0.5 h-5 w-5 rounded-full bg-blue-500/10 flex items-center justify-center group-hover/feat:bg-blue-500/20 transition-colors">
+                    <Check className="h-3 w-3 text-blue-500" />
+                  </div>
+                  <span className="text-sm font-medium">{feature}</span>
                 </li>
               ))}
               {/* No incluídos */}
-              {FEATURES.premium_only.map((feature, i) => (
-                <li key={`not-${i}`} className="flex items-center gap-2 opacity-60">
-                  <X className="h-4 w-4 text-red-500/70 flex-shrink-0" />
-                  <span className="text-sm text-muted-foreground line-through decoration-red-500/20">{feature}</span>
-                </li>
-              ))}
+              <div className="pt-4 space-y-3 border-t border-border/40">
+                <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest pl-1">No incluido</p>
+                {FEATURES.premium_only.map((feature, i) => (
+                  <li key={`not-${i}`} className="flex items-start gap-3 opacity-40">
+                    <X className="mt-0.5 h-3 w-3 text-red-500/70 flex-shrink-0" />
+                    <span className="text-xs text-muted-foreground line-through decoration-red-500/20">{feature}</span>
+                  </li>
+                ))}
+              </div>
             </ul>
           </CardContent>
         </Card>
+
 
         {/* Plan Premium */}
         <Card className="border-2 border-yellow-400 relative overflow-hidden">
@@ -249,58 +267,72 @@ export default function BillingPage() {
             {/* Pricing Tabs */}
             <div className="space-y-4">
               {/* Plan Anual */}
-              <div className="border-2 border-emerald-500/60 rounded-lg p-4 bg-emerald-500/10 dark:bg-emerald-500/15 relative">
-                <Badge className="absolute -top-3 left-4 bg-emerald-600 text-white border-0">
-                  ¡AHORRA 31%!
-                </Badge>
-                <div className="mt-2">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-foreground">{pricing.annual.displayPrice}</span>
-                    <span className="text-foreground/70">/año</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    ≈ {formatMoney(pricing.annual.amount, pricing.annual.currency)}
-                  </p>
+              <div className={cn(
+                "group relative border-2 border-emerald-500/40 rounded-2xl p-6 transition-all duration-300",
+                "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent",
+                "hover:border-emerald-500/60 hover:shadow-lg hover:shadow-emerald-500/10"
+              )}>
+                <div className="absolute -top-3 left-6">
+                  <Badge className="bg-emerald-600 hover:bg-emerald-500 text-white border-0 px-3 py-1 shadow-md shadow-emerald-500/20 transition-transform group-hover:scale-105">
+                    ¡AHORRA 31%!
+                  </Badge>
                 </div>
-                {'savings' in pricing.annual && pricing.annual.savings && (
-                  <>
-                    <div className="flex items-center gap-2 mt-2 text-sm text-emerald-700 dark:text-emerald-300">
+                
+                <div className="mt-2 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                  <div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-4xl font-extrabold text-foreground tracking-tight">{pricing.annual.displayPrice}</span>
+                      <span className="text-foreground/70 font-medium">/año</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2 text-sm text-emerald-600 dark:text-emerald-400 font-semibold">
                       <TrendingDown className="h-4 w-4" />
-                      <span className="font-medium">
+                      <span>
                         {'monthsFree' in pricing.annual.savings ? pricing.annual.savings.monthsFree : `Ahorra ${pricing.annual.savings.percentage}%`}
                       </span>
                     </div>
+                  </div>
+                  
+                  <div className="text-right sm:text-right">
+                    <p className="text-xs text-muted-foreground">
+                      Aproximadamente
+                    </p>
+                    <p className="text-sm font-bold text-foreground/80">
+                      {formatMoney(pricing.annual.amount, pricing.annual.currency)}
+                    </p>
                     {'monthlyEquivalent' in pricing.annual && pricing.annual.monthlyEquivalent != null && (
-                      <p className="text-xs text-foreground/60 mt-1">
-                        Equivalente a ${Number(pricing.annual.monthlyEquivalent).toFixed(2)} USD/mes
+                      <p className="text-[10px] text-foreground/50 italic mt-1">
+                        (Solo ${Number(pricing.annual.monthlyEquivalent).toFixed(2)} USD/mes)
                       </p>
                     )}
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Ahorro anual ≈ {formatMoney(pricing.annual.savings.amount, pricing.annual.currency)}
-                    </p>
-                  </>
-                )}
+                  </div>
+                </div>
+
                 {!isPremium && (
                   <Button
                     onClick={() => handleCheckout('annual')}
                     disabled={isLoadingCheckout}
                     size="lg"
-                    className="w-full mt-4 min-h-[3.75rem] text-lg px-6 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white border-0 shadow-sm transition-transform duration-200 hover:scale-[1.03]"
+                    className={cn(
+                      "w-full mt-6 h-14 text-lg font-bold transition-all duration-300 group-hover:scale-[1.02] shadow-xl",
+                      "bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400",
+                      "text-white border-0 shadow-emerald-500/20"
+                    )}
                   >
                     {isLoadingCheckout ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                         Procesando...
                       </>
                     ) : (
                       <>
-                        <Crown className="mr-2 h-4 w-4" />
-                        Suscribirse - {pricing.annual.displayPrice}
+                        <Zap className="mr-2 h-5 w-5 fill-white" />
+                        Obtener Plan Anual
                       </>
                     )}
                   </Button>
                 )}
               </div>
+
 
               {/* Plan Mensual */}
               <div className="border border-border rounded-lg p-4">

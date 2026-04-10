@@ -6,6 +6,7 @@ import { SidebarProvider } from '@/contexts/SidebarContext'
 import { SessionProvider } from '@/lib/context/SessionContext'
 import { CurrencyProvider } from '@/lib/context/CurrencyContext'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { BrandingSync } from '@/components/layout/BrandingSync'
 
 interface ProvidersProps {
   children: ReactNode
@@ -17,6 +18,7 @@ export function Providers({ children }: ProvidersProps) {
       <SessionProvider>
         <CurrencyProvider>
           <SidebarProvider>
+            <BrandingSync />
             {children}
             <Toaster 
               position="top-right"

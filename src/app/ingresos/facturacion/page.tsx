@@ -46,6 +46,9 @@ import { Plus, Search, Eye, DollarSign, XCircle, Loader2, CalendarDays, ChevronD
 import { useInvoices } from '@/hooks/useInvoices';
 import { CreateManualInvoiceModal } from '@/components/invoices/CreateManualInvoiceModal';
 import { toast } from 'sonner';
+import { downloadInvoicePDF } from '@/lib/utils/invoice-pdf';
+import { useSession } from '@/lib/context/SessionContext';
+import { Printer } from 'lucide-react';
 
 type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
 type StatusFilter = 'all' | 'pending' | 'paid' | 'overdue';
@@ -104,7 +107,7 @@ const PAYMENT_METHODS = [
 export default function FacturacionPage() {
   const router = useRouter();
   const permissions = usePermissions();
-  const { organizationId, ready } = useOrganization();
+  const { organizationId, ready, companySettings } = useSession();
   const hasLoadedRef = useRef(false);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -386,6 +389,14 @@ export default function FacturacionPage() {
                                 <DollarSign className="h-4 w-4" />
                               </Button>
                             )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Descargar PDF"
+                              onClick={() => downloadInvoicePDF(inv, companySettings)}
+                            >
+                              <Printer className="h-4 w-4" />
+                            </Button>
                             {canDelete && inv.status !== 'paid' && inv.status !== 'cancelled' && (
                               cancelConfirm === inv.id ? (
                                 <Button

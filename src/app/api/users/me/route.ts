@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServiceClient, createClientFromRequest } from '@/lib/supabase/server'
+import { getCachedProfileByAuthId } from '@/lib/database/queries/users'
 
 // Endpoint para obtener el perfil del usuario actual
 // Usa Service Role para bypass RLS
@@ -24,116 +25,83 @@ export async function GET(request: NextRequest) {
     const userId = authUser.id
     console.log('[GET /api/users/me] userId:', userId)
     
-    // Usar Service Role para bypass RLS
     const supabaseAdmin = getSupabaseServiceClient()
-    console.log('[GET /api/users/me] Usando Service Role Client')
     
-    // Intentar obtener el usuario de la tabla users
-    const { data: user, error } = await supabaseAdmin
-      .from('users')
-      .select('id, auth_user_id, email, full_name, role, phone, is_active, organization_id, created_at, updated_at')
-      .eq('auth_user_id', userId)
-      .single() as { data: any; error: any }
+    // Intentar obtener el usuario usando el helper con caché
+    const user = await getCachedProfileByAuthId(userId, supabaseAdmin)
     
-    if (error) {
-      console.error('[GET /api/users/me] Error en query:', error)
-      console.error('[GET /api/users/me] Error details:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      })
+    if (!user) {
+      console.log('[GET /api/users/me] Usuario no encontrado en DB ni caché, verificando si tiene organización...')
       
       // Si el error es que no existe el registro, verificar si tiene organización en metadata
       // Solo crear perfil si ya tiene organización (registro completo), NO para usuarios OAuth nuevos
-      if (error.code === 'PGRST116' || error.message?.includes('No rows')) {
-        console.log('[GET /api/users/me] Usuario no encontrado, verificando si tiene organización...')
+      // Si no existe el perfil, intentar crearlo si tenemos organización en metadata
+      console.log('[GET /api/users/me] Perfil no encontrado, verificando organización...')
+      
+      try {
+        // Obtener metadata del usuario de auth para usar organization_id si existe
+        const userMetadata = authUser.user_metadata || {}
+        const organizationIdFromMetadata = userMetadata.organization_id || null
         
-        try {
-          // Obtener metadata del usuario de auth para usar organization_id si existe
-          const userMetadata = authUser.user_metadata || {}
-          const organizationIdFromMetadata = userMetadata.organization_id || null
-          
-          // Buscar si hay alguna organización existente para este usuario (por email)
-          // Esto es para usuarios que se registraron con email/password y luego hacen login con OAuth
-          let finalOrganizationId = organizationIdFromMetadata
-          
-          if (!finalOrganizationId) {
-            const { data: existingOrg } = await supabaseAdmin
-              .from('organizations')
-              .select('id')
-              .eq('email', authUser.email || '')
-              .limit(1)
-              .single() as { data: any; error: any }
-
-            if (existingOrg?.id) {
-              finalOrganizationId = existingOrg.id
-              console.log('[GET /api/users/me] Organización encontrada por email:', finalOrganizationId)
-            }
-          }
-          
-          // ⚠️ IMPORTANTE: NO crear organización automáticamente para usuarios OAuth nuevos
-          // Si no tiene organización, el usuario debe completar el registro primero
-          if (!finalOrganizationId) {
-            console.warn('[GET /api/users/me] Usuario sin organización - debe completar registro')
-            return NextResponse.json(
-              { error: 'Usuario sin organización. Por favor completa tu registro primero.' },
-              { status: 404 }
-            )
-          }
-          
-          // Solo crear perfil si ya tiene organización válida
-          const { data: newUser, error: createError } = await (supabaseAdmin as any)
-            .from('users')
-            .insert({
-              id: authUser.id,
-              auth_user_id: authUser.id,
-              email: authUser.email || '',
-              full_name: userMetadata.full_name || authUser.email?.split('@')[0] || 'Usuario',
-              organization_id: finalOrganizationId,
-              workshop_id: null,
-              role: userMetadata.role || 'ADMIN',
-              phone: userMetadata.phone || null,
-              is_active: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .select()
+        // Buscar si hay alguna organización existente para este usuario (por email)
+        let finalOrganizationId = organizationIdFromMetadata
+        
+        if (!finalOrganizationId) {
+          const { data: existingOrg } = await supabaseAdmin
+            .from('organizations')
+            .select('id')
+            .eq('email', authUser.email || '')
+            .limit(1)
             .single() as { data: any; error: any }
-          
-          if (createError) {
-            console.error('[GET /api/users/me] Error creando perfil:', createError)
-            return NextResponse.json(
-              { error: `Error al crear perfil: ${createError.message}` },
-              { status: 500 }
-            )
+
+          if (existingOrg?.id) {
+            finalOrganizationId = existingOrg.id
           }
-          
-          console.log('[GET /api/users/me] Perfil creado exitosamente:', newUser.email)
-          
-          // Mapear full_name a name para compatibilidad
-          const mappedUser = {
-            ...newUser,
-            name: newUser.full_name || ''
-          }
-          
-          return NextResponse.json({ 
-            profile: mappedUser
-          })
-        } catch (createErr: any) {
-          console.error('[GET /api/users/me] Error en proceso de creación:', createErr)
+        }
+        
+        // Si no tiene organización, el usuario debe completar el registro primero
+        if (!finalOrganizationId) {
           return NextResponse.json(
-            { error: `Error al crear perfil automáticamente: ${createErr.message}` },
+            { error: 'Usuario sin organización. Por favor completa tu registro primero.' },
+            { status: 404 }
+          )
+        }
+        
+        // Solo crear perfil si ya tiene organización válida
+        const { data: newUser, error: createError } = await (supabaseAdmin as any)
+          .from('users')
+          .insert({
+            id: authUser.id,
+            auth_user_id: authUser.id,
+            email: authUser.email || '',
+            full_name: userMetadata.full_name || authUser.email?.split('@')[0] || 'Usuario',
+            organization_id: finalOrganizationId,
+            workshop_id: null,
+            role: userMetadata.role || 'ADMIN',
+            phone: userMetadata.phone || null,
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single() as { data: any; error: any }
+        
+        if (createError) {
+          return NextResponse.json(
+            { error: `Error al crear perfil: ${createError.message}` },
             { status: 500 }
           )
         }
+        
+        return NextResponse.json({ 
+          profile: { ...newUser, name: newUser.full_name || '' }
+        })
+      } catch (createErr: any) {
+        return NextResponse.json(
+          { error: `Error al crear perfil automáticamente: ${createErr.message}` },
+          { status: 500 }
+        )
       }
-      
-      // Para otros errores, devolver 500 con más detalles
-      return NextResponse.json(
-        { error: `Error al obtener usuario: ${error.message}` },
-        { status: 500 }
-      )
     }
 
     if (!user) {

@@ -332,21 +332,21 @@ export async function createWorkOrder(
   const supabase = supabaseClient || getClient();
   const organizationId = orderData.organization_id || await getOrganizationId();
 
-  // ✅ NO FILTRAR campos que ya existen en la tabla work_orders
+  // ✅ Mapear diagnosis a notes si existe
   const {
-    diagnosis,  // ✅ diagnosis no existe en work_orders (usar notes si es necesario)
+    diagnosis,
     ...validOrderData
   } = orderData as any;
 
-  // ✅ LOGGING DETALLADO: Mostrar datos exactos que se insertan
   const insertData = {
     ...validOrderData,
     organization_id: organizationId,
-    workshop_id: validOrderData.workshop_id || null,  // ✅ Incluir workshop_id si viene
-    status: validOrderData.status || 'pending',
+    workshop_id: validOrderData.workshop_id || null,
+    status: validOrderData.status || 'reception',
+    notes: diagnosis || validOrderData.notes || null,
     subtotal: 0,
-    tax_amount: 0,  // ✅ Campo correcto según schema
-    discount_amount: 0,  // ✅ Campo correcto según schema
+    tax_amount: 0,
+    discount_amount: 0,
     total_amount: validOrderData.total_amount || 0,
   };
 

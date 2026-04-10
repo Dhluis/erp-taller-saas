@@ -235,18 +235,35 @@ export const generateWorkOrderPDF = async ({ order, company: providedCompany }: 
     currentY = (doc as any).lastAutoTable.finalY + 5;
     
     // Totales resumidos
+    // Totales resumidos (Premium Style) con desglose de impuestos
     const subtotal = Number(order.subtotal || 0);
     const tax = Number(order.tax_amount || 0);
+    const discount = Number(order.discount_amount || 0);
     const total = Number(order.total_amount || 0);
 
     doc.setFont('helvetica', 'bold');
-    doc.text(`SUBTOTAL: $${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(`SUBTOTAL:`, pageWidth - margin - 40, currentY, { align: 'left' });
+    doc.text(`$${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
     currentY += 5;
-    doc.text(`IVA (16%): $${tax.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
+
+    if (discount > 0) {
+      doc.setTextColor(220, 38, 38);
+      doc.text(`DESCUENTO:`, pageWidth - margin - 40, currentY, { align: 'left' });
+      doc.text(`-$${discount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
+      currentY += 5;
+    }
+
+    doc.setTextColor(100);
+    doc.text(`IVA (16%):`, pageWidth - margin - 40, currentY, { align: 'left' });
+    doc.text(`$${tax.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
     currentY += 7;
-    doc.setFontSize(12);
+
+    doc.setFontSize(14);
     doc.setTextColor(0, 51, 153);
-    doc.text(`TOTAL: $${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
+    doc.text(`TOTAL:`, pageWidth - margin - 40, currentY, { align: 'left' });
+    doc.text(`$${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
     currentY += 15;
   } else if (order.estimated_cost || order.total_amount) {
     const cost = order.total_amount || order.estimated_cost;
@@ -317,14 +334,50 @@ export const generateWorkOrderPDF = async ({ order, company: providedCompany }: 
   doc.text('RESPONSABLE TALLER', margin + 32.5, signatureY + 5, { align: 'center' });
   doc.text('FIRMA DEL CLIENTE', pageWidth - margin - 32.5, signatureY + 5, { align: 'center' });
 
-  // Firma del cliente
+  // Firma del responsable (del taller)
+  const workshopSignatureUrl = ensureAbsoluteUrl((company as any).signature_url);
+  if (workshopSignatureUrl) {
+    try {
+      const wSigBase64 = await fetchImageAsBase64(workshopSignatureUrl);
+      if (wSigBase64) {
+        doc.addImage(wSigBase64, 'PNG', margin + 5, signatureY - 25, 55, 20);
+      }
+    } catch (e) {
+      console.warn('Error adding workshop signature:', e);
+    }
+  }
+
+  // Firma del cliente (Ingreso)
   const signatureData = order.customer_signature || order.signature;
   if (signatureData) {
     try {
-      // Si la firma viene como dataURL o base64, jspdf la maneja bien
       doc.addImage(signatureData, 'PNG', pageWidth - margin - 60, signatureY - 25, 55, 20);
     } catch (e) {
       console.warn('Error adding signature image:', e);
+    }
+  }
+
+  // Firma de Conformidad (Salida) - NUEVO
+  if (order.exit_signature_url) {
+    const exitSignatureUrl = ensureAbsoluteUrl(order.exit_signature_url);
+    if (exitSignatureUrl) {
+      try {
+        const exitSigBase64 = await fetchImageAsBase64(exitSignatureUrl);
+        if (exitSigBase64) {
+          // Si hay firma de salida, la ponemos en una nueva sección o encima si es entrega final
+          // Para no romper el layout actual, si existe firma de salida, añadimos una página o sección extra
+          if (currentY > pageHeight - 60) doc.addPage();
+          
+          doc.setFontSize(9);
+          doc.setTextColor(30, 41, 59);
+          doc.text('CONFORMIDAD DE ENTREGA:', margin, signatureY - 35);
+          doc.addImage(exitSigBase64, 'PNG', margin + 10, signatureY - 30, 50, 15);
+          doc.setFontSize(7);
+          doc.text(`Fecha: ${order.exit_signature_date ? format(new Date(order.exit_signature_date), "PPP p", { locale: es }) : 'N/A'}`, margin + 10, signatureY - 15);
+        }
+      } catch (e) {
+        console.warn('Error adding exit signature:', e);
+      }
     }
   }
 

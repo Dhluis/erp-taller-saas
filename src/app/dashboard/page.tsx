@@ -14,6 +14,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import ModernIcons from '@/components/icons/ModernIcons';
 import { CalendarIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization, useSession } from '@/lib/context/SessionContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -699,7 +700,12 @@ function DashboardContent() {
 
   return (
     <AppLayout>
-      <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 md:px-6">
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="space-y-4 sm:space-y-6 px-2 sm:px-4 md:px-6"
+      >
         {/* Header */}
         <div className="flex items-center justify-between">
         <div>
@@ -811,30 +817,38 @@ function DashboardContent() {
             ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" 
             : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
         )}>
-          {kpiCards.map((kpi, index) => {
-            const IconComponent = kpi.icon;
-            return (
-              <div key={index} className={`${kpi.bgColor} rounded-xl p-5 sm:p-6 border ${kpi.bgColor.replace('/10', '/20')} flex flex-col justify-between transition-all hover:scale-[1.02]`}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`p-3 rounded-xl ${kpi.bgColor}`}>
-                    <div className={kpi.color}>
-                      <IconComponent />
+          <AnimatePresence>
+            {kpiCards.map((kpi, index) => {
+              const IconComponent = kpi.icon;
+              return (
+                <motion.div 
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: index * 0.1 }}
+                  className={`${kpi.bgColor} rounded-xl p-5 sm:p-6 border ${kpi.bgColor.replace('/10', '/20')} flex flex-col justify-between transition-all hover:scale-[1.02]`}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`p-3 rounded-xl ${kpi.bgColor}`}>
+                      <div className={kpi.color}>
+                        <IconComponent />
+                      </div>
                     </div>
+                    {kpi.trend && (
+                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${kpi.trend.includes('↓') ? 'text-red-400 bg-red-400/10' : 'text-green-400 bg-green-400/10'}`}>
+                        {kpi.trend}
+                      </span>
+                    )}
                   </div>
-                  {kpi.trend && (
-                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${kpi.trend.includes('↓') ? 'text-red-400 bg-red-400/10' : 'text-green-400 bg-green-400/10'}`}>
-                      {kpi.trend}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <h3 className={`text-2xl sm:text-3xl font-bold tracking-tight ${kpi.color}`}>{kpi.value}</h3>
-                  <p className="text-gray-400 text-sm font-medium">{kpi.title}</p>
-                  <p className="text-gray-500 text-xs mt-1">{kpi.description}</p>
-                </div>
-              </div>
-            );
-          })}
+                  <div className="space-y-1">
+                    <h3 className={`text-2xl sm:text-3xl font-bold tracking-tight ${kpi.color}`}>{kpi.value}</h3>
+                    <p className="text-gray-400 text-sm font-medium">{kpi.title}</p>
+                    <p className="text-gray-500 text-xs mt-1">{kpi.description}</p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
 
         {/* CRM Pipeline Widget */}
@@ -1104,7 +1118,7 @@ function DashboardContent() {
 
         {/* Plan Usage - Mostrar uso del plan y límites */}
         <PlanUsage />
-      </div>
+      </motion.div>
     </AppLayout>
   );
 }

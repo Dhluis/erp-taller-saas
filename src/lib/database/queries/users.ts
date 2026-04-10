@@ -41,6 +41,44 @@ export interface SystemUser {
 }
 
 /**
+ * Obtener perfil de usuario por AUTH ID con caché en Redis
+ */
+export async function getCachedProfileByAuthId(authUserId: string, supabaseClient?: any) {
+  const cacheKey = `${REDIS_KEYS.SESSION_PROFILE}:${authUserId}`;
+  
+  // 1. Intentar obtener de Redis
+  try {
+    const { getRedisValue } = await import('@/lib/rate-limit/redis');
+    const cached = await getRedisValue(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  } catch (err) {
+    console.warn('[Cache] ⚠️ Error leyendo caché:', err);
+  }
+
+  // 2. Si no hay en caché, consultar DB
+  const supabase = (supabaseClient || await createClient()) as any;
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, auth_user_id, email, full_name, role, phone, is_active, organization_id, created_at, updated_at, avatar_url')
+    .eq('auth_user_id', authUserId)
+    .single();
+
+  if (error || !data) return null;
+
+  // 3. Guardar en Redis (TTL 5 min para datos de sesión)
+  try {
+    const { setRedisValue } = await import('@/lib/rate-limit/redis');
+    await setRedisValue(cacheKey, data, 300);
+  } catch (err) {
+    console.warn('[Cache] ⚠️ Error guardando en caché:', err);
+  }
+
+  return data;
+}
+
+/**
  * Obtener todos los usuarios de una organización
  */
 export async function getAllUsers(
@@ -54,7 +92,7 @@ export async function getAllUsers(
   }
 ) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const supabase = (await createClient()) as any
     
     let query = supabase
       .from('system_users')
@@ -107,7 +145,7 @@ export async function getAllUsers(
  */
 export async function getUserById(id: string) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const supabase = (await createClient()) as any
     
     const { data, error } = await supabase
       .from('system_users')
@@ -125,7 +163,7 @@ export async function getUserById(id: string) {
  */
 export async function getUserByEmail(email: string) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const supabase = (await createClient()) as any
     
     const { data, error } = await supabase
       .from('system_users')
@@ -149,7 +187,7 @@ export async function createUser(data: {
   created_by: string
 }) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const supabase = (await createClient()) as any
 
     // Validaciones
     if (!data.email || !data.role || !data.organization_id) {
@@ -171,11 +209,15 @@ export async function createUser(data: {
     const { data: newUser, error } = await supabase
       .from('system_users')
       .insert({
-        ...data,
+        email: data.email,
+        first_name: data.name?.split(' ')[0] || '',
+        last_name: data.name?.split(' ').slice(1).join(' ') || '',
+        role: data.role,
+        organization_id: data.organization_id,
         is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      })
+      } as any)
       .select()
       .single()
 
@@ -197,7 +239,7 @@ export async function updateUser(
   }
 ) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const supabase = (await createClient()) as any
 
     // Verificar que el usuario existe
     const { data: existingUser } = await supabase
@@ -214,18 +256,21 @@ export async function updateUser(
     const { data: updatedUser, error } = await supabase
       .from('system_users')
       .update({
-        ...data,
+        first_name: data.name?.split(' ')[0],
+        last_name: data.name?.split(' ').slice(1).join(' '),
+        role: data.role,
+        is_active: data.is_active,
         updated_at: new Date().toISOString()
-      })
+      } as any)
       .eq('id', id)
-      .select()
+      .select('*, auth_user_id')
       .single()
 
     if (error) throw error
     
     // Invalidad caché tras actualizar usando auth_user_id
-    if (updatedUser?.auth_user_id) {
-      await invalidateUserProfileCache(updatedUser.auth_user_id);
+    if (updatedUser && (updatedUser as any).auth_user_id) {
+      await invalidateUserProfileCache((updatedUser as any).auth_user_id);
     }
     
     return updatedUser
@@ -237,7 +282,7 @@ export async function updateUser(
  */
 export async function deactivateUser(id: string, updated_by: string) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const supabase = (await createClient()) as any
 
     // Verificar que el usuario existe
     const { data: existingUser } = await supabase
@@ -251,11 +296,11 @@ export async function deactivateUser(id: string, updated_by: string) {
     }
 
     // No permitir desactivar el último admin
-    if (existingUser.role === 'admin') {
+    if (existingUser.role === 'ADMIN') {
       const { count: adminCount } = await supabase
         .from('system_users')
         .select('*', { count: 'exact', head: true })
-        .eq('role', 'admin')
+        .eq('role', 'ADMIN')
         .eq('is_active', true)
 
       if (adminCount === 1) {
@@ -268,18 +313,17 @@ export async function deactivateUser(id: string, updated_by: string) {
       .from('system_users')
       .update({
         is_active: false,
-        updated_at: new Date().toISOString(),
-        updated_by
-      })
+        updated_at: new Date().toISOString()
+      } as any)
       .eq('id', id)
-      .select()
+      .select('*, auth_user_id')
       .single()
 
     if (error) throw error
     
     // Invalidad caché tras desactivar usando auth_user_id
-    if (deactivatedUser?.auth_user_id) {
-      await invalidateUserProfileCache(deactivatedUser.auth_user_id);
+    if (deactivatedUser && (deactivatedUser as any).auth_user_id) {
+      await invalidateUserProfileCache((deactivatedUser as any).auth_user_id);
     }
     
     return deactivatedUser
@@ -291,25 +335,24 @@ export async function deactivateUser(id: string, updated_by: string) {
  */
 export async function activateUser(id: string, updated_by: string) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const supabase = (await createClient()) as any
 
     // Activar usuario
     const { data: activatedUser, error } = await supabase
       .from('system_users')
       .update({
         is_active: true,
-        updated_at: new Date().toISOString(),
-        updated_by
-      })
+        updated_at: new Date().toISOString()
+      } as any)
       .eq('id', id)
-      .select()
+      .select('*, auth_user_id')
       .single()
 
     if (error) throw error
     
     // Invalidad caché tras activar usando auth_user_id
-    if (activatedUser?.auth_user_id) {
-      await invalidateUserProfileCache(activatedUser.auth_user_id);
+    if (activatedUser && (activatedUser as any).auth_user_id) {
+      await invalidateUserProfileCache((activatedUser as any).auth_user_id);
     }
     
     return activatedUser
@@ -325,7 +368,7 @@ export async function changeUserRole(
   updated_by: string
 ) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const supabase = (await createClient()) as any
 
     // Verificar que el usuario existe
     const { data: existingUser } = await supabase
@@ -339,11 +382,11 @@ export async function changeUserRole(
     }
 
     // No permitir cambiar el rol del último admin
-    if (existingUser.role === 'admin' && newRole !== 'admin') {
+    if (existingUser.role === 'ADMIN' && newRole !== 'ADMIN') {
       const { count: adminCount } = await supabase
         .from('system_users')
         .select('*', { count: 'exact', head: true })
-        .eq('role', 'admin')
+        .eq('role', 'ADMIN')
         .eq('is_active', true)
 
       if (adminCount === 1) {
@@ -356,18 +399,17 @@ export async function changeUserRole(
       .from('system_users')
       .update({
         role: newRole,
-        updated_at: new Date().toISOString(),
-        updated_by
-      })
+        updated_at: new Date().toISOString()
+      } as any)
       .eq('id', id)
-      .select()
+      .select('*, auth_user_id')
       .single()
 
     if (error) throw error
     
     // Invalidad caché tras cambiar rol usando auth_user_id
-    if (updatedUser?.auth_user_id) {
-      await invalidateUserProfileCache(updatedUser.auth_user_id);
+    if (updatedUser && (updatedUser as any).auth_user_id) {
+      await invalidateUserProfileCache((updatedUser as any).auth_user_id);
     }
     
     return updatedUser
@@ -379,7 +421,7 @@ export async function changeUserRole(
  */
 export async function getUsersByRole(organizationId: string, role: UserRole) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const supabase = (await createClient()) as any
     
     const { data, error } = await supabase
       .from('system_users')
@@ -399,7 +441,7 @@ export async function getUsersByRole(organizationId: string, role: UserRole) {
  */
 export async function searchUsers(organizationId: string, query: string) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const supabase = (await createClient()) as any
 
     const { data, error } = await supabase
       .from('system_users')
@@ -422,7 +464,7 @@ export async function searchUsers(organizationId: string, query: string) {
  */
 export async function getUserStats(organizationId: string) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const supabase = (await createClient()) as any
 
     // Total usuarios
     const { count: totalUsers } = await supabase
@@ -475,23 +517,23 @@ export async function getUserStats(organizationId: string) {
  */
 export async function updateLastLogin(id: string) {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const supabase = (await createClient()) as any
 
     const { data, error } = await supabase
       .from('system_users')
       .update({
         last_login: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      })
+      } as any)
       .eq('id', id)
-      .select()
+      .select('*, auth_user_id')
       .single()
 
     if (error) throw error
 
     // Invalidad caché tras login usando auth_user_id
-    if (data?.auth_user_id) {
-      await invalidateUserProfileCache(data.auth_user_id);
+    if (data && (data as any).auth_user_id) {
+      await invalidateUserProfileCache((data as any).auth_user_id);
     }
 
     return data
@@ -506,7 +548,7 @@ export async function canManageUser(
   targetUserId: string
 ): Promise<boolean> {
   return executeWithErrorHandling(async () => {
-    const supabase = await createClient()
+    const supabase = (await createClient()) as any
 
     // Obtener información de ambos usuarios
     const { data: manager } = await supabase
@@ -528,11 +570,10 @@ export async function canManageUser(
 
     // Verificar jerarquía de roles
     const roleHierarchy: Record<UserRole, number> = {
-      admin: 4,
-      manager: 3,
-      employee: 2,
-      viewer: 1
-    }
+      ADMIN: 4,
+      ASESOR: 3,
+      MECANICO: 2
+    } as any
 
     return roleHierarchy[manager.role as UserRole] > roleHierarchy[target.role as UserRole]
   }, { operation: 'canManageUser', table: 'system_users' })

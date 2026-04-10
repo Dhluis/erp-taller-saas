@@ -26,6 +26,7 @@ import { useSidebar } from '@/contexts/SidebarContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useSession } from '@/lib/context/SessionContext'
 import { PWAInstallButton } from '@/components/layout/PWAInstallButton'
+import { Logo } from '@/components/ui/Logo'
 
 interface SidebarProps {
   className?: string
@@ -37,7 +38,7 @@ export function Sidebar({ className }: SidebarProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>([])
   const { isCollapsed, toggleCollapse } = useSidebar()
   const permissions = usePermissions()
-  const { isLoading: sessionLoading, organizationId } = useSession()
+  const { isLoading: sessionLoading, organizationId, companySettings } = useSession()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [magicCreateData, setMagicCreateData] = useState<any>(null)
   const searchParams = useSearchParams()
@@ -72,9 +73,6 @@ export function Sidebar({ className }: SidebarProps) {
       }
     }
   }, [searchParams]);
-
-  // Logo actualizado - EAGLES SYSTEM
-  const logoUrl = "/eagles-logo-new.png"
 
   // Inicializar secciones expandidas solo si la ruta actual está dentro de una sección
   useEffect(() => {
@@ -333,73 +331,77 @@ export function Sidebar({ className }: SidebarProps) {
   return (
     <div 
       className={cn(
-        "flex flex-col h-screen bg-card border-r overflow-hidden transition-all duration-300 relative z-10",
+        "flex flex-col h-screen overflow-hidden transition-all duration-500 ease-in-out relative z-10",
+        "bg-[#0a0c10] border-r border-white/5",
         isCollapsed ? "w-20" : "w-64",
         className
       )}
     >
+      {/* Background Glows (Premium look) */}
+      {!isCollapsed && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+          <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-500/20 blur-[100px] rounded-full" />
+          <div className="absolute top-[40%] -right-[10%] w-[30%] h-[30%] bg-indigo-500/20 blur-[80px] rounded-full" />
+        </div>
+      )}
+
       {/* Header */}
       <div className={cn(
-        "border-b border-border overflow-hidden relative",
-        isCollapsed ? "p-4 py-6" : "pt-6 pb-4"
+        "overflow-hidden relative z-20 backdrop-blur-sm bg-white/[0.02]",
+        isCollapsed ? "p-4 py-8" : "pt-8 pb-6 px-4"
       )}>
-        {/* Botón de colapsar/expandir - fuera del flujo para no afectar centrado */}
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className={cn(
-            "text-foreground hover:text-primary transition-colors absolute z-10",
-            isCollapsed 
-              ? "top-2 right-2" 
-              : "top-2 right-2"
-          )}
+        {/* Botón de colapsar/expandir - versión flotante moderna */}
+        <button 
           onClick={toggleCollapse}
-          title={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+          className={cn(
+            "absolute z-50 transition-all duration-500 flex items-center justify-center",
+            "bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/50 text-white/50 hover:text-primary",
+            "backdrop-blur-md rounded-lg shadow-xl",
+            isCollapsed 
+              ? "top-4 left-1/2 -translate-x-1/2 w-10 h-10" 
+              : "top-4 right-4 w-8 h-8"
+          )}
+          title={isCollapsed ? "Expandir" : "Colapsar"}
         >
           {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </Button>
-        
-        {/* Logo y texto - centrado perfecto compensando el botón */}
+        </button>
+
+        {/* Logo y texto - centrado perfecto */}
         <div className={cn(
-          "flex w-full",
-          isCollapsed ? "flex-col items-center justify-center gap-3" : "flex-col items-center justify-center gap-1.5",
-          !isCollapsed && "px-4 pr-10" // ✅ Padding izquierdo normal, derecho reducido para compensar botón
+          "flex flex-col items-center justify-center transition-all duration-500",
+          isCollapsed ? "gap-4 scale-90" : "gap-3"
         )}>
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
-            className={cn(
-              "transition-all bg-transparent hover:opacity-90 flex flex-col items-center justify-center w-full",
-              isCollapsed && "gap-2"
-            )}
+            className="relative group focus:outline-none"
             aria-label="Ir al dashboard"
           >
-            <div className="flex items-center justify-center w-full">
-              <img
-                src={logoUrl}
-                alt="EAGLES SYSTEM"
+            {/* Logo Glow */}
+            <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            
+            <div className="relative flex items-center justify-center">
+              <Logo 
                 className={cn(
-                  "rounded-md shadow-sm transition-all hover:scale-[1.02] focus:outline-none",
-                  "object-contain object-center"
+                  "transition-all duration-500 group-hover:scale-105",
+                  "drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]"
                 )}
-                style={{
-                  width: isCollapsed ? '56px' : 'auto',
-                  height: isCollapsed ? '56px' : '96px', // ✅ 20% más grande: 80px * 1.2 = 96px
-                  maxWidth: isCollapsed ? '56px' : '280px',
-                  maxHeight: isCollapsed ? '56px' : '96px',
-                  margin: '0 auto'
-                }}
+                size={isCollapsed ? 'sm' : 'lg'}
               />
             </div>
-            {/* Texto EAGLES SYSTEM - solo cuando sidebar no está colapsado */}
+            
             {!isCollapsed && (
-              <span className="text-xs font-bold text-white/95 mt-0.5 tracking-wider text-center w-full block">
-                EAGLES SYSTEM
-              </span>
+              <div className="mt-4 flex flex-col items-center">
+                <span className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-white tracking-[0.2em] uppercase">
+                  EAGLES SYSTEM
+                </span>
+                <div className="h-[2px] w-8 bg-gradient-to-r from-blue-500 to-transparent mt-1 rounded-full opacity-50" />
+              </div>
             )}
           </button>
         </div>
       </div>
+
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
@@ -410,16 +412,23 @@ export function Sidebar({ className }: SidebarProps) {
             <Button
               variant={isActive("/dashboard") ? "primary" : "ghost"}
               className={cn(
-                "transition-all duration-200",
+                "transition-all duration-300 relative group overflow-hidden",
                 isCollapsed 
-                  ? "w-12 h-12 mx-auto mb-3 flex items-center justify-center rounded-xl hover:bg-gray-800/60" 
-                  : "w-full gap-3 justify-start h-10",
-                isActive("/dashboard") && "bg-primary text-white"
+                  ? "w-12 h-12 mx-auto mb-4 flex items-center justify-center rounded-xl" 
+                  : "w-full gap-3 justify-start h-11 px-4 mb-1 rounded-xl",
+                isActive("/dashboard") 
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20" 
+                  : "text-white/60 hover:text-white hover:bg-white/5"
               )}
               title={isCollapsed ? "Dashboard" : ""}
             >
-              <ModernIcons.Dashboard size={isCollapsed ? 24 : 16} />
-              {!isCollapsed && <span className="text-sm font-medium">Dashboard</span>}
+              <ModernIcons.Dashboard size={isCollapsed ? 24 : 18} />
+              {!isCollapsed && <span className="text-sm font-semibold tracking-wide">Dashboard</span>}
+              
+              {/* Active Indicator */}
+              {isActive("/dashboard") && !isCollapsed && (
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white rounded-l-full" />
+              )}
             </Button>
           </Link>
 
@@ -455,26 +464,30 @@ export function Sidebar({ className }: SidebarProps) {
                   <Button
                     variant="ghost"
                     className={cn(
-                      "w-full justify-between gap-3 h-10",
-                      // ✅ FIX: NO resaltar la sección padre si hay sub-items activos
-                      // Solo mostrar opacidad reducida para indicar que hay un hijo activo
-                      hasActiveSubItem(section) && "opacity-50"
+                      "w-full justify-between gap-3 h-11 px-4 rounded-xl transition-all duration-300",
+                      "text-white/60 hover:text-white hover:bg-white/5",
+                      hasActiveSubItem(section) && "text-white bg-white/5"
                     )}
                     onClick={() => toggleSection(section.key)}
                   >
                     <div className="flex items-center gap-3">
-                      {section.icon()}
-                      {section.label}
+                      <div className={cn(
+                        "p-1.5 rounded-lg transition-colors",
+                        hasActiveSubItem(section) ? "bg-blue-500/20 text-blue-400" : "text-inherit"
+                      )}>
+                        {section.icon()}
+                      </div>
+                      <span className="text-sm font-semibold tracking-wide">{section.label}</span>
                     </div>
                     {shouldExpandSection(section.key) ? (
-                      <ChevronDown className="h-4 w-4" />
+                      <ChevronDown className="h-4 w-4 opacity-50" />
                     ) : (
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-4 w-4 opacity-50" />
                     )}
                   </Button>
                   
                   {shouldExpandSection(section.key) && (
-                    <div className="ml-6 space-y-1 mt-1">
+                    <div className="ml-9 space-y-1 mt-1 border-l border-white/10 pl-2">
                       {section.items
                         .filter((item: any) => item.visible !== false)
                         .map((item: any) => {
@@ -484,9 +497,10 @@ export function Sidebar({ className }: SidebarProps) {
                               <Button
                                 variant={itemIsActive ? "primary" : "ghost"}
                                 className={cn(
-                                  "w-full justify-start gap-3 h-8 text-sm",
-                                  // ✅ Solo resaltar el sub-item activo, NO la sección padre
-                                  itemIsActive && "bg-primary text-white shadow-lg shadow-primary/20"
+                                  "w-full justify-start gap-3 h-9 px-3 text-xs font-medium rounded-lg transition-all duration-300",
+                                  itemIsActive 
+                                    ? "bg-blue-600/20 text-blue-400 border border-blue-500/30" 
+                                    : "text-white/40 hover:text-white hover:bg-white/5"
                                 )}
                               >
                                 {item.icon()}

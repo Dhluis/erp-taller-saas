@@ -25,6 +25,7 @@ import {
 import { getCompanySettings, updateCompanySettings, type CompanySettings } from "@/lib/supabase/company-settings"
 import { uploadTermsPdf, deleteTermsPdf } from "@/lib/supabase/terms-pdf"
 import { uploadCompanyLogo } from "@/lib/supabase/logo-storage"
+import { uploadCompanySignature, deleteCompanySignature } from "@/lib/supabase/signature-storage"
 import { useAuth } from "@/hooks/useAuth"
 import { useOrganization } from "@/lib/context/SessionContext"
 import { usePermissions } from "@/hooks/usePermissions"
@@ -44,6 +45,7 @@ export type CompanySettingsForm = {
   website: string
   logo: string
   terms_pdf_url: string
+  signature_url: string
   business_hours: {
     monday: string
     tuesday: string
@@ -81,6 +83,7 @@ function getDefaultFormState(): CompanySettingsForm {
     website: '',
     logo: '',
     terms_pdf_url: '',
+    signature_url: '',
     business_hours: { ...DEFAULT_BUSINESS_HOURS },
     billing: { ...DEFAULT_BILLING },
     created_at: '',
@@ -115,6 +118,7 @@ function apiToFormSettings(api: CompanySettings | null): CompanySettingsForm {
     },
     // ✅ Híbrido: Cargar desde columna directa O desde backup en appointment_defaults
     terms_pdf_url: (api as any).terms_pdf_url || (appDefaults.terms_pdf_url as string) || '',
+    signature_url: (api as any).signature_url || '',
     created_at: api.created_at ?? '',
     updated_at: api.updated_at ?? ''
   }
@@ -140,7 +144,8 @@ function formToApiSettings(form: CompanySettingsForm): Parameters<typeof updateC
       payment_terms: form.billing.payment_terms,
       // ✅ Backup híbrido para asegurar persistencia si falla la columna terms_pdf_url
       terms_pdf_url: form.terms_pdf_url || null 
-    }
+    },
+    signature_url: form.signature_url || null
   }
 }
 
@@ -153,6 +158,7 @@ export default function EmpresaPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+  const [isUploadingSignature, setIsUploadingSignature] = useState(false)
   const [isUploadingPdf, setIsUploadingPdf] = useState(false)
   const [formData, setFormData] = useState<CompanySettingsForm>(getDefaultFormState())
   const [detectedLocale, setDetectedLocale] = useState<DetectedLocale | null>(null)
@@ -295,6 +301,35 @@ export default function EmpresaPage() {
       toast.error('Error al eliminar el PDF')
     } finally {
       setIsUploadingPdf(false)
+    }
+  }
+
+  const handleSignatureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !organizationId) return
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Por favor selecciona un archivo de imagen válido')
+      return
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('La imagen es demasiado grande. Máximo 2MB')
+      return
+    }
+
+    setIsUploadingSignature(true)
+    try {
+      const url = await uploadCompanySignature(organizationId, file)
+      handleInputChange('signature_url', url)
+      toast.success('Firma lista. Haz clic en Guardar para aplicar los cambios.')
+    } catch (error: any) {
+      console.error('Error uploading signature:', error)
+      toast.error(error.message || 'Error al subir la firma')
+    } finally {
+      setIsUploadingSignature(false)
+      const input = document.getElementById('signature-upload') as HTMLInputElement
+      if (input) input.value = ''
     }
   }
 
@@ -722,6 +757,67 @@ export default function EmpresaPage() {
               </Button>
             </div>
           )}
+        </div>
+
+        {/* Firma Digital de la Empresa */}
+        <div className="bg-card p-6 rounded-lg border">
+          <div className="flex items-center gap-2 mb-4">
+            <Save className="h-5 w-5 text-amber-500" />
+            <h2 className="text-xl font-semibold">Firma Digital</h2>
+          </div>
+          
+          <div className="flex flex-col items-center space-y-4 text-center">
+            <p className="text-xs text-muted-foreground mb-2">
+              Esta firma aparecerá al final de las órdenes de trabajo y facturas como sello de autenticidad.
+            </p>
+            <div className="w-full max-w-[250px] aspect-[3/1] bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground">
+              {formData.signature_url ? (
+                <img src={formData.signature_url} alt="Firma Digital" className="max-w-full max-h-full object-contain p-2" />
+              ) : (
+                <div className="text-center p-4">
+                  <FileText className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground uppercase font-semibold">Espacio para Firma</p>
+                </div>
+              )}
+            </div>
+            
+            {isEditing && (
+              <div className="flex gap-2">
+                <div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSignatureUpload}
+                    className="hidden"
+                    id="signature-upload"
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => document.getElementById('signature-upload')?.click()}
+                    disabled={isUploadingSignature}
+                  >
+                    {isUploadingSignature ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                        Subiendo...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Subir Firma
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {formData.signature_url && (
+                  <Button variant="outline" size="sm" onClick={() => handleInputChange('signature_url', '')}>
+                    Eliminar
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

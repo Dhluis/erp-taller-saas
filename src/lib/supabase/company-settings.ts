@@ -24,6 +24,7 @@ const companySettingsSchema = z.object({
   working_hours: z.record(z.string(), z.string()).default({}), // Ejemplo: { "monday": "9-5", "tuesday": "9-5" }
   invoice_terms: z.string().optional().nullable(),
   terms_pdf_url: z.string().optional().nullable(),
+  signature_url: z.string().optional().nullable(),
   appointment_defaults: z.record(z.string(), z.any()).default({}), // Ejemplo: { "default_duration": 60, "default_status": "scheduled" }
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional(),
@@ -150,6 +151,7 @@ export async function initializeCompanySettings(organizationId: string, initialD
         logo_url: initialData.logo_url || null,
         invoice_terms: initialData.invoice_terms || null,
         terms_pdf_url: initialData.terms_pdf_url || null,
+        signature_url: initialData.signature_url || null,
       }
 
       return await createCompanySettings(defaultSettings)
@@ -187,6 +189,7 @@ export function getDefaultCompanySettings(organizationId: string): CreateCompany
     },
     invoice_terms: 'Pago a 30 días',
     terms_pdf_url: null,
+    signature_url: null,
     email: null,
     phone: null,
     address: null,

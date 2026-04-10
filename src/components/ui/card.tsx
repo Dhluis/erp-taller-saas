@@ -1,6 +1,4 @@
-'use client'
-
-import { ReactNode } from 'react'
+import React, { ReactNode, forwardRef } from 'react'
 import { cn } from '@/lib/utils'
 
 interface CardProps {
@@ -11,15 +9,16 @@ interface CardProps {
   glass?: boolean
 }
 
-export function Card({ 
+export const Card = forwardRef<HTMLDivElement, CardProps>(({ 
   children, 
   className, 
   hover = false, 
   glow = false, 
   glass = false 
-}: CardProps) {
+}, ref) => {
   return (
     <div
+      ref={ref}
       className={cn(
         'bg-bg-secondary border border-border rounded-lg shadow-md',
         hover && 'hover:shadow-lg hover:border-primary/50 transition-all duration-normal',
@@ -31,7 +30,9 @@ export function Card({
       {children}
     </div>
   )
-}
+})
+
+Card.displayName = 'Card'
 
 interface CardHeaderProps {
   children: ReactNode

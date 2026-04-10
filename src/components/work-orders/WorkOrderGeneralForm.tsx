@@ -39,8 +39,10 @@ import {
   Save,
   X,
   Loader2,
-  Edit
+  Edit,
+  CheckCircle2
 } from 'lucide-react'
+import { ExitSignatureModal } from './ExitSignatureModal'
 
 interface WorkOrderGeneralFormProps {
   order: any
@@ -64,6 +66,7 @@ export function WorkOrderGeneralForm({
   const [employees, setEmployees] = useState<any[]>([])
   const [loadingEmployees, setLoadingEmployees] = useState(false)
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
+  const [isExitSignatureModalOpen, setIsExitSignatureModalOpen] = useState(false)
   
   // ✅ Función helper para inicializar formData desde order
   const initializeFormData = (orderData: any) => {
@@ -584,8 +587,33 @@ export function WorkOrderGeneralForm({
 
   if (!order) return null
 
+  const canComplete = order.status === 'ready' || order.status === 'testing'
+
   return (
     <div className="space-y-6">
+      {/* Botón de Entrega (Si está listo) */}
+      {canComplete && !isEditing && (
+        <div className="flex justify-end p-4 bg-green-500/10 border border-green-500/20 rounded-xl mb-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
+            <div className="flex-1">
+              <p className="text-green-400 font-bold flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5" />
+                Trabajo Terminado
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                El vehículo está listo para entregarse. Captura la firma de conformidad para completar.
+              </p>
+            </div>
+            <Button 
+              onClick={() => setIsExitSignatureModalOpen(true)}
+              className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
+            >
+              Entregar Vehículo y Cerrar Orden
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* ─── PRIMERA SECCIÓN: Datos del Cliente, Vehículo y Descripción ─── */}
       <div className="rounded-xl border border-slate-700/80 bg-slate-900/40 overflow-hidden">
         {/* Datos del Cliente */}
@@ -1263,7 +1291,17 @@ export function WorkOrderGeneralForm({
           </div>
         )}
       </div>
+      
+      {/* Modal de Firma de Salida */}
+      <ExitSignatureModal
+        open={isExitSignatureModalOpen}
+        onOpenChange={setIsExitSignatureModalOpen}
+        order={order}
+        onSuccess={() => {
+          setIsExitSignatureModalOpen(false)
+          onSave()
+        }}
+      />
     </div>
   )
 }
-
