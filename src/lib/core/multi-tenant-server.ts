@@ -80,10 +80,14 @@ export async function getTenantContext(request?: any): Promise<TenantContext> {
     
     console.log('[getTenantContext] ✅ Usuario obtenido:', user.id)
 
-    // ✅ Obtener perfil usando Service Role (bypass RLS) para identificar organización
-    // Esto es crítico para usuarios que acaban de migrar o registrarse
+    // ✅ Obtener perfil para identificar organización
+    // Intentar usar Service Role (bypass RLS) primero para evitar bloqueos en nuevos registros
     const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
-    const supabaseAdmin = getSupabaseServiceClient();
+    const serviceClient = getSupabaseServiceClient();
+    
+    // Si no hay cliente administrativo (llave faltante), usar el cliente estándar (de usuario)
+    // Nota: Esto activará RLS, pero es mejor que fallar con 500.
+    const supabaseAdmin = serviceClient || supabase;
 
     // Intento 1: Tabla 'users' (Principal)
     let { data: userProfile, error: profileError } = await (supabaseAdmin as any)

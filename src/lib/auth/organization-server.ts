@@ -34,11 +34,13 @@ export async function getOrganizationId(request?: NextRequest): Promise<string> 
     throw new Error('Usuario no autenticado');
   }
 
-  // 2. Obtener el user completo usando Service Role (bypass RLS)
-  // Esto es necesario para asegurar que el ID de organización esté disponible
-  // incluso si el usuario acaba de registrarse y RLS aún no permite lectura
+  // 2. Obtener el cliente administrativo (Service Role)
   const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
-  const supabaseAdmin = getSupabaseServiceClient();
+  const serviceClient = getSupabaseServiceClient();
+  
+  // Si no hay cliente administrativo (llave faltante), usar el cliente estándar (de usuario)
+  // Nota: Esto activará RLS, pero es mejor que fallar con 500.
+  const supabaseAdmin = serviceClient || supabase;
   
   // Intento 1: Tabla 'users' (Principal)
   let { data: userData, error: userDataError } = await (supabaseAdmin as any)

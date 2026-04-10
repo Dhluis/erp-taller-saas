@@ -76,17 +76,14 @@ export async function getSupabaseServerClient(): Promise<SupabaseServerClient> {
 /**
  * Obtener cliente con service role (para operaciones administrativas)
  */
-export function getSupabaseServiceClient(): SupabaseServerClient {
+export function getSupabaseServiceClient(): SupabaseServerClient | null {
   const config = getConfig()
   
   if (!config.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new ConfigurationError(`
-❌ SUPABASE SERVICE ROLE ERROR:
-   SUPABASE_SERVICE_ROLE_KEY is not defined
-   
-   Please add to your .env.local:
-   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-    `)
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[Supabase] ⚠️ SUPABASE_SERVICE_ROLE_KEY no definida. Se usará cliente estándar (RLS activo).');
+    }
+    return null;
   }
 
   return createSupabaseSSRClient<Database>(
