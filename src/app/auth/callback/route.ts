@@ -260,75 +260,10 @@ export async function GET(request: NextRequest) {
       }
 
       console.log(
-        "✅ [Callback] Usuario con organización, verificando/creando perfil en tabla users...",
+        "✅ [Callback] Usuario con organización válida. Redirigiendo...",
       );
-
-      // ✅ CRÍTICO: Para buscar usamos supabaseAdmin si existe, para insertar usamos supabaseAuth (tiene sesión activa)
-      const queryClient = supabaseAdmin || supabaseAuth;
-      const insertClient = supabaseAuth;
-
-      // Buscar perfil existente
-      const { data: existingProfile } = await queryClient
-        .from("users")
-        .select("id, auth_user_id")
-        .eq("auth_user_id", data.session.user.id)
-        .maybeSingle();
-
-      if (!existingProfile) {
-        console.log(
-          "🔄 [Callback] Perfil no existe en tabla users, creando...",
-        );
-
-        // Buscar en system_users para obtener datos adicionales
-        const { data: systemUser } = await queryClient
-          .from("system_users")
-          .select("first_name, last_name, role")
-          .eq("auth_user_id", data.session.user.id)
-          .maybeSingle();
-
-        const fullName = systemUser
-          ? `${systemUser.first_name || ""} ${systemUser.last_name || ""}`.trim()
-          : data.session.user.email?.split("@")[0] || "Usuario";
-        const role = systemUser?.role || "ADMIN";
-
-        // Crear perfil usando el cliente con sesión activa
-        // Esto debería funcionar porque supabaseAuth tiene las cookies de sesión
-        const { data: newProfile, error: createError } = await insertClient
-          .from("users")
-          .insert({
-            auth_user_id: data.session.user.id,
-            email: data.session.user.email || "",
-            full_name: fullName,
-            organization_id: organizationId,
-            workshop_id: null,
-            role: role,
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
-
-        if (createError) {
-          console.error(
-            "❌ [Callback] Error creando perfil:",
-            createError.message,
-            createError.code,
-          );
-        } else {
-          console.log(
-            "✅ [Callback] Perfil creado exitosamente:",
-            newProfile.id,
-          );
-        }
-      } else {
-        console.log("✅ [Callback] Perfil ya existe en tabla users");
-      }
-
-      console.log(
-        "✅ [Callback] Usuario con organización, redirigiendo a:",
-        next,
-      );
+      // NO intentamos crear el perfil aquí - /api/users/me lo maneja buscando en system_users
+      console.log("✅ [Callback] Redirigiendo a:", next);
 
       // ✅ FIX: Agregar parámetro para indicar que viene de OAuth callback
       const redirectUrl = new URL(next, origin);
@@ -428,7 +363,13 @@ export async function GET(request: NextRequest) {
           "✅ [Callback] Usuario con organización, redirigiendo a:",
           next,
         );
-        return response;
+        // Redirigir al dashboard
+        const redirectUrl = new URL(next, origin);
+        const redirectResponse = createRedirectResponse(
+          redirectUrl.toString(),
+          response,
+        );
+        return redirectResponse;
       } else if (error) {
         console.error("❌ [Callback] Error verificando token:", {
           message: error.message,
