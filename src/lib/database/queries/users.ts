@@ -58,6 +58,7 @@ export async function getCachedProfileByAuthId(authUserId: string, supabaseClien
   }
 
   // 2. Si no hay en caché, consultar DB
+  const { createClient } = await import('@/lib/supabase/server');
   const supabase = (supabaseClient || await createClient()) as any;
   
   // Intento 1: Tabla 'users' (Principal)

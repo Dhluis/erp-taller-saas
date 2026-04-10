@@ -25,8 +25,14 @@ export async function GET(request: NextRequest) {
     const userId = authUser.id
     console.log('[GET /api/users/me] userId:', userId)
     
-    const supabaseAdmin = getSupabaseServiceClient()
-        // Intentar obtener el usuario usando el helper con caché (que ahora busca en ambas tablas)
+    // Obtener cliente administrativo (puede ser null si falta la clave)
+    const serviceClient = getSupabaseServiceClient()
+    
+    // ✅ CRÍTICO: Si no hay cliente administrativo, usar el cliente de usuario (RLS activo)
+    // Esto evita el crash que mandaba a los usuarios al registro.
+    const supabaseAdmin = serviceClient || supabase
+    
+    // Intentar obtener el usuario usando el helper con caché (que ahora busca en ambas tablas)
     const userProfile = await getCachedProfileByAuthId(userId, supabaseAdmin)
     
     if (!userProfile) {
@@ -217,7 +223,10 @@ export async function PATCH(request: NextRequest) {
     if (phone !== undefined) updateData.phone = phone || null
     if (avatar_url !== undefined) updateData.avatar_url = avatar_url || null
 
-    const supabaseAdmin = getSupabaseServiceClient()
+    // Obtener cliente administrativo (puede ser null)
+    const serviceClient = getSupabaseServiceClient()
+    const supabaseAdmin = serviceClient || supabase
+    
     const { data: updated, error } = await (supabaseAdmin as any)
       .from('users')
       .update(updateData)
