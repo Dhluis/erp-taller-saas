@@ -5,15 +5,16 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { signUpWithProfile } from '@/lib/auth/client-auth'
-import { createBrowserClient } from '@supabase/ssr'
-import { Mail, Lock, User, Building2, Phone, MapPin, AlertCircle, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react'
+import { getSupabaseClient } from '@/lib/supabase/client'
+import { Mail, Lock, User, Building2, Phone, MapPin, AlertCircle, Loader2, CheckCircle, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
 export default function RegisterPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   
-  // Estados del formulario
+  // Cliente Supabase para el navegador (singleton robusto)
+  const supabase = getSupabaseClient()
   const [step, setStep] = useState(1) // 1: Datos del taller, 2: Datos del usuario
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -36,12 +37,6 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-
-  // Cliente Supabase para el navegador
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
 
   // Pre-llenar email si viene como parámetro (útil cuando vienen desde otras páginas)
   useEffect(() => {
@@ -138,18 +133,19 @@ export default function RegisterPage() {
 
     try {
       // PASO 1: Crear la organización
-      const { data: organization, error: orgError } = await supabase
+      const { data: organization, error: orgError } = await (supabase as any)
         .from('organizations')
         .insert({
           name: workshopName,
           email: workshopEmail,
           phone: workshopPhone,
           address: workshopAddress,
-        })
+        } as any)
         .select()
-        .single()
+        .single() as { data: any; error: any }
 
       if (orgError) throw orgError
+      if (!organization) throw new Error('No se pudo crear la organización')
       const organizationId = organization.id
 
       // PASO 2: Registrar usuario con la organización
@@ -178,6 +174,7 @@ export default function RegisterPage() {
         
         // Mostrar mensaje de bienvenida
         setRegisteredEmail(email)
+        setRegisteredPassword(password) // ✅ PERSISTIR CONTRASEÑA PARA REDIRECCIÓN SEGURA
         setShowConfirmation(true)
         setStep(3) // Mostrar paso de bienvenida
         setLoading(false)
@@ -224,7 +221,7 @@ export default function RegisterPage() {
               body: JSON.stringify({
                 email,
                 password,
-                organizationId: organization.id,
+                organizationId: organization!.id,
                 fullName
               })
             })
@@ -265,7 +262,9 @@ export default function RegisterPage() {
               setUserExistsError(true)
               // Eliminar organización creada
               try {
-                await supabase.from('organizations').delete().eq('id', organization.id)
+                if (organization?.id) {
+                  await (supabase as any).from('organizations').delete().eq('id', organization.id)
+                }
               } catch (deleteError) {
                 console.warn('Error al eliminar organización:', deleteError)
               }
@@ -276,7 +275,9 @@ export default function RegisterPage() {
             console.error('❌ [Register] Error al vincular cuenta:', linkError)
             // Si falla el vínculo, eliminar organización y mostrar error
             try {
-              await supabase.from('organizations').delete().eq('id', organization.id)
+              if (organization?.id) {
+                await (supabase as any).from('organizations').delete().eq('id', organization.id)
+              }
             } catch (deleteError) {
               console.warn('Error al eliminar organización:', deleteError)
             }
@@ -288,7 +289,9 @@ export default function RegisterPage() {
         } else {
           // ✅ Si NO es error de usuario existente, eliminar organización
           try {
-            await supabase.from('organizations').delete().eq('id', organization.id)
+            if (organization?.id) {
+              await (supabase as any).from('organizations').delete().eq('id', organization.id)
+            }
           } catch (deleteError) {
             console.warn('Error al eliminar organización:', deleteError)
           }
@@ -693,51 +696,65 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div className="flex gap-4 justify-center">
                 <button
                   type="button"
+                  disabled={loading}
                   onClick={async () => {
-                    // ✅ Forzar recarga de sesión antes de redirigir
-                    console.log('🔄 [Register] Redirigiendo al dashboard, recargando sesión...')
-                    
-                    // Recargar la sesión para asegurar que esté actualizada
-                    if (typeof window !== 'undefined') {
-                      // Disparar evento de recarga de sesión
-                      window.dispatchEvent(new Event('session:reload'))
+                    setLoading(true)
+                    try {
+                      console.log('🔄 [Register] Preparando acceso al dashboard...')
                       
-                      // También verificar que el usuario esté autenticado
-                      const { data: { user } } = await supabase.auth.getUser()
-                      if (!user && registeredPassword) {
-                        console.warn('⚠️ [Register] Usuario no autenticado, intentando iniciar sesión...')
-                        // Si no está autenticado, intentar iniciar sesión de nuevo
+                      // 1. Verificar si ya hay sesión
+                      const { data: { session } } = await supabase.auth.getSession()
+                      
+                      // 2. Si no hay sesión, intentar login forzado (usando la contraseña guardada)
+                      if (!session && registeredPassword) {
+                        console.log('🔄 [Register] Sin sesión activa, forzando inicio de sesión...')
                         const { error: signInError } = await supabase.auth.signInWithPassword({
                           email: registeredEmail,
                           password: registeredPassword
                         })
+                        
                         if (signInError) {
-                          console.error('❌ [Register] Error al iniciar sesión:', signInError)
-                          // No mostrar error, solo redirigir al login
+                          console.error('❌ [Register] Error al forzar inicio de sesión:', signInError)
                           router.push(`/auth/login?email=${encodeURIComponent(registeredEmail)}`)
                           return
-                        } else {
-                          console.log('✅ [Register] Sesión iniciada exitosamente')
                         }
                       }
+                      
+                      // 3. Disparar evento de recarga para SessionContext
+                      if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new Event('session:reload'))
+                      }
+                      
+                      // 4. Pequeña espera para que las cookies se asienten y el perfil se cree
+                      await new Promise(resolve => setTimeout(resolve, 1000))
+                      
+                      // 5. Redirigir
+                      console.log('🚀 [Register] Redirigiendo al dashboard...')
+                      router.push('/dashboard')
+                      router.refresh()
+                    } catch (err) {
+                      console.error('❌ [Register] Error crítico en redirección:', err)
+                      router.push('/auth/login')
+                    } finally {
+                      setLoading(false)
                     }
-                    
-                    // Delay más largo para que la sesión se establezca completamente
-                    await new Promise(resolve => setTimeout(resolve, 800))
-                    
-                    // Redirigir al dashboard
-                    console.log('🔄 [Register] Redirigiendo al dashboard...')
-                    router.push('/dashboard')
-                    router.refresh() // Forzar recarga de la página
                   }}
-                  className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-3 rounded-lg transition"
+                  className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  Comenzar a usar el sistema
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Preparando todo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Comenzar a usar el sistema</span>
+                      <ArrowRight className="w-5 h-5" />
+                    </>
+                  )}
                 </button>
-              </div>
             </div>
           )}
 
