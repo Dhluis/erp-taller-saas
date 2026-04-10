@@ -117,9 +117,10 @@ async function getCachedUserProfile(supabase: any, user: { id: string, email?: s
     console.warn('[Middleware Cache] ⚠️ Error leyendo caché:', cacheError)
   }
 
-  // 2. Si no hay en caché, consultar DB (system_users)
+  // 2. Si no hay en caché, consultar DB (users)
+  // FIX: Usar tabla 'users' y columna 'auth_user_id' que es la principal del ERP
   let { data: dbProfile, error: profileError } = await (supabase as any)
-    .from('system_users')
+    .from('users')
     .select('*')
     .eq('auth_user_id', user.id)
     .single()
@@ -294,7 +295,9 @@ export async function checkUserPermissions(
     const normalizedRequired = requiredRoles.map(r => r.toUpperCase())
     const userRole = (profile.role || '').toUpperCase()
     
-    const hasPermission = normalizedRequired.includes(userRole)
+    // Soporte para variaciones de nombres de roles (ej. ADMIN vs ADMINISTRADOR)
+    const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR'
+    const hasPermission = normalizedRequired.includes(userRole) || (normalizedRequired.includes('ADMIN') && isAdmin)
     
     return { hasPermission, user: session.user, profile }
   } catch (error) {

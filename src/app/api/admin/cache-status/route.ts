@@ -34,13 +34,15 @@ export async function GET(request: NextRequest) {
 
     if (user) {
       const { data: dbProfile } = await supabase
-        .from('system_users')
+        .from('users') // FIX: Cambiar a tabla 'users'
         .select('*')
-        .eq('auth_user_id', user.id)
+        .eq('auth_user_id', user.id) // FIX: Columna auth_user_id
         .single()
       
       profile = dbProfile
-      hasPermission = profile?.role?.toUpperCase() === 'ADMIN'
+      // FIX: Soporte para 'Administrador'
+      const roleStr = (profile?.role || '').toUpperCase()
+      hasPermission = roleStr === 'ADMIN' || roleStr === 'ADMINISTRADOR'
     }
 
     // 3. Respuesta combinada
