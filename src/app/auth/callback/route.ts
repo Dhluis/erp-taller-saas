@@ -263,11 +263,12 @@ export async function GET(request: NextRequest) {
         "✅ [Callback] Usuario con organización, verificando/creando perfil en tabla users...",
       );
 
-      // ✅ CRÍTICO: Verificar que el perfil existe en tabla 'users', si no crearlo
-      const client = supabaseAdmin || supabaseAuth;
+      // ✅ CRÍTICO: Para buscar usamos supabaseAdmin si existe, para insertar usamos supabaseAuth (tiene sesión activa)
+      const queryClient = supabaseAdmin || supabaseAuth;
+      const insertClient = supabaseAuth;
 
       // Buscar perfil existente
-      const { data: existingProfile } = await client
+      const { data: existingProfile } = await queryClient
         .from("users")
         .select("id, auth_user_id")
         .eq("auth_user_id", data.session.user.id)
@@ -279,7 +280,7 @@ export async function GET(request: NextRequest) {
         );
 
         // Buscar en system_users para obtener datos adicionales
-        const { data: systemUser } = await client
+        const { data: systemUser } = await queryClient
           .from("system_users")
           .select("first_name, last_name, role")
           .eq("auth_user_id", data.session.user.id)
@@ -290,8 +291,9 @@ export async function GET(request: NextRequest) {
           : data.session.user.email?.split("@")[0] || "Usuario";
         const role = systemUser?.role || "ADMIN";
 
-        // Crear perfil
-        const { data: newProfile, error: createError } = await client
+        // Crear perfil usando el cliente con sesión activa
+        // Esto debería funcionar porque supabaseAuth tiene las cookies de sesión
+        const { data: newProfile, error: createError } = await insertClient
           .from("users")
           .insert({
             auth_user_id: data.session.user.id,
@@ -308,9 +310,10 @@ export async function GET(request: NextRequest) {
           .single();
 
         if (createError) {
-          console.warn(
-            "⚠️ [Callback] Error creando perfil (continuando):",
+          console.error(
+            "❌ [Callback] Error creando perfil:",
             createError.message,
+            createError.code,
           );
         } else {
           console.log(
