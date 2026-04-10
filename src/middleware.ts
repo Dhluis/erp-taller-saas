@@ -47,53 +47,36 @@ const PUBLIC_ROUTES = [
 ]
 
 /**
- * Middleware principal
+ * Middleware principal simplificado para estabilidad máxima
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // 1. Permitir siempre rutas públicas y archivos estáticos de PWA
-  const isPublic = PUBLIC_ROUTES.some(route => {
-    if (route === '/') return pathname === '/'
-    return pathname === route || pathname.startsWith(`${route}/`)
-  }) || 
-  pathname.endsWith('.js') || 
-  pathname.endsWith('.json') || 
-  pathname.endsWith('.webmanifest') ||
-  pathname.startsWith('/icons/') ||
-  pathname.startsWith('/images/')
-
-  if (isPublic) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`🔓 [Middleware] Permitida ruta pública: ${pathname}`)
-    }
+  // 1. Rutas públicas y archivos estáticos (Bypass total)
+  if (
+    PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(`${route}/`)) ||
+    pathname.includes('.') ||
+    pathname.startsWith('/_next')
+  ) {
     return NextResponse.next()
   }
 
-  // 2. Determinar tipo de ruta
-  const isProtectedRoute = MIDDLEWARE_ROUTES.some(route => pathname.startsWith(route))
-  const isAuthRoute = AUTH_ROUTES.some(route => pathname.startsWith(route))
-
-  // 3. Manejar rutas de autenticación (Login/Register)
-  if (isAuthRoute) {
+  // 2. Rutas de Auth (si ya tiene sesión, ir al dashboard)
+  if (AUTH_ROUTES.some(route => pathname.startsWith(route))) {
     const { supabase } = createSupabaseMiddlewareClient(request)
     const { data: { session } } = await supabase.auth.getSession()
     if (session) {
-      console.log(`🏠 [Middleware] Usuario ya logueado, redirigiendo al dashboard desde: ${pathname}`)
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
     return NextResponse.next()
   }
 
-  // 3. Manejar rutas protegidas (Dashboard, etc)
-  if (isProtectedRoute) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`🔐 [Middleware] Protegiendo ruta: ${pathname}`)
-    }
+  // 3. Rutas protegidas (Dashboard, etc)
+  if (MIDDLEWARE_ROUTES.some(route => pathname.startsWith(route))) {
     return updateSession(request)
   }
 
-  // 3. Por defecto, permitir acceso (Catch-all)
+  // 4. Por defecto, permitir acceso (Catch-all)
   return NextResponse.next()
 }
 
@@ -111,4 +94,4 @@ export const config = {
      */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}
+}
