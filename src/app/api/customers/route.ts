@@ -1,3 +1,4 @@
+import { NextRequest, NextResponse } from 'next/server';
 import {
   createClientFromRequest,
   getSupabaseServiceClient,
@@ -363,6 +364,9 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    // ✅ Obtener cliente admin para queries sin RLS
+    const supabaseAdmin = getSupabaseServiceClient() || supabase;
 
     // Insertar cliente
     const { data: customer, error: insertError } = await supabaseAdmin

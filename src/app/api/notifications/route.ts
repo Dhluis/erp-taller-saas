@@ -1,3 +1,4 @@
+import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { getOrganizationId } from '@/lib/auth/organization-server'
 
@@ -62,6 +63,9 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
+
+    // ✅ Obtener cliente admin para queries sin RLS
+    const supabaseAdmin = getSupabaseServiceClient() || supabase;
 
     // ✅ Construir query usando supabaseAdmin (bypass RLS) con validación explícita
     let query = supabaseAdmin
