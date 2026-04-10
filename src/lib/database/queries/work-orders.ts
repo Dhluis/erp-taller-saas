@@ -57,8 +57,8 @@ export interface WorkOrder {
   description: string;
   diagnosis?: string;
   subtotal: number;
-  tax: number;
-  discount: number;
+  tax_amount: number;
+  discount_amount: number;
   total_amount: number;
   assigned_to?: string;
   estimated_completion?: string;
@@ -111,8 +111,8 @@ export interface CreateWorkOrderData {
 export interface UpdateWorkOrderData extends Partial<CreateWorkOrderData> {
   status?: WorkOrderStatus;
   subtotal?: number;
-  tax?: number;
-  discount?: number;
+  tax_amount?: number;
+  discount_amount?: number;
   total_amount?: number;
 }
 

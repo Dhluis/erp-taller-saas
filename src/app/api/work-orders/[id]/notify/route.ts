@@ -6,10 +6,8 @@ import { notifyOrderStatus } from '@/lib/orders/notifications'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
     const { organizationId } = await getTenantContext(request)
 
@@ -17,7 +15,7 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
     }
 
-    const orderId = params.id
+    const orderId = id
     if (!orderId) {
       return NextResponse.json({ success: false, error: 'ID de orden requerido' }, { status: 400 })
     }

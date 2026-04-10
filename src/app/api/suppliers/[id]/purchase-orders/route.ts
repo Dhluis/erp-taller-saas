@@ -2,12 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPurchaseOrdersBySupplier } from '@/lib/database/queries/purchase-orders'
 
 // GET /api/suppliers/[id]/purchase-orders - Obtener órdenes de compra del proveedor
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
-    const orders = await getPurchaseOrdersBySupplier(params.id)
+    const orders = await getPurchaseOrdersBySupplier(id)
 
     return NextResponse.json({
       data: orders,

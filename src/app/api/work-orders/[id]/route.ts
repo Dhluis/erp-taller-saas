@@ -14,8 +14,9 @@ import { notifyOrderStatus } from '@/lib/orders/notifications';
 // GET: Obtener una orden por ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     // ✅ Obtener usuario autenticado usando patrón robusto
     const supabase = createClientFromRequest(request);
@@ -58,7 +59,7 @@ export async function GET(
     if (currentUserRole === 'MECANICO') {
       const canAccess = await canAccessWorkOrder(
         user.id,
-        params.id,
+        id,
         currentUserRole,
         supabaseAdmin
       );
@@ -108,7 +109,7 @@ export async function GET(
         ),
         order_items(*)
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .is('deleted_at', null) // ✅ SOFT DELETE: Solo mostrar órdenes activas
       .single();
@@ -119,7 +120,7 @@ export async function GET(
       const { data: inspectionData, error: inspectionError } = await supabaseAdmin
         .from('vehicle_inspections')
         .select('*')
-        .eq('order_id', params.id)
+        .eq('order_id', id)
         .eq('organization_id', organizationId)
         .maybeSingle();
       
@@ -219,8 +220,9 @@ export async function GET(
 // PUT: Actualizar una orden
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     // ✅ Obtener usuario autenticado usando patrón robusto
     const supabase = createClientFromRequest(request);
@@ -262,7 +264,7 @@ export async function PUT(
     if (currentUserRole === 'MECANICO') {
       const canAccess = await canAccessWorkOrder(
         user.id,
-        params.id,
+        id,
         currentUserRole,
         supabaseAdmin
       );
@@ -288,7 +290,7 @@ export async function PUT(
         console.log('❌ [API PUT /work-orders/[id]] Intento de reasignación sin permisos:', {
           userId: user.id,
           userRole: currentUserRole,
-          orderId: params.id,
+          orderId: id,
           assignedTo: body.assigned_to
         })
         
@@ -347,7 +349,7 @@ export async function PUT(
         id, organization_id, status, description, estimated_cost, assigned_to,
         assigned_user:users!work_orders_assigned_to_fkey(id, full_name)
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .is('deleted_at', null) // ✅ SOFT DELETE: Solo actualizar órdenes activas
       .single();
@@ -370,7 +372,7 @@ export async function PUT(
         ...body,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId) // ✅ Validar multi-tenancy
       .is('deleted_at', null) // ✅ SOFT DELETE: Solo actualizar órdenes activas
       .select(`
@@ -417,7 +419,7 @@ export async function PUT(
 
     if (body.status === 'completed' && prevOrder.status !== 'completed') {
       try {
-        const result = await deductInventoryOnOrderComplete(supabaseAdmin, params.id, organizationId);
+        const result = await deductInventoryOnOrderComplete(supabaseAdmin, id, organizationId);
         if (result.lowStockAlerts.length > 0) {
           lowStockAlerts = result.lowStockAlerts;
         }
@@ -425,7 +427,7 @@ export async function PUT(
         const { data: u } = await supabaseAdmin.from('users').select('id, full_name').eq('auth_user_id', user.id).single();
         await supabaseAdmin.from('work_order_history').insert({
           organization_id: organizationId,
-          work_order_id: params.id,
+          work_order_id: id,
           user_id: (u as any)?.id ?? null,
           user_name: (u as any)?.full_name || 'Sistema',
           action: 'field_update',
@@ -439,11 +441,11 @@ export async function PUT(
 
       // Crear factura automáticamente si no existe
       try {
-        console.log('[Invoice] 🔍 Buscando factura existente para orden:', params.id);
+        console.log('[Invoice] 🔍 Buscando factura existente para orden:', id);
         const { data: existingInvoiceData } = await supabaseAdmin
           .from('invoices')
           .select('id')
-          .eq('work_order_id', params.id)
+          .eq('work_order_id', id)
           .maybeSingle();
         const existingInvoice = existingInvoiceData as { id: string } | null;
         if (existingInvoice) {
@@ -452,12 +454,12 @@ export async function PUT(
           const { data: services } = await supabaseAdmin
             .from('work_order_services')
             .select('id, total_price')
-            .eq('work_order_id', params.id);
+            .eq('work_order_id', id);
           const servicesList = services || [];
           const total = servicesList.reduce((sum: number, s: any) => sum + (Number(s?.total_price) || 0), 0);
           console.log('[Invoice] 📋 Servicios encontrados:', servicesList.length);
           console.log('[Invoice] 💰 Total calculado:', total);
-          const newInvoice = await createInvoiceFromWorkOrder(params.id, supabaseAdmin as any, {
+          const newInvoice = await createInvoiceFromWorkOrder(id, supabaseAdmin as any, {
             organization_id: (updatedOrder as any).organization_id,
             customer_id: (updatedOrder as any).customer_id,
             status: 'completed',
@@ -468,7 +470,7 @@ export async function PUT(
             discount_amount: (updatedOrder as any).discount_amount,
             order_items: (updatedOrder as any).order_items,
           });
-          console.log('[Invoice] ✅ Factura creada:', (newInvoice as any)?.id, 'para orden:', params.id);
+          console.log('[Invoice] ✅ Factura creada:', (newInvoice as any)?.id, 'para orden:', id);
         }
       } catch (invoiceErr: any) {
         console.error('[Invoice] ❌ Error creando factura:', invoiceErr?.message ?? invoiceErr);
@@ -515,7 +517,7 @@ export async function PUT(
         const newLabel = STATUS_LABELS[body.status] || body.status;
         historyEntries.push({
           organization_id: organizationId,
-          work_order_id: params.id,
+          work_order_id: id,
           user_id: internalUserId,
           user_name: userName,
           action: 'status_change',
@@ -546,7 +548,7 @@ export async function PUT(
 
         historyEntries.push({
           organization_id: organizationId,
-          work_order_id: params.id,
+          work_order_id: id,
           user_id: internalUserId,
           user_name: userName,
           action: 'assignment',
@@ -575,7 +577,7 @@ export async function PUT(
     if (body.status && body.status !== prevOrder.status) {
       const notifyStatuses = ['waiting_approval', 'waiting_parts', 'ready', 'completed']
       if (notifyStatuses.includes(body.status)) {
-        notifyOrderStatus(organizationId, params.id, 'status_change', body.status)
+        notifyOrderStatus(organizationId, id, 'status_change', body.status)
           .catch(err => console.error('[WorkOrder PUT] Notify error:', err))
       }
     }
@@ -602,8 +604,9 @@ export async function PUT(
 // DELETE: Eliminar una orden
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     // ✅ Obtener usuario autenticado usando patrón robusto
     const supabase = createClientFromRequest(request);
@@ -656,7 +659,7 @@ export async function DELETE(
     const { data: existingOrder, error: orderError } = await supabaseAdmin
       .from('work_orders')
       .select('id, status, organization_id, deleted_at')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .is('deleted_at', null) // Solo verificar órdenes activas
       .single();
@@ -694,7 +697,7 @@ export async function DELETE(
         deleted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .is('deleted_at', null); // Solo eliminar si no está ya eliminada
     

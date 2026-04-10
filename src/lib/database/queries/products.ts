@@ -40,7 +40,10 @@ export async function getAllProducts(
       query = query.eq('is_active', filters.is_active)
     }
     if (filters?.low_stock) {
-      query = query.lte('stock_quantity', 'min_stock')
+      // Nota: PostgREST no soporta de forma nativa comparación columna-columna en .lte()
+      // Se recomienda usar una vista o RPC para esto a gran escala.
+      // Por ahora, traemos los datos y el cliente filtrará o usamos .filter con sintaxis PostgREST si es posible
+      query = query.filter('stock_quantity', 'lte', 'min_stock') 
     }
 
     const { data, error } = await query.order('name', { ascending: true })
@@ -114,7 +117,7 @@ export async function getLowStockProducts(organizationId: string): Promise<Produ
       .eq('organization_id', organizationId)
       .eq('type', 'product')
       .eq('is_active', true)
-      .lte('stock_quantity', 'min_stock')
+      .filter('stock_quantity', 'lte', 'min_stock')
       .order('stock_quantity', { ascending: true })
     if (error) throw error
     return data || []
@@ -303,7 +306,7 @@ export async function getProductStats(organizationId: string): Promise<{
     ).length
 
     // Agrupar por categoría
-    const categoryCounts = products.reduce((acc: any, product: any) => {
+    const categoryCounts = products.reduce((acc: Record<string, number>, product) => {
       const category = product.category || 'Sin categoría'
       acc[category] = (acc[category] || 0) + 1
       return acc

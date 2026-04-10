@@ -5,12 +5,9 @@ import { sendEmail } from '@/lib/email/mailer'
 import { getQuotationEmailTemplate } from '@/lib/email/templates/quotation'
 
 // POST /api/quotations/[id]/send - Enviar cotización al cliente
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
-    const quotationId = params.id
+    const quotationId = id
     const body = await request.json().catch(() => ({}))
     const { send_via_email = false, email_message = '', recipient_email = null } = body
     const supabase = await createClient()

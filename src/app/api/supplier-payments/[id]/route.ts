@@ -22,15 +22,12 @@ const updateSchema = z.object({
   cash_account_id: z.string().uuid().optional().nullable()
 })
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
     const org = await getOrgIdAndUserId(request)
     if ('error' in org) return NextResponse.json({ success: false, error: org.error }, { status: org.status })
 
-    const id = params.id
+    const id = id
     if (!id) return NextResponse.json({ success: false, error: 'ID requerido' }, { status: 400 })
 
     const body = await request.json()

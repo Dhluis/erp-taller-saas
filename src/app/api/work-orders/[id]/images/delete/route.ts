@@ -9,12 +9,10 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
 const BUCKET = 'work-order-images'
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
-    const orderId = params.id
+    const orderId = id
     if (!orderId) {
       return NextResponse.json({ error: 'ID de orden requerido' }, { status: 400 })
     }

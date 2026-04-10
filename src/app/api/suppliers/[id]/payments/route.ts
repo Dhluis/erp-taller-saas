@@ -2,12 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPaymentHistory } from '@/lib/database/queries/suppliers'
 
 // GET /api/suppliers/[id]/payments - Obtener historial de pagos del proveedor
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
-    const payments = await getPaymentHistory(params.id)
+    const payments = await getPaymentHistory(id)
 
     return NextResponse.json({
       data: payments,

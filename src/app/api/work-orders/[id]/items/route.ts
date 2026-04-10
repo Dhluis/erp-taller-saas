@@ -70,12 +70,10 @@ import {
  */
 
 // GET: Obtener items de una orden
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
-    const items = await getOrderItemsByWorkOrder(params.id);
+    const items = await getOrderItemsByWorkOrder(id);
 
     return NextResponse.json({
       success: true,
@@ -96,10 +94,8 @@ export async function GET(
 }
 
 // POST: Agregar item a una orden
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
     const body = await request.json();
 
@@ -149,7 +145,7 @@ export async function POST(
 
     const itemData = {
       ...body,
-      work_order_id: params.id,
+      work_order_id: id,
       total_price: totalPrice,
     };
 

@@ -14,10 +14,7 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server';
 // =====================================================
 // PUT - Actualizar estado de cotización
 // =====================================================
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
@@ -36,7 +33,7 @@ export async function PUT(
       undefined,
       'quotations-status-api',
       'PUT',
-      { quotationId: params.id }
+      { quotationId: id }
     );
     
     const body = await request.json();
@@ -81,7 +78,7 @@ export async function PUT(
     }
 
     // Verificar que la cotización existe
-    const existingQuotation = await getQuotationById(params.id);
+    const existingQuotation = await getQuotationById(id);
     if (!existingQuotation) {
       logger.warn('Intento de actualizar estado de cotización inexistente', context);
       return NextResponse.json(
@@ -122,28 +119,28 @@ export async function PUT(
     }
 
     // Actualizar estado
-    const quotation = await updateQuotationStatus(params.id, newStatus);
+    const quotation = await updateQuotationStatus(id, newStatus);
 
     // Logging específico por tipo de cambio
     switch (newStatus) {
       case 'approved':
-        logger.businessEvent('quotation_approved', 'quotation', params.id, context);
+        logger.businessEvent('quotation_approved', 'quotation', id, context);
         logger.info('Cotización aprobada exitosamente', context);
         break;
       case 'rejected':
-        logger.businessEvent('quotation_rejected', 'quotation', params.id, context);
+        logger.businessEvent('quotation_rejected', 'quotation', id, context);
         logger.info('Cotización rechazada', context);
         break;
       case 'converted':
-        logger.businessEvent('quotation_converted', 'quotation', params.id, context);
+        logger.businessEvent('quotation_converted', 'quotation', id, context);
         logger.info('Cotización convertida a nota de venta', context);
         break;
       case 'expired':
-        logger.businessEvent('quotation_expired', 'quotation', params.id, context);
+        logger.businessEvent('quotation_expired', 'quotation', id, context);
         logger.info('Cotización marcada como vencida', context);
         break;
       case 'pending':
-        logger.businessEvent('quotation_reactivated', 'quotation', params.id, context);
+        logger.businessEvent('quotation_reactivated', 'quotation', id, context);
         logger.info('Cotización reactivada', context);
         break;
     }
@@ -169,10 +166,7 @@ export async function PUT(
 // =====================================================
 // GET - Obtener estados válidos para transición
 // =====================================================
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
@@ -191,12 +185,12 @@ export async function GET(
       undefined,
       'quotations-status-api',
       'GET',
-      { quotationId: params.id }
+      { quotationId: id }
     );
     logger.info('Obteniendo estados válidos para cotización', context);
 
     // Obtener cotización actual
-    const quotation = await getQuotationById(params.id);
+    const quotation = await getQuotationById(id);
     if (!quotation) {
       logger.warn('Cotización no encontrada para obtener estados válidos', context);
       return NextResponse.json(
@@ -220,7 +214,7 @@ export async function GET(
     const currentStatus = quotation.status;
     const availableTransitions = validTransitions[currentStatus] || [];
 
-    logger.info(`Estados válidos obtenidos para cotización ${params.id}`, context, {
+    logger.info(`Estados válidos obtenidos para cotización ${id}`, context, {
       currentStatus,
       availableTransitions
     });
@@ -230,7 +224,7 @@ export async function GET(
       data: {
         current_status: currentStatus,
         available_transitions: availableTransitions,
-        quotation_id: params.id,
+        quotation_id: id,
         quotation_number: quotation.quotation_number,
       },
     });

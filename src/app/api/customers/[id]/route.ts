@@ -3,10 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 import { hasPermission, UserRole } from '@/lib/auth/permissions'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
     console.log('🔄 GET /api/customers/[id] - Iniciando...')
     
@@ -34,7 +32,7 @@ export async function GET(
           mileage
         )
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', tenantContext.organizationId)
       .single()
 
@@ -56,10 +54,8 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
     console.log('🔄 PUT /api/customers/[id] - Iniciando...')
     
@@ -99,7 +95,7 @@ export async function PUT(
         notes: body.notes,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', tenantContext.organizationId)
       .select()
       .single()
@@ -122,10 +118,8 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
     console.log('🔄 DELETE /api/customers/[id] - Iniciando...')
     
@@ -161,7 +155,7 @@ export async function DELETE(
       const { data: activeOrders, error: ordersError } = await supabase
         .from('work_orders')
         .select('id, status')
-        .eq('customer_id', params.id)
+        .eq('customer_id', id)
         .eq('organization_id', tenantContext.organizationId)
         .not('status', 'in', '("completed","cancelled")')
 
@@ -181,7 +175,7 @@ export async function DELETE(
     const { data: orders, error: ordersError } = await supabase
       .from('work_orders')
       .select('id')
-      .eq('customer_id', params.id)
+      .eq('customer_id', id)
       .eq('organization_id', tenantContext.organizationId) // ✅ CRÍTICO: Filtro multitenant
       .limit(1)
 
@@ -200,7 +194,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('customers')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', tenantContext.organizationId)
 
     if (error) {
@@ -208,7 +202,7 @@ export async function DELETE(
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    console.log('✅ Cliente eliminado:', params.id)
+    console.log('✅ Cliente eliminado:', id)
     return NextResponse.json({ success: true })
 
   } catch (error: any) {

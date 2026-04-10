@@ -299,7 +299,7 @@ export async function calculateInvoiceTotals(invoiceId: string) {
       subtotal += itemSubtotal
       totalDiscount += item.discount_amount || 0
       totalTax += item.tax_amount || 0
-      total += Number((item as any).total_amount ?? (item as any).total ?? 0)
+      total += Number(item.total_amount ?? item.total ?? 0)
     })
 
     // Actualizar factura

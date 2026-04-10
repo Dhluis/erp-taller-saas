@@ -158,9 +158,9 @@ export interface Database {
         }
         Insert: {
           id?: string
-          organization_id: string
-          customer_id: string
-          vehicle_id: string
+          organization_id?: string
+          customer_id?: string
+          vehicle_id?: string
           status?: string
           description?: string | null
           estimated_cost?: number | null
@@ -224,12 +224,12 @@ export interface Database {
         }
         Insert: {
           id?: string
-          work_order_id: string
-          item_type: 'service' | 'part' | 'labor'
-          item_name: string
+          work_order_id?: string
+          item_type?: 'service' | 'part' | 'labor'
+          item_name?: string
           description?: string | null
-          quantity: number
-          unit_price: number
+          quantity?: number
+          unit_price?: number
           total_price?: number
           created_at?: string
           updated_at?: string
@@ -272,18 +272,18 @@ export interface Database {
         }
         Insert: {
           id?: string
-          organization_id: string
-          customer_id: string
+          organization_id?: string
+          customer_id?: string
           vehicle_id?: string | null
-          quotation_number: string
+          quotation_number?: string
           status?: string
           issue_date?: string
           expiry_date?: string | null
-          subtotal: number
+          subtotal?: number
           tax_rate?: number
           tax_amount?: number
           discount_amount?: number
-          total_amount: number
+          total_amount?: number
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -472,44 +472,44 @@ export interface Database {
         Insert: {
           id?: string
           organization_id: string
-          code: string
-          name: string
-          description: string
-          quantity: number
-          min_quantity: number
-          unit_price: number
-          category: string
+          code?: string
+          name?: string
+          description?: string
+          quantity?: number
+          min_quantity?: number
+          unit_price?: number
+          category?: string
           created_at?: string
           updated_at?: string
-          category_id: string
-          sku: string
-          barcode: string
-          current_stock: number
-          min_stock: number
-          max_stock: number
-          unit: string
-          status: string
+          category_id?: string
+          sku?: string
+          barcode?: string
+          current_stock?: number
+          min_stock?: number
+          max_stock?: number
+          unit?: string
+          status?: string
         }
         Update: {
           id?: string
           organization_id?: string
-          code?: string;
-          name?: string;
-          description?: string;
-          quantity?: number;
-          min_quantity?: number;
-          unit_price?: number;
-          category?: string;
-          created_at?: string;
-          updated_at?: string;
-          category_id?: string;
-          sku?: string;
-          barcode?: string;
-          current_stock?: number;
-          min_stock?: number;
-          max_stock?: number;
-          unit?: string;
-          status?: string;
+          code?: string
+          name?: string
+          description?: string
+          quantity?: number
+          min_quantity?: number
+          unit_price?: number
+          category?: string
+          created_at?: string
+          updated_at?: string
+          category_id?: string
+          sku?: string
+          barcode?: string
+          current_stock?: number
+          min_stock?: number
+          max_stock?: number
+          unit?: string
+          status?: string
         }
       }
       suppliers: {
@@ -598,15 +598,15 @@ export interface Database {
         }
         Insert: {
           id?: string
-          organization_id: string
-          supplier_id: string
-          order_number: string
-          order_date: string
+          organization_id?: string
+          supplier_id?: string
+          order_number?: string
+          order_date?: string
           expected_delivery_date?: string | null
           status?: string
-          subtotal: number
+          subtotal?: number
           tax_amount?: number
-          total: number
+          total?: number
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -648,12 +648,12 @@ export interface Database {
         }
         Insert: {
           id?: string
-          purchase_order_id: string
-          product_id: string
-          quantity: number
+          purchase_order_id?: string
+          product_id?: string
+          quantity?: number
           quantity_received?: number | null
-          unit_cost: number
-          total_cost: number
+          unit_cost?: number
+          total_cost?: number
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -690,13 +690,13 @@ export interface Database {
         }
         Insert: {
           id?: string
-          organization_id: string
+          organization_id?: string
           supplier_id?: string | null
           invoice_id?: string | null
           invoice_number?: string | null
-          amount: number
-          payment_date: string
-          payment_method: string
+          amount?: number
+          payment_date?: string
+          payment_method?: string
           reference?: string | null
           status?: string | null
           notes?: string | null
@@ -752,11 +752,11 @@ export interface Database {
         }
         Insert: {
           id?: string
-          organization_id: string
+          organization_id?: string
           work_order_id?: string | null
           quotation_id?: string | null
-          customer_id: string
-          vehicle_id: string
+          customer_id?: string
+          vehicle_id?: string
           invoice_number?: string
           description?: string | null
           status?: string | null
@@ -811,33 +811,57 @@ export interface Database {
         Row: {
           id: string
           invoice_id: string
+          organization_id?: string
           item_type: string
-          item_name: string
+          item_name?: string
           description: string | null
           quantity: number
           unit_price: number
+          discount_percent?: number | null
+          discount_amount?: number | null
+          tax_percent?: number | null
+          tax_amount?: number | null
+          subtotal?: number | null
+          total?: number | null
+          total_amount?: number | null
           total_price: number | null
           created_at: string
         }
         Insert: {
           id?: string
-          invoice_id: string
-          item_type: string
-          item_name: string
+          invoice_id?: string
+          organization_id?: string
+          item_type?: string
+          item_name?: string
           description?: string | null
-          quantity: number
-          unit_price: number
+          quantity?: number
+          unit_price?: number
+          discount_percent?: number | null
+          discount_amount?: number | null
+          tax_percent?: number | null
+          tax_amount?: number | null
+          subtotal?: number | null
+          total?: number | null
+          total_amount?: number | null
           total_price?: number | null
           created_at?: string
         }
         Update: {
           id?: string
           invoice_id?: string
+          organization_id?: string
           item_type?: string
           item_name?: string
           description?: string | null
           quantity?: number
           unit_price?: number
+          discount_percent?: number | null
+          discount_amount?: number | null
+          tax_percent?: number | null
+          tax_amount?: number | null
+          subtotal?: number | null
+          total?: number | null
+          total_amount?: number | null
           total_price?: number | null
           created_at?: string
         }

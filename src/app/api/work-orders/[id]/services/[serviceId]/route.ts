@@ -31,13 +31,10 @@ async function verifyServiceOrg(
  * PUT /api/work-orders/[id]/services/[serviceId]
  * Editar un servicio (nombre, precio, cantidad, descripción).
  */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string; serviceId: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string; serviceId: string  }> }) {
   try {
-    const orderId = params.id
-    const serviceId = params.serviceId
+    const orderId = id
+    const serviceId = serviceId
     const supabase = createClientFromRequest(request)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -102,13 +99,10 @@ export async function PUT(
  * DELETE /api/work-orders/[id]/services/[serviceId]
  * Eliminar un servicio de la orden.
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string; serviceId: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string; serviceId: string  }> }) {
   try {
-    const orderId = params.id
-    const serviceId = params.serviceId
+    const orderId = id
+    const serviceId = serviceId
     const supabase = createClientFromRequest(request)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

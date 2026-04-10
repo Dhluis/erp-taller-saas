@@ -5,10 +5,8 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server'
 // ============================================================
 // GET: Obtener historial de una orden de trabajo
 // ============================================================
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
     const supabase = createClientFromRequest(request)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -42,7 +40,7 @@ export async function GET(
     const { data: order, error: orderError } = await supabaseAdmin
       .from('work_orders')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .is('deleted_at', null)
       .single()
@@ -58,7 +56,7 @@ export async function GET(
     const { data: history, error: historyError } = await supabaseAdmin
       .from('work_order_history')
       .select('*')
-      .eq('work_order_id', params.id)
+      .eq('work_order_id', id)
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
 
@@ -86,10 +84,8 @@ export async function GET(
 // ============================================================
 // POST: Registrar nueva entrada en el historial
 // ============================================================
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
     const supabase = createClientFromRequest(request)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -123,7 +119,7 @@ export async function POST(
     const { data: order, error: orderError } = await supabaseAdmin
       .from('work_orders')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .is('deleted_at', null)
       .single()
@@ -172,7 +168,7 @@ export async function POST(
       .from('work_order_history')
       .insert({
         organization_id: organizationId,
-        work_order_id: params.id,
+        work_order_id: id,
         user_id: internalUser?.id || null,
         user_name: userProfile.full_name || user.email || 'Usuario',
         action: body.action,

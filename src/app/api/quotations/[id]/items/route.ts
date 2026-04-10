@@ -20,10 +20,7 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server';
 // =====================================================
 // GET - Obtener items de cotización
 // =====================================================
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
@@ -42,12 +39,12 @@ export async function GET(
       undefined,
       'quotations-items-api',
       'GET',
-      { quotationId: params.id }
+      { quotationId: id }
     );
     logger.info('Obteniendo items de cotización', context);
 
     // Verificar que la cotización existe
-    const quotation = await getQuotationById(params.id);
+    const quotation = await getQuotationById(id);
     if (!quotation) {
       logger.warn('Intento de obtener items de cotización inexistente', context);
       return NextResponse.json(
@@ -59,9 +56,9 @@ export async function GET(
       );
     }
 
-    const items = await getQuotationItems(params.id);
+    const items = await getQuotationItems(id);
 
-    logger.info(`Items obtenidos para cotización ${params.id}: ${items.length} items`, context);
+    logger.info(`Items obtenidos para cotización ${id}: ${items.length} items`, context);
 
     return NextResponse.json({
       success: true,
@@ -83,10 +80,7 @@ export async function GET(
 // =====================================================
 // POST - Crear item de cotización
 // =====================================================
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
@@ -105,14 +99,14 @@ export async function POST(
       undefined,
       'quotations-items-api',
       'POST',
-      { quotationId: params.id }
+      { quotationId: id }
     );
     
     const body = await request.json();
     logger.info('Creando item de cotización', context, { itemData: body });
 
     // Verificar que la cotización existe
-    const quotation = await getQuotationById(params.id);
+    const quotation = await getQuotationById(id);
     if (!quotation) {
       logger.warn('Intento de crear item en cotización inexistente', context);
       return NextResponse.json(
@@ -184,7 +178,7 @@ export async function POST(
 
     // Crear item
     const itemData = {
-      quotation_id: params.id,
+      quotation_id: id,
       item_type: body.item_type,
       item_name: body.item_name,
       description: body.description || null,
@@ -195,10 +189,10 @@ export async function POST(
     const item = await createQuotationItem(itemData);
 
     // Recalcular totales de la cotización
-    await recalculateQuotationTotals(organizationId, params.id);
+    await recalculateQuotationTotals(organizationId, id);
 
     logger.businessEvent('quotation_item_created', 'quotation_item', item.id, context);
-    logger.info(`Item creado exitosamente para cotización ${params.id}: ${item.id}`, context);
+    logger.info(`Item creado exitosamente para cotización ${id}: ${item.id}`, context);
 
     return NextResponse.json({
       success: true,
@@ -220,10 +214,7 @@ export async function POST(
 // =====================================================
 // PUT - Actualizar múltiples items (operación en lote)
 // =====================================================
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
@@ -242,7 +233,7 @@ export async function PUT(
       undefined,
       'quotations-items-api',
       'PUT',
-      { quotationId: params.id }
+      { quotationId: id }
     );
     
     const body = await request.json();
@@ -251,7 +242,7 @@ export async function PUT(
     });
 
     // Verificar que la cotización existe
-    const quotation = await getQuotationById(params.id);
+    const quotation = await getQuotationById(id);
     if (!quotation) {
       logger.warn('Intento de actualizar items de cotización inexistente', context);
       return NextResponse.json(
@@ -319,7 +310,7 @@ export async function PUT(
 
     // Recalcular totales si hubo actualizaciones exitosas
     if (results.successful.length > 0) {
-      await recalculateQuotationTotals(organizationId, params.id);
+      await recalculateQuotationTotals(organizationId, id);
       logger.info('Totales recalculados después de actualización en lote', context);
     }
 

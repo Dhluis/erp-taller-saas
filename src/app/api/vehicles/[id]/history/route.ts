@@ -2,12 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getVehicleWithHistory } from '@/lib/database/queries/vehicles'
 
 // GET /api/vehicles/[id]/history - Historial de servicios del vehículo
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
-    const vehicleWithHistory = await getVehicleWithHistory(params.id)
+    const vehicleWithHistory = await getVehicleWithHistory(id)
     
     if (!vehicleWithHistory) {
       return NextResponse.json(

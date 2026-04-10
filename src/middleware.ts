@@ -52,13 +52,21 @@ const PUBLIC_ROUTES = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // 1. Permitir siempre rutas públicas
-  const isPublic = PUBLIC_ROUTES.some(route => 
-    pathname === route || pathname.startsWith(`${route}/`) || pathname.startsWith(route)
-  )
+  // 1. Permitir siempre rutas públicas y archivos estáticos de PWA
+  const isPublic = PUBLIC_ROUTES.some(route => {
+    if (route === '/') return pathname === '/'
+    return pathname === route || pathname.startsWith(`${route}/`)
+  }) || 
+  pathname.endsWith('.js') || 
+  pathname.endsWith('.json') || 
+  pathname.endsWith('.webmanifest') ||
+  pathname.startsWith('/icons/') ||
+  pathname.startsWith('/images/')
 
   if (isPublic) {
-    console.log(`🔓 [Middleware] Permitida ruta pública: ${pathname}`)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔓 [Middleware] Permitida ruta pública: ${pathname}`)
+    }
     return NextResponse.next()
   }
 

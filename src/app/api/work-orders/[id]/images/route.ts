@@ -3,15 +3,13 @@ import { createClientFromRequest } from '@/lib/supabase/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
 // 🚀 DEPLOY READY - Image upload API route
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   console.log('🔵 [API] Request recibida para work-orders')
-  console.log('🔵 [API] Order ID:', params.id)
+  console.log('🔵 [API] Order ID:', id)
   
   try {
-    const orderId = params.id
+    const orderId = id
     
     // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
     const supabase = createClientFromRequest(request);
@@ -151,15 +149,13 @@ export async function POST(
 }
 
 // DELETE: Eliminar imagen de orden de trabajo
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   console.log('🔴 [API] DELETE Request recibida para work-orders')
-  console.log('🔴 [API] Order ID:', params.id)
+  console.log('🔴 [API] Order ID:', id)
   
   try {
-    const orderId = params.id
+    const orderId = id
     
     // ✅ Obtener usuario autenticado y organization_id usando patrón robusto
     const supabase = createClientFromRequest(request);
@@ -300,12 +296,10 @@ export async function DELETE(
 }
 
 // PATCH: Actualizar categoría y/o descripción de una imagen (evita RLS del cliente)
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
-    const orderId = params.id
+    const orderId = id
 
     const supabase = createClientFromRequest(request)
     const { data: { user }, error: authError } = await supabase.auth.getUser()

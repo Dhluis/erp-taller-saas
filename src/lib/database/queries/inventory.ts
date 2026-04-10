@@ -270,7 +270,7 @@ export async function updateInventoryItem(organizationId: string, id: string, it
   const supabase = getSupabaseServiceClient()
 
   // Mapear los campos correctamente
-  const updateData: any = {
+  const updateData: Record<string, any> = {
     updated_at: new Date().toISOString(),
   };
 
@@ -391,7 +391,7 @@ export async function getLowStockItems(organizationId: string) {
       )
     `)
     .eq('organization_id', organizationId)
-    .filter('quantity', 'lte', 'min_quantity')
+    .filter('quantity', 'lte', 'min_quantity') // Nota: requiere que min_quantity sea una columna en la tabla inventory
     .order('quantity', { ascending: true })
 
   if (error) {
@@ -508,8 +508,8 @@ export async function deleteInventoryCategory(organizationId: string, id: string
   // ✅ Usar Service Client en lugar de browser client
   const supabase = getSupabaseServiceClient()
 
-  const { error } = await (supabase
-    .from('inventory_categories') as any)
+  const { error } = await supabase
+    .from('inventory_categories')
     .delete()
     .eq('id', id)
     .eq('organization_id', organizationId)

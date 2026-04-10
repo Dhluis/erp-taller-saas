@@ -257,7 +257,7 @@ export async function createPurchaseOrder(data: {
     // Crear items de la orden
     if (items.length > 0) {
       const orderItems = items.map(item => ({
-        order_id: newOrder.id,
+        purchase_order_id: newOrder.id,
         product_id: item.product_id,
         description: item.description,
         quantity: item.quantity,
@@ -334,10 +334,10 @@ export async function updatePurchaseOrder(
     if (data.items && data.items.length > 0) {
       const subtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0)
       const taxAmount = subtotal * 0.16
-      const totalAmount = subtotal + taxAmount
+      const total = subtotal + taxAmount
       updateData.subtotal = subtotal
       updateData.tax_amount = taxAmount
-      updateData.total_amount = totalAmount
+      updateData.total = total
     }
 
     const { data: updatedOrder, error: orderError } = await supabase
@@ -355,11 +355,11 @@ export async function updatePurchaseOrder(
       await supabase
         .from('purchase_order_items')
         .delete()
-        .eq('order_id', id)
+        .eq('purchase_order_id', id)
 
       // Crear nuevos items
       const orderItems = data.items.map(item => ({
-        order_id: id,
+        purchase_order_id: id,
         product_id: item.product_id,
         description: item.description,
         quantity: item.quantity,
@@ -410,15 +410,17 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
       throw new Error(`No se puede cambiar el estado de "${currentOrder.status}" a "${status}"`)
     }
 
-    const updateData: any = {
+    const updateData: Record<string, any> = {
       status,
       updated_at: new Date().toISOString()
     }
 
-    // Agregar fecha de recepción si se marca como entregada
+    // Note: delivered_date deprecated or managed via status
+    /*
     if (status === 'delivered') {
       updateData.delivered_date = new Date().toISOString().split('T')[0]
     }
+    */
 
     const { data: updatedOrder, error } = await supabase
       .from('purchase_orders')
@@ -528,11 +530,19 @@ export async function receivePurchaseOrder(orderId: string) {
     if (order.purchase_order_items && order.purchase_order_items.length > 0) {
       for (const item of order.purchase_order_items) {
         if (item.product_id) {
-          // Actualizar stock en products
+          // Actualizar stock en products (idealmente usar RPC para operación atómica)
+          const { data: currentProduct } = await supabase
+            .from('products')
+            .select('stock_quantity')
+            .eq('id', item.product_id)
+            .single()
+
+          const newStock = (currentProduct?.stock_quantity || 0) + item.quantity
+
           const { error: stockError } = await supabase
             .from('products')
             .update({
-              stock_quantity: supabase.raw(`stock_quantity + ${item.quantity}`),
+              stock_quantity: newStock,
               updated_at: new Date().toISOString()
             })
             .eq('id', item.product_id)
@@ -562,7 +572,6 @@ export async function receivePurchaseOrder(orderId: string) {
       .from('purchase_orders')
       .update({
         status: 'delivered',
-        delivered_date: new Date().toISOString().split('T')[0],
         updated_at: new Date().toISOString()
       })
       .eq('id', orderId)

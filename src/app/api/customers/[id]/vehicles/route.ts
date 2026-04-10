@@ -3,16 +3,13 @@ import { getVehiclesByCustomer, createVehicle } from '@/lib/database/queries/veh
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 // GET /api/customers/[id]/vehicles - Obtener vehículos de un cliente específico
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
-    const vehicles = await getVehiclesByCustomer(params.id)
+    const vehicles = await getVehiclesByCustomer(id)
     
     return NextResponse.json({
       data: {
-        customer_id: params.id,
+        customer_id: id,
         vehicles: vehicles,
         count: vehicles.length
       },
@@ -31,10 +28,7 @@ export async function GET(
 }
 
 // POST /api/customers/[id]/vehicles - Crear vehículo para un cliente específico
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
     // ✅ Obtener organizationId SOLO del usuario autenticado
     const tenantContext = await getTenantContext(request)
@@ -77,7 +71,7 @@ export async function POST(
     
     const vehicle = await createVehicle({
       ...body,
-      customer_id: params.id
+      customer_id: id
     })
     
     return NextResponse.json(

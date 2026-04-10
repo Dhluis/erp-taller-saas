@@ -46,7 +46,7 @@ async function getRateLimiter(
   // El código que llama a checkRateLimit debe manejar este error
   let redis;
   try {
-    redis = getRedis();
+    redis = await getRedis();
   } catch (error) {
     console.warn('[Rate Limiter] ⚠️ Error obteniendo Redis, rate limiting deshabilitado (fail-open)', error);
     throw new Error('REDIS_NOT_AVAILABLE');

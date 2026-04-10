@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { updateWorkOrderStatus } from '@/lib/database/queries/work-orders';
 
 // PUT: Actualizar estado de la orden
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
     const body = await request.json();
 
@@ -40,7 +38,7 @@ export async function PUT(
       );
     }
 
-    const order = await updateWorkOrderStatus(params.id, body.status);
+    const order = await updateWorkOrderStatus(id, body.status);
 
     return NextResponse.json({
       success: true,

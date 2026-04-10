@@ -4,12 +4,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createNotification } from '@/lib/notifications/service'
 
 // POST /api/quotations/[id]/reject - Rechazar cotización
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
-    const quotationId = params.id
+    const quotationId = id
     const body = await request.json()
     const { reason } = body // Razón opcional del rechazo
     const supabase = await createClient()

@@ -3,13 +3,10 @@ import { getQuotationById, createQuotation } from '@/lib/database/queries/quotat
 import { addQuotationItem } from '@/lib/database/queries/quotation-items'
 
 // POST /api/quotations/[id]/duplicate - Duplicar cotización con nuevo número
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
     // 1. Obtener la cotización original con todos sus items
-    const originalQuotation = await getQuotationById(params.id)
+    const originalQuotation = await getQuotationById(id)
 
     if (!originalQuotation) {
       return NextResponse.json(

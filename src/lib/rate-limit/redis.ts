@@ -1,5 +1,6 @@
 import { Redis as UpstashRedis } from '@upstash/redis';
-import IORedis from 'ioredis';
+// ⚠️ NO importar ioredis aquí, rompe el Middleware (Edge Runtime)
+// import IORedis from 'ioredis';
 
 /**
  * Prefijos de claves para Redis
@@ -25,7 +26,7 @@ class RedisClient {
   /**
    * Obtener instancia del cliente según el entorno
    */
-  static getInstance(): any {
+  static async getInstance(): Promise<any> {
     const isEdge = process.env.NEXT_RUNTIME === 'edge';
     const redisUrl = process.env.REDIS_URL;
 
@@ -34,6 +35,9 @@ class RedisClient {
       if (!this.ioredisInstance) {
         try {
           console.log('[Redis] 🚀 Usando motor TCP (ioredis) para Hostinger...');
+          // Importación dinámica para evitar que Edge intente procesar ioredis
+          const IORedisModule = await import('ioredis');
+          const IORedis = IORedisModule.default || IORedisModule;
           this.ioredisInstance = new IORedis(redisUrl, {
             maxRetriesPerRequest: 1,
             connectTimeout: 2000,
@@ -73,7 +77,7 @@ class RedisClient {
 
   static async ping(): Promise<boolean> {
     try {
-      const client = this.getInstance();
+      const client = await this.getInstance();
       const result = await client.ping();
       return result === 'PONG' || result === 'OK';
     } catch (error) {
@@ -86,8 +90,19 @@ class RedisClient {
 /**
  * Obtener instancia del cliente Redis (compatibilidad)
  */
-export function getRedis(): any {
-  return RedisClient.getInstance();
+export async function getRedis(): Promise<any> {
+  return await RedisClient.getInstance();
+}
+
+/**
+ * Verificar si Redis está configurado
+ */
+export function isRedisAvailable(): boolean {
+  const isEdge = process.env.NEXT_RUNTIME === 'edge';
+  if (isEdge) {
+    return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  }
+  return !!(process.env.REDIS_URL || (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN));
 }
 
 /**
@@ -96,7 +111,7 @@ export function getRedis(): any {
 
 export async function getRedisValue<T>(key: string): Promise<T | null> {
   try {
-    const redis = RedisClient.getInstance();
+    const redis = await RedisClient.getInstance();
     const value = await redis.get(key);
     
     if (!value) return null;
@@ -118,7 +133,7 @@ export async function setRedisValue<T>(
   expirationSeconds?: number
 ): Promise<boolean> {
   try {
-    const redis = RedisClient.getInstance();
+    const redis = await RedisClient.getInstance();
     const stringValue = JSON.stringify(value);
     
     if (expirationSeconds) {
@@ -139,7 +154,7 @@ export async function setRedisValue<T>(
 
 export async function deleteRedisKey(key: string): Promise<boolean> {
   try {
-    const redis = RedisClient.getInstance();
+    const redis = await RedisClient.getInstance();
     await redis.del(key);
     return true;
   } catch (error) {
@@ -149,7 +164,7 @@ export async function deleteRedisKey(key: string): Promise<boolean> {
 
 export async function incrementCounter(key: string, expirationSeconds: number): Promise<number> {
   try {
-    const redis = RedisClient.getInstance();
+    const redis = await RedisClient.getInstance();
     if (RedisClient.getEngine() === 'upstash') {
       const p = redis.pipeline();
       p.incr(key);

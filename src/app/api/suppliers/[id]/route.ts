@@ -6,12 +6,10 @@ import {
 } from '@/lib/database/queries/suppliers'
 
 // GET /api/suppliers/[id] - Obtener proveedor por ID
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
-    const supplier = await getSupplierById(params.id)
+    const supplier = await getSupplierById(id)
 
     return NextResponse.json({
       data: supplier,
@@ -30,14 +28,12 @@ export async function GET(
 }
 
 // PUT /api/suppliers/[id] - Actualizar proveedor
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
     const body = await request.json()
     
-    const updatedSupplier = await updateSupplier(params.id, body)
+    const updatedSupplier = await updateSupplier(id, body)
 
     return NextResponse.json(
       {
@@ -59,12 +55,10 @@ export async function PUT(
 }
 
 // DELETE /api/suppliers/[id] - Desactivar proveedor
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
+  const { id } = await params;
   try {
-    const deactivatedSupplier = await deactivateSupplier(params.id)
+    const deactivatedSupplier = await deactivateSupplier(id)
 
     return NextResponse.json(
       {

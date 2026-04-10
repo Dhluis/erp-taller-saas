@@ -17,10 +17,7 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server';
 // =====================================================
 // GET - Obtener item específico
 // =====================================================
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string; itemId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; itemId: string  }> }) {
   try {
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
@@ -39,12 +36,12 @@ export async function GET(
       undefined,
       'quotations-items-api',
       'GET',
-      { quotationId: params.id, itemId: params.itemId }
+      { quotationId: id, itemId: itemId }
     );
     logger.info('Obteniendo item específico de cotización', context);
 
     // Verificar que la cotización existe
-    const quotation = await getQuotationById(params.id);
+    const quotation = await getQuotationById(id);
     if (!quotation) {
       logger.warn('Intento de obtener item de cotización inexistente', context);
       return NextResponse.json(
@@ -57,8 +54,8 @@ export async function GET(
     }
 
     // Obtener todos los items y buscar el específico
-    const items = await getQuotationItems(params.id);
-    const item = items.find(i => i.id === params.itemId);
+    const items = await getQuotationItems(id);
+    const item = items.find(i => i.id === itemId);
 
     if (!item) {
       logger.warn('Item no encontrado en cotización', context);
@@ -93,10 +90,7 @@ export async function GET(
 // =====================================================
 // PUT - Actualizar item específico
 // =====================================================
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string; itemId: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string; itemId: string  }> }) {
   try {
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
@@ -115,14 +109,14 @@ export async function PUT(
       undefined,
       'quotations-items-api',
       'PUT',
-      { quotationId: params.id, itemId: params.itemId }
+      { quotationId: id, itemId: itemId }
     );
     
     const body = await request.json();
     logger.info('Actualizando item específico de cotización', context, { updateData: body });
 
     // Verificar que la cotización existe
-    const quotation = await getQuotationById(params.id);
+    const quotation = await getQuotationById(id);
     if (!quotation) {
       logger.warn('Intento de actualizar item de cotización inexistente', context);
       return NextResponse.json(
@@ -189,13 +183,13 @@ export async function PUT(
     }
 
     // Actualizar item
-    const updatedItem = await updateQuotationItem(params.itemId, body);
+    const updatedItem = await updateQuotationItem(itemId, body);
 
     // Recalcular totales de la cotización
-    await recalculateQuotationTotals(organizationId, params.id);
+    await recalculateQuotationTotals(organizationId, id);
 
-    logger.businessEvent('quotation_item_updated', 'quotation_item', params.itemId, context);
-    logger.info(`Item actualizado exitosamente: ${params.itemId}`, context);
+    logger.businessEvent('quotation_item_updated', 'quotation_item', itemId, context);
+    logger.info(`Item actualizado exitosamente: ${itemId}`, context);
 
     return NextResponse.json({
       success: true,
@@ -217,10 +211,7 @@ export async function PUT(
 // =====================================================
 // DELETE - Eliminar item específico
 // =====================================================
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string; itemId: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string; itemId: string  }> }) {
   try {
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
@@ -239,12 +230,12 @@ export async function DELETE(
       undefined,
       'quotations-items-api',
       'DELETE',
-      { quotationId: params.id, itemId: params.itemId }
+      { quotationId: id, itemId: itemId }
     );
     logger.info('Eliminando item específico de cotización', context);
 
     // Verificar que la cotización existe
-    const quotation = await getQuotationById(params.id);
+    const quotation = await getQuotationById(id);
     if (!quotation) {
       logger.warn('Intento de eliminar item de cotización inexistente', context);
       return NextResponse.json(
@@ -269,8 +260,8 @@ export async function DELETE(
     }
 
     // Verificar que el item existe
-    const items = await getQuotationItems(params.id);
-    const item = items.find(i => i.id === params.itemId);
+    const items = await getQuotationItems(id);
+    const item = items.find(i => i.id === itemId);
 
     if (!item) {
       logger.warn('Item no encontrado para eliminar', context);
@@ -284,13 +275,13 @@ export async function DELETE(
     }
 
     // Eliminar item
-    await deleteQuotationItem(params.itemId);
+    await deleteQuotationItem(itemId);
 
     // Recalcular totales de la cotización
-    await recalculateQuotationTotals(organizationId, params.id);
+    await recalculateQuotationTotals(organizationId, id);
 
-    logger.businessEvent('quotation_item_deleted', 'quotation_item', params.itemId, context);
-    logger.info(`Item eliminado exitosamente: ${params.itemId}`, context);
+    logger.businessEvent('quotation_item_deleted', 'quotation_item', itemId, context);
+    logger.info(`Item eliminado exitosamente: ${itemId}`, context);
 
     return NextResponse.json({
       success: true,

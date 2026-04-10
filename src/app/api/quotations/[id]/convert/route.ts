@@ -15,10 +15,7 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server';
 // =====================================================
 // POST - Convertir cotización a nota de venta
 // =====================================================
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
@@ -37,17 +34,17 @@ export async function POST(
       undefined,
       'quotations-convert-api',
       'POST',
-      { quotationId: params.id }
+      { quotationId: id }
     );
     
     const body = await request.json();
     logger.info('Iniciando conversión de cotización a nota de venta', context, { 
-      quotationId: params.id,
+      quotationId: id,
       conversionData: body 
     });
 
     // Verificar que la cotización existe
-    const quotation = await getQuotationById(params.id);
+    const quotation = await getQuotationById(id);
     if (!quotation) {
       logger.warn('Intento de convertir cotización inexistente', context);
       return NextResponse.json(
@@ -100,12 +97,12 @@ export async function POST(
     }
 
     // Crear nota de venta desde la cotización
-    const invoice = await createInvoiceFromQuotation(organizationId, params.id);
+    const invoice = await createInvoiceFromQuotation(organizationId, id);
 
     // Marcar cotización como convertida
-    await updateQuotationStatus(params.id, 'converted');
+    await updateQuotationStatus(id, 'converted');
 
-    logger.businessEvent('quotation_converted_to_invoice', 'quotation', params.id, context);
+    logger.businessEvent('quotation_converted_to_invoice', 'quotation', id, context);
     logger.businessEvent('invoice_created_from_quotation', 'invoice', invoice.id, context);
     logger.info(`Cotización convertida exitosamente a nota de venta: ${invoice.id}`, context);
 
@@ -142,10 +139,7 @@ export async function POST(
 // =====================================================
 // GET - Verificar si la cotización puede ser convertida
 // =====================================================
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
@@ -164,12 +158,12 @@ export async function GET(
       undefined,
       'quotations-convert-api',
       'GET',
-      { quotationId: params.id }
+      { quotationId: id }
     );
     logger.info('Verificando si cotización puede ser convertida', context);
 
     // Obtener cotización
-    const quotation = await getQuotationById(params.id);
+    const quotation = await getQuotationById(id);
     if (!quotation) {
       logger.warn('Cotización no encontrada para verificación de conversión', context);
       return NextResponse.json(
@@ -195,7 +189,7 @@ export async function GET(
       .filter(([_, value]) => value === false)
       .map(([key, _]) => key);
 
-    logger.info(`Verificación de conversión completada para cotización ${params.id}`, context, {
+    logger.info(`Verificación de conversión completada para cotización ${id}`, context, {
       canConvert,
       issues,
       quotationStatus: quotation.status
@@ -204,7 +198,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
-        quotation_id: params.id,
+        quotation_id: id,
         quotation_number: quotation.quotation_number,
         current_status: quotation.status,
         can_convert: canConvert,
