@@ -1,90 +1,110 @@
-import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
-import { getOrganizationId } from '@/lib/auth/organization-server'
-import { 
-  extractPaginationFromURL, 
-  calculateOffset, 
-  generatePaginationMeta 
-} from '@/lib/utils/pagination'
-import type { PaginatedResponse } from '@/types/pagination'
+import {
+  createClientFromRequest,
+  getSupabaseServiceClient,
+} from "@/lib/supabase/server";
+import { getOrganizationId } from "@/lib/auth/organization-server";
+import {
+  extractPaginationFromURL,
+  calculateOffset,
+  generatePaginationMeta,
+} from "@/lib/utils/pagination";
+import type { PaginatedResponse } from "@/types/pagination";
 
 // ✅ Función helper para retry logic
 async function retryQuery<T>(
   queryFn: () => Promise<T>,
   maxRetries = 2,
-  delayMs = 500
+  delayMs = 500,
 ): Promise<T> {
   let lastError: any;
-  
+
   for (let i = 0; i <= maxRetries; i++) {
     try {
       return await queryFn();
     } catch (error) {
       lastError = error;
       if (i < maxRetries) {
-        console.warn(`⚠️ [Retry] Intento ${i + 1} falló, reintentando en ${delayMs}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        console.warn(
+          `⚠️ [Retry] Intento ${i + 1} falló, reintentando en ${delayMs}ms...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
   }
-  
+
   throw lastError;
 }
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔄 GET /api/customers - Iniciando con paginación...')
-    
+    console.log("🔄 GET /api/customers - Iniciando con paginación...");
+
     // ✅ PASO 1: Autenticación
-    const supabase = createClientFromRequest(request)
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    
+    const supabase = createClientFromRequest(request);
+    const {
+      data: { user: authUser },
+      error: authError,
+    } = await supabase.auth.getUser();
+
     if (authError || !authUser) {
-      console.error('❌ [GET /api/customers] Usuario no autenticado')
-      return NextResponse.json({ 
-        success: false, 
-        error: 'No autorizado' 
-      }, { status: 401 })
+      console.error("❌ [GET /api/customers] Usuario no autenticado");
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No autorizado",
+        },
+        { status: 401 },
+      );
     }
 
     // ✅ PASO 2: Obtener organizationId usando el método robusto
-    const organizationId = await getOrganizationId(request)
-    console.log('✅ [GET /api/customers] Organization ID:', organizationId)
-    
+    const organizationId = await getOrganizationId(request);
+    console.log("✅ [GET /api/customers] Organization ID:", organizationId);
+
+    // ✅ PASO 2b: Obtener cliente admin para queries sin RLS
+    const supabaseAdmin = getSupabaseServiceClient() || supabase;
+
     // ✅ PASO 3: Extraer parámetros de URL
-    const url = new URL(request.url)
-    const { page, pageSize, sortBy, sortOrder } = extractPaginationFromURL(url)
-    
+    const url = new URL(request.url);
+    const { page, pageSize, sortBy, sortOrder } = extractPaginationFromURL(url);
+
     // Parámetros adicionales
-    const search = url.searchParams.get('search') || undefined
-    const status = url.searchParams.get('status') || undefined
-    const idsParam = url.searchParams.getAll('ids') // Soporte legacy para múltiples IDs
-    
-    console.log('📄 [GET /api/customers] Parámetros de paginación:', {
+    const search = url.searchParams.get("search") || undefined;
+    const status = url.searchParams.get("status") || undefined;
+    const idsParam = url.searchParams.getAll("ids"); // Soporte legacy para múltiples IDs
+
+    console.log("📄 [GET /api/customers] Parámetros de paginación:", {
       page,
       pageSize,
       sortBy,
       sortOrder,
       search,
       status,
-      hasIds: idsParam.length > 0
-    })
-    
-    // ✅ Helper para crear timeout promise
-    const createTimeoutPromise = () => new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Query timeout después de 10 segundos')), 10000);
+      hasIds: idsParam.length > 0,
     });
-    
+
+    // ✅ Helper para crear timeout promise
+    const createTimeoutPromise = () =>
+      new Promise((_, reject) => {
+        setTimeout(
+          () => reject(new Error("Query timeout después de 10 segundos")),
+          10000,
+        );
+      });
+
     // ✅ PASO 4: Construir y ejecutar query con paginación
     let customers, count, error;
-    
+
     try {
-      const queryPromise = retryQuery(async () => {
-        console.log('🔍 [GET /api/customers] Construyendo query paginada...');
-        
-        // Base query
-        let query = supabaseAdmin
-          .from('customers')
-          .select(`
+      const queryPromise = retryQuery(
+        async () => {
+          console.log("🔍 [GET /api/customers] Construyendo query paginada...");
+
+          // Base query
+          let query = supabaseAdmin
+            .from("customers")
+            .select(
+              `
             id,
             name,
             email,
@@ -101,235 +121,292 @@ export async function GET(request: NextRequest) {
               license_plate,
               color
             )
-          `, { count: 'exact' }) // ✅ IMPORTANTE: count para paginación
-          .eq('organization_id', organizationId)
-        
-        // ✅ Filtros
-        
-        // Si hay búsqueda, buscar en nombre, email o teléfono
-        if (search) {
-          query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`)
-        }
-        
-        // Si hay status filter
-        if (status) {
-          query = query.eq('status', status)
-        }
-        
-        // Si se proporcionan IDs específicos (soporte legacy)
-        if (idsParam.length > 0) {
-          query = query.in('id', idsParam)
-        }
-        
-        // ✅ Ordenamiento
-        const orderColumn = sortBy || 'created_at'
-        const orderDirection = sortOrder === 'asc'
-        query = query.order(orderColumn, { ascending: orderDirection })
-        
-        // ✅ Paginación - CLAVE PARA PERFORMANCE
-        const offset = calculateOffset(page, pageSize)
-        query = query.range(offset, offset + pageSize - 1)
-        
-        console.log('🔍 [GET /api/customers] Query configurada:', {
-          offset,
-          limit: pageSize,
-          orderBy: `${orderColumn} ${orderDirection ? 'ASC' : 'DESC'}`
-        })
-        
-        // Ejecutar query
-        const result = await query
-        
-        console.log('✅ [GET /api/customers] Query ejecutada:', {
-          itemsReturned: result.data?.length || 0,
-          totalCount: result.count,
-          hasError: !!result.error
-        });
-        
-        return result;
-      }, 2, 500);
-      
+          `,
+              { count: "exact" },
+            ) // ✅ IMPORTANTE: count para paginación
+            .eq("organization_id", organizationId);
+
+          // ✅ Filtros
+
+          // Si hay búsqueda, buscar en nombre, email o teléfono
+          if (search) {
+            query = query.or(
+              `name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`,
+            );
+          }
+
+          // Si hay status filter
+          if (status) {
+            query = query.eq("status", status);
+          }
+
+          // Si se proporcionan IDs específicos (soporte legacy)
+          if (idsParam.length > 0) {
+            query = query.in("id", idsParam);
+          }
+
+          // ✅ Ordenamiento
+          const orderColumn = sortBy || "created_at";
+          const orderDirection = sortOrder === "asc";
+          query = query.order(orderColumn, { ascending: orderDirection });
+
+          // ✅ Paginación - CLAVE PARA PERFORMANCE
+          const offset = calculateOffset(page, pageSize);
+          query = query.range(offset, offset + pageSize - 1);
+
+          console.log("🔍 [GET /api/customers] Query configurada:", {
+            offset,
+            limit: pageSize,
+            orderBy: `${orderColumn} ${orderDirection ? "ASC" : "DESC"}`,
+          });
+
+          // Ejecutar query
+          const result = await query;
+
+          console.log("✅ [GET /api/customers] Query ejecutada:", {
+            itemsReturned: result.data?.length || 0,
+            totalCount: result.count,
+            hasError: !!result.error,
+          });
+
+          return result;
+        },
+        2,
+        500,
+      );
+
       // Race entre query y timeout
-      const result = await Promise.race([queryPromise, createTimeoutPromise()]) as any;
-      
-      if (result && typeof result === 'object' && 'data' in result) {
+      const result = (await Promise.race([
+        queryPromise,
+        createTimeoutPromise(),
+      ])) as any;
+
+      if (result && typeof result === "object" && "data" in result) {
         customers = result.data;
         count = result.count;
         error = result.error;
       } else {
-        throw new Error('Resultado inesperado de la query');
+        throw new Error("Resultado inesperado de la query");
       }
-      
     } catch (retryError: any) {
-      console.error('❌ [GET /api/customers] Falló después de reintentos:', retryError);
-      
+      console.error(
+        "❌ [GET /api/customers] Falló después de reintentos:",
+        retryError,
+      );
+
       // Si es timeout, retornar error específico
-      if (retryError?.message?.includes('timeout')) {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'La consulta tardó demasiado. Por favor, intenta de nuevo.' 
-        }, { status: 504 });
+      if (retryError?.message?.includes("timeout")) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "La consulta tardó demasiado. Por favor, intenta de nuevo.",
+          },
+          { status: 504 },
+        );
       }
-      
+
       error = retryError;
       customers = null;
       count = null;
     }
-    
+
     // ✅ PASO 5: Manejar errores
     if (error) {
-      console.error('❌ [GET /api/customers] Error en query:', error)
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Error al obtener clientes' 
-      }, { status: 500 })
+      console.error("❌ [GET /api/customers] Error en query:", error);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Error al obtener clientes",
+        },
+        { status: 500 },
+      );
     }
 
     if (!customers) {
-      console.warn('⚠️ [GET /api/customers] No se obtuvieron clientes')
-      customers = []
+      console.warn("⚠️ [GET /api/customers] No se obtuvieron clientes");
+      customers = [];
     }
-    
+
     // ✅ PASO 5b: Enriquecer con última orden de ingreso por cliente (solo si hay resultados)
     let enrichedItems = customers as any[];
     if (customers.length > 0) {
       const customerIds = customers.map((c: any) => c.id);
       const { data: workOrdersRaw } = await supabaseAdmin
-        .from('work_orders')
-        .select('id, customer_id, order_number, status, created_at')
-        .eq('organization_id', organizationId)
-        .in('customer_id', customerIds)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false });
-      type WorkOrderRow = { id: string; customer_id: string; order_number: string | null; status: string; created_at: string };
+        .from("work_orders")
+        .select("id, customer_id, order_number, status, created_at")
+        .eq("organization_id", organizationId)
+        .in("customer_id", customerIds)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+      type WorkOrderRow = {
+        id: string;
+        customer_id: string;
+        order_number: string | null;
+        status: string;
+        created_at: string;
+      };
       const workOrders = (workOrdersRaw || []) as WorkOrderRow[];
-      const lastByCustomer: Record<string, { id: string; order_number: string | null; status: string; created_at: string }> = {};
+      const lastByCustomer: Record<
+        string,
+        {
+          id: string;
+          order_number: string | null;
+          status: string;
+          created_at: string;
+        }
+      > = {};
       for (const wo of workOrders) {
         if (!lastByCustomer[wo.customer_id]) {
           lastByCustomer[wo.customer_id] = {
             id: wo.id,
             order_number: wo.order_number ?? null,
             status: wo.status,
-            created_at: wo.created_at
+            created_at: wo.created_at,
           };
         }
       }
       enrichedItems = customers.map((c: any) => ({
         ...c,
-        last_work_order: lastByCustomer[c.id] ?? null
+        last_work_order: lastByCustomer[c.id] ?? null,
       }));
     }
-    
+
     // ✅ PASO 6: Generar metadata de paginación
-    const pagination = generatePaginationMeta(page, pageSize, count || 0)
-    
-    console.log('✅ [GET /api/customers] Respuesta preparada:', {
+    const pagination = generatePaginationMeta(page, pageSize, count || 0);
+
+    console.log("✅ [GET /api/customers] Respuesta preparada:", {
       itemsCount: enrichedItems.length,
-      pagination
-    })
-    
+      pagination,
+    });
+
     // ✅ PASO 7: Retornar respuesta paginada
     const response: PaginatedResponse<any> = {
       success: true,
       data: {
         items: enrichedItems,
-        pagination
-      }
-    }
+        pagination,
+      },
+    };
 
-    return NextResponse.json(response)
-
+    return NextResponse.json(response);
   } catch (error: any) {
-    console.error('❌ [GET /api/customers] Error general:', error)
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Error interno del servidor',
-      details: error?.message 
-    }, { status: 500 })
+    console.error("❌ [GET /api/customers] Error general:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Error interno del servidor",
+        details: error?.message,
+      },
+      { status: 500 },
+    );
   }
 }
 
 // ✅ POST - Crear nuevo cliente (sin cambios)
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔄 POST /api/customers - Iniciando...')
-    
+    console.log("🔄 POST /api/customers - Iniciando...");
+
     // Obtener usuario autenticado
-    const supabase = createClientFromRequest(request)
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    
+    const supabase = createClientFromRequest(request);
+    const {
+      data: { user: authUser },
+      error: authError,
+    } = await supabase.auth.getUser();
+
     if (authError || !authUser) {
-      console.error('❌ Usuario no autenticado')
-      return NextResponse.json({ 
-        success: false, 
-        error: 'No autorizado' 
-      }, { status: 401 })
+      console.error("❌ Usuario no autenticado");
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No autorizado",
+        },
+        { status: 401 },
+      );
     }
 
     // ✅ Obtener organizationId usando el método robusto
-    const organizationId = await getOrganizationId(request)
+    const organizationId = await getOrganizationId(request);
 
     // ✅ VERIFICAR LÍMITES ANTES DE CREAR
-    const { checkResourceLimit } = await import('@/lib/billing/check-limits')
-    const limitCheck = await checkResourceLimit(authUser.id, 'customer')
-    
+    const { checkResourceLimit } = await import("@/lib/billing/check-limits");
+    const limitCheck = await checkResourceLimit(authUser.id, "customer");
+
     if (!limitCheck.canCreate) {
-      console.log('❌ Límite de clientes alcanzado:', limitCheck.error?.message)
-      return NextResponse.json({
-        error: limitCheck.error?.message || 'Límite de clientes alcanzado',
-        limit_reached: true,
-        current: limitCheck.current,
-        limit: limitCheck.limit,
-        upgrade_url: limitCheck.error?.upgrade_url || '/settings/billing',
-      }, { status: 403 })
+      console.log(
+        "❌ Límite de clientes alcanzado:",
+        limitCheck.error?.message,
+      );
+      return NextResponse.json(
+        {
+          error: limitCheck.error?.message || "Límite de clientes alcanzado",
+          limit_reached: true,
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+          upgrade_url: limitCheck.error?.upgrade_url || "/settings/billing",
+        },
+        { status: 403 },
+      );
     }
 
     // Obtener datos del body
-    const body = await request.json()
-    console.log('📦 Datos recibidos:', body)
+    const body = await request.json();
+    console.log("📦 Datos recibidos:", body);
 
     // Validar datos requeridos
     if (!body.name || !body.email) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Nombre y email son requeridos' 
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Nombre y email son requeridos",
+        },
+        { status: 400 },
+      );
     }
 
     // Insertar cliente
     const { data: customer, error: insertError } = await supabaseAdmin
-      .from('customers')
+      .from("customers")
       .insert({
         ...body,
-        organization_id: organizationId
+        organization_id: organizationId,
       })
       .select()
-      .single()
+      .single();
 
     if (insertError) {
-      console.error('❌ Error al insertar cliente:', insertError)
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Error al crear cliente' 
-      }, { status: 500 })
+      console.error("❌ Error al insertar cliente:", insertError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Error al crear cliente",
+        },
+        { status: 500 },
+      );
     }
 
-    const created = customer as { id: string } | null
+    const created = customer as { id: string } | null;
     if (!created) {
-      return NextResponse.json({ success: false, error: 'Error al crear cliente' }, { status: 500 })
+      return NextResponse.json(
+        { success: false, error: "Error al crear cliente" },
+        { status: 500 },
+      );
     }
 
-    console.log('✅ Cliente creado:', created.id)
+    console.log("✅ Cliente creado:", created.id);
 
     return NextResponse.json({
       success: true,
-      data: customer!
-    })
-
+      data: customer!,
+    });
   } catch (error: any) {
-    console.error('❌ Error general:', error)
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Error interno del servidor' 
-    }, { status: 500 })
+    console.error("❌ Error general:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Error interno del servidor",
+      },
+      { status: 500 },
+    );
   }
 }

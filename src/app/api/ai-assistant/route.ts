@@ -1,15 +1,18 @@
-import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
-import { getOrganizationId } from '@/lib/auth/organization-server';
-import OpenAI from 'openai';
-import { checkAIAgentEnabled } from '@/lib/billing/check-limits';
+import {
+  createClientFromRequest,
+  getSupabaseServiceClient,
+} from "@/lib/supabase/server";
+import { getOrganizationId } from "@/lib/auth/organization-server";
+import OpenAI from "openai";
+import { checkAIAgentEnabled } from "@/lib/billing/check-limits";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const getOpenAIClient = () => {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey?.trim()) {
-    throw new Error('OPENAI_API_KEY no está configurada');
+    throw new Error("OPENAI_API_KEY no está configurada");
   }
   return new OpenAI({ apiKey: apiKey.trim() });
 };
@@ -17,25 +20,32 @@ const getOpenAIClient = () => {
 export async function POST(request: NextRequest) {
   try {
     const supabase = createClientFromRequest(request);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
     // ✅ Obtener organización mediante método robusto universal
     const organizationId = await getOrganizationId(request);
 
+    // ✅ Definir supabaseAdmin para queries bypass RLS
+    const supabaseAdmin = getSupabaseServiceClient();
+
     // Verificar si el agente de IA está habilitado para el plan
-    const { allowed, error: limitError } = await checkAIAgentEnabled(organizationId);
+    const { allowed, error: limitError } =
+      await checkAIAgentEnabled(organizationId);
     if (!allowed && limitError) {
       return NextResponse.json(
         {
           error: limitError.message,
           limit_reached: true,
-          upgrade_url: limitError.upgrade_url || '/settings/billing',
+          upgrade_url: limitError.upgrade_url || "/settings/billing",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -43,18 +53,23 @@ export async function POST(request: NextRequest) {
     const { action, payload } = body;
 
     if (!action) {
-      return NextResponse.json({ error: 'Falta la acción' }, { status: 400 });
+      return NextResponse.json({ error: "Falta la acción" }, { status: 400 });
     }
 
     const openai = getOpenAIClient();
 
-    if (action === 'draft-message') {
-      const { workOrderId, origin = 'https://eaglessystem.io' } = payload;
-      if (!workOrderId) return NextResponse.json({ error: 'Falta workOrderId' }, { status: 400 });
+    if (action === "draft-message") {
+      const { workOrderId, origin = "https://eaglessystem.io" } = payload;
+      if (!workOrderId)
+        return NextResponse.json(
+          { error: "Falta workOrderId" },
+          { status: 400 },
+        );
 
       const { data: order, error: orderError } = await supabaseAdmin
-        .from('work_orders')
-        .select(`
+        .from("work_orders")
+        .select(
+          `
           id,
           status,
           description,
@@ -62,13 +77,17 @@ export async function POST(request: NextRequest) {
           entry_date,
           customer:customers(name, phone),
           vehicle:vehicles(brand, model, plate:license_plate, year)
-        `)
-        .eq('id', workOrderId)
-        .eq('organization_id', organizationId)
+        `,
+        )
+        .eq("id", workOrderId)
+        .eq("organization_id", organizationId)
         .single();
 
       if (orderError || !order) {
-        return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 });
+        return NextResponse.json(
+          { error: "Orden no encontrada" },
+          { status: 404 },
+        );
       }
 
       const trackingUrl = `${origin}/tracking/${workOrderId}`;
@@ -85,48 +104,55 @@ Reglas:
 7. Responde SOLO con el texto del mensaje, sin introducciones ni comentarios adicionales.`;
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { 
-            role: 'user', 
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
             content: `Redacta un mensaje para el cliente ${(order as any).customer?.name} sobre su ${(order as any).vehicle?.brand} ${(order as any).vehicle?.model} (${(order as any).vehicle?.plate}).
 Estado actual: ${(order as any).status}.
 Descripción del trabajo: ${(order as any).description}.
-Total: ${(order as any).total_amount ? '$' + (order as any).total_amount : 'A definir'}.
+Total: ${(order as any).total_amount ? "$" + (order as any).total_amount : "A definir"}.
 Fecha de ingreso: ${(order as any).entry_date}.
-Enlace de seguimiento en vivo: ${trackingUrl}` 
-          }
+Enlace de seguimiento en vivo: ${trackingUrl}`,
+          },
         ],
         temperature: 0.7,
       });
 
-      return NextResponse.json({ success: true, draft: response.choices[0].message.content });
+      return NextResponse.json({
+        success: true,
+        draft: response.choices[0].message.content,
+      });
     }
 
-    if (action === 'draft-lead-message') {
+    if (action === "draft-lead-message") {
       const { leadId } = payload;
-      if (!leadId) return NextResponse.json({ error: 'Falta leadId' }, { status: 400 });
+      if (!leadId)
+        return NextResponse.json({ error: "Falta leadId" }, { status: 400 });
 
       const { data: rawLead, error: leadError } = await (supabaseAdmin
-        .from('leads')
-        .select('*')
-        .eq('id', leadId)
-        .eq('organization_id', organizationId)
+        .from("leads")
+        .select("*")
+        .eq("id", leadId)
+        .eq("organization_id", organizationId)
         .single() as any);
-        
+
       const lead = rawLead as any;
 
       if (leadError || !lead) {
-        return NextResponse.json({ error: 'Lead no encontrado' }, { status: 404 });
+        return NextResponse.json(
+          { error: "Lead no encontrado" },
+          { status: 404 },
+        );
       }
 
       const statusMap: Record<string, string> = {
-        'new': 'Nuevo',
-        'contacted': 'Contactado (Esperando respuesta)',
-        'quoted': 'Cotizado (Esperando aprobación)',
-        'lost': 'No interesado / Perdido',
-        'won': 'Convertido / Ganado'
+        new: "Nuevo",
+        contacted: "Contactado (Esperando respuesta)",
+        quoted: "Cotizado (Esperando aprobación)",
+        lost: "No interesado / Perdido",
+        won: "Convertido / Ganado",
       };
 
       const systemPrompt = `Eres un asesor de servicio automotriz de alto nivel trabajando en un Taller Mecánico. Tu tarea es redactar un mensaje de WhatsApp rompehielos o de seguimiento empático, persuasivo y profesional para un cliente potencial (lead).
@@ -142,39 +168,43 @@ Reglas:
 8. Responde SOLO con el texto del mensaje, listo para copiarse y enviarse en WhatsApp.`;
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
-          { role: 'system', content: systemPrompt },
-          { 
-            role: 'user', 
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
             content: `Redacta un mensaje para el cliente/prospecto: ${lead.name}
 Teléfono registrado: ${lead.phone}
-Empresa: ${lead.company || 'N/A'}
+Empresa: ${lead.company || "N/A"}
 Estado en el embudo de ventas: ${statusMap[lead.status] || lead.status}
-Notas internas sobre el prospecto: ${lead.notes || 'No hay notas adicionales'}
-Valor presupuestado/estimado: ${lead.estimated_value ? '$' + lead.estimated_value : 'No definido'}` 
-          }
+Notas internas sobre el prospecto: ${lead.notes || "No hay notas adicionales"}
+Valor presupuestado/estimado: ${lead.estimated_value ? "$" + lead.estimated_value : "No definido"}`,
+          },
         ],
         temperature: 0.7,
       });
 
-      return NextResponse.json({ success: true, message: response.choices[0].message.content });
+      return NextResponse.json({
+        success: true,
+        message: response.choices[0].message.content,
+      });
     }
 
-    if (action === 'magic-create') {
-      const { text, context = 'auto' } = payload || {};
-      if (!text) return NextResponse.json({ error: 'Falta el texto' }, { status: 400 });
+    if (action === "magic-create") {
+      const { text, context = "auto" } = payload || {};
+      if (!text)
+        return NextResponse.json({ error: "Falta el texto" }, { status: 400 });
 
-      let systemPrompt = '';
-      
-      if (context === 'inventory') {
+      let systemPrompt = "";
+
+      if (context === "inventory") {
         systemPrompt = `Eres el extractor de datos de inventario de Eagles System ERP. Tu tarea es extraer información para crear un producto/pieza.
 Devuelve SIEMPRE un JSON válido:
 {
   "action_type": "inventory",
   "product": { "name": string, "sku": string, "category_name": string, "unit_price": number, "quantity": number, "min_quantity": number, "description": string }
 }`;
-      } else if (context === 'appointment') {
+      } else if (context === "appointment") {
         systemPrompt = `Eres el extractor de datos de citas. Extrae info para agendar una cita.
 JSON:
 {
@@ -185,7 +215,7 @@ JSON:
     "details": { "service_type": string, "date": string, "time": string, "notes": string, "duration_minutes": number }
   }
 }`;
-      } else if (context === 'work-order') {
+      } else if (context === "work-order") {
         systemPrompt = `Eres el extractor de datos de Eagles ERP. Extrae info para crear cliente, vehículo y orden de trabajo.
 JSON:
 {
@@ -203,7 +233,7 @@ Reglas:
 - fuel_level: "vacio"->empty, "un cuarto"->quarter, "mitad"->half, "tres cuartos"->three_quarters, "lleno"->full.
 - fluids: si dice que todos están bien, pon todos en true.
 - inspection_details: extrae cosas de valor o el motivo específico si se menciona.`;
-      } else if (context === 'quotation') {
+      } else if (context === "quotation") {
         systemPrompt = `Eres el extractor de datos para cotizaciones en Eagles System ERP.
 JSON:
 {
@@ -216,14 +246,14 @@ JSON:
     "valid_until": string
   }
 }`;
-      } else if (context === 'lead') {
+      } else if (context === "lead") {
         systemPrompt = `Eres el extractor de prospectos (leads) para Eagles ERP.
 JSON:
 {
   "action_type": "lead",
   "lead": { "name": string, "phone": string, "email": string, "company": string, "notes": string, "estimated_value": number }
 }`;
-      } else if (context === 'expense') {
+      } else if (context === "expense") {
         systemPrompt = `Eres el extractor de datos de gastos.
 JSON:
 {
@@ -290,47 +320,79 @@ CRÍTICO:
       }
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: text }
+          { role: "system", content: systemPrompt },
+          { role: "user", content: text },
         ],
-        response_format: { type: 'json_object' },
+        response_format: { type: "json_object" },
         temperature: 0.1,
       });
 
-      const extractedData = JSON.parse(response.choices[0].message.content || '{}');
+      const extractedData = JSON.parse(
+        response.choices[0].message.content || "{}",
+      );
       return NextResponse.json({ success: true, data: extractedData });
     }
 
-    if (action === 'inventory-copilot') {
+    if (action === "inventory-copilot") {
       const { items } = payload || {};
-      if (!items || !Array.isArray(items)) return NextResponse.json({ error: 'Faltan los items' }, { status: 400 });
+      if (!items || !Array.isArray(items))
+        return NextResponse.json(
+          { error: "Faltan los items" },
+          { status: 400 },
+        );
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
-          { role: 'system', content: 'Eres Eagles Copilot. Redacta una alerta de stock bajo.' },
-          { role: 'user', content: JSON.stringify(items) }
+          {
+            role: "system",
+            content: "Eres Eagles Copilot. Redacta una alerta de stock bajo.",
+          },
+          { role: "user", content: JSON.stringify(items) },
         ],
         temperature: 0.7,
       });
 
-      return NextResponse.json({ success: true, report: response.choices[0].message.content });
+      return NextResponse.json({
+        success: true,
+        report: response.choices[0].message.content,
+      });
     }
 
-    if (action === 'get-insights') {
-      const [ { data: lowStock }, { data: activeOrders }, { data: recentCompletions } ] = await Promise.all([
-        supabaseAdmin.from('inventory').select('name, quantity').lt('quantity', 5).eq('organization_id', organizationId).limit(10),
-        supabaseAdmin.from('work_orders').select('status, description').eq('organization_id', organizationId).not('status', 'eq', 'completed').limit(20),
-        supabaseAdmin.from('work_orders').select('description').eq('status', 'completed').eq('organization_id', organizationId).order('updated_at', { ascending: false }).limit(5)
+    if (action === "get-insights") {
+      const [
+        { data: lowStock },
+        { data: activeOrders },
+        { data: recentCompletions },
+      ] = await Promise.all([
+        supabaseAdmin
+          .from("inventory")
+          .select("name, quantity")
+          .lt("quantity", 5)
+          .eq("organization_id", organizationId)
+          .limit(10),
+        supabaseAdmin
+          .from("work_orders")
+          .select("status, description")
+          .eq("organization_id", organizationId)
+          .not("status", "eq", "completed")
+          .limit(20),
+        supabaseAdmin
+          .from("work_orders")
+          .select("description")
+          .eq("status", "completed")
+          .eq("organization_id", organizationId)
+          .order("updated_at", { ascending: false })
+          .limit(5),
       ]);
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
-          { 
-            role: 'system', 
+          {
+            role: "system",
             content: `Eres el analista experto de Eagles System ERP. Tu tarea es generar 3 insights estratégicos basados en los datos del taller.
             
 Reglas de formato (JSON):
@@ -357,21 +419,32 @@ Ejemplo de respuesta:
       "actionLink": "/inventarios"
     }
   ]
-}` 
+}`,
           },
-          { role: 'user', content: `Datos actuales del taller: ${JSON.stringify({ lowStock, activeOrders, recentCompletions })}` }
+          {
+            role: "user",
+            content: `Datos actuales del taller: ${JSON.stringify({ lowStock, activeOrders, recentCompletions })}`,
+          },
         ],
-        response_format: { type: 'json_object' },
+        response_format: { type: "json_object" },
         temperature: 0.5,
       });
 
-      const insightsData = JSON.parse(response.choices[0].message.content || '{"insights": []}');
+      const insightsData = JSON.parse(
+        response.choices[0].message.content || '{"insights": []}',
+      );
       return NextResponse.json({ success: true, ...insightsData });
     }
 
-    return NextResponse.json({ error: 'Acción no reconocida' }, { status: 400 });
+    return NextResponse.json(
+      { error: "Acción no reconocida" },
+      { status: 400 },
+    );
   } catch (err: any) {
-    console.error('[AI Assistant]', err);
-    return NextResponse.json({ error: err?.message || 'Error en el asistente de IA' }, { status: 500 });
+    console.error("[AI Assistant]", err);
+    return NextResponse.json(
+      { error: err?.message || "Error en el asistente de IA" },
+      { status: 500 },
+    );
   }
 }
