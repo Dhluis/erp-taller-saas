@@ -9,24 +9,6 @@ import { getRedisValue, setRedisValue, incrementCounter, REDIS_KEYS } from '@/li
 import { invalidateUserProfileCache } from '@/lib/database/queries/users'
 
 /**
- * Crear cliente Supabase con Service Role para Middleware
- * Esto permite bypass de RLS para chequear si el usuario EXISTE y es VÁLIDO
- * Solo se usa después de verificar que el usuario tiene una sesión legítima
- */
-function getServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
-  
-  return createServerClient(url, key, {
-    cookies: {
-      get() { return '' },
-      set() { },
-      remove() { },
-    }
-  })
-}
-
-/**
  * Crear cliente Supabase para middleware
  */
 export function createSupabaseMiddlewareClient(request: NextRequest) {
@@ -118,7 +100,7 @@ export function createSupabaseMiddlewareClient(request: NextRequest) {
 /**
  * Obtener perfil de usuario (con caché en Redis)
  */
-async function getCachedUserProfile(user: { id: string, email?: string }) {
+async function getCachedUserProfile(supabase: any, user: { id: string, email?: string }) {
   const cacheKey = `${REDIS_KEYS.SESSION_PROFILE}:${user.id}`
   let profile: any = null
 
@@ -134,47 +116,48 @@ async function getCachedUserProfile(user: { id: string, email?: string }) {
     console.warn('[Middleware Cache] ⚠️ Error leyendo caché:', cacheError)
   }
 
-  // 2. Si no hay en caché, consultar DB usando Service Role (bypass RLS)
-  // Esto es seguro porque la sesión ya fue validada con el anon client antes de llamar aquí
-  const serviceClient = getServiceClient()
-  
+  // 2. Si no hay en caché, consultar DB
+  // ✅ REPARACIÓN DE EMERGENCIA: No usar Service Role aquí para evitar Error 500
   console.log(`🔍 [Middleware] Buscando perfil para user_id: ${user.id}`)
   
-  // Intento 1: Tabla 'users' (Principal) por auth_user_id o id
-  let { data: dbProfile, error: profileError } = await serviceClient
-    .from('users')
-    .select('*')
-    .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
-    .maybeSingle()
-
-  // Intento 2: Fallback a system_users (Migrados/Admin)
-  if (!dbProfile) {
-    console.log(`🔍 [Middleware] No encontrado en 'users', buscando en 'system_users'...`)
-    const { data: systemProfile } = await serviceClient
-      .from('system_users')
-      .select('*')
-      .or(`auth_user_id.eq.${user.id},email.eq.${user.email || 'unset'}`)
-      .maybeSingle()
-      
-    if (systemProfile) {
-      dbProfile = systemProfile
-      profileError = null
-    }
-  }
-
-  if (profileError || !dbProfile) {
-    console.warn(`❌ [Middleware] Perfil no encontrado para: ${user.id}`, profileError)
-    return { profile: null, error: profileError }
-  }
-
-  // 3. Guardar en Redis (TTL 5 min)
   try {
-    await setRedisValue(cacheKey, dbProfile, 300)
-  } catch (saveError) {
-    console.warn('[Middleware Cache] ⚠️ Error guardando en caché:', saveError)
-  }
+    let { data: dbProfile, error: profileError } = await (supabase as any)
+      .from('users')
+      .select('*')
+      .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
+      .maybeSingle()
 
-  return { profile: dbProfile, fromCache: false }
+    // Intento 2: Fallback a system_users (Migrados/Admin)
+    if (!dbProfile && !profileError) {
+      const { data: systemProfile } = await (supabase as any)
+        .from('system_users')
+        .select('*')
+        .or(`auth_user_id.eq.${user.id},email.eq.${user.email || 'unset'}`)
+        .maybeSingle()
+        
+      if (systemProfile) {
+        dbProfile = systemProfile
+        profileError = null
+      }
+    }
+
+    if (profileError || !dbProfile) {
+      console.warn(`⚠️ [Middleware] Perfil no encontrado (no crítico): ${user.id}`)
+      return { profile: null, error: profileError }
+    }
+
+    // 3. Guardar en Redis (TTL 5 min)
+    try {
+      await setRedisValue(cacheKey, dbProfile, 300)
+    } catch (saveError) {
+      console.warn('[Middleware Cache] ⚠️ Error guardando en caché:', saveError)
+    }
+
+    return { profile: dbProfile, fromCache: false }
+  } catch (err) {
+    console.error('❌ [Middleware] Error crítico buscando perfil:', err)
+    return { profile: null, error: err }
+  }
 }
 
 /**
@@ -197,15 +180,13 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
       return redirectToLogin(request)
     }
 
-    // Obtener perfil usando la nueva lógica robusta
-    const { profile, error: profileError } = await getCachedUserProfile(session.user)
+    // Obtener perfil (si falla, no bloqueamos el acceso al dashboard si la sesión es válida)
+    const { profile, error: profileError } = await getCachedUserProfile(supabase, session.user)
 
     if (profileError || !profile) {
-      console.error('❌ [Middleware] Perfil de usuario no encontrado:', profileError)
-      
-      // EXCEPCIÓN: Si estamos en el dashboard, permitir un pequeño margen para que el API autorepare el perfil
-      // O simplemente redirigir al login si ya pasó demasiado tiempo
-      return redirectToLogin(request)
+      console.warn('⚠️ [Middleware] Perfil no encontrado, permitiendo acceso para que el Dashboard autorepare.')
+      // No redirigimos al login si la sesión de Auth es válida, dejamos que el Dashboard maneje el perfil faltante
+      return response
     }
 
     // Verificar si el perfil está activo (soporta status e is_active)
@@ -314,7 +295,7 @@ export async function checkUserPermissions(
       return { hasPermission: false }
     }
 
-    const { profile, error: profileError } = await getCachedUserProfile(session.user)
+    const { profile, error: profileError } = await getCachedUserProfile(supabase, session.user)
 
     if (profileError || !profile) {
       return { hasPermission: false }
