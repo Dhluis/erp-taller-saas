@@ -70,77 +70,70 @@ export async function GET(request: NextRequest) {
   async function checkUserOrganization(userId: string, userEmail?: string): Promise<string | null> {
     console.log('🔍 [Callback] Verificando organización para usuario:', userId)
     
-    // Usar el cliente admin si está disponible (bypassea RLS), sino usar el cliente auth
-    const client = supabaseAdmin || supabaseAuth
+    // ✅ Resiliencia: Usar el cliente admin si está disponible, sino usar el cliente auth (RLS activo)
+    const client = (supabaseAdmin || supabaseAuth) as any
     const clientType = supabaseAdmin ? 'admin' : 'auth'
     
     console.log(`📋 [Callback] Usando cliente ${clientType} para verificar perfil`)
     
     // ✅ Retry hasta 3 veces con delay de 500ms entre intentos
-    // Esto permite que el perfil se sincronice si hay un delay en la creación
     const maxRetries = 3
     const retryDelay = 500
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // Intentar buscar por auth_user_id primero
-        let { data: profile, error } = await client
+        // 1. Intentar buscar en tabla 'users' por auth_user_id o id
+        console.log(`🔍 [Callback] Intento ${attempt}/${maxRetries} - Buscando en 'users'...`)
+        let { data: profile, error: profileError } = await client
           .from('users')
           .select('organization_id')
-          .eq('auth_user_id', userId)
-          .single()
+          .or(`auth_user_id.eq.${userId},id.eq.${userId}`)
+          .maybeSingle()
 
-        if (error && error.code === 'PGRST116') {
-          // No encontrado por auth_user_id, intentar por email
-          if (userEmail) {
-            console.log(`🔍 [Callback] Intento ${attempt}/${maxRetries} - Buscando por email:`, userEmail)
-            const { data: profileByEmail, error: emailError } = await client
-              .from('users')
-              .select('organization_id')
-              .eq('email', userEmail)
-              .single()
-            
-            if (!emailError && profileByEmail) {
-              profile = profileByEmail
-              error = null
-            }
-          }
-        }
-
-        // Si encontramos el perfil y tiene organización, retornar
-        if (!error && profile?.organization_id) {
-          console.log(`✅ [Callback] Perfil encontrado en intento ${attempt}:`, { 
-            organization_id: profile.organization_id 
-          })
+        if (!profileError && profile?.organization_id) {
+          console.log(`✅ [Callback] Organización encontrada en 'users':`, profile.organization_id)
           return profile.organization_id
         }
 
-        // Si no encontramos el perfil pero aún hay intentos, esperar y reintentar
-        if (error && attempt < maxRetries) {
-          console.log(`⏳ [Callback] Perfil no encontrado en intento ${attempt}, reintentando en ${retryDelay}ms...`)
+        // 2. Intentar buscar en tabla 'system_users' (Fallback Crítico)
+        console.log(`🔍 [Callback] Intento ${attempt}/${maxRetries} - Buscando en 'system_users'...`)
+        const { data: systemUser, error: systemError } = await client
+          .from('system_users')
+          .select('organization_id')
+          .or(`auth_user_id.eq.${userId},email.eq.${userEmail || 'unset'}`)
+          .maybeSingle()
+
+        if (!systemError && systemUser?.organization_id) {
+          console.log(`✅ [Callback] Organización encontrada en 'system_users':`, systemUser.organization_id)
+          return systemUser.organization_id
+        }
+
+        // 3. Buscar por email directo en 'users' si nada funcionó
+        if (userEmail) {
+          console.log(`🔍 [Callback] Intento ${attempt}/${maxRetries} - Buscando en 'users' por email exacto...`)
+          const { data: profileByEmail } = await client
+            .from('users')
+            .select('organization_id')
+            .eq('email', userEmail)
+            .maybeSingle()
+          
+          if (profileByEmail?.organization_id) {
+            console.log(`✅ [Callback] Organización encontrada vía email en 'users':`, profileByEmail.organization_id)
+            return profileByEmail.organization_id
+          }
+        }
+
+        // Si no encontramos nada después de este intento, esperar antes del siguiente
+        if (attempt < maxRetries) {
+          console.log(`⏳ [Callback] Perfil no encontrado comercialmente, reintentando en ${retryDelay}ms...`)
           await new Promise(resolve => setTimeout(resolve, retryDelay))
-          continue
-        }
-
-        // Si llegamos aquí, no se encontró el perfil después de todos los intentos
-        if (error) {
-          console.warn(`⚠️ [Callback] Perfil no encontrado después de ${maxRetries} intentos:`, error.message, error.code)
-          return null
-        }
-
-        // Si el perfil existe pero no tiene organización
-        if (profile && !profile.organization_id) {
-          console.warn('⚠️ [Callback] Perfil encontrado pero sin organización')
-          return null
         }
 
       } catch (err: any) {
         console.error(`❌ [Callback] Excepción en intento ${attempt}:`, err.message)
         if (attempt < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, retryDelay))
-          continue
         }
-        return null
       }
     }
 
