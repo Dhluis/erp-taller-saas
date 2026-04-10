@@ -240,21 +240,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           }
           console.log('✅ [Session] Perfil y configuración obtenidos desde API')
         } else {
-          const errorData = await response.json()
+          const errorData = await response.json().catch(() => ({}))
           profileError = {
             code: response.status.toString(),
-            message: errorData.error || 'Error al obtener perfil',
+            message: errorData.error || `Error del servidor (${response.status})`,
             details: null,
-            hint: null
+            hint: response.status === 404 ? 'Es posible que el usuario no tenga organización vinculada o el perfil se esté creando.' : null
           }
-          console.error('❌ [Session] Error obteniendo perfil desde API:', profileError)
+          console.warn('⚠️ [Session] API devolvió error:', profileError)
         }
       } catch (fetchError: any) {
         profileError = {
           code: 'FETCH_ERROR',
-          message: fetchError.message || 'Error al obtener perfil',
+          message: fetchError.message || 'Error al conectar con el servidor de perfiles',
           details: null,
-          hint: null
+          hint: 'Verifica tu conexión a internet.'
         }
         console.error('❌ [Session] Error en fetch a /api/users/me:', fetchError)
       }

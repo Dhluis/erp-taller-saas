@@ -59,23 +59,46 @@ export async function getCachedProfileByAuthId(authUserId: string, supabaseClien
 
   // 2. Si no hay en caché, consultar DB
   const supabase = (supabaseClient || await createClient()) as any;
-  const { data, error } = await supabase
+  
+  // Intento 1: Tabla 'users' (Principal)
+  const { data: userData, error: userError } = await supabase
     .from('users')
-    .select('id, auth_user_id, email, full_name, role, phone, is_active, organization_id, created_at, updated_at, avatar_url')
+    .select('id, auth_user_id, email, full_name, role, phone, is_active, organization_id, created_at, updated_at, avatar_url, workshop_id')
     .eq('auth_user_id', authUserId)
-    .single();
+    .maybeSingle();
 
-  if (error || !data) return null;
+  let finalData = userData;
+
+  // Intento 2: Tabla 'system_users' (Fallback / Legacy / Admin-created)
+  if (!finalData && !userError) {
+    console.log(`🔍 [Profile Query] Usuario ${authUserId} no encontrado en 'users', buscando en 'system_users'...`);
+    const { data: systemData } = await supabase
+      .from('system_users')
+      .select('id, email, first_name, last_name, role, is_active, organization_id, created_at, updated_at, auth_user_id')
+      .eq('auth_user_id', authUserId)
+      .maybeSingle();
+      
+    if (systemData) {
+      console.log(`✅ [Profile Query] Usuario encontrado en 'system_users'`);
+      // Adaptar formato a lo que espera el resto de la app
+      finalData = {
+        ...systemData,
+        full_name: `${systemData.first_name || ''} ${systemData.last_name || ''}`.trim() || systemData.email?.split('@')[0] || 'Usuario'
+      };
+    }
+  }
+
+  if (!finalData) return null;
 
   // 3. Guardar en Redis (TTL 5 min para datos de sesión)
   try {
     const { setRedisValue } = await import('@/lib/rate-limit/redis');
-    await setRedisValue(cacheKey, data, 300);
+    await setRedisValue(cacheKey, finalData, 300);
   } catch (err) {
     console.warn('[Cache] ⚠️ Error guardando en caché:', err);
   }
 
-  return data;
+  return finalData;
 }
 
 /**
