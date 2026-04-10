@@ -96,9 +96,17 @@ export async function GET(request: NextRequest) {
         );
         let { data: profile, error: profileError } = await client
           .from("users")
-          .select("organization_id, auth_user_id")
+          .select("organization_id, auth_user_id, email")
           .or(`auth_user_id.eq.${userId},id.eq.${userId}`)
           .maybeSingle();
+
+        console.log("📋 [Callback] Resultado 'users' por auth_id:", {
+          found: !!profile,
+          email: profile?.email,
+          orgId: profile?.organization_id,
+          authUserId: profile?.auth_user_id,
+          error: profileError?.message,
+        });
 
         if (!profileError && profile?.organization_id) {
           // Verificar si el auth_user_id coincide, si no intentar actualizarlo
@@ -118,17 +126,61 @@ export async function GET(request: NextRequest) {
           return profile.organization_id;
         }
 
+        // 1b. Buscar en 'users' por email
+        if (userEmail) {
+          console.log(
+            `🔍 [Callback] Buscando en 'users' por email: "${userEmail}"...`,
+          );
+          const { data: profileByEmail } = await client
+            .from("users")
+            .select("organization_id, auth_user_id, id, email")
+            .ilike("email", userEmail)
+            .maybeSingle();
+
+          console.log("📋 [Callback] Resultado 'users' por email:", {
+            found: !!profileByEmail,
+            email: profileByEmail?.email,
+            orgId: profileByEmail?.organization_id,
+            authUserId: profileByEmail?.auth_user_id,
+          });
+
+          if (profileByEmail?.organization_id) {
+            // Actualizar auth_user_id si es diferente
+            if (profileByEmail.auth_user_id !== userId && profileByEmail.id) {
+              console.log(
+                "🔄 [Callback] Actualizando auth_user_id en users...",
+              );
+              await client
+                .from("users")
+                .update({ auth_user_id: userId })
+                .eq("id", profileByEmail.id);
+            }
+            return profileByEmail.organization_id;
+          }
+        }
+
         // 2. Buscar por email en 'system_users' (CRÍTICO - busca por email primero)
         if (userEmail) {
           console.log(
-            `🔍 [Callback] Intento ${attempt}/${maxRetries} - Buscando en 'system_users' por email...`,
+            `🔍 [Callback] Intento ${attempt}/${maxRetries} - Buscando en 'system_users' por email: "${userEmail}"`,
           );
+
+          // Buscar con case insensitive (ilike)
           const { data: systemUserByEmail, error: systemByEmailError } =
             await client
               .from("system_users")
-              .select("id, organization_id, auth_user_id")
-              .eq("email", userEmail)
+              .select("id, organization_id, auth_user_id, email")
+              .ilike("email", userEmail)
               .maybeSingle();
+
+          console.log("📋 [Callback] Resultado system_users por email:", {
+            found: !!systemUserByEmail,
+            email: systemUserByEmail?.email,
+            id: systemUserByEmail?.id,
+            orgId: systemUserByEmail?.organization_id,
+            authUserId: systemUserByEmail?.auth_user_id,
+            error: systemByEmailError?.message,
+          });
 
           if (systemUserByEmail?.organization_id) {
             console.log(
@@ -168,33 +220,6 @@ export async function GET(request: NextRequest) {
             systemUser.organization_id,
           );
           return systemUser.organization_id;
-        }
-
-        // 4. Buscar por email directo en 'users'
-        if (userEmail) {
-          console.log(
-            `🔍 [Callback] Intento ${attempt}/${maxRetries} - Buscando en 'users' por email exacto...`,
-          );
-          const { data: profileByEmail } = await client
-            .from("users")
-            .select("organization_id, id")
-            .eq("email", userEmail)
-            .maybeSingle();
-
-          if (profileByEmail?.organization_id) {
-            console.log(
-              `✅ [Callback] Organización encontrada vía email en 'users':`,
-              profileByEmail.organization_id,
-            );
-            // Actualizar auth_user_id si es diferente
-            if (profileByEmail.id) {
-              await client
-                .from("users")
-                .update({ auth_user_id: userId })
-                .eq("id", profileByEmail.id);
-            }
-            return profileByEmail.organization_id;
-          }
         }
 
         // Si no encontramos nada después de este intento, esperar antes del siguiente
