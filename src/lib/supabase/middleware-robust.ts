@@ -164,6 +164,12 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
 
     if (error || !session) {
       if (error) console.error('Error getting session:', error)
+      
+      // 🚨 SALVAGUARDA: No redirigir si ya estamos en una ruta de auth
+      if (isAuthRoute(request.nextUrl.pathname)) {
+        return response
+      }
+      
       return redirectToLogin(request)
     }
 

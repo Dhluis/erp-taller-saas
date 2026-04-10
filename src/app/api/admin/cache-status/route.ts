@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   
   try {
     health = await redisHealthCheck()
-    const redis = getRedis()
+    const redis = await getRedis()
     const rawHits = await redis.get(REDIS_KEYS.METRICS.CACHE_HITS)
     const rawMisses = await redis.get(REDIS_KEYS.METRICS.CACHE_MISSES)
     const hits = Number(rawHits) || 0

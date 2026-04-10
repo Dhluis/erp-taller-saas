@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware-robust'
+import { updateSession, createSupabaseMiddlewareClient } from '@/lib/supabase/middleware-robust'
 
 // Rutas que requieren middleware (autenticación obligatoria)
 const MIDDLEWARE_ROUTES = [
@@ -70,12 +70,26 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // 2. Manejar rutas que requieren autenticación
+  // 2. Determinar tipo de ruta
   const isProtectedRoute = MIDDLEWARE_ROUTES.some(route => pathname.startsWith(route))
   const isAuthRoute = AUTH_ROUTES.some(route => pathname.startsWith(route))
 
-  if (isProtectedRoute || isAuthRoute) {
-    console.log(`🔐 [Middleware] Protegiendo ruta: ${pathname}`)
+  // 3. Manejar rutas de autenticación (Login/Register)
+  if (isAuthRoute) {
+    const { supabase } = createSupabaseMiddlewareClient(request)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      console.log(`🏠 [Middleware] Usuario ya logueado, redirigiendo al dashboard desde: ${pathname}`)
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    return NextResponse.next()
+  }
+
+  // 3. Manejar rutas protegidas (Dashboard, etc)
+  if (isProtectedRoute) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔐 [Middleware] Protegiendo ruta: ${pathname}`)
+    }
     return updateSession(request)
   }
 
