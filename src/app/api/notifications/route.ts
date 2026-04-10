@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClientFromRequest } from '@/lib/supabase/server'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getOrganizationId } from '@/lib/auth/organization-server'
 
 // POST /api/notifications - Crear notificación de prueba
 export async function POST(request: NextRequest) {
@@ -9,16 +8,16 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-    const supabaseAdmin = getSupabaseServiceClient()
-    const { data: userProfile } = await (supabaseAdmin as any).from('users').select('organization_id').eq('auth_user_id', user.id).single()
-    if (!userProfile?.organization_id) return NextResponse.json({ error: 'Sin organización' }, { status: 403 })
+    // ✅ Obtener organización usando el método robusto
+    const organizationId = await getOrganizationId(request)
 
     const body = await request.json()
     const { title = 'Test', message = 'Test', type = 'info' } = body
 
+    const supabaseAdmin = getSupabaseServiceClient()
     const { data, error } = await (supabaseAdmin as any)
       .from('notifications')
-      .insert({ organization_id: userProfile.organization_id, type, title, message, read: false })
+      .insert({ organization_id: organizationId, type, title, message, read: false })
       .select()
       .single()
 
@@ -50,23 +49,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Obtener organization_id del perfil del usuario usando Service Role Client
-    const supabaseAdmin = getSupabaseServiceClient();
-    const { data: userProfile, error: profileError } = await supabaseAdmin
-      .from('users')
-      .select('organization_id')
-      .eq('auth_user_id', user.id)
-      .single();
+    // ✅ Obtener organizationId usando el método robusto unificado
+    const organizationId = await getOrganizationId(request);
 
-    if (profileError || !userProfile?.organization_id) {
-      console.error('❌ [GET /api/notifications] Error obteniendo perfil:', profileError)
-      return NextResponse.json(
-        { error: 'No se pudo obtener la organización del usuario' },
-        { status: 403 }
-      )
-    }
-
-    const organizationId = userProfile.organization_id;
     console.log('🔍 [GET /api/notifications] Organization ID:', organizationId);
 
     const { searchParams } = new URL(request.url)

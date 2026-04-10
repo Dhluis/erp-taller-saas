@@ -1,6 +1,7 @@
 // src/app/api/leads/stats/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClientFromRequest } from '@/lib/supabase/server'
+import { getOrganizationId } from '@/lib/auth/organization-server'
 
 /**
  * GET /api/leads/stats
@@ -11,32 +12,8 @@ import { createClient } from '@/lib/supabase/server'
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    // Verificar autenticación
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'No autenticado' },
-        { status: 401 }
-      )
-    }
-
-    // Obtener organization_id del usuario
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('organization_id')
-      .eq('auth_user_id', user.id)
-      .single()
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'Usuario no encontrado' },
-        { status: 404 }
-      )
-    }
-
-    const organizationId = userData.organization_id
+    // ✅ Obtener organization_id por método robusto unificado
+    const organizationId = await getOrganizationId(request)
 
     // Obtener filtro de tiempo
     const searchParams = request.nextUrl.searchParams
@@ -64,7 +41,8 @@ export async function GET(request: NextRequest) {
         break
     }
 
-    // Query base
+    // Query base (usar supabase del request)
+    const supabase = createClientFromRequest(request);
     let query = supabase
       .from('leads')
       .select('*')

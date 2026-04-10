@@ -15,24 +15,15 @@ export async function getOrganizationId(request?: NextRequest): Promise<string> 
   const { getSupabaseServerClient, createClientFromRequest } = await import('@/lib/supabase/server');
   
   // Intentar primero con request si está disponible (para API routes)
-  // Si falla o no hay request, usar cookies() de next/headers (para Server Components)
   let supabase;
   try {
     if (request) {
       supabase = createClientFromRequest(request);
-      // Verificar que el cliente funciona intentando obtener el usuario
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        // Si no hay usuario con request, intentar con el método original
-        console.log('[getOrganizationId] ⚠️ No se pudo obtener usuario con request, usando método original');
-        supabase = await getSupabaseServerClient();
-      }
     } else {
       supabase = await getSupabaseServerClient();
     }
   } catch (requestError: any) {
-    // Si falla con request, hacer fallback al método original
-    console.warn('[getOrganizationId] ⚠️ Error con request, usando método original:', requestError.message);
+    console.warn('[getOrganizationId] ⚠️ Error inicializando cliente:', requestError.message);
     supabase = await getSupabaseServerClient();
   }
   
@@ -43,30 +34,45 @@ export async function getOrganizationId(request?: NextRequest): Promise<string> 
     throw new Error('Usuario no autenticado');
   }
 
-  // 2. Obtener el user completo de la tabla users
-  // Intentar primero con auth_user_id
-  let { data: userData, error: userDataError } = await supabase
+  // 2. Obtener el user completo usando Service Role (bypass RLS)
+  // Esto es necesario para asegurar que el ID de organización esté disponible
+  // incluso si el usuario acaba de registrarse y RLS aún no permite lectura
+  const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
+  const supabaseAdmin = getSupabaseServiceClient();
+  
+  // Intento 1: Tabla 'users' (Principal)
+  let { data: userData, error: userDataError } = await (supabaseAdmin as any)
     .from('users')
     .select('organization_id, workshop_id')
-    .eq('auth_user_id', user.id)
-    .single();
+    .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
+    .maybeSingle();
 
-  // Si falla con auth_user_id, intentar con email
-  if (userDataError && (userDataError.code === 'PGRST116' || userDataError.code === '42703')) {
-    const { data: userDataFallback, error: userDataErrorFallback } = await supabase
-      .from('users')
-      .select('organization_id, workshop_id')
-      .eq('email', user.email)
-      .single();
+  // Intento 2: Tabla 'system_users' (Fallback / Legacy / Admin-created)
+  if (userDataError || !userData) {
+    console.log(`🔍 [getOrganizationId] Buscando en 'system_users' para ${user.id}...`);
+    const { data: systemData } = await (supabaseAdmin as any)
+      .from('system_users')
+      .select('organization_id')
+      .or(`auth_user_id.eq.${user.id},email.eq.${user.email || 'unset'}`)
+      .maybeSingle();
     
-    if (!userDataErrorFallback && userDataFallback) {
-      userData = userDataFallback;
+    if (systemData) {
+      userData = systemProfileToUserFormat(systemData);
       userDataError = null;
     }
   }
 
   if (userDataError || !userData) {
-    throw new Error('No se pudo obtener información del usuario');
+    console.error(`❌ [getOrganizationId] Error perfil para ${user.id}:`, userDataError);
+    throw new Error('No se pudo obtener la organización del usuario');
+  }
+
+  // Función helper interna para adaptar formato
+  function systemProfileToUserFormat(systemData: any) {
+    return {
+      organization_id: systemData.organization_id,
+      workshop_id: systemData.workshop_id || null
+    };
   }
 
   // 3. Si ya tiene organization_id directo, usarlo

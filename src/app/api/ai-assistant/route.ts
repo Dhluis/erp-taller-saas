@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
+import { getOrganizationId } from '@/lib/auth/organization-server';
 import OpenAI from 'openai';
 import { checkAIAgentEnabled } from '@/lib/billing/check-limits';
 
@@ -23,18 +23,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const supabaseAdmin = getSupabaseServiceClient();
-    const { data: profile } = await supabaseAdmin
-      .from('users')
-      .select('organization_id')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (!profile || !(profile as any).organization_id) {
-      return NextResponse.json({ error: 'Organización no encontrada' }, { status: 403 });
-    }
-
-    const organizationId = (profile as any).organization_id;
+    // ✅ Obtener organización mediante método robusto universal
+    const organizationId = await getOrganizationId(request);
 
     // Verificar si el agente de IA está habilitado para el plan
     const { allowed, error: limitError } = await checkAIAgentEnabled(organizationId);

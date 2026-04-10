@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createWorkOrder, getWorkOrderStats } from '@/lib/database/queries/work-orders';
-import { createClientFromRequest } from '@/lib/supabase/server';
-import { getSupabaseServiceClient } from '@/lib/supabase/server';
+import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
+import { getOrganizationId } from '@/lib/auth/organization-server';
 import { 
   extractPaginationFromURL, 
   calculateOffset, 
@@ -151,37 +151,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener organization_id, rol e id del perfil del usuario usando Service Role Client
+    // ✅ Obtener organizationId usando el método robusto unificado
+    const organizationId = await getOrganizationId(request);
+
+    // Obtener rol para filtrado específico (Mecánico vs Admin)
     const supabaseAdmin = getSupabaseServiceClient();
-    const { data: userProfile, error: profileError } = await supabaseAdmin
+    const { data: userProfile } = await supabaseAdmin
       .from('users')
-      .select('id, organization_id, role')
+      .select('id, role')
       .eq('auth_user_id', user.id)
       .single();
-
-    if (profileError || !userProfile?.organization_id) {
-      console.error('[GET /api/work-orders] Error obteniendo perfil:', profileError);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'No se pudo obtener la organización del usuario',
-          data: []
-        },
-        { status: 403 }
-      );
-    }
-
-    const organizationId = userProfile.organization_id;
-    const userRole = userProfile.role;
     
-    // ✅ Si es mecánico, usar directamente users.id para filtrar órdenes asignadas
-    // work_orders.assigned_to ahora referencia users.id (no employees.id)
-    let assignedUserId: string | null = null;
-    if (userRole === 'MECANICO') {
-      // Ya tenemos el users.id en userProfile (lo agregamos al select)
-      assignedUserId = userProfile.id;
-      console.log(`[GET /api/work-orders] ✅ Mecánico users.id: ${assignedUserId}`);
-    }
+    const userRole = userProfile?.role || 'ADMIN';
+    const assignedUserId = userRole === 'MECANICO' ? userProfile?.id : null;
     
     // ✅ Helper para crear timeout promise
     const createTimeoutPromise = () => new Promise((_, reject) => {
@@ -448,36 +430,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Obtener organization_id del perfil del usuario usando Service Role Client
+    // ✅ Obtener organization_id usando el método robusto unificado
+    const organizationId = await getOrganizationId(request);
     const supabaseAdmin = getSupabaseServiceClient();
-    const { data: userProfile, error: profileError } = await supabaseAdmin
-      .from('users')
-      .select('organization_id')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (profileError || !userProfile?.organization_id) {
-      console.error('[POST /api/work-orders] Error obteniendo perfil:', profileError);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'No se pudo obtener la organización del usuario',
-        },
-        { status: 403 }
-      );
-    }
-
-    const organizationId = userProfile.organization_id;
-    
-    if (!organizationId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'No autorizado - No se pudo obtener la organización del usuario',
-        },
-        { status: 403 }
-      );
-    }
 
     // ✅ VERIFICAR LÍMITES ANTES DE CREAR
     const { checkResourceLimit } = await import('@/lib/billing/check-limits');

@@ -48,23 +48,16 @@ export async function getTenantContext(request?: any): Promise<TenantContext> {
   try {
     // Intentar primero con request si está disponible (para API routes)
     // Si falla o no hay request, usar cookies() de next/headers (para Server Components)
+    // Intentar inicializar cliente
     let supabase;
     try {
       if (request) {
         supabase = createClientFromRequest(request);
-        // Verificar que el cliente funciona intentando obtener el usuario
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          // Si no hay usuario con request, intentar con el método original
-          console.log('[getTenantContext] ⚠️ No se pudo obtener usuario con request, usando método original');
-          supabase = await createClient();
-        }
       } else {
         supabase = await createClient();
       }
     } catch (requestError: any) {
-      // Si falla con request, hacer fallback al método original
-      console.warn('[getTenantContext] ⚠️ Error con request, usando método original:', requestError.message);
+      console.warn('[getTenantContext] ⚠️ Error inicializando cliente:', requestError.message);
       supabase = await createClient();
     }
     
@@ -87,29 +80,42 @@ export async function getTenantContext(request?: any): Promise<TenantContext> {
     
     console.log('[getTenantContext] ✅ Usuario obtenido:', user.id)
 
-    // Obtener perfil del usuario con organization_id y workshop_id
-    const { data: userProfile, error: profileError } = await supabase
+    // ✅ Obtener perfil usando Service Role (bypass RLS) para identificar organización
+    // Esto es crítico para usuarios que acaban de migrar o registrarse
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
+    const supabaseAdmin = getSupabaseServiceClient();
+
+    // Intento 1: Tabla 'users' (Principal)
+    let { data: userProfile, error: profileError } = await (supabaseAdmin as any)
       .from('users')
       .select('workshop_id, organization_id')
-      .eq('auth_user_id', user.id)
-      .single()
+      .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
+      .maybeSingle()
+ 
+    // Intento 2: Tabla 'system_users' (Fallback)
+    if (profileError || !userProfile) {
+      console.log(`🔍 [getTenantContext] Buscando en 'system_users' para ${user.id}...`);
+      const { data: systemData } = await (supabaseAdmin as any)
+        .from('system_users')
+        .select('organization_id')
+        .or(`auth_user_id.eq.${user.id},email.eq.${user.email || 'unset'}`)
+        .maybeSingle();
 
-    if (profileError) {
-      console.error('[getTenantContext] ❌ Error obteniendo perfil:', {
-        message: profileError.message,
-        code: profileError.code,
-        details: profileError.details,
-        hint: profileError.hint
-      })
-      throw new Error('Perfil de usuario no encontrado')
+      if (systemData) {
+        userProfile = {
+          organization_id: systemData.organization_id,
+          workshop_id: null
+        };
+        profileError = null;
+      }
+    }
+
+    if (profileError || !userProfile) {
+      console.error('[getTenantContext] ❌ No se encontró perfil:', profileError);
+      throw new Error('Perfil de usuario no encontrado');
     }
     
-    if (!userProfile) {
-      console.warn('[getTenantContext] ⚠️ Perfil de usuario no encontrado para user:', user.id)
-      throw new Error('Perfil de usuario no encontrado')
-    }
-    
-    console.log('[getTenantContext] ✅ Perfil obtenido:', {
+    console.log('[getTenantContext] ✅ Perfil robusto obtenido:', {
       workshop_id: userProfile.workshop_id,
       organization_id: userProfile.organization_id
     })

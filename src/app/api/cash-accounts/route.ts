@@ -6,20 +6,16 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getOrganizationId } from '@/lib/auth/organization-server'
 import { z } from 'zod'
 
 async function getOrgId(request: NextRequest) {
-  const supabase = createClientFromRequest(request)
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return { error: 'No autorizado', status: 401 as const }
-  const supabaseAdmin = getSupabaseServiceClient()
-  const { data: profile } = await supabaseAdmin
-    .from('users')
-    .select('organization_id')
-    .eq('auth_user_id', user.id)
-    .single()
-  if (!profile?.organization_id) return { error: 'No se pudo obtener organización', status: 403 as const }
-  return { organizationId: profile.organization_id }
+  try {
+    const organizationId = await getOrganizationId(request)
+    return { organizationId }
+  } catch (error: any) {
+    return { error: error.message || 'No autorizado', status: (error.message?.includes('autenticado') ? 401 : 403) as 401 | 403 }
+  }
 }
 
 async function computeCurrentBalance(supabaseAdmin: any, accountId: string, initialBalance: number) {
@@ -58,7 +54,7 @@ export async function GET(request: NextRequest) {
     }
 
     const items = await Promise.all(
-      (accounts || []).map(async (acc) => {
+      (accounts || []).map(async (acc: any) => {
         const current_balance = await computeCurrentBalance(
           supabaseAdmin,
           acc.id,
@@ -120,7 +116,7 @@ export async function POST(request: NextRequest) {
         last_four_digits: parsed.data.last_four_digits || null,
         card_brand: parsed.data.card_brand || null,
         is_active: true
-      })
+      } as any)
       .select()
       .single()
 
@@ -136,13 +132,13 @@ export async function POST(request: NextRequest) {
 
     const current_balance = await computeCurrentBalance(
       supabaseAdmin,
-      account.id,
-      Number(account.initial_balance) || 0
+      (account as any).id,
+      Number((account as any).initial_balance) || 0
     )
 
     return NextResponse.json({
       success: true,
-      data: { ...account, current_balance }
+      data: { ...(account as any), current_balance }
     })
   } catch (e) {
     console.error('POST /api/cash-accounts:', e)

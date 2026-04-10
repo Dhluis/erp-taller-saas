@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseServiceClient, createClientFromRequest } from '@/lib/supabase/server'
+import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getOrganizationId } from '@/lib/auth/organization-server'
 import { 
   extractPaginationFromURL, 
   calculateOffset, 
@@ -46,25 +46,8 @@ export async function GET(request: NextRequest) {
       }, { status: 401 })
     }
 
-    // ✅ PASO 2: Obtener organizationId
-    const supabaseAdmin = getSupabaseServiceClient()
-    
-    const { data: userProfile, error: profileError } = await supabaseAdmin
-      .from('users')
-      .select('organization_id')
-      .eq('auth_user_id', authUser.id)
-      .single()
-    
-    type UserProfile = { organization_id: string }
-    if (profileError || !userProfile || !(userProfile as UserProfile).organization_id) {
-      console.error('❌ [GET /api/customers] Error obteniendo perfil:', profileError)
-      return NextResponse.json({ 
-        success: false, 
-        error: 'No se pudo obtener el ID de la organización' 
-      }, { status: 403 })
-    }
-    
-    const organizationId = (userProfile as UserProfile).organization_id
+    // ✅ PASO 2: Obtener organizationId usando el método robusto
+    const organizationId = await getOrganizationId(request)
     console.log('✅ [GET /api/customers] Organization ID:', organizationId)
     
     // ✅ PASO 3: Extraer parámetros de URL
@@ -282,23 +265,8 @@ export async function POST(request: NextRequest) {
       }, { status: 401 })
     }
 
-    // Obtener organizationId
-    const supabaseAdmin = getSupabaseServiceClient()
-    const { data: userProfile, error: profileError } = await supabaseAdmin
-      .from('users')
-      .select('organization_id')
-      .eq('auth_user_id', authUser.id)
-      .single()
-    
-    type UserProfile = { organization_id: string }
-    if (profileError || !userProfile || !(userProfile as UserProfile).organization_id) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'No se pudo obtener el ID de la organización' 
-      }, { status: 403 })
-    }
-    
-    const organizationId = (userProfile as UserProfile).organization_id
+    // ✅ Obtener organizationId usando el método robusto
+    const organizationId = await getOrganizationId(request)
 
     // ✅ VERIFICAR LÍMITES ANTES DE CREAR
     const { checkResourceLimit } = await import('@/lib/billing/check-limits')

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseServiceClient, createClientFromRequest } from '@/lib/supabase/server'
+import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getOrganizationId } from '@/lib/auth/organization-server'
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,34 +21,19 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Obtener organizationId, rol e id del perfil del usuario usando Service Role
+    // ✅ Obtener organizationId mediante método robusto universal
+    const organizationId = await getOrganizationId(request)
+
+    // Obtener rol para filtrado específico (Mecánico vs Admin)
     const supabaseAdmin = getSupabaseServiceClient()
-    
-    const {
-      data: userProfileData,
-      error: profileError,
-    }: { data: { id: string; organization_id: string; role: string } | null; error: unknown } = await supabaseAdmin
+    const { data: userProfile } = await supabaseAdmin
       .from('users')
-      .select('id, organization_id, role')
+      .select('id, role')
       .eq('auth_user_id', authUser.id)
       .single()
     
-    const userProfile = userProfileData
-
-    if (profileError || !userProfile || !userProfile.organization_id) {
-      console.error('❌ [GET /api/orders/stats] Error obteniendo perfil:', profileError)
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'No autorizado: organización no encontrada'
-        },
-        { status: 403 }
-      )
-    }
-    
-    const organizationId = userProfile.organization_id
-    const userRole = userProfile.role
-    const assignedUserId = userRole === 'MECANICO' ? userProfile.id : null
+    const userRole = userProfile?.role || 'ADMIN'
+    const assignedUserId = userRole === 'MECANICO' ? userProfile?.id : null
 
     // Obtener parámetro de filtro de tiempo
     const { searchParams } = new URL(request.url)
