@@ -64,12 +64,17 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Función helper para verificar si el usuario tiene organización (con retry)
+  // Función helper para verificar si el usuario tiene organización (con retry y vinculación automática)
   async function checkUserOrganization(
     userId: string,
     userEmail?: string,
   ): Promise<string | null> {
-    console.log("🔍 [Callback] Verificando organización para usuario:", userId);
+    console.log(
+      "🔍 [Callback] Verificando organización para usuario:",
+      userId,
+      "email:",
+      userEmail,
+    );
 
     // ✅ Resiliencia: Usar el cliente admin si está disponible, sino usar el cliente auth (RLS activo)
     const client = (supabaseAdmin || supabaseAuth) as any;
@@ -91,11 +96,21 @@ export async function GET(request: NextRequest) {
         );
         let { data: profile, error: profileError } = await client
           .from("users")
-          .select("organization_id")
+          .select("organization_id, auth_user_id")
           .or(`auth_user_id.eq.${userId},id.eq.${userId}`)
           .maybeSingle();
 
         if (!profileError && profile?.organization_id) {
+          // Verificar si el auth_user_id coincide, si no intentar actualizarlo
+          if (profile.auth_user_id !== userId) {
+            console.log(
+              "🔄 [Callback] auth_user_id diferente, actualizando...",
+            );
+            await client
+              .from("users")
+              .update({ auth_user_id: userId })
+              .eq("id", profile.id);
+          }
           console.log(
             `✅ [Callback] Organización encontrada en 'users':`,
             profile.organization_id,
@@ -103,32 +118,66 @@ export async function GET(request: NextRequest) {
           return profile.organization_id;
         }
 
-        // 2. Intentar buscar en tabla 'system_users' (Fallback Crítico)
+        // 2. Buscar por email en 'system_users' (CRÍTICO - busca por email primero)
+        if (userEmail) {
+          console.log(
+            `🔍 [Callback] Intento ${attempt}/${maxRetries} - Buscando en 'system_users' por email...`,
+          );
+          const { data: systemUserByEmail, error: systemByEmailError } =
+            await client
+              .from("system_users")
+              .select("id, organization_id, auth_user_id")
+              .eq("email", userEmail)
+              .maybeSingle();
+
+          if (systemUserByEmail?.organization_id) {
+            console.log(
+              `✅ [Callback] Usuario encontrado en 'system_users' por email:`,
+              systemUserByEmail.organization_id,
+            );
+
+            // Si el auth_user_id es diferente, actualizarlo (vincular nueva cuenta Google)
+            if (systemUserByEmail.auth_user_id !== userId) {
+              console.log(
+                "🔄 [Callback] Vinculando nueva cuenta Google con usuario existente...",
+              );
+              await client
+                .from("system_users")
+                .update({ auth_user_id: userId })
+                .eq("id", systemUserByEmail.id);
+              console.log("✅ [Callback] Cuenta vinculada exitosamente");
+            }
+
+            return systemUserByEmail.organization_id;
+          }
+        }
+
+        // 3. Intentar buscar en tabla 'system_users' por auth_user_id
         console.log(
-          `🔍 [Callback] Intento ${attempt}/${maxRetries} - Buscando en 'system_users'...`,
+          `🔍 [Callback] Intento ${attempt}/${maxRetries} - Buscando en 'system_users' por auth_user_id...`,
         );
         const { data: systemUser, error: systemError } = await client
           .from("system_users")
           .select("organization_id")
-          .or(`auth_user_id.eq.${userId},email.eq.${userEmail || "unset"}`)
+          .eq("auth_user_id", userId)
           .maybeSingle();
 
         if (!systemError && systemUser?.organization_id) {
           console.log(
-            `✅ [Callback] Organización encontrada en 'system_users':`,
+            `✅ [Callback] Organización encontrada en 'system_users' por auth_user_id:`,
             systemUser.organization_id,
           );
           return systemUser.organization_id;
         }
 
-        // 3. Buscar por email directo en 'users' si nada funcionó
+        // 4. Buscar por email directo en 'users'
         if (userEmail) {
           console.log(
             `🔍 [Callback] Intento ${attempt}/${maxRetries} - Buscando en 'users' por email exacto...`,
           );
           const { data: profileByEmail } = await client
             .from("users")
-            .select("organization_id")
+            .select("organization_id, id")
             .eq("email", userEmail)
             .maybeSingle();
 
@@ -137,6 +186,13 @@ export async function GET(request: NextRequest) {
               `✅ [Callback] Organización encontrada vía email en 'users':`,
               profileByEmail.organization_id,
             );
+            // Actualizar auth_user_id si es diferente
+            if (profileByEmail.id) {
+              await client
+                .from("users")
+                .update({ auth_user_id: userId })
+                .eq("id", profileByEmail.id);
+            }
             return profileByEmail.organization_id;
           }
         }
@@ -144,7 +200,7 @@ export async function GET(request: NextRequest) {
         // Si no encontramos nada después de este intento, esperar antes del siguiente
         if (attempt < maxRetries) {
           console.log(
-            `⏳ [Callback] Perfil no encontrado comercialmente, reintentando en ${retryDelay}ms...`,
+            `⏳ [Callback] Perfil no encontrado, reintentando en ${retryDelay}ms...`,
           );
           await new Promise((resolve) => setTimeout(resolve, retryDelay));
         }
