@@ -281,9 +281,21 @@ export async function GET(request: NextRequest) {
 
   // Manejar código de autorización (OAuth)
   if (code) {
-    console.log("🔄 [Callback] Procesando código OAuth...");
+    console.log(
+      "🚀🚀🚀 [Callback] INICIO - Código recibido, procesando OAuth...",
+    );
+    console.log("📌 [Callback] Código presente:", !!code);
+    console.log("📌 [Callback] Service Role disponible:", !!serviceRoleKey);
+
     const { data, error } =
       await supabaseAuth.auth.exchangeCodeForSession(code);
+
+    console.log(
+      "📌 [Callback] Exchange result - error:",
+      error?.message,
+      "hasData:",
+      !!data?.session,
+    );
 
     if (!error && data?.session) {
       console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
