@@ -93,7 +93,7 @@ export async function getDashboardMetrics(
       .gte('paid_date', startDate)
       .lte('paid_date', endDate)
 
-    const monthlyRevenue = invoicesData?.reduce((sum, invoice) => sum + (invoice.total_amount ?? invoice.total ?? 0), 0) || 0
+    const monthlyRevenue = invoicesData?.reduce((sum, invoice) => sum + (invoice.total ?? 0), 0) || 0
 
     // 7. Productos con stock bajo
     const { data: allProducts } = await supabase
@@ -171,8 +171,8 @@ export async function getSalesReport(
       .gte('created_at', startDate)
       .lte('created_at', endDate)
 
-const totalSales = invoicesData?.reduce((sum, invoice) => sum + (invoice.total_amount ?? invoice.total ?? 0), 0) || 0
-   const paidSales = invoicesData?.filter(inv => inv.status === 'paid').reduce((sum, invoice) => sum + (invoice.total_amount ?? invoice.total ?? 0), 0) || 0
+    const totalSales = invoicesData?.reduce((sum, invoice) => sum + (invoice.total ?? 0), 0) || 0
+    const paidSales = invoicesData?.filter(inv => inv.status === 'paid').reduce((sum, invoice) => sum + (invoice.total ?? 0), 0) || 0
 
     // 2. Servicios más vendidos - usar work_order_services (order_items/services no existe o difiere)
     const { data: servicesData } = await supabase
@@ -248,7 +248,7 @@ const totalSales = invoicesData?.reduce((sum, invoice) => sum + (invoice.total_a
     invoicesData?.forEach(invoice => {
       const date = invoice.created_at.split('T')[0]
       const current = dailySales.get(date) || 0
-      dailySales.set(date, current + (invoice.total_amount ?? invoice.total ?? 0))
+      dailySales.set(date, current + (invoice.total ?? 0))
     })
 
     const dailySalesArray = Array.from(dailySales.entries())
@@ -487,7 +487,7 @@ export async function getSuppliersReport(organizationId: string) {
       is_active: supplier.is_active,
       total_orders: supplier.purchase_orders?.length || 0,
       total_spent: supplier.purchase_orders?.reduce((sum, order) => 
-        sum + (order.total_amount ?? order.total ?? 0), 0) || 0,
+        sum + (order.total_amount ?? 0), 0) || 0,
       pending_orders: supplier.purchase_orders?.filter(order => 
         order.status === 'pending').length || 0,
       last_order_date: supplier.purchase_orders?.sort((a, b) => 

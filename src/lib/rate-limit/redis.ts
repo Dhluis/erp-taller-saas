@@ -1,4 +1,5 @@
-import { Redis } from '@upstash/redis';
+import { Redis as UpstashRedis } from '@upstash/redis';
+import IORedis from 'ioredis';
 
 /**
  * Prefijos de claves para Redis
@@ -12,81 +13,69 @@ export const REDIS_KEYS = {
 } as const;
 
 /**
- * Cliente singleton de Upstash Redis para rate limiting
+ * Cliente Universal de Redis (Soporta TCP y HTTP)
+ * ✅ Node.js Runtime: Usa ioredis (TCP) -> Mayor velocidad
+ * ✅ Edge Runtime: Usa Upstash (HTTP) -> Compatibilidad con Vercel Middleware
  */
 class RedisClient {
-  private static instance: Redis | null = null;
-  private static isConfigured: boolean = false;
+  private static upstashInstance: UpstashRedis | null = null;
+  private static ioredisInstance: IORedis | null = null;
+  private static selectedEngine: 'ioredis' | 'upstash' | 'none' = 'none';
 
   /**
-   * Obtener instancia del cliente Redis
+   * Obtener instancia del cliente según el entorno
    */
-  static getInstance(): Redis {
-    if (!this.instance) {
-      this.instance = this.createClient();
-    }
-    return this.instance;
-  }
+  static getInstance(): any {
+    const isEdge = process.env.NEXT_RUNTIME === 'edge';
+    const redisUrl = process.env.REDIS_URL;
 
-  /**
-   * Crear cliente de Redis
-   * ⚠️ CRÍTICO: Si Redis no está configurado, lanza error que será capturado por fail-open
-   */
-  private static createClient(): Redis {
-    const url = process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-    if (!url || !token) {
-      const missingVars = [];
-      if (!url) missingVars.push('UPSTASH_REDIS_REST_URL');
-      if (!token) missingVars.push('UPSTASH_REDIS_REST_TOKEN');
-
-      // ⚠️ Lanzar error que será capturado por fail-open en rate-limiter.ts
-      // NO loguear como error crítico porque queremos fail-open silencioso
-      const errorMessage = `REDIS_NOT_AVAILABLE: Missing ${missingVars.join(', ')}`;
-      throw new Error(errorMessage);
-    }
-
-    console.log('[Redis] ✅ Connecting to Upstash Redis...');
-    
-    this.isConfigured = true;
-
-    return new Redis({
-      url,
-      token,
-      // Configuración optimizada para rate limiting
-      cache: 'no-store', // No cachear para tener datos en tiempo real
-      retry: {
-        retries: 3,
-        backoff: (retryCount) => Math.min(1000 * 2 ** retryCount, 3000)
+    // 1. Intentar usar ioredis (TCP) si estamos en Node.js y hay URL
+    if (!isEdge && redisUrl) {
+      if (!this.ioredisInstance) {
+        try {
+          console.log('[Redis] 🚀 Usando motor TCP (ioredis) para Hostinger...');
+          this.ioredisInstance = new IORedis(redisUrl, {
+            maxRetriesPerRequest: 1,
+            connectTimeout: 2000,
+          });
+          this.selectedEngine = 'ioredis';
+        } catch (error) {
+          console.warn('[Redis] ⚠️ Falló motor TCP, intentando fallback...', error);
+        }
       }
-    });
+      if (this.ioredisInstance) return this.ioredisInstance;
+    }
+
+    // 2. Fallback a Upstash (HTTP) para Edge o si no hay ioredis
+    const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
+    const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+    if (upstashUrl && upstashToken) {
+      if (!this.upstashInstance) {
+        console.log('[Redis] ☁️ Usando motor HTTP (Upstash) para Edge/Vercel...');
+        this.upstashInstance = new UpstashRedis({
+          url: upstashUrl,
+          token: upstashToken,
+          cache: 'no-store',
+        });
+        this.selectedEngine = 'upstash';
+      }
+      return this.upstashInstance;
+    }
+
+    this.selectedEngine = 'none';
+    throw new Error('REDIS_NOT_CONFIGURED: Falta REDIS_URL o variables de Upstash');
   }
 
-  /**
-   * Verificar si Redis está configurado
-   */
-  static isReady(): boolean {
-    return this.isConfigured;
+  static getEngine() {
+    return this.selectedEngine;
   }
 
-  /**
-   * Resetear instancia (útil para testing)
-   */
-  static reset(): void {
-    this.instance = null;
-    this.isConfigured = false;
-  }
-
-  /**
-   * Healthcheck de Redis
-   */
   static async ping(): Promise<boolean> {
     try {
       const client = this.getInstance();
       const result = await client.ping();
-      console.log('[Redis] 🏓 Ping:', result);
-      return result === 'PONG';
+      return result === 'PONG' || result === 'OK';
     } catch (error) {
       console.error('[Redis] ❌ Ping failed:', error);
       return false;
@@ -95,172 +84,100 @@ class RedisClient {
 }
 
 /**
- * Obtener instancia del cliente Redis (lazy initialization)
- * No se inicializa hasta que se use por primera vez
+ * Obtener instancia del cliente Redis (compatibilidad)
  */
-export function getRedis(): Redis {
+export function getRedis(): any {
   return RedisClient.getInstance();
 }
 
 /**
- * Verificar si Redis está disponible (sin inicializar)
- */
-export function isRedisAvailable(): boolean {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  
-  const isAvailable = !!(url && token);
-  
-  // Log solo si no está disponible (para no saturar logs)
-  if (!isAvailable) {
-    console.log('[Redis] ⚠️ Redis not available:', {
-      hasUrl: !!url,
-      hasToken: !!token,
-      urlLength: url?.length || 0,
-      tokenLength: token?.length || 0
-    });
-  }
-  
-  return isAvailable;
-}
-
-/**
- * Funciones helper para operaciones comunes
+ * Funciones helper universales
  */
 
-/**
- * Obtener valor de Redis con tipo seguro
- */
 export async function getRedisValue<T>(key: string): Promise<T | null> {
   try {
-    const redis = getRedis();
-    const value = await redis.get<T>(key);
-    return value;
+    const redis = RedisClient.getInstance();
+    const value = await redis.get(key);
+    
+    if (!value) return null;
+    
+    // El motor ioredis devuelve strings, Upstash puede devolver objetos
+    if (typeof value === 'string') {
+      try { return JSON.parse(value); } catch { return value as unknown as T; }
+    }
+    return value as T;
   } catch (error) {
-    console.error(`[Redis] ❌ Error getting key ${key}:`, error);
+    console.warn(`[Redis] ⚠️ Error leyendo ${key}:`, error);
     return null;
   }
 }
 
-/**
- * Establecer valor en Redis con expiración
- */
 export async function setRedisValue<T>(
   key: string,
   value: T,
   expirationSeconds?: number
 ): Promise<boolean> {
   try {
-    const redis = getRedis();
+    const redis = RedisClient.getInstance();
+    const stringValue = JSON.stringify(value);
+    
     if (expirationSeconds) {
-      await redis.setex(key, expirationSeconds, JSON.stringify(value));
+      if (RedisClient.getEngine() === 'upstash') {
+        await redis.setex(key, expirationSeconds, stringValue);
+      } else {
+        await redis.set(key, stringValue, 'EX', expirationSeconds);
+      }
     } else {
-      await redis.set(key, JSON.stringify(value));
+      await redis.set(key, stringValue);
     }
     return true;
   } catch (error) {
-    console.error(`[Redis] ❌ Error setting key ${key}:`, error);
+    console.warn(`[Redis] ⚠️ Error guardando ${key}:`, error);
     return false;
   }
 }
 
-/**
- * Eliminar clave de Redis
- */
 export async function deleteRedisKey(key: string): Promise<boolean> {
   try {
-    const redis = getRedis();
+    const redis = RedisClient.getInstance();
     await redis.del(key);
     return true;
   } catch (error) {
-    console.error(`[Redis] ❌ Error deleting key ${key}:`, error);
     return false;
   }
 }
 
-/**
- * Incrementar contador con expiración
- */
-export async function incrementCounter(
-  key: string,
-  expirationSeconds: number
-): Promise<number> {
+export async function incrementCounter(key: string, expirationSeconds: number): Promise<number> {
   try {
-    const redis = getRedis();
-    const pipeline = redis.pipeline();
-    pipeline.incr(key);
-    pipeline.expire(key, expirationSeconds);
-    
-    const results = await pipeline.exec();
-    const count = results[0] as number;
-    
-    return count;
-  } catch (error) {
-    console.error(`[Redis] ❌ Error incrementing key ${key}:`, error);
-    throw error;
-  }
-}
-
-/**
- * Verificar existencia de clave
- */
-export async function keyExists(key: string): Promise<boolean> {
-  try {
-    const redis = getRedis();
-    const exists = await redis.exists(key);
-    return exists === 1;
-  } catch (error) {
-    console.error(`[Redis] ❌ Error checking key ${key}:`, error);
-    return false;
-  }
-}
-
-/**
- * Obtener TTL de una clave
- */
-export async function getKeyTTL(key: string): Promise<number> {
-  try {
-    const redis = getRedis();
-    const ttl = await redis.ttl(key);
-    return ttl;
-  } catch (error) {
-    console.error(`[Redis] ❌ Error getting TTL for key ${key}:`, error);
-    return -1;
-  }
-}
-
-/**
- * Healthcheck completo
- */
-export async function redisHealthCheck(): Promise<{
-  healthy: boolean;
-  latency?: number;
-  error?: string;
-}> {
-  const start = Date.now();
-  
-  try {
-    const isAlive = await RedisClient.ping();
-    const latency = Date.now() - start;
-
-    if (!isAlive) {
-      return {
-        healthy: false,
-        latency,
-        error: 'Redis ping failed'
-      };
+    const redis = RedisClient.getInstance();
+    if (RedisClient.getEngine() === 'upstash') {
+      const p = redis.pipeline();
+      p.incr(key);
+      p.expire(key, expirationSeconds);
+      const res = await p.exec();
+      return res[0] as number;
+    } else {
+      const count = await redis.incr(key);
+      await redis.expire(key, expirationSeconds);
+      return count;
     }
+  } catch (error) {
+    console.warn(`[Redis] ⚠️ Error incrementando ${key}:`, error);
+    return 0;
+  }
+}
 
+export async function redisHealthCheck() {
+  const start = Date.now();
+  try {
+    const healthy = await RedisClient.ping();
     return {
-      healthy: true,
-      latency
+      healthy,
+      latency: Date.now() - start,
+      engine: RedisClient.getEngine()
     };
   } catch (error) {
-    return {
-      healthy: false,
-      latency: Date.now() - start,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
+    return { healthy: false, error: 'Connection failed', engine: 'none' };
   }
 }
 
