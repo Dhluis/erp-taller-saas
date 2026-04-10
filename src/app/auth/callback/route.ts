@@ -163,12 +163,9 @@ export async function GET(request: NextRequest) {
       // Solo copiar si no existe ya en la respuesta
       if (!redirectResponse.cookies.get(cookie.name)) {
         redirectResponse.cookies.set(cookie.name, cookie.value, {
-          path: cookie.path || '/',
-          domain: cookie.domain,
-          maxAge: cookie.maxAge,
-          httpOnly: cookie.httpOnly,
-          secure: cookie.secure ?? (process.env.NODE_ENV === 'production'),
-          sameSite: (cookie.sameSite as any) || 'lax'
+          path: '/',
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax'
         })
       }
     })
