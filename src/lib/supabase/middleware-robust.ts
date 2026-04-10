@@ -7,7 +7,24 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getRedisValue, setRedisValue, incrementCounter, REDIS_KEYS } from '@/lib/rate-limit/redis'
 import { invalidateUserProfileCache } from '@/lib/database/queries/users'
-// cookies de 'next/headers' no está disponible en middleware, usar request.cookies directamente
+
+/**
+ * Crear cliente Supabase con Service Role para Middleware
+ * Esto permite bypass de RLS para chequear si el usuario EXISTE y es VÁLIDO
+ * Solo se usa después de verificar que el usuario tiene una sesión legítima
+ */
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  
+  return createServerClient(url, key, {
+    cookies: {
+      get() { return '' },
+      set() { },
+      remove() { },
+    }
+  })
+}
 
 /**
  * Crear cliente Supabase para middleware
@@ -101,7 +118,7 @@ export function createSupabaseMiddlewareClient(request: NextRequest) {
 /**
  * Obtener perfil de usuario (con caché en Redis)
  */
-async function getCachedUserProfile(supabase: any, user: { id: string, email?: string }) {
+async function getCachedUserProfile(user: { id: string, email?: string }) {
   const cacheKey = `${REDIS_KEYS.SESSION_PROFILE}:${user.id}`
   let profile: any = null
 
@@ -117,29 +134,36 @@ async function getCachedUserProfile(supabase: any, user: { id: string, email?: s
     console.warn('[Middleware Cache] ⚠️ Error leyendo caché:', cacheError)
   }
 
-  // 2. Si no hay en caché, consultar DB (users)
-  // FIX: Usar tabla 'users' y columna 'auth_user_id' que es la principal del ERP
-  let { data: dbProfile, error: profileError } = await (supabase as any)
+  // 2. Si no hay en caché, consultar DB usando Service Role (bypass RLS)
+  // Esto es seguro porque la sesión ya fue validada con el anon client antes de llamar aquí
+  const serviceClient = getServiceClient()
+  
+  console.log(`🔍 [Middleware] Buscando perfil para user_id: ${user.id}`)
+  
+  // Intento 1: Tabla 'users' (Principal) por auth_user_id o id
+  let { data: dbProfile, error: profileError } = await serviceClient
     .from('users')
     .select('*')
-    .eq('auth_user_id', user.id)
-    .single()
+    .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
+    .maybeSingle()
 
-  // Fallback por email si el id no mapea directo
-  if (profileError && user.email) {
-    const { data: profileFallback, error: profileErrorFallback } = await (supabase as any)
+  // Intento 2: Fallback a system_users (Migrados/Admin)
+  if (!dbProfile) {
+    console.log(`🔍 [Middleware] No encontrado en 'users', buscando en 'system_users'...`)
+    const { data: systemProfile } = await serviceClient
       .from('system_users')
       .select('*')
-      .eq('email', user.email)
-      .single()
-    
-    if (profileFallback) {
-      dbProfile = profileFallback
+      .or(`auth_user_id.eq.${user.id},email.eq.${user.email || 'unset'}`)
+      .maybeSingle()
+      
+    if (systemProfile) {
+      dbProfile = systemProfile
       profileError = null
     }
   }
 
   if (profileError || !dbProfile) {
+    console.warn(`❌ [Middleware] Perfil no encontrado para: ${user.id}`, profileError)
     return { profile: null, error: profileError }
   }
 
@@ -173,10 +197,14 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
       return redirectToLogin(request)
     }
 
-    const { profile, error: profileError } = await getCachedUserProfile(supabase, session.user)
+    // Obtener perfil usando la nueva lógica robusta
+    const { profile, error: profileError } = await getCachedUserProfile(session.user)
 
     if (profileError || !profile) {
-      console.error('User profile not found:', profileError)
+      console.error('❌ [Middleware] Perfil de usuario no encontrado:', profileError)
+      
+      // EXCEPCIÓN: Si estamos en el dashboard, permitir un pequeño margen para que el API autorepare el perfil
+      // O simplemente redirigir al login si ya pasó demasiado tiempo
       return redirectToLogin(request)
     }
 
@@ -286,7 +314,7 @@ export async function checkUserPermissions(
       return { hasPermission: false }
     }
 
-    const { profile, error: profileError } = await getCachedUserProfile(supabase, session.user)
+    const { profile, error: profileError } = await getCachedUserProfile(session.user)
 
     if (profileError || !profile) {
       return { hasPermission: false }
