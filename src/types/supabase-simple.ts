@@ -209,6 +209,59 @@ export interface Database {
           terms_file_url?: string | null
         }
       }
+      vehicle_inspections: {
+        Row: {
+          id: string
+          order_id: string
+          organization_id: string
+          workshop_id: string | null
+          fluids_check: any
+          fuel_level: string | null
+          valuable_items: string | null
+          will_diagnose: boolean | null
+          entry_reason: string | null
+          procedures: string | null
+          is_warranty: boolean | null
+          authorize_test_drive: boolean | null
+          dashboard_indicators: any
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          organization_id: string
+          workshop_id?: string | null
+          fluids_check?: any
+          fuel_level?: string | null
+          valuable_items?: string | null
+          will_diagnose?: boolean | null
+          entry_reason?: string | null
+          procedures?: string | null
+          is_warranty?: boolean | null
+          authorize_test_drive?: boolean | null
+          dashboard_indicators?: any
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          organization_id?: string
+          workshop_id?: string | null
+          fluids_check?: any
+          fuel_level?: string | null
+          valuable_items?: string | null
+          will_diagnose?: boolean | null
+          entry_reason?: string | null
+          procedures?: string | null
+          is_warranty?: boolean | null
+          authorize_test_drive?: boolean | null
+          dashboard_indicators?: any
+          created_at?: string
+          updated_at?: string
+        }
+      }
       order_items: {
         Row: {
           id: string
@@ -1597,3 +1650,7 @@ export type WorkshopUpdate = TablesUpdate<'workshops'>
 export type WorkshopMember = Tables<'workshop_members'>
 export type WorkshopMemberInsert = TablesInsert<'workshop_members'>
 export type WorkshopMemberUpdate = TablesUpdate<'workshop_members'>
+
+export type VehicleInspection = Tables<'vehicle_inspections'>
+export type VehicleInspectionInsert = TablesInsert<'vehicle_inspections'>
+export type VehicleInspectionUpdate = TablesUpdate<'vehicle_inspections'>

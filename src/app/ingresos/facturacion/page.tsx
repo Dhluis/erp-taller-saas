@@ -42,13 +42,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Search, Eye, DollarSign, XCircle, Loader2, CalendarDays, ChevronDown } from 'lucide-react';
+import { Plus, Search, Eye, DollarSign, XCircle, Loader2, CalendarDays, ChevronDown, Printer } from 'lucide-react';
 import { useInvoices } from '@/hooks/useInvoices';
 import { CreateManualInvoiceModal } from '@/components/invoices/CreateManualInvoiceModal';
 import { toast } from 'sonner';
 import { downloadInvoicePDF } from '@/lib/utils/invoice-pdf';
 import { useSession } from '@/lib/context/SessionContext';
-import { Printer } from 'lucide-react';
 
 type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
 type StatusFilter = 'all' | 'pending' | 'paid' | 'overdue';
@@ -107,7 +106,7 @@ const PAYMENT_METHODS = [
 export default function FacturacionPage() {
   const router = useRouter();
   const permissions = usePermissions();
-  const { organizationId, ready, companySettings } = useSession();
+  const { organizationId, isReady: ready, companySettings } = useSession();
   const hasLoadedRef = useRef(false);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -190,7 +189,7 @@ export default function FacturacionPage() {
   const getStatusBadge = (status: InvoiceStatus) => {
     const config = STATUS_BADGES[status] ?? { label: status, className: '' };
     return (
-      <Badge variant="outline" className={config.className}>
+      <Badge variant="secondary" className={config.className}>
         {config.label}
       </Badge>
     );
@@ -293,7 +292,7 @@ export default function FacturacionPage() {
             {(['all', 'pending', 'paid', 'overdue'] as const).map((f) => (
               <Button
                 key={f}
-                variant={statusFilter === f ? 'default' : 'outline'}
+                variant={statusFilter === f ? 'primary' : 'outline'}
                 size="sm"
                 onClick={() => {
                   setStatusFilter(f);
@@ -348,7 +347,7 @@ export default function FacturacionPage() {
                   </TableRow>
                 ) : (
                   filteredInvoices.map((inv) => {
-                    const total = inv.total_amount ?? inv.total ?? 0;
+                    const total = inv.total_amount ?? 0;
                     const customerName = inv.customer?.name ?? inv.customer_id ?? '-';
                     const vehicleInfo = inv.vehicle
                       ? `${inv.vehicle.brand} ${inv.vehicle.model} ${inv.vehicle.license_plate || ''}`
@@ -400,7 +399,7 @@ export default function FacturacionPage() {
                             {canDelete && inv.status !== 'paid' && inv.status !== 'cancelled' && (
                               cancelConfirm === inv.id ? (
                                 <Button
-                                  variant="destructive"
+                                  variant="danger"
                                   size="sm"
                                   onClick={() => handleCancelInvoice(inv.id)}
                                 >
@@ -489,7 +488,7 @@ export default function FacturacionPage() {
                           <TableCell>{it.description ?? '-'}</TableCell>
                           <TableCell>{it.quantity}</TableCell>
                           <TableCell>${Number(it.unit_price).toLocaleString()}</TableCell>
-                          <TableCell>${Number(it.total_amount ?? it.total).toLocaleString()}</TableCell>
+                          <TableCell>${Number(it.total).toLocaleString()}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -499,14 +498,14 @@ export default function FacturacionPage() {
               <div className="border-t pt-4 space-y-1 text-sm">
                 <p>
                   Subtotal: $
-                  {(viewInvoice.subtotal ?? viewInvoice.total_amount ?? viewInvoice.total ?? 0).toLocaleString()}
+                  {(viewInvoice.subtotal ?? viewInvoice.total_amount ?? 0).toLocaleString()}
                 </p>
                 {(viewInvoice.tax_amount ?? 0) > 0 && (
                   <p>Impuestos: ${Number(viewInvoice.tax_amount).toLocaleString()}</p>
                 )}
                 <p className="font-semibold">
                   Total: $
-                  {(viewInvoice.total_amount ?? viewInvoice.total ?? 0).toLocaleString()}
+                  {(viewInvoice.total_amount ?? 0).toLocaleString()}
                 </p>
               </div>
               {viewPayments.length > 0 && (
@@ -597,7 +596,7 @@ function RegisterPaymentModal({
   const [cashAccounts, setCashAccounts] = useState<Array<{ id: string; name: string }>>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const invoiceTotal = invoice ? (invoice.total_amount ?? invoice.total ?? 0) : 0;
+  const invoiceTotal = invoice ? (invoice.total_amount ?? 0) : 0;
   const remaining = Math.max(0, invoiceTotal - totalPaid);
 
   useEffect(() => {

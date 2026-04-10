@@ -39,8 +39,7 @@ import {
   Save,
   X,
   Loader2,
-  Edit,
-  CheckCircle2
+  Edit
 } from 'lucide-react'
 import { ExitSignatureModal } from './ExitSignatureModal'
 
@@ -382,9 +381,9 @@ export function WorkOrderGeneralForm({
         console.log('📊 [DEBUG] Cantidad de campos a actualizar:', Object.keys(vehicleUpdate).length)
 
         if (Object.keys(vehicleUpdate).length > 0) {
-          const { data: vehicleData, error: vehicleError } = await supabase
-            .from('vehicles')
-            .update(vehicleUpdate as unknown as Record<string, string>)
+          const { data: vehicleData, error: vehicleError } = await (supabase
+            .from('vehicles') as any)
+            .update(vehicleUpdate as any)
             .eq('id', order.vehicle_id)
             .select()
 
@@ -418,9 +417,9 @@ export function WorkOrderGeneralForm({
         if (formData.customerAddress !== undefined) customerUpdate.address = formData.customerAddress || null
 
         if (Object.keys(customerUpdate).length > 0) {
-          const { error: customerError } = await supabase
-            .from('customers')
-            .update(customerUpdate as unknown as Record<string, string>)
+          const { error: customerError } = await (supabase
+            .from('customers') as any)
+            .update(customerUpdate as any)
             .eq('id', order.customer_id)
 
           if (customerError) {
@@ -450,17 +449,16 @@ export function WorkOrderGeneralForm({
       }
       
       // Verificar si existe inspección
-      const { data: existingInspection } = await supabase
-        .from('vehicle_inspections')
+      const { data: existingInspection } = await (supabase
+        .from('vehicle_inspections') as any)
         .select('id')
         .eq('order_id', order.id)
         .maybeSingle()
       
       if (existingInspection) {
-        const { error: updateError } = await supabase
-          .from('vehicle_inspections')
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .update(inspectionData as unknown as any)
+        const { error: updateError } = await (supabase
+          .from('vehicle_inspections') as any)
+          .update(inspectionData as any)
           .eq('id', (existingInspection as { id: string }).id)
         
         if (updateError) {
@@ -468,8 +466,8 @@ export function WorkOrderGeneralForm({
           errors.push(`Inspección: ${getNetworkErrorMessage(updateError.message)}`)
         }
       } else {
-        const { error: insertError } = await supabase
-          .from('vehicle_inspections')
+        const { error: insertError } = await (supabase
+          .from('vehicle_inspections') as any)
           .insert(inspectionData as any)
         
         if (insertError) {
