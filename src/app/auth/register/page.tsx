@@ -132,180 +132,49 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      // PASO 1: Crear la organización
-      const { data: organization, error: orgError } = await (supabase as any)
-        .from('organizations')
-        .insert({
-          name: workshopName,
-          email: workshopEmail,
-          phone: workshopPhone,
-          address: workshopAddress,
-        } as any)
-        .select()
-        .single() as { data: any; error: any }
-
-      if (orgError) throw orgError
-      if (!organization) throw new Error('No se pudo crear la organización')
-      const organizationId = organization.id
-
-      // PASO 2: Registrar usuario con la organización
-      console.log('🔄 [Register] Llamando a signUpWithProfile...')
-      const result = await signUpWithProfile({
-        email,
-        password: password,
-        fullName,
-        organizationId,
-        role: 'ADMIN'
+      // ✅ NUEVO: Llamar al endpoint centralizado que maneja todo en el servidor
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          fullName,
+          workshopName,
+          phone
+        })
       })
 
-      console.log('🔍 [Register] Resultado de signUpWithProfile:', {
-        hasUser: !!result.user,
-        hasSession: !!result.session,
-        hasError: !!result.error,
-        userId: result.user?.id,
-        errorMessage: result.error?.message,
-        errorStatus: result.error?.status
-      })
+      const data = await response.json()
 
-      // ✅ CRÍTICO: Si el usuario se creó exitosamente (user existe), es ÉXITO
-      // Incluso si hay un error menor, si el usuario existe en auth, el registro fue exitoso
-      if (result.user) {
-        console.log('✅ [Register] Usuario creado exitosamente, mostrando popup de felicidades')
-        
-        // Mostrar mensaje de bienvenida
-        setRegisteredEmail(email)
-        setRegisteredPassword(password) // ✅ PERSISTIR CONTRASEÑA PARA REDIRECCIÓN SEGURA
-        setShowConfirmation(true)
-        setStep(3) // Mostrar paso de bienvenida
-        setLoading(false)
-        return
-      }
-
-      // ✅ Solo si NO hay usuario Y hay error, manejar el error
-      if (result.error) {
-        // ✅ DEBUG: Log del error completo para diagnosticar
-        console.error('❌ [Register] Error completo de signUp (sin usuario creado):', {
-          message: result.error.message,
-          status: result.error.status,
-          name: result.error.name,
-          error: result.error
-        })
-        
-        // ✅ Manejo específico del error "User already registered"
-        // Verificar tanto el mensaje como el código de error de Supabase
-        const errorMessage = result.error.message?.toLowerCase() || ''
-        const errorStatus = result.error.status || 0
-        
-        // Solo considerar "usuario ya existe" si el mensaje es muy específico
-        const isUserExistsError = 
-          errorMessage.includes('user already registered') ||
-          errorMessage.includes('email address is already registered') ||
-          errorMessage === 'user already registered' ||
-          (errorStatus === 422 && errorMessage.includes('already registered'))
-        
-        console.log('🔍 [Register] ¿Es error de usuario existente?', {
-          isUserExistsError,
-          errorMessage,
-          errorStatus
-        })
-        
-        if (isUserExistsError) {
-          // ✅ CASO ESPECIAL: Usuario existe (probablemente de Google OAuth)
-          // Llamar a API para vincular cuenta existente con organización
-          console.log('🔄 [Register] Usuario ya existe, llamando a API para vincular cuenta...')
-          
-          try {
-            const linkResponse = await fetch('/api/auth/link-account', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email,
-                password,
-                organizationId: organization!.id,
-                fullName
-              })
-            })
-            
-            const linkResult = await linkResponse.json()
-            
-            if (linkResponse.ok && linkResult.success) {
-              // ✅ Éxito: Usuario vinculado con organización
-              console.log('✅ [Register] Usuario vinculado exitosamente vía API')
-              
-              // ✅ CRÍTICO: Iniciar sesión en el cliente para establecer cookies
-              console.log('🔄 [Register] Iniciando sesión en el cliente...')
-              const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-                email,
-                password
-              })
-              
-              if (signInError) {
-                console.warn('⚠️ [Register] Error al iniciar sesión después de vincular:', signInError)
-                // Aún así mostrar el popup, el usuario puede iniciar sesión manualmente
-              } else {
-                console.log('✅ [Register] Sesión iniciada exitosamente en el cliente')
-                // Esperar un momento para que la sesión se establezca
-                await new Promise(resolve => setTimeout(resolve, 500))
-              }
-              
-              // Guardar email y contraseña para uso posterior
-              setRegisteredEmail(email)
-              setRegisteredPassword(password)
-              setShowConfirmation(true)
-              setStep(3)
-              setLoading(false)
-              return
-            } else {
-              // No se pudo vincular, mostrar mensaje
-              console.warn('⚠️ [Register] No se pudo vincular cuenta:', linkResult.error)
-              setError(linkResult.error || `El email ${email} ya está registrado. Por favor, inicia sesión en su lugar.`)
-              setUserExistsError(true)
-              // Eliminar organización creada
-              try {
-                if (organization?.id) {
-                  await (supabase as any).from('organizations').delete().eq('id', organization.id)
-                }
-              } catch (deleteError) {
-                console.warn('Error al eliminar organización:', deleteError)
-              }
-              setLoading(false)
-              return
-            }
-          } catch (linkError: any) {
-            console.error('❌ [Register] Error al vincular cuenta:', linkError)
-            // Si falla el vínculo, eliminar organización y mostrar error
-            try {
-              if (organization?.id) {
-                await (supabase as any).from('organizations').delete().eq('id', organization.id)
-              }
-            } catch (deleteError) {
-              console.warn('Error al eliminar organización:', deleteError)
-            }
-            setError(`El email ${email} ya está registrado. Por favor, inicia sesión en su lugar.`)
-            setUserExistsError(true)
-            setLoading(false)
-            return
-          }
-        } else {
-          // ✅ Si NO es error de usuario existente, eliminar organización
-          try {
-            if (organization?.id) {
-              await (supabase as any).from('organizations').delete().eq('id', organization.id)
-            }
-          } catch (deleteError) {
-            console.warn('Error al eliminar organización:', deleteError)
-          }
-          setUserExistsError(false)
-          throw result.error
+      if (!response.ok) {
+        // Manejar error específico de email existente
+        if (response.status === 409 || data.code === 'EMAIL_EXISTS') {
+          setError(data.error || 'Este email ya está registrado.')
+          setUserExistsError(true)
+          setLoading(false)
+          return
         }
-        setLoading(false)
-        return
+        throw new Error(data.error || 'Error al crear la cuenta')
       }
 
-      // ✅ Si no hay usuario ni error (caso raro), mostrar error genérico
-      console.error('❌ [Register] Caso inesperado: no hay usuario ni error')
-      console.error('❌ [Register] Resultado completo:', result)
-      setError('Error inesperado al crear la cuenta. Por favor, intenta de nuevo.')
+      // ✅ Registro exitoso
+      console.log('✅ [Register] Usuario y organización creados exitosamente vía API')
+      
+      // Iniciar sesión en el cliente para establecer las cookies
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+
+      if (signInError) {
+        console.warn('⚠️ [Register] Error al iniciar sesión post-registro:', signInError)
+      }
+
+      setRegisteredEmail(email)
+      setRegisteredPassword(password)
+      setShowConfirmation(true)
+      setStep(3)
       setLoading(false)
       
     } catch (err: any) {

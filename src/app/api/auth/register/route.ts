@@ -123,11 +123,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 2. Crear organización con trial gratuito de 7 días
-    const now = new Date()
-    const trialEndsAt = new Date(now)
-    trialEndsAt.setDate(trialEndsAt.getDate() + 7)
-
+    // 2. Crear organización (Plan Free por defecto, sin trial)
     const { data: orgData, error: orgError } = await supabaseAdmin
       .from('organizations')
       .insert({
@@ -136,10 +132,10 @@ export async function POST(request: NextRequest) {
         phone: body.phone || '',
         email: body.email,
         plan_tier: 'free',
-        subscription_status: 'trial',
-        trial_ends_at: trialEndsAt.toISOString(),
-        created_at: now.toISOString(),
-        updated_at: now.toISOString()
+        subscription_status: 'active',
+        trial_ends_at: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .select()
       .single()
@@ -160,15 +156,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 3. Crear system_user
+    // 3. Crear system_user (Para compatibilidad legacy)
     const { data: profileData, error: profileError } = await supabaseAdmin
       .from('system_users')
       .insert({
         organization_id: orgData.id,
+        auth_user_id: authData.user.id, // VINCULAR CON AUTH
         email: body.email,
         first_name: body.fullName.split(' ')[0] || body.fullName,
         last_name: body.fullName.split(' ').slice(1).join(' ') || '',
-        role: 'ADMIN', // El primer usuario es admin/owner
+        role: 'ADMIN',
         is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -177,23 +174,61 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (profileError) {
-      console.error('Error creating user profile:', profileError)
-      
-      // Si falla el perfil, limpiar: eliminar usuario y organización
+      console.error('Error creating user profile (system_users):', profileError)
+      // Cleanup...
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      await supabaseAdmin.from('organizations').delete().eq('id', orgData.id)
+      return NextResponse.json({ error: 'Error al crear perfil' }, { status: 500 })
+    }
+
+    // 4. Crear registro en tabla 'users' (Principal para SessionContext)
+    const { error: usersError } = await supabaseAdmin
+      .from('users')
+      .insert({
+        id: profileData.id,
+        auth_user_id: authData.user.id,
+        organization_id: orgData.id,
+        email: body.email,
+        full_name: body.fullName,
+        role: 'ADMIN',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+
+    if (usersError) {
+      console.warn('⚠️ Error creating user in "users" table:', usersError)
+      // No bloqueante si system_users ya existe, pero idealmente atómico
+    }
+
+    // 5. Crear Workshop por defecto
+    const { data: workshopData, error: workshopError } = await supabaseAdmin
+      .from('workshops')
+      .insert({
+        organization_id: orgData.id,
+        name: 'Taller Principal',
+        email: body.email,
+        phone: body.phone || '',
+        address: `Dirección de ${body.workshopName}`
+      })
+      .select()
+      .single()
+
+    if (workshopError) {
+      console.warn('⚠️ Error creating default workshop:', workshopError)
+    }
+
+    // Actualizar perfil con el workshop_id recién creado
+    if (workshopData) {
       await supabaseAdmin
-        .from('organizations')
-        .delete()
-        .eq('id', orgData.id)
+        .from('users')
+        .update({ workshop_id: workshopData.id })
+        .eq('id', profileData.id)
       
-      return NextResponse.json(
-        { 
-          error: 'Error al crear el perfil de usuario. Intenta nuevamente.',
-          details: profileError.message,
-          code: profileError.code
-        },
-        { status: 500 }
-      )
+      await supabaseAdmin
+        .from('system_users')
+        .update({ workshop_id: workshopData.id })
+        .eq('id', profileData.id)
     }
 
 

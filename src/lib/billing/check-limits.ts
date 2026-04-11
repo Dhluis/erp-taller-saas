@@ -22,21 +22,29 @@ interface CheckLimitResult {
 /**
  * Obtiene el organization_id del usuario autenticado
  */
+/**
+ * Obtiene el organization_id del usuario autenticado de forma robusta
+ */
 async function getOrganizationIdFromUser(userId: string): Promise<string | null> {
   const supabase = getSupabaseServiceClient()
   
-  const { data: userProfile, error } = await supabase
+  // Intento 1: Tabla 'users' (Principal)
+  const { data: userProfile, error: userError } = await supabase
     .from('users')
     .select('organization_id')
     .eq('auth_user_id', userId)
-    .single()
+    .maybeSingle()
   
-  if (error || !userProfile) {
-    console.error('[getOrganizationIdFromUser] Error:', error)
-    return null
-  }
-  
-  return (userProfile as any).organization_id
+  if (userProfile?.organization_id) return userProfile.organization_id
+
+  // Intento 2: Tabla 'system_users' (Fallback)
+  const { data: systemProfile } = await supabase
+    .from('system_users')
+    .select('organization_id')
+    .eq('auth_user_id', userId)
+    .maybeSingle()
+    
+  return systemProfile?.organization_id || null
 }
 
 /**
@@ -48,38 +56,23 @@ async function getPlanTier(organizationId: string): Promise<PlanTier> {
   
   const { data: org, error } = await supabase
     .from('organizations')
-    .select('plan_tier, subscription_status, trial_ends_at')
+    .select('plan_tier, subscription_status')
     .eq('id', organizationId)
     .single()
   
   if (error || !org) {
     console.error('[getPlanTier] Error:', error)
-    return 'free' // Default a free si hay error
+    return 'free'
   }
 
-  const o = org as { plan_tier?: string; subscription_status?: string; trial_ends_at?: string | null }
+  const o = org as { plan_tier?: string; subscription_status?: string }
   const planTier = (o.plan_tier || 'free') as PlanTier
 
-  // Si ya es premium por pago, retornar premium
-  if (planTier === 'premium') return 'premium'
+  // Si es premium por pago, retornar premium
+  if (planTier === 'premium' && o.subscription_status === 'active') return 'premium'
 
-  // Durante trial activo: dar acceso Premium
-  if (o.subscription_status === 'trial' && o.trial_ends_at) {
-    const trialEnd = new Date(o.trial_ends_at)
-    if (trialEnd > new Date()) {
-      return 'premium' // Trial activo → acceso Premium
-    }
-    // Trial expirado: lazy update a expired (opcional, no bloqueante)
-    const payload: TablesUpdate<'organizations'> = { subscription_status: 'expired' }
-    void supabase
-      .from('organizations')
-      // Cliente SSR no aplica el genérico de organizations a .update(); aserción necesaria.
-      .update(payload as never)
-      .eq('id', organizationId)
-      .then(({ error: updateErr }) => {
-        if (updateErr) console.warn('[getPlanTier] Lazy update expired:', updateErr)
-      })
-  }
+  // NOTA: Se ha eliminado la lógica de trial de 7 días por ser obsoleta.
+  // Las cuentas son 'free' por defecto hasta que se active una suscripción premium.
 
   return planTier
 }
