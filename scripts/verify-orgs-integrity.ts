@@ -20,19 +20,19 @@ async function verifyOrgs() {
      return;
   }
 
-  for (const user of users) {
+  for (const user of (users as any[])) {
     console.log(`\nUsuario: ${user.email}`);
     console.log(`Org ID: ${user.organization_id}`);
     
     if (user.organization_id) {
-        const { data: org, error } = await supabase
+        const { data: org } = await supabase
             .from('organizations')
             .select('id, name')
             .eq('id', user.organization_id)
             .maybeSingle();
             
         if (org) {
-            console.log(`✅ Organización encontrada: ${org.name} (${org.id})`);
+            console.log(`✅ Organización encontrada: ${(org as any).name} (${(org as any).id})`);
         } else {
             console.log(`❌ Organización NO encontrada en tabla 'organizations'!`);
         }

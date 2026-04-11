@@ -29,20 +29,24 @@ async function getOrganizationIdFromUser(userId: string): Promise<string | null>
   const supabase = getSupabaseServiceClient()
   
   // Intento 1: Tabla 'users' (Principal por auth_user_id)
-  const { data: userProfile, error: userError } = await supabase
+  const { data: userProfile } = await supabase
     .from('users')
     .select('organization_id, email')
     .eq('auth_user_id', userId)
     .maybeSingle()
   
-  if (userProfile?.organization_id) return userProfile.organization_id
+  if (userProfile && (userProfile as any).organization_id) {
+    return (userProfile as any).organization_id
+  }
 
   // Intento 1.2: Fallback por EMAIL si el ID no coincide (para usuarios antiguos)
-  // Obtenemos el email directamente de auth para máxima seguridad si no lo tenemos
-  let userEmail = userProfile?.email;
-  if (!userEmail) {
-    const { data: { user } } = await supabase.auth.getUser();
-    userEmail = user?.email;
+  let userEmail: string | undefined
+  
+  if (userProfile && (userProfile as any).email) {
+    userEmail = (userProfile as any).email
+  } else {
+    const { data: authData } = await supabase.auth.getUser();
+    userEmail = authData.user?.email || undefined;
   }
 
   if (userEmail) {
@@ -52,9 +56,9 @@ async function getOrganizationIdFromUser(userId: string): Promise<string | null>
       .eq('email', userEmail)
       .maybeSingle();
       
-    if (emailProfile?.organization_id) {
+    if (emailProfile && (emailProfile as any).organization_id) {
        console.log(`[check-limits] Usuario encontrado por email: ${userEmail}`);
-       return emailProfile.organization_id;
+       return (emailProfile as any).organization_id;
     }
   }
 
@@ -65,7 +69,11 @@ async function getOrganizationIdFromUser(userId: string): Promise<string | null>
     .eq('auth_user_id', userId)
     .maybeSingle()
     
-  return systemProfile?.organization_id || null
+  if (systemProfile && (systemProfile as any).organization_id) {
+    return (systemProfile as any).organization_id
+  }
+
+  return null
 }
 
 /**
