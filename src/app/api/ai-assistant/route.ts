@@ -262,12 +262,16 @@ JSON:
   "expense": { "amount": number, "description": string, "category": string, "payment_method": string }
 }`;
       } else {
-        systemPrompt = `Eres el orquestador inteligente de Eagles System ERP. Analiza el texto y extrae TODA la información en el siguiente formato JSON estricto, seleccionando el action_type adecuado.
+        systemPrompt = `Eres el orquestador inteligente de Eagles System ERP para talleres mecánicos. Analiza el texto y extrae TODA la información en formato JSON, seleccionando el action_type adecuado.
 Acciones posibles: inventory, appointment, work-order, expense, quotation, lead.
+
+GLOSARIO REDIRECCIÓN:
+- "Vete a OT", "Muéstrame las OT", "Órdenes": action_type = "work-order".
+- "Agendar cita", "Ver agenda", "Citas": action_type = "appointment".
 
 Estructuras JSON requeridas según la acción:
 
-- Si es "work-order" (orden de trabajo, reparación, auto en taller):
+- Si es "work-order" (orden de trabajo, OT, OTs, reparación, auto en taller):
 {
   "action_type": "work-order",
   "customer": { "name": string, "phone": string, "email": string },
@@ -277,7 +281,7 @@ Estructuras JSON requeridas según la acción:
   "inspection_details": { "valuable_items": string, "entry_reason": string, "procedures": string }
 }
 
-- Si es "appointment" (cita futura):
+- Si es "appointment" (cita futura, agenda, reserva):
 {
   "action_type": "appointment",
   "appointment": { 
@@ -314,10 +318,10 @@ Estructuras JSON requeridas según la acción:
 }
 
 CRÍTICO: 
-- Extrae la mayor cantidad de información posible del texto del usuario y ponla en los campos correspondientes.
-- fuel_level DEBE ser exacto: "empty", "quarter", "half", "three_quarters" o "full". Si dice "vacio"->empty, "un cuarto"->quarter, "mitad"->half, "tres cuartos"->three_quarters, "lleno"->full.
-- fluids: marca como true si el usuario dice que están bien o que los revise.
-- extraer email y teléfono si se mencionan.`;
+- OT/OTs SIEMPRE es work-order.
+- Extrae la mayor cantidad de información posible del texto del usuario.
+- fuel_level: "vacio"->empty, "un cuarto"->quarter, "mitad"->half, "tres cuartos"->three_quarters, "lleno"->full.
+- fluids: marca como true si el usuario dice que están bien o que los revise.`;
       }
 
       const response = await openai.chat.completions.create({
