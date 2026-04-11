@@ -288,14 +288,14 @@ export default function BillingPage() {
                   <div>
                     <div className="flex items-baseline gap-2">
                       <span className="text-4xl font-extrabold text-foreground tracking-tight">
-                        {isUSD ? '$1,400' : formatLocalCurrency(annualLocal, selectedCurrency)}
+                        {isUSD ? PRICING.annual.displayPrice.split(' ')[0] : formatLocalCurrency(annualLocal, selectedCurrency)}
                       </span>
-                      <span className="text-foreground/70 font-medium">/año</span>
+                      <span className="text-foreground/70 font-medium">{PRICING.annual.displayInterval}</span>
                     </div>
                     <div className="flex items-center gap-2 mt-2 text-sm text-emerald-600 dark:text-emerald-400 font-semibold">
                       <TrendingDown className="h-4 w-4" />
                       <span>
-                        ¡Ahorra 31% y obtén meses gratis!
+                        ¡Ahorra {PRICING.annual.savings.percentage}% y obtén meses gratis!
                       </span>
                     </div>
                   </div>
@@ -305,10 +305,10 @@ export default function BillingPage() {
                       Monto base
                     </p>
                     <p className="text-sm font-bold text-foreground/80">
-                      $1,400 USD
+                      {PRICING.annual.displayPrice}
                     </p>
                     <p className="text-[10px] text-foreground/50 italic mt-1">
-                      (Solo $116.67 USD/mes)
+                      (Solo ${PRICING.annual.monthlyEquivalent} USD/mes)
                     </p>
                   </div>
                 </div>
@@ -345,13 +345,13 @@ export default function BillingPage() {
                 <div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-bold text-foreground">
-                       {isUSD ? '$170' : formatLocalCurrency(monthlyLocal, selectedCurrency)}
+                       {isUSD ? PRICING.monthly.displayPrice.split(' ')[0] : formatLocalCurrency(monthlyLocal, selectedCurrency)}
                     </span>
-                    <span className="text-foreground/70">/mes</span>
+                    <span className="text-foreground/70">{PRICING.monthly.displayInterval}</span>
                   </div>
                   {!isUSD && (
                     <p className="text-sm text-muted-foreground mt-0.5">
-                      Cobro base: $170 USD
+                      Cobro base: {PRICING.monthly.displayPrice}
                     </p>
                   )}
                 </div>
@@ -374,7 +374,7 @@ export default function BillingPage() {
                     ) : (
                       <>
                         <Crown className="mr-2 h-4 w-4" />
-                        Suscribirse - $170 USD
+                        Suscribirse - {PRICING.monthly.displayPrice}
                       </>
                     )}
                   </Button>

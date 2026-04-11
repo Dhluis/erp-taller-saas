@@ -6,10 +6,10 @@
 
 export const PRICING = {
   monthly: {
-    amount: 147,
+    amount: 170,
     currency: 'USD',
     interval: 'month',
-    displayPrice: '$147 USD',
+    displayPrice: '$170 USD',
     displayInterval: '/mes',
     stripePriceId: 'price_1TL4xcIeJVX0kfvlQfLCOetp'
   },
@@ -22,9 +22,9 @@ export const PRICING = {
     stripePriceId: 'price_1Syze3IeJVX0kfvlIYg09Q5Z',
     monthlyEquivalent: 116.67, // $1,400 / 12 = $116.67/mes
     savings: {
-      amount: 364, // $147 * 12 - $1,400 = $364
-      percentage: 21, // ($364 / $1,764) * 100 ≈ 21%
-      monthsFree: '¡Equivalente a más de 2 meses gratis!'
+      amount: 640, // $170 * 12 - $1,400 = $640
+      percentage: 31, // ($640 / $2,040) * 100 ≈ 31%
+      monthsFree: '¡Equivalente a más de 3 meses gratis!'
     }
   }
 } as const
@@ -34,7 +34,6 @@ export const PRICING_BY_COUNTRY = {
     currency: 'MXN', 
     symbol: '$',
     monthly: { stripePriceId: 'price_1TL4gHIeJVX0kfvlKMEvD1Ry' }
-    // Nota: El plan anual de MX sigue usando el fallback a USD hasta que tengas el ID de MXN
   },
   AR: { currency: 'ARS', symbol: '$' },
   BR: { currency: 'BRL', symbol: 'R$' },

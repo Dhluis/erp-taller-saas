@@ -57,6 +57,13 @@ export async function POST(request: NextRequest) {
     const countryPlan = (pricingConfig as any)[plan as 'monthly' | 'annual']
     const priceId = countryPlan?.stripePriceId || PRICING[plan as 'monthly' | 'annual'].stripePriceId
 
+    console.log('[Stripe Checkout] Generando sesión:', {
+      plan,
+      country,
+      selectedPriceId: priceId,
+      isLocalPrice: !!countryPlan?.stripePriceId
+    })
+
     // 4. Crear o recuperar Stripe Customer
     if (!org) {
       return NextResponse.json({ error: 'Datos de organización no encontrados' }, { status: 404 })
