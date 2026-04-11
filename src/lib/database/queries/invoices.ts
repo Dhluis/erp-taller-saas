@@ -705,7 +705,7 @@ export async function getIncomeStats(organizationId: string) {
 
     const { data, error } = await supabase
       .from('invoices')
-      .select('status, total, due_date, paid_date, created_at')
+      .select('status, total_amount, due_date, paid_at, created_at')
       .eq('organization_id', organizationId)
 
     if (error) throw error
@@ -714,7 +714,7 @@ export async function getIncomeStats(organizationId: string) {
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
     const todayStr = today.toISOString().split('T')[0]
 
-    const amt = (i: { total?: number | null }) => Number(i.total || 0)
+    const amt = (i: { total_amount?: number | null }) => Number(i.total_amount || 0)
 
     const paid = (data || []).filter((i) => i.status === 'paid')
     const pending = (data || []).filter((i) => i.status === 'draft' || i.status === 'sent')
@@ -726,7 +726,7 @@ export async function getIncomeStats(organizationId: string) {
     const total_pendiente = pending.reduce((sum, i) => sum + amt(i), 0)
     const total_vencido = overdue.reduce((sum, i) => sum + amt(i), 0)
     const ingresos_este_mes = paid
-      .filter((i) => (i.paid_date || i.created_at || '').toString().slice(0, 10) >= firstDayOfMonth)
+      .filter((i) => (i.paid_at || i.created_at || '').toString().slice(0, 10) >= firstDayOfMonth)
       .reduce((sum, i) => sum + amt(i), 0)
     const facturas_pagadas = paid.length
     const facturas_pendientes = pending.length
