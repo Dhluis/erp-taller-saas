@@ -7,6 +7,9 @@ import { FEATURE_NAMES } from '@/types/billing'
 import type { LimitError } from '@/types/billing'
 import { useRouter } from 'next/navigation'
 
+import { useCurrencyConverter } from '@/lib/utils/currency-converter'
+import { PRICING } from '@/lib/billing/constants'
+
 interface UpgradeModalProps {
   isOpen: boolean
   onClose: () => void
@@ -16,13 +19,18 @@ interface UpgradeModalProps {
 
 export function UpgradeModal({ isOpen, onClose, limitError, featureName }: UpgradeModalProps) {
   const router = useRouter()
+  const { selectedCurrency, convertUSD, formatLocalCurrency } = useCurrencyConverter()
   
+  // Calcular precios dinámicos
+  const monthlyLocal = convertUSD(PRICING.monthly.amount, selectedCurrency)
+  const annualLocal = convertUSD(PRICING.annual.amount, selectedCurrency)
+  const isUSD = selectedCurrency === 'USD'
+
   // Obtener nombre legible de la feature
   const getFeatureDisplayName = () => {
     if (featureName) return featureName
     
     if (limitError?.feature) {
-      // Mapear feature_key a nombre legible
       const featureMap: Record<string, string> = {
         max_customers: 'Clientes',
         max_orders_per_month: 'Órdenes mensuales',
@@ -60,7 +68,7 @@ export function UpgradeModal({ isOpen, onClose, limitError, featureName }: Upgra
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-2">
+        <div className="space-y-4 py-2">
           {/* Información del límite actual */}
           {limitError && (
             <div className="rounded-lg bg-slate-800 border border-slate-700 px-3 py-2">
@@ -73,70 +81,75 @@ export function UpgradeModal({ isOpen, onClose, limitError, featureName }: Upgra
             </div>
           )}
 
-          {/* Plan Premium */}
-          <div className="rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 p-4 text-white">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-base font-bold flex items-center gap-1.5">
+          {/* Plan Premium Card */}
+          <div className="rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 p-4 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-2">
+               <div className="bg-yellow-500/10 text-yellow-500 text-[10px] font-bold px-2 py-0.5 rounded-full border border-yellow-500/20">
+                 PREMIUM
+               </div>
+            </div>
+
+            <div className="mb-4">
+              <h3 className="text-base font-bold flex items-center gap-1.5 mb-2">
                 <Crown className="h-4 w-4 text-yellow-400" />
-                Plan Premium
+                Acceso Ilimitado
               </h3>
-              <div className="text-right">
-                <div className="text-xl font-bold text-yellow-400">$170 USD</div>
-                <div className="text-xs text-slate-300">/mes</div>
+              
+              <div className="flex flex-col">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold text-white">
+                    {isUSD ? '$170' : formatLocalCurrency(monthlyLocal, selectedCurrency)}
+                  </span>
+                  <span className="text-xs text-slate-400">/mes</span>
+                </div>
+                {!isUSD && (
+                  <div className="text-[10px] text-slate-500">
+                    Cobro base: ${PRICING.monthly.amount} USD/mes
+                  </div>
+                )}
               </div>
             </div>
 
-            <ul className="space-y-1.5 text-sm">
+            <ul className="space-y-2 text-xs sm:text-sm mb-4">
               <li className="flex items-start gap-2">
                 <Check className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-slate-200">Clientes ilimitados</span>
+                <span className="text-slate-200">Clientes y Órdenes Ilimitadas</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-slate-200">Órdenes de trabajo ilimitadas</span>
+                <span className="text-slate-200">Asistente IA y WhatsApp</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-slate-200">Productos en inventario ilimitados</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-slate-200">Usuarios ilimitados</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-slate-200">WhatsApp Business con API oficial de Twilio</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-slate-200">Asistente IA</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-slate-200">Reportes avanzados</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-slate-200">Soporte prioritario</span>
+                <span className="text-slate-200">Reportes e Inventario Avanzado</span>
               </li>
             </ul>
+
+            <div className="pt-2 border-t border-slate-700/50">
+              <div className="flex justify-between items-center text-[10px] sm:text-xs">
+                <span className="text-slate-400 italic">¿Prefieres ahorrar?</span>
+                <span className="text-green-400 font-medium">
+                  Plan Anual: {isUSD ? '$1,400' : formatLocalCurrency(annualLocal, selectedCurrency)}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <DialogFooter className="gap-2 pt-1">
+        <DialogFooter className="gap-2 pt-2">
           <Button 
-            variant="outline" 
+            variant="ghost" 
             onClick={onClose}
-            className="border-slate-700 text-slate-300 hover:bg-slate-800"
+            className="text-slate-400 hover:text-white hover:bg-slate-800"
           >
             Ahora no
           </Button>
           <Button 
-            className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white shadow-sm transition-transform duration-200 hover:scale-105"
+            className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold shadow-lg shadow-orange-500/20 transition-all duration-200 hover:scale-[1.02]"
             onClick={handleUpgrade}
           >
             <Crown className="mr-2 h-4 w-4" />
-            Actualizar ahora
+            Actualizar a Premium
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -21,21 +21,22 @@ export async function POST() {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const { data: profile } = await supabase
-      .from('users')
-      .select('organization_id')
-      .eq('auth_user_id', user.id)
-      .single()
-
-    if (!profile?.organization_id) {
-      return NextResponse.json({ error: 'Organización no encontrada' }, { status: 404 })
+    const { getOrganizationId } = await import('@/lib/auth/organization-server');
+    let organizationId: string;
+    try {
+      organizationId = await getOrganizationId();
+    } catch (e: any) {
+      return NextResponse.json({ error: 'Organización no encontrada' }, { status: 404 });
     }
 
-    const { data: org } = await supabase
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
+    const adminClient = getSupabaseServiceClient() || supabase;
+
+    const { data: org } = await adminClient
       .from('organizations')
       .select('stripe_customer_id, plan_tier, subscription_status')
-      .eq('id', profile.organization_id)
-      .single()
+      .eq('id', organizationId)
+      .maybeSingle();
 
     if (!org?.stripe_customer_id) {
       return NextResponse.json(

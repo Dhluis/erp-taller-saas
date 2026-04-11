@@ -30,118 +30,18 @@ export const PRICING = {
 } as const
 
 export const PRICING_BY_COUNTRY = {
-  MX: {
-    monthly: {
-      amount: 2924,
-      currency: 'MXN',
-      displayPrice: '$2,924 MXN',
-      stripePriceId: 'price_MX_MONTHLY',
-    },
-    annual: {
-      amount: 24091,
-      currency: 'MXN',
-      displayPrice: '$24,091 MXN',
-      stripePriceId: 'price_MX_ANNUAL',
-      savings: { amount: 10997, percentage: 31 },
-    },
-  },
-  AR: {
-    monthly: {
-      amount: 246882,
-      currency: 'ARS',
-      displayPrice: '$246,882 ARS',
-    },
-    annual: {
-      amount: 2033000,
-      currency: 'ARS',
-      displayPrice: '$2,033,000 ARS',
-      savings: { amount: 929384, percentage: 31 },
-    },
-  },
-  BR: {
-    monthly: {
-      amount: 986,
-      currency: 'BRL',
-      displayPrice: 'R$986 BRL',
-    },
-    annual: {
-      amount: 8120,
-      currency: 'BRL',
-      displayPrice: 'R$8,120 BRL',
-      savings: { amount: 3712, percentage: 31 },
-    },
-  },
-  CL: {
-    monthly: {
-      amount: 145025,
-      currency: 'CLP',
-      displayPrice: '$145,025 CLP',
-    },
-    annual: {
-      amount: 1194600,
-      currency: 'CLP',
-      displayPrice: '$1,194,600 CLP',
-      savings: { amount: 545700, percentage: 31 },
-    },
-  },
-  CO: {
-    monthly: {
-      amount: 625422,
-      currency: 'COP',
-      displayPrice: '$625,422 COP',
-    },
-    annual: {
-      amount: 5150000,
-      currency: 'COP',
-      displayPrice: '$5,150,000 COP',
-      savings: { amount: 2355064, percentage: 31 },
-    },
-  },
-  PE: {
-    monthly: {
-      amount: 629,
-      currency: 'PEN',
-      displayPrice: 'S/629 PEN',
-    },
-    annual: {
-      amount: 5180,
-      currency: 'PEN',
-      displayPrice: 'S/5,180 PEN',
-      savings: { amount: 2368, percentage: 31 },
-    },
-  },
-  UY: {
-    monthly: {
-      amount: 7140,
-      currency: 'UYU',
-      displayPrice: '$7,140 UYU',
-    },
-    annual: {
-      amount: 58800,
-      currency: 'UYU',
-      displayPrice: '$58,800 UYU',
-      savings: { amount: 26880, percentage: 31 },
-    },
-  },
-  US: {
-    monthly: {
-      amount: PRICING.monthly.amount,
-      currency: 'USD',
-      displayPrice: PRICING.monthly.displayPrice,
-      stripePriceId: PRICING.monthly.stripePriceId,
-    },
-    annual: {
-      amount: PRICING.annual.amount,
-      currency: 'USD',
-      displayPrice: PRICING.annual.displayPrice,
-      stripePriceId: PRICING.annual.stripePriceId,
-      monthlyEquivalent: PRICING.annual.monthlyEquivalent,
-      savings: {
-        amount: PRICING.annual.savings.amount,
-        percentage: PRICING.annual.savings.percentage,
-        monthsFree: PRICING.annual.savings.monthsFree,
-      },
-    },
+  MX: { currency: 'MXN', symbol: '$' },
+  AR: { currency: 'ARS', symbol: '$' },
+  BR: { currency: 'BRL', symbol: 'R$' },
+  CL: { currency: 'CLP', symbol: '$' },
+  CO: { currency: 'COP', symbol: '$' },
+  PE: { currency: 'PEN', symbol: 'S/' },
+  UY: { currency: 'UYU', symbol: '$' },
+  US: { 
+    currency: 'USD', 
+    symbol: '$',
+    monthly: { stripePriceId: PRICING.monthly.stripePriceId },
+    annual: { stripePriceId: PRICING.annual.stripePriceId }
   },
 } as const
 

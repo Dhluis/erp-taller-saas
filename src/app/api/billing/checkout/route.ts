@@ -14,30 +14,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    // 2. Obtener datos del usuario y organización
-    const { data: profile } = (await supabase
+    // 2. Obtener organización robustamente (Servidor)
+    const { getOrganizationId } = await import('@/lib/auth/organization-server');
+    let organizationId: string;
+    try {
+      organizationId = await getOrganizationId(request);
+    } catch (e: any) {
+      console.error('[Stripe Checkout] Error obteniendo org:', e.message);
+      return NextResponse.json({ error: 'No se pudo identificar tu organización' }, { status: 404 });
+    }
+
+    // 3. Obtener datos del perfil y organización usando Service Role
+    const { getSupabaseServiceClient } = await import('@/lib/supabase/server');
+    const adminClient = getSupabaseServiceClient() || supabase;
+
+    const { data: profile } = await adminClient
       .from('users')
-      .select('organization_id, full_name, email')
+      .select('full_name, email')
       .eq('auth_user_id', user.id)
-      .single()) as { data: any }
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (!profile) {
-      return NextResponse.json({ error: 'Perfil no encontrado' }, { status: 404 })
-    }
-
-    if (!profile.organization_id) {
-      return NextResponse.json({ error: 'Organización no encontrada' }, { status: 404 })
-    }
-
-    const { data: org } = (await supabase
+    const { data: org } = await adminClient
       .from('organizations')
       .select('name, stripe_customer_id')
-      .eq('id', profile.organization_id)
-      .single()) as { data: any }
+      .eq('id', organizationId)
+      .maybeSingle();
 
-    // 3. Obtener el plan seleccionado del body
+    // 4. Obtener el plan seleccionado del body
     const body = await request.json()
-    const { plan, country } = body // 'monthly' o 'annual', y código de país opcional
+    const { plan, country } = body 
 
     if (!plan || !['monthly', 'annual'].includes(plan)) {
       return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
@@ -55,27 +62,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Datos de organización no encontrados' }, { status: 404 })
     }
 
-    let customerId = org.stripe_customer_id
+    let customerId = org?.stripe_customer_id
 
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: profile.email,
-        name: org?.name || profile.full_name,
+        email: profile?.email || user.email,
+        name: org?.name || profile?.full_name || user.email?.split('@')[0],
         metadata: {
-          organization_id: profile.organization_id,
+          organization_id: organizationId,
           user_id: user.id
         }
       })
       customerId = customer.id
 
       // Guardar customer ID en la BD
-      await supabase
+      await adminClient
         .from('organizations')
         .update({ stripe_customer_id: customerId })
-        .eq('id', profile.organization_id)
+        .eq('id', organizationId)
     }
 
-    // 5. Crear Checkout Session
+    // 6. Crear Checkout Session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
@@ -86,16 +93,16 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/billing?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/billing?canceled=true`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?success=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?canceled=true`,
       metadata: {
-        organization_id: profile.organization_id,
+        organization_id: organizationId,
         user_id: user.id,
         plan: plan
       },
       subscription_data: {
         metadata: {
-          organization_id: profile.organization_id,
+          organization_id: organizationId,
         }
       }
     })

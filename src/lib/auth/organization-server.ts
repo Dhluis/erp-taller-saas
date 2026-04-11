@@ -46,16 +46,30 @@ export async function getOrganizationId(request?: NextRequest): Promise<string> 
   let { data: userData, error: userDataError } = await (supabaseAdmin as any)
     .from('users')
     .select('organization_id, workshop_id')
-    .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
+    .eq('auth_user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
-  // Intento 2: Tabla 'system_users' (Fallback / Legacy / Admin-created)
+  // Intento 1.1: Fallback por ID si auth_user_id falló
+  if (!userData && !userDataError) {
+    const { data: idData } = await (supabaseAdmin as any)
+      .from('users')
+      .select('organization_id, workshop_id')
+      .eq('id', user.id)
+      .maybeSingle();
+    userData = idData;
+  }
+
+  // Intento 2: Tabla 'system_users' (Fallback / Legacy)
   if (userDataError || !userData) {
     console.log(`🔍 [getOrganizationId] Buscando en 'system_users' para ${user.id}...`);
     const { data: systemData } = await (supabaseAdmin as any)
       .from('system_users')
       .select('organization_id')
-      .or(`auth_user_id.eq.${user.id},email.eq.${user.email || 'unset'}`)
+      .or(`email.eq.${user.email || 'unset'},first_name.ilike.%${user.email?.split('@')[0] || 'nevermatch'}%`)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
     
     if (systemData) {

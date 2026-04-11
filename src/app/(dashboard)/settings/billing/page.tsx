@@ -41,6 +41,8 @@ const BILLING_FAQS = [
   },
 ] as const
 
+import { useCurrencyConverter } from '@/lib/utils/currency-converter'
+
 export default function BillingPage() {
   const searchParams = useSearchParams()
   const { plan, usage, isLoading } = useBilling()
@@ -51,7 +53,12 @@ export default function BillingPage() {
   const [userCountry, setUserCountry] = useState<CountryCode>('US')
   const [isLoadingCheckout, setIsLoadingCheckout] = useState(false)
   const { toast } = useToast()
-  const { formatMoney } = useOrgCurrency()
+  
+  // Conversión dinámica
+  const { selectedCurrency, convertUSD, formatLocalCurrency } = useCurrencyConverter()
+  const monthlyLocal = convertUSD(PRICING.monthly.amount, selectedCurrency)
+  const annualLocal = convertUSD(PRICING.annual.amount, selectedCurrency)
+  const isUSD = selectedCurrency === 'USD'
 
   useEffect(() => {
     setUserCountry(detectUserCountry())
@@ -81,7 +88,6 @@ export default function BillingPage() {
 
   const isPremium = plan?.plan_tier === 'premium'
   const isActive = plan?.subscription_status === 'active'
-  const pricing = getPricingByCountry(userCountry)
 
   const handleCheckout = async (planType: 'monthly' | 'annual') => {
     setIsLoadingCheckout(true)
@@ -281,29 +287,29 @@ export default function BillingPage() {
                 <div className="mt-2 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                   <div>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-4xl font-extrabold text-foreground tracking-tight">{pricing.annual.displayPrice}</span>
+                      <span className="text-4xl font-extrabold text-foreground tracking-tight">
+                        {isUSD ? '$1,400' : formatLocalCurrency(annualLocal, selectedCurrency)}
+                      </span>
                       <span className="text-foreground/70 font-medium">/año</span>
                     </div>
                     <div className="flex items-center gap-2 mt-2 text-sm text-emerald-600 dark:text-emerald-400 font-semibold">
                       <TrendingDown className="h-4 w-4" />
                       <span>
-                        {'monthsFree' in pricing.annual.savings ? pricing.annual.savings.monthsFree : `Ahorra ${pricing.annual.savings.percentage}%`}
+                        ¡Ahorra 31% y obtén meses gratis!
                       </span>
                     </div>
                   </div>
                   
                   <div className="text-right sm:text-right">
                     <p className="text-xs text-muted-foreground">
-                      Aproximadamente
+                      Monto base
                     </p>
                     <p className="text-sm font-bold text-foreground/80">
-                      {formatMoney(pricing.annual.amount, pricing.annual.currency)}
+                      $1,400 USD
                     </p>
-                    {'monthlyEquivalent' in pricing.annual && pricing.annual.monthlyEquivalent != null && (
-                      <p className="text-[10px] text-foreground/50 italic mt-1">
-                        (Solo ${Number(pricing.annual.monthlyEquivalent).toFixed(2)} USD/mes)
-                      </p>
-                    )}
+                    <p className="text-[10px] text-foreground/50 italic mt-1">
+                      (Solo $116.67 USD/mes)
+                    </p>
                   </div>
                 </div>
 
@@ -338,12 +344,16 @@ export default function BillingPage() {
               <div className="border border-border rounded-lg p-4">
                 <div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-foreground">{pricing.monthly.displayPrice}</span>
+                    <span className="text-2xl font-bold text-foreground">
+                       {isUSD ? '$170' : formatLocalCurrency(monthlyLocal, selectedCurrency)}
+                    </span>
                     <span className="text-foreground/70">/mes</span>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    ≈ {formatMoney(pricing.monthly.amount, pricing.monthly.currency)}
-                  </p>
+                  {!isUSD && (
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Cobro base: $170 USD
+                    </p>
+                  )}
                 </div>
                 <p className="text-xs text-foreground/60 mt-1">
                   Facturación mensual
@@ -364,7 +374,7 @@ export default function BillingPage() {
                     ) : (
                       <>
                         <Crown className="mr-2 h-4 w-4" />
-                        Suscribirse - {pricing.monthly.displayPrice}
+                        Suscribirse - $170 USD
                       </>
                     )}
                   </Button>
