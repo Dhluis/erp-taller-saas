@@ -89,30 +89,83 @@ export async function POST(request: NextRequest) {
         .eq('id', organizationId)
     }
 
-    // 6. Crear Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?canceled=true`,
-      metadata: {
-        organization_id: organizationId,
-        user_id: user.id,
-        plan: plan
-      },
-      subscription_data: {
+    // 6. Crear Checkout Session con Reintento (Fallback)
+    let session;
+    try {
+      console.log(`[Stripe Checkout] Intentando crear sesión con ID: ${priceId}`);
+      session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        mode: 'subscription',
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?success=true`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?canceled=true`,
         metadata: {
           organization_id: organizationId,
+          user_id: user.id,
+          plan: plan,
+          pricing_country: country || 'US',
+          attempt: 'primary'
+        },
+        subscription_data: {
+          metadata: {
+            organization_id: organizationId,
+          }
         }
+      })
+    } catch (primaryError: any) {
+      console.error(`[Stripe Checkout] Error en intento primario (${priceId}):`, primaryError.message);
+      
+      const fallbackPriceId = PRICING[plan as 'monthly' | 'annual'].stripePriceId;
+      
+      // Si el error fue con un ID local y el ID local es distinto al global, intentamos con el Global (USD)
+      if (priceId !== fallbackPriceId) {
+        console.log(`[Stripe Checkout] Reintentando con ID de respaldo (USD): ${fallbackPriceId}...`);
+        try {
+          session = await stripe.checkout.sessions.create({
+            customer: customerId,
+            mode: 'subscription',
+            payment_method_types: ['card'],
+            line_items: [
+              {
+                price: fallbackPriceId,
+                quantity: 1,
+              },
+            ],
+            success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?success=true`,
+            cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?canceled=true`,
+            metadata: {
+              organization_id: organizationId,
+              user_id: user.id,
+              plan: plan,
+              pricing_country: 'US',
+              attempt: 'fallback_usd'
+            },
+            subscription_data: {
+              metadata: {
+                organization_id: organizationId,
+              }
+            }
+          });
+          console.log('[Stripe Checkout] Sesión de respaldo creada con éxito.');
+        } catch (fallbackError: any) {
+          console.error('[Stripe Checkout] Fallo total (Incluso el respaldo):', fallbackError.message);
+          throw fallbackError;
+        }
+      } else {
+        // Si ya estábamos usando el ID global, no hay más respaldos
+        throw primaryError;
       }
-    })
+    }
+
+    if (!session?.url) {
+      throw new Error('No se pudo generar la URL de pago');
+    }
 
     return NextResponse.json({ url: session.url })
 
