@@ -28,16 +28,37 @@ interface CheckLimitResult {
 async function getOrganizationIdFromUser(userId: string): Promise<string | null> {
   const supabase = getSupabaseServiceClient()
   
-  // Intento 1: Tabla 'users' (Principal)
+  // Intento 1: Tabla 'users' (Principal por auth_user_id)
   const { data: userProfile, error: userError } = await supabase
     .from('users')
-    .select('organization_id')
+    .select('organization_id, email')
     .eq('auth_user_id', userId)
     .maybeSingle()
   
   if (userProfile?.organization_id) return userProfile.organization_id
 
-  // Intento 2: Tabla 'system_users' (Fallback)
+  // Intento 1.2: Fallback por EMAIL si el ID no coincide (para usuarios antiguos)
+  // Obtenemos el email directamente de auth para máxima seguridad si no lo tenemos
+  let userEmail = userProfile?.email;
+  if (!userEmail) {
+    const { data: { user } } = await supabase.auth.getUser();
+    userEmail = user?.email;
+  }
+
+  if (userEmail) {
+    const { data: emailProfile } = await supabase
+      .from('users')
+      .select('organization_id')
+      .eq('email', userEmail)
+      .maybeSingle();
+      
+    if (emailProfile?.organization_id) {
+       console.log(`[check-limits] Usuario encontrado por email: ${userEmail}`);
+       return emailProfile.organization_id;
+    }
+  }
+
+  // Intento 2: Tabla 'system_users' (Legacy)
   const { data: systemProfile } = await supabase
     .from('system_users')
     .select('organization_id')

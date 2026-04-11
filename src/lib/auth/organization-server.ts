@@ -61,6 +61,23 @@ export async function getOrganizationId(request?: NextRequest): Promise<string> 
     userData = idData;
   }
 
+  // Intento 1.2: Fallback por EMAIL en tabla 'users' (Nuevo, para usuarios antiguos)
+  if (!userData && user.email) {
+    console.log(`🔍 [getOrganizationId] Buscando por EMAIL '${user.email}' en tabla 'users'...`);
+    const { data: emailData } = await (supabaseAdmin as any)
+      .from('users')
+      .select('organization_id, workshop_id')
+      .eq('email', user.email)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (emailData) {
+      console.log(`✅ [getOrganizationId] Usuario encontrado por email en 'users'`);
+      userData = emailData;
+    }
+  }
+
   // Intento 2: Tabla 'system_users' (Fallback / Legacy)
   if (userDataError || !userData) {
     console.log(`🔍 [getOrganizationId] Buscando en 'system_users' para ${user.id}...`);
