@@ -69,12 +69,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Datos de organización no encontrados' }, { status: 404 })
     }
 
-    let customerId = org?.stripe_customer_id
+    let customerId = (org as any)?.stripe_customer_id
 
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: profile?.email || user.email,
-        name: org?.name || profile?.full_name || user.email?.split('@')[0],
+        email: (profile as any)?.email || user.email,
+        name: (org as any)?.name || (profile as any)?.full_name || user.email?.split('@')[0],
         metadata: {
           organization_id: organizationId,
           user_id: user.id
@@ -83,29 +83,23 @@ export async function POST(request: NextRequest) {
       customerId = customer.id
 
       // Guardar customer ID en la BD
-      await adminClient
-        .from('organizations')
+      await (adminClient.from('organizations') as any)
         .update({ stripe_customer_id: customerId })
         .eq('id', organizationId)
     }
 
-    // 6. Crear Checkout Session con Reintento (Fallback)
+    // 6. Crear Checkout Session con Estrategia de Desbloqueo de Moneda
     let session;
     let fallbackTriggered = false;
     let primaryErrorMessage = null;
 
     try {
-      console.log(`[Stripe Checkout] Intentando crear sesión con ID: ${priceId}`);
-      session = await stripe.checkout.sessions.create({
-        customer: customerId,
+      console.log(`[Stripe Checkout] Intentando cobro primario en ${country || 'US'} con ID: ${priceId}`);
+      
+      const sessionConfig: any = {
         mode: 'subscription',
         payment_method_types: ['card'],
-        line_items: [
-          {
-            price: priceId,
-            quantity: 1,
-          },
-        ],
+        line_items: [{ price: priceId, quantity: 1 }],
         success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?success=true`,
         cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?canceled=true`,
         metadata: {
@@ -116,18 +110,54 @@ export async function POST(request: NextRequest) {
           attempt: 'primary'
         },
         subscription_data: {
-          metadata: {
-            organization_id: organizationId,
-          }
+          metadata: { organization_id: organizationId }
         }
-      })
+      };
+
+      // Solo asociar customerId si existe
+      if (customerId) {
+        sessionConfig.customer = customerId;
+      } else {
+        sessionConfig.customer_email = (profile as any)?.email || user.email;
+      }
+
+      session = await stripe.checkout.sessions.create(sessionConfig);
     } catch (primaryError: any) {
       primaryErrorMessage = primaryError.message;
-      console.error(`[Stripe Checkout] ❌ FALLO PRIMARIO (${priceId}):`, primaryErrorMessage);
+      console.error(`[Stripe Checkout] ❌ FALLO PRIMARIO:`, primaryErrorMessage);
       
+      // CASO ESPECIAL: Si es error de moneda y tenemos un customerId, intentamos OTRA VEZ con el ID local pero SIN customerId
+      if (primaryErrorMessage.includes('currency') && customerId && country === 'MX') {
+        console.log('[Stripe Checkout] 🛡️ Detectado bloqueo de moneda. Reintentando MXN con cliente nuevo...');
+        try {
+          session = await stripe.checkout.sessions.create({
+            mode: 'subscription',
+            payment_method_types: ['card'],
+            customer_email: (profile as any)?.email || user.email,
+            line_items: [{ price: priceId, quantity: 1 }],
+            success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?success=true`,
+            cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?canceled=true`,
+            metadata: {
+              organization_id: organizationId,
+              user_id: user.id,
+              plan: plan,
+              pricing_country: 'MX',
+              attempt: 'new_customer_mxn_retry'
+            },
+            subscription_data: {
+              metadata: { organization_id: organizationId }
+            }
+          });
+          console.log('[Stripe Checkout] ✅ Éxito con cliente nuevo en MXN.');
+          return NextResponse.json({ url: session.url, fallback: false });
+        } catch (retryError: any) {
+          console.error('[Stripe Checkout] ❌ Reintento con cliente nuevo también falló:', retryError.message);
+          // Continuar al fallback de USD si esto también falla
+        }
+      }
+
       const fallbackPriceId = PRICING[plan as 'monthly' | 'annual'].stripePriceId;
       
-      // Si el error fue con un ID local y el ID local es distinto al global, intentamos con el Global (USD)
       if (priceId !== fallbackPriceId) {
         fallbackTriggered = true;
         console.log(`[Stripe Checkout] 🔄 REINTENTANDO con ID de respaldo (USD): ${fallbackPriceId}...`);
@@ -136,12 +166,7 @@ export async function POST(request: NextRequest) {
             customer: customerId,
             mode: 'subscription',
             payment_method_types: ['card'],
-            line_items: [
-              {
-                price: fallbackPriceId,
-                quantity: 1,
-              },
-            ],
+            line_items: [{ price: fallbackPriceId, quantity: 1 }],
             success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?success=true`,
             cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?canceled=true`,
             metadata: {
@@ -153,14 +178,12 @@ export async function POST(request: NextRequest) {
               original_error: primaryErrorMessage?.substring(0, 100)
             },
             subscription_data: {
-              metadata: {
-                organization_id: organizationId,
-              }
+              metadata: { organization_id: organizationId }
             }
           });
           console.log('[Stripe Checkout] ✅ Sesión de respaldo creada con éxito.');
         } catch (fallbackError: any) {
-          console.error('[Stripe Checkout] 🚨 Fallo total (Incluso el respaldo):', fallbackError.message);
+          console.error('[Stripe Checkout] 🚨 Fallo total:', fallbackError.message);
           throw fallbackError;
         }
       } else {

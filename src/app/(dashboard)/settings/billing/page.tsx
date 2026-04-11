@@ -99,6 +99,7 @@ export default function BillingPage() {
         body: JSON.stringify({ plan: planType, country: userCountry }),
       })
       const data = await response.json()
+      console.log("[Billing] Respuesta Checkout:", data)
       if (!response.ok) throw new Error(data.error || 'Error al crear sesión de pago')
       
       // Si hubo fallback (Stripe forzó USD por error en el ID de Pesos)
