@@ -100,6 +100,19 @@ export default function BillingPage() {
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Error al crear sesión de pago')
+      
+      // Si hubo fallback (Stripe forzó USD por error en el ID de Pesos)
+      if (data.fallback) {
+        toast({
+          title: 'Aviso de Moneda',
+          description: `Stripe ha redirigido a dólares debido a: ${data.error || 'Inconsistencia en el perfil'}. No te preocupes, puedes pagar normalmente.`,
+          variant: 'default',
+        })
+        // Dar tiempo al usuario para leer el toast antes de redirigir
+        setTimeout(() => { if (data.url) window.location.href = data.url }, 4000)
+        return
+      }
+
       if (data.url) window.location.href = data.url
       else throw new Error('No se recibió URL de checkout')
     } catch (err) {

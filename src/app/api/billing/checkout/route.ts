@@ -91,6 +91,9 @@ export async function POST(request: NextRequest) {
 
     // 6. Crear Checkout Session con Reintento (Fallback)
     let session;
+    let fallbackTriggered = false;
+    let primaryErrorMessage = null;
+
     try {
       console.log(`[Stripe Checkout] Intentando crear sesión con ID: ${priceId}`);
       session = await stripe.checkout.sessions.create({
@@ -119,13 +122,15 @@ export async function POST(request: NextRequest) {
         }
       })
     } catch (primaryError: any) {
-      console.error(`[Stripe Checkout] Error en intento primario (${priceId}):`, primaryError.message);
+      primaryErrorMessage = primaryError.message;
+      console.error(`[Stripe Checkout] ❌ FALLO PRIMARIO (${priceId}):`, primaryErrorMessage);
       
       const fallbackPriceId = PRICING[plan as 'monthly' | 'annual'].stripePriceId;
       
       // Si el error fue con un ID local y el ID local es distinto al global, intentamos con el Global (USD)
       if (priceId !== fallbackPriceId) {
-        console.log(`[Stripe Checkout] Reintentando con ID de respaldo (USD): ${fallbackPriceId}...`);
+        fallbackTriggered = true;
+        console.log(`[Stripe Checkout] 🔄 REINTENTANDO con ID de respaldo (USD): ${fallbackPriceId}...`);
         try {
           session = await stripe.checkout.sessions.create({
             customer: customerId,
@@ -144,7 +149,8 @@ export async function POST(request: NextRequest) {
               user_id: user.id,
               plan: plan,
               pricing_country: 'US',
-              attempt: 'fallback_usd'
+              attempt: 'fallback_usd',
+              original_error: primaryErrorMessage?.substring(0, 100)
             },
             subscription_data: {
               metadata: {
@@ -152,13 +158,12 @@ export async function POST(request: NextRequest) {
               }
             }
           });
-          console.log('[Stripe Checkout] Sesión de respaldo creada con éxito.');
+          console.log('[Stripe Checkout] ✅ Sesión de respaldo creada con éxito.');
         } catch (fallbackError: any) {
-          console.error('[Stripe Checkout] Fallo total (Incluso el respaldo):', fallbackError.message);
+          console.error('[Stripe Checkout] 🚨 Fallo total (Incluso el respaldo):', fallbackError.message);
           throw fallbackError;
         }
       } else {
-        // Si ya estábamos usando el ID global, no hay más respaldos
         throw primaryError;
       }
     }
@@ -167,7 +172,11 @@ export async function POST(request: NextRequest) {
       throw new Error('No se pudo generar la URL de pago');
     }
 
-    return NextResponse.json({ url: session.url })
+    return NextResponse.json({ 
+      url: session.url,
+      fallback: fallbackTriggered,
+      error: primaryErrorMessage 
+    })
 
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Error al crear sesión de pago'
