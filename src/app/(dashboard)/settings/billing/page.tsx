@@ -61,7 +61,8 @@ export default function BillingPage() {
   const isUSD = selectedCurrency === 'USD'
 
   useEffect(() => {
-    setUserCountry(detectUserCountry())
+    const detected = detectUserCountry()
+    setUserCountry(detected)
   }, [])
 
   useEffect(() => {
@@ -133,7 +134,12 @@ export default function BillingPage() {
       {/* Header + Selector de moneda */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Planes y Suscripciones</h1>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            Planes y Suscripciones
+            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 text-[10px] font-medium h-5 animate-pulse">
+              📍 Detectado: {userCountry}
+            </Badge>
+          </h1>
           <p className="text-muted-foreground mt-2">
             Gestiona tu plan y métodos de pago
           </p>

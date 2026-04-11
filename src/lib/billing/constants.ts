@@ -94,9 +94,22 @@ export function detectUserCountry(): CountryCode {
 
   // Buscar coincidencia exacta o por inclusión de la ciudad
   const detected = Object.entries(tzMap).find(([city]) => timezone.includes(city))
-  const country = detected ? detected[1] : 'US'
   
-  console.log(`[Billing] País detectado: ${country}`)
+  let country: CountryCode = detected ? detected[1] : 'US'
+
+  // Refuerzo final por palabras clave si no se detectó por ciudad (o se detectó US por error)
+  if (country === 'US') {
+    const tzLower = timezone.toLowerCase()
+    if (tzLower.includes('mexico')) country = 'MX'
+    else if (tzLower.includes('bogota')) country = 'MX' // Mapeo temporal
+    else if (tzLower.includes('buenos_aires') || tzLower.includes('argentina')) country = 'AR'
+    else if (tzLower.includes('santiago') || tzLower.includes('chile')) country = 'CL'
+    else if (tzLower.includes('lima') || tzLower.includes('peru')) country = 'PE'
+    else if (tzLower.includes('montevideo') || tzLower.includes('uruguay')) country = 'UY'
+    else if (tzLower.includes('costa_rica')) country = 'MX' // Mapeo temporal
+  }
+  
+  console.log(`[Billing] País detectado final: ${country}`)
   return country
 }
 
