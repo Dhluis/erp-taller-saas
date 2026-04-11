@@ -55,16 +55,49 @@ export function detectUserCountry(): CountryCode {
   if (typeof window === 'undefined') return 'US'
 
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  console.log(`[Billing] Detectando país para zona horaria: ${timezone}`)
 
-  if (timezone.includes('Mexico')) return 'MX'
-  if (timezone.includes('Argentina')) return 'AR'
-  if (timezone.includes('Sao_Paulo')) return 'BR'
-  if (timezone.includes('Santiago')) return 'CL'
-  if (timezone.includes('Bogota')) return 'CO'
-  if (timezone.includes('Lima')) return 'PE'
-  if (timezone.includes('Montevideo')) return 'UY'
+  // Matriz de ciudades por país (estándar IANA)
+  const tzMap: Record<string, CountryCode> = {
+    // MÉXICO
+    'Mexico_City': 'MX',
+    'Monterrey': 'MX',
+    'Tijuana': 'MX',
+    'Cancun': 'MX',
+    'Chihuahua': 'MX',
+    'Hermosillo': 'MX',
+    'Mazatlan': 'MX',
+    'Merida': 'MX',
+    'Matamoros': 'MX',
+    'Bahia_Banderas': 'MX',
+    'Ojinaga': 'MX',
+    // COLOMBIA
+    'Bogota': 'MX', // Se mapea a MX temporalmente si quieres que usen precios de MX o cámbialo a CO cuando tengas IDs
+    // ARGENTINA
+    'Buenos_Aires': 'AR',
+    'Cordoba': 'AR',
+    'Salta': 'AR',
+    'Jujuy': 'AR',
+    'Mendoza': 'AR',
+    // CHILE
+    'Santiago': 'CL',
+    // PERÚ
+    'Lima': 'PE',
+    // COSTA RICA
+    'Costa_Rica': 'MX', // Temporalmente MX si no hay ID propio
+    // URUGUAY
+    'Montevideo': 'UY',
+    // BRASIL
+    'Sao_Paulo': 'BR',
+    'Rio_de_Janeiro': 'BR'
+  }
 
-  return 'US'
+  // Buscar coincidencia exacta o por inclusión de la ciudad
+  const detected = Object.entries(tzMap).find(([city]) => timezone.includes(city))
+  const country = detected ? detected[1] : 'US'
+  
+  console.log(`[Billing] País detectado: ${country}`)
+  return country
 }
 
 export function getPricingByCountry(country: CountryCode) {
