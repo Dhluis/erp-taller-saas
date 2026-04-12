@@ -51,7 +51,7 @@ Copia y pega este script completo en la consola:
     body: JSON.stringify({
       config: {
         webhooks: [{
-          url: 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp',
+          url: 'https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp',
           events: ['message', 'session.status'],
           downloadMedia: true,
           downloadMediaOnMessage: true,

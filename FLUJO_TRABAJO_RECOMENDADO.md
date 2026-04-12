@@ -71,7 +71,7 @@ Puedes configurar Vercel para desplegar automáticamente desde múltiples branch
 3. **Preview Deployments**: Activar para `development`
 
 Así tendrás:
-- `main` → `https://erp-taller-saas.vercel.app` (producción)
+- `main` → `https://erp-taller-saas-correct.vercel.app` (producción)
 - `development` → `https://erp-taller-saas-git-development.vercel.app` (preview)
 
 ---

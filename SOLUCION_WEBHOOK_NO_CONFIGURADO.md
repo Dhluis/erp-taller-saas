@@ -54,7 +54,7 @@ Si el endpoint no funciona, configura el webhook directamente en WAHA:
 - De `ai_agent_config.policies.waha_api_key`
 
 **2. Obtén tu URL de la aplicación:**
-- Debe ser: `https://erp-taller-saas.vercel.app` (o tu dominio de Vercel)
+- Debe ser: `https://erp-taller-saas-correct.vercel.app` (o tu dominio de Vercel)
 - O de la variable de entorno `NEXT_PUBLIC_APP_URL`
 
 **3. Obtén el nombre de sesión:**
@@ -70,7 +70,7 @@ curl -X PUT "https://tu-waha-url.com/api/sessions/eagles_bbca12292c4f4838b5f9" \
   -d '{
     "config": {
       "webhooks": [{
-        "url": "https://erp-taller-saas.vercel.app/api/webhooks/whatsapp",
+        "url": "https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp",
         "events": ["message", "session.status"],
         "downloadMedia": true,
         "downloadMediaOnMessage": true
@@ -90,7 +90,7 @@ curl -X PUT "https://tu-waha-url.com/api/sessions/eagles_bbca12292c4f4838b5f9" \
   const wahaUrl = config.data?.policies?.waha_api_url;
   const wahaKey = config.data?.policies?.waha_api_key;
   const sessionName = config.data?.whatsapp_session_name;
-  const appUrl = 'https://erp-taller-saas.vercel.app'; // O tu URL de Vercel
+  const appUrl = 'https://erp-taller-saas-correct.vercel.app'; // O tu URL de Vercel
   
   console.log('Config:', {wahaUrl, sessionName, appUrl});
   

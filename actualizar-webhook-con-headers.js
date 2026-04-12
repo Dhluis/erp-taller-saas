@@ -38,7 +38,7 @@
     }
     
     // 2. URL del webhook
-    const webhookUrl = 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
+    const webhookUrl = 'https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp';
     
     console.log('\n2️⃣ Actualizando configuración del webhook...');
     console.log('URL:', `${wahaUrl}/api/sessions/${sessionName}`);

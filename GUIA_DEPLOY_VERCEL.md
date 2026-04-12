@@ -101,7 +101,7 @@ Vercel detectará automáticamente Next.js, pero puedes verificar:
 
 Una vez completado, Vercel te dará una URL como:
 ```
-https://erp-taller-saas.vercel.app
+https://erp-taller-saas-correct.vercel.app
 ```
 
 Prueba estas rutas:
@@ -261,7 +261,7 @@ Vercel te muestra automáticamente:
 
 Tu aplicación EAGLES ERP está lista para producción en Vercel.
 
-**URL de ejemplo:** `https://erp-taller-saas.vercel.app`
+**URL de ejemplo:** `https://erp-taller-saas-correct.vercel.app`
 
 ### Próximos Pasos Recomendados:
 

@@ -70,7 +70,7 @@ Si quieres habilitarlas manualmente (opcional):
    - **Nombre:** `ERP Taller - Supabase OAuth`
    - **Orígenes de JavaScript autorizados:**
      - `https://igshgleciwknpupbmvhn.supabase.co`
-     - `https://erp-taller-saas.vercel.app` (tu dominio de producción)
+     - `https://erp-taller-saas-correct.vercel.app` (tu dominio de producción)
      - `http://localhost:3000` (para desarrollo local)
    - **URI de redirección autorizados:**
      - `https://igshgleciwknpupbmvhn.supabase.co/auth/v1/callback`
@@ -162,7 +162,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_anon_key_aqui
 
 ### 3.2 Probar el Login con Google
 
-1. Ve a tu aplicación: `https://erp-taller-saas.vercel.app/auth/login`
+1. Ve a tu aplicación: `https://erp-taller-saas-correct.vercel.app/auth/login`
 2. Haz clic en el botón **"Continuar con Google"**
 3. Deberías ser redirigido a Google para autenticarte
 4. Después de autenticarte, serás redirigido de vuelta a tu aplicación

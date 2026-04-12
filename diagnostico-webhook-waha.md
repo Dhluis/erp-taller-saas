@@ -9,7 +9,7 @@
 ## 🎯 Causa probable
 Las **variables de entorno globales** en EasyPanel están sobrescribiendo la configuración por sesión:
 ```
-WHATSAPP_HOOK_URL=https://erp-taller-saas.vercel.app/api/webhooks/whatsapp
+WHATSAPP_HOOK_URL=https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp
 WHATSAPP_HOOK_EVENTS=message,session.status
 WHATSAPP_HOOK_HEADERS=[{"name":"X-Organization-ID","value":"bbca1229-2c4f-4838-b5f9-9e8a8ca79261"}]
 ```
@@ -60,7 +60,7 @@ WHATSAPP_HOOK_HEADERS=[{"name":"X-Organization-ID","value":"bbca1229-2c4f-4838-b
     body: JSON.stringify({
       config: {
         webhooks: [{
-          url: 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp',
+          url: 'https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp',
           events: ['message', 'session.status'],
           downloadMedia: true,
           downloadMediaOnMessage: true,
@@ -137,7 +137,7 @@ fetch('/api/whatsapp/session', {
 ### 4. Probar el endpoint directamente
 
 ```javascript
-fetch('https://erp-taller-saas.vercel.app/api/webhooks/whatsapp', {
+fetch('https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -166,7 +166,7 @@ fetch('https://erp-taller-saas.vercel.app/api/webhooks/whatsapp', {
 Si tienes acceso a los logs de WAHA en EasyPanel:
 1. Envía un mensaje de WhatsApp
 2. Revisa los logs buscando:
-   - `POST https://erp-taller-saas.vercel.app/api/webhooks/whatsapp`
+   - `POST https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp`
    - Errores de conexión
    - Timeouts
 

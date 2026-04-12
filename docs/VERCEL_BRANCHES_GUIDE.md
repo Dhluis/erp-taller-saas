@@ -30,7 +30,7 @@ Cuando trabajaste en la rama `fix/restore-working-whatsapp`:
 
 - **Rama:** `main`
 - **Deploy:** Automático cuando haces push a `main`
-- **URL:** Tu URL de producción (ej: `erp-taller-saas.vercel.app`)
+- **URL:** Tu URL de producción (ej: `erp-taller-saas-correct.vercel.app`)
 - **Estado:** ✅ **Siempre visible**
 
 ### 2. Preview Branches

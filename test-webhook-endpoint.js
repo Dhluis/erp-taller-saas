@@ -4,7 +4,7 @@
 (async function() {
   console.log('🧪 Probando endpoint del webhook...');
   
-  const webhookUrl = 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
+  const webhookUrl = 'https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp';
   
   try {
     // Test GET (debería retornar {status: 'ok'})

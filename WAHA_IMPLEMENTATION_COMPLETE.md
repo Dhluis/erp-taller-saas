@@ -140,7 +140,7 @@
 {
   "success": true,
   "webhookConfig": {
-    "url": "https://erp-taller-saas.vercel.app/api/webhooks/whatsapp",
+    "url": "https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp",
     "events": ["message", "session.status"],
     "downloadMedia": true,
     "downloadMediaOnMessage": true
@@ -229,7 +229,7 @@
 **Configuración:**
 ```typescript
 {
-  url: "https://erp-taller-saas.vercel.app/api/webhooks/whatsapp",
+  url: "https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp",
   events: ["message", "session.status"],
   downloadMedia: true,
   downloadMediaOnMessage: true
@@ -468,7 +468,7 @@
 ```env
 WAHA_API_URL=https://waha-erp-eagles-sistem...
 WAHA_API_KEY=tu_api_key_aqui
-NEXT_PUBLIC_APP_URL=https://erp-taller-saas.vercel.app
+NEXT_PUBLIC_APP_URL=https://erp-taller-saas-correct.vercel.app
 ```
 
 ### **Configuración en Base de Datos**

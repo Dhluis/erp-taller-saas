@@ -83,7 +83,7 @@
     // Verificar que el webhook apunte a la URL correcta
     const expectedUrl = process.env.NEXT_PUBLIC_APP_URL 
       ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
-      : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
+      : 'https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp';
     
     const hasCorrectUrl = webhooks.some(w => w.url === expectedUrl || w.url.includes('/api/webhooks/whatsapp'));
     

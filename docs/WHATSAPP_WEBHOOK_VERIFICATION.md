@@ -28,7 +28,7 @@ Este documento explica cómo verificar que el webhook de WhatsApp esté correcta
 // Líneas 222-239 de waha-sessions.ts
 const webhookUrl = process.env.NEXT_PUBLIC_APP_URL 
   ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/whatsapp`
-  : 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp';
+  : 'https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp';
 
 const requestBody = {
   name: sessionName,
@@ -88,12 +88,12 @@ curl https://tu-app.vercel.app/api/webhooks/whatsapp
 
 **Variable requerida:**
 ```env
-NEXT_PUBLIC_APP_URL=https://erp-taller-saas.vercel.app
+NEXT_PUBLIC_APP_URL=https://erp-taller-saas-correct.vercel.app
 ```
 
 **Dónde se usa:**
 - `src/lib/waha-sessions.ts` (línea 223-225)
-- Si no existe, usa fallback: `https://erp-taller-saas.vercel.app/api/webhooks/whatsapp`
+- Si no existe, usa fallback: `https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp`
 
 **Cómo verificar:**
 1. Ve a Vercel Dashboard → Settings → Environment Variables
@@ -117,7 +117,7 @@ curl -X GET \
 #   "config": {
 #     "webhooks": [
 #       {
-#         "url": "https://erp-taller-saas.vercel.app/api/webhooks/whatsapp",
+#         "url": "https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp",
 #         "events": ["message", "session.status"],
 #         "downloadMedia": true,
 #         "downloadMediaOnMessage": true
@@ -272,7 +272,7 @@ POST /api/whatsapp/session?action=start
 2. WAHA recibe el mensaje
    ↓
 3. WAHA envía webhook POST a:
-   https://erp-taller-saas.vercel.app/api/webhooks/whatsapp
+   https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp
    ↓
 4. Endpoint recibe evento:
    - Extrae organizationId del nombre de sesión

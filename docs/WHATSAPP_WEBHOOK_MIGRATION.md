@@ -17,7 +17,7 @@ Se ha implementado un sistema de webhooks dinámicos multi-tenant para WhatsApp.
 
 ```env
 # ❌ REMOVER ESTAS VARIABLES GLOBALES
-WHATSAPP_HOOK_URL=https://erp-taller-saas.vercel.app/api/webhooks/whatsapp
+WHATSAPP_HOOK_URL=https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp
 WHATSAPP_HOOK_EVENTS=message,session.status
 ```
 
@@ -69,7 +69,7 @@ Cada sesión ahora tiene su webhook configurado así:
 {
   "config": {
     "webhooks": [{
-      "url": "https://erp-taller-saas.vercel.app/api/webhooks/whatsapp",
+      "url": "https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp",
       "events": ["message", "session.status"],
       "downloadMedia": true,
       "downloadMediaOnMessage": true,

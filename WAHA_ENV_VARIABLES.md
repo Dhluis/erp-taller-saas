@@ -21,7 +21,7 @@ TZ=America/Mexico_City
 
 ```bash
 # ❌ REMOVER ESTAS:
-WHATSAPP_HOOK_URL=https://erp-taller-saas.vercel.app/api/webhooks/whatsapp
+WHATSAPP_HOOK_URL=https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp
 WHATSAPP_HOOK_EVENTS=message,session.status
 WHATSAPP_HOOK_HEADERS=[{"name":"X-Organization-ID","value":"bbca1229-2c4f-4838-b5f9-9e8a8ca79261"}]
 ```

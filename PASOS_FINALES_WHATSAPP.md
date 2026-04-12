@@ -90,7 +90,7 @@ Ejecuta este script en la consola del navegador:
       body: JSON.stringify({
         config: {
           webhooks: [{
-            url: 'https://erp-taller-saas.vercel.app/api/webhooks/whatsapp',
+            url: 'https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp',
             events: ['message', 'session.status'],
             downloadMedia: true,
             downloadMediaOnMessage: true,
@@ -130,7 +130,7 @@ Ejecuta este script en la consola del navegador:
 Para verificar que el endpoint funciona:
 
 ```javascript
-fetch('https://erp-taller-saas.vercel.app/api/webhooks/whatsapp', {
+fetch('https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -178,13 +178,13 @@ fetch('https://erp-taller-saas.vercel.app/api/webhooks/whatsapp', {
 
 **Revisa logs de WAHA en EasyPanel:**
 1. Ve a la sección de Logs del contenedor
-2. Busca intentos de llamadas HTTP a `erp-taller-saas.vercel.app`
+2. Busca intentos de llamadas HTTP a `erp-taller-saas-correct.vercel.app`
 3. Si no hay intentos, WAHA no está enviando eventos
 
 **Verifica acceso a internet desde WAHA:**
 ```bash
 # Desde el terminal de EasyPanel o SSH al contenedor
-curl -I https://erp-taller-saas.vercel.app/api/webhooks/whatsapp
+curl -I https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp
 ```
 
 Si el curl falla, hay un problema de conectividad desde WAHA a Vercel.

@@ -2,7 +2,7 @@
 
 ## 📋 Problema
 
-Después de eliminar el proyecto `erp-taller-saas` en Vercel, el callback de OAuth sigue apuntando a la URL antigua (`erp-taller-saas.vercel.app`), causando un error 404.
+Después de eliminar el proyecto `erp-taller-saas` en Vercel, el callback de OAuth sigue apuntando a la URL antigua (`erp-taller-saas-correct.vercel.app`), causando un error 404.
 
 ## ✅ Solución
 
@@ -37,7 +37,7 @@ Si configuraste URLs específicas en Google Cloud Console:
 4. Haz clic en tu **OAuth 2.0 Client ID**
 5. En **"Orígenes de JavaScript autorizados"**, actualiza:
    - ✅ `https://erp-taller-saas-correct.vercel.app`
-   - ❌ Elimina `https://erp-taller-saas.vercel.app` (si existe)
+   - ❌ Elimina `https://erp-taller-saas-correct.vercel.app` (si existe)
 6. En **"URI de redirección autorizados"**, verifica que solo esté:
    - `https://igshgleciwknpupbmvhn.supabase.co/auth/v1/callback`
 7. Haz clic en **"GUARDAR"**

@@ -5,7 +5,7 @@
 
 const https = require('https');
 
-const url = 'https://erp-taller-saas.vercel.app/api/whatsapp/diagnose';
+const url = 'https://erp-taller-saas-correct.vercel.app/api/whatsapp/diagnose';
 
 console.log('🔍 Llamando al endpoint de diagnóstico...');
 console.log('📍 URL:', url);

@@ -32,7 +32,7 @@ curl -X GET \
 #   "config": {
 #     "webhooks": [
 #       {
-#         "url": "https://erp-taller-saas.vercel.app/api/webhooks/whatsapp",
+#         "url": "https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp",
 #         "events": ["message", "session.status"]
 #       }
 #     ]
@@ -194,5 +194,5 @@ curl -X POST https://tu-app.vercel.app/api/webhooks/whatsapp \
 
 **Organization ID:** `bbca1229-2c4f-4838-b5f9-9e8a8ca79261`
 **Session Name:** `eagles_bbca12292c4f4838b5f9`
-**Webhook URL esperada:** `https://erp-taller-saas.vercel.app/api/webhooks/whatsapp`
+**Webhook URL esperada:** `https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp`
 

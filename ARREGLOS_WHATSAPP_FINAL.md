@@ -136,7 +136,7 @@ Cuando hagas clic en "Vincular WhatsApp" o "Desconectar", busca estos logs:
 [WAHA Sessions] 📝 Nombre de sesión: eagles_042ab6bd8979416688...
 [WAHA Sessions] 🌐 WAHA URL: https://waha-erp-eagles-sistem.0rfifc.easypanel.host
 [WAHA Sessions] 🔑 WAHA Key length: 20
-[WAHA Sessions] 🔗 Webhook URL: https://erp-taller-saas.vercel.app/api/webhooks/whatsapp
+[WAHA Sessions] 🔗 Webhook URL: https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp
 [WAHA Sessions] 📤 Request body: {
   "name": "eagles_042ab6bd8979416688...",
   "start": true,
