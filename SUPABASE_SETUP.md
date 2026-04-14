@@ -1,4 +1,4 @@
-# 🔧 Configuración de Supabase para EAGLES ERP
+# 🔧 Configuración de Supabase para Confia Drive ERP
 
 ## 📋 Pasos para Configurar Supabase
 

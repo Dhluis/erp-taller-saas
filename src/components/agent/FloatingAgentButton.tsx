@@ -9,7 +9,7 @@ import { useLimitCheck } from '@/hooks/useLimitCheck'
 import { UpgradeModal } from '@/components/billing/upgrade-modal'
 import type { LimitError } from '@/types/billing'
 
-const FAVICON_SRC = '/eagles-logo-new.png'
+const FAVICON_SRC = '/confiadrive-logo-new.png'
 const FAVICON_FALLBACK = '/favicon.svg'
 
 const AI_AGENT_LIMIT_ERROR: LimitError = {
@@ -74,7 +74,7 @@ export function FloatingAgentButton() {
         <span className="relative w-8 h-8 flex items-center justify-center overflow-hidden rounded-full">
           <Image
             src={imgSrc}
-            alt="EAGLES Asistente"
+            alt="Confia Drive Asistente"
             width={32}
             height={32}
             className="w-8 h-8 object-contain"

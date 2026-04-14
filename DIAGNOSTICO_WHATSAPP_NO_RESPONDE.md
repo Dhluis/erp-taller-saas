@@ -24,7 +24,7 @@ fetch('/api/whatsapp/verify-webhook', {
 ```bash
 # Obtener configuración de la sesión
 curl -X GET \
-  "https://tu-waha-url.com/api/sessions/eagles_<organizationId>" \
+  "https://tu-waha-url.com/api/sessions/confiadrive_<organizationId>" \
   -H "X-Api-Key: tu-api-key"
 
 # Buscar en la respuesta:
@@ -108,7 +108,7 @@ curl -X POST https://tu-app.vercel.app/api/webhooks/whatsapp \
   -H "Content-Type: application/json" \
   -d '{
     "event": "message",
-    "session": "eagles_bbca12292c4f4838b5f9",
+    "session": "confiadrive_bbca12292c4f4838b5f9",
     "payload": {
       "id": "test123",
       "from": "5214491234567@c.us",
@@ -193,6 +193,6 @@ curl -X POST https://tu-app.vercel.app/api/webhooks/whatsapp \
 ## 💡 Información Útil
 
 **Organization ID:** `bbca1229-2c4f-4838-b5f9-9e8a8ca79261`
-**Session Name:** `eagles_bbca12292c4f4838b5f9`
+**Session Name:** `confiadrive_bbca12292c4f4838b5f9`
 **Webhook URL esperada:** `https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp`
 

@@ -103,7 +103,7 @@ export default function GastosPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Eagles AI (Magia de Gastos)</p>
+                  <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Confia Drive AI (Magia de Gastos)</p>
                   <span className="h-1 w-1 rounded-full bg-slate-600"></span>
                   <p className="text-[10px] text-slate-400 truncate hidden sm:block">"Compré 3 pizzas para el equipo por 300 pesos..."</p>
                 </div>
@@ -187,3 +187,4 @@ export default function GastosPage() {
     </AppLayout>
   )
 }
+

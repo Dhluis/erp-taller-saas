@@ -64,7 +64,7 @@ import { WhatsAppQRConnectorSimple as WhatsAppQRConnector } from '@/components/W
 ### 3. Multi-tenant
 - ✅ `generateSessionName()` usa organizationId único
 - ✅ `getOrganizationSession()` busca/crea sesión por org
-- ✅ Cada organización tiene su sesión: `eagles_<orgId>`
+- ✅ Cada organización tiene su sesión: `confiadrive_<orgId>`
 
 ## TROUBLESHOOTING
 

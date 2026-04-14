@@ -263,14 +263,14 @@ if (!isReady) return <Error />
 🔄 [Session] Iniciando carga de sesión...
 ✅ [Session] Usuario autenticado: 301eb55a-f6f9-449f-ab04-8dcf8fc081a6
 ✅ [Session] Perfil cargado: { organization_id, workshop_id }
-✅ [Session] Workshop cargado: EAGLES Taller
+✅ [Session] Workshop cargado: Confia Drive Taller
 ✅✅✅ [Session] Sesión completamente cargada
 📊 [Session] Estado final: { 
   userId: 301eb55a-...,
   organizationId: 042ab6bd-...,
   workshopId: 042ab6bd-...,
   profileId: ...,
-  workshopName: EAGLES Taller
+  workshopName: Confia Drive Taller
 }
 ```
 

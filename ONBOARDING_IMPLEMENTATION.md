@@ -97,8 +97,8 @@ function TestButton() {
 
 1. Limpiar localStorage:
    ```javascript
-   localStorage.removeItem('eagles_erp_onboarding_completed')
-   localStorage.removeItem('eagles_erp_onboarding_completed_version')
+   localStorage.removeItem('confiadrive_erp_onboarding_completed')
+   localStorage.removeItem('confiadrive_erp_onboarding_completed_version')
    ```
 
 2. Recargar la página - El tour debería iniciarse automáticamente

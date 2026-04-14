@@ -1,6 +1,6 @@
 /**
  * Pagination Component
- * Eagles System - Componente de paginación completo y reutilizable
+ * Confia Drive - Componente de paginación completo y reutilizable
  */
 
 'use client'
@@ -315,4 +315,5 @@ export function SimplePagination({
     </div>
   )
 }
+
 

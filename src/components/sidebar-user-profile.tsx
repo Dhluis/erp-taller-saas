@@ -294,7 +294,7 @@ export function SidebarUserProfile({ className = '' }: SidebarUserProfileProps) 
               {/* Ayuda y soporte */}
               <DropdownMenuItem asChild>
                 <a 
-                  href="https://soporte.eagles.com" 
+                  href="https://soporte.CONFIA DRIVE.com" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="flex items-center cursor-pointer"
@@ -438,3 +438,4 @@ export function SidebarUserProfile({ className = '' }: SidebarUserProfileProps) 
     </>
   );
 }
+

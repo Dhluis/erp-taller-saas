@@ -16,7 +16,7 @@
    - Orbelin Pineda
    - Raul Jimenez
 
-2. **2 Clientes del Buscador** → Organización: **"Taller Eagles Demo"** (organización por defecto)
+2. **2 Clientes del Buscador** → Organización: **"Taller Confia Drive Demo"** (organización por defecto)
    - Chopon Chopon
    - PONCHIS
 
@@ -41,9 +41,9 @@ Si tu organización actual es **"Xpandifai"**, mueve los 2 clientes del buscador
 
 ### Opción 2: Verificar Organización del Usuario
 
-Si tu organización debería ser "Taller Eagles Demo", entonces:
+Si tu organización debería ser "Taller Confia Drive Demo", entonces:
 - Los 5 clientes de la lista principal están en la organización incorrecta
-- Necesitas moverlos a "Taller Eagles Demo"
+- Necesitas moverlos a "Taller Confia Drive Demo"
 
 ---
 
@@ -70,7 +70,7 @@ LIMIT 1;
 
 **Resultado esperado:**
 - Si tu `org_id_final` es `042ab6bd-8979-4166-882a-c244b5e51e51` → Tu organización es "Xpandifai"
-- Si tu `org_id_final` es `00000000-0000-0000-0000-000000000001` → Tu organización es "Taller Eagles Demo"
+- Si tu `org_id_final` es `00000000-0000-0000-0000-000000000001` → Tu organización es "Taller Confia Drive Demo"
 
 ### Paso 2: Mover Clientes
 
@@ -94,10 +94,10 @@ WHERE c.name IN ('Chopon Chopon', 'PONCHIS')
 ORDER BY c.name;
 ```
 
-#### Si tu organización es "Taller Eagles Demo":
+#### Si tu organización es "Taller Confia Drive Demo":
 
 ```sql
--- Mover los 5 clientes de la lista principal a Taller Eagles Demo
+-- Mover los 5 clientes de la lista principal a Taller Confia Drive Demo
 UPDATE customers
 SET organization_id = '00000000-0000-0000-0000-000000000001'::UUID
 WHERE name IN (

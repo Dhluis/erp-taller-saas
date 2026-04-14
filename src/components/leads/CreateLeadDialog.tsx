@@ -46,7 +46,7 @@ export function CreateLeadDialog({ open, onOpenChange, editLead, onSuccess }: Cr
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
-  // ✅ Nueva lógica: Detectar si hay datos de Eagles AI pendientes al abrir
+  // ✅ Nueva lógica: Detectar si hay datos de Confia Drive AI pendientes al abrir
   useEffect(() => {
     if (open && !editLead) {
       handleMagicFill()
@@ -55,7 +55,7 @@ export function CreateLeadDialog({ open, onOpenChange, editLead, onSuccess }: Cr
 
   const handleMagicFill = () => {
     try {
-      const aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data')
+      const aiDataRaw = sessionStorage.getItem('confiadrive_ai_pending_data')
       if (!aiDataRaw) return
 
       const result = JSON.parse(aiDataRaw)
@@ -82,7 +82,7 @@ export function CreateLeadDialog({ open, onOpenChange, editLead, onSuccess }: Cr
           estimated_value: l.estimated_value?.toString() || prev.estimated_value,
         }))
         toast.success('¡IA preparó los datos del prospecto!')
-        sessionStorage.removeItem('eagles_ai_pending_data')
+        sessionStorage.removeItem('confiadrive_ai_pending_data')
       }
     } catch (error) {
       console.error('Error in handleMagicFill leads:', error)
@@ -266,3 +266,5 @@ export function CreateLeadDialog({ open, onOpenChange, editLead, onSuccess }: Cr
     </Dialog>
   )
 }
+
+

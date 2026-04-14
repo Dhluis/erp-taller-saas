@@ -119,10 +119,10 @@ console.log(`[WAHA Sessions] 📥 Response body:`, responseText.substring(0, 500
 3. ✅ Revisa los logs
 
 ### 4. Verificar en WAHA:
-1. Ve a: `https://waha-erp-eagles-sistem.0rfifc.easypanel.host`
+1. Ve a: `https://waha-erp-Confia Drive-sistem.0rfifc.easypanel.host`
 2. Haz login si es necesario
 3. Ve a la sección de "Sessions"
-4. ✅ Deberías ver la sesión: `eagles_042ab6bd8979416688...`
+4. ✅ Deberías ver la sesión: `confiadrive_042ab6bd8979416688...`
 5. ✅ Con su estado actual (`WORKING`, `SCAN_QR_CODE`, etc.)
 
 ---
@@ -133,12 +133,12 @@ Cuando hagas clic en "Vincular WhatsApp" o "Desconectar", busca estos logs:
 
 ```
 [WAHA Sessions] 🚀 Creando sesión para organización: 042ab6bd-...
-[WAHA Sessions] 📝 Nombre de sesión: eagles_042ab6bd8979416688...
-[WAHA Sessions] 🌐 WAHA URL: https://waha-erp-eagles-sistem.0rfifc.easypanel.host
+[WAHA Sessions] 📝 Nombre de sesión: confiadrive_042ab6bd8979416688...
+[WAHA Sessions] 🌐 WAHA URL: https://waha-erp-Confia Drive-sistem.0rfifc.easypanel.host
 [WAHA Sessions] 🔑 WAHA Key length: 20
 [WAHA Sessions] 🔗 Webhook URL: https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp
 [WAHA Sessions] 📤 Request body: {
-  "name": "eagles_042ab6bd8979416688...",
+  "name": "confiadrive_042ab6bd8979416688...",
   "start": true,
   "config": {
     "webhooks": [...]

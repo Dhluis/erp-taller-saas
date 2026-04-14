@@ -21,7 +21,7 @@
 2. `RESUMEN_IMPLEMENTACION_PAGINACION.md` - Checklist completo
 3. `GUIA_IMPLEMENTACION_PAGINACION.md` - Guía detallada
 4. `GUIA_CAMBIOS_CLIENTES.md` - Guía específica clientes
-5. `ANALISIS_ARQUITECTURA_EAGLES_ERP.md` - Análisis proyecto
+5. `ANALISIS_ARQUITECTURA_Confia Drive_ERP.md` - Análisis proyecto
 
 ### Código Base
 6. `pagination.ts` (types)

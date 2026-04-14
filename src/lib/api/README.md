@@ -337,7 +337,8 @@ Para agregar nuevas funcionalidades:
 
 ## 📄 Licencia
 
-Este módulo es parte del proyecto Eagles System.
+Este módulo es parte del proyecto Confia Drive.
+
 
 
 

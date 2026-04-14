@@ -43,19 +43,19 @@ export function Sidebar({ className }: SidebarProps) {
   const [magicCreateData, setMagicCreateData] = useState<any>(null)
   const searchParams = useSearchParams()
 
-  // Efecto global para capturar datos de Eagles AI de la URL
+  // Efecto global para capturar datos de Confia Drive AI de la URL
   useEffect(() => {
     const openMagicCreate = searchParams.get('openMagicCreate');
     if (openMagicCreate === 'true') {
       try {
-        let aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data');
+        let aiDataRaw = sessionStorage.getItem('confiadrive_ai_pending_data');
         if (!aiDataRaw) {
           aiDataRaw = searchParams.get('aiData');
         }
 
         if (aiDataRaw) {
           const parsedData = JSON.parse(aiDataRaw);
-          console.log('✨ [Sidebar] Capturado Eagles AI global:', parsedData);
+          console.log('✨ [Sidebar] Capturado Confia Drive AI global:', parsedData);
           
           if (parsedData.action_type === 'work-order' || !parsedData.action_type) {
             setMagicCreateData(parsedData);
@@ -63,7 +63,7 @@ export function Sidebar({ className }: SidebarProps) {
             toast.info('IA preparó una orden de trabajo');
             
             // Limpiar URL y Storage
-            sessionStorage.removeItem('eagles_ai_pending_data');
+            sessionStorage.removeItem('confiadrive_ai_pending_data');
             const newPath = window.location.pathname;
             window.history.replaceState({}, '', newPath);
           }
@@ -393,7 +393,7 @@ export function Sidebar({ className }: SidebarProps) {
             {!isCollapsed && (
               <div className="mt-4 flex flex-col items-center">
                 <span className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-white tracking-[0.2em] uppercase">
-                  EAGLES SYSTEM
+                  Confia Drive
                 </span>
                 <div className="h-[2px] w-8 bg-gradient-to-r from-blue-500 to-transparent mt-1 rounded-full opacity-50" />
               </div>
@@ -618,3 +618,6 @@ export function Sidebar({ className }: SidebarProps) {
     </div>
   )
 }
+
+
+

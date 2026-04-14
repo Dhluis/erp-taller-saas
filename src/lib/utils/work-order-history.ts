@@ -1,6 +1,6 @@
 /**
  * Utilidades para registrar historial de órdenes de trabajo
- * Eagles System - Work Order History Logger
+ * Confia Drive - Work Order History Logger
  */
 
 // ============================================================
@@ -258,3 +258,4 @@ export async function logCustomerUpdate(
     newValue,
   })
 }
+

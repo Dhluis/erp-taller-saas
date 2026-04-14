@@ -83,7 +83,7 @@ GET /api/orders/stats 200 in 13602ms
 ### **Usuario Activo:**
 - **Email:** exclusicoparaclientes@gmail.com
 - **Workshop:** Taller Principal
-- **Organization:** Taller Eagles Demo
+- **Organization:** Taller Confia Drive Demo
 
 ---
 

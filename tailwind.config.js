@@ -8,7 +8,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Colores principales del tema EAGLES
+        // Colores principales del tema CONFIA DRIVE
         primary: {
           DEFAULT: '#00D9FF',
           light: '#33E1FF',

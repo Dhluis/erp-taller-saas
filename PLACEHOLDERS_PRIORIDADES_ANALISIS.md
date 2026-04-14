@@ -381,6 +381,6 @@ Los endpoints de conversión están creados pero no implementados. Si se requier
 ---
 
 **Generado por:** Análisis Automático del Código Base  
-**Revisado por:** Sistema de Auditoría Eagles ERP  
+**Revisado por:** Sistema de Auditoría Confia Drive ERP  
 **Próxima revisión:** 2025-02-22
 

@@ -1,6 +1,6 @@
 /**
  * useVehicles Hook con Paginación
- * Eagles System - Hook para gestión de vehículos con paginación
+ * Confia Drive - Hook para gestión de vehículos con paginación
  */
 
 'use client';
@@ -440,3 +440,4 @@ export function useVehicles(options: UseVehiclesOptions = {}): UseVehiclesReturn
     fetchVehiclesByCustomer,
   };
 }
+

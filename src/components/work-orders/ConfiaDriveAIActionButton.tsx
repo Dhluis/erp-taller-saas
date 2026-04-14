@@ -14,17 +14,17 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 
-interface EaglesAIActionButtonProps {
+interface ConfiaDriveAIActionButtonProps {
   workOrderId: string;
   customerPhone?: string | null;
   className?: string;
 }
 
-export function EaglesAIActionButton({
+export function ConfiaDriveAIActionButton({
   workOrderId,
   customerPhone,
   className
-}: EaglesAIActionButtonProps) {
+}: ConfiaDriveAIActionButtonProps) {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
@@ -80,7 +80,7 @@ export function EaglesAIActionButton({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-indigo-400">
               <MessageSquare className="w-5 h-5" />
-              Borrador de Actualización (Eagles AI)
+              Borrador de Actualización (Confia Drive AI)
             </DialogTitle>
             <DialogDescription className="text-slate-400">
               Revisa y edita el mensaje generado por la IA, luego cópialo para enviarlo.
@@ -110,3 +110,4 @@ export function EaglesAIActionButton({
     </>
   );
 }
+

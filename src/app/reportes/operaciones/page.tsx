@@ -182,7 +182,7 @@ export default function ReportesOperacionesPage() {
       <table><thead><tr><th>#</th><th>Servicio</th><th>Veces</th></tr></thead><tbody>
         ${report.top_services.map((s, i) => `<tr><td>${i + 1}</td><td>${s.name}</td><td>${s.count}</td></tr>`).join('')}
       </tbody></table>
-      <div class="footer"><p>Generado por Eagles System — ${currentDate}</p></div>
+      <div class="footer"><p>Generado por Confia Drive — ${currentDate}</p></div>
       </body></html>`
 
     const w = window.open('', '_blank')
@@ -398,3 +398,4 @@ export default function ReportesOperacionesPage() {
     </div>
   )
 }
+

@@ -4,7 +4,7 @@
 
 ```bash
 WAHA_APPS_ENABLED=false
-WAHA_PUBLIC_URL=https://waha-erp-eagles-sistem.0rfifc.easypanel.host/
+WAHA_PUBLIC_URL=https://waha-erp-Confia Drive-sistem.0rfifc.easypanel.host/
 REDIS_URL=redis://default:Gabyyluis2025@%@redis_redis-erp:6379
 WHATSAPP_DEFAULT_ENGINE=NOWEB
 WAHA_API_KEY=mi_clave_segura_2025

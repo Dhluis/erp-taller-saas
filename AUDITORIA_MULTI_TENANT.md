@@ -1,4 +1,4 @@
-# 🔒 AUDITORÍA MULTI-TENANT - EAGLES ERP
+# 🔒 AUDITORÍA MULTI-TENANT - Confia Drive ERP
 
 **Fecha**: 2025-01-XX  
 **Alcance**: Análisis completo de aislamiento multi-tenant en todo el sistema

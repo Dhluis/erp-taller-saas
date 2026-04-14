@@ -1,4 +1,4 @@
-// Eagles ERP — Custom Service Worker: Push Notifications
+// Confia Drive ERP — Custom Service Worker: Push Notifications
 // Este archivo se fusiona con el SW generado por @ducanh2912/next-pwa (Workbox)
 
 // @ts-ignore
@@ -9,14 +9,14 @@ sw.addEventListener('push', (event) => {
   try {
     data = event.data?.json() ?? {};
   } catch {
-    data = { title: 'Eagles ERP', body: event.data?.text() ?? '' };
+    data = { title: 'Confia Drive ERP', body: event.data?.text() ?? '' };
   }
 
-  const title = data.title ?? 'Eagles ERP';
+  const title = data.title ?? 'Confia Drive ERP';
   const options: NotificationOptions = {
     body: data.body ?? '',
-    icon: '/eagles-logo-square.png',
-    badge: '/eagles-logo-square.png',
+    icon: '/Confia Drive-logo-square.png',
+    badge: '/Confia Drive-logo-square.png',
     data: { url: data.url ?? '/dashboard' },
     requireInteraction: false,
   };

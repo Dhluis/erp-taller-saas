@@ -219,7 +219,7 @@ if (!organizationId || organizationId === '' || organizationId === 'null') {
 
 4. **Paso 4: Confirmación**
    - Resumen de datos ingresados
-   - Botón "Comenzar a usar Eagles ERP"
+   - Botón "Comenzar a usar Confia Drive ERP"
 
 ### Flujo Técnico en `handleComplete()`:
 
@@ -484,4 +484,5 @@ Para verificar que el flujo funciona correctamente:
 ---
 
 **FIN DE LA DOCUMENTACIÓN**
+
 

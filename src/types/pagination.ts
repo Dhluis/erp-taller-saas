@@ -1,6 +1,6 @@
 /**
  * Types for Pagination System
- * Eagles System - Sistema de paginación completo
+ * Confia Drive - Sistema de paginación completo
  */
 
 export interface PaginationParams {
@@ -65,4 +65,5 @@ export function createPaginatedResponse<T>(
     error
   }
 }
+
 

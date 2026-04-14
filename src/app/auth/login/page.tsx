@@ -155,7 +155,7 @@ function LoginContent() {
           </div>
           <div className="text-center">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-              EAGLES SYSTEM
+              Confia Drive
             </h1>
             <p className="text-sm text-slate-400">
               Bienvenido de vuelta a tu sistema de gestión de taller
@@ -292,7 +292,7 @@ function LoginContent() {
 
         {/* Footer */}
         <p className="mt-8 text-center text-sm text-slate-500">
-          © 2026 EAGLES. Todos los derechos reservados.
+          © 2026 Confia Drive. Todos los derechos reservados.
         </p>
       </div>
 
@@ -309,7 +309,7 @@ function LoginContent() {
               Crea tu cuenta primero
             </DialogTitle>
             <DialogDescription className="text-slate-300 text-center mt-2">
-              Para usar Google como método de inicio de sesión, primero debes crear tu cuenta en Eagles System.
+              Para usar Google como método de inicio de sesión, primero debes crear tu cuenta en Confia Drive.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-6 space-y-4">
@@ -347,4 +347,5 @@ export default function LoginPage() {
     </Suspense>
   )
 }
+
 

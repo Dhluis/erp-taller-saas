@@ -19,13 +19,13 @@ const sizeClasses = {
 
 export function Logo({ size = 'md', variant = 'default', className }: LogoProps) {
   const { companySettings } = useSession()
-  const logoUrl = companySettings?.logo_url || "/eagles-logo-new.png"
+  const logoUrl = companySettings?.logo_url || "/confiadrive-logo.png"
 
   return (
     <div className={cn('flex items-center justify-center', sizeClasses[size], className)}>
       <Image
         src={logoUrl}
-        alt={companySettings?.company_name || "EAGLES Logo"}
+        alt={companySettings?.company_name || "Confia Drive Logo"}
         width={160}
         height={64}
         className="w-full h-auto object-contain"
@@ -41,7 +41,7 @@ interface LogoWithTextProps extends LogoProps {
 
 export function LogoWithText({ size = 'md', variant = 'default', className, companyName: propCompanyName }: LogoWithTextProps) {
   const { companySettings } = useSession()
-  const companyName = propCompanyName || companySettings?.company_name || 'EAGLES SYSTEM'
+  const companyName = propCompanyName || companySettings?.company_name || 'Confia Drive'
   
   const textSizes = {
     sm: 'text-sm',
@@ -64,3 +64,4 @@ export function LogoWithText({ size = 'md', variant = 'default', className, comp
     </div>
   )
 }
+

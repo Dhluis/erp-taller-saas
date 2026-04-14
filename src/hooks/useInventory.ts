@@ -1,6 +1,6 @@
 /**
  * useInventory Hook con Paginación
- * Eagles System - Hook para gestión de inventario con paginación
+ * Confia Drive - Hook para gestión de inventario con paginación
  */
 
 'use client';
@@ -658,3 +658,4 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
     deleteCategory,
   };
 }
+

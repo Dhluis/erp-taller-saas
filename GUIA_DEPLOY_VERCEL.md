@@ -1,4 +1,4 @@
-# 🚀 Guía de Deploy en Vercel - EAGLES ERP
+# 🚀 Guía de Deploy en Vercel - Confia Drive ERP
 
 ## ✅ PREPARACIÓN COMPLETADA
 
@@ -259,7 +259,7 @@ Vercel te muestra automáticamente:
 
 ## 🎉 ¡LISTO!
 
-Tu aplicación EAGLES ERP está lista para producción en Vercel.
+Tu aplicación Confia Drive ERP está lista para producción en Vercel.
 
 **URL de ejemplo:** `https://erp-taller-saas-correct.vercel.app`
 

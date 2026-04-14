@@ -97,7 +97,7 @@ Cuando los usuarios ven la pantalla de Google OAuth, ven el dominio de Supabase.
    - **Nombre de la aplicación:** Cambia a algo más profesional como:
      - `ERP Taller SaaS`
      - `Sistema de Gestión de Talleres`
-     - `Eagles Gear System`
+     - `Confia Drive Gear System`
    - **Logo de la aplicación:** (Opcional) Sube un logo de tu aplicación
    - **Dominio autorizado:** Puedes agregar tu dominio personalizado si lo tienes
 6. Haz clic en **"GUARDAR Y CONTINUAR"**

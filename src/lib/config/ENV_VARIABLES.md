@@ -115,7 +115,7 @@ Obligatoria en producción si usas el cron de Vercel (`vercel.json` → `crons`)
 ```bash
 SENDGRID_API_KEY=SG.xxx
 SMTP_FROM_EMAIL=noreply@tudominio.com
-SMTP_FROM_NAME=Eagles System
+SMTP_FROM_NAME=Confia Drive
 ```
 Con esto, todos los envíos (cotizaciones por email, invitaciones, panel Mensajería, notificaciones de órdenes) usan SendGrid. No hace falta configurar SMTP_* de Hostinger/otros.
 
@@ -126,7 +126,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=tu_usuario
 SMTP_PASS=tu_contraseña
-SMTP_FROM_NAME=Eagles System
+SMTP_FROM_NAME=Confia Drive
 SMTP_FROM_EMAIL=noreply@tudominio.com
 ```
 
@@ -287,6 +287,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_clave_desarrollo
 SUPABASE_SERVICE_ROLE_KEY=tu_clave_servicio_desarrollo
 NODE_ENV=development
 ```
+
 
 
 

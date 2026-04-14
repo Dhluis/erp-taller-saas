@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     const openai = getOpenAIClient();
 
     if (action === "draft-message") {
-      const { workOrderId, origin = "https://eaglessystem.io" } = payload;
+      const { workOrderId, origin = "https://confiadrive.io" } = payload;
       if (!workOrderId)
         return NextResponse.json(
           { error: "Falta workOrderId" },
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
 
       const trackingUrl = `${origin}/tracking/${workOrderId}`;
 
-      const SYSTEM_PROMPT = `Eres el asistente de Eagles System ERP. Tu tarea es redactar un mensaje de WhatsApp empático y profesional para un cliente sobre el estado de su orden de trabajo.
+      const SYSTEM_PROMPT = `Eres el asistente de Confia Drive ERP. Tu tarea es redactar un mensaje de WhatsApp empático y profesional para un cliente sobre el estado de su orden de trabajo.
 Usa la información proporcionada para crear un mensaje personalizado.
 Reglas:
 1. Sé amable y directo.
@@ -159,7 +159,7 @@ Enlace de seguimiento en vivo: ${trackingUrl}`,
       const systemPrompt = `Eres un asesor de servicio automotriz de alto nivel trabajando en un Taller Mecánico. Tu tarea es redactar un mensaje de WhatsApp rompehielos o de seguimiento empático, persuasivo y profesional para un cliente potencial (lead).
 Usa la información proporcionada para crear un mensaje personalizado que promueva que el cliente lleve su auto al taller, agende una cita o apruebe el presupuesto.
 Reglas:
-1. CRÍTICO: Hablas en nombre del Taller Mecánico. JAMÁS digas que eres de "Eagles System ERP" (eso es solo nuestro software interno).
+1. CRÍTICO: Hablas en nombre del Taller Mecánico. JAMÁS digas que eres de "Confia Drive ERP" (eso es solo nuestro software interno).
 2. El servicio que ofreces es para mantener o reparar el AUTO/VEHÍCULO del cliente, NO para mantener "su taller".
 3. Sé amable, directo y muestra disposición para ayudar. NO suenes como robot.
 4. Considera el estado actual del prospecto para enfocar el mensaje (ej: si es "Nuevo", saluda y ofrécele ayuda con su auto; si es "Cotizado", pregúntale si tiene dudas del presupuesto).
@@ -199,7 +199,7 @@ Valor presupuestado/estimado: ${lead.estimated_value ? "$" + lead.estimated_valu
       let systemPrompt = "";
 
       if (context === "inventory") {
-        systemPrompt = `Eres el extractor de datos de inventario de Eagles System ERP. Tu tarea es extraer información para crear un producto/pieza.
+        systemPrompt = `Eres el extractor de datos de inventario de Confia Drive ERP. Tu tarea es extraer información para crear un producto/pieza.
 Devuelve SIEMPRE un JSON válido:
 {
   "action_type": "inventory",
@@ -217,7 +217,7 @@ JSON:
   }
 }`;
       } else if (context === "work-order") {
-        systemPrompt = `Eres el extractor de datos de Eagles ERP. Extrae info para crear cliente, vehículo y orden de trabajo.
+        systemPrompt = `Eres el extractor de datos de Confia Drive ERP. Extrae info para crear cliente, vehículo y orden de trabajo.
 JSON:
 {
   "action_type": "work-order",
@@ -235,7 +235,7 @@ Reglas:
 - fluids: si dice que todos están bien, pon todos en true.
 - inspection_details: extrae cosas de valor o el motivo específico si se menciona.`;
       } else if (context === "quotation") {
-        systemPrompt = `Eres el extractor de datos para cotizaciones en Eagles System ERP.
+        systemPrompt = `Eres el extractor de datos para cotizaciones en Confia Drive ERP.
 JSON:
 {
   "action_type": "quotation",
@@ -248,7 +248,7 @@ JSON:
   }
 }`;
       } else if (context === "lead") {
-        systemPrompt = `Eres el extractor de prospectos (leads) para Eagles ERP.
+        systemPrompt = `Eres el extractor de prospectos (leads) para Confia Drive ERP.
 JSON:
 {
   "action_type": "lead",
@@ -262,7 +262,7 @@ JSON:
   "expense": { "amount": number, "description": string, "category": string, "payment_method": string }
 }`;
       } else {
-        systemPrompt = `Eres el orquestador inteligente de Eagles System ERP para talleres mecánicos. Analiza el texto y extrae TODA la información en formato JSON, seleccionando el action_type adecuado.
+        systemPrompt = `Eres el orquestador inteligente de Confia Drive ERP para talleres mecánicos. Analiza el texto y extrae TODA la información en formato JSON, seleccionando el action_type adecuado.
 Acciones posibles: inventory, appointment, work-order, expense, quotation, lead.
 
 GLOSARIO REDIRECCIÓN:
@@ -353,7 +353,7 @@ CRÍTICO:
         messages: [
           {
             role: "system",
-            content: "Eres Eagles Copilot. Redacta una alerta de stock bajo.",
+            content: "Eres Confia Drive Copilot. Redacta una alerta de stock bajo.",
           },
           { role: "user", content: JSON.stringify(items) },
         ],
@@ -398,7 +398,7 @@ CRÍTICO:
         messages: [
           {
             role: "system",
-            content: `Eres el analista experto de Eagles System ERP. Tu tarea es generar 3 insights estratégicos basados en los datos del taller.
+            content: `Eres el analista experto de Confia Drive ERP. Tu tarea es generar 3 insights estratégicos basados en los datos del taller.
             
 Reglas de formato (JSON):
 Debes devolver un objeto con una propiedad "insights" que sea un array de 3 objetos con:
@@ -453,3 +453,6 @@ Ejemplo de respuesta:
     );
   }
 }
+
+
+

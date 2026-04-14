@@ -1,8 +1,8 @@
-# 🎨 Sistema de Temas EAGLES - Implementación Completa
+# 🎨 Sistema de Temas Confia Drive - Implementación Completa
 
 ## 📋 Resumen de la Implementación
 
-El sistema de temas oscuro moderno para el ERP EAGLES ha sido implementado exitosamente con las siguientes características:
+El sistema de temas oscuro moderno para el ERP Confia Drive ha sido implementado exitosamente con las siguientes características:
 
 ### ✅ **Configuración Completada**
 
@@ -314,7 +314,7 @@ export function CustomerForm() {
 
 ## 🎯 Conclusión
 
-El sistema de temas EAGLES está **100% implementado y funcionando**, proporcionando:
+El sistema de temas Confia Drive está **100% implementado y funcionando**, proporcionando:
 
 - ✅ **Tema oscuro moderno** con colores cyan/turquesa
 - ✅ **Sistema de componentes** completo y reutilizable
@@ -324,7 +324,7 @@ El sistema de temas EAGLES está **100% implementado y funcionando**, proporcion
 - ✅ **Documentación completa** con ejemplos
 - ✅ **Accesibilidad optimizada** para todos los usuarios
 
-**El ERP EAGLES ahora tiene un sistema de temas oscuro moderno completamente funcional que proporciona una experiencia visual premium para los usuarios del taller automotriz.** 🚀
+**El ERP Confia Drive ahora tiene un sistema de temas oscuro moderno completamente funcional que proporciona una experiencia visual premium para los usuarios del taller automotriz.** 🚀
 
 ### **📝 Próximos Pasos**
 

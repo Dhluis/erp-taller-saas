@@ -1,6 +1,6 @@
 /**
  * Types para Purchase Orders Module
- * Eagles System - Tipos TypeScript para órdenes de compra
+ * Confia Drive - Tipos TypeScript para órdenes de compra
  */
 
 export interface Supplier {
@@ -138,3 +138,4 @@ export interface PurchaseOrderStats {
   this_month: number
   pending_delivery: number
 }
+

@@ -14,10 +14,10 @@ export const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Eagles System API',
+      title: 'Confia Drive API',
       version: '1.0.0',
       description: `
-        # Eagles System API
+        # Confia Drive API
         
         API completa para el sistema ERP de taller automotriz con gestión integral de:
         
@@ -215,4 +215,5 @@ export function validateSwaggerSpec() {
 }
 
 export default swaggerSpec
+
 

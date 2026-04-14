@@ -25,7 +25,7 @@ interface AppLayoutProps {
 
 /**
  * =====================================================
- * LAYOUT PRINCIPAL DEL ERP EAGLES
+ * LAYOUT PRINCIPAL DEL ERP CONFIA DRIVE
  * =====================================================
  * Layout base con sidebar, header y contenido principal
  * usando el tema oscuro moderno
@@ -160,3 +160,4 @@ export function DrawerLayout({
     </div>
   )
 }
+

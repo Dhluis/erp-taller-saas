@@ -1,6 +1,6 @@
 /**
  * useCustomers Hook con Paginación
- * Eagles System - Hook para gestión de clientes con paginación completa
+ * Confia Drive - Hook para gestión de clientes con paginación completa
  */
 
 'use client'
@@ -440,3 +440,4 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
     deleteCustomer
   }
 }
+

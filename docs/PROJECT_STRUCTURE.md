@@ -158,7 +158,7 @@ erp-taller-saas/
 
 **Funciones exportadas:**
 1. **`generateSessionName(organizationId: string): string`**
-   - Genera nombre único de sesión: `eagles_<orgId sin guiones, primeros 20 caracteres>`
+   - Genera nombre único de sesión: `confiadrive_<orgId sin guiones, primeros 20 caracteres>`
    - ⚠️ NO cambiar el formato sin actualizar todas las sesiones existentes
 
 2. **`getWahaConfig(organizationId?: string): Promise<{ url: string; key: string }>`**
@@ -213,7 +213,7 @@ erp-taller-saas/
 - BD: Tabla `ai_agent_config`
 
 **⚠️ NO MODIFICAR:**
-- El formato del nombre de sesión (`eagles_<orgId>`)
+- El formato del nombre de sesión (`confiadrive_<orgId>`)
 - La lógica de obtención de `organizationId` desde sesión
 - La configuración del webhook (debe apuntar a `/api/webhooks/whatsapp`)
 

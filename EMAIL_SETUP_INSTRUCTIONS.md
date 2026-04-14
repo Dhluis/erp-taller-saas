@@ -9,13 +9,13 @@ Agregar las siguientes variables a tu archivo `.env.local`:
 SMTP_HOST=smtp.hostinger.com
 SMTP_PORT=587
 SMTP_SECURE=false
-SMTP_USER=servicio@eaglessystem.io
-SMTP_PASS=Eagles26@%
-SMTP_FROM_NAME=Eagles System
-SMTP_FROM_EMAIL=servicio@eaglessystem.io
+SMTP_USER=servicio@Confia Drivesystem.io
+SMTP_PASS=Confia Drive26@%
+SMTP_FROM_NAME=Confia Drive
+SMTP_FROM_EMAIL=servicio@Confia Drivesystem.io
 
 # App URL (para links en emails)
-NEXT_PUBLIC_APP_URL=https://eaglessystem.io
+NEXT_PUBLIC_APP_URL=https://Confia Drivesystem.io
 ```
 
 ## 📝 Instrucciones
@@ -35,11 +35,11 @@ NEXT_PUBLIC_APP_URL=https://eaglessystem.io
    - `SMTP_HOST` = `smtp.hostinger.com`
    - `SMTP_PORT` = `587`
    - `SMTP_SECURE` = `false`
-   - `SMTP_USER` = `servicio@eaglessystem.io`
-   - `SMTP_PASS` = `Eagles26@%`
-   - `SMTP_FROM_NAME` = `Eagles System`
-   - `SMTP_FROM_EMAIL` = `servicio@eaglessystem.io`
-   - `NEXT_PUBLIC_APP_URL` = `https://eaglessystem.io`
+   - `SMTP_USER` = `servicio@Confia Drivesystem.io`
+   - `SMTP_PASS` = `Confia Drive26@%`
+   - `SMTP_FROM_NAME` = `Confia Drive`
+   - `SMTP_FROM_EMAIL` = `servicio@Confia Drivesystem.io`
+   - `NEXT_PUBLIC_APP_URL` = `https://Confia Drivesystem.io`
 4. Guarda y redeploya
 
 ## ✅ Verificación
@@ -49,7 +49,7 @@ Después de configurar, verifica que:
 1. El servidor SMTP se conecta correctamente (verás en logs: "✅ Servidor SMTP listo para enviar emails")
 2. Los emails de invitación se envían correctamente
 3. Los emails de cotización se envían correctamente
-4. Los links en los emails apuntan a `https://eaglessystem.io`
+4. Los links en los emails apuntan a `https://Confia Drivesystem.io`
 
 ## 🔍 Troubleshooting
 

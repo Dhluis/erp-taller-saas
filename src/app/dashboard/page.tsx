@@ -3,8 +3,8 @@
 export const dynamic = 'force-dynamic'
 
 import { AppLayout } from '@/components/layout/AppLayout';
-import { EaglesMagicCreate } from '@/components/dashboard/EaglesMagicCreate';
-import { EaglesInsights } from '@/components/dashboard/EaglesInsights';
+import { ConfiaDriveMagicCreate } from '@/components/dashboard/ConfiaDriveMagicCreate';
+import { ConfiaDriveInsights } from '@/components/dashboard/ConfiaDriveInsights';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -808,8 +808,8 @@ function DashboardContent() {
           </button>
         </div>
 
-        {/* Insights de Eagles AI - Protagonismo Horizontal */}
-        {!permissions.isMechanic && <EaglesInsights />}
+        {/* Insights de Confia Drive AI - Protagonismo Horizontal */}
+        {!permissions.isMechanic && <ConfiaDriveInsights />}
 
         <div className={cn(
           "grid gap-4", // Simplificado a un solo gap y mejor manejo de columnas
@@ -1122,3 +1122,4 @@ function DashboardContent() {
     </AppLayout>
   );
 }
+

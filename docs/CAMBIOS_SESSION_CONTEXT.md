@@ -240,7 +240,7 @@ const {
 🔄 [Session] Iniciando carga de sesión...
 ✅ [Session] Usuario autenticado: 301eb55a-...
 ✅ [Session] Perfil cargado: { organization_id, workshop_id }
-✅ [Session] Workshop cargado: EAGLES Taller
+✅ [Session] Workshop cargado: Confia Drive Taller
 ✅✅✅ [Session] Sesión completamente cargada
 📊 [Session] Estado final: { organizationId, workshopId, ... }
 ```

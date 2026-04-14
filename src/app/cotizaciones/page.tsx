@@ -118,14 +118,14 @@ export default function QuotationsPage() {
   const searchParams = useSearchParams()
   const processedRef = useRef(false)
 
-  // Efecto para capturar datos de Eagles AI
+  // Efecto para capturar datos de Confia Drive AI
   useEffect(() => {
     if (processedRef.current) return
 
     const openMagicCreate = searchParams.get('openMagicCreate')
     if (openMagicCreate === 'true') {
       try {
-        const aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data')
+        const aiDataRaw = sessionStorage.getItem('confiadrive_ai_pending_data')
         if (aiDataRaw) {
           const parsedData = JSON.parse(aiDataRaw)
           if (parsedData.action_type === 'quotation') {
@@ -700,3 +700,5 @@ export default function QuotationsPage() {
     </AppLayout>
   )
 }
+
+

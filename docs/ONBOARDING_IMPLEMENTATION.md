@@ -34,7 +34,7 @@ Página completa de onboarding con 4 pasos para configurar organización y talle
 
 ### Paso 4: Confirmación
 - Resumen de datos ingresados
-- Botón "Comenzar a usar Eagles ERP"
+- Botón "Comenzar a usar Confia Drive ERP"
 
 ---
 
@@ -213,3 +213,4 @@ Después de actualizar `users` con `organization_id` y `workshop_id`:
 ---
 
 **FIN DE LA DOCUMENTACIÓN**
+

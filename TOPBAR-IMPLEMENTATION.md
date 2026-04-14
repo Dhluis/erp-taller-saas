@@ -1,8 +1,8 @@
-# 🎯 TopBar EAGLES - Implementación Completa
+# 🎯 TopBar Confia Drive - Implementación Completa
 
 ## 📋 Resumen de la Implementación
 
-El componente TopBar del ERP EAGLES ha sido completamente implementado con un diseño moderno y funcional que complementa perfectamente el Sidebar, proporcionando:
+El componente TopBar del ERP Confia Drive ha sido completamente implementado con un diseño moderno y funcional que complementa perfectamente el Sidebar, proporcionando:
 
 ### ✅ **Características Implementadas**
 
@@ -47,8 +47,8 @@ background: #1E2430 (bg-tertiary)
 ### **Estructura Visual**
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  ☰ EAGLES - ERP Taller SaaS    🔍 🔔 👤 Admin                │
-│                                 admin@eagles.com               │
+│  ☰ Confia Drive - ERP Taller SaaS    🔍 🔔 👤 Admin                │
+│                                 admin@Confia Drive.com               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -66,7 +66,7 @@ import { TopBar } from '@/components/layout/TopBar'
 ```typescript
 interface TopBarProps {
   onMenuClick: () => void    // Función para toggle del sidebar
-  title?: string           // Título opcional (default: 'EAGLES - ERP Taller SaaS')
+  title?: string           // Título opcional (default: 'Confia Drive - ERP Taller SaaS')
 }
 ```
 
@@ -195,7 +195,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   </div>
   <div className="hidden sm:block">
     <p className="text-sm font-medium text-text-primary">Admin</p>
-    <p className="text-xs text-text-secondary">admin@eagles.com</p>
+    <p className="text-xs text-text-secondary">admin@Confia Drive.com</p>
   </div>
 </div>
 ```
@@ -394,14 +394,14 @@ export default function MiPagina() {
 - **Funcionalidades**: Búsqueda, notificaciones, perfil
 
 ### **Características del TopBar**
-- **Título**: "EAGLES - ERP Taller SaaS" (personalizable)
+- **Título**: "Confia Drive - ERP Taller SaaS" (personalizable)
 - **Búsqueda**: Campo de búsqueda global
 - **Notificaciones**: 3 notificaciones de ejemplo
 - **Perfil**: Avatar "AP" con información del usuario
 
 ## 🎉 Conclusión
 
-El TopBar del ERP EAGLES está **100% implementado y funcionando**, proporcionando:
+El TopBar del ERP Confia Drive está **100% implementado y funcionando**, proporcionando:
 
 - ✅ **Diseño moderno** con tema oscuro cyan/turquesa
 - ✅ **Funcionalidades completas** (búsqueda, notificaciones, perfil)
@@ -412,7 +412,7 @@ El TopBar del ERP EAGLES está **100% implementado y funcionando**, proporcionan
 - ✅ **Estados visuales** para mejor UX
 - ✅ **Transiciones suaves** para experiencia premium
 
-**El TopBar está listo para producción y proporciona una interfaz superior moderna y funcional para todo el ERP EAGLES.** 🚀
+**El TopBar está listo para producción y proporciona una interfaz superior moderna y funcional para todo el ERP Confia Drive.** 🚀
 
 ### **📝 Próximos Pasos**
 

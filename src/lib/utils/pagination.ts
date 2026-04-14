@@ -1,6 +1,6 @@
 /**
  * Pagination Utilities
- * Eagles System - Funciones helper para paginación
+ * Confia Drive - Funciones helper para paginación
  */
 
 import { PaginationParams, PaginationMeta } from '@/types/pagination'
@@ -152,4 +152,5 @@ export function getDisplayRange(page: number, pageSize: number, total: number): 
     text: `${start} a ${end} de ${total}`
   }
 }
+
 

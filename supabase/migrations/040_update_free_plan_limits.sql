@@ -1,4 +1,4 @@
--- Migración 040: Actualizar límites del plan Free (Eagles System)
+-- Migración 040: Actualizar límites del plan Free (Confia Drive)
 -- Valores nuevos: 20 clientes, 20 órdenes/mes, 30 productos inventario, 2 usuarios
 -- No modifica RLS ni políticas.
 

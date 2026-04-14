@@ -1,4 +1,4 @@
--- Migración simplificada para EAGLES ERP
+-- Migración simplificada para Confia Drive ERP
 -- Ejecutar este script en el SQL Editor de Supabase
 
 -- 1. Crear extensión UUID si no existe

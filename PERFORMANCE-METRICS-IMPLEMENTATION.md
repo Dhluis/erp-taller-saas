@@ -2,7 +2,7 @@
 
 ## 📋 Resumen de la Implementación
 
-El componente `PerformanceMetrics` y el hook `useKPIs` han sido **completamente implementados** e integrados en el sistema ERP EAGLES, proporcionando una visualización moderna y funcional de métricas de rendimiento del sistema.
+El componente `PerformanceMetrics` y el hook `useKPIs` han sido **completamente implementados** e integrados en el sistema ERP Confia Drive, proporcionando una visualización moderna y funcional de métricas de rendimiento del sistema.
 
 ## ✅ **Características Implementadas**
 
@@ -425,7 +425,7 @@ interface PerformanceMetrics {
 
 ## 🎉 **Conclusión**
 
-**El componente PerformanceMetrics y el hook useKPIs están completamente implementados y funcionando, proporcionando una visualización moderna y funcional de métricas de rendimiento en el ERP EAGLES.**
+**El componente PerformanceMetrics y el hook useKPIs están completamente implementados y funcionando, proporcionando una visualización moderna y funcional de métricas de rendimiento en el ERP Confia Drive.**
 
 ### **✅ Implementación Exitosa**
 

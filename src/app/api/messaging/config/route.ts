@@ -44,8 +44,8 @@ export async function GET(request: NextRequest) {
         success: true,
         config: {
           emailEnabled: true,
-          emailFromName: process.env.SMTP_FROM_NAME || 'Eagles System',
-          emailReplyTo: process.env.SMTP_FROM_EMAIL || 'servicios@eaglessystem.io',
+          emailFromName: process.env.SMTP_FROM_NAME || 'Confia Drive',
+          emailReplyTo: process.env.SMTP_FROM_EMAIL || 'servicios@confiadrive.io',
           whatsappProvider: 'twilio',
           whatsappEnabled: false,
           whatsappTwilioNumber: null,
@@ -231,7 +231,7 @@ export async function PUT(request: NextRequest) {
     const configData = data as any;
     const responseConfig = {
       emailEnabled: configData.email_enabled ?? true,
-      emailFromName: configData.email_from_name || 'Eagles System',
+      emailFromName: configData.email_from_name || 'Confia Drive',
       emailReplyTo: configData.email_reply_to,
       whatsappProvider: configData.whatsapp_provider || 'twilio',
       whatsappEnabled: configData.whatsapp_enabled ?? false,
@@ -256,4 +256,6 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
+
 

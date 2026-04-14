@@ -138,7 +138,7 @@ fetch('https://erp-taller-saas-correct.vercel.app/api/webhooks/whatsapp', {
   },
   body: JSON.stringify({
     event: 'message',
-    session: 'eagles_bbca12292c4f4838b5f9',
+    session: 'confiadrive_bbca12292c4f4838b5f9',
     payload: {
       id: 'test-' + Date.now(),
       from: '5211234567890@c.us',

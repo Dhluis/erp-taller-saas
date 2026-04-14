@@ -19,8 +19,8 @@ export function AuthLogo({ size = 'lg', showText = true }: AuthLogoProps) {
     <div className="text-center">
       <div className="inline-flex items-center justify-center mb-4">
         <Image
-          src="/eagles-logo-new.png"
-          alt="EAGLES SYSTEM"
+          src="/confiadrive-logo-new.png"
+          alt="Confia Drive"
           width={200}
           height={100}
           className={cn(sizeClasses[size], "object-contain")}
@@ -30,7 +30,7 @@ export function AuthLogo({ size = 'lg', showText = true }: AuthLogoProps) {
       {showText && (
         <>
           <h1 className="text-3xl font-bold text-gray-900 mb-2 dark:text-gray-100">
-            EAGLES SYSTEM
+            Confia Drive
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
             Sistema de Gestión de Talleres
@@ -40,6 +40,7 @@ export function AuthLogo({ size = 'lg', showText = true }: AuthLogoProps) {
     </div>
   )
 }
+
 
 
 

@@ -15,7 +15,7 @@ interface Insight {
   actionLink: string;
 }
 
-export function EaglesInsights() {
+export function ConfiaDriveInsights() {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +48,7 @@ export function EaglesInsights() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-white text-lg flex items-center gap-2">
               <Brain className="h-5 w-5 text-pink-500 animate-pulse" />
-              Insights de Eagles AI
+              Insights de Confia Drive AI
             </CardTitle>
             <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px] h-5">
               EN VIVO
@@ -77,7 +77,7 @@ export function EaglesInsights() {
             <div className="p-1.5 bg-pink-500/10 rounded-lg">
               <Brain className="h-5 w-5 text-pink-500" />
             </div>
-            Insights de Eagles AI
+            Insights de Confia Drive AI
           </CardTitle>
           <div className="flex items-center gap-2">
             <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -130,10 +130,11 @@ export function EaglesInsights() {
 
         <div className="mt-8 pt-4 border-t border-slate-800/50 flex justify-center">
           <p className="text-[10px] text-slate-500 italic font-medium tracking-wide bg-slate-900/50 px-4 py-1 rounded-full">
-            * Estos insights son generados por Eagles AI basados en el análisis profundo de tu taller en tiempo real.
+            * Estos insights son generados por Confia Drive AI basados en el análisis profundo de tu taller en tiempo real.
           </p>
         </div>
       </CardContent>
     </Card>
   );
 }
+

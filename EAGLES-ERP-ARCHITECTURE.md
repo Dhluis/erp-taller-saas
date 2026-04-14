@@ -1,4 +1,4 @@
-# 🦅 EAGLES ERP - Documentación Completa de Arquitectura
+# 🦅 Confia Drive ERP - Documentación Completa de Arquitectura
 
 > **Sistema de Gestión Integral para Talleres Automotrices**  
 > Versión: 0.1.0  
@@ -1010,7 +1010,7 @@ Bot inteligente que atiende clientes por WhatsApp, crea citas, responde consulta
 - Cada organización tiene su propia instancia de WAHA
 - Configuración almacenada en `ai_agent_config` por organización
 - Soporta servidor compartido o instancia propia
-- Nombre de sesión único: `eagles_{organizationId_sin_guiones_primeros_20_chars}`
+- Nombre de sesión único: `confiadrive_{organizationId_sin_guiones_primeros_20_chars}`
 
 ### Vinculación de Número a Organización
 
@@ -1021,7 +1021,7 @@ Bot inteligente que atiende clientes por WhatsApp, crea citas, responde consulta
 
 **Proceso de Vinculación**:
 1. Usuario completa onboarding en `/dashboard/whatsapp/train-agent`
-2. Sistema genera nombre de sesión único: `eagles_{orgId}`
+2. Sistema genera nombre de sesión único: `confiadrive_{orgId}`
 3. Se crea sesión en WAHA con ese nombre
 4. Se muestra QR code para escanear con WhatsApp Business
 5. Al escanear, WAHA envía evento `session.status` → `WORKING`
@@ -3072,7 +3072,7 @@ Para una referencia completa de todas las validaciones de campos en el sistema, 
 
 ## 📝 NOTAS FINALES
 
-Esta documentación cubre la arquitectura completa del sistema Eagles ERP. Para actualizaciones o preguntas, consultar el código fuente o contactar al equipo de desarrollo.
+Esta documentación cubre la arquitectura completa del sistema Confia Drive ERP. Para actualizaciones o preguntas, consultar el código fuente o contactar al equipo de desarrollo.
 
 **Última actualización**: Diciembre 2024
 

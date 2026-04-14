@@ -1,7 +1,7 @@
 # 📊 REPORTE DE AUDITORÍA - ERP TALLER
 
 **Fecha:** 2025-01-27  
-**Proyecto:** EAGLES ERP Taller Automotriz  
+**Proyecto:** Confia Drive ERP Taller Automotriz  
 **Versión:** Next.js 15.5.3 + Supabase + TypeScript  
 
 ---

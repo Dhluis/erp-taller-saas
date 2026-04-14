@@ -131,7 +131,7 @@ export function getQuotationEmailTemplate(data: QuotationEmailData): string {
                 © ${new Date().getFullYear()} ${data.organizationName}
               </p>
               <p style="margin: 10px 0 0 0; color: #94a3b8; font-size: 12px;">
-                Powered by Eagles System
+                Powered by Confia Drive
               </p>
             </td>
           </tr>
@@ -144,4 +144,5 @@ export function getQuotationEmailTemplate(data: QuotationEmailData): string {
 </html>
   `;
 }
+
 

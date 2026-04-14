@@ -29,7 +29,7 @@ import { checkAIAgentEnabled } from '@/lib/billing/check-limits'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const SYSTEM_PROMPT = `Eres el asistente del ERP Eagles para un taller mecánico. Tienes acceso a TODOS los datos reales de la organización.
+const SYSTEM_PROMPT = `Eres el asistente del ERP Confia Drive para un taller mecánico. Tienes acceso a TODOS los datos reales de la organización.
 Responde en español, de forma clara y concisa. Cuando encuentres datos, preséntales en formato legible (listas o tabla). Incluye los enlaces cuando estén disponibles.
 
 GLOSARIO TÉCNICO (Jerga de taller):

@@ -19,7 +19,7 @@ export function cleanEnvVar(value: string | undefined): string | undefined {
  * Obtiene la URL de la aplicación limpia
  * 
  * Estrategia:
- * 1. Usa NEXT_PUBLIC_APP_URL si está configurada y es correcta (incluye 'erp-taller-saas-correct')
+ * 1. Usa NEXT_PUBLIC_APP_URL si está configurada y es correcta (incluye 'confiadrive')
  * 2. Fallback a VERCEL_PROJECT_PRODUCTION_URL si NEXT_PUBLIC_APP_URL no es correcta
  * 3. Último fallback: URL por defecto
  * 
@@ -29,7 +29,7 @@ export function getAppUrl(): string {
   const nextPublicUrl = cleanEnvVar(process.env.NEXT_PUBLIC_APP_URL);
   
   // Si la URL está configurada y es correcta, usarla
-  if (nextPublicUrl && nextPublicUrl.includes('erp-taller-saas-correct')) {
+  if (nextPublicUrl && nextPublicUrl.includes('confiadrive')) {
     return nextPublicUrl.replace(/\/$/, ''); // Remover trailing slash
   }
   
@@ -40,6 +40,6 @@ export function getAppUrl(): string {
   }
   
   // Último fallback
-  return nextPublicUrl || 'https://erp-taller-saas-correct.vercel.app';
+  return nextPublicUrl || 'https://confiadrive.vercel.app';
 }
 

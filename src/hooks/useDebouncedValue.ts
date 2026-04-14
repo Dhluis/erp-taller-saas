@@ -1,6 +1,6 @@
 /**
  * useDebouncedValue Hook
- * Eagles System - Debounce para inputs de búsqueda
+ * Confia Drive - Debounce para inputs de búsqueda
  */
 
 import { useState, useEffect } from 'react'
@@ -39,4 +39,5 @@ export function useDebouncedValue<T>(value: T, delay: number = 500): T {
 
   return debouncedValue
 }
+
 

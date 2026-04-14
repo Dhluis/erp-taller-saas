@@ -1,8 +1,8 @@
-# 🎨 CSS Personalizado EAGLES - Integración Completa
+# 🎨 CSS Personalizado Confia Drive - Integración Completa
 
 ## 📋 Resumen de la Integración
 
-El CSS personalizado del ERP EAGLES ha sido completamente integrado con el sistema de tema oscuro, proporcionando:
+El CSS personalizado del ERP Confia Drive ha sido completamente integrado con el sistema de tema oscuro, proporcionando:
 
 ### ✅ **Características Integradas**
 
@@ -439,7 +439,7 @@ export function PrimaryButton({ children, onClick }) {
 
 ## 🎉 Conclusión
 
-El CSS personalizado del ERP EAGLES está **100% integrado y funcionando**, proporcionando:
+El CSS personalizado del ERP Confia Drive está **100% integrado y funcionando**, proporcionando:
 
 - ✅ **Fuente Inter optimizada** con mejor legibilidad
 - ✅ **Scrollbar personalizado** para tema oscuro
@@ -461,5 +461,5 @@ Para continuar el desarrollo:
 4. **Agregar más efectos** visuales
 5. **Documentar patrones** de uso
 
-**El CSS personalizado está completamente integrado y listo para mejorar la experiencia visual de todo el ERP EAGLES.** 🎯
+**El CSS personalizado está completamente integrado y listo para mejorar la experiencia visual de todo el ERP Confia Drive.** 🎯
 

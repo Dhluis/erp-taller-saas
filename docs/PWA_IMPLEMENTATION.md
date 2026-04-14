@@ -1,10 +1,10 @@
-# Implementación PWA - Eagles ERP
+# Implementación PWA - Confia Drive ERP
 
 **Fecha:** Febrero 2025
 
 ## Resumen
 
-La aplicación Eagles ERP está configurada como **Progressive Web App (PWA)** usando `@ducanh2912/next-pwa` (Workbox), con **custom worker** para preservar las **push notifications**.
+La aplicación Confia Drive ERP está configurada como **Progressive Web App (PWA)** usando `@ducanh2912/next-pwa` (Workbox), con **custom worker** para preservar las **push notifications**.
 
 ## Archivos
 
@@ -43,7 +43,7 @@ No hace falta importar Workbox manualmente; next-pwa inyecta el precache y el ru
 
 ## Iconos
 
-El manifest usa `eagles-logo-square.png` para los iconos PWA (192x192 y 512x512). Si el logo tiene otras dimensiones, el navegador los escala.
+El manifest usa `Confia Drive-logo-square.png` para los iconos PWA (192x192 y 512x512). Si el logo tiene otras dimensiones, el navegador los escala.
 
 ## Verificación
 
@@ -51,3 +51,4 @@ El manifest usa `eagles-logo-square.png` para los iconos PWA (192x192 y 512x512)
 2. Chrome DevTools → Application → Manifest: verificar que el manifest se carga.
 3. Application → Service Workers: verificar que el SW está registrado.
 4. Para probar push: suscribir al usuario con `PushManager` y enviar una notificación desde el backend (web-push, VAPID).
+

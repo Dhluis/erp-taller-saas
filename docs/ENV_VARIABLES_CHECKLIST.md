@@ -1,7 +1,7 @@
 # 🔐 CHECKLIST COMPLETO DE VARIABLES DE ENTORNO
 
 **Fecha:** Enero 2025  
-**Proyecto:** Eagles ERP - Taller SaaS  
+**Proyecto:** Confia Drive ERP - Taller SaaS  
 **Propósito:** Verificar que TODAS las variables de entorno estén configuradas correctamente en Vercel
 
 ---
@@ -81,7 +81,7 @@
   - Todas las operaciones de sesiones WAHA
 - **Crítica:** ✅ **SÍ** (si usas WhatsApp) - Sin esto no funciona WhatsApp
 - **Fallback:** Se puede guardar en BD (`ai_agent_config.policies.waha_api_url`)
-- **Ejemplo:** `https://waha-erp-eagles-sistem.0rfifc.easypanel.host`
+- **Ejemplo:** `https://waha-erp-Confia Drive-sistem.0rfifc.easypanel.host`
 
 #### 5. `WAHA_API_KEY`
 - **Nombre exacto:** `WAHA_API_KEY` (o `NEXT_PUBLIC_WAHA_API_KEY` como alternativa)
@@ -375,4 +375,5 @@ vercel env ls
 
 **Última actualización:** Enero 2025  
 **Versión del documento:** 1.0
+
 

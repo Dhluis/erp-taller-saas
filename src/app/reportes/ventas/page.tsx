@@ -291,7 +291,7 @@ export default function ReportesVentasPage() {
           </div>
 
           <div class="footer">
-            <p>Generado por Eagles System</p>
+            <p>Generado por Confia Drive</p>
             <p>${currentDate}</p>
           </div>
         </body>
@@ -528,3 +528,4 @@ export default function ReportesVentasPage() {
     </div>
   )
 }
+

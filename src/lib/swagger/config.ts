@@ -9,7 +9,7 @@
 export const swaggerConfig = {
   openapi: '3.0.0',
   info: {
-    title: 'Eagles System API',
+    title: 'Confia Drive API',
     version: '1.0.0',
     description: 'API completa para el sistema ERP de taller automotriz con gestión de clientes, vehículos, cotizaciones, órdenes, facturas, inventario, proveedores, notificaciones y backups.',
     contact: {
@@ -857,4 +857,5 @@ export const swaggerConfig = {
     }
   }
 }
+
 

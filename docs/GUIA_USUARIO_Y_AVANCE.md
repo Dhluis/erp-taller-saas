@@ -10,7 +10,7 @@ Esta guía explica qué hace cada parte del sistema y cómo usarla día a día, 
 
 ## Entrar al sistema
 
-1. Abre el enlace que te dieron (por ejemplo: tu-dominio.com o eaglessystem.io).
+1. Abre el enlace que te dieron (por ejemplo: tu-dominio.com o confiadrive.io).
 2. Escribe tu **correo** y **contraseña** y haz clic en **Iniciar sesión**.
 3. La primera vez puede pedirte completar datos de tu taller (nombre, teléfono, etc.). Rellénalos y guarda.
 
@@ -198,3 +198,4 @@ El resto son mejoras, pulido, integraciones opcionales y temas de calidad (prueb
 - **100 %:** Todo lo de la tabla “qué falta” resuelto o aceptado como “no necesario” para tu caso.
 
 Si quieres, en el siguiente paso podemos bajar esto a un checklist por módulo (por ejemplo “Órdenes 100 %”, “Inventario 90 %”) o preparar una versión corta de esta guía solo para imprimir y dar a los usuarios del taller.
+

@@ -3,7 +3,7 @@ import { theme, type Theme, type ThemeColors } from '@/styles/theme'
 
 /**
  * =====================================================
- * HOOK PERSONALIZADO PARA EL TEMA EAGLES
+ * HOOK PERSONALIZADO PARA EL TEMA CONFIA DRIVE
  * =====================================================
  * Hook para acceder y manipular el tema del ERP
  */
@@ -38,11 +38,11 @@ export function useTheme(): UseThemeReturn {
     return theme.typography[property]
   }, [])
 
-  const isDark = true // Siempre tema oscuro para EAGLES
+  const isDark = true // Siempre tema oscuro para CONFIA DRIVE
 
   const toggleTheme = useCallback(() => {
     // Para futuras implementaciones de tema claro/oscuro
-    console.log('Toggle theme not implemented yet - EAGLES uses dark theme only')
+    console.log('Toggle theme not implemented yet - CONFIA DRIVE uses dark theme only')
   }, [])
 
   return {
@@ -119,4 +119,5 @@ export function useThemeClasses() {
 }
 
 export default useTheme
+
 

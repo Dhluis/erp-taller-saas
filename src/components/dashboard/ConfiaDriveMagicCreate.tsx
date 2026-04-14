@@ -9,7 +9,7 @@ import { VoiceInput } from '@/components/ui/VoiceInput';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
-export function EaglesMagicCreate() {
+export function ConfiaDriveMagicCreate() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -37,14 +37,14 @@ export function EaglesMagicCreate() {
 
       if (result.success && result.data) {
         toast.success('¡IA procesó los datos con éxito!');
-        console.log('Datos extraídos por Eagles AI:', result.data);
+        console.log('Datos extraídos por Confia Drive AI:', result.data);
         
         const actionType = result.data.action_type || 'work-order';
         const queryParams = new URLSearchParams();
         queryParams.set('openMagicCreate', 'true');
         // Usar sessionStorage para evitar problemas de URL
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('eagles_ai_pending_data', JSON.stringify(result.data));
+          sessionStorage.setItem('confiadrive_ai_pending_data', JSON.stringify(result.data));
         }
 
         let targetPath = '/ordenes';
@@ -74,7 +74,7 @@ export function EaglesMagicCreate() {
             <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400">
               <Sparkles className="w-5 h-5" />
             </div>
-            Creación Mágica (Eagles AI)
+            Creación Mágica (Confia Drive AI)
           </CardTitle>
           <div className="px-2 py-0.5 rounded-full bg-indigo-500 text-[10px] font-semibold text-white tracking-wider uppercase animate-pulse">
             Beta
@@ -110,9 +110,11 @@ export function EaglesMagicCreate() {
           ) : (
             <Wand2 className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform" />
           )}
-          {loading ? 'Procesando...' : 'Crear con Eagles AI'}
+          {loading ? 'Procesando...' : 'Crear con Confia Drive AI'}
         </Button>
       </CardContent>
     </Card>
   );
 }
+
+

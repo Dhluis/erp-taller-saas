@@ -40,7 +40,7 @@ const config: Config = {
         border: 'var(--border)',
         input: 'var(--input)',
         ring: 'var(--ring)',
-        // Colores principales del tema EAGLES
+        // Colores principales del tema CONFIA DRIVE
         primary: {
           DEFAULT: '#00D9FF',
           light: '#33E1FF',
@@ -56,14 +56,14 @@ const config: Config = {
           800: '#00768D',
           900: '#005566',
         },
-        // Backgrounds del tema EAGLES
+        // Backgrounds del tema CONFIA DRIVE
         bg: {
           primary: '#0A0E1A',
           secondary: '#151923',
           tertiary: '#1E2430',
           quaternary: '#252B3A',
         },
-        // Textos del tema EAGLES
+        // Textos del tema CONFIA DRIVE
         text: {
           primary: '#FFFFFF',
           secondary: '#9CA3AF',
@@ -91,7 +91,7 @@ const config: Config = {
           light: '#60A5FA',
           dark: '#2563EB',
         },
-        // Bordes del tema EAGLES
+        // Bordes del tema CONFIA DRIVE
         borders: {
           DEFAULT: '#2D3748',
           light: '#374151',
@@ -126,6 +126,7 @@ const config: Config = {
   plugins: [],
 }
 export default config
+
 
 
 

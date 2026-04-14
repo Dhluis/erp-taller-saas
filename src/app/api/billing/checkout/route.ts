@@ -100,8 +100,8 @@ export async function POST(request: NextRequest) {
         mode: 'subscription',
         payment_method_types: ['card'],
         line_items: [{ price: priceId, quantity: 1 }],
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?success=true`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?canceled=true`,
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://confiadrive.io'}/settings/billing?success=true`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://confiadrive.io'}/settings/billing?canceled=true`,
         metadata: {
           organization_id: organizationId,
           user_id: user.id,
@@ -135,8 +135,8 @@ export async function POST(request: NextRequest) {
             payment_method_types: ['card'],
             customer_email: (profile as any)?.email || user.email,
             line_items: [{ price: priceId, quantity: 1 }],
-            success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?success=true`,
-            cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?canceled=true`,
+            success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://confiadrive.io'}/settings/billing?success=true`,
+            cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://confiadrive.io'}/settings/billing?canceled=true`,
             metadata: {
               organization_id: organizationId,
               user_id: user.id,
@@ -167,8 +167,8 @@ export async function POST(request: NextRequest) {
             mode: 'subscription',
             payment_method_types: ['card'],
             line_items: [{ price: fallbackPriceId, quantity: 1 }],
-            success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?success=true`,
-            cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/settings/billing?canceled=true`,
+            success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://confiadrive.io'}/settings/billing?success=true`,
+            cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://confiadrive.io'}/settings/billing?canceled=true`,
             metadata: {
               organization_id: organizationId,
               user_id: user.id,
@@ -210,3 +210,4 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+

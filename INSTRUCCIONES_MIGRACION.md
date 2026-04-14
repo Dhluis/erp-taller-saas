@@ -8,7 +8,7 @@ El error que estás viendo se debe a que las tablas necesarias no existen en tu 
 ### 1. **Acceder a Supabase Dashboard**
 - Ve a tu proyecto en [supabase.com](https://supabase.com)
 - Inicia sesión en tu cuenta
-- Selecciona tu proyecto EAGLES ERP
+- Selecciona tu proyecto Confia Drive ERP
 
 ### 2. **Abrir SQL Editor**
 - En el menú lateral izquierdo, haz clic en **"SQL Editor"**

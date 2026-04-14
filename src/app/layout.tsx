@@ -18,12 +18,12 @@ const outfit = Outfit({
 })
 
 export const metadata: Metadata = {
-  title: "EAGLES SYSTEM - Taller Automotriz",
+  title: "Confia Drive - Taller Automotriz",
   description: "Sistema de gestión integral para talleres automotrices con tema oscuro moderno",
   keywords: ["ERP", "Taller", "Automotriz", "Gestión", "Sistema"],
-  authors: [{ name: "EAGLES Team" }],
-  creator: "EAGLES",
-  publisher: "EAGLES",
+  authors: [{ name: "Confia Drive Team" }],
+  creator: "Confia Drive",
+  publisher: "Confia Drive",
   manifest: "/manifest.json",
   formatDetection: {
     email: false,
@@ -32,19 +32,19 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/eagles-logo-new.png", type: "image/png" },
-      { url: "/eagles-logo-new.png", sizes: "32x32", type: "image/png" },
-      { url: "/eagles-logo-new.png", sizes: "16x16", type: "image/png" },
+      { url: "/confiadrive-logo-new.png", type: "image/png" },
+      { url: "/confiadrive-logo-new.png", sizes: "32x32", type: "image/png" },
+      { url: "/confiadrive-logo-new.png", sizes: "16x16", type: "image/png" },
     ],
-    shortcut: "/eagles-logo-new.png",
+    shortcut: "/confiadrive-logo-new.png",
     apple: [
-      { url: "/eagles-logo-square.png", type: "image/png" },
+      { url: "/confiadrive-logo-square.png", type: "image/png" },
     ],
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "EAGLES ERP",
+    title: "Confia Drive ERP",
   },
   other: {
     "google": "notranslate",
@@ -81,3 +81,5 @@ export default function RootLayout({
     </html>
   )
 }
+
+

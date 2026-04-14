@@ -1,6 +1,6 @@
 /**
  * useInvoices Hook con Paginación
- * Eagles System - Hook para gestión de notas de venta (invoices) con paginación completa
+ * Confia Drive - Hook para gestión de notas de venta (invoices) con paginación completa
  */
 
 'use client'
@@ -213,4 +213,5 @@ export function useInvoices(
     mutate: fetchInvoices // Alias para compatibilidad con SWR
   }
 }
+
 

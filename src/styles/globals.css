@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 /* =====================================================
-   ESTILOS GLOBALES PARA ERP EAGLES - TEMA OSCURO
+   ESTILOS GLOBALES PARA ERP CONFIA DRIVE - TEMA OSCURO
    ===================================================== */
 
 @layer base {
@@ -471,4 +471,5 @@
     @apply bg-white text-black;
   }
 }
+
 

@@ -16,8 +16,8 @@
 
 ### **Sistema Multi-tenant**
 - Cada organización tiene su propia sesión única de WhatsApp
-- Formato de sesión: `eagles_<orgId sin guiones, primeros 20 caracteres>`
-- Ejemplo: `eagles_00000000000000000000`
+- Formato de sesión: `confiadrive_<orgId sin guiones, primeros 20 caracteres>`
+- Ejemplo: `confiadrive_00000000000000000000`
 
 ### **Componentes Principales**
 
@@ -86,7 +86,7 @@
 [Webhook] 🔔 NUEVO EVENTO RECIBIDO
 [Webhook] 📋 Event Type: message
 [Webhook] 🆔 Message ID: <messageId>
-[Webhook] 📦 Session: eagles_00000000000000000000
+[Webhook] 📦 Session: confiadrive_00000000000000000000
 [Webhook] ⏰ Timestamp: 2025-12-04T04:53:28.185Z
 [Webhook] 📊 Cache size: 0
 ============================================================
@@ -104,7 +104,7 @@
   "connected": true,
   "phone": "5214492195701",
   "status": "WORKING",
-  "sessionName": "eagles_00000000000000000000"
+  "sessionName": "confiadrive_00000000000000000000"
 }
 ```
 
@@ -125,7 +125,7 @@
 ```json
 {
   "qr": "data:image/png;base64,...",
-  "sessionName": "eagles_00000000000000000000"
+  "sessionName": "confiadrive_00000000000000000000"
 }
 ```
 
@@ -285,7 +285,7 @@
 
 1. **`generateSessionName(organizationId: string): string`**
    - Genera nombre único de sesión por organización
-   - Formato: `eagles_<orgId sin guiones, primeros 20 caracteres>`
+   - Formato: `confiadrive_<orgId sin guiones, primeros 20 caracteres>`
 
 2. **`getWahaConfig(organizationId?: string): Promise<{ url: string; key: string }>`**
    - Obtiene configuración WAHA (URL y API Key)
@@ -365,7 +365,7 @@
 [ContextLoader] 🤖 Provider: openai
 [ContextLoader] 🧠 Model: gpt-4o-mini
 [ContextLoader] ====== CONTEXTO AI CONSTRUIDO ======
-[ContextLoader] 🏢 Organization Name: Taller Eagles Demo
+[ContextLoader] 🏢 Organization Name: Taller Confia Drive Demo
 [ContextLoader] 🔧 Services: 5 items
 [ContextLoader] 👥 Mechanics: 3 items
 [ContextLoader] 📋 Policies: 11 items
@@ -383,7 +383,7 @@
 [Webhook] 🔔 NUEVO EVENTO RECIBIDO
 [Webhook] 📋 Event Type: message
 [Webhook] 🆔 Message ID: <messageId>
-[Webhook] 📦 Session: eagles_00000000000000000000
+[Webhook] 📦 Session: confiadrive_00000000000000000000
 [Webhook] ⏰ Timestamp: 2025-12-04T04:53:28.185Z
 [Webhook] 📊 Cache size: 0
 [Webhook] 📝 Cache keys: []
@@ -454,7 +454,7 @@
 [WAHA Sessions] ⚠️ Variables de entorno no encontradas, buscando en BD...
 [WAHA Sessions] 🔍 Buscando configuración en BD para organización: <orgId>
 [WAHA Sessions] ✅ Usando configuración de BD (cualquier organización)
-[WAHA Sessions] ✅ Sesión encontrada: eagles_00000000000000000000
+[WAHA Sessions] ✅ Sesión encontrada: confiadrive_00000000000000000000
 [WhatsApp Session] 📊 Estado de sesión: { exists: true, status: 'WORKING' }
 [WhatsApp Session] ✅ Sesión conectada: 5214492195701
 ```
@@ -466,7 +466,7 @@
 ### **Variables de Entorno (Opcional)**
 
 ```env
-WAHA_API_URL=https://waha-erp-eagles-sistem...
+WAHA_API_URL=https://waha-erp-Confia Drive-sistem...
 WAHA_API_KEY=tu_api_key_aqui
 NEXT_PUBLIC_APP_URL=https://erp-taller-saas-correct.vercel.app
 ```
@@ -479,7 +479,7 @@ NEXT_PUBLIC_APP_URL=https://erp-taller-saas-correct.vercel.app
 
 ```json
 {
-  "waha_api_url": "https://waha-erp-eagles-sistem...",
+  "waha_api_url": "https://waha-erp-Confia Drive-sistem...",
   "waha_api_key": "tu_api_key_aqui"
 }
 ```

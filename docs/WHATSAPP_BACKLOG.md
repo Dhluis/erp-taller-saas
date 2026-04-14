@@ -301,7 +301,7 @@ GET /api/customers/by-phone?phone=+52XXXXXXXXXX
 
 ### Opción A: Limpieza rápida (30 min)
 1. ✅ Guardar análisis en `docs/ANALISIS_CONVERSACIONES_WHATSAPP.md`
-2. ✅ Actualizar `docs/EAGLES_ERP_DEVELOPER_SKILL.md`
+2. ✅ Actualizar `docs/Confia Drive_ERP_DEVELOPER_SKILL.md`
 3. ✅ Crear `docs/CLEANUP_WHATSAPP_TEST_DATA.sql`
 4. 🔄 Ejecutar limpieza de "Cliente de Prueba"
 
@@ -336,5 +336,6 @@ GET /api/customers/by-phone?phone=+52XXXXXXXXXX
 ---
 
 **Última actualización:** 2025-01-06  
-**Mantenido por:** Eagles ERP Development Team
+**Mantenido por:** Confia Drive ERP Development Team
+
 

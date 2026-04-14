@@ -2,7 +2,7 @@
 
 ## 📋 Resumen de la Implementación
 
-El componente `TopProducts` ha sido **completamente implementado** e integrado en el sistema ERP EAGLES, proporcionando una visualización moderna y funcional de los productos y servicios más vendidos.
+El componente `TopProducts` ha sido **completamente implementado** e integrado en el sistema ERP Confia Drive, proporcionando una visualización moderna y funcional de los productos y servicios más vendidos.
 
 ## ✅ **Características Implementadas**
 
@@ -343,7 +343,7 @@ interface Product {
 
 ## 🎉 **Conclusión**
 
-**El componente TopProducts está completamente implementado y funcionando, proporcionando una visualización moderna y funcional de los productos más vendidos en el ERP EAGLES.**
+**El componente TopProducts está completamente implementado y funcionando, proporcionando una visualización moderna y funcional de los productos más vendidos en el ERP Confia Drive.**
 
 ### **✅ Implementación Exitosa**
 

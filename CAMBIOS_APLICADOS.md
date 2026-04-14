@@ -39,7 +39,7 @@
 - ✅ Manejo correcto de QR string y QR image
 
 ### Multi-tenant:
-- ✅ Session name único por organización: `eagles_<orgId>`
+- ✅ Session name único por organización: `confiadrive_<orgId>`
 - ✅ Búsqueda/creación automática de sesión por org
 - ✅ Aislamiento completo entre organizaciones
 
@@ -48,7 +48,7 @@
 ### 1. Preparación (IMPORTANTE):
 ```bash
 # Eliminar todas las sesiones en WAHA para empezar limpio
-# Ve al panel de WAHA: https://waha-erp-eagles-sistem.0rfifc.easypanel.host
+# Ve al panel de WAHA: https://waha-erp-Confia Drive-sistem.0rfifc.easypanel.host
 # Y elimina todas las sesiones activas
 ```
 

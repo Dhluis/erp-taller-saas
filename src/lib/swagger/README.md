@@ -2,7 +2,7 @@
 
 ## 🎯 Descripción
 
-Sistema completo de documentación automática para la API del Eagles System, generando especificaciones OpenAPI 3.0.0 desde comentarios JSDoc en el código.
+Sistema completo de documentación automática para la API del Confia Drive, generando especificaciones OpenAPI 3.0.0 desde comentarios JSDoc en el código.
 
 ## 🚀 Características
 
@@ -399,4 +399,5 @@ El sistema de documentación Swagger está completamente implementado y funciona
 - ✅ **Configuración flexible** para diferentes entornos
 
 **El ERP ahora tiene documentación automática, siempre actualizada y fácil de mantener.** 🚀
+
 

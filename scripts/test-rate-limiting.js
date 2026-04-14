@@ -119,7 +119,7 @@ async function testApiWriteEndpoint() {
 }
 
 async function main() {
-  log('\n🧪 Eagles ERP - Rate Limiting Test Suite\n', colors.cyan);
+  log('\n🧪 Confia Drive ERP - Rate Limiting Test Suite\n', colors.cyan);
   log(`Testing against: ${BASE_URL}\n`, colors.cyan);
 
   const tests = [

@@ -1,6 +1,6 @@
 /**
  * seed-test-data.mjs
- * Comprehensive test data seed script for Eagles ERP
+ * Comprehensive test data seed script for Confia Drive ERP
  *
  * Usage: node scripts/seed-test-data.mjs
  *
@@ -1078,7 +1078,7 @@ async function seedInventoryMovements(supabase, orgId, inventoryItems) {
 // ---------------------------------------------------------------------------
 async function main() {
   console.log('='.repeat(60));
-  console.log('Eagles ERP — Comprehensive Test Data Seed Script');
+  console.log('Confia Drive ERP — Comprehensive Test Data Seed Script');
   console.log('='.repeat(60));
   console.log(`Supabase URL : ${SUPABASE_URL}`);
   console.log(`Target user  : ${TARGET_EMAIL}`);

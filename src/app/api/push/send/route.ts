@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 function configureWebPush() {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
   const privateKey = process.env.VAPID_PRIVATE_KEY
-  const email = process.env.VAPID_EMAIL || 'admin@eaglessystem.io'
+  const email = process.env.VAPID_EMAIL || 'admin@confiadrive.io'
 
   if (!publicKey || !privateKey) {
     throw new Error('VAPID keys no configuradas (NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)')
@@ -70,3 +70,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
 }
+

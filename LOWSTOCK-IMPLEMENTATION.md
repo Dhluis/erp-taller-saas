@@ -2,7 +2,7 @@
 
 ## 📋 Resumen de la Implementación
 
-El componente `LowStockAlert` ha sido **completamente implementado** e integrado en el sistema ERP EAGLES, proporcionando una visualización moderna y funcional de alertas de inventario crítico y stock bajo.
+El componente `LowStockAlert` ha sido **completamente implementado** e integrado en el sistema ERP Confia Drive, proporcionando una visualización moderna y funcional de alertas de inventario crítico y stock bajo.
 
 ## ✅ **Características Implementadas**
 
@@ -351,7 +351,7 @@ interface LowStockItem {
 
 ## 🎉 **Conclusión**
 
-**El componente LowStockAlert está completamente implementado y funcionando, proporcionando una visualización moderna y funcional de alertas de inventario crítico en el ERP EAGLES.**
+**El componente LowStockAlert está completamente implementado y funcionando, proporcionando una visualización moderna y funcional de alertas de inventario crítico en el ERP Confia Drive.**
 
 ### **✅ Implementación Exitosa**
 

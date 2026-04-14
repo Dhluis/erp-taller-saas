@@ -77,7 +77,7 @@ interface CreateWorkOrderModalProps {
 
   prefilledPhone?: string  // ✅ Teléfono pre-llenado (desde lead)
 
-  initialData?: any // ✅ Datos pre-llenados (desde Eagles AI)
+  initialData?: any // ✅ Datos pre-llenados (desde Confia Drive AI)
 
 }
 
@@ -517,11 +517,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         }
         
         setFormData(prev => ({ ...prev, ...prefill }));
-        toast.success('✨ Eagles AI ha completado el formulario');
+        toast.success('✨ Confia Drive AI ha completado el formulario');
       }
     } catch (error) {
       console.error('Error in Modal Magic Create:', error);
-      toast.error('Error al procesar con Eagles AI');
+      toast.error('Error al procesar con Confia Drive AI');
     } finally {
       setIsProcessingAI(false);
     }
@@ -1138,7 +1138,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   useEffect(() => {
 
     if (open && initialData) {
-      console.log('✨ [CreateWorkOrderModal] Pre-llenando con datos de Eagles AI:', initialData);
+      console.log('✨ [CreateWorkOrderModal] Pre-llenando con datos de Confia Drive AI:', initialData);
       
       const prefill: Partial<typeof INITIAL_FORM_DATA> = {};
       
@@ -2013,7 +2013,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Eagles AI</p>
+                    <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Confia Drive AI</p>
                     <span className="h-1 w-1 rounded-full bg-slate-600"></span>
                     <p className="text-[9px] sm:text-[10px] text-slate-400 truncate">Dictado inteligente para llenar toda la orden</p>
                   </div>
@@ -3247,3 +3247,4 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 })
 
 export default CreateWorkOrderModal
+

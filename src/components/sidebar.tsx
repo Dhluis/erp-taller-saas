@@ -213,17 +213,17 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Image
-              src="/eagles-logo-new.png"
-              alt="EAGLES SYSTEM"
+              src="/confiadrive-logo.png"
+              alt="Confia Drive"
               width={40}
               height={40}
               className="object-contain"
             />
             <div>
               <h1 className="text-xl font-bold text-foreground">
-                EAGLES
+                CONFIA DRIVE
               </h1>
-              <p className="text-xs text-muted-foreground">Eagles System</p>
+              <p className="text-xs text-muted-foreground">Taller Automotriz</p>
             </div>
           </div>
           <Button variant="ghost" size="sm" className="text-foreground hover:text-primary">
@@ -387,3 +387,4 @@ export function Sidebar({ className }: SidebarProps) {
     </div>
   )
 }
+

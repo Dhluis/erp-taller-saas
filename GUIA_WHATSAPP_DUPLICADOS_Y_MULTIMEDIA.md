@@ -70,7 +70,7 @@ Cuando llegue un mensaje, deberías ver:
 [Webhook] 🔔 NUEVO EVENTO RECIBIDO
 [Webhook] 📋 Event Type: message
 [Webhook] 🆔 Message ID: ABC123
-[Webhook] 📦 Session: eagles_xxx
+[Webhook] 📦 Session: confiadrive_xxx
 [Webhook] ⏰ Timestamp: 2025-12-04T...
 [Webhook] 📊 Cache size: 5
 [Webhook] 📝 Cache keys: [...]
@@ -270,7 +270,7 @@ curl -X POST "https://tu-app.vercel.app/api/whatsapp/session" \
 # Reemplaza estos valores:
 WAHA_URL="http://tu-waha-url:3000"
 WAHA_API_KEY="tu-api-key"
-SESSION_NAME="eagles_xxx"  # Tu nombre de sesión
+SESSION_NAME="confiadrive_xxx"  # Tu nombre de sesión
 WEBHOOK_URL="https://tu-app.vercel.app/api/webhooks/whatsapp"
 
 # Actualizar webhook

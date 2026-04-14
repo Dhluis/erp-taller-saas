@@ -8,7 +8,7 @@
 
 ## 📊 RESUMEN EJECUTIVO
 
-Se realizó una auditoría completa de seguridad multi-tenant en el sistema Eagles ERP. Se encontró **1 vulnerabilidad crítica** que fue corregida inmediatamente. Se identificaron **16 endpoints** que deberían pasar el `request` a `getTenantContext()` para mayor seguridad, aunque funcionan correctamente sin él.
+Se realizó una auditoría completa de seguridad multi-tenant en el sistema Confia Drive ERP. Se encontró **1 vulnerabilidad crítica** que fue corregida inmediatamente. Se identificaron **16 endpoints** que deberían pasar el `request` a `getTenantContext()` para mayor seguridad, aunque funcionan correctamente sin él.
 
 **Resultado:** ✅ **SISTEMA SEGURO** - Todos los endpoints validan `organization_id` correctamente.
 
@@ -212,12 +212,12 @@ ORDER BY tablename;
 
 ## ✅ CONCLUSIÓN
 
-El sistema Eagles ERP tiene una **arquitectura multi-tenant sólida**. La única vulnerabilidad crítica encontrada fue corregida inmediatamente. Los endpoints restantes tienen validaciones correctas de `organization_id`, aunque se recomienda pasar el `request` a `getTenantContext()` para mayor seguridad.
+El sistema Confia Drive ERP tiene una **arquitectura multi-tenant sólida**. La única vulnerabilidad crítica encontrada fue corregida inmediatamente. Los endpoints restantes tienen validaciones correctas de `organization_id`, aunque se recomienda pasar el `request` a `getTenantContext()` para mayor seguridad.
 
 **Estado final:** ✅ **SISTEMA SEGURO PARA PRODUCCIÓN**
 
 ---
 
 **Generado por:** Auditoría Automática  
-**Revisado por:** Sistema de Auditoría Eagles ERP
+**Revisado por:** Sistema de Auditoría Confia Drive ERP
 

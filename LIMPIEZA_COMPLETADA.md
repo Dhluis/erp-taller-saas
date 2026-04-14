@@ -87,7 +87,7 @@ src/
 
 ### 4. ✅ Multi-tenant limpio
 - `lib/waha-sessions.ts` → Core multi-tenant
-- Session name: `eagles_<orgId>`
+- Session name: `confiadrive_<orgId>`
 - Sin mezcla con otros providers
 
 ## 🔍 Verificación:

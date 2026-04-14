@@ -23,7 +23,7 @@ export interface SavedConversation {
   createdAt: string
 }
 
-const STORAGE_KEY = 'eagles_agent_conversations'
+const STORAGE_KEY = 'confiadrive_agent_conversations'
 const MAX_CONVERSATIONS = 50
 
 interface AgentChatPanelProps {
@@ -37,7 +37,7 @@ const WELCOME_MESSAGE: AgentMessage = {
   id: 'welcome',
   role: 'assistant',
   content:
-    'Hola! Soy Eagles Assistance, puedes preguntarme por ejemplo: fechas de ingreso de vehículos, órdenes de trabajo por cliente, teléfonos de clientes, estado de órdenes, inventario, finanzas, etc. Escribe tu pregunta abajo.',
+    'Hola! Soy Confia Drive Assistance, puedes preguntarme por ejemplo: fechas de ingreso de vehículos, órdenes de trabajo por cliente, teléfonos de clientes, estado de órdenes, inventario, finanzas, etc. Escribe tu pregunta abajo.',
 }
 
 const SUGGESTIONS = [
@@ -78,7 +78,7 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [logoSrc, setLogoSrc] = useState('/eagles-logo-new.png')
+  const [logoSrc, setLogoSrc] = useState('/confiadrive-logo-new.png')
   const [isListening, setIsListening] = useState(false)
   const recognitionRef = useRef<any>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -298,7 +298,7 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
             <div className="w-8 h-8 rounded-full bg-slate-800 border border-cyan-500/50 flex items-center justify-center overflow-hidden shrink-0">
               <Image
                 src={logoSrc}
-                alt="EAGLES"
+                alt="Confia Drive"
                 width={20}
                 height={20}
                 className="object-contain"
@@ -307,7 +307,7 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
               />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-text-primary">Asistente Eagles</p>
+              <p className="text-sm font-semibold text-text-primary">Asistente Confia Drive</p>
               <p className="text-xs text-text-muted">Pregunta sobre órdenes, clientes, vehículos</p>
             </div>
           </div>
@@ -486,7 +486,7 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
                       ? "bg-pink-500/20 text-pink-500 ring-2 ring-pink-500/50 animate-pulse" 
                       : "text-text-muted hover:text-pink-500 hover:bg-pink-500/10"
                   )}
-                  title={isListening ? "Detener voz" : "Hablar con Eagles AI"}
+                  title={isListening ? "Detener voz" : "Hablar con Confia Drive AI"}
                 >
                   {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                 </Button>
@@ -532,3 +532,4 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
     </div>
   )
 }
+

@@ -14,7 +14,7 @@ export function BrandingSync() {
     if (isLoading || !companySettings) return
 
     const logo = companySettings.logo_url
-    const companyName = companySettings.company_name || 'Eagles ERP'
+    const companyName = companySettings.company_name || 'Confia Drive ERP'
 
     // 1. Actualizar el Favicon dinámicamente
     if (logo) {
@@ -48,3 +48,4 @@ export function BrandingSync() {
 
   return null // Este componente no renderiza nada visual
 }
+

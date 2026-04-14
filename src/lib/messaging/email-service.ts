@@ -22,8 +22,8 @@ export async function sendEmailSendGridGlobal(options: EmailOptions): Promise<bo
     return false;
   }
 
-  const fromEmail = process.env.SMTP_FROM_EMAIL?.trim() || 'noreply@eaglessystem.io';
-  const fromName = options.fromName || process.env.SMTP_FROM_NAME?.trim() || 'Eagles System';
+  const fromEmail = process.env.SMTP_FROM_EMAIL?.trim() || 'noreply@confiadrive.io';
+  const fromName = options.fromName || process.env.SMTP_FROM_NAME?.trim() || 'Confia Drive';
 
   try {
     configureSendGrid();
@@ -72,8 +72,8 @@ export async function sendEmailViaSendGrid(
 
     // 3. Preparar email
     const from = {
-      email: process.env.SMTP_FROM_EMAIL || 'noreply@eaglessystem.io',
-      name: options.fromName || config.emailFromName || 'Eagles System'
+      email: process.env.SMTP_FROM_EMAIL || 'noreply@confiadrive.io',
+      name: options.fromName || config.emailFromName || 'Confia Drive'
     };
 
     const replyTo = options.replyTo || config.emailReplyTo || undefined;
@@ -129,4 +129,6 @@ export async function sendBulkEmails(
 
   return { sent, failed };
 }
+
+
 

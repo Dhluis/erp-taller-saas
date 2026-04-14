@@ -19,7 +19,7 @@ export function QuickActions({ onOrderCreated, initialData }: QuickActionsProps)
   const [modalOpen, setModalOpen] = useState(false)
   const [prefilledServiceType, setPrefilledServiceType] = useState<string>('')
 
-  // Efecto para abrir el modal si llegan datos iniciales (desde Eagles AI)
+  // Efecto para abrir el modal si llegan datos iniciales (desde Confia Drive AI)
   useEffect(() => {
     if (initialData) {
       console.log('⚡ [QuickActions] Detectados datos iniciales de AI, abriendo modal...');
@@ -155,4 +155,5 @@ export function QuickActions({ onOrderCreated, initialData }: QuickActionsProps)
     </>
   )
 }
+
 

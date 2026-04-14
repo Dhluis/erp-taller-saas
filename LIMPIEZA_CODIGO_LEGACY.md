@@ -58,7 +58,7 @@
 
 1. **Nombres de sesión diferentes**:
    - Evolution/Meta probablemente usaban otro formato
-   - WAHA usa: `eagles_<orgId>`
+   - WAHA usa: `confiadrive_<orgId>`
    - Verificar que no haya lógica que espere el formato antiguo
 
 2. **Webhooks diferentes**:

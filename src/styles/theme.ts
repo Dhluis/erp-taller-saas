@@ -1,6 +1,6 @@
 /**
  * =====================================================
- * SISTEMA DE TEMAS PARA ERP EAGLES
+ * SISTEMA DE TEMAS PARA ERP CONFIA DRIVE
  * =====================================================
  * Tema oscuro moderno inspirado en las capturas
  * con colores cyan/turquesa y fondos oscuros
@@ -218,4 +218,5 @@ export const themeClasses = {
 }
 
 export default theme
+
 

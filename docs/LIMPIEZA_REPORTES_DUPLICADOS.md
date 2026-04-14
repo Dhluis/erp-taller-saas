@@ -26,7 +26,7 @@ import { MainLayout } from "@/components/main-layout"  // ← Layout viejo
 
 export default function ReportesPage() {
   return (
-    <MainLayout>  // ← Logo antiguo EAGLES SYSTEM
+    <MainLayout>  // ← Logo antiguo Confia Drive
       <div className="text-center py-8">
         <h2 className="text-xl font-semibold mb-4">Página de Reportes</h2>
         <p className="text-muted-foreground">
@@ -39,7 +39,7 @@ export default function ReportesPage() {
 ```
 
 **Problemas:**
-- Usaba `MainLayout` (logo viejo EAGLES SYSTEM)
+- Usaba `MainLayout` (logo viejo Confia Drive)
 - Solo contenía texto placeholder
 - No tenía funcionalidad real
 - Breadcrumbs básicos sin componentes modernos
@@ -158,7 +158,7 @@ Sidebar
 - ✅ Ahora: 1 página de "Reportes" clara
 
 ### 2. **Experiencia Consistente**
-- ❌ Antes: Una página mostraba logo viejo EAGLES SYSTEM
+- ❌ Antes: Una página mostraba logo viejo Confia Drive
 - ✅ Ahora: Todo usa el diseño moderno
 
 ### 3. **Mantenibilidad**
@@ -178,7 +178,7 @@ Sidebar
 El MainLayout mostraba:
 ┌─────────────────┐
 │  🦅             │
-│  EAGLES SYSTEM  │  ← Logo antiguo
+│  Confia Drive  │  ← Logo antiguo
 │  ERP Taller     │
 └─────────────────┘
 ```
@@ -291,7 +291,7 @@ El AppLayout muestra:
 
 ### Antes ❌
 - 2 páginas de reportes confusas
-- Logo antiguo EAGLES SYSTEM visible
+- Logo antiguo Confia Drive visible
 - Página sin funcionalidad real
 - Navegación redundante
 
@@ -307,6 +307,7 @@ El AppLayout muestra:
 **Impacto:** Positivo - Mayor claridad y consistencia  
 **Breaking Changes:** Ninguno (la página eliminada no tenía funcionalidad)  
 **Última actualización:** 3 de Diciembre 2025
+
 
 
 

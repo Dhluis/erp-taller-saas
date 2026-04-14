@@ -16,7 +16,7 @@ import { UpgradeModal } from '@/components/billing/upgrade-modal';
 const MAGIC_CREATE_LIMIT_ERROR = {
   type: 'limit_exceeded' as const,
   resource: 'work_order' as const,
-  message: 'Eagles AI Magic Create es una función Premium. Captura órdenes, citas e inventario instantáneamente con el poder de la Inteligencia Artificial.',
+  message: 'Confia Drive AI Magic Create es una función Premium. Captura órdenes, citas e inventario instantáneamente con el poder de la Inteligencia Artificial.',
   feature: 'ai_enabled',
   upgrade_url: '/settings/billing',
   plan_required: 'premium' as const,
@@ -54,7 +54,7 @@ export function FloatingAIAssistant() {
         
         // Guardar en sessionStorage para transferencia robusta
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('eagles_ai_pending_data', JSON.stringify(result.data));
+          sessionStorage.setItem('confiadrive_ai_pending_data', JSON.stringify(result.data));
         }
 
         const queryParams = new URLSearchParams();
@@ -90,8 +90,8 @@ export function FloatingAIAssistant() {
         toast.error('No se pudo determinar la intención. Intenta ser más descriptivo.');
       }
     } catch (error) {
-      console.error('Error en Eagles AI:', error);
-      toast.error('Error al procesar con Eagles AI');
+      console.error('Error en Confia Drive AI:', error);
+      toast.error('Error al procesar con Confia Drive AI');
     } finally {
       setLoading(false);
     }
@@ -122,7 +122,7 @@ export function FloatingAIAssistant() {
           <div className="flex-1 w-full space-y-1 sm:space-y-2">
             <div className="flex items-center gap-2 mb-0.5 sm:mb-1 pl-5 sm:pl-0">
               <h2 className="text-sm sm:text-xl font-bold text-white tracking-tight flex items-center gap-1.5 sm:gap-2">
-                Eagles AI <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 text-pink-400 fill-pink-400/20" />
+                Confia Drive AI <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 text-pink-400 fill-pink-400/20" />
               </h2>
             </div>
             
@@ -185,8 +185,10 @@ export function FloatingAIAssistant() {
         isOpen={showUpgradeModal}
         onClose={closeUpgradeModal}
         limitError={limitError || undefined}
-        featureName="Eagles AI Magic Create"
+        featureName="Confia Drive AI Magic Create"
       />
     </div>
   );
 }
+
+

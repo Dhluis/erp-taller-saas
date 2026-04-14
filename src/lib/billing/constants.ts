@@ -131,10 +131,10 @@ export const FEATURES = {
     '✅ Inventario ilimitado',
     '✅ Usuarios ilimitados',
     '✅ WhatsApp con API oficial',
-    '✅ Eagles AI Assistant (Agente)',
+    '✅ Confia Drive AI Assistant (Agente)',
     '✅ Magic Create (Intención IA)',
     '✅ Dictado por Voz Inteligente',
-    '✅ Eagles AI Insights & BI',
+    '✅ Confia Drive AI Insights & BI',
     '✅ Reportes avanzados',
     '✅ Soporte prioritario 24/7',
     '✅ Acceso a API',
@@ -142,10 +142,10 @@ export const FEATURES = {
   ],
   premium_only: [
     'WhatsApp con API oficial',
-    'Eagles AI Assistant (Agente)',
+    'Confia Drive AI Assistant (Agente)',
     'Magic Create (Intención IA)',
     'Dictado por Voz Inteligente',
-    'Eagles AI Insights & BI',
+    'Confia Drive AI Insights & BI',
     'Usuarios ilimitados',
     'Reportes avanzados'
   ]
@@ -155,3 +155,4 @@ export const PLAN_NAMES = {
   free: 'Plan Free',
   premium: 'Plan Premium'
 } as const
+

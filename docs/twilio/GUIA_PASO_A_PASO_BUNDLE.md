@@ -43,7 +43,7 @@ Crear un Regulatory Bundle para poder usar números locales de SMS en Twilio (re
 ## 👤 Paso 3: Seleccionar End-User (Usuario Final)
 
 ### 3.1 Información del End-User
-- **Nombre:** "Eagles System" o el nombre de tu empresa
+- **Nombre:** "Confia Drive" o el nombre de tu empresa
 - **Tipo:** 
   - ✅ **"Business"** (si es una empresa)
   - O "Individual" (si es persona física)
@@ -70,8 +70,8 @@ Crear un Regulatory Bundle para poder usar números locales de SMS en Twilio (re
 
 **Nombre Legal:**
 - Nombre registrado de tu empresa
-- Ejemplo: "Eagles System S.A. de C.V." (México)
-- Ejemplo: "Eagles System S.A.S." (Colombia)
+- Ejemplo: "Confia Drive S.A. de C.V." (México)
+- Ejemplo: "Confia Drive S.A.S." (Colombia)
 
 **Dirección Completa:**
 - **Calle y Número:** Dirección física completa
@@ -161,10 +161,10 @@ Los documentos varían según el país, pero típicamente incluyen:
 ### 6.1 Nombre del Bundle
 - **Campo:** "Friendly Name"
 - **Sugerencias:**
-  - `Eagles System - Bundle México`
-  - `Eagles System - Bundle Colombia`
-  - `Eagles System - Bundle Argentina`
-  - `Eagles ERP - Regulatory Bundle MX`
+  - `Confia Drive - Bundle México`
+  - `Confia Drive - Bundle Colombia`
+  - `Confia Drive - Bundle Argentina`
+  - `Confia Drive ERP - Regulatory Bundle MX`
 
 **💡 TIP:** Usa un nombre descriptivo que te ayude a identificar el Bundle fácilmente.
 
@@ -178,7 +178,7 @@ Los documentos varían según el país, pero típicamente incluyen:
 ### 7.1 Email de Notificaciones
 - **Campo:** "Email for notifications"
 - **Valor:** Tu email donde quieres recibir actualizaciones
-- Ejemplo: `admin@eaglessystem.io`
+- Ejemplo: `admin@confiadrive.io`
 
 ### 7.2 Tipo de Notificaciones
 - ✅ **"Status updates"** - Recibir actualizaciones del estado del Bundle
@@ -349,3 +349,6 @@ Si tienes problemas:
 - [Lista de Bundles](https://console.twilio.com/us1/develop/phone-numbers/regulatory-compliance/bundles)
 - [Requisitos por País](https://www.twilio.com/docs/phone-numbers/regulatory-compliance/requirements-by-country)
 - [Documentación de Bundles](https://www.twilio.com/docs/phone-numbers/regulatory-compliance/bundles)
+
+
+

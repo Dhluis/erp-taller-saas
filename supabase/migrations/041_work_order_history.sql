@@ -1,6 +1,6 @@
 -- ============================================================
 -- Migration 041: Work Order History / Audit Log
--- Eagles System - Historial de cambios en órdenes de trabajo
+-- Confia Drive - Historial de cambios en órdenes de trabajo
 -- ============================================================
 
 -- Tabla principal de historial

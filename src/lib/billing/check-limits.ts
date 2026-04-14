@@ -1,7 +1,7 @@
 /**
  * =====================================================
  * BILLING: Verificación de Límites de Plan
- * Autor: Eagles System
+ * Autor: Confia Drive
  * Fecha: 2026-02-06
  * Descripción: Verifica si la organización puede crear recursos según su plan
  * =====================================================
@@ -413,3 +413,4 @@ export async function checkAIAgentEnabled(organizationId: string): Promise<{
     }
   }
 }
+

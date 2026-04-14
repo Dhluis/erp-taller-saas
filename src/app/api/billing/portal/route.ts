@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 
 const BILLING_RETURN_URL = process.env.NEXT_PUBLIC_APP_URL
   ? `${process.env.NEXT_PUBLIC_APP_URL}/settings/billing`
-  : 'https://eaglessystem.io/settings/billing'
+  : 'https://confiadrive.io/settings/billing'
 
 /**
  * POST /api/billing/portal
@@ -57,3 +57,4 @@ export async function POST() {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
+

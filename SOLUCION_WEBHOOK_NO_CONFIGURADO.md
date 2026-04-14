@@ -59,12 +59,12 @@ Si el endpoint no funciona, configura el webhook directamente en WAHA:
 
 **3. Obtén el nombre de sesión:**
 - De `ai_agent_config.whatsapp_session_name`
-- Formato: `eagles_bbca12292c4f4838b5f9`
+- Formato: `confiadrive_bbca12292c4f4838b5f9`
 
 **4. Configurar webhook con curl:**
 
 ```bash
-curl -X PUT "https://tu-waha-url.com/api/sessions/eagles_bbca12292c4f4838b5f9" \
+curl -X PUT "https://tu-waha-url.com/api/sessions/confiadrive_bbca12292c4f4838b5f9" \
   -H "X-Api-Key: tu-api-key" \
   -H "Content-Type: application/json" \
   -d '{

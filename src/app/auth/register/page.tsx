@@ -223,8 +223,8 @@ export default function RegisterPage() {
         <div className="text-center mb-8">
           <div className="mb-4 flex justify-center">
             <Image
-              src="/eagles-logo-new.png"
-              alt="Logo Eagles System"
+              src="/confiadrive-logo-new.png"
+              alt="Logo Confia Drive"
               width={160}
               height={80}
               className="h-16 w-auto rounded-2xl object-contain"
@@ -232,7 +232,7 @@ export default function RegisterPage() {
             />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">
-            Crear Cuenta en Eagles System
+            Crear Cuenta en Confia Drive
           </h1>
           <p className="text-slate-400">
             Registra tu taller y comienza a gestionar tu negocio
@@ -547,7 +547,7 @@ export default function RegisterPage() {
               
               <div>
                 <h2 className="text-2xl font-bold text-white mb-3">
-                  ¡Bienvenido a Eagles System!
+                  ¡Bienvenido a Confia Drive!
                 </h2>
                 <p className="text-slate-300 mb-4">
                   Tu cuenta ha sido creada exitosamente con el email:
@@ -557,7 +557,7 @@ export default function RegisterPage() {
                 </p>
                 <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 mb-6">
                   <p className="text-cyan-300 text-sm font-medium mb-2">
-                    🎉 Tu cuenta está lista. Empieza a usar Eagles System gratis.
+                    🎉 Tu cuenta está lista. Empieza a usar Confia Drive gratis.
                   </p>
                   <p className="text-slate-300 text-sm">
                     Tu plan Free es permanente: hasta 20 clientes, 20 órdenes al mes, inventario y 2 usuarios. Sin tarjeta ni vencimiento. Mejora a Premium cuando lo necesites (asistente IA, WhatsApp, reportes avanzados, etc.).
@@ -643,7 +643,7 @@ export default function RegisterPage() {
 
         {/* Footer */}
         <p className="text-center text-slate-500 text-sm mt-8">
-          © 2026 EAGLES SYSTEM. Todos los derechos reservados.
+          © 2026 Confia Drive. Todos los derechos reservados.
         </p>
       </div>
     </div>

@@ -8,7 +8,7 @@
 
 ## 📊 RESUMEN EJECUTIVO
 
-Se realizó un análisis de rendimiento del sistema Eagles ERP. Se encontraron **2 imágenes** que deberían usar Next.js Image, y varios componentes que ya tienen optimizaciones implementadas (useMemo, useCallback). El sistema está bien optimizado en general.
+Se realizó un análisis de rendimiento del sistema Confia Drive ERP. Se encontraron **2 imágenes** que deberían usar Next.js Image, y varios componentes que ya tienen optimizaciones implementadas (useMemo, useCallback). El sistema está bien optimizado en general.
 
 **Resultado:** ✅ **RENDIMIENTO BUENO** - Optimizaciones menores recomendadas.
 
@@ -193,7 +193,7 @@ Este script crea **25+ índices compuestos optimizados** para queries multi-tena
 
 ## ✅ CONCLUSIÓN
 
-El sistema Eagles ERP tiene un **rendimiento bueno** en general. Las queries están optimizadas, muchos componentes usan useMemo/useCallback, y no hay problemas críticos de rendimiento. Las optimizaciones recomendadas son menores y mejorarán el rendimiento incrementalmente.
+El sistema Confia Drive ERP tiene un **rendimiento bueno** en general. Las queries están optimizadas, muchos componentes usan useMemo/useCallback, y no hay problemas críticos de rendimiento. Las optimizaciones recomendadas son menores y mejorarán el rendimiento incrementalmente.
 
 **Estado final:** ✅ **RENDIMIENTO BUENO** - Optimizaciones menores recomendadas
 
@@ -209,5 +209,5 @@ El sistema Eagles ERP tiene un **rendimiento bueno** en general. Las queries est
 ---
 
 **Generado por:** Auditoría Automática  
-**Revisado por:** Sistema de Auditoría Eagles ERP
+**Revisado por:** Sistema de Auditoría Confia Drive ERP
 

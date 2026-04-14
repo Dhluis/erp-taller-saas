@@ -1,5 +1,5 @@
 -- Migración 044: Cuentas de efectivo (cash accounts) y movimientos
--- Módulo "Cuentas de efectivo" - Eagles ERP
+-- Módulo "Cuentas de efectivo" - Confia Drive ERP
 -- Ejecutar en Supabase SQL Editor o vía CLI
 
 -- =====================================================

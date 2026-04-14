@@ -144,7 +144,7 @@ function InventariosContent() {
         setShowCopilotModal(false);
       }
     } catch (error) {
-      toast.error('Error de conexión con Eagles AI');
+      toast.error('Error de conexión con Confia Drive AI');
       setShowCopilotModal(false);
     } finally {
       setIsAnalyzingCopilot(false);
@@ -249,7 +249,7 @@ function InventariosContent() {
     if (openMagicCreate === 'true') {
       try {
         console.log('🔍 [Inventory] Buscando datos de AI en URL/Storage...');
-        let aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data');
+        let aiDataRaw = sessionStorage.getItem('confiadrive_ai_pending_data');
         if (!aiDataRaw) {
           aiDataRaw = searchParams.get('aiData');
         }
@@ -278,16 +278,16 @@ function InventariosContent() {
               unit_price: p.unit_price?.toString() || '',
               stock: (p.quantity || p.stock)?.toString() || '',
               minimum_stock: (p.min_quantity || p.minimum_stock)?.toString() || '5',
-              description: p.description || 'Producto agregado vía Eagles AI',
+              description: p.description || 'Producto agregado vía Confia Drive AI',
               category_id: foundCategoryId || ''
             });
 
             console.log('🚀 [Inventory] Abriendo modal de nuevo producto...');
             setShowNewProductModal(true);
-            toast.success('¡Eagles AI preparó los datos del producto!');
+            toast.success('¡Confia Drive AI preparó los datos del producto!');
             
             // Limpiar
-            sessionStorage.removeItem('eagles_ai_pending_data');
+            sessionStorage.removeItem('confiadrive_ai_pending_data');
             const newPath = window.location.pathname;
             window.history.replaceState({}, '', newPath);
           } else {
@@ -813,7 +813,7 @@ function InventariosContent() {
                 <div>
                   <h2 className="text-xl font-bold text-white flex items-center gap-2">
                     <Sparkles className="h-6 w-6 text-indigo-400" />
-                    Eagles Copilot
+                    Confia Drive Copilot
                   </h2>
                   <p className="text-sm text-slate-400 mt-1">Análisis inteligente de tu inventario crítico</p>
                 </div>
@@ -864,7 +864,7 @@ function InventariosContent() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Eagles AI</p>
+                        <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Confia Drive AI</p>
                         <span className="h-1 w-1 rounded-full bg-slate-600"></span>
                         <p className="text-[10px] text-slate-400 truncate">Dicta nombre, SKU y precio...</p>
                       </div>
@@ -999,7 +999,7 @@ function InventariosContent() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Eagles AI</p>
+                        <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Confia Drive AI</p>
                         <span className="h-1 w-1 rounded-full bg-slate-600"></span>
                         <p className="text-[10px] text-slate-400 truncate">Actualiza datos con tu voz...</p>
                       </div>
@@ -1234,3 +1234,4 @@ function InventariosContent() {
     </AppLayout>
   );
 }
+

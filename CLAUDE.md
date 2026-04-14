@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Eagles ERP** is a multi-tenant SaaS ERP system for automotive workshops. Built with Next.js 15 (App Router), TypeScript, Supabase (PostgreSQL + Auth), and Tailwind CSS + shadcn/ui.
+**Confia Drive ERP** is a multi-tenant SaaS ERP system for automotive workshops. Built with Next.js 15 (App Router), TypeScript, Supabase (PostgreSQL + Auth), and Tailwind CSS + shadcn/ui.
 
 ## Commands
 

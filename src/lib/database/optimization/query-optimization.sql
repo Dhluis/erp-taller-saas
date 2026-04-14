@@ -2,7 +2,7 @@
 -- OPTIMIZACIÓN DE CONSULTAS FRECUENTES
 -- =====================================================
 -- Consultas optimizadas para mejorar el rendimiento
--- Eagles System
+-- Confia Drive
 
 -- =====================================================
 -- CONSULTA OPTIMIZADA: ÓRDENES EN PROGRESO
@@ -315,5 +315,6 @@ ORDER BY idx_scan DESC;
 
 =======
 >>>>>>> parent of b9214dc (landing page cambios)
+
 
 

@@ -1,6 +1,6 @@
 /**
  * useQuotations Hook con Paginación
- * Eagles System - Hook para gestión de cotizaciones con paginación completa
+ * Confia Drive - Hook para gestión de cotizaciones con paginación completa
  */
 
 'use client'
@@ -529,3 +529,4 @@ export function useQuotations(options: UseQuotationsOptions = {}): UseQuotations
     convertToInvoice
   }
 }
+

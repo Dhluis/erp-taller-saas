@@ -205,7 +205,7 @@ export default function ReportesPage() {
     try {
       // Generar contenido del reporte directamente
       const reportContent = `
-REPORTE DE ANÁLISIS - EAGLES SYSTEM
+REPORTE DE ANÁLISIS - Confia Drive
 =====================================
 Fecha de Generación: ${new Date().toLocaleDateString('es-ES')}
 
@@ -234,7 +234,7 @@ Total de clientes registrados: ${reportData.totalCustomers}
 Total de vehículos atendidos: ${reportData.totalVehicles}
 Ingresos acumulados: $${reportData.totalRevenue.toLocaleString()}
 
-Generado por: Eagles System
+Generado por: Confia Drive
 Fecha: ${new Date().toLocaleString('es-ES')}
       `;
 
@@ -461,7 +461,7 @@ Fecha: ${new Date().toLocaleString('es-ES')}
     `).join('')}
 
     <div class="footer">
-      <p><strong>Generado por Eagles System</strong></p>
+      <p><strong>Generado por Confia Drive</strong></p>
       <p>${currentDate}</p>
     </div>
   </div>
@@ -1656,4 +1656,5 @@ Fecha: ${new Date().toLocaleString('es-ES')}
     </AppLayout>
   );
 }
+
 

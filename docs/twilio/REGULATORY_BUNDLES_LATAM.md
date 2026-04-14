@@ -81,9 +81,9 @@ Cada país puede tener requisitos diferentes. Datos comunes:
 ### Paso 3: Nombre Amigable
 
 Sugerencia de nombres:
-- `Eagles System - Bundle México`
-- `Eagles System - Bundle Colombia`
-- `Eagles System - Bundle Argentina`
+- `Confia Drive - Bundle México`
+- `Confia Drive - Bundle Colombia`
+- `Confia Drive - Bundle Argentina`
 - etc.
 
 ### Paso 4: Esperar Aprobación
@@ -148,3 +148,4 @@ Si tienes problemas con la configuración:
 - [Twilio Regulatory Compliance](https://console.twilio.com/us1/develop/phone-numbers/regulatory-compliance/bundles)
 - [Documentación de Twilio Bundles](https://www.twilio.com/docs/phone-numbers/regulatory-compliance/bundles)
 - [Requisitos por País](https://www.twilio.com/docs/phone-numbers/regulatory-compliance/requirements-by-country)
+

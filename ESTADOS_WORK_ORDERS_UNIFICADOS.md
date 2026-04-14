@@ -99,7 +99,7 @@ Archivo: `scripts/unify-work-orders-status.sql`
 
 ### Archivos Actualizados
 
-1. **EAGLES-ERP-ARCHITECTURE.md**:
+1. **Confia Drive-ERP-ARCHITECTURE.md**:
    - ✅ PARTE 2: MÓDULO ÓRDENES → Estados actualizados
    - ✅ PARTE 2: MÓDULO ÓRDENES → Transiciones documentadas
    - ✅ PARTE 3: FLUJO 3 → Flujo completo actualizado

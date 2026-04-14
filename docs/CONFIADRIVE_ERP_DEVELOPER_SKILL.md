@@ -1,4 +1,4 @@
-# Eagles ERP - Developer Guide
+# Confia Drive ERP - Developer Guide
 
 **Última actualización:** 2026-01-05  
 **Versión del proyecto:** 4.0.0  
@@ -546,7 +546,7 @@ npm start
 - `docs/PLACEHOLDERS_CLEANUP_REPORT.md` - Reporte de placeholders
 - `docs/ANALISIS_CONVERSACIONES_WHATSAPP.md` - Análisis completo de conversaciones WhatsApp (2025-01-06)
 - `docs/CLEANUP_WHATSAPP_TEST_DATA.sql` - Scripts SQL para limpiar datos de prueba
-- `docs/EAGLES_ERP_DEVELOPER_SKILL.md` - Esta guía
+- `docs/Confia Drive_ERP_DEVELOPER_SKILL.md` - Esta guía
 
 ### **APIs Documentadas:**
 - `src/app/api/README-api-routes.md` - Documentación de API routes
@@ -586,6 +586,7 @@ npm start
 ---
 
 **Última revisión:** 2026-01-05  
-**Mantenido por:** Eagles ERP Development Team  
+**Mantenido por:** Confia Drive ERP Development Team  
 **Versión del documento:** 1.0.0
+
 

@@ -1,6 +1,6 @@
 -- =====================================================
 -- MIGRACIÓN 031: Agregar soporte de planes Free/Premium
--- Autor: Eagles ERP
+-- Autor: Confia Drive ERP
 -- Fecha: 2026-02-06
 -- Descripción: Agrega columnas y tablas para modelo freemium
 -- =====================================================

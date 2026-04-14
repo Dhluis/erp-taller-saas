@@ -32,7 +32,7 @@ export function PWAInstallButton({ isCollapsed, variant = 'sidebar' }: PWAInstal
   const handleClick = () => {
     if (isInstallable) {
       // Tiene prompt nativo disponible — mostrar toast con botón de confirmación
-      toast('🦅 ¡Instala Eagles ERP!', {
+      toast('🦅 ¡Instala Confia Drive ERP!', {
         description: 'Acceso rápido desde tu pantalla de inicio con mejor rendimiento y modo offline.',
         action: {
           label: 'Instalar',
@@ -60,7 +60,7 @@ export function PWAInstallButton({ isCollapsed, variant = 'sidebar' }: PWAInstal
               "w-full flex items-center gap-2 border-primary/30 text-primary hover:bg-primary/10 transition-all",
               isCollapsed ? "h-12 w-12 p-0 justify-center rounded-xl" : "h-10 justify-start"
             )}
-            title="Instalar Eagles ERP como aplicación"
+            title="Instalar Confia Drive ERP como aplicación"
           >
             <Download className="h-5 w-5 shrink-0" />
             {!isCollapsed && <span className="font-medium">Instalar App</span>}
@@ -80,7 +80,7 @@ export function PWAInstallButton({ isCollapsed, variant = 'sidebar' }: PWAInstal
           size="sm"
           onClick={handleClick}
           className="h-9 px-3 gap-2 flex items-center justify-center rounded-lg hover:bg-bg-tertiary text-primary transition-colors border border-primary/20"
-          title="Instalar Eagles ERP como aplicación"
+          title="Instalar Confia Drive ERP como aplicación"
         >
           <Download className="h-4 w-4" />
           <span className="text-xs font-semibold hidden md:inline">Instalar App</span>
@@ -104,7 +104,7 @@ function InstallGuideContent({ type, onClose }: { type: 'ios' | 'android'; onClo
         </DialogTitle>
         <DialogDescription className="text-slate-400">
           {isIOS
-            ? 'Sigue estos pasos desde Safari para agregar Eagles ERP a tu pantalla de inicio:'
+            ? 'Sigue estos pasos desde Safari para agregar Confia Drive ERP a tu pantalla de inicio:'
             : 'Tu navegador no muestra el botón automático. Sigue estos pasos:'}
         </DialogDescription>
       </DialogHeader>
@@ -142,7 +142,7 @@ function InstallGuideContent({ type, onClose }: { type: 'ios' | 'android'; onClo
         <div className="flex items-start gap-3 border-t border-slate-800 pt-4">
           <Info className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
           <p className="text-xs text-slate-500 italic">
-            Una vez instalada, Eagles ERP se abrirá como una app nativa con acceso rápido, carga instantánea y mejor experiencia en móvil.
+            Una vez instalada, Confia Drive ERP se abrirá como una app nativa con acceso rápido, carga instantánea y mejor experiencia en móvil.
           </p>
         </div>
       </div>
@@ -167,3 +167,4 @@ function Step({ number, children }: { number: number; children: React.ReactNode 
     </div>
   )
 }
+

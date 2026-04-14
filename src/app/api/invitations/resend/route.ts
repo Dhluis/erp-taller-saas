@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
       .eq('id', tenantContext.organizationId)
       .single()
 
-    const orgName = org?.name || 'Eagles ERP'
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'
+    const orgName = org?.name || 'Confia Drive ERP'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://confiadrive.io'
     const roleLabels: Record<string, string> = {
       admin: 'Administrador',
       manager: 'Gerente',
@@ -105,11 +105,11 @@ export async function POST(request: NextRequest) {
 
     const emailSent = await sendEmail({
       to: invitation.email,
-      subject: `Recordatorio: Invitación a ${orgName} en Eagles ERP`,
+      subject: `Recordatorio: Invitación a ${orgName} en Confia Drive ERP`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #1a1a2e;">Recordatorio de invitación a ${orgName}</h2>
-          <p>Te recordamos que tienes una invitación pendiente para unirte a <strong>${orgName}</strong> en Eagles ERP con el rol de <strong>${roleLabel}</strong>.</p>
+          <p>Te recordamos que tienes una invitación pendiente para unirte a <strong>${orgName}</strong> en Confia Drive ERP con el rol de <strong>${roleLabel}</strong>.</p>
           <p>Esta invitación expira el <strong>${expiresAt.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}</strong>.</p>
           <div style="text-align: center; margin: 30px 0;">
             <a href="${registerUrl}" style="background: #6366f1; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; display: inline-block;">
@@ -135,4 +135,6 @@ export async function POST(request: NextRequest) {
     }, { status: 500 })
   }
 }
+
+
 

@@ -6,8 +6,8 @@
 
 El usuario reportó ver **"m2 sidebars"** - duplicación de elementos de branding en la interfaz:
 
-1. **Sidebar izquierdo**: Logo "E" + "EAGLES" + "ERP Taller SaaS"
-2. **Topbar/Header**: También "EAGLES - ERP Taller SaaS"
+1. **Sidebar izquierdo**: Logo "E" + "Confia Drive" + "ERP Taller SaaS"
+2. **Topbar/Header**: También "Confia Drive - ERP Taller SaaS"
 
 ### 🔧 **CAUSA RAÍZ IDENTIFICADA:**
 
@@ -18,7 +18,7 @@ El usuario reportó ver **"m2 sidebars"** - duplicación de elementos de brandin
 
 #### **Archivos Problemáticos:**
 - **`src/components/layout/AppLayout.tsx`**: Usaba `TopBar` con título por defecto
-- **`src/components/layout/TopBar.tsx`**: Renderizaba `title = 'EAGLES - ERP Taller SaaS'`
+- **`src/components/layout/TopBar.tsx`**: Renderizaba `title = 'Confia Drive - ERP Taller SaaS'`
 - **22 páginas** usando `AppLayout` en lugar de `MainLayout`
 
 ### 🚀 **SOLUCIÓN IMPLEMENTADA:**
@@ -80,7 +80,7 @@ El usuario reportó ver **"m2 sidebars"** - duplicación de elementos de brandin
 ### 🎯 **RESULTADO FINAL:**
 
 #### **✅ Interfaz Unificada:**
-- **Un solo sidebar** con logo "EAGLES" ✅
+- **Un solo sidebar** con logo "Confia Drive" ✅
 - **Header limpio** sin duplicación ✅
 - **Layout consistente** en todas las páginas ✅
 - **Navegación unificada** ✅

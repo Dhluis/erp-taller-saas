@@ -1,5 +1,5 @@
 -- Migración 045: Ajustes/devoluciones, entregas, arqueo de caja y gastos
--- Eagles ERP - Módulos conectados a facturación, cuentas de efectivo y compras
+-- Confia Drive ERP - Módulos conectados a facturación, cuentas de efectivo y compras
 
 -- =====================================================
 -- 1. NOTAS DE CRÉDITO (Ajustes y devoluciones)
