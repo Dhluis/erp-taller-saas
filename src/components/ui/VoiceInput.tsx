@@ -112,18 +112,18 @@ export function VoiceInput({
         onClick={toggleListening}
         className={cn(
           "relative transition-all duration-200",
-          isListening && "bg-pink-500/10 text-pink-500 hover:bg-pink-500/20 shadow-[0_0_15px_rgba(236,72,153,0.3)]",
-          !isListening && "hover:text-pink-400",
+          isListening && "bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 shadow-[0_0_12px_rgba(245,158,11,0.3)]",
+          !isListening && "hover:text-amber-400",
           className
         )}
         title={isListening ? "Detener dictado" : "Dictar con voz"}
         icon={
           isListening ? (
             <div className="relative">
-              <Mic className="w-4 h-4 animate-pulse fill-pink-500/20" />
+              <Mic className="w-4 h-4 animate-pulse fill-amber-400/30" />
               <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
               </span>
             </div>
           ) : (

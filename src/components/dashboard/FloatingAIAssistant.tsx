@@ -103,17 +103,17 @@ export function FloatingAIAssistant() {
         className={cn(
           "relative transition-all duration-700 ease-out transform",
           "bg-gradient-to-r from-[#1e293b]/80 via-[#0f172a]/90 to-[#1e293b]/80",
-          "backdrop-blur-xl border border-pink-500/20 rounded-xl sm:rounded-2xl shadow-[0_0_50px_-12px_rgba(236,72,153,0.3)]",
+          "backdrop-blur-xl border border-amber-500/25 rounded-xl sm:rounded-2xl shadow-[0_0_50px_-12px_rgba(245,158,11,0.35)]",
           "p-3 sm:p-4 md:p-6",
-          isExpanded ? "scale-[1.02] border-pink-500/40" : "scale-100"
+          isExpanded ? "scale-[1.02] border-amber-500/50" : "scale-100"
         )}
       >
         {/* Glowing brain indicator */}
         <div className="absolute -top-3 -left-3">
           <div className="relative">
-            <div className="absolute inset-0 bg-pink-500 blur-md opacity-20 animate-pulse" />
-            <div className="relative bg-[#0f172a] border border-pink-500/30 p-1.5 sm:p-2 rounded-xl shadow-lg">
-              <Brain className="h-4 w-4 sm:h-6 sm:w-6 text-pink-500" />
+            <div className="absolute inset-0 bg-amber-500 blur-md opacity-20 animate-pulse" />
+            <div className="relative bg-[#0f172a] border border-amber-500/40 p-1.5 sm:p-2 rounded-xl shadow-lg shadow-amber-500/10">
+              <Brain className="h-4 w-4 sm:h-6 sm:w-6 text-amber-400" />
             </div>
           </div>
         </div>
@@ -122,7 +122,7 @@ export function FloatingAIAssistant() {
           <div className="flex-1 w-full space-y-1 sm:space-y-2">
             <div className="flex items-center gap-2 mb-0.5 sm:mb-1 pl-5 sm:pl-0">
               <h2 className="text-sm sm:text-xl font-bold text-white tracking-tight flex items-center gap-1.5 sm:gap-2">
-                Confia Drive AI <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 text-pink-400 fill-pink-400/20" />
+                Confia Drive AI <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 text-amber-400 fill-amber-400/30" />
               </h2>
             </div>
             
@@ -144,12 +144,12 @@ export function FloatingAIAssistant() {
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 sm:gap-2">
                 <VoiceInput
                   onTranscript={(text) => setInput(prev => prev ? `${prev} ${text}` : text)}
-                  className="h-7 w-7 sm:h-9 sm:w-9 md:h-10 md:w-10 bg-slate-800/50 hover:bg-slate-700 text-white rounded-lg transition-colors"
+                  className="h-7 w-7 sm:h-9 sm:w-9 md:h-10 md:w-10 bg-slate-800/50 hover:bg-amber-500/10 hover:text-amber-400 text-white rounded-lg transition-colors"
                 />
                 <Button
                   onClick={handleMagicCreate}
                   disabled={loading || !input.trim()}
-                  className="h-8 sm:h-10 md:h-12 bg-pink-600 hover:bg-pink-500 text-white rounded-xl shadow-lg shadow-pink-500/20 gap-1 sm:gap-2 px-2.5 sm:px-4 md:px-6 text-xs sm:text-sm"
+                  className="h-8 sm:h-10 md:h-12 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white rounded-xl shadow-lg shadow-amber-500/25 gap-1 sm:gap-2 px-2.5 sm:px-4 md:px-6 text-xs sm:text-sm font-semibold"
                 >
                   {loading ? (
                     <Loader2 className="h-3.5 w-3.5 sm:h-5 sm:w-5 animate-spin" />
@@ -173,7 +173,7 @@ export function FloatingAIAssistant() {
               Captura órdenes, clientes y vehículos en segundos usando solo tu voz o lenguaje natural.
             </p>
             <div className="flex gap-2">
-               <div className="h-1 w-8 bg-pink-500 rounded-full" />
+               <div className="h-1 w-8 bg-amber-500 rounded-full" />
                <div className="h-1 w-4 bg-slate-700 rounded-full" />
                <div className="h-1 w-4 bg-slate-700 rounded-full" />
             </div>

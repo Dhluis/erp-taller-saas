@@ -293,9 +293,9 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-bg-tertiary">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-amber-500/20 bg-gradient-to-r from-[#0f172a] to-[#1a1400] bg-bg-tertiary">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-slate-800 border border-cyan-500/50 flex items-center justify-center overflow-hidden shrink-0">
+            <div className="w-8 h-8 rounded-full bg-slate-800 border border-amber-500/60 shadow-[0_0_12px_rgba(245,158,11,0.25)] flex items-center justify-center overflow-hidden shrink-0">
               <Image
                 src={logoSrc}
                 alt="Confia Drive"
@@ -414,7 +414,7 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
                     className={cn(
                       'max-w-[85%] rounded-2xl px-4 py-2.5 text-sm',
                       msg.role === 'user'
-                        ? 'bg-cyan-600 text-white'
+                        ? 'bg-gradient-to-br from-amber-500 to-yellow-600 text-white shadow-md shadow-amber-500/20'
                         : 'bg-bg-tertiary text-text-primary border border-border'
                     )}
                   >
@@ -439,7 +439,7 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
               {loading && (
                 <div className="flex justify-start">
                   <div className="bg-bg-tertiary border border-border rounded-2xl px-4 py-2.5 flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-cyan-500" />
+                    <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
                     <span className="text-sm text-text-muted">Buscando...</span>
                   </div>
                 </div>
@@ -483,8 +483,8 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
                   className={cn(
                     "rounded-xl shrink-0 transition-all duration-300",
                     isListening 
-                      ? "bg-pink-500/20 text-pink-500 ring-2 ring-pink-500/50 animate-pulse" 
-                      : "text-text-muted hover:text-pink-500 hover:bg-pink-500/10"
+                      ? "bg-amber-500/20 text-amber-400 ring-2 ring-amber-500/60 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.3)]" 
+                      : "text-text-muted hover:text-amber-400 hover:bg-amber-500/10"
                   )}
                   title={isListening ? "Detener voz" : "Hablar con Confia Drive AI"}
                 >
@@ -504,7 +504,7 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
                   placeholder={isListening ? "Escuchando..." : "Pregunta sobre órdenes, clientes..."}
                   className={cn(
                     "flex-1 rounded-xl border border-border bg-bg-primary px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none transition-all",
-                    isListening ? "ring-2 ring-pink-500/30 border-pink-500/50" : "focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50"
+                    isListening ? "ring-2 ring-amber-500/40 border-amber-500/60" : "focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50"
                   )}
                   disabled={loading}
                 />
@@ -515,8 +515,8 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
                   disabled={loading || !input.trim()}
                   className={cn(
                     "rounded-xl shrink-0 transition-all duration-300",
-                    "bg-gradient-to-br from-pink-500 via-rose-500 to-rose-600",
-                    "hover:scale-105 active:scale-95 shadow-lg shadow-pink-500/20",
+                    "bg-gradient-to-br from-amber-500 via-yellow-500 to-amber-600",
+                    "hover:scale-105 active:scale-95 shadow-lg shadow-amber-500/25",
                     "disabled:opacity-50 disabled:grayscale disabled:scale-100",
                     "text-white border-0"
                   )}

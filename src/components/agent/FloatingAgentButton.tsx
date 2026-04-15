@@ -63,14 +63,14 @@ export function FloatingAgentButton() {
           'fixed bottom-6 right-6 z-40',
           'flex items-center justify-center',
           'w-14 h-14 rounded-full',
-          'bg-slate-900/90 backdrop-blur-md border border-pink-500/50',
-          'shadow-[0_0_24px_rgba(236,72,153,0.25)]',
-          'hover:shadow-[0_0_32px_rgba(236,72,153,0.4)] hover:border-pink-400/60',
+          'bg-slate-900/90 backdrop-blur-md border border-amber-500/60',
+          'shadow-[0_0_24px_rgba(245,158,11,0.30)]',
+          'hover:shadow-[0_0_36px_rgba(245,158,11,0.50)] hover:border-amber-400/80',
           'active:scale-95 transition-all duration-200',
-          'ring-2 ring-pink-500/20 ring-offset-2 ring-offset-bg-primary'
+          'ring-2 ring-amber-500/25 ring-offset-2 ring-offset-bg-primary'
         )}
       >
-        <span className="absolute inset-0 rounded-full bg-gradient-to-br from-pink-500/10 to-transparent" />
+        <span className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-500/15 to-yellow-600/5" />
         <span className="relative w-8 h-8 flex items-center justify-center overflow-hidden rounded-full">
           <Image
             src={imgSrc}
@@ -83,8 +83,8 @@ export function FloatingAgentButton() {
           />
         </span>
         <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-pink-400/60 opacity-75" />
-          <span className="relative inline-flex h-3 w-3 rounded-full bg-pink-500" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400/70 opacity-75" />
+          <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-500" />
         </span>
       </button>
 

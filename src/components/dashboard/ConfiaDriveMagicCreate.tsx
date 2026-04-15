@@ -67,16 +67,16 @@ export function ConfiaDriveMagicCreate() {
   };
 
   return (
-    <Card className="overflow-hidden border-2 border-indigo-500/20 bg-slate-900/50 backdrop-blur-sm shadow-xl hover:shadow-indigo-500/10 transition-all duration-300">
-      <CardHeader className="pb-3 border-b border-white/5 bg-gradient-to-r from-indigo-500/10 to-purple-500/10">
+    <Card className="overflow-hidden border-2 border-amber-500/25 bg-slate-900/50 backdrop-blur-sm shadow-xl hover:shadow-amber-500/10 transition-all duration-300">
+      <CardHeader className="pb-3 border-b border-white/5 bg-gradient-to-r from-amber-500/10 to-yellow-600/5">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400">
+            <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
               <Sparkles className="w-5 h-5" />
             </div>
             Creación Mágica (Confia Drive AI)
           </CardTitle>
-          <div className="px-2 py-0.5 rounded-full bg-indigo-500 text-[10px] font-semibold text-white tracking-wider uppercase animate-pulse">
+          <div className="px-2 py-0.5 rounded-full bg-amber-500 text-[10px] font-semibold text-white tracking-wider uppercase animate-pulse">
             Beta
           </div>
         </div>
@@ -95,7 +95,7 @@ export function ConfiaDriveMagicCreate() {
           <div className="absolute top-2 right-2">
             <VoiceInput 
               onTranscript={(text) => setInput(prev => prev ? `${prev} ${text}` : text)}
-              className="bg-slate-700/50 hover:bg-indigo-500/20 text-indigo-400"
+              className="bg-slate-700/50 hover:bg-amber-500/20 text-amber-400"
             />
           </div>
         </div>
@@ -103,7 +103,7 @@ export function ConfiaDriveMagicCreate() {
         <Button
           onClick={handleCreate}
           disabled={loading || !input.trim()}
-          className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/20 group transition-all duration-300"
+          className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white shadow-lg shadow-amber-500/20 font-semibold group transition-all duration-300"
         >
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin mr-2" />
