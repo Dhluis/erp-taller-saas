@@ -384,20 +384,12 @@ export function Sidebar({ className }: SidebarProps) {
               <Logo 
                 className={cn(
                   "transition-all duration-500 group-hover:scale-105",
-                  "drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+                  "drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]",
+                  isCollapsed ? "!w-10 !h-10" : "!w-44 !h-14"
                 )}
-                size={isCollapsed ? 'sm' : 'lg'}
+                size={isCollapsed ? 'sm' : 'xl'}
               />
             </div>
-            
-            {!isCollapsed && (
-              <div className="mt-4 flex flex-col items-center">
-                <span className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-white tracking-[0.2em] uppercase">
-                  Confia Drive
-                </span>
-                <div className="h-[2px] w-8 bg-gradient-to-r from-blue-500 to-transparent mt-1 rounded-full opacity-50" />
-              </div>
-            )}
           </button>
         </div>
       </div>
