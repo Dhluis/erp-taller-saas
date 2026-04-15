@@ -223,7 +223,7 @@ export default function RegisterPage() {
         <div className="text-center mb-8">
           <div className="mb-4 flex justify-center">
             <Image
-              src="/confiadrive-logo-new.png"
+              src="https://i.ibb.co/5h083nG9/cmyk-confia-drive-Mesa-de-trabajo-1-copia-1.png"
               alt="Logo Confia Drive"
               width={160}
               height={80}

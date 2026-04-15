@@ -32,13 +32,13 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/confiadrive-logo-new.png", type: "image/png" },
-      { url: "/confiadrive-logo-new.png", sizes: "32x32", type: "image/png" },
-      { url: "/confiadrive-logo-new.png", sizes: "16x16", type: "image/png" },
+      { url: "https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg", type: "image/jpeg" },
+      { url: "https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg", sizes: "32x32", type: "image/jpeg" },
+      { url: "https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg", sizes: "16x16", type: "image/jpeg" },
     ],
-    shortcut: "/confiadrive-logo-new.png",
+    shortcut: "https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg",
     apple: [
-      { url: "/confiadrive-logo-square.png", type: "image/png" },
+      { url: "https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg", type: "image/jpeg" },
     ],
   },
   appleWebApp: {

@@ -213,7 +213,7 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Image
-              src="/confiadrive-logo.png"
+              src="https://i.ibb.co/5h083nG9/cmyk-confia-drive-Mesa-de-trabajo-1-copia-1.png"
               alt="Confia Drive"
               width={40}
               height={40}

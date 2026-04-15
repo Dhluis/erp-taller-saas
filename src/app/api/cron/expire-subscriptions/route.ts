@@ -30,8 +30,12 @@ export async function GET(request: NextRequest) {
     const result = await expireSubscriptions()
     return NextResponse.json({
       ok: result.ok,
+      // Suscripciones Premium vencidas
       downgradedCount: result.downgradedCount,
       organizationIds: result.organizationIds,
+      // Trials vencidos (Day 8 → Free)
+      trialDowngradedCount: result.trialDowngradedCount,
+      trialOrganizationIds: result.trialOrganizationIds,
       error: result.error,
     })
   } catch (err) {

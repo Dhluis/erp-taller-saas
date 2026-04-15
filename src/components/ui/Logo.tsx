@@ -19,15 +19,24 @@ const sizeClasses = {
 
 export function Logo({ size = 'md', variant = 'default', className }: LogoProps) {
   const { companySettings } = useSession()
-  const logoUrl = companySettings?.logo_url || "/confiadrive-logo.png"
+  
+  const isSquare = size === 'sm';
+  const defaultLogo = isSquare 
+    ? "https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg" 
+    : "https://i.ibb.co/5h083nG9/cmyk-confia-drive-Mesa-de-trabajo-1-copia-1.png";
+    
+  const logoUrl = companySettings?.logo_url || defaultLogo
+  
+  const imgWidth = isSquare ? 64 : 160;
+  const imgHeight = isSquare ? 64 : 64;
 
   return (
     <div className={cn('flex items-center justify-center', sizeClasses[size], className)}>
       <Image
         src={logoUrl}
         alt={companySettings?.company_name || "Confia Drive Logo"}
-        width={160}
-        height={64}
+        width={imgWidth}
+        height={imgHeight}
         className="w-full h-auto object-contain"
         priority
       />

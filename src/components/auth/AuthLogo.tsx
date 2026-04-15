@@ -19,7 +19,7 @@ export function AuthLogo({ size = 'lg', showText = true }: AuthLogoProps) {
     <div className="text-center">
       <div className="inline-flex items-center justify-center mb-4">
         <Image
-          src="/confiadrive-logo-new.png"
+          src="https://i.ibb.co/5h083nG9/cmyk-confia-drive-Mesa-de-trabajo-1-copia-1.png"
           alt="Confia Drive"
           width={200}
           height={100}

@@ -123,7 +123,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 2. Crear organización (Plan Free por defecto, sin trial)
+    // 2. Crear organización con Trial Premium de 7 días (Modelo Híbrido)
+    // Día 1-7: Premium completo (IA, reportes, sin límites)
+    // Día 8+: Baja a Free automáticamente si no pagan
+    const trialEndsAt = new Date()
+    trialEndsAt.setDate(trialEndsAt.getDate() + 7)
+
     const { data: orgData, error: orgError } = await supabaseAdmin
       .from('organizations')
       .insert({
@@ -131,9 +136,10 @@ export async function POST(request: NextRequest) {
         address: `Dirección del taller de ${body.fullName}`,
         phone: body.phone || '',
         email: body.email,
-        plan_tier: 'free',
-        subscription_status: 'active',
-        trial_ends_at: null,
+        plan_tier: 'premium',
+        subscription_status: 'trial',
+        trial_ends_at: trialEndsAt.toISOString(),
+        plan_started_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })

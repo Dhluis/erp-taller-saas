@@ -42,7 +42,7 @@ export default function LandingPage() {
             <div className="relative group">
               <div className="absolute -inset-2 bg-cyan-500/10 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
               <Image
-                src="/confiadrive-logo-new.png"
+                src="https://i.ibb.co/5h083nG9/cmyk-confia-drive-Mesa-de-trabajo-1-copia-1.png"
                 alt="Confia Drive"
                 width={160}
                 height={64}

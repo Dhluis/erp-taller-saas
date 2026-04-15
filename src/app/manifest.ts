@@ -14,25 +14,25 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ['business', 'productivity'],
     icons: [
       {
-        src: '/confiadrive-logo-square.png',
+        src: 'https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/confiadrive-logo-square.png',
+        src: 'https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'maskable',
       },
       {
-        src: '/confiadrive-logo-square.png',
+        src: 'https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/confiadrive-logo-square.png',
+        src: 'https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',
