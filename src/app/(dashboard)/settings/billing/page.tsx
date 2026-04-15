@@ -380,23 +380,13 @@ export default function BillingPage() {
                 </p>
                 {!isPremium && (
                   <Button
-                    onClick={() => handleCheckout('monthly')}
-                    disabled={isLoadingCheckout}
+                    onClick={() => window.open('https://pay.hotmart.com/F105392844W?bid=1776224206834', '_blank')}
                     variant="outline"
                     size="lg"
                     className="w-full mt-4 min-h-[3.75rem] text-lg px-6 py-4 border-primary text-primary hover:bg-primary/10 hover:text-primary"
                   >
-                    {isLoadingCheckout ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Procesando...
-                      </>
-                    ) : (
-                      <>
-                        <Crown className="mr-2 h-4 w-4" />
-                        Suscribirse - {PRICING.monthly.displayPrice}
-                      </>
-                    )}
+                    <Crown className="mr-2 h-4 w-4" />
+                    Suscribirse - {PRICING.monthly.displayPrice}
                   </Button>
                 )}
               </div>
@@ -404,7 +394,7 @@ export default function BillingPage() {
 
             {!isPremium && (
               <p className="text-xs text-muted-foreground mt-2">
-                💳 Pago procesado por Stripe
+                💳 Plan mensual procesado por Hotmart · Plan anual por Stripe
               </p>
             )}
             {/* Features */}

@@ -2006,25 +2006,25 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         {!isMechanic && (
           <div className="px-4 py-1 sm:px-6 sm:py-2 bg-slate-900/50 border-b border-slate-800 flex-shrink-0">
             <div className="relative group">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-              <div className="relative flex items-center gap-3 bg-[#0f172a] border border-pink-500/30 rounded-lg p-1 sm:p-2 shadow-xl">
-                <div className="p-1.5 bg-pink-500/10 rounded-lg shrink-0">
-                  <Brain className={cn("h-5 w-5 text-pink-500", isProcessingAI && "animate-pulse")} />
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-yellow-600/20 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+              <div className="relative flex items-center gap-3 bg-[#0f172a] border border-amber-500/40 rounded-lg p-1 sm:p-2 shadow-xl shadow-amber-500/10">
+                <div className="p-1.5 bg-amber-500/15 rounded-lg shrink-0">
+                  <Brain className={cn("h-5 w-5 text-amber-400", isProcessingAI && "animate-pulse")} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Confia Drive AI</p>
+                    <p className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">Confia Drive AI</p>
                     <span className="h-1 w-1 rounded-full bg-slate-600"></span>
                     <p className="text-[9px] sm:text-[10px] text-slate-400 truncate">Dictado inteligente para llenar toda la orden</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {isProcessingAI ? (
-                    <Loader2 className="h-5 w-5 text-pink-500 animate-spin" />
+                    <Loader2 className="h-5 w-5 text-amber-400 animate-spin" />
                   ) : (
                     <VoiceInput
                       onTranscript={handleGlobalVoiceTranscription}
-                      className="h-9 w-9 bg-pink-600 hover:bg-pink-500 text-white shadow-lg shadow-pink-500/20 rounded-full"
+                      className="h-9 w-9 bg-gradient-to-br from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white shadow-lg shadow-amber-500/25 rounded-full"
                     />
                   )}
                 </div>

@@ -47,7 +47,7 @@ export function ConfiaDriveInsights() {
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-white text-lg flex items-center gap-2">
-              <Brain className="h-5 w-5 text-pink-500 animate-pulse" />
+              <Brain className="h-5 w-5 text-amber-400 animate-pulse" />
               Insights de Confia Drive AI
             </CardTitle>
             <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px] h-5">
@@ -69,13 +69,13 @@ export function ConfiaDriveInsights() {
   return (
     <Card className="bg-[#0b1120] border-slate-800 shadow-2xl overflow-hidden relative group">
       {/* Subtle background glow */}
-      <div className="absolute -top-10 -right-10 w-40 h-40 bg-pink-500/5 blur-[80px] rounded-full group-hover:bg-pink-500/10 transition-colors" />
+      <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/5 blur-[80px] rounded-full group-hover:bg-amber-500/10 transition-colors" />
       
       <CardHeader className="pb-4 relative">
         <div className="flex items-center justify-between">
           <CardTitle className="text-white text-lg flex items-center gap-2">
-            <div className="p-1.5 bg-pink-500/10 rounded-lg">
-              <Brain className="h-5 w-5 text-pink-500" />
+            <div className="p-1.5 bg-amber-500/15 rounded-lg">
+              <Brain className="h-5 w-5 text-amber-400" />
             </div>
             Insights de Confia Drive AI
           </CardTitle>
@@ -91,7 +91,7 @@ export function ConfiaDriveInsights() {
           {insights.map((insight, index) => (
             <div 
               key={index} 
-              className="group/item flex flex-col p-5 rounded-2xl border border-slate-800 bg-slate-900/40 hover:bg-slate-900/60 hover:border-pink-500/30 transition-all duration-500 shadow-xl"
+              className="group/item flex flex-col p-5 rounded-2xl border border-slate-800 bg-slate-900/40 hover:bg-slate-900/60 hover:border-amber-500/30 transition-all duration-500 shadow-xl"
             >
               <div className="flex justify-between items-start gap-3 mb-3">
                 <div className="flex-1">
@@ -118,7 +118,7 @@ export function ConfiaDriveInsights() {
               <div className="mt-auto pt-4 border-t border-slate-800/50">
                 <Link 
                   href={insight.actionLink || '#'} 
-                  className="group/btn inline-flex items-center gap-2 text-xs font-bold text-pink-400 hover:text-pink-300 transition-all uppercase tracking-wider"
+                  className="group/btn inline-flex items-center gap-2 text-xs font-bold text-amber-400 hover:text-amber-300 transition-all uppercase tracking-wider"
                 >
                   {insight.actionLabel || 'VER DETALLES'}
                   <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/btn:translate-x-1.5" />
