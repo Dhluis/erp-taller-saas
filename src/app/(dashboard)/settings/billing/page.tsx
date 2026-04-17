@@ -106,9 +106,19 @@ export default function BillingPage() {
 
   const isPremium = plan?.plan_tier === "premium";
   const isActive = plan?.subscription_status === "active";
+  const isTrial = plan?.subscription_status === "trial";
+
+  const showSubscribeButton = !isActive;
+  const isFreeOrTrialOrExpired = !isActive;
 
   const handleSubscribe = () => {
     window.open(HOTMART_CHECKOUT_URL, "_blank");
+  };
+
+  const getSubscribeButtonText = () => {
+    if (isTrial) return "Activar Suscripción";
+    if (isPremium) return "Suscribirse Ahora";
+    return "Suscribirse Ahora";
   };
 
   return (
@@ -171,6 +181,24 @@ export default function BillingPage() {
                   )}
                 </>
               )}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
+      {isTrial && (
+        <Card className="border-2 border-yellow-400">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-yellow-500" />
+                <CardTitle>Período de Prueba</CardTitle>
+              </div>
+              <Badge className="bg-yellow-500 text-white">TRIAL</Badge>
+            </div>
+            <CardDescription>
+              Estás disfrutando de Premium gratis. ¡Suscríbete para no perder el
+              acceso!
             </CardDescription>
           </CardHeader>
         </Card>
@@ -272,17 +300,22 @@ export default function BillingPage() {
                   Cobro base: {PRICING.monthly.displayPrice}
                 </p>
               )}
-              <p className="text-xs text-foreground/60 mt-1">
-                Facturación mensual · Procesado por Hotmart
-              </p>
-              {!isPremium && (
+              {isTrial && (
+                <div className="mt-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                  <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
+                    🎁 Estás en período de prueba. ¡Suscríbete para mantener el
+                    acceso!
+                  </p>
+                </div>
+              )}
+              {showSubscribeButton && (
                 <Button
                   onClick={handleSubscribe}
                   size="lg"
                   className="w-full mt-4 h-14 text-lg font-bold bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white border-0 shadow-lg shadow-orange-500/20"
                 >
                   <Crown className="mr-2 h-5 w-5" />
-                  Suscribirse Ahora
+                  {getSubscribeButtonText()}
                 </Button>
               )}
             </div>
