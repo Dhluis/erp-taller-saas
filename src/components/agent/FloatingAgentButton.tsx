@@ -9,7 +9,7 @@ import { useLimitCheck } from '@/hooks/useLimitCheck'
 import { UpgradeModal } from '@/components/billing/upgrade-modal'
 import type { LimitError } from '@/types/billing'
 
-const FAVICON_SRC = 'https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg'
+const FAVICON_SRC = 'https://i.ibb.co/d4CNVSBS/conf-a-Drive-logo-con-11.png'
 const FAVICON_FALLBACK = '/favicon.svg'
 
 const AI_AGENT_LIMIT_ERROR: LimitError = {

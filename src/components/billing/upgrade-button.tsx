@@ -18,7 +18,7 @@ export function UpgradeButton({
   className,
 }: UpgradeButtonProps) {
   const handleUpgrade = () => {
-    window.open(HOTMART_CHECKOUT_URL, "_blank");
+    window.open(HOTMART_CHECKOUT_URL, "_blank", "noopener,noreferrer");
   };
 
   const isOutline = variant === "outline";

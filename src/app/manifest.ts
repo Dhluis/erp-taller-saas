@@ -14,25 +14,25 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ['business', 'productivity'],
     icons: [
       {
-        src: 'https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg',
+        src: 'https://i.ibb.co/d4CNVSBS/conf-a-Drive-logo-con-11.png',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: 'https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg',
+        src: 'https://i.ibb.co/d4CNVSBS/conf-a-Drive-logo-con-11.png',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'maskable',
       },
       {
-        src: 'https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg',
+        src: 'https://i.ibb.co/d4CNVSBS/conf-a-Drive-logo-con-11.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: 'https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg',
+        src: 'https://i.ibb.co/d4CNVSBS/conf-a-Drive-logo-con-11.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',

@@ -63,7 +63,7 @@ export function UpgradeModal({
 
   const handleUpgrade = () => {
     onClose();
-    window.open(HOTMART_CHECKOUT_URL, "_blank");
+    window.open(HOTMART_CHECKOUT_URL, "_blank", "noopener,noreferrer");
   };
 
   return (

@@ -112,7 +112,7 @@ export default function BillingPage() {
   const isFreeOrTrialOrExpired = !isActive;
 
   const handleSubscribe = () => {
-    window.open(HOTMART_CHECKOUT_URL, "_blank");
+    window.open(HOTMART_CHECKOUT_URL, "_blank", "noopener,noreferrer");
   };
 
   const getSubscribeButtonText = () => {

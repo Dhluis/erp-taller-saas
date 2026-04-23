@@ -78,7 +78,7 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [logoSrc, setLogoSrc] = useState('https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg')
+  const [logoSrc, setLogoSrc] = useState('https://i.ibb.co/d4CNVSBS/conf-a-Drive-logo-con-11.png')
   const [isListening, setIsListening] = useState(false)
   const recognitionRef = useRef<any>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
