@@ -82,28 +82,27 @@ async function getOrganizationIdFromUser(userId: string): Promise<string | null>
  */
 async function getPlanTier(organizationId: string): Promise<PlanTier> {
   const supabase = getSupabaseServiceClient()
-  
+
   const { data: org, error } = await supabase
     .from('organizations')
-    .select('plan_tier, subscription_status')
+    .select('plan_tier, subscription_status, trial_ends_at')
     .eq('id', organizationId)
     .single()
-  
+
   if (error || !org) {
     console.error('[getPlanTier] Error:', error)
     return 'free'
   }
 
-  const o = org as { plan_tier?: string; subscription_status?: string }
-  const planTier = (o.plan_tier || 'free') as PlanTier
+  const o = org as { plan_tier?: string; subscription_status?: string; trial_ends_at?: string }
 
-  // Si es premium por pago, retornar premium
-  if (planTier === 'premium' && o.subscription_status === 'active') return 'premium'
+  // Suscripción pagada activa
+  if (o.plan_tier === 'premium' && o.subscription_status === 'active') return 'premium'
 
-  // NOTA: Se ha eliminado la lógica de trial de 7 días por ser obsoleta.
-  // Las cuentas son 'free' por defecto hasta que se active una suscripción premium.
+  // Trial activo: dar acceso premium mientras no haya expirado
+  if (o.subscription_status === 'trial' && o.trial_ends_at && new Date(o.trial_ends_at) > new Date()) return 'premium'
 
-  return planTier
+  return 'free'
 }
 
 

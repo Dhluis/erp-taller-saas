@@ -10,6 +10,7 @@ import { useSidebar } from '@/contexts/SidebarContext'
 import { cn } from '@/lib/utils'
 import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant'
 import { usePermissions } from '@/hooks/usePermissions'
+import { TrialBanner } from '@/components/billing/TrialBanner'
 
 // Prevents double-rendering when a page AND the root layout both wrap with AppLayout
 const AppLayoutMountedCtx = createContext(false)
@@ -74,6 +75,8 @@ export function AppLayout({ children, title, breadcrumbs }: AppLayoutProps) {
           <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300 relative z-10">
             {/* TopBar */}
             <TopBar title={title} onMenuClick={() => setIsMobileMenuOpen(true)} />
+
+            <TrialBanner />
 
             {/* Breadcrumb */}
             {breadcrumbs && breadcrumbs.length > 0 && (

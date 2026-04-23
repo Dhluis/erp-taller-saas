@@ -59,7 +59,7 @@ export async function expireSubscriptions(): Promise<ExpireSubscriptionsResult> 
         .from('organizations')
         .update({
           plan_tier: 'free',
-          subscription_status: 'expired_trial',
+          subscription_status: 'expired',
           updated_at: now,
           // Mantenemos trial_ends_at para registro histórico
         })

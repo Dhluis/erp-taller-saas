@@ -26,6 +26,7 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   // Guardar callbacks en refs para que el useEffect no los necesite como dependencia
   const onResultRef = useRef(onResult);
   const onErrorRef = useRef(onError);
+  const lastProcessedIndexRef = useRef<number>(0);
 
   useEffect(() => {
     onResultRef.current = onResult;
@@ -48,27 +49,36 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
 
     recognition.onstart = () => {
       setIsListening(true);
+      lastProcessedIndexRef.current = 0; // Reiniciar contador en cada inicio
       console.log('🎙️ Microfono activo');
     };
 
     recognition.onresult = (event: any) => {
+      let sessionFinalTranscript = '';
       let interimTranscript = '';
-      let finalTranscript = '';
+      let newFinalTranscript = '';
       
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      // Iterar sobre todos los resultados desde el inicio para construir el estado completo
+      for (let i = 0; i < event.results.length; i++) {
         const transcriptSegment = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalTranscript += transcriptSegment;
+          sessionFinalTranscript += transcriptSegment;
+          
+          // Solo emitir fragmentos finales que no hayamos procesado aún
+          if (i >= lastProcessedIndexRef.current) {
+            newFinalTranscript += transcriptSegment;
+            lastProcessedIndexRef.current = i + 1;
+          }
         } else {
           interimTranscript += transcriptSegment;
         }
       }
       
-      const currentTranscript = finalTranscript + interimTranscript;
+      const currentTranscript = sessionFinalTranscript + interimTranscript;
       setTranscript(currentTranscript);
       
-      if (finalTranscript && onResultRef.current) {
-        onResultRef.current(finalTranscript);
+      if (newFinalTranscript && onResultRef.current) {
+        onResultRef.current(newFinalTranscript);
       }
     };
 
