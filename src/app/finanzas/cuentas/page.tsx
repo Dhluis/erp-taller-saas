@@ -12,6 +12,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
 } from '@/components/ui/dialog'
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
@@ -61,6 +65,7 @@ export default function CuentasPage() {
   const [movements, setMovements] = useState<Movement[]>([])
   const [movementsLoading, setMovementsLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [confirmingMove, setConfirmingMove] = useState(false)
   
   const [createForm, setCreateForm] = useState({
     name: '',
@@ -165,11 +170,17 @@ export default function CuentasPage() {
     }
   }
 
-  const handleMove = async (e: React.FormEvent) => {
+  const handleMoveConfirm = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedAccount) return
     const amount = parseFloat(moveForm.amount)
     if (!amount || amount <= 0) { toast.error('Monto debe ser mayor a 0'); return }
+    if (!moveForm.notes.trim()) { toast.error('El concepto es obligatorio'); return }
+    setConfirmingMove(true)
+  }
+
+  const handleMove = async () => {
+    if (!selectedAccount) return
+    const amount = parseFloat(moveForm.amount)
     setSubmitting(true)
     try {
       const res = await fetch(`/api/cash-accounts/${selectedAccount.id}/movements`, {
@@ -201,6 +212,7 @@ export default function CuentasPage() {
         }).catch(() => {}) // Non-blocking
 
         toast.success(moveForm.movement_type === 'deposit' ? 'Ingreso registrado' : 'Retiro registrado')
+        setConfirmingMove(false)
         setMoveOpen(false)
         setSelectedAccount(null)
         setMoveForm({ movement_type: 'deposit', amount: '', notes: '' })
@@ -438,7 +450,7 @@ export default function CuentasPage() {
             <DialogTitle>{moveForm.movement_type === 'deposit' ? 'Ingresar a' : 'Retirar de'} — {selectedAccount?.name}</DialogTitle>
             <DialogDescription>Registra el movimiento con concepto.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleMove} className="space-y-4">
+          <form onSubmit={handleMoveConfirm} className="space-y-4">
             <div>
               <Label>Tipo</Label>
               <Select value={moveForm.movement_type} onValueChange={(v: 'deposit' | 'withdrawal') => setMoveForm(f => ({ ...f, movement_type: v }))}>
@@ -511,6 +523,42 @@ export default function CuentasPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmación ingreso/retiro */}
+      <AlertDialog open={confirmingMove} onOpenChange={(o) => !o && setConfirmingMove(false)}>
+        <AlertDialogContent className="bg-slate-900 border-slate-700 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className={moveForm.movement_type === 'deposit' ? 'text-emerald-400' : 'text-rose-400'}>
+              {moveForm.movement_type === 'deposit' ? '¿Confirmar ingreso?' : '¿Confirmar retiro?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-300 space-y-2">
+              <span>Estás a punto de registrar un movimiento financiero permanente.</span>
+              <span className="block mt-2 space-y-1 text-sm">
+                <span className="block">Cuenta: <strong className="text-white">{selectedAccount?.name}</strong></span>
+                <span className="block">
+                  {moveForm.movement_type === 'deposit' ? 'Ingreso' : 'Retiro'}:{' '}
+                  <strong className={moveForm.movement_type === 'deposit' ? 'text-emerald-400' : 'text-rose-400'}>
+                    ${parseFloat(moveForm.amount || '0').toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                  </strong>
+                </span>
+                {moveForm.notes && <span className="block">Concepto: <strong className="text-white">{moveForm.notes}</strong></span>}
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-slate-600 text-slate-300 hover:bg-slate-800" onClick={() => setConfirmingMove(false)}>
+              Revisar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className={moveForm.movement_type === 'deposit' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-rose-600 hover:bg-rose-700 text-white'}
+              onClick={handleMove}
+              disabled={submitting}
+            >
+              {submitting ? 'Registrando...' : moveForm.movement_type === 'deposit' ? 'Sí, registrar ingreso' : 'Sí, registrar retiro'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Modal historial de movimientos */}
       <Dialog open={historyOpen} onOpenChange={(o) => { setHistoryOpen(o); if (!o) { setSelectedAccount(null); setMovements([]) } }}>

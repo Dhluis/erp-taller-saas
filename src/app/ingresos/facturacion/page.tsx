@@ -42,7 +42,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Search, Eye, DollarSign, XCircle, Loader2, CalendarDays, ChevronDown, Printer } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Plus, Search, Eye, DollarSign, XCircle, Loader2, CalendarDays, ChevronDown, Printer, AlertTriangle } from 'lucide-react';
 import { useInvoices } from '@/hooks/useInvoices';
 import { CreateManualInvoiceModal } from '@/components/invoices/CreateManualInvoiceModal';
 import { toast } from 'sonner';
@@ -129,7 +139,7 @@ export default function FacturacionPage() {
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [payInvoice, setPayInvoice] = useState<Invoice | null>(null);
   const [payInvoiceTotalPaid, setPayInvoiceTotalPaid] = useState(0);
-  const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
+  const [invoiceToCancel, setInvoiceToCancel] = useState<Invoice | null>(null);
 
   const statusParam =
     statusFilter === 'all' ? undefined : statusFilter;
@@ -218,9 +228,10 @@ export default function FacturacionPage() {
     }
   };
 
-  const handleCancelInvoice = async (id: string) => {
+  const handleCancelInvoice = async () => {
+    if (!invoiceToCancel) return;
     try {
-      const res = await fetch(`/api/invoices/${id}`, {
+      const res = await fetch(`/api/invoices/${invoiceToCancel.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -229,7 +240,7 @@ export default function FacturacionPage() {
       const json = await res.json();
       if (json.success) {
         toast.success('Factura cancelada');
-        setCancelConfirm(null);
+        setInvoiceToCancel(null);
         mutate();
       } else {
         toast.error(json.error || 'Error al cancelar');
@@ -397,24 +408,15 @@ export default function FacturacionPage() {
                               <Printer className="h-4 w-4" />
                             </Button>
                             {canDelete && inv.status !== 'paid' && inv.status !== 'cancelled' && (
-                              cancelConfirm === inv.id ? (
-                                <Button
-                                  variant="danger"
-                                  size="sm"
-                                  onClick={() => handleCancelInvoice(inv.id)}
-                                >
-                                  Confirmar
-                                </Button>
-                              ) : (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-red-500"
-                                  onClick={() => setCancelConfirm(inv.id)}
-                                >
-                                  <XCircle className="h-4 w-4" />
-                                </Button>
-                              )
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-500 hover:text-red-400"
+                                title="Cancelar factura"
+                                onClick={() => setInvoiceToCancel(inv as Invoice)}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
                             )}
                           </div>
                         </TableCell>
@@ -568,6 +570,37 @@ export default function FacturacionPage() {
           mutate();
         }}
       />
+
+      {/* Confirmación cancelar factura */}
+      <AlertDialog open={!!invoiceToCancel} onOpenChange={(v) => !v && setInvoiceToCancel(null)}>
+        <AlertDialogContent className="bg-slate-900 border-slate-700 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-500 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              ¿Cancelar factura?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-300 space-y-2">
+              <span>Esta acción no se puede deshacer. La factura quedará marcada como cancelada de forma permanente.</span>
+              {invoiceToCancel && (
+                <span className="block font-semibold text-yellow-400 mt-2">
+                  Folio: {invoiceToCancel.invoice_number} — ${(invoiceToCancel.total_amount ?? 0).toLocaleString()}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-slate-600 text-slate-300 hover:bg-slate-800">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleCancelInvoice}
+            >
+              Sí, cancelar factura
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

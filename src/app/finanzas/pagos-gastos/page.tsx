@@ -13,6 +13,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
 } from '@/components/ui/dialog'
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select'
 import {
@@ -71,6 +75,7 @@ export default function PagosGastosPage() {
   const [filterTab, setFilterTab] = useState<'all' | 'supplier' | 'expense'>('all')
   const [modalOpen, setModalOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false)
   const [stats, setStats] = useState({ totalPaid: 0, totalExpenses: 0, totalPending: 0, count: 0 })
   const [cashAccounts, setCashAccounts] = useState<Array<{ id: string; name: string }>>([])
 
@@ -165,11 +170,17 @@ export default function PagosGastosPage() {
       .catch(() => {})
   }, [organizationId])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const amount = parseFloat(form.amount)
     if (!amount || amount <= 0) { toast.error('Monto debe ser mayor a 0'); return }
+    if (form.paymentType === 'supplier' && !form.supplier_id) { toast.error('Selecciona un proveedor'); return }
+    if (form.paymentType === 'expense' && !form.category) { toast.error('Selecciona una categoría'); return }
+    setConfirmingSubmit(true)
+  }
 
+  const handleSubmit = async () => {
+    const amount = parseFloat(form.amount)
     setSubmitting(true)
     try {
       let success = false
@@ -248,6 +259,7 @@ export default function PagosGastosPage() {
 
       if (success) {
         toast.success(form.paymentType === 'supplier' ? 'Pago a proveedor registrado' : 'Gasto registrado')
+        setConfirmingSubmit(false)
         setModalOpen(false)
         setForm({ paymentType: 'supplier', supplier_id: '', category: '', amount: '', payment_date: new Date().toISOString().split('T')[0], payment_method: 'transfer', description: '', reference: '', notes: '', cash_account_id: '' })
         loadPayments()
@@ -405,6 +417,45 @@ export default function PagosGastosPage() {
         </Card>
       </div>
 
+      {/* Confirmación pago/gasto */}
+      <AlertDialog open={confirmingSubmit} onOpenChange={(o) => !o && setConfirmingSubmit(false)}>
+        <AlertDialogContent className="bg-slate-900 border-slate-700 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-orange-400">
+              {form.paymentType === 'supplier' ? '¿Confirmar pago a proveedor?' : '¿Confirmar gasto operativo?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-300 space-y-2">
+              <span>Este registro se guardará en las finanzas del taller. Verifica los datos antes de confirmar.</span>
+              <span className="block mt-2 space-y-1 text-sm">
+                {form.paymentType === 'supplier' ? (
+                  <span className="block">Proveedor: <strong className="text-white">{supplierNameById[form.supplier_id] || form.supplier_id}</strong></span>
+                ) : (
+                  <span className="block">Categoría: <strong className="text-white">{EXPENSE_CATEGORIES.find(c => c.value === form.category)?.label || form.category}</strong></span>
+                )}
+                <span className="block">
+                  Monto: <strong className="text-rose-400">${parseFloat(form.amount || '0').toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>
+                </span>
+                <span className="block">Fecha: <strong className="text-white">{form.payment_date}</strong></span>
+                {form.description && <span className="block">Descripción: <strong className="text-white">{form.description}</strong></span>}
+                {form.notes && <span className="block">Notas: <strong className="text-white">{form.notes}</strong></span>}
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-slate-600 text-slate-300 hover:bg-slate-800" onClick={() => setConfirmingSubmit(false)}>
+              Revisar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+              onClick={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? 'Registrando...' : form.paymentType === 'supplier' ? 'Sí, registrar pago' : 'Sí, registrar gasto'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Modal nuevo pago/gasto */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-md">
@@ -412,7 +463,7 @@ export default function PagosGastosPage() {
             <DialogTitle>Registrar pago o gasto</DialogTitle>
             <DialogDescription>Selecciona el tipo y completa los datos.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleFormSubmit} className="space-y-4">
             {/* Tipo */}
             <div className="flex gap-2">
               <button type="button" onClick={() => setForm(f => ({ ...f, paymentType: 'supplier' }))} className={`flex-1 p-3 rounded-lg border text-sm font-medium transition-colors ${form.paymentType === 'supplier' ? 'bg-rose-500/10 border-rose-500/40 text-rose-400' : 'border-border text-muted-foreground hover:text-text-primary'}`}>
