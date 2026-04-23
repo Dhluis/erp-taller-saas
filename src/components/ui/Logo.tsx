@@ -22,7 +22,7 @@ export function Logo({ size = 'md', variant = 'default', className }: LogoProps)
   
   const isSquare = size === 'sm';
   const defaultLogo = isSquare 
-    ? "https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg" 
+    ? "https://i.ibb.co/d4CNVSBS/conf-a-Drive-logo-con-11.png"
     : "https://i.ibb.co/5h083nG9/cmyk-confia-drive-Mesa-de-trabajo-1-copia-1.png";
     
   const logoUrl = companySettings?.logo_url || defaultLogo
