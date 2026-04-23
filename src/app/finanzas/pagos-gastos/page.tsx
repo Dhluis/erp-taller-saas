@@ -13,10 +13,6 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
 } from '@/components/ui/dialog'
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select'
 import {
@@ -417,147 +413,184 @@ export default function PagosGastosPage() {
         </Card>
       </div>
 
-      {/* Confirmación pago/gasto */}
-      <AlertDialog open={confirmingSubmit} onOpenChange={(o) => !o && setConfirmingSubmit(false)}>
-        <AlertDialogContent className="bg-slate-900 border-slate-700 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-orange-400">
-              {form.paymentType === 'supplier' ? '¿Confirmar pago a proveedor?' : '¿Confirmar gasto operativo?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-300 space-y-2">
-              <span>Este registro se guardará en las finanzas del taller. Verifica los datos antes de confirmar.</span>
-              <span className="block mt-2 space-y-1 text-sm">
-                {form.paymentType === 'supplier' ? (
-                  <span className="block">Proveedor: <strong className="text-white">{supplierNameById[form.supplier_id] || form.supplier_id}</strong></span>
-                ) : (
-                  <span className="block">Categoría: <strong className="text-white">{EXPENSE_CATEGORIES.find(c => c.value === form.category)?.label || form.category}</strong></span>
-                )}
-                <span className="block">
-                  Monto: <strong className="text-rose-400">${parseFloat(form.amount || '0').toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>
-                </span>
-                <span className="block">Fecha: <strong className="text-white">{form.payment_date}</strong></span>
-                {form.description && <span className="block">Descripción: <strong className="text-white">{form.description}</strong></span>}
-                {form.notes && <span className="block">Notas: <strong className="text-white">{form.notes}</strong></span>}
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-slate-600 text-slate-300 hover:bg-slate-800" onClick={() => setConfirmingSubmit(false)}>
-              Revisar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-orange-600 hover:bg-orange-700 text-white"
-              onClick={handleSubmit}
-              disabled={submitting}
-            >
-              {submitting ? 'Registrando...' : form.paymentType === 'supplier' ? 'Sí, registrar pago' : 'Sí, registrar gasto'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       {/* Modal nuevo pago/gasto */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Registrar pago o gasto</DialogTitle>
-            <DialogDescription>Selecciona el tipo y completa los datos.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleFormSubmit} className="space-y-4">
-            {/* Tipo */}
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setForm(f => ({ ...f, paymentType: 'supplier' }))} className={`flex-1 p-3 rounded-lg border text-sm font-medium transition-colors ${form.paymentType === 'supplier' ? 'bg-rose-500/10 border-rose-500/40 text-rose-400' : 'border-border text-muted-foreground hover:text-text-primary'}`}>
-                <Building2 className="h-5 w-5 mx-auto mb-1" />
-                Pago a Proveedor
-              </button>
-              <button type="button" onClick={() => setForm(f => ({ ...f, paymentType: 'expense' }))} className={`flex-1 p-3 rounded-lg border text-sm font-medium transition-colors ${form.paymentType === 'expense' ? 'bg-orange-500/10 border-orange-500/40 text-orange-400' : 'border-border text-muted-foreground hover:text-text-primary'}`}>
-                <Receipt className="h-5 w-5 mx-auto mb-1" />
-                Gasto Operativo
-              </button>
-            </div>
+      <Dialog open={modalOpen} onOpenChange={(o) => { if (!o) { setModalOpen(false); setConfirmingSubmit(false) } }}>
+        <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-white">
 
-            {form.paymentType === 'supplier' ? (
-              <div>
-                <Label>Proveedor *</Label>
-                <Select value={form.supplier_id} onValueChange={v => setForm(f => ({ ...f, supplier_id: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecciona proveedor" /></SelectTrigger>
-                  <SelectContent>
-                    {suppliersLoading ? (
-                      <SelectItem value="" disabled>Cargando...</SelectItem>
-                    ) : suppliers.map(s => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <>
+          {/* ── Paso 1: Formulario ── */}
+          {!confirmingSubmit && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-white">Registrar pago o gasto</DialogTitle>
+                <DialogDescription className="text-slate-400">Selecciona el tipo y completa los datos.</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleFormSubmit} className="space-y-4">
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setForm(f => ({ ...f, paymentType: 'supplier' }))} className={`flex-1 p-3 rounded-lg border text-sm font-medium transition-colors ${form.paymentType === 'supplier' ? 'bg-rose-500/10 border-rose-500/40 text-rose-400' : 'border-slate-700 text-slate-400 hover:text-white'}`}>
+                    <Building2 className="h-5 w-5 mx-auto mb-1" />
+                    Pago a Proveedor
+                  </button>
+                  <button type="button" onClick={() => setForm(f => ({ ...f, paymentType: 'expense' }))} className={`flex-1 p-3 rounded-lg border text-sm font-medium transition-colors ${form.paymentType === 'expense' ? 'bg-orange-500/10 border-orange-500/40 text-orange-400' : 'border-slate-700 text-slate-400 hover:text-white'}`}>
+                    <Receipt className="h-5 w-5 mx-auto mb-1" />
+                    Gasto Operativo
+                  </button>
+                </div>
+
+                {form.paymentType === 'supplier' ? (
+                  <div>
+                    <Label className="text-slate-300">Proveedor *</Label>
+                    <Select value={form.supplier_id} onValueChange={v => setForm(f => ({ ...f, supplier_id: v }))}>
+                      <SelectTrigger className="bg-slate-800 border-slate-600 text-white"><SelectValue placeholder="Selecciona proveedor" /></SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-700">
+                        {suppliersLoading ? (
+                          <SelectItem value="" disabled>Cargando...</SelectItem>
+                        ) : suppliers.map(s => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <Label className="text-slate-300">Categoría *</Label>
+                      <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
+                        <SelectTrigger className="bg-slate-800 border-slate-600 text-white"><SelectValue placeholder="Tipo de gasto" /></SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-slate-700">
+                          {EXPENSE_CATEGORIES.map(c => (
+                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-slate-300">Descripción</Label>
+                      <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Ej: Recibo de CFE abril" className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                    </div>
+                  </>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-slate-300">Monto *</Label>
+                    <Input type="number" step="0.01" min="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0.00" required className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                  </div>
+                  <div>
+                    <Label className="text-slate-300">Fecha *</Label>
+                    <Input type="date" value={form.payment_date} onChange={e => setForm(f => ({ ...f, payment_date: e.target.value }))} required className="bg-slate-800 border-slate-600 text-white" />
+                  </div>
+                </div>
+
                 <div>
-                  <Label>Categoría *</Label>
-                  <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Tipo de gasto" /></SelectTrigger>
-                    <SelectContent>
-                      {EXPENSE_CATEGORIES.map(c => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                      ))}
+                  <Label className="text-slate-300">Forma de pago *</Label>
+                  <Select value={form.payment_method} onValueChange={v => setForm(f => ({ ...f, payment_method: v }))}>
+                    <SelectTrigger className="bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-slate-800 border-slate-700">
+                      {PAYMENT_METHODS.map(m => (<SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
+
+                {cashAccounts.length > 0 && (
+                  <div>
+                    <Label className="text-slate-300">¿De qué cuenta sale?</Label>
+                    <Select value={form.cash_account_id || 'none'} onValueChange={v => setForm(f => ({ ...f, cash_account_id: v === 'none' ? '' : v }))}>
+                      <SelectTrigger className="bg-slate-800 border-slate-600 text-white"><SelectValue placeholder="No descontar de caja" /></SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-700">
+                        <SelectItem value="none">No descontar de cuenta</SelectItem>
+                        {cashAccounts.map(acc => (<SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500 mt-1">Si eliges una cuenta, se registrará un retiro automático.</p>
+                  </div>
+                )}
+
                 <div>
-                  <Label>Descripción</Label>
-                  <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Ej: Recibo de CFE abril" />
+                  <Label className="text-slate-300">Notas</Label>
+                  <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="Observaciones" className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
                 </div>
-              </>
-            )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Monto *</Label>
-                <Input type="number" step="0.01" min="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0.00" required />
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setModalOpen(false)} className="border-slate-600 text-slate-300 hover:bg-slate-800">Cancelar</Button>
+                  <Button type="submit" className={form.paymentType === 'supplier' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-orange-600 hover:bg-orange-700'}>
+                    {form.paymentType === 'supplier' ? 'Registrar Pago' : 'Registrar Gasto'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </>
+          )}
+
+          {/* ── Paso 2: Confirmación ── */}
+          {confirmingSubmit && (
+            <>
+              <DialogHeader>
+                <DialogTitle className={form.paymentType === 'supplier' ? 'text-rose-400' : 'text-orange-400'}>
+                  {form.paymentType === 'supplier' ? '¿Confirmar pago a proveedor?' : '¿Confirmar gasto operativo?'}
+                </DialogTitle>
+                <DialogDescription className="text-slate-400">
+                  Verifica los datos — este registro es permanente.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="rounded-lg border border-slate-700 bg-slate-800 p-4 space-y-3 text-sm">
+                {form.paymentType === 'supplier' ? (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Proveedor</span>
+                    <span className="text-white font-medium">{supplierNameById[form.supplier_id] || form.supplier_id}</span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Categoría</span>
+                    <span className="text-white font-medium">{EXPENSE_CATEGORIES.find(c => c.value === form.category)?.label || form.category}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Monto</span>
+                  <span className="text-rose-400 font-bold text-base">${parseFloat(form.amount || '0').toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Fecha</span>
+                  <span className="text-white">{form.payment_date}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Forma de pago</span>
+                  <span className="text-white">{PAYMENT_METHODS.find(m => m.value === form.payment_method)?.label}</span>
+                </div>
+                {form.cash_account_id && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Cuenta</span>
+                    <span className="text-white">{cashAccounts.find(a => a.id === form.cash_account_id)?.name}</span>
+                  </div>
+                )}
+                {form.description && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Descripción</span>
+                    <span className="text-white">{form.description}</span>
+                  </div>
+                )}
+                {form.notes && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Notas</span>
+                    <span className="text-white">{form.notes}</span>
+                  </div>
+                )}
               </div>
-              <div>
-                <Label>Fecha *</Label>
-                <Input type="date" value={form.payment_date} onChange={e => setForm(f => ({ ...f, payment_date: e.target.value }))} required />
-              </div>
-            </div>
 
-            <div>
-              <Label>Forma de pago *</Label>
-              <Select value={form.payment_method} onValueChange={v => setForm(f => ({ ...f, payment_method: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {PAYMENT_METHODS.map(m => (<SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {cashAccounts.length > 0 && (
-              <div>
-                <Label>¿De qué cuenta sale?</Label>
-                <Select value={form.cash_account_id || 'none'} onValueChange={v => setForm(f => ({ ...f, cash_account_id: v === 'none' ? '' : v }))}>
-                  <SelectTrigger><SelectValue placeholder="No descontar de caja" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No descontar de cuenta</SelectItem>
-                    {cashAccounts.map(acc => (<SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">Si eliges una cuenta, se registrará un retiro automático.</p>
-              </div>
-            )}
-
-            <div>
-              <Label>Notas</Label>
-              <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="Observaciones" />
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setModalOpen(false)} disabled={submitting}>Cancelar</Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {form.paymentType === 'supplier' ? 'Registrar Pago' : 'Registrar Gasto'}
-              </Button>
-            </DialogFooter>
-          </form>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setConfirmingSubmit(false)} className="border-slate-600 text-slate-300 hover:bg-slate-800" disabled={submitting}>
+                  ← Revisar
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className={form.paymentType === 'supplier' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-orange-600 hover:bg-orange-700'}
+                >
+                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {submitting ? 'Registrando...' : form.paymentType === 'supplier' ? 'Sí, registrar pago' : 'Sí, registrar gasto'}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </AppLayout>
