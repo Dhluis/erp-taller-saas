@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
+import { safeError } from '@/lib/utils/api-error';
 
 // =====================================================
 // GET - Listar pagos de una factura
@@ -34,7 +35,7 @@ export async function GET(
     if (error) {
       console.error('[GET /api/invoices/[id]/payments]', error);
       return NextResponse.json(
-        { success: false, error: error.message },
+        { success: false, error: safeError(error) },
         { status: 500 }
       );
     }
@@ -51,7 +52,7 @@ export async function GET(
   } catch (error) {
     console.error('[GET /api/invoices/[id]/payments]', error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Error al obtener pagos' },
+      { success: false, error: safeError(error, 'Error al obtener pagos') },
       { status: 500 }
     );
   }
@@ -205,7 +206,7 @@ export async function POST(
   } catch (error) {
     console.error('[POST /api/invoices/[id]/payments]', error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Error al registrar pago' },
+      { success: false, error: safeError(error, 'Error al registrar pago') },
       { status: 500 }
     );
   }

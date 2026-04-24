@@ -77,10 +77,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validar contraseña
-    if (body.password.length < 6) {
+    // Validar contraseña — mínimo 8 caracteres y al menos un número
+    if (body.password.length < 8) {
       return NextResponse.json(
-        { error: 'La contraseña debe tener al menos 6 caracteres' },
+        { error: 'La contraseña debe tener al menos 8 caracteres' },
+        { status: 400 }
+      )
+    }
+    if (!/\d/.test(body.password)) {
+      return NextResponse.json(
+        { error: 'La contraseña debe contener al menos un número' },
         { status: 400 }
       )
     }

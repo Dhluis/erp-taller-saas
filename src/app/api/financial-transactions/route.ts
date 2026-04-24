@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * POST /api/financial-transactions — Create transaction
  */
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/utils/api-error'
 
 async function getOrgId(request: NextRequest) {
   const supabase = createClientFromRequest(request)
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
 
       if (error) {
         console.error('[Financial Transactions] Error:', error)
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+        return NextResponse.json({ success: false, error: safeError(error) }, { status: 500 })
       }
 
       const items = transactions || []
@@ -113,7 +114,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[Financial Transactions] Error:', error)
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+      return NextResponse.json({ success: false, error: safeError(error) }, { status: 500 })
     }
 
     return NextResponse.json({
@@ -122,7 +123,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (e: any) {
     console.error('[Financial Transactions] Error:', e)
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: safeError(e) }, { status: 500 })
   }
 }
 
@@ -168,12 +169,12 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('[Financial Transactions] Insert error:', error)
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+      return NextResponse.json({ success: false, error: safeError(error) }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, data }, { status: 201 })
   } catch (e: any) {
     console.error('[Financial Transactions] Error:', e)
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: safeError(e) }, { status: 500 })
   }
 }

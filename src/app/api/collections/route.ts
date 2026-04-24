@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/utils/api-error'
 import { z } from 'zod'
 
 async function getOrgIdAndUserId(request: NextRequest) {
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     console.error('POST /api/collections:', e)
     return NextResponse.json(
-      { success: false, error: e instanceof Error ? e.message : 'Error al crear cobro' },
+      { success: false, error: safeError(e, 'Error al crear cobro') },
       { status: 500 }
     )
   }

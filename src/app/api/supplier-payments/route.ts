@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/utils/api-error'
 import { z } from 'zod'
 
 async function getOrgIdAndUserId(request: NextRequest) {
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[GET /api/supplier-payments]', error)
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+      return NextResponse.json({ success: false, error: safeError(error) }, { status: 500 })
     }
 
     const payments = items || []
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
   } catch (e) {
     console.error('GET /api/supplier-payments:', e)
     return NextResponse.json(
-      { success: false, error: e instanceof Error ? e.message : 'Error al listar pagos' },
+      { success: false, error: safeError(e, 'Error al listar pagos') },
       { status: 500 }
     )
   }
@@ -152,7 +153,7 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     console.error('POST /api/supplier-payments:', e)
     return NextResponse.json(
-      { success: false, error: e instanceof Error ? e.message : 'Error al registrar pago' },
+      { success: false, error: safeError(e, 'Error al registrar pago') },
       { status: 500 }
     )
   }

@@ -16,6 +16,7 @@ import { logger, createLogContext } from '@/lib/core/logging';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
 import { hasPermission, UserRole } from '@/lib/auth/permissions';
 import { createClient } from '@/lib/supabase/server';
+import { safeError } from '@/lib/utils/api-error';
 
 // =====================================================
 // GET - Obtener todos los pagos
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Error al obtener pagos',
+        error: safeError(error, 'Error al obtener pagos'),
       },
       { status: 500 }
     );
@@ -219,7 +220,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Error al crear pago',
+        error: safeError(error, 'Error al crear pago'),
       },
       { status: 500 }
     );
