@@ -19,7 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganization, useSession } from '@/lib/context/SessionContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { getAlertasInventario } from '@/lib/database/queries/dashboard';
-import { Loader2, ArrowRight } from 'lucide-react';
+import { Loader2, ArrowRight, Lock, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PlanUsage } from '@/components/billing/plan-usage';
 import { CurrencySelectorGlobal } from '@/components/currency/CurrencySelectorGlobal';
@@ -93,6 +93,8 @@ function DashboardContent() {
   const [alertasInventario, setAlertasInventario] = useState(0);
   const [efectivoEnCaja, setEfectivoEnCaja] = useState(0);
   const [gastosMes, setGastosMes] = useState(0);
+  const [efectivoEnBanco, setEfectivoEnBanco] = useState(0);
+  const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
   const [incomeData, setIncomeData] = useState<Array<{ date: string; ingresos: number; ordenes: number }>>([]);
 
   const [crmStats, setCrmStats] = useState<{
@@ -253,10 +255,14 @@ function DashboardContent() {
           const cashRes = await fetch('/api/cash-accounts', { credentials: 'include', cache: 'no-store' });
           const cashJson = await cashRes.json();
           if (cashJson.success && cashJson.data?.items?.length) {
-            const total = cashJson.data.items.reduce((sum: number, acc: { current_balance?: number }) => sum + (Number(acc.current_balance) || 0), 0);
-            setEfectivoEnCaja(total);
+            const items = cashJson.data.items;
+            const cashOnly = items.filter((acc: any) => acc.account_type === 'cash' || !acc.account_type);
+            const bankOnly = items.filter((acc: any) => acc.account_type === 'bank' || acc.account_type === 'card');
+            setEfectivoEnCaja(cashOnly.reduce((s: number, a: any) => s + (Number(a.current_balance) || 0), 0));
+            setEfectivoEnBanco(bankOnly.reduce((s: number, a: any) => s + (Number(a.current_balance) || 0), 0));
           } else {
             setEfectivoEnCaja(0);
+            setEfectivoEnBanco(0);
           }
         } catch (e) {
           console.error('Error cargando cuentas de efectivo:', e);
@@ -558,6 +564,7 @@ function DashboardContent() {
     ticketPromedio: ticketPromedio,
     gananciaMes: ingresos - gastosMes,
     efectivoEnCaja: efectivoEnCaja,
+    efectivoEnBanco: efectivoEnBanco,
     gastosMes: gastosMes,
     ordenesActivas: ordenesActivas,
     clientesAtendidos: clientesAtendidos,
@@ -619,7 +626,8 @@ function DashboardContent() {
       trend: '',
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-green-400',
-      bgColor: 'bg-green-500/10'
+      bgColor: 'bg-green-500/10',
+      isPrivate: true
     }, {
       title: 'Ingresos de Hoy',
       value: formatMoney(stats.ingresosDia),
@@ -627,7 +635,8 @@ function DashboardContent() {
       trend: '',
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-emerald-400',
-      bgColor: 'bg-emerald-500/10'
+      bgColor: 'bg-emerald-500/10',
+      isPrivate: true
     }] : []),
     // ✅ Efectivo en caja (cuentas de efectivo)
     ...(permissions.canPayInvoices() || permissions.canViewFinancialReports() ? [{
@@ -637,7 +646,17 @@ function DashboardContent() {
       trend: '',
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-cyan-400',
-      bgColor: 'bg-cyan-500/10'
+      bgColor: 'bg-cyan-500/10',
+      isPrivate: true
+    }, {
+      title: 'Bancos y Tarjetas',
+      value: formatMoney(stats.efectivoEnBanco),
+      description: 'Saldo en cuentas bancarias y tarjetas',
+      trend: '',
+      icon: () => <ModernIcons.Finanzas size={32} />,
+      color: 'text-sky-400',
+      bgColor: 'bg-sky-500/10',
+      isPrivate: true
     }] : []),
     // ✅ Gastos del mes desde financial_transactions
     ...(permissions.canViewFinancialReports() ? [{
@@ -647,7 +666,8 @@ function DashboardContent() {
       trend: '',
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-rose-400',
-      bgColor: 'bg-rose-500/10'
+      bgColor: 'bg-rose-500/10',
+      isPrivate: true
     }, {
       title: 'Ganancia del Mes',
       value: formatMoney(stats.gananciaMes),
@@ -655,7 +675,8 @@ function DashboardContent() {
       trend: '',
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: stats.gananciaMes >= 0 ? 'text-teal-400' : 'text-rose-400',
-      bgColor: stats.gananciaMes >= 0 ? 'bg-teal-500/10' : 'bg-rose-500/10'
+      bgColor: stats.gananciaMes >= 0 ? 'bg-teal-500/10' : 'bg-rose-500/10',
+      isPrivate: true
     }] : []),
     {
       title: 'Órdenes Activas',
@@ -709,7 +730,8 @@ function DashboardContent() {
       trend: '',
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-teal-400',
-      bgColor: 'bg-teal-500/10'
+      bgColor: 'bg-teal-500/10',
+      isPrivate: true
     }] : [{
       title: 'Cotizaciones Activas',
       value: (crmStats?.active ?? 0).toString(),
@@ -720,6 +742,14 @@ function DashboardContent() {
       bgColor: 'bg-indigo-500/10'
     }])
   ];
+
+  const toggleCard = (index: number) => {
+    setFlippedCards(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index); else next.add(index);
+      return next;
+    });
+  };
 
   return (
     <AppLayout>
@@ -843,8 +873,75 @@ function DashboardContent() {
           <AnimatePresence>
             {kpiCards.map((kpi, index) => {
               const IconComponent = kpi.icon;
+              const isFlipped = flippedCards.has(index);
+
+              if ((kpi as any).isPrivate) {
+                return (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: index * 0.1 }}
+                    className="cursor-pointer"
+                    style={{ perspective: '1000px' }}
+                    onClick={() => toggleCard(index)}
+                  >
+                    <div
+                      className="relative w-full transition-all duration-700 ease-in-out"
+                      style={{
+                        transformStyle: 'preserve-3d',
+                        transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                      }}
+                    >
+                      {/* Cara frontal — datos ocultos */}
+                      <div
+                        className={`${kpi.bgColor} rounded-xl p-5 sm:p-6 border ${kpi.bgColor.replace('/10', '/20')} flex flex-col justify-between w-full`}
+                        style={{ backfaceVisibility: 'hidden' }}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <div className={`p-3 rounded-xl ${kpi.bgColor}`}>
+                            <div className={kpi.color}><IconComponent /></div>
+                          </div>
+                          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/5 ${kpi.color}`}>
+                            <Lock className="w-3 h-3" />
+                            <span className="text-xs font-medium">Revelar</span>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <p className={`text-2xl sm:text-3xl font-bold tracking-tight blur-lg select-none animate-pulse ${kpi.color}`}>
+                            $00.000
+                          </p>
+                          <p className="text-gray-400 text-sm font-medium">{kpi.title}</p>
+                          <p className="text-gray-500 text-xs">{kpi.description}</p>
+                        </div>
+                      </div>
+                      {/* Cara trasera — datos revelados */}
+                      <div
+                        className={`${kpi.bgColor} rounded-xl p-5 sm:p-6 border ${kpi.bgColor.replace('/10', '/20')} flex flex-col justify-between absolute inset-0 w-full`}
+                        style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <div className={`p-3 rounded-xl ${kpi.bgColor}`}>
+                            <div className={kpi.color}><IconComponent /></div>
+                          </div>
+                          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/5 ${kpi.color}`}>
+                            <EyeOff className="w-3 h-3" />
+                            <span className="text-xs font-medium">Ocultar</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <h3 className={`text-2xl sm:text-3xl font-bold tracking-tight ${kpi.color}`}>{kpi.value}</h3>
+                          <p className="text-gray-400 text-sm font-medium">{kpi.title}</p>
+                          <p className="text-gray-500 text-xs mt-1">{kpi.description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              }
+
               return (
-                <motion.div 
+                <motion.div
                   key={index}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
