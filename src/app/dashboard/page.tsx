@@ -898,21 +898,24 @@ function DashboardContent() {
                         className={`${kpi.bgColor} rounded-xl p-5 sm:p-6 border ${kpi.bgColor.replace('/10', '/20')} flex flex-col justify-between w-full`}
                         style={{ backfaceVisibility: 'hidden' }}
                       >
-                        <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center justify-between mb-1">
                           <div className={`p-3 rounded-xl ${kpi.bgColor}`}>
                             <div className={kpi.color}><IconComponent /></div>
                           </div>
-                          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/5 ${kpi.color}`}>
-                            <Lock className="w-3 h-3" />
-                            <span className="text-xs font-medium">Revelar</span>
-                          </div>
+                          <Lock className="w-4 h-4 text-gray-600" />
                         </div>
-                        <div className="space-y-2">
-                          <p className={`text-2xl sm:text-3xl font-bold tracking-tight blur-lg select-none animate-pulse ${kpi.color}`}>
-                            $00.000
-                          </p>
-                          <p className="text-gray-400 text-sm font-medium">{kpi.title}</p>
-                          <p className="text-gray-500 text-xs">{kpi.description}</p>
+                        <div className="flex flex-col items-center justify-center py-3 gap-2">
+                          <div className={`p-4 rounded-full border-2 border-dashed ${kpi.bgColor.replace('/10', '/30')} border-current ${kpi.color} opacity-60`}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          </div>
+                          <p className="text-gray-500 text-xs">Toca para ver</p>
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className={`text-sm font-semibold ${kpi.color}`}>{kpi.title}</p>
+                          <p className="text-gray-600 text-xs">{kpi.description}</p>
                         </div>
                       </div>
                       {/* Cara trasera — datos revelados */}
