@@ -3,10 +3,35 @@ import { redisHealthCheck, getRedis, REDIS_KEYS } from '@/lib/rate-limit/redis'
 import { createClientFromRequest } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
-  // 1. Diagnóstico de Salud de Redis (Público)
+  // 1. Verificar autenticación y rol admin antes de exponer cualquier dato
+  try {
+    const supabase = createClientFromRequest(request)
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('auth_user_id', user.id)
+      .single()
+
+    const roleStr = (profile?.role || '').toUpperCase()
+    const isAdmin = roleStr === 'ADMIN' || roleStr === 'ADMINISTRADOR'
+
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+    }
+  } catch {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
+  // 2. Solo admins llegan aquí — diagnóstico de Redis
   let health: any = { healthy: false, latency: 0 }
   let metrics: any = { hits: 0, misses: 0, rate: '0%' }
-  
+
   try {
     health = await redisHealthCheck()
     const redis = await getRedis()
@@ -24,54 +49,16 @@ export async function GET(request: NextRequest) {
     console.error('[Debug Cache] Redis error:', err)
   }
 
-  try {
-    // 2. Intento de autenticación usando el cliente robusto
-    const supabase = createClientFromRequest(request)
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    let profile: any = null
-    let hasPermission = false
-
-    if (user) {
-      const { data: dbProfile } = await supabase
-        .from('users') // FIX: Cambiar a tabla 'users'
-        .select('*')
-        .eq('auth_user_id', user.id) // FIX: Columna auth_user_id
-        .single()
-      
-      profile = dbProfile
-      // FIX: Soporte para 'Administrador'
-      const roleStr = (profile?.role || '').toUpperCase()
-      hasPermission = roleStr === 'ADMIN' || roleStr === 'ADMINISTRADOR'
-    }
-
-    // 3. Respuesta combinada
-    return NextResponse.json({
-      redis: {
-        status: health.healthy ? '✅ ONLINE' : '❌ OFFLINE',
-        latency: health.latency + 'ms',
-        metrics: {
-          total_saved_queries: metrics.hits,
-          total_misses: metrics.misses,
-          efficiency: metrics.rate
-        }
-      },
-      auth_debug: {
-        is_logged_in: !!user,
-        user_id: user?.id || 'null',
-        email: user?.email || 'null',
-        role_detected: profile?.role || 'null',
-        has_admin_access: hasPermission,
-        auth_error: authError?.message || null // Aquí estaba el error anterior
-      },
-      timestamp: new Date().toISOString()
-    })
-
-  } catch (error: any) {
-    return NextResponse.json({
-      redis_status: health.healthy ? 'ONLINE' : 'OFFLINE',
-      error: 'Error crítico en diagnóstico',
-      details: error.message
-    }, { status: 500 })
-  }
+  return NextResponse.json({
+    redis: {
+      status: health.healthy ? '✅ ONLINE' : '❌ OFFLINE',
+      latency: health.latency + 'ms',
+      metrics: {
+        total_saved_queries: metrics.hits,
+        total_misses: metrics.misses,
+        efficiency: metrics.rate
+      }
+    },
+    timestamp: new Date().toISOString()
+  })
 }

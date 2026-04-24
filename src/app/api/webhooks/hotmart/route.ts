@@ -19,6 +19,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
 // ─── Tipos del Payload de Hotmart ──────────────────────────────────────────
@@ -79,7 +80,14 @@ function validateHottok(request: NextRequest): boolean {
     return false
   }
 
-  return receivedHottok === hottokSecret
+  try {
+    const a = Buffer.from(receivedHottok)
+    const b = Buffer.from(hottokSecret)
+    if (a.length !== b.length) return false
+    return timingSafeEqual(a, b)
+  } catch {
+    return false
+  }
 }
 
 // ─── Lógica Principal ──────────────────────────────────────────────────────

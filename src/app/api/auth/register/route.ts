@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js'
 import { rateLimitMiddleware } from '@/lib/rate-limit/middleware'
+import { logAndSafeError } from '@/lib/utils/api-error'
 
 interface RegisterData {
   email: string
@@ -152,12 +153,9 @@ export async function POST(request: NextRequest) {
       // Si falla la organización, eliminar el usuario creado
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       
+      console.error('Error creating organization:', orgError)
       return NextResponse.json(
-        { 
-          error: 'Error al crear la organización. Intenta nuevamente.',
-          details: orgError.message,
-          code: orgError.code
-        },
+        { error: 'Error al crear la organización. Intenta nuevamente.' },
         { status: 500 }
       )
     }
@@ -261,16 +259,9 @@ export async function POST(request: NextRequest) {
       }
     }, { status: 201 })
 
-  } catch (error) {
-    console.error('Unexpected error in register:', error)
-    
-    return NextResponse.json(
-      { 
-        error: 'Error interno del servidor',
-        details: error instanceof Error ? error.message : 'Error desconocido'
-      },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    const msg = logAndSafeError(error, 'POST /api/auth/register', 'Error interno del servidor')
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
 

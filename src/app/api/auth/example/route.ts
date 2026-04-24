@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, validateAccess } from '@/lib/auth/validation'
 
-// GET /api/auth/example - Ejemplo de uso de validación con diferentes recursos
+// GET /api/auth/example - Solo disponible en desarrollo
 export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
   try {
     // 1. Requerir autenticación
     const user = await requireAuth(request)

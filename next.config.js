@@ -75,6 +75,30 @@ const nextConfig = {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
           },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            // Modo observación: detecta violaciones sin bloquear nada.
+            // Revisar la consola del browser para ver qué dominios necesitan permitirse
+            // antes de activar Content-Security-Policy en modo real.
+            key: 'Content-Security-Policy-Report-Only',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: https: blob:",
+              "font-src 'self' data:",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://api.openai.com",
+              "frame-src 'self' https://accounts.google.com",
+              "worker-src 'self' blob:",
+            ].join('; '),
+          },
         ],
       },
       {

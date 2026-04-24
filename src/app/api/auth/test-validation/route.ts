@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAccess } from '@/lib/auth/validation'
 
-// GET /api/auth/test-validation - Probar validación de acceso
+// GET /api/auth/test-validation - Solo disponible en desarrollo
 export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
   try {
     // Simular validación de acceso para diferentes roles y recursos
     const testCases = [

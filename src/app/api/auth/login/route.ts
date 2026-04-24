@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server'
 import { getUserByEmail, updateLastLogin } from '@/lib/database/queries/users'
 import { rateLimitMiddleware } from '@/lib/rate-limit/middleware'
+import { logAndSafeError } from '@/lib/utils/api-error'
 
 // POST /api/auth/login - Autenticar usuario
 export async function POST(request: NextRequest) {
@@ -84,15 +85,9 @@ export async function POST(request: NextRequest) {
       },
       error: null
     })
-  } catch (error: any) {
-    console.error('Error in POST /api/auth/login:', error)
-    return NextResponse.json(
-      {
-        data: null,
-        error: error.message || 'Error al autenticar usuario'
-      },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    const msg = logAndSafeError(error, 'POST /api/auth/login', 'Error al autenticar usuario')
+    return NextResponse.json({ data: null, error: msg }, { status: 500 })
   }
 }
 

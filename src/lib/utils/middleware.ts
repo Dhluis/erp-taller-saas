@@ -149,10 +149,15 @@ export const HeaderUtils = {
   },
 
   /**
-   * Agrega headers de CORS
+   * Agrega headers de CORS — solo para orígenes permitidos
    */
-  addCorsHeaders: (response: NextResponse): NextResponse => {
-    response.headers.set('Access-Control-Allow-Origin', '*');
+  addCorsHeaders: (response: NextResponse, origin?: string | null): NextResponse => {
+    const appUrl = getAppUrl();
+    const allowedOrigins = [appUrl, 'http://localhost:3000', 'http://localhost:3001'].filter(Boolean) as string[];
+    if (origin && allowedOrigins.includes(origin)) {
+      response.headers.set('Access-Control-Allow-Origin', origin);
+      response.headers.set('Vary', 'Origin');
+    }
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     return response;
@@ -283,17 +288,21 @@ export const CorsUtils = {
   handlePreflight: (request: NextRequest): NextResponse | null => {
     if (request.method === 'OPTIONS') {
       const response = new NextResponse(null, { status: 200 });
-      CorsUtils.addCorsHeaders(response);
+      const origin = request.headers.get('origin');
+      CorsUtils.addCorsHeaders(response, origin);
       return response;
     }
     return null;
   },
 
   /**
-   * Agrega headers de CORS
+   * Agrega headers de CORS — solo para orígenes permitidos
    */
-  addCorsHeaders: (response: NextResponse): void => {
-    response.headers.set('Access-Control-Allow-Origin', '*');
+  addCorsHeaders: (response: NextResponse, origin?: string | null): void => {
+    if (origin && CorsUtils.isOriginAllowed(origin)) {
+      response.headers.set('Access-Control-Allow-Origin', origin);
+      response.headers.set('Vary', 'Origin');
+    }
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     response.headers.set('Access-Control-Max-Age', '86400');
