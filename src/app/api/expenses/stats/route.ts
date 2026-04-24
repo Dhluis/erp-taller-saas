@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 /**
- * GET /api/expenses/stats - Gastos del mes (OC recibidas + pagos a proveedores)
+ * GET /api/expenses/stats
+ * Lee desde financial_transactions (ledger unificado) para reportar
+ * gastos reales del mes y del día.
  */
 
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
@@ -15,36 +17,34 @@ export async function GET(request: NextRequest) {
 
     const now = new Date()
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+    const todayStr = now.toISOString().split('T')[0]
 
     const supabase = getSupabaseServiceClient()
 
-    const { data: ocData } = await supabase
-      .from('purchase_orders')
-      .select('total_amount')
+    type TxRow = { amount: number; transaction_date: string }
+
+    // Leer TODOS los expense del mes desde el ledger unificado
+    const { data: txData, error } = await (supabase
+      .from('financial_transactions')
+      .select('amount, transaction_date')
       .eq('organization_id', tenantContext.organizationId)
-      .eq('status', 'received')
-      .gte('order_date', firstDay)
-      .lte('order_date', lastDay)
+      .eq('transaction_type', 'expense')
+      .gte('transaction_date', firstDay) as unknown as Promise<{ data: TxRow[] | null; error: any }>)
 
-    const ocTotal = ocData?.reduce((sum, r) => sum + Number(r.total_amount ?? 0), 0) || 0
+    if (error) {
+      console.error('[GET /api/expenses/stats] financial_transactions error:', error)
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    }
 
-    const { data: paymentsData } = await supabase
-      .from('payments')
-      .select('amount')
-      .eq('organization_id', tenantContext.organizationId)
-      .not('supplier_id', 'is', null)
-      .in('status', ['completed', 'paid'])
-      .gte('payment_date', firstDay)
-      .lte('payment_date', lastDay)
-
-    const paymentsTotal = paymentsData?.reduce((sum, p) => sum + Number(p.amount ?? 0), 0) || 0
-
-    const monthlyExpenses = ocTotal + paymentsTotal
+    const rows: TxRow[] = txData || []
+    const monthlyExpenses = rows.reduce((sum, t) => sum + Number(t.amount), 0)
+    const gastosHoy = rows
+      .filter(t => t.transaction_date === todayStr)
+      .reduce((sum, t) => sum + Number(t.amount), 0)
 
     return NextResponse.json({
       success: true,
-      data: { monthlyExpenses, ocTotal, paymentsTotal }
+      data: { monthlyExpenses, gastosHoy }
     })
   } catch (e) {
     console.error('GET /api/expenses/stats:', e)

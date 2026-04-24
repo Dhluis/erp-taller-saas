@@ -87,6 +87,8 @@ function DashboardContent() {
   
   // ✅ Estado para ingresos y otras métricas - MOVER ANTES DEL RETURN CONDICIONAL
   const [ingresos, setIngresos] = useState(0);
+  const [ingresosDia, setIngresosDia] = useState(0);
+  const [ticketPromedio, setTicketPromedio] = useState(0);
   const [clientesAtendidos, setClientesAtendidos] = useState(0);
   const [alertasInventario, setAlertasInventario] = useState(0);
   const [efectivoEnCaja, setEfectivoEnCaja] = useState(0);
@@ -237,6 +239,8 @@ function DashboardContent() {
             const d = ingresosJson.data;
             const ingresosMes = d.monthlyRevenue ?? d.ingresos_este_mes ?? 0;
             setIngresos(ingresosMes);
+            setIngresosDia(d.ingresosHoy ?? 0);
+            setTicketPromedio(d.ticketPromedio ?? 0);
           }
         } catch (e) {
           console.error('Error cargando ingresos desde invoices:', e);
@@ -550,6 +554,9 @@ function DashboardContent() {
   // Datos dinámicos para mostrar el dashboard
   const stats = {
     ingresos: ingresos,
+    ingresosDia: ingresosDia,
+    ticketPromedio: ticketPromedio,
+    gananciaMes: ingresos - gastosMes,
     efectivoEnCaja: efectivoEnCaja,
     gastosMes: gastosMes,
     ordenesActivas: ordenesActivas,
@@ -608,11 +615,19 @@ function DashboardContent() {
     ...(permissions.canViewFinancialReports() ? [{
       title: 'Ingresos del Mes',
       value: formatMoney(stats.ingresos),
-      description: 'Total facturado',
-      trend: '↓ 15.1% vs mes anterior',
+      description: 'Cobros y pagos recibidos',
+      trend: '',
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-green-400',
       bgColor: 'bg-green-500/10'
+    }, {
+      title: 'Ingresos de Hoy',
+      value: formatMoney(stats.ingresosDia),
+      description: 'Entradas registradas hoy',
+      trend: '',
+      icon: () => <ModernIcons.Finanzas size={32} />,
+      color: 'text-emerald-400',
+      bgColor: 'bg-emerald-500/10'
     }] : []),
     // ✅ Efectivo en caja (cuentas de efectivo)
     ...(permissions.canPayInvoices() || permissions.canViewFinancialReports() ? [{
@@ -624,15 +639,23 @@ function DashboardContent() {
       color: 'text-cyan-400',
       bgColor: 'bg-cyan-500/10'
     }] : []),
-    // ✅ Gastos del mes (Compras: OC recibidas + pagos a proveedores)
+    // ✅ Gastos del mes desde financial_transactions
     ...(permissions.canViewFinancialReports() ? [{
       title: 'Gastos del Mes',
       value: formatMoney(stats.gastosMes),
-      description: 'Compras y pagos a proveedores',
+      description: 'Pagos a proveedores y gastos',
       trend: '',
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-rose-400',
       bgColor: 'bg-rose-500/10'
+    }, {
+      title: 'Ganancia del Mes',
+      value: formatMoney(stats.gananciaMes),
+      description: 'Ingresos menos gastos',
+      trend: '',
+      icon: () => <ModernIcons.Finanzas size={32} />,
+      color: stats.gananciaMes >= 0 ? 'text-teal-400' : 'text-rose-400',
+      bgColor: stats.gananciaMes >= 0 ? 'bg-teal-500/10' : 'bg-rose-500/10'
     }] : []),
     {
       title: 'Órdenes Activas',
@@ -681,8 +704,8 @@ function DashboardContent() {
     },
     ...(permissions.canViewFinancialReports() ? [{
       title: 'Ticket Promedio',
-      value: formatMoney(stats.ordenesCompletadas > 0 ? stats.ingresos / stats.ordenesCompletadas : 0),
-      description: 'Por orden completada',
+      value: formatMoney(stats.ticketPromedio),
+      description: 'Por transacción de ingreso (mes actual)',
       trend: '',
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-teal-400',
