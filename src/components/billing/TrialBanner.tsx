@@ -50,9 +50,11 @@ export function TrialBanner() {
           <Button
             size="sm"
             className={cn('h-6 px-2.5 text-[11px] font-semibold rounded', ctaStyles)}
-            onClick={() => window.open(HOTMART_URL, '_blank', 'noopener,noreferrer')}
+            asChild
           >
-            Actualizar plan
+            <a href={HOTMART_URL} target="_blank" rel="noopener noreferrer">
+              Actualizar plan
+            </a>
           </Button>
           <button
             onClick={() => setDismissed(true)}
@@ -89,9 +91,11 @@ export function TrialBanner() {
       <Button
         size="sm"
         className="h-6 px-2.5 text-[11px] font-semibold rounded bg-red-500 hover:bg-red-400 text-white shrink-0"
-        onClick={() => window.open(HOTMART_URL, '_blank', 'noopener,noreferrer')}
+        asChild
       >
-        Actualizar plan
+        <a href={HOTMART_URL} target="_blank" rel="noopener noreferrer">
+          Actualizar plan
+        </a>
       </Button>
     </div>
   )

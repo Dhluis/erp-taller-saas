@@ -107,9 +107,9 @@ export function useBilling(): UseBillingReturn {
         }
       }
 
-      // Usar subscription_status de organizations (Stripe) si existe, luego messaging_config, sino calcular
+      // Determinar subscription_status efectivo
       let subscriptionStatus: SubscriptionStatus = 'none'
-      if (org.subscription_status && ['active', 'canceled', 'expired', 'past_due'].includes(org.subscription_status)) {
+      if (org.subscription_status && ['active', 'canceled', 'expired', 'past_due', 'trial'].includes(org.subscription_status)) {
         subscriptionStatus = org.subscription_status as SubscriptionStatus
       } else if (messagingConfig?.subscription_status) {
         subscriptionStatus = messagingConfig.subscription_status as SubscriptionStatus
@@ -121,7 +121,15 @@ export function useBilling(): UseBillingReturn {
         subscriptionStatus = 'expired'
       }
 
-      const planTier = (org.plan_tier || 'free') as PlanTier
+      // Si el DB dice 'trial' pero la fecha ya pasó, corregir a 'expired'
+      if (subscriptionStatus === 'trial' && org.trial_ends_at && !isTrialActive(org.trial_ends_at)) {
+        subscriptionStatus = 'expired'
+      }
+
+      const rawPlanTier = (org.plan_tier || 'free') as PlanTier
+      // Durante trial activo usar límites premium para que la UI sea consistente con el servidor
+      const trialCurrentlyActive = subscriptionStatus === 'trial'
+      const planTier: PlanTier = trialCurrentlyActive ? 'premium' : rawPlanTier
 
       // 2.5. Obtener límites desde la base de datos
       const { data: planLimitsData, error: limitsError } = await supabase
@@ -210,7 +218,7 @@ export function useBilling(): UseBillingReturn {
       // 5. Construir plan completo
       const organizationPlan: OrganizationPlan = {
         organization_id: organizationId,
-        plan_tier: planTier,
+        plan_tier: trialCurrentlyActive ? 'premium' : rawPlanTier,
         subscription_status: subscriptionStatus,
         plan_started_at: org.plan_started_at ?? null,
         trial_ends_at: org.trial_ends_at ?? messagingConfig?.trial_ends_at ?? null,

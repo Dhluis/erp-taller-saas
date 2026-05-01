@@ -17,15 +17,11 @@ export function UpgradeButton({
   size = "md",
   className,
 }: UpgradeButtonProps) {
-  const handleUpgrade = () => {
-    window.open(HOTMART_CHECKOUT_URL, "_blank", "noopener,noreferrer");
-  };
-
   const isOutline = variant === "outline";
 
   return (
     <Button
-      onClick={handleUpgrade}
+      asChild
       variant={isOutline ? "outline" : "default"}
       size={size}
       className={cn(
@@ -35,8 +31,10 @@ export function UpgradeButton({
         className,
       )}
     >
-      <Crown className="mr-2 h-4 w-4" />
-      Suscribirse (Mensual)
+      <a href={HOTMART_CHECKOUT_URL} target="_blank" rel="noopener noreferrer">
+        <Crown className="mr-2 h-4 w-4" />
+        Suscribirse (Mensual)
+      </a>
     </Button>
   );
 }

@@ -12,8 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Crown, Check } from "lucide-react";
 import { FEATURE_NAMES } from "@/types/billing";
 import type { LimitError } from "@/types/billing";
-import { useRouter } from "next/navigation";
-
 import { useCurrencyConverter } from "@/lib/utils/currency-converter";
 import { PRICING } from "@/lib/billing/constants";
 
@@ -32,7 +30,6 @@ export function UpgradeModal({
   limitError,
   featureName,
 }: UpgradeModalProps) {
-  const router = useRouter();
   const { selectedCurrency, convertUSD, formatLocalCurrency } =
     useCurrencyConverter();
 
@@ -60,11 +57,6 @@ export function UpgradeModal({
   };
 
   const displayFeatureName = getFeatureDisplayName();
-
-  const handleUpgrade = () => {
-    onClose();
-    window.open(HOTMART_CHECKOUT_URL, "_blank", "noopener,noreferrer");
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -157,10 +149,13 @@ export function UpgradeModal({
           </Button>
           <Button
             className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold shadow-lg shadow-orange-500/20 transition-all duration-200 hover:scale-[1.02]"
-            onClick={handleUpgrade}
+            asChild
+            onClick={onClose}
           >
-            <Crown className="mr-2 h-4 w-4" />
-            Actualizar a Premium
+            <a href={HOTMART_CHECKOUT_URL} target="_blank" rel="noopener noreferrer">
+              <Crown className="mr-2 h-4 w-4" />
+              Actualizar a Premium
+            </a>
           </Button>
         </DialogFooter>
       </DialogContent>

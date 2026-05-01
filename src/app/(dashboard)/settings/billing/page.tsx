@@ -111,13 +111,8 @@ export default function BillingPage() {
   const showSubscribeButton = !isActive;
   const isFreeOrTrialOrExpired = !isActive;
 
-  const handleSubscribe = () => {
-    window.open(HOTMART_CHECKOUT_URL, "_blank", "noopener,noreferrer");
-  };
-
   const getSubscribeButtonText = () => {
     if (isTrial) return "Activar Suscripción";
-    if (isPremium) return "Suscribirse Ahora";
     return "Suscribirse Ahora";
   };
 
@@ -310,12 +305,14 @@ export default function BillingPage() {
               )}
               {showSubscribeButton && (
                 <Button
-                  onClick={handleSubscribe}
+                  asChild
                   size="lg"
                   className="w-full mt-4 h-14 text-lg font-bold bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white border-0 shadow-lg shadow-orange-500/20"
                 >
-                  <Crown className="mr-2 h-5 w-5" />
-                  {getSubscribeButtonText()}
+                  <a href={HOTMART_CHECKOUT_URL} target="_blank" rel="noopener noreferrer">
+                    <Crown className="mr-2 h-5 w-5" />
+                    {getSubscribeButtonText()}
+                  </a>
                 </Button>
               )}
             </div>
