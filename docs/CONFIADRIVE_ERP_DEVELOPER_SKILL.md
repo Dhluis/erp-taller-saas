@@ -1,7 +1,7 @@
 # Confia Drive ERP - Developer Guide
 
-**Última actualización:** 2026-01-05  
-**Versión del proyecto:** 4.0.0  
+**Última actualización:** Abril 2026
+**Versión del proyecto:** 5.0.0
 **Estado general:** ✅ **PRODUCCIÓN ESTABLE**
 
 ---
@@ -10,30 +10,20 @@
 
 ### ⛔ NO TOCAR - Funcionalidades 100% operativas:
 
-#### 1. **WhatsApp Integration (CRÍTICO - 10+ horas de debugging)**
-**Archivo:** `src/components/WhatsAppQRConnectorSimple.tsx`
+#### 1. **WhatsApp Integration via Twilio (CRÍTICO)**
+**Archivos clave:**
+- `src/lib/messaging/twilio-client.ts` — cliente Twilio
+- `src/lib/messaging/whatsapp-service.ts` — servicio unificado
+- `src/app/api/messaging/twilio/webhook/[organizationId]/route.ts` — webhook entrante
+- `src/integrations/whatsapp/utils/index.ts` — parsers (**NO eliminar**)
+- `src/integrations/whatsapp/services/ai-agent.ts` — agente IA (**NO modificar sin contexto completo**)
 
-**Intervalos de polling optimizados:**
-- NO tiene QR + Mobile: **10 segundos** (antes 3s) - ✅ NO CAMBIAR
-- NO tiene QR + Desktop: **5 segundos** (antes 3s) - ✅ NO CAMBIAR
-- YA tiene QR visible: **60 segundos** (antes 30s) - ✅ NO CAMBIAR
-- Está conectado: **60 segundos** (antes 3s) - ✅ NO CAMBIAR
+**NUNCA:**
+- ❌ Modificar `ai-agent.ts` sin entender el sistema completo del agente
+- ❌ Eliminar `src/integrations/whatsapp/utils/index.ts`
+- ❌ Cambiar URL de webhook de Twilio sin actualizar en el dashboard de Twilio
 
-**Funcionalidades críticas:**
-- ✅ Detección de dispositivo mobile (`isMobileRef`)
-- ✅ Pausa automática cuando app en background (`visibilitychange`)
-- ✅ Reanudación automática al volver a visible
-- ✅ Manejo de estados (loading, connected, pending, error)
-- ✅ QR generation y conexión automática
-- ✅ Guardado de QR en ref para evitar pérdida temporal
-
-**NUNCA cambiar:**
-- ❌ Polling intervals sin medición previa
-- ❌ Orden de middleware
-- ❌ Session management
-- ❌ Lógica de estados (causa bugs críticos)
-
-**Impacto si se rompe:** Módulo WhatsApp completamente inoperativo
+**Impacto si se rompe:** WhatsApp inoperativo, sin notificaciones automáticas a clientes
 
 ---
 
@@ -111,26 +101,19 @@
 
 ---
 
-#### 5. **Mobile Performance (Fase 1 completada)**
+#### 5. **Mobile Performance**
 **Archivos:**
-- `src/components/WhatsAppQRConnectorSimple.tsx` (polling optimizado)
-- `src/app/reportes/page.tsx` (skeleton loading con refs)
-
-**Optimizaciones implementadas:**
-- ✅ Polling WhatsApp: 70-95% reducción de requests
-- ✅ Reportes: Skeleton loading sin parpadeo (usando `hasLoadedRef`)
-- ✅ Pausa en background: Ahorro de batería significativo
+- `src/app/reportes/page.tsx` (skeleton loading con `hasLoadedRef`)
 
 **NUNCA:**
-- ❌ Cambiar intervalos sin medición previa
 - ❌ Remover refs de prevención de ejecución múltiple
 - ❌ Agregar dependencias innecesarias a useEffect
 
-**Impacto si se rompe:** Performance mobile degradada, consumo excesivo de batería
+**Impacto si se rompe:** Parpadeo en reportes, renders infinitos
 
 ---
 
-## ✅ ESTADO ACTUAL DEL PROYECTO (2026-01-05)
+## ✅ ESTADO ACTUAL DEL PROYECTO (Abril 2026)
 
 ### **Módulos 100% Funcionales:**
 
@@ -181,15 +164,28 @@
 - ✅ Conversión a factura
 - ✅ Items y descuentos
 
-#### **WhatsApp Integration**
-- ✅ Conexión de WhatsApp (QR)
-- ✅ Bot AI con configuración personalizada
-- ✅ Conversaciones en tiempo real (análisis completo en `docs/ANALISIS_CONVERSACIONES_WHATSAPP.md`)
-- ✅ Etiquetas y notas
-- ✅ Respuestas automáticas
-- ✅ Polling optimizado para mobile
-- ⚠️ Adjuntos e IA pendientes de implementación completa
-- ❌ "Cliente de Prueba" requiere limpieza de BD (ver `docs/CLEANUP_WHATSAPP_TEST_DATA.sql`)
+#### **WhatsApp Integration (Twilio)**
+- ✅ Mensajes entrantes y salientes via Twilio
+- ✅ Bot AI por organización
+- ✅ Conversaciones en tiempo real
+- ✅ Notificación automática al cliente al cambiar estado de orden
+
+#### **Finanzas**
+- ✅ Libro de entradas y salidas (`financial_transactions`)
+- ✅ Cuentas de efectivo/banco/tarjeta (`cash_accounts`)
+- ✅ Pagos de facturas (`invoice_payments`)
+- ✅ Cobros a clientes (`collections`)
+- ✅ Pagos a proveedores (`supplier_payments`)
+
+#### **Billing SaaS**
+- ✅ Suscripción mensual via Hotmart
+- ✅ Trial de 7 días con bloqueo al vencer
+- ✅ Webhook verificado con `timingSafeEqual`
+
+#### **Push Notifications / PWA**
+- ✅ Service worker propio (`public/sw.js`)
+- ✅ Suscripciones VAPID en BD
+- ✅ Instalable en móvil y desktop
 
 #### **Reportes**
 - ✅ Reporte de órdenes
@@ -201,32 +197,18 @@
 
 #### **Users & Invitations**
 - ✅ Gestión de usuarios multi-tenant
-- ✅ Invitaciones (sin email aún)
-- ✅ Roles y permisos
+- ✅ Invitaciones por email (SendGrid)
+- ✅ Roles y permisos (admin, mecánico, recepcionista)
 - ✅ Perfiles de usuario
 
 ---
 
-### **Módulos con Mock Data (pendientes de implementación):**
-
-#### **Purchase Orders (Órdenes de Compra)**
-**Archivo:** `src/lib/supabase/purchase-orders.ts`
-- ❌ `getPurchaseOrders()` - Retorna datos mock
-- ❌ `getPurchaseOrderStats()` - Retorna estadísticas mock
-- ❌ `createPurchaseOrder()` - Crea orden mock sin guardar en BD
-- **Estado:** Funcionalidad completa mock, necesita API real
+### **Módulos con Mock Data (pendientes):**
 
 #### **Comercial/Leads**
 **Archivo:** `src/app/comercial/page.tsx`
 - ❌ Solo datos mock, sin API real
-- ❌ Sin persistencia en BD
-- **Estado:** Módulo no funcional, solo UI
-
-#### **Cobros (Collections)**
-**Archivo:** `src/app/ingresos/cobros/page.tsx`
-- ⚠️ Usa datos mock como fallback
-- ⚠️ API existe pero puede fallar a mock
-- **Estado:** Funcional pero con fallback a mock
+- **Estado:** Módulo de UI sin funcionalidad real — bajo prioridad
 
 ---
 

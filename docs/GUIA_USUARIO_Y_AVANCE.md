@@ -90,10 +90,23 @@ Todo lo que vendes o usas en el taller (refacciones, lubricantes, etc.) se contr
 
 ## Ingresos, facturación y cobros
 
-- **Facturación / Ingresos:** Aquí se registran y ven las facturas o comprobantes que emites a los clientes (por órdenes, servicios, etc.).
-- **Cobros:** Registrar qué te han pagado (efectivo, transferencia, etc.) y asociarlo a facturas o órdenes.
+- **Notas de venta (Facturas):** Comprobantes que emites a clientes por órdenes o servicios. Puedes registrar pagos parciales o totales contra cada nota.
+- **Pagos de facturas:** Registrar cuánto y cuándo pagó el cliente. La factura se marca automáticamente como pagada al completar el monto.
+- **Cobros:** Registrar cobros directos a clientes (fuera de una factura específica). Puede asociarse a una cuenta de efectivo.
 
-**Uso típico:** Al cerrar una orden o entregar un servicio, facturar y luego registrar el cobro cuando te paguen.
+**Uso típico:** Cerrar orden → generar nota de venta → registrar pago cuando el cliente pague.
+
+---
+
+## Entradas y Salidas (Libro de Movimientos)
+
+Registro diario de **todos** los ingresos y gastos del taller, independiente de órdenes o facturas.
+
+- **Ingreso:** Registra una entrada de dinero (servicios, venta, otro).
+- **Gasto:** Registra una salida de dinero (compra, renta, nómina, etc.).
+- **Cuentas de efectivo:** Separar el dinero por caja (Caja chica, Cuenta banco, Tarjeta). Cada ingreso o gasto puede asociarse a una cuenta para reflejar saldo real.
+
+**Uso típico:** Registrar gastos del día (refacciones pagadas en efectivo, servicios externos) y verificar que el saldo de cada cuenta cuadre.
 
 ---
 
@@ -149,11 +162,9 @@ Pantallas que resumen información para tomar decisiones:
 
 ---
 
-## Porcentaje de avance estimado: **alrededor del 75–80 %**
+## Porcentaje de avance estimado: **alrededor del 95 %**
 
-El sistema ya cubre el flujo principal de un taller: clientes, vehículos, cotizaciones, órdenes (lista y Kanban), inventario (productos, categorías, movimientos), ingresos/cobros, compras (órdenes, proveedores, pagos), reportes básicos, configuración de empresa y usuarios, y roles (admin, mecánico). Por eso se considera **avanzado** (75–80 %).
-
-El resto son mejoras, pulido, integraciones opcionales y temas de calidad (pruebas, documentación, rendimiento).
+El sistema cubre el flujo completo de un taller en producción: clientes, vehículos, cotizaciones, órdenes (lista y Kanban), inventario, finanzas (entradas/salidas, cuentas de efectivo, cobros, pagos a proveedores), facturación, compras, reportes, configuración, y roles. El billing SaaS (Hotmart), WhatsApp vía Twilio, notificaciones push y seguridad de producción están implementados. Lo que falta son mejoras de calidad y detalles menores.
 
 ---
 
@@ -161,17 +172,18 @@ El resto son mejoras, pulido, integraciones opcionales y temas de calidad (prueb
 
 | Área | Qué hay |
 |------|--------|
-| **Entrada y seguridad** | Login, registro, recuperar contraseña, perfiles, permisos por rol (admin, mecánico, etc.). |
-| **Dashboard** | Resumen con ingresos, órdenes por estado, alertas de inventario, filtros por fechas. |
-| **Clientes y vehículos** | Listado, búsqueda, crear, editar. |
-| **Cotizaciones** | Crear, editar, ver; convertir en orden de trabajo. |
-| **Órdenes de trabajo** | Lista con filtros; Kanban para arrastrar estados; crear orden; detalle con servicios, piezas, fotos, notas; cambiar estados. |
-| **Inventario** | Productos, categorías, movimientos de entrada/salida/ajustes. |
-| **Ingresos y cobros** | Pantallas de facturación e ingresos; cobros. |
-| **Compras** | Órdenes de compra (crear, recibir); proveedores; pagos a proveedores. |
-| **Reportes** | Ventas, inventario, financieros (según lo implementado). |
-| **Configuración** | Empresa (datos, horarios, moneda, impuestos); usuarios; planes; mensajería (WhatsApp, email). |
-| **Extra** | Integración WhatsApp (conectar número, conversaciones); paquetes de servicio; análisis financiero; métricas; notificaciones; búsqueda global. |
+| **Entrada y seguridad** | Login, registro, Google OAuth, perfiles, permisos por rol (admin, mecánico, recepcionista). Contraseñas mínimo 8 caracteres + número. |
+| **Dashboard** | KPIs financieros con flip privado: ingresos del mes, efectivo, bancos/tarjetas, ticket promedio. Órdenes por estado, alertas de stock. |
+| **Clientes y vehículos** | Listado, búsqueda, crear, editar, historial de vehículo. |
+| **Cotizaciones** | Crear, editar, ver; convertir en orden de trabajo o nota de venta. |
+| **Órdenes de trabajo** | Lista con filtros; Kanban por estado; crear orden; detalle con servicios, piezas, fotos, notas; notificación automática al cliente por WhatsApp al cambiar estado. |
+| **Inventario** | Productos, categorías, movimientos de entrada/salida/ajustes, alertas de stock bajo. |
+| **Finanzas** | Notas de venta (facturas) con pagos parciales; libro de entradas y salidas; cuentas de efectivo/banco/tarjeta; cobros a clientes; pagos a proveedores. |
+| **Compras** | Órdenes de compra (crear, aprobar, recibir); proveedores; pagos a proveedores. |
+| **Reportes** | Ventas, inventario, financieros, dashboard de KPIs. |
+| **Configuración** | Empresa; usuarios e invitaciones; planes; mensajería (WhatsApp Twilio, email). |
+| **Comunicaciones** | WhatsApp vía Twilio (conversaciones, respuestas automáticas por IA); email (SendGrid); push notifications (PWA). |
+| **Billing SaaS** | Suscripción mensual vía Hotmart; trial de 7 días; bloqueo automático al vencer. |
 
 ---
 
@@ -179,16 +191,14 @@ El resto son mejoras, pulido, integraciones opcionales y temas de calidad (prueb
 
 | Prioridad | Qué falta o mejorar |
 |-----------|----------------------|
-| **Alta** | **Pruebas automáticas:** Más pruebas (unitarias e integración) para no romper nada al cambiar código. |
-| **Alta** | **Documentación de la API:** Listado claro de todos los endpoints y cómo usarlos (para desarrolladores o integraciones). |
-| **Media** | **Citas / agenda:** La sección de citas existe; falta afinar que el flujo “agendar cita → crear orden” quede redondo y estable. |
-| **Media** | **Facturación electrónica (SAT/CFDI):** No está en el alcance actual del sistema. La facturación interna (registrar cobros, pagos, totales) sí está disponible. |
-| **Media** | **Impresión y PDF:** Reportes y comprobantes que se puedan imprimir o descargar en PDF de forma consistente. |
-| **Media** | **Estados de WhatsApp:** Algunos casos raros de conexión/desconexión del número; mejorar mensajes al usuario cuando falle. |
-| **Baja** | **Monitoreo y logs:** Herramientas para ver errores y uso en producción sin entrar a código. |
-| **Baja** | **Rendimiento:** Revisar consultas pesadas y caché en pantallas con muchos datos (órdenes, movimientos, reportes). |
-| **Opcional** | **App móvil:** Versión móvil nativa o PWA muy afinada para uso en el taller desde el celular. |
-| **Opcional** | **Más integraciones:** Pagos en línea (Stripe/Mercado Pago ya están en proyecto), envío de facturas por correo/WhatsApp automático. |
+| **Media** | **CSP en modo enforced:** El Content-Security-Policy está en modo observación; activarlo en producción tras validar que no bloquea nada. |
+| **Media** | **Citas / agenda:** La sección existe; falta afinar el flujo “agendar cita → crear orden” de forma fluida. |
+| **Media** | **Facturación electrónica (SAT/CFDI):** Fuera del alcance actual. La facturación interna (cobros, pagos, totales) sí está. |
+| **Media** | **Impresión y PDF:** Reportes y comprobantes descargables en PDF de forma consistente. |
+| **Baja** | **Pruebas automáticas:** Más cobertura de pruebas para prevenir regresiones. |
+| **Baja** | **Rate limiting fail-closed:** Si Redis no responde, el login sigue funcionando (sin bloqueo). Evaluar si es aceptable. |
+| **Baja** | **Rendimiento:** Revisar consultas pesadas en pantallas con muchos datos (órdenes, movimientos). |
+| **Opcional** | **Facturación electrónica integrada:** Para mercados que requieren CFDI/XML oficial. |
 
 ---
 

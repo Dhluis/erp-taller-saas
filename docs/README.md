@@ -1,505 +1,189 @@
-# ERP Taller SaaS - Documentación Completa
+# Confia Drive ERP — Documentación
 
-## 📋 Índice
-
-1. [Introducción](#introducción)
-2. [Arquitectura](#arquitectura)
-3. [Instalación](#instalación)
-4. [Configuración](#configuración)
-5. [Uso](#uso)
-6. [API](#api)
-7. [Testing](#testing)
-8. [Despliegue](#despliegue)
-9. [Contribución](#contribución)
-10. [Licencia](#licencia)
-
-## 🚀 Introducción
-
-ERP Taller SaaS es una aplicación web moderna construida con Next.js 14, TypeScript, Supabase y Tailwind CSS. Proporciona una solución completa para la gestión de talleres automotrices, incluyendo:
-
-- **Gestión de Clientes**: Registro y seguimiento de clientes
-- **Gestión de Vehículos**: Información de vehículos por cliente
-- **Gestión de Inventario**: Control de stock y movimientos
-- **Gestión de Órdenes**: Órdenes de trabajo y seguimiento
-- **Gestión de Cobros**: Control de pagos y facturación
-- **Gestión de Proveedores**: Administración de proveedores
-- **Reportes y Analytics**: Métricas y estadísticas
-
-## 🏗️ Arquitectura
-
-### Fase 1: Fundamentos
-- ✅ **Sistema de Configuración Centralizada**
-- ✅ **Manejo de Errores Robusto**
-- ✅ **Cliente Supabase Singleton**
-
-### Fase 2: Tipos y Validación
-- ✅ **Tipos Base Centralizados**
-- ✅ **Esquemas de Validación con Zod**
-- ✅ **Hooks de Validación Reutilizables**
-
-### Fase 3: Servicios de Datos
-- ✅ **Servicio Base Abstracto**
-- ✅ **Servicios Específicos por Entidad**
-- ✅ **Hooks de Servicios con Operaciones CRUD**
-
-### Fase 4: Componentes Reutilizables
-- ✅ **DataTable con Paginación y Búsqueda**
-- ✅ **FormField con Validación Automática**
-- ✅ **Form Completo con Esquemas**
-- ✅ **StatsCard con Métricas**
-- ✅ **PageLayout Responsive**
-- ✅ **Modal con Diferentes Variantes**
-
-### Fase 5: Integración y Testing
-- ✅ **Sistema de Testing Completo**
-- ✅ **Tests de Integración**
-- ✅ **Documentación Completa**
-
-## 🛠️ Instalación
-
-### Prerrequisitos
-
-- Node.js 18+ 
-- npm o yarn
-- Cuenta de Supabase
-- Git
-
-### Pasos de Instalación
-
-1. **Clonar el repositorio**
-```bash
-git clone https://github.com/tu-usuario/erp-taller-saas.git
-cd erp-taller-saas
-```
-
-2. **Instalar dependencias**
-```bash
-npm install
-# o
-yarn install
-```
-
-3. **Configurar variables de entorno**
-```bash
-cp .env.example .env.local
-```
-
-4. **Configurar Supabase**
-   - Crear proyecto en Supabase
-   - Ejecutar migraciones SQL
-   - Configurar variables de entorno
-
-5. **Ejecutar en desarrollo**
-```bash
-npm run dev
-# o
-yarn dev
-```
-
-## ⚙️ Configuración
-
-### Variables de Entorno
-
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=tu_url_de_supabase
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_clave_anonima
-SUPABASE_SERVICE_ROLE_KEY=tu_clave_de_servicio
-
-# Aplicación
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-NODE_ENV=development
-```
-
-### Configuración de Supabase
-
-1. **Crear proyecto en Supabase**
-2. **Ejecutar migraciones SQL** (ver `supabase/migrations/`)
-3. **Configurar Row Level Security (RLS)**
-4. **Configurar políticas de acceso**
-
-### Configuración de Base de Datos
-
-```sql
--- Ejecutar en Supabase SQL Editor
--- Ver archivo: SOLUCION_COMPLETA_FINAL.sql
-```
-
-## 📖 Uso
-
-### Estructura del Proyecto
-
-```
-src/
-├── app/                    # Páginas de Next.js
-├── components/             # Componentes reutilizables
-│   └── ui/                # Componentes UI base
-├── hooks/                 # Hooks personalizados
-├── lib/                   # Utilidades y configuración
-│   ├── config/           # Configuración centralizada
-│   ├── errors/           # Manejo de errores
-│   ├── services/         # Servicios de datos
-│   ├── supabase/         # Cliente Supabase
-│   ├── testing/          # Utilidades de testing
-│   └── utils/            # Utilidades generales
-├── types/                # Tipos TypeScript
-└── __tests__/            # Tests
-```
-
-### Componentes Principales
-
-#### DataTable
-```tsx
-import { DataTable } from '@/components/ui/DataTable'
-
-<DataTable
-  data={customers}
-  columns={columns}
-  searchable={true}
-  filterable={true}
-  sortable={true}
-  pagination={pagination}
-  actions={{
-    view: (row) => viewCustomer(row),
-    edit: (row) => editCustomer(row),
-    delete: (row) => deleteCustomer(row)
-  }}
-/>
-```
-
-#### Form
-```tsx
-import { Form } from '@/components/ui/Form'
-
-<Form
-  title="Crear Cliente"
-  fields={formFields}
-  schema={createCustomerSchema}
-  onSubmit={handleSubmit}
-  gridCols={2}
-  showSuccessMessage={true}
-/>
-```
-
-#### StatsCard
-```tsx
-import { StatsCard } from '@/components/ui/StatsCard'
-
-<StatsCard
-  title="Total Clientes"
-  value={150}
-  change={12.5}
-  changeType="increase"
-  variant="success"
-  onRefresh={loadStats}
-/>
-```
-
-### Hooks de Servicios
-
-#### useCollections
-```tsx
-import { useCollections } from '@/hooks/useServices'
-
-const { 
-  stats, 
-  loading, 
-  error, 
-  loadStats, 
-  getPending, 
-  getOverdue,
-  markAsCompleted 
-} = useCollections()
-```
-
-#### useCustomers
-```tsx
-import { useCustomers } from '@/hooks/useServices'
-
-const { 
-  data, 
-  loading, 
-  error, 
-  create, 
-  update, 
-  remove,
-  getActive,
-  getVIP,
-  searchByNameOrEmail 
-} = useCustomers()
-```
-
-### Servicios de Datos
-
-#### CollectionsService
-```tsx
-import { CollectionsService } from '@/lib/services/CollectionsService'
-
-const service = new CollectionsService()
-
-// Obtener todas las colecciones
-const collections = await service.getAll()
-
-// Obtener estadísticas
-const stats = await service.getStats()
-
-// Crear nueva colección
-const newCollection = await service.create({
-  client_id: 'C001',
-  invoice_id: 'F001',
-  amount: 1000,
-  collection_date: '2024-01-01',
-  payment_method: 'transfer'
-})
-```
-
-## 🔌 API
-
-### Endpoints de Supabase
-
-#### Clientes
-- `GET /customers` - Obtener todos los clientes
-- `GET /customers/:id` - Obtener cliente por ID
-- `POST /customers` - Crear nuevo cliente
-- `PUT /customers/:id` - Actualizar cliente
-- `DELETE /customers/:id` - Eliminar cliente
-
-#### Colecciones
-- `GET /collections` - Obtener todas las colecciones
-- `GET /collections/stats` - Obtener estadísticas
-- `GET /collections/pending` - Obtener colecciones pendientes
-- `GET /collections/overdue` - Obtener colecciones vencidas
-
-### Esquemas de Validación
-
-#### Cliente
-```typescript
-interface Customer {
-  id: string
-  name: string
-  email?: string
-  phone?: string
-  status: 'active' | 'inactive'
-  created_at: string
-  updated_at: string
-}
-```
-
-#### Colección
-```typescript
-interface Collection {
-  id: string
-  client_id: string
-  invoice_id: string
-  amount: number
-  collection_date: string
-  payment_method: 'cash' | 'transfer' | 'card' | 'check'
-  status: 'pending' | 'completed' | 'overdue'
-  created_at: string
-  updated_at: string
-}
-```
-
-## 🧪 Testing
-
-### Ejecutar Tests
-
-```bash
-# Tests unitarios
-npm run test
-
-# Tests de integración
-npm run test:integration
-
-# Tests con coverage
-npm run test:coverage
-
-# Tests en modo watch
-npm run test:watch
-```
-
-### Estructura de Tests
-
-```
-__tests__/
-├── components/           # Tests de componentes
-├── services/            # Tests de servicios
-├── integration/         # Tests de integración
-└── utils/              # Tests de utilidades
-```
-
-### Ejemplos de Tests
-
-#### Test de Componente
-```typescript
-import { render, screen, fireEvent } from '@/lib/testing/test-utils'
-import { DataTable } from '@/components/ui/DataTable'
-
-describe('DataTable', () => {
-  it('debe renderizar datos correctamente', () => {
-    render(<DataTable data={mockData} columns={columns} />)
-    expect(screen.getByText('Juan Pérez')).toBeInTheDocument()
-  })
-})
-```
-
-#### Test de Servicio
-```typescript
-import { CollectionsService } from '@/lib/services/CollectionsService'
-
-describe('CollectionsService', () => {
-  it('debe crear colección correctamente', async () => {
-    const service = new CollectionsService()
-    const result = await service.create(mockData)
-    expect(result).toBeDefined()
-  })
-})
-```
-
-## 🚀 Despliegue
-
-### Despliegue en Vercel
-
-1. **Conectar repositorio a Vercel**
-2. **Configurar variables de entorno**
-3. **Configurar dominio personalizado**
-4. **Desplegar automáticamente**
-
-### Despliegue en Netlify
-
-1. **Conectar repositorio a Netlify**
-2. **Configurar build settings**
-3. **Configurar variables de entorno**
-4. **Desplegar**
-
-### Despliegue Manual
-
-1. **Build de producción**
-```bash
-npm run build
-```
-
-2. **Iniciar servidor**
-```bash
-npm start
-```
-
-### Configuración de Producción
-
-```env
-NODE_ENV=production
-NEXT_PUBLIC_APP_URL=https://tu-dominio.com
-NEXT_PUBLIC_SUPABASE_URL=tu_url_de_supabase
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_clave_anonima
-```
-
-## 🤝 Contribución
-
-### Cómo Contribuir
-
-1. **Fork del repositorio**
-2. **Crear rama de feature**
-```bash
-git checkout -b feature/nueva-funcionalidad
-```
-
-3. **Hacer cambios y commits**
-```bash
-git commit -m "feat: agregar nueva funcionalidad"
-```
-
-4. **Push a la rama**
-```bash
-git push origin feature/nueva-funcionalidad
-```
-
-5. **Crear Pull Request**
-
-### Estándares de Código
-
-- **TypeScript** para tipado fuerte
-- **ESLint** para linting
-- **Prettier** para formato
-- **Conventional Commits** para commits
-- **Tests** para nuevas funcionalidades
-
-### Estructura de Commits
-
-```
-feat: nueva funcionalidad
-fix: corrección de bug
-docs: documentación
-style: formato
-refactor: refactoring
-test: tests
-chore: tareas de mantenimiento
-```
-
-## 📱 Documentación de WhatsApp
-
-### Integración de WhatsApp Business
-
-- **[WhatsApp Business Support (@lid)](WHATSAPP_BUSINESS_SUPPORT.md)** - Documentación completa sobre soporte para WhatsApp Business con formato @lid
-  - **Commit soporte inicial**: `6f0ac66` (validación de @lid en webhook)
-  - **Commit fix completo**: `19af1ca` (preservar chatId completo en respuestas)
-  - Problemas identificados y soluciones
-  - Formatos de chatId soportados
-  - Guía de troubleshooting
-
-- **[WhatsApp Webhook Migration](WHATSAPP_WEBHOOK_MIGRATION.md)** - Migración a webhooks dinámicos multi-tenant
-  - **Commit principal**: `0461999` (implementación completa de webhooks dinámicos)
-  - Sistema de webhooks con Organization ID dinámico por sesión
-  - Variables de entorno a remover de EasyPanel
-  - Script de migración para organizaciones existentes
-  - UI de diagnóstico y verificación de webhooks
-  - Endpoint de migración masiva para administradores
-
-- **[WhatsApp Integration Status](WHATSAPP_INTEGRATION_STATUS.md)** - Estado general de la integración
-- **[WhatsApp Webhook Verification](WHATSAPP_WEBHOOK_VERIFICATION.md)** - Verificación de webhooks
-- **[WhatsApp Business API Setup](WHATSAPP_BUSINESS_API_SETUP.md)** - Configuración inicial
-- **[WAHA Setup](WAHA_SETUP.md)** - Guía de configuración de WAHA
-
-### Cambios Recientes
-
-- **Webhooks Dinámicos Multi-Tenant** (`0461999`)
-  - Cada organización ahora tiene su propio webhook configurado con su Organization ID
-  - Configuración automática al conectar/reconectar WhatsApp
-  - Acciones `force_update_webhook` y `verify_webhook` disponibles
-  - **IMPORTANTE**: Remover `WHATSAPP_HOOK_URL` y `WHATSAPP_HOOK_EVENTS` de variables globales en EasyPanel
-
-- **Estado Activo/Inactivo** (`c6cd22c`)
-  - El badge "Activo" se muestra correctamente cuando hay configuración (provider, model, services)
-  - Ya no depende únicamente del campo `enabled` en BD
-  - Muestra información de IA utilizada (provider, modelo) cuando está configurado
-
-## 📄 Licencia
-
-Este proyecto está bajo la Licencia MIT. Ver el archivo [LICENSE](LICENSE) para más detalles.
-
-## 📞 Soporte
-
-- **Email**: soporte@erp-taller.com
-- **GitHub Issues**: [Crear issue](https://github.com/tu-usuario/erp-taller-saas/issues)
-- **Documentación**: [Ver documentación](https://docs.erp-taller.com)
-
-## 🙏 Agradecimientos
-
-- **Next.js** - Framework de React
-- **Supabase** - Backend como servicio
-- **Tailwind CSS** - Framework de CSS
-- **Shadcn/ui** - Componentes UI
-- **Zod** - Validación de esquemas
-- **React Hook Form** - Manejo de formularios
-- **Jest** - Framework de testing
-- **Testing Library** - Utilidades de testing
+**Versión:** 5.0.0 | **Stack:** Next.js 15, TypeScript, Supabase, Tailwind CSS, shadcn/ui
+**Estado:** Producción estable | **Actualizado:** Abril 2026
 
 ---
 
-**ERP Taller SaaS** - Solución completa para gestión de talleres automotrices 🚗
+## Índice
 
+1. [Descripción](#descripción)
+2. [Stack técnico](#stack-técnico)
+3. [Instalación y desarrollo](#instalación-y-desarrollo)
+4. [Variables de entorno](#variables-de-entorno)
+5. [Arquitectura](#arquitectura)
+6. [Módulos](#módulos)
+7. [Comandos](#comandos)
+8. [Documentos relacionados](#documentos-relacionados)
 
+---
 
+## Descripción
 
+ERP SaaS multi-tenant para talleres mecánicos. Permite gestionar clientes, vehículos, órdenes de trabajo, inventario, cotizaciones, facturación, finanzas, compras, y comunicaciones (WhatsApp, email, push notifications), con billing mensual via Hotmart.
 
+Cada organización tiene sus datos completamente aislados mediante Row Level Security (RLS) en todas las tablas de Supabase.
 
+---
 
+## Stack técnico
+
+| Capa | Tecnología |
+|---|---|
+| Framework | Next.js 15 (App Router) |
+| Lenguaje | TypeScript (strict mode) |
+| Base de datos | Supabase (PostgreSQL) |
+| Autenticación | Supabase Auth (email, Google OAuth, magic link) |
+| Estilos | Tailwind CSS + shadcn/ui |
+| Estado global | React Context + Hooks |
+| Validación | Zod |
+| Testing | Vitest |
+| WhatsApp | Twilio |
+| Email | SendGrid / SMTP (Nodemailer) |
+| Billing | Hotmart |
+| Push Notifications | Web Push (VAPID) |
+| Rate Limiting | Upstash Redis |
+| Despliegue | Vercel |
+
+---
+
+## Instalación y desarrollo
+
+```bash
+# Clonar
+git clone <repo-url>
+cd erp-taller-saas
+
+# Instalar dependencias
+npm install
+
+# Configurar variables de entorno
+cp .env.example .env.local
+# Editar .env.local con tus valores (ver sección de variables)
+
+# Verificar variables
+npm run env:check
+
+# Ejecutar en desarrollo
+npm run dev
+```
+
+El servidor inicia en `http://localhost:3000`.
+
+---
+
+## Variables de entorno
+
+Ver [ENV_VARIABLES_CHECKLIST.md](./ENV_VARIABLES_CHECKLIST.md) para la lista completa y actualizada.
+
+Variables mínimas para desarrollo local:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+---
+
+## Arquitectura
+
+### Multi-tenancy
+
+Toda query a la base de datos **debe incluir `organization_id`**. Las 41+ tablas tienen RLS habilitado con el patrón:
+
+```sql
+organization_id IN (
+  SELECT organization_id FROM users WHERE auth_user_id = auth.uid()
+)
+```
+
+En rutas API, obtener el contexto siempre con:
+
+```typescript
+const tenantContext = await getTenantContext(request)
+// o
+const supabase = createClientFromRequest(request)
+const { data: { user } } = await supabase.auth.getUser()
+```
+
+### Acceso a datos
+
+- No hay ORM — queries directas con el cliente Supabase tipado
+- Funciones de dominio en `src/lib/database/queries/` y `src/lib/supabase/`
+- Usar el **retry client** (`src/lib/supabase/retry-client.ts`) para tolerancia a fallos de red
+
+### Sesión y estado
+
+- `SessionContext` (`src/lib/context/SessionContext.tsx`) provee `user`, `organization_id`, `workshop_id`
+- Acceder con `useSession()` desde cualquier componente cliente
+- Notificaciones toast: **sonner** (`toast.success()`, `toast.error()`)
+
+### Seguridad
+
+- CORS con lista blanca de orígenes (no wildcard)
+- HSTS + Referrer-Policy en next.config.js
+- CSP en modo report-only (observando para activar enforced)
+- Errores sanitizados en producción con `safeError()` de `@/lib/utils/api-error`
+- Webhooks verificados con `crypto.timingSafeEqual()`
+
+---
+
+## Módulos
+
+| Módulo | Ruta | Estado |
+|---|---|---|
+| Dashboard | `/dashboard` | ✅ KPIs financieros, órdenes, inventario |
+| Órdenes de trabajo | `/ordenes` | ✅ Lista + Kanban + notificaciones |
+| Clientes | `/clientes` | ✅ CRUD + historial |
+| Vehículos | `/vehiculos` | ✅ CRUD + historial |
+| Agenda/Citas | `/citas` | ✅ Funcional |
+| Inventario | `/inventarios` | ✅ Productos, movimientos, alertas |
+| Cotizaciones | `/cotizaciones` | ✅ Convertibles a orden o factura |
+| Notas de venta | `/facturacion` | ✅ Con pagos parciales |
+| Entradas/Salidas | `/ingresos` | ✅ Libro de movimientos |
+| Cuentas de efectivo | `/ingresos/cuentas` | ✅ Efectivo, banco, tarjeta |
+| Cobros | `/ingresos/cobros` | ✅ API real |
+| Compras | `/compras` | ✅ Órdenes + proveedores + pagos |
+| Reportes | `/reportes` | ✅ Ventas, inventario, financieros |
+| WhatsApp | `/configuraciones/whatsapp` | ✅ Twilio |
+| Usuarios e invitaciones | `/configuraciones/usuarios` | ✅ Con email |
+| Configuración empresa | `/configuraciones` | ✅ |
+| Mecánicos | `/mecanicos` | ✅ |
+| Notificaciones | `/notificaciones` | ✅ |
+
+---
+
+## Comandos
+
+```bash
+npm run dev          # Servidor de desarrollo
+npm run build        # Build producción
+npm run lint         # ESLint
+npm run type-check   # TypeScript sin emitir
+npm run test         # Vitest
+npm run test:ui      # Vitest con UI
+npm run test:coverage # Cobertura
+npm run diagnose     # type-check + test
+npm run full-check   # type-check + test + build
+npm run migrate      # Migraciones de BD
+npm run env:check    # Verificar variables de entorno
+npm run sync-auth    # Sincronizar usuarios de Supabase Auth
+```
+
+---
+
+## Documentos relacionados
+
+| Documento | Descripción |
+|---|---|
+| [PROJECT_STATUS.md](./PROJECT_STATUS.md) | Estado actual, módulos, deuda técnica |
+| [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md) | Reglas críticas, patrones de código |
+| [ENV_VARIABLES_CHECKLIST.md](./ENV_VARIABLES_CHECKLIST.md) | Todas las variables de entorno |
+| [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) | Esquema de tablas |
+| [API_ENDPOINTS_COMPLETE_LIST.md](./API_ENDPOINTS_COMPLETE_LIST.md) | Lista de endpoints |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Guía de despliegue en Vercel |
+| [PWA_IMPLEMENTATION.md](./PWA_IMPLEMENTATION.md) | PWA y push notifications |
+| [GUIA_USUARIO_Y_AVANCE.md](./GUIA_USUARIO_Y_AVANCE.md) | Manual de usuario |
+| [docs/twilio/](./twilio/) | Configuración de Twilio para WhatsApp |

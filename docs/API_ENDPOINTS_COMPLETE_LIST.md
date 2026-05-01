@@ -116,10 +116,40 @@
 | `/api/swagger.json` | GET | Documentación Swagger |
 | `/api/docs/info` | GET | Información de documentación |
 
+## Finanzas (agregados 2026)
+
+| Ruta | Métodos | Descripción |
+|------|---------|-------------|
+| `/api/financial-transactions` | GET, POST | Libro de movimientos (ingresos/gastos diarios) |
+| `/api/cash-accounts` | GET, POST | Cuentas de efectivo, banco y tarjeta |
+| `/api/cash-accounts/[id]` | GET, PUT, DELETE | Gestión de cuenta específica |
+| `/api/cash-account-movements` | GET, POST | Movimientos de una cuenta de efectivo |
+| `/api/supplier-payments` | GET, POST | Pagos a proveedores |
+| `/api/collections` | GET, POST | Cobros a clientes |
+| `/api/invoices/[id]/payments` | GET, POST | Pagos registrados contra una factura |
+| `/api/ingresos/stats` | GET | KPIs: ingresos del mes, hoy, ticket promedio |
+
+## Comunicaciones (agregados 2026)
+
+| Ruta | Métodos | Descripción |
+|------|---------|-------------|
+| `/api/push/subscribe` | POST, DELETE | Suscribir/cancelar push notifications |
+| `/api/push/send` | POST | Enviar push a todos los suscriptores de la org |
+| `/api/work-orders/[id]/notify` | POST | Notificar al cliente sobre estado de su orden |
+| `/api/messaging/twilio/webhook/[organizationId]` | POST | Webhook de Twilio (WhatsApp entrante) |
+
+## Billing (Hotmart)
+
+| Ruta | Métodos | Descripción |
+|------|---------|-------------|
+| `/api/webhooks/hotmart` | POST | Webhook de pagos Hotmart (verificado con hottok) |
+| `/api/billing/status` | GET | Estado de suscripción de la organización |
+| `/api/billing/plans` | GET | Planes disponibles |
+
 ## Notas
 
-- **Excluidos**: `/api/auth/*`, `/api/webhooks/*`, `/api/test-*`, `/api/whatsapp/*`
-- Todos los endpoints requieren autenticación (excepto los marcados como públicos)
-- Los endpoints con `[id]` son rutas dinámicas
-- Los endpoints de stats, reports y kpis son principalmente GET (lectura)
+- **Excluidos de esta lista**: `/api/auth/*`, `/api/test-*` (bloqueados en producción)
+- Todos los endpoints requieren `organization_id` válido en sesión
+- Los endpoints con `[id]` son rutas dinámicas de Next.js App Router
+- Webhook de Hotmart es público (verificado por `HOTMART_HOTTOK` con `timingSafeEqual`)
 

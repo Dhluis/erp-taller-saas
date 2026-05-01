@@ -167,7 +167,7 @@ export interface BaseFormData {
 }
 
 /**
- * Interfaz para respuesta de API
+ * Interfaz para respuesta de API (legacy — no discrimina éxito/error)
  */
 export interface ApiResponse<T = any> {
   success: boolean
@@ -176,6 +176,23 @@ export interface ApiResponse<T = any> {
   message?: string
   timestamp: string
 }
+
+/**
+ * Respuesta de API discriminada — permite que TypeScript infiera
+ * automáticamente si `data` o `error` existen según el valor de `success`.
+ *
+ * Uso en rutas:
+ *   return NextResponse.json<ApiResult<MyType>>({ success: true, data: ... })
+ *   return NextResponse.json<ApiResult<MyType>>({ success: false, error: '...' })
+ *
+ * Uso en cliente:
+ *   const res: ApiResult<MyType> = await fetch(...).then(r => r.json())
+ *   if (res.success) { console.log(res.data) } // TS sabe que data existe
+ *   else { console.log(res.error) }            // TS sabe que error existe
+ */
+export type ApiOk<T> = { success: true; data: T }
+export type ApiErr = { success: false; error: string }
+export type ApiResult<T> = ApiOk<T> | ApiErr
 
 /**
  * Interfaz para datos de usuario

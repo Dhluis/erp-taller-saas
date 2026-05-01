@@ -1,8 +1,8 @@
 # 📊 ESQUEMA COMPLETO DE BASE DE DATOS
 
-> **📅 Última actualización:** 2025-01-XX  
-> **⚠️ IMPORTANTE:** Este documento refleja el estado actual de la base de datos en Supabase.  
-> **🔄 Para actualizar:** Ejecutar el schema SQL exportado desde Supabase y actualizar este archivo.
+> **Última actualización:** Abril 2026
+> Este documento refleja el estado actual de la base de datos en Supabase.
+> Para actualizar: exportar schema desde Supabase SQL Editor y sincronizar.
 
 ---
 
@@ -1304,8 +1304,120 @@ Este documento debe actualizarse cuando:
 
 ---
 
-**📅 Última actualización:** 2025-01-XX  
-**📝 Mantenido por:** Equipo de Desarrollo
+---
+
+## Tablas Financieras (agregadas 2026)
+
+### `financial_transactions`
+Libro de movimientos unificado. Fuente de verdad para ingresos y gastos.
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | uuid | PK |
+| `organization_id` | uuid | FK → organizations |
+| `transaction_type` | text | `'income'` o `'expense'` |
+| `category` | text | Categoría del movimiento |
+| `description` | text | Descripción |
+| `amount` | numeric | Monto |
+| `transaction_date` | date | Fecha del movimiento |
+| `reference_type` | text | Tipo de referencia (ej. `invoice_payment`) |
+| `reference_id` | uuid | ID del registro origen |
+| `account_id` | uuid | FK → cash_accounts (opcional) |
+| `created_by` | uuid | FK → users |
+| `created_at` | timestamptz | Fecha de creación |
+
+### `cash_accounts`
+Cuentas de efectivo, banco y tarjeta por organización.
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | uuid | PK |
+| `organization_id` | uuid | FK → organizations |
+| `name` | text | Nombre de la cuenta |
+| `account_type` | text | `'cash'`, `'bank'` o `'card'` |
+| `balance` | numeric | Saldo actual |
+| `currency` | text | Moneda (ej. `'USD'`) |
+| `created_at` | timestamptz | Fecha de creación |
+
+### `cash_account_movements`
+Movimientos individuales de una cuenta de efectivo.
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | uuid | PK |
+| `cash_account_id` | uuid | FK → cash_accounts |
+| `organization_id` | uuid | FK → organizations |
+| `movement_type` | text | `'deposit'` o `'withdrawal'` |
+| `amount` | numeric | Monto |
+| `notes` | text | Descripción |
+| `reference_type` | text | Tipo de referencia |
+| `reference_id` | uuid | ID del registro origen |
+| `created_by` | uuid | FK → users |
+| `created_at` | timestamptz | Fecha |
+
+### `invoice_payments`
+Pagos registrados contra una factura/nota de venta.
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | uuid | PK |
+| `organization_id` | uuid | FK → organizations |
+| `invoice_id` | uuid | FK → invoices |
+| `amount` | numeric | Monto pagado |
+| `payment_method` | text | `'cash'`, `'card'`, `'transfer'`, etc. |
+| `payment_date` | date | Fecha del pago |
+| `reference` | text | Referencia opcional |
+| `notes` | text | Notas |
+| `created_at` | timestamptz | Fecha de creación |
+
+### `collections`
+Cobros a clientes.
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | uuid | PK |
+| `organization_id` | uuid | FK → organizations |
+| `customer_id` | text | ID del cliente |
+| `amount` | numeric | Monto |
+| `currency` | text | Moneda |
+| `due_date` | date | Fecha de vencimiento |
+| `status` | text | `'pending'`, `'paid'`, `'overdue'`, `'cancelled'` |
+| `payment_method` | text | Método de pago |
+| `paid_date` | date | Fecha de pago (si aplica) |
+| `notes` | text | Notas |
+| `created_at` | timestamptz | Fecha de creación |
+
+### `payments` (supplier_payments)
+Pagos a proveedores.
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | uuid | PK |
+| `organization_id` | uuid | FK → organizations |
+| `supplier_id` | uuid | FK → suppliers |
+| `amount` | numeric | Monto |
+| `payment_date` | date | Fecha del pago |
+| `payment_method` | text | Método de pago |
+| `reference` | text | Referencia |
+| `status` | text | `'pending'` o `'completed'` |
+| `created_at` | timestamptz | Fecha de creación |
+
+### `push_subscriptions`
+Suscripciones Web Push por organización.
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | uuid | PK |
+| `organization_id` | uuid | FK → organizations |
+| `endpoint` | text | URL del endpoint push |
+| `p256dh` | text | Clave pública del cliente |
+| `auth` | text | Token de autenticación |
+| `created_at` | timestamptz | Fecha de suscripción |
+
+---
+
+**Última actualización:** Abril 2026
+**Mantenido por:** Equipo de Desarrollo
 
 
 

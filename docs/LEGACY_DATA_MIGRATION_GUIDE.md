@@ -1,7 +1,9 @@
 # 🔧 Guía de Migración de Datos Legacy sin organization_id
 
-**Fecha:** 2025-12-05  
+**Última actualización:** Abril 2026
 **Objetivo:** Documentar el proceso para identificar y corregir datos legacy sin `organization_id`
+
+> Esta migración ya fue ejecutada en producción. Este documento sirve como referencia para clientes nuevos que migren datos propios o en caso de necesitar repetir el proceso.
 
 ---
 

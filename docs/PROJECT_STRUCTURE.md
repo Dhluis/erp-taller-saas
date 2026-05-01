@@ -1,7 +1,7 @@
 # 📋 ESTRUCTURA COMPLETA DEL PROYECTO
 
-**Última actualización:** 2025-12-05  
-**Propósito:** Documentación completa de la estructura del proyecto para evitar romper funcionalidades al modificar archivos.
+**Última actualización:** Abril 2026
+**Propósito:** Documentación de la estructura del proyecto para evitar romper funcionalidades al modificar archivos.
 
 ---
 
@@ -26,8 +26,7 @@ erp-taller-saas/
 - **`api/`** - API Routes (ver sección 2)
 - **`auth/`** - Páginas de autenticación (login, register, etc.)
 - **`dashboard/`** - Dashboard principal y subpáginas
-  - **`whatsapp/`** - Configuración y gestión de WhatsApp
-    - **`train-agent/`** - Entrenamiento del agente AI
+  - **`whatsapp/`** - Configuración de WhatsApp (Twilio)
 - **`ordenes/`** - Gestión de órdenes (Kanban y lista)
 - **`ordenes-trabajo/`** - Gestión de órdenes de trabajo
 - **`clientes/`** - Gestión de clientes
@@ -66,7 +65,7 @@ erp-taller-saas/
 - **`types/`** - Definiciones de tipos
 - **`utils/`** - Utilidades generales
 - **`validations/`** - Validaciones
-- **`waha-sessions.ts`** - ⚠️ CRÍTICO: Gestión de sesiones WAHA
+- **`messaging/`** - ⚠️ CRÍTICO: Integración Twilio (twilio-client.ts, sender.ts, whatsapp-service.ts)
 
 #### `/src/integrations` - Integraciones Externas
 - **`whatsapp/`** - ⚠️ CRÍTICO: Integración de WhatsApp
@@ -78,7 +77,7 @@ erp-taller-saas/
     - `ai-agent.ts` - ⚠️ CRÍTICO: Servicio principal del AI Agent
     - `context-loader.ts` - ⚠️ CRÍTICO: Carga contexto para el AI
     - `function-executor.ts` - ⚠️ CRÍTICO: Ejecuta funciones del AI
-    - `waha-service.ts` - Servicio de WAHA
+    - `unified-webhook.ts` - Parser de webhooks unificado (Twilio/Meta/Evolution)
   - **`types/`** - Tipos específicos de WhatsApp
   - **`utils/`** - Utilidades de WhatsApp
 
@@ -119,103 +118,33 @@ erp-taller-saas/
 
 ## ⚠️ 2. ARCHIVOS CRÍTICOS DE WHATSAPP/AI (NO MODIFICAR SIN CUIDADO)
 
-### 2.1 `/src/app/api/webhooks/whatsapp/route.ts`
-**Propósito:** Endpoint principal que recibe eventos de WAHA (WhatsApp HTTP API)
+### 2.1 `/src/app/api/messaging/twilio/webhook/[organizationId]/route.ts`
+**Propósito:** Endpoint que recibe mensajes entrantes de Twilio por organización
 
 **Funcionalidad:**
-- Recibe eventos de WAHA: `message`, `session.status`, `message.reaction`
-- Filtra mensajes propios, grupos y estados de WhatsApp
-- Extrae `organizationId` del nombre de sesión
-- Busca/crea conversación en BD
-- Guarda mensaje entrante en `whatsapp_messages`
-- Si bot activo, procesa con AI Agent
-- Envía respuesta si hay
-- Guarda mensaje saliente
-
-**Funciones principales:**
-- `handleMessageEvent()` - Procesa mensajes entrantes
-- `handleSessionStatusEvent()` - Actualiza estado de conexión
-- `handleReactionEvent()` - Maneja reacciones (solo log)
-- `getOrCreateConversation()` - Busca/crea conversación
-- `saveIncomingMessage()` - Guarda mensaje entrante
-- `saveOutgoingMessage()` - Guarda mensaje saliente
-- `extractPhoneNumber()` - Extrae número de teléfono
-
-**Dependencias:**
-- `@/lib/waha-sessions` - `getOrganizationFromSession`, `sendWhatsAppMessage`, `getProfilePicture`
-- `@/lib/supabase/server` - `getSupabaseServiceClient`
-- `@/integrations/whatsapp/services/ai-agent` - `processMessage`
+- Recibe webhooks POST de Twilio con mensajes WhatsApp entrantes
+- El `organizationId` está en la URL (cada org tiene su propio webhook URL)
+- Busca/crea conversación en `whatsapp_conversations`
+- Guarda mensaje en `whatsapp_messages`
+- Si bot activo, procesa con AI Agent y envía respuesta
 
 **⚠️ NO MODIFICAR:**
-- La lógica de deduplicación de mensajes (constraint UNIQUE en BD)
-- El filtrado de mensajes propios y grupos
-- La extracción de `organizationId` desde sesión
+- La lógica de deduplicación de mensajes
+- La URL del webhook (debe coincidir con lo configurado en Twilio Console)
+- El filtrado de mensajes propios
 
 ---
 
-### 2.2 `/src/lib/waha-sessions.ts`
-**Propósito:** Gestión de sesiones de WhatsApp para cada organización usando WAHA Plus
+### 2.2 `/src/lib/messaging/twilio-client.ts`
+**Propósito:** Cliente Twilio para enviar mensajes WhatsApp
 
-**Funciones exportadas:**
-1. **`generateSessionName(organizationId: string): string`**
-   - Genera nombre único de sesión: `confiadrive_<orgId sin guiones, primeros 20 caracteres>`
-   - ⚠️ NO cambiar el formato sin actualizar todas las sesiones existentes
-
-2. **`getWahaConfig(organizationId?: string): Promise<{ url: string; key: string }>`**
-   - Obtiene configuración WAHA desde:
-     1. Variables de entorno (`WAHA_API_URL`, `WAHA_API_KEY`)
-     2. BD: `ai_agent_config.policies` (por organizationId)
-     3. BD: Cualquier registro que tenga la config
-   - ⚠️ CRÍTICO: Esta función es usada por TODAS las funciones de WAHA
-
-3. **`startSession(sessionName: string, organizationId?: string): Promise<void>`**
-   - Inicia/reinicia una sesión existente
-
-4. **`createOrganizationSession(organizationId: string): Promise<string>`**
-   - Crea sesión nueva para una organización
-   - Configura webhook automáticamente
-   - Guarda nombre de sesión en `ai_agent_config.whatsapp_session_name`
-
-5. **`updateSessionWebhook(sessionName: string, organizationId?: string): Promise<void>`**
-   - Actualiza configuración del webhook de una sesión existente
-
-6. **`getOrganizationFromSession(sessionName: string): Promise<string | null>`**
-   - ⚠️ CRÍTICO: Obtiene `organizationId` desde nombre de sesión
-   - Usado por el webhook para identificar la organización
-   - Consulta: `ai_agent_config.whatsapp_session_name = sessionName`
-
-7. **`getOrganizationSession(organizationId: string): Promise<string>`**
-   - Obtiene sesión de una organización (crea si no existe)
-   - Verifica que la sesión exista en WAHA antes de retornarla
-
-8. **`getSessionStatus(sessionName: string, organizationId?: string): Promise<{...}>`**
-   - Obtiene estado de sesión desde WAHA
-   - Retorna: `exists`, `status`, `me` (info del usuario conectado)
-
-9. **`getSessionQR(sessionName: string, organizationId?: string): Promise<any>`**
-   - Obtiene QR code para escanear
-
-10. **`logoutSession(sessionName: string, organizationId?: string): Promise<void>`**
-    - Cierra sesión (logout sin eliminar)
-
-11. **`sendWhatsAppMessage(sessionName: string, to: string, text: string, organizationId?: string): Promise<any>`**
-    - ⚠️ CRÍTICO: Envía mensaje de WhatsApp
-    - Verifica estado de sesión antes de enviar
-    - Reintenta si la sesión está en estado inválido
-    - Formatea número al formato WhatsApp (`@c.us`)
-
-12. **`getProfilePicture(phone: string, sessionName: string, organizationId: string): Promise<string | null>`**
-    - Obtiene foto de perfil de un contacto
-
-**Dependencias:**
-- `@/lib/supabase/server` - `getSupabaseServiceClient`
-- Variables de entorno: `WAHA_API_URL`, `WAHA_API_KEY`
-- BD: Tabla `ai_agent_config`
+**Función principal:**
+- `sendMessage(to, body, organizationId?)` — Envía mensaje WhatsApp via Twilio
+- Usa `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`
 
 **⚠️ NO MODIFICAR:**
-- El formato del nombre de sesión (`confiadrive_<orgId>`)
-- La lógica de obtención de `organizationId` desde sesión
-- La configuración del webhook (debe apuntar a `/api/webhooks/whatsapp`)
+- El formato del número (`whatsapp:+...`)
+- La autenticación con TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN
 
 ---
 
@@ -353,19 +282,10 @@ erp-taller-saas/
 
 ---
 
-### 2.6 `/src/integrations/whatsapp/services/waha-service.ts`
-**Propósito:** Servicio para interactuar con WAHA (WhatsApp HTTP API)
+### 2.6 `/src/integrations/whatsapp/utils/index.ts`
+**Propósito:** Parsers de mensajes para múltiples providers (Twilio, Meta, Evolution)
 
-**Funciones exportadas:**
-- `formatPhoneNumber(phone): string` - Formatea número al formato WhatsApp
-- `getWAHAConfig(organizationId?): Promise<{ url, key }>` - Obtiene configuración WAHA
-- Funciones de sesión: `createSession`, `getSession`, `deleteSession`
-- Funciones de QR: `getQRCode`
-- Funciones de conexión: `checkConnectionStatus`
-- Funciones de mensajes: `sendTextMessage`, `sendImage`, `sendFile`
-- Funciones de sesión: `disconnectSession`, `deleteSession`
-
-**⚠️ NOTA:** Este archivo parece ser una versión alternativa/legacy. El código principal usa `/src/lib/waha-sessions.ts`.
+**⚠️ NO ELIMINAR:** Aunque solo se usa Twilio actualmente, este archivo abstrae el formato de mensajes y permite soportar otros providers en el futuro sin cambiar el resto del código.
 
 ---
 
@@ -419,14 +339,12 @@ erp-taller-saas/
 
 ## 🔗 3. DEPENDENCIAS ENTRE ARCHIVOS
 
-### 3.1 Flujo del Webhook de WhatsApp
+### 3.1 Flujo del Webhook de WhatsApp (Twilio)
 
 ```
-WAHA → /api/webhooks/whatsapp/route.ts
+Twilio → /api/messaging/twilio/webhook/[organizationId]/route.ts
   ↓
-handleMessageEvent()
-  ↓
-getOrganizationFromSession() [waha-sessions.ts]
+handleIncomingMessage()
   ↓
 getOrCreateConversation()
   ↓
@@ -440,7 +358,7 @@ buildSystemPrompt() [context-loader.ts]
   ↓
 getConversationHistory() [context-loader.ts]
   ↓
-OpenAI API Call
+OpenAI/Anthropic API Call
   ↓
 (If function_call) executeFunction() [function-executor.ts]
   ↓
@@ -449,19 +367,18 @@ OpenAI API Call
   ├─ getServicesInfo() → ai_agent_config.services
   └─ createQuote() → ordenesAdapter → BD: work_orders
   ↓
-OpenAI API Call (segunda vez con resultado de función)
+OpenAI/Anthropic API Call (segunda vez con resultado de función)
   ↓
-sendWhatsAppMessage() [waha-sessions.ts]
+sendMessage() [twilio-client.ts] → Twilio API
   ↓
 saveOutgoingMessage() → BD: whatsapp_messages
 ```
 
 ### 3.2 Dependencias de Importación
 
-#### Archivos que importan `waha-sessions.ts`:
-- `/api/webhooks/whatsapp/route.ts`
-- `/app/dashboard/whatsapp/page.tsx`
-- `/app/api/whatsapp/*/route.ts` (varios endpoints)
+#### Archivos que importan `twilio-client.ts`:
+- `/lib/messaging/sender.ts`
+- `/lib/messaging/whatsapp-service.ts`
 
 #### Archivos que importan `ai-agent.ts`:
 - `/api/webhooks/whatsapp/route.ts` (único lugar)
@@ -513,16 +430,16 @@ saveOutgoingMessage() → BD: whatsapp_messages
 
 **Recomendación:** Usar siempre las funciones de `/lib/supabase/server` o `/lib/supabase/client` directamente.
 
-#### ⚠️ PROBLEMA: Múltiples formas de obtener organizationId
+#### Múltiples formas de obtener organizationId
 1. `getOrganizationId()` - `/lib/auth/organization-server` (servidor)
 2. `getOrganizationId()` - `/lib/auth/organization-client` (cliente)
 3. `useOrganizationId()` - Hook desde `SessionContext`
-4. `getOrganizationFromSession()` - `/lib/waha-sessions` (específico para WhatsApp)
+4. `getTenantContext(request)` - `/lib/core/multi-tenant-server` (API routes)
 
 **Recomendación:** 
+- En rutas API: usar `getTenantContext(request)`
 - En servidor: usar `@/lib/auth/organization-server`
 - En cliente: usar `useOrganizationId()` hook
-- Para WhatsApp: usar `getOrganizationFromSession()`
 
 ---
 
@@ -707,13 +624,13 @@ useOrganizationId()
 ### 6.1 Recepción del Mensaje
 
 ```
-1. WAHA envía evento POST a /api/webhooks/whatsapp
+1. Twilio envía evento POST a /api/messaging/twilio/webhook/[organizationId]
    ↓
-2. route.ts recibe el evento
+2. route.ts recibe el mensaje
    ↓
-3. Identifica tipo de evento: 'message', 'session.status', 'message.reaction'
+3. Parsea el payload de Twilio
    ↓
-4. Si es 'message', llama a handleMessageEvent()
+4. Llama a handleIncomingMessage()
 ```
 
 ### 6.2 Procesamiento del Mensaje
@@ -797,11 +714,9 @@ handleMessageEvent():
 ```
 29. Si AI generó respuesta:
     ↓
-30. Envía mensaje (sendWhatsAppMessage() [waha-sessions.ts])
-    - Verifica estado de sesión
-    - Si sesión está en FAILED/STOPPED, intenta reiniciar
-    - Formatea número al formato WhatsApp
-    - Llama a WAHA API: /api/sendText
+30. Envía mensaje (sendMessage() [twilio-client.ts])
+    - Formatea número al formato WhatsApp (`whatsapp:+...`)
+    - Llama a Twilio API
     ↓
 31. Guarda mensaje saliente en BD (whatsapp_messages)
     ↓
@@ -855,11 +770,10 @@ handleMessageEvent():
 
 ### 7.2 Funciones con el Mismo Nombre en Diferentes Archivos
 
-#### ⚠️ PROBLEMA: `getWahaConfig` vs `getWAHAConfig`
-- `waha-sessions.ts`: `getWahaConfig()` (minúscula)
-- `waha-service.ts`: `getWAHAConfig()` (mayúscula)
-
-**Recomendación:** Usar siempre `getWahaConfig()` de `waha-sessions.ts` (es el principal).
+#### Múltiples clientes de Supabase — usar siempre los de `/lib/supabase/`
+- `getSupabaseServiceClient()` — bypass RLS (admin)
+- `createClientFromRequest(request)` — cliente autenticado por sesión
+- `createClient()` — cliente del navegador (componentes cliente)
 
 #### ⚠️ PROBLEMA: `getSupabaseClient` en múltiples lugares
 - `/lib/supabase/client.ts` - `createClient()` (función principal)
@@ -927,13 +841,13 @@ handleMessageEvent():
 
 ### 8.2 Archivos que NUNCA Deben Modificarse sin Revisión Completa
 
-1. **`/src/lib/waha-sessions.ts`**
-   - Usado por webhook y múltiples componentes
-   - Cambios pueden romper toda la integración de WhatsApp
+1. **`/src/lib/messaging/twilio-client.ts`**
+   - Cliente principal para enviar mensajes WhatsApp
+   - Cambios pueden romper toda la mensajería saliente
 
-2. **`/src/app/api/webhooks/whatsapp/route.ts`**
-   - Endpoint crítico que recibe todos los mensajes
-   - Cambios pueden causar pérdida de mensajes
+2. **`/src/app/api/messaging/twilio/webhook/[organizationId]/route.ts`**
+   - Recibe todos los mensajes entrantes de Twilio
+   - Cambios pueden causar pérdida de mensajes entrantes
 
 3. **`/src/integrations/whatsapp/services/ai-agent.ts`**
    - Lógica compleja de AI y function calling
@@ -997,7 +911,7 @@ handleMessageEvent():
 - **Obtener organizationId en cliente:** `useOrganizationId()` hook
 - **Cliente Supabase (servidor):** `@/lib/supabase/server`
 - **Cliente Supabase (cliente):** `@/lib/supabase/client`
-- **Sesión de WhatsApp:** `@/lib/waha-sessions`
+- **WhatsApp (Twilio):** `@/lib/messaging/twilio-client`
 - **Contexto de sesión:** `@/lib/context/SessionContext`
 - **Tipos de WhatsApp:** `@/integrations/whatsapp/types`
 
@@ -1017,7 +931,7 @@ handleMessageEvent():
 - **"organizationId es null":** Verificar que `SessionContext` haya cargado completamente
 - **"Mensajes duplicados":** Verificar constraint UNIQUE en `whatsapp_messages.provider_message_id`
 - **"Bot no responde":** Verificar `is_bot_active` en conversación y `enabled` en `ai_agent_config`
-- **"Sesión de WhatsApp no funciona":** Verificar `WAHA_API_URL` y `WAHA_API_KEY` en env o BD
+- **"WhatsApp no envía/recibe":** Verificar `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` y que el webhook en Twilio Console apunte a la URL correcta
 
 ---
 
@@ -1104,7 +1018,7 @@ Antes de modificar cualquier archivo, verificar:
 ### 12.1 Nombres de Archivos
 - **Componentes:** PascalCase (`WorkOrderCard.tsx`)
 - **Hooks:** camelCase con prefijo `use` (`useCustomers.ts`)
-- **Utilidades:** camelCase (`waha-sessions.ts`)
+- **Utilidades:** camelCase (`api-error.ts`, `middleware.ts`)
 - **Tipos:** camelCase (`types/index.ts`)
 
 ### 12.2 Estructura de Funciones

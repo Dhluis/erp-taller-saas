@@ -1,210 +1,119 @@
-# Estado del Proyecto - Versión Estable
+# Estado del Proyecto — Confia Drive ERP
 
-**Fecha de Documentación:** Enero 2025  
-**Commit Estable Anterior:** `773cb2a` - "confeti"  
-**Commit Estable Actual:** `c6cd22c` - "fix(whatsapp): mostrar 'Activo' cuando hay configuración aunque enabled sea false"  
-**Versión:** Base estable con funcionalidades principales implementadas + Fix de visualización WhatsApp
-
----
-
-## 📋 Resumen Ejecutivo
-
-Este proyecto es un ERP para talleres mecánicos construido con Next.js 15, TypeScript, Supabase y Tailwind CSS. La versión actual es estable y funcional, con algunas mejoras menores pendientes que son manejables.
+**Última actualización:** Abril 2026
+**Versión:** 5.0.0 — Producción estable
+**Rama principal:** `main`
 
 ---
 
-## ✅ Funcionalidades Implementadas
+## Resumen Ejecutivo
 
-### 1. Autenticación y Usuarios
-- ✅ Sistema de autenticación con Supabase Auth
-- ✅ Gestión multi-tenant (organizaciones y talleres)
-- ✅ Perfiles de usuario
-- ✅ Control de acceso basado en roles
-
-### 2. Módulos Principales
-- ✅ Dashboard principal
-- ✅ Gestión de órdenes de trabajo
-- ✅ Gestión de clientes
-- ✅ Gestión de vehículos
-- ✅ Sistema de citas/agenda
-- ✅ Inventario
-- ✅ Configuraciones
-
-### 3. Integración WhatsApp (WAHA)
-- ✅ Conexión con WhatsApp Business API via WAHA
-- ✅ Generación y visualización de QR para vincular WhatsApp
-- ✅ Gestión de sesiones multi-tenant
-- ✅ Estado de conexión de WhatsApp
-- ⚠️ Algunos detalles menores en la gestión de estados intermitentes (manejables)
-
-### 4. UI/UX
-- ✅ Diseño responsive
-- ✅ Tema oscuro/claro
-- ✅ Navegación con sidebar
-- ✅ Breadcrumbs
-- ✅ Sistema de notificaciones (toast)
-- ✅ Búsqueda global
+ERP SaaS multi-tenant para talleres mecánicos. Sistema en producción activa con clientes reales. Stack: Next.js 15 (App Router), TypeScript, Supabase (PostgreSQL + RLS), Tailwind CSS, shadcn/ui.
 
 ---
 
-## 🏗️ Arquitectura Técnica
+## Módulos Implementados
 
-### Stack Principal
-- **Framework:** Next.js 15 (App Router)
-- **Lenguaje:** TypeScript
-- **Base de Datos:** Supabase (PostgreSQL)
-- **Autenticación:** Supabase Auth
-- **Estilos:** Tailwind CSS
-- **Estado:** React Context + Hooks
+### Núcleo
+- ✅ Autenticación: email/contraseña, Google OAuth, magic link (Supabase Auth)
+- ✅ Multi-tenancy con RLS en 41+ tablas
+- ✅ Onboarding: registro → organización → taller → dashboard
+- ✅ Roles y permisos (admin, mecánico, recepcionista)
+- ✅ Invitaciones de usuario por email
 
-### Estructura del Proyecto
+### Operaciones del Taller
+- ✅ Órdenes de trabajo (flujo completo con estados, imágenes, ítems)
+- ✅ Cotizaciones → conversión a nota de venta u orden
+- ✅ Notas de venta (facturas) con ítems y descuentos
+- ✅ Clientes y vehículos con historial
+- ✅ Agenda / citas
+- ✅ Inventario con categorías, movimientos y alertas de stock bajo
+- ✅ Empleados / mecánicos
+- ✅ Servicios y paquetes de servicio
+
+### Finanzas
+- ✅ Pagos de facturas (`invoice_payments`) con actualización automática de estado
+- ✅ Cuentas de efectivo (`cash_accounts`): tipo `cash`, `bank`, `card`
+- ✅ Movimientos de caja (`cash_account_movements`): ingresos y retiros
+- ✅ Entradas y salidas (`financial_transactions`): libro de movimientos diario
+- ✅ Cobros a clientes (`collections`)
+- ✅ Pagos a proveedores (`supplier_payments`)
+- ✅ KPIs en dashboard: ingresos del mes, efectivo, bancos/tarjetas, ticket promedio
+
+### Proveedores y Compras
+- ✅ Proveedores con estadísticas
+- ✅ Órdenes de compra
+- ✅ Pagos a proveedores
+
+### Comunicaciones
+- ✅ WhatsApp via Twilio (webhooks, conversaciones, respuestas automáticas)
+- ✅ Notificaciones por email (SendGrid / SMTP)
+- ✅ Push notifications (Web Push con VAPID, service worker propio)
+- ✅ Notificaciones internas en la app
+
+### Facturación SaaS
+- ✅ Planes de suscripción via Hotmart (pago mensual)
+- ✅ Trial de 7 días con banner y bloqueo al vencer
+- ✅ Webhook Hotmart con verificación `hottok` por `timingSafeEqual`
+
+### PWA
+- ✅ Service worker propio (`public/sw.js`) con push notifications
+- ✅ Manifest en `src/app/manifest.ts` (Next.js 15 nativo)
+- ✅ Instalable en móvil y desktop
+
+### Seguridad (Abril 2026)
+- ✅ CORS con lista blanca de orígenes (no wildcard) + `Vary: Origin`
+- ✅ HSTS + Referrer-Policy en headers de Next.js
+- ✅ CSP en modo report-only (para observar antes de activar enforced)
+- ✅ Endpoints de demo bloqueados en producción (`NODE_ENV` guard)
+- ✅ Error sanitization en rutas críticas (helper `safeError`)
+- ✅ Verificación de webhooks con `crypto.timingSafeEqual`
+- ✅ TypeScript `strict: true`
+- ✅ Contraseñas: mínimo 8 caracteres + al menos un número
+
+---
+
+## Integraciones Activas
+
+| Servicio | Propósito | Notas |
+|---|---|---|
+| Supabase | Base de datos + Auth + Storage | Principal |
+| Twilio | WhatsApp Business | Webhooks por organización |
+| Hotmart | Facturación SaaS | Mensual, sin Stripe |
+| SendGrid | Email transaccional | Invitaciones, notificaciones |
+| Upstash Redis | Rate limiting en login | Fail-open si Redis no responde |
+| Web Push (VAPID) | Push notifications | SW propio sin next-pwa |
+
+---
+
+## Integraciones Eliminadas
+
+| Servicio | Reemplazado por | Fecha |
+|---|---|---|
+| WAHA (WhatsApp HTTP API) | Twilio | Feb 2026 |
+| Stripe | Hotmart | Feb 2026 |
+
+---
+
+## Pendientes / Deuda Técnica
+
+| Item | Prioridad | Notas |
+|---|---|---|
+| Activar CSP enforced | Media | Observar violaciones en report-only primero |
+| Rate limiting fail-closed | Baja | Requiere evaluar confiabilidad de Redis |
+| Extender `safeError` a ~145 rutas restantes | Baja | Helper en `@/lib/utils/api-error`, adoptar gradualmente |
+| FASE 4 WhatsApp BD cleanup | Baja | Ejecutar en Supabase SQL Editor manualmente |
+
+---
+
+## Comandos Útiles
+
+```bash
+npm run dev          # Desarrollo
+npm run build        # Build producción
+npm run type-check   # Verificar tipos sin emitir
+npm run test         # Vitest
+npm run diagnose     # type-check + test
+npm run full-check   # type-check + test + build
+npm run env:check    # Verificar variables de entorno
 ```
-src/
-├── app/                    # Next.js App Router
-│   ├── api/               # API Routes
-│   │   └── whatsapp/      # Endpoints de WhatsApp
-│   ├── dashboard/         # Páginas del dashboard
-│   └── (auth)/            # Páginas de autenticación
-├── components/            # Componentes React
-│   ├── ui/               # Componentes UI reutilizables
-│   └── layout/           # Componentes de layout
-├── lib/                   # Utilidades y helpers
-│   ├── supabase/         # Cliente Supabase
-│   ├── waha-sessions/    # Gestión de sesiones WAHA
-│   └── database/         # Queries de base de datos
-├── hooks/                 # Custom React hooks
-├── contexts/              # React Context providers
-└── types/                 # Definiciones TypeScript
-```
-
-### Multi-Tenant
-El sistema soporta múltiples organizaciones y talleres:
-- Cada organización tiene su propio `organization_id`
-- Cada taller pertenece a una organización (`workshop_id`)
-- Las queries siempre filtran por `organization_id` para aislamiento de datos
-
----
-
-## 🔧 Configuración Requerida
-
-### Variables de Entorno
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# WhatsApp (WAHA)
-WAHA_API_URL=https://tu-waha-url.com
-WAHA_API_KEY=tu-api-key
-
-# App
-NEXT_PUBLIC_APP_URL=https://tu-app-url.vercel.app
-```
-
-### Base de Datos
-- ✅ Tabla `ai_agent_config` con columnas:
-  - `whatsapp_session_name` (VARCHAR)
-  - `whatsapp_connected` (BOOLEAN)
-  - `policies` (JSONB) - Debe contener `waha_api_url` y `waha_api_key`
-
-### Migraciones Aplicadas
-- Migración 016: WhatsApp Multi-Tenant
-- Todas las migraciones anteriores están aplicadas
-
----
-
-## ⚠️ Detalles Conocidos (Manejables)
-
-### WhatsApp Integration
-1. **Estados Intermitentes:** En algunos casos, WAHA puede reportar estados transitorios (STOPPED, STARTING) que se resuelven automáticamente. El código maneja esto, pero puede requerir reintentos ocasionales.
-
-2. **Gestión de Sesiones:** Si una sesión queda en estado FAILED, se recomienda usar el botón "Cambiar número" para reiniciar la conexión.
-
-3. **Reinicios Automáticos:** El sistema evita reiniciar sesiones automáticamente en estados transitorios para prevenir loops infinitos.
-
-### Recomendaciones
-- Monitorear logs de WAHA para estados inusuales
-- Los usuarios pueden reiniciar manualmente la conexión si es necesario
-- La mayoría de los problemas se resuelven con un reinicio manual
-
----
-
-## 📦 Dependencias Principales
-
-```json
-{
-  "next": "^15.x",
-  "react": "^18.x",
-  "typescript": "^5.x",
-  "@supabase/supabase-js": "^2.x",
-  "tailwindcss": "^3.x",
-  "@radix-ui/react-*": "varios",
-  "lucide-react": "^0.x",
-  "sonner": "^1.x"
-}
-```
-
----
-
-## 🚀 Deployment
-
-### Vercel
-- ✅ Configurado para deployment automático desde `main`
-- ✅ Variables de entorno configuradas
-- ✅ Build exitoso
-
-### Base de Datos
-- ✅ Supabase configurado
-- ✅ RLS (Row Level Security) activado
-- ✅ Migraciones aplicadas
-
----
-
-## 📝 Notas de Desarrollo
-
-### Reglas de Protección
-El proyecto tiene zonas protegidas definidas en `.cursorrules`:
-- **PROTECTED_AREAS:** No modificar sin autorización
-- **DEVELOPMENT_ZONE:** Área segura para desarrollo
-- Usar adapters/wrappers para integraciones nuevas
-
-### Convenciones de Código
-- Componentes: PascalCase (ej: `WorkOrderDetailsModal.tsx`)
-- Hooks: camelCase con prefijo 'use' (ej: `useWorkOrders.ts`)
-- Types: PascalCase (ej: `WorkOrder`, `OrderStatus`)
-- Pages: lowercase routes (ej: `app/ordenes/page.tsx`)
-
----
-
-## 🔄 Próximos Pasos Sugeridos
-
-1. **Testing:** Implementar tests unitarios y de integración
-2. **Documentación API:** Documentar endpoints con Swagger/OpenAPI
-3. **Monitoreo:** Implementar logging estructurado y alertas
-4. **Optimización:** Revisar y optimizar queries de base de datos
-5. **WhatsApp:** Mejorar manejo de estados edge cases (opcional)
-
----
-
-## 📞 Soporte
-
-Para problemas conocidos o mejoras:
-1. Revisar logs de Vercel y Supabase
-2. Verificar estado de WAHA
-3. Consultar documentación de cada servicio
-4. Revisar issues conocidos en este documento
-5. **Pendientes cerrados (Feb 2025):** Ver [ESTADO_AVANCE_PENDIENTES_100.md](../ESTADO_AVANCE_PENDIENTES_100.md) para el cierre de placeholders en cotizaciones, rate limit por usuario y Kanban de órdenes.
-
----
-
-## 📄 Licencia y Créditos
-
-Proyecto privado - ERP Taller SaaS  
-Versión estable documentada anterior: `773cb2a` (confeti)  
-Versión estable actual: `c6cd22c` (fix visualización WhatsApp)
-
----
-
-**Última actualización:** Febrero 2025
-

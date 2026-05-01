@@ -1,54 +1,88 @@
-# Implementación PWA - Confia Drive ERP
+# PWA + Push Notifications — Confia Drive ERP
 
-**Fecha:** Febrero 2025
+**Última actualización:** Abril 2026
 
-## Resumen
+---
 
-La aplicación Confia Drive ERP está configurada como **Progressive Web App (PWA)** usando `@ducanh2912/next-pwa` (Workbox), con **custom worker** para preservar las **push notifications**.
+## Arquitectura
 
-## Archivos
+El proyecto usa un **service worker propio** (sin `@ducanh2912/next-pwa` ni Workbox). Esto da control total sobre el comportamiento de push notifications.
 
-| Archivo | Descripción |
-|---------|-------------|
-| `next.config.js` | Envuelto con `withPWA()`, `customWorkerSrc: "worker"` para fusionar código custom con Workbox |
-| `worker/index.ts` | Custom worker con handlers de `push` y `notificationclick` — se compila e importa en el SW principal |
-| `public/manifest.json` | Manifest con nombre, iconos, theme_color, display standalone |
-| `src/app/layout.tsx` | `manifest`, `appleWebApp`, `viewport.themeColor` en metadata |
+| Archivo | Rol |
+|---|---|
+| `public/sw.js` | Service worker personalizado — maneja `push` y `notificationclick` |
+| `src/app/manifest.ts` | Manifest PWA nativo de Next.js 15 (App Router) |
 | `src/components/ServiceWorkerRegister.tsx` | Registra `/sw.js` en el cliente |
+| `src/app/api/push/subscribe/route.ts` | POST/DELETE — guarda/borra suscripciones en BD |
+| `src/app/api/push/send/route.ts` | POST — envía push a todos los suscriptores de la org |
+| `src/components/PushNotificationButton.tsx` | UI para solicitar permiso y suscribirse |
 
-## Archivos generados en build
+---
 
-| Archivo | Descripción |
-|---------|-------------|
-| `public/sw.js` | Service worker principal generado por Workbox (precache + import del custom worker) |
-| `public/workbox-*.js` | Runtime de Workbox |
-| `public/worker-*.js` | Código de push notifications compilado, importado por `sw.js` |
+## Tabla `push_subscriptions`
 
-## Comportamiento
+```sql
+id, organization_id, endpoint, p256dh, auth, created_at
+```
 
-- **Desarrollo:** PWA deshabilitada (`disable: process.env.NODE_ENV === "development"`) para evitar conflictos con hot reload.
-- **Producción:** El build genera `sw.js`, `workbox-*.js` y `worker-*.js`. `ServiceWorkerRegister` registra `/sw.js`.
-- **Instalación:** En móvil/desktop el usuario puede "Añadir a la pantalla de inicio" o "Instalar app".
-- **Precache:** Workbox cachea automáticamente JS, CSS e imágenes estáticas de Next.js.
-- **Push notifications:** Los handlers en `worker/index.ts` se fusionan con el SW; las notificaciones push funcionan si el backend envía payloads con `{ title, body, url }`.
+RLS: usuario solo ve sus propias suscripciones. El endpoint de envío usa `SUPABASE_SERVICE_ROLE_KEY`.
 
-## Solución: custom worker para push
+---
 
-`@ducanh2912/next-pwa` genera su propio `sw.js` y sobrescribe cualquier SW manual. Para conservar push notifications:
+## Flujo de suscripción
 
-1. **`customWorkerSrc: "worker"`** en la config de next-pwa — indica la carpeta del worker custom.
-2. **`worker/index.ts`** — contiene solo los listeners de `push` y `notificationclick`. Next-pwa usa InjectManifest y fusiona este código con el precache de Workbox.
+1. Usuario hace clic en `PushNotificationButton`
+2. El browser pide permiso → `Notification.requestPermission()`
+3. Se obtiene `PushSubscription` via `serviceWorkerRegistration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: VAPID_PUBLIC_KEY })`
+4. Se hace POST a `/api/push/subscribe` con el objeto subscription
+5. El servidor guarda `endpoint`, `p256dh`, `auth` en `push_subscriptions`
 
-No hace falta importar Workbox manualmente; next-pwa inyecta el precache y el runtime.
+## Flujo de envío
 
-## Iconos
+1. Backend llama `POST /api/push/send` con `{ title, body, url }`
+2. La ruta obtiene todas las suscripciones de la organización
+3. Llama `webpush.sendNotification()` para cada una con `VAPID_PRIVATE_KEY`
+4. El SW recibe el evento `push` y muestra la notificación
 
-El manifest usa `Confia Drive-logo-square.png` para los iconos PWA (192x192 y 512x512). Si el logo tiene otras dimensiones, el navegador los escala.
+## Comportamiento del SW
 
-## Verificación
+```js
+// public/sw.js
+self.addEventListener('push', event => {
+  const { title, body, url } = event.data.json()
+  event.waitUntil(
+    self.registration.showNotification(title, { body, data: { url } })
+  )
+})
 
-1. `npm run build` — debe generar `public/sw.js`, `public/workbox-*.js` y `public/worker-*.js`.
-2. Chrome DevTools → Application → Manifest: verificar que el manifest se carga.
-3. Application → Service Workers: verificar que el SW está registrado.
-4. Para probar push: suscribir al usuario con `PushManager` y enviar una notificación desde el backend (web-push, VAPID).
+self.addEventListener('notificationclick', event => {
+  event.notification.close()
+  event.waitUntil(clients.openWindow(event.notification.data.url))
+})
+```
 
+---
+
+## Variables de Entorno Requeridas
+
+```env
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=...   # Expuesta al cliente
+VAPID_PRIVATE_KEY=...              # Solo servidor
+VAPID_EMAIL=mailto:admin@dominio.com
+```
+
+Generar: `npx web-push generate-vapid-keys`
+
+---
+
+## Instalación como App
+
+- En móvil (Android/iOS): "Añadir a pantalla de inicio" desde el menú del browser
+- En desktop (Chrome/Edge): botón de instalación en la barra de dirección
+- Modo `standalone` configurado en el manifest
+
+---
+
+## Desarrollo
+
+El SW se registra incluso en desarrollo. Para evitar conflictos con hot reload, limpiar el SW registrado desde DevTools → Application → Service Workers → Unregister si hay problemas de caché.
