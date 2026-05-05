@@ -133,9 +133,13 @@ Generar nuevas claves: `npx web-push generate-vapid-keys`
 |---|---|
 | `WAHA_API_URL` | WAHA eliminado — reemplazado por Twilio |
 | `WAHA_API_KEY` | WAHA eliminado |
+| `NEXT_PUBLIC_WAHA_API_KEY` | WAHA eliminado |
+| `NEXT_PUBLIC_WAHA_API_URL` | WAHA eliminado |
 | `STRIPE_SECRET_KEY` | Stripe eliminado — reemplazado por Hotmart |
 | `STRIPE_PUBLISHABLE_KEY` | Stripe eliminado |
 | `STRIPE_WEBHOOK_SECRET` | Stripe eliminado |
+| `MERCADOPAGO_ACCESS_TOKEN` | MercadoPago eliminado — reemplazado por Hotmart |
+| `NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY` | MercadoPago eliminado |
 
 ---
 

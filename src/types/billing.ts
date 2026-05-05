@@ -15,13 +15,12 @@ export type PlanTier = 'free' | 'premium'
 /**
  * Estado de la suscripción
  */
-export type SubscriptionStatus = 
+export type SubscriptionStatus =
   | 'none'      // Sin configurar
   | 'trial'     // En período de prueba (7 días)
   | 'active'    // Suscripción activa y pagando
-  | 'expired'   // Trial expirado o pago fallido
-  | 'canceled'  // Cancelado por usuario
-  | 'past_due'  // Pago vencido (Stripe)
+  | 'expired'   // Trial expirado o suscripción vencida
+  | 'canceled'  // Cancelado (webhook Hotmart)
 
 /**
  * Límite de un plan para una feature específica
@@ -101,7 +100,6 @@ export interface OrganizationPlan {
  */
 export interface UpgradeRequest {
   organization_id: string
-  payment_method_id?: string  // Stripe payment method
   billing_email?: string
 }
 

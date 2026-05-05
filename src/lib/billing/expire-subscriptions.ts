@@ -5,7 +5,7 @@
  * Ejecutado diariamente por el cron de Vercel.
  * Maneja dos casos:
  *   1. Trials vencidos → Baja a Free (conserva la cuenta)
- *   2. Suscripciones Premium vencidas → Baja a Free (edge cases Stripe/MercadoPago)
+ *   2. Suscripciones Premium vencidas → Baja a Free (edge case: current_period_end expirado)
  */
 
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
@@ -81,7 +81,7 @@ export async function expireSubscriptions(): Promise<ExpireSubscriptionsResult> 
     }
 
     // ─── 2. SUSCRIPCIONES PREMIUM VENCIDAS ────────────────────────────────
-    // Orgs premium con current_period_end en el pasado (edge cases Stripe/MP)
+    // Orgs premium con current_period_end en el pasado (edge case: Hotmart no renovó)
     const { data: premiumOrgs, error: premiumSelectError } = await supabase
       .from('organizations')
       .select('id')

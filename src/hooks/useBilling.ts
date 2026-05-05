@@ -109,7 +109,7 @@ export function useBilling(): UseBillingReturn {
 
       // Determinar subscription_status efectivo
       let subscriptionStatus: SubscriptionStatus = 'none'
-      if (org.subscription_status && ['active', 'canceled', 'expired', 'past_due', 'trial'].includes(org.subscription_status)) {
+      if (org.subscription_status && ['active', 'canceled', 'expired', 'trial'].includes(org.subscription_status)) {
         subscriptionStatus = org.subscription_status as SubscriptionStatus
       } else if (messagingConfig?.subscription_status) {
         subscriptionStatus = messagingConfig.subscription_status as SubscriptionStatus

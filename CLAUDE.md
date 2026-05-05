@@ -97,6 +97,6 @@ Required:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY` — required for admin operations that bypass RLS
 
-Optional integrations: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (WhatsApp vía Twilio), Stripe, MercadoPago, SendGrid, Upstash Redis.
+Optional integrations: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (WhatsApp vía Twilio), `HOTMART_WEBHOOK_SECRET` (billing), SendGrid, Upstash Redis.
 
 Run `npm run env:check` to validate the environment before development.

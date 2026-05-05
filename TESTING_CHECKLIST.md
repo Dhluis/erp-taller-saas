@@ -131,23 +131,16 @@ Checklist manual para validar flujos críticos antes del lanzamiento. Marca cada
 
 | # | Paso a seguir | Resultado esperado | ✅ / ❌ |
 |---|----------------|--------------------|---------|
-| 1 | Desde Billing o desde el modal de upgrade, elegir plan Premium | Redirección a Stripe Checkout o pantalla de pago | |
-| 2 | Completar pago (tarjeta de test en Stripe) | Pago exitoso; redirección de vuelta a la app | |
+| 1 | Desde Billing o desde el modal de upgrade, hacer clic en “Suscribirse” | Se abre pay.hotmart.com en **nueva pestaña** | |
+| 2 | Completar pago en Hotmart (tarjeta real o de prueba) | Hotmart dispara webhook PURCHASE_APPROVED a `/api/webhooks/hotmart` | |
 | 3 | Verificar en Billing / Dashboard | Plan actualizado a Premium; límites aumentados | |
 
-### 4.4 Portal Stripe funciona
+### 4.4 Cancelar suscripción
 
 | # | Paso a seguir | Resultado esperado | ✅ / ❌ |
 |---|----------------|--------------------|---------|
-| 1 | En Billing, hacer clic en “Gestionar suscripción” / “Portal de facturación” | Se abre el portal de Stripe (Customer Portal) en nueva pestaña o ventana | |
-| 2 | En el portal, ver método de pago y facturas | Datos de suscripción y facturación visibles | |
-
-### 4.5 Cancelar suscripción
-
-| # | Paso a seguir | Resultado esperado | ✅ / ❌ |
-|---|----------------|--------------------|---------|
-| 1 | Desde el portal Stripe (o desde la app si existe la opción), cancelar suscripción | Cancelación procesada; mensaje de confirmación | |
-| 2 | Volver a la app y revisar Billing | Estado “Cancelado” o “Activo hasta fin de periodo”; límites según política post-cancelación | |
+| 1 | Cancelar desde el panel de Hotmart | Hotmart dispara webhook SUBSCRIPTION_CANCELLATION | |
+| 2 | Volver a la app y revisar Billing | Estado “Cancelado”; limitaciones de plan Free activas | |
 
 ---
 
