@@ -36,18 +36,15 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
-# vercel
-.vercel
+# vercel — ignorar todo excepto project.json (apunta al proyecto correcto: erp-taller-saas-correct)
+.vercel/*
+!.vercel/project.json
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
 .env*.local
 
 # MCP config (puede contener tokens; usar mcp.json.example como plantilla)
 .cursor/mcp.json
-
-.vercel
-.env*.local
