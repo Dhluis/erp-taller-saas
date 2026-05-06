@@ -115,6 +115,7 @@ export default function QuotationsPage() {
   const [quotationToDelete, setQuotationToDelete] = useState<Quotation | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isProcessingAI, setIsProcessingAI] = useState(false)
+  const [viewActionLoading, setViewActionLoading] = useState<'approve' | 'reject' | 'convert' | null>(null)
   const searchParams = useSearchParams()
   const processedRef = useRef(false)
 
@@ -222,6 +223,30 @@ export default function QuotationsPage() {
       console.error('❌ [QuotationsPage] Error cargando cotización:', error)
       setQuotationToView(quotation)
       setIsViewModalOpen(true)
+    }
+  }
+
+  const handleViewAction = async (action: 'approve' | 'reject' | 'convert') => {
+    if (!quotationToView) return
+    setViewActionLoading(action)
+    try {
+      const res = await fetch(`/api/quotations/${quotationToView.id}/${action}`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data.success) {
+        const messages = { approve: 'Cotización aprobada', reject: 'Cotización rechazada', convert: 'Cotización convertida a orden de trabajo' }
+        toast.success(messages[action])
+        setIsViewModalOpen(false)
+        refresh()
+      } else {
+        toast.error(data.error || `Error al ${action === 'approve' ? 'aprobar' : action === 'reject' ? 'rechazar' : 'convertir'} la cotización`)
+      }
+    } catch {
+      toast.error('Error de conexión')
+    } finally {
+      setViewActionLoading(null)
     }
   }
 
@@ -648,6 +673,53 @@ export default function QuotationsPage() {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Acciones rápidas */}
+                <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-700">
+                  {(quotationToView.status === 'draft' || quotationToView.status === 'pending') && (
+                    <>
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        disabled={!!viewActionLoading}
+                        onClick={() => handleViewAction('approve')}
+                      >
+                        {viewActionLoading === 'approve' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                        Aprobar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-red-500 text-red-400 hover:bg-red-950"
+                        disabled={!!viewActionLoading}
+                        onClick={() => handleViewAction('reject')}
+                      >
+                        {viewActionLoading === 'reject' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                        Rechazar
+                      </Button>
+                    </>
+                  )}
+                  {quotationToView.status === 'approved' && (
+                    <Button
+                      size="sm"
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                      disabled={!!viewActionLoading}
+                      onClick={() => handleViewAction('convert')}
+                    >
+                      {viewActionLoading === 'convert' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                      Convertir a orden de trabajo
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="ml-auto"
+                    disabled={!!viewActionLoading || quotationToView.status === 'converted'}
+                    onClick={() => { setIsViewModalOpen(false); handleEdit(quotationToView) }}
+                  >
+                    Editar
+                  </Button>
                 </div>
               </div>
             )}

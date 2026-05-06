@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { CurrencySelectorGlobal } from "@/components/currency/CurrencySelectorGlobal";
 
 import { useCurrencyConverter } from "@/lib/utils/currency-converter";
+import { HOTMART_CHECKOUT_URL } from "@/lib/billing/hotmart";
 
 const BILLING_FAQS = [
   {
@@ -59,7 +60,6 @@ const BILLING_FAQS = [
   },
 ] as const;
 
-const HOTMART_CHECKOUT_URL = "https://pay.hotmart.com/F105392844W";
 
 export default function BillingPage() {
   const searchParams = useSearchParams();

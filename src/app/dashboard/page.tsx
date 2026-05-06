@@ -19,7 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganization, useSession } from '@/lib/context/SessionContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { getAlertasInventario } from '@/lib/database/queries/dashboard';
-import { Loader2, ArrowRight, Lock, EyeOff } from 'lucide-react';
+import { Loader2, ArrowRight, Lock, EyeOff, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PlanUsage } from '@/components/billing/plan-usage';
 import { CurrencySelectorGlobal } from '@/components/currency/CurrencySelectorGlobal';
@@ -94,6 +94,7 @@ function DashboardContent() {
   const [efectivoEnCaja, setEfectivoEnCaja] = useState(0);
   const [gastosMes, setGastosMes] = useState(0);
   const [efectivoEnBanco, setEfectivoEnBanco] = useState(0);
+  const [fetchErrors, setFetchErrors] = useState<{ income?: boolean; cash?: boolean; expenses?: boolean }>({});
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
   const [incomeData, setIncomeData] = useState<Array<{ date: string; ingresos: number; ordenes: number }>>([]);
 
@@ -243,10 +244,12 @@ function DashboardContent() {
             setIngresos(ingresosMes);
             setIngresosDia(d.ingresosHoy ?? 0);
             setTicketPromedio(d.ticketPromedio ?? 0);
+            setFetchErrors(prev => ({ ...prev, income: false }));
           }
         } catch (e) {
           console.error('Error cargando ingresos desde invoices:', e);
           setIngresos(0);
+          setFetchErrors(prev => ({ ...prev, income: true }));
         }
       }
       // ✅ CARD "Efectivo en caja": suma de saldos (quien puede cobros o ver reportes financieros)
@@ -260,6 +263,7 @@ function DashboardContent() {
             const bankOnly = items.filter((acc: any) => acc.account_type === 'bank' || acc.account_type === 'card');
             setEfectivoEnCaja(cashOnly.reduce((s: number, a: any) => s + (Number(a.current_balance) || 0), 0));
             setEfectivoEnBanco(bankOnly.reduce((s: number, a: any) => s + (Number(a.current_balance) || 0), 0));
+            setFetchErrors(prev => ({ ...prev, cash: false }));
           } else {
             setEfectivoEnCaja(0);
             setEfectivoEnBanco(0);
@@ -267,6 +271,7 @@ function DashboardContent() {
         } catch (e) {
           console.error('Error cargando cuentas de efectivo:', e);
           setEfectivoEnCaja(0);
+          setFetchErrors(prev => ({ ...prev, cash: true }));
         }
       }
       // ✅ CARD "Gastos del Mes": OC recibidas + pagos a proveedores (mismo criterio que Reportes Financieros)
@@ -276,12 +281,14 @@ function DashboardContent() {
           const expensesJson = await expensesRes.json();
           if (expensesJson.success && expensesJson.data) {
             setGastosMes(expensesJson.data.monthlyExpenses ?? 0);
+            setFetchErrors(prev => ({ ...prev, expenses: false }));
           } else {
             setGastosMes(0);
           }
         } catch (e) {
           console.error('Error cargando gastos:', e);
           setGastosMes(0);
+          setFetchErrors(prev => ({ ...prev, expenses: true }));
         }
       }
 
@@ -627,7 +634,8 @@ function DashboardContent() {
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-green-400',
       bgColor: 'bg-green-500/10',
-      isPrivate: true
+      isPrivate: true,
+      hasError: fetchErrors.income
     }, {
       title: 'Ingresos de Hoy',
       value: formatMoney(stats.ingresosDia),
@@ -636,7 +644,8 @@ function DashboardContent() {
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-emerald-400',
       bgColor: 'bg-emerald-500/10',
-      isPrivate: true
+      isPrivate: true,
+      hasError: fetchErrors.income
     }] : []),
     // ✅ Efectivo en caja (cuentas de efectivo)
     ...(permissions.canPayInvoices() || permissions.canViewFinancialReports() ? [{
@@ -647,7 +656,8 @@ function DashboardContent() {
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-cyan-400',
       bgColor: 'bg-cyan-500/10',
-      isPrivate: true
+      isPrivate: true,
+      hasError: fetchErrors.cash
     }, {
       title: 'Bancos y Tarjetas',
       value: formatMoney(stats.efectivoEnBanco),
@@ -656,7 +666,8 @@ function DashboardContent() {
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-sky-400',
       bgColor: 'bg-sky-500/10',
-      isPrivate: true
+      isPrivate: true,
+      hasError: fetchErrors.cash
     }] : []),
     // ✅ Gastos del mes desde financial_transactions
     ...(permissions.canViewFinancialReports() ? [{
@@ -667,7 +678,8 @@ function DashboardContent() {
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: 'text-rose-400',
       bgColor: 'bg-rose-500/10',
-      isPrivate: true
+      isPrivate: true,
+      hasError: fetchErrors.expenses
     }, {
       title: 'Ganancia del Mes',
       value: formatMoney(stats.gananciaMes),
@@ -676,7 +688,8 @@ function DashboardContent() {
       icon: () => <ModernIcons.Finanzas size={32} />,
       color: stats.gananciaMes >= 0 ? 'text-teal-400' : 'text-rose-400',
       bgColor: stats.gananciaMes >= 0 ? 'bg-teal-500/10' : 'bg-rose-500/10',
-      isPrivate: true
+      isPrivate: true,
+      hasError: fetchErrors.expenses
     }] : []),
     {
       title: 'Órdenes Activas',
@@ -957,16 +970,20 @@ function DashboardContent() {
                         <IconComponent />
                       </div>
                     </div>
-                    {kpi.trend && (
+                    {(kpi as any).hasError ? (
+                      <span className="flex items-center gap-1 text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded-full" title="Error de conexión — dato no disponible">
+                        <WifiOff className="h-3 w-3" /> Sin datos
+                      </span>
+                    ) : kpi.trend ? (
                       <span className={`text-xs font-semibold px-2 py-1 rounded-full ${kpi.trend.includes('↓') ? 'text-red-400 bg-red-400/10' : 'text-green-400 bg-green-400/10'}`}>
                         {kpi.trend}
                       </span>
-                    )}
+                    ) : null}
                   </div>
                   <div className="space-y-1">
                     <h3 className={`text-2xl sm:text-3xl font-bold tracking-tight ${kpi.color}`}>{kpi.value}</h3>
                     <p className="text-gray-400 text-sm font-medium">{kpi.title}</p>
-                    <p className="text-gray-500 text-xs mt-1">{kpi.description}</p>
+                    <p className="text-gray-500 text-xs mt-1">{(kpi as any).hasError ? 'Error de conexión — recarga para reintentar' : kpi.description}</p>
                   </div>
                 </motion.div>
               );

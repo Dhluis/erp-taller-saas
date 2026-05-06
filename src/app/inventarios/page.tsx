@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useInventory } from '@/hooks/useInventory';
 import { usePermissions } from '@/hooks/usePermissions';
 import { 
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 
 export default function InventariosPage() {
+  const router = useRouter();
   const permissions = usePermissions();
   const breadcrumbs = [
     { label: 'Inventarios', href: '/inventarios' }
@@ -68,8 +70,7 @@ export default function InventariosPage() {
   }, [items, categories]);
 
   const handleNewProduct = () => {
-    // Redirigir a la página de productos donde sí funciona el modal
-    window.location.href = '/inventarios/productos';
+    router.push('/inventarios/productos?create=true');
   };
 
   return (
@@ -282,12 +283,10 @@ export default function InventariosPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-3">
-              <Link href="/inventarios/productos">
-                <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center space-y-2">
-                  <Plus className="h-6 w-6" />
-                  <span className="text-sm font-medium">Nuevo Producto</span>
-                </Button>
-              </Link>
+              <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center space-y-2" onClick={handleNewProduct}>
+                <Plus className="h-6 w-6" />
+                <span className="text-sm font-medium">Nuevo Producto</span>
+              </Button>
 
               <Link href="/inventarios/categorias">
                 <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center space-y-2">

@@ -142,16 +142,7 @@ export function Sidebar({ className }: SidebarProps) {
       // Todos pueden ver dashboard
       visible: true
     },
-    // Clientes movido al TopBar
-    { 
-      href: "/proveedores", 
-      label: "Proveedores", 
-      icon: () => <ModernIcons.Clientes size={20} />,
-      badge: null,
-      // Admin siempre puede ver, otros según permisos
-      visible: showAllForAdmin || permissions.canManageSuppliers()
-    },
-    { 
+    {
       href: "/vehiculos", 
       label: "Vehículos", 
       icon: () => <ModernIcons.Vehiculos size={20} />,

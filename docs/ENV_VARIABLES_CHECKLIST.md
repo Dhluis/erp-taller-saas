@@ -64,6 +64,11 @@
 
 ## 4. Hotmart (Billing)
 
+#### `NEXT_PUBLIC_HOTMART_CHECKOUT_URL`
+- Formato: `https://pay.hotmart.com/XXXXXXXXX`
+- Crítica: NO — tiene fallback hardcoded en código, pero se recomienda configurar
+- Uso: URL de checkout de Hotmart para todos los botones de upgrade
+
 #### `HOTMART_HOTTOK`
 - Formato: string secreto configurado en el webhook de Hotmart
 - Crítica: SÍ — verifica autenticidad de webhooks de pago

@@ -536,13 +536,12 @@ function CitasContent() {
   }
 
   const clearFieldError = (field: string) => {
-    if (formErrors[field]) {
-      setFormErrors(prev => {
-        const next = { ...prev }
-        delete next[field]
-        return next
-      })
-    }
+    setFormErrors(prev => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

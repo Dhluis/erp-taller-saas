@@ -56,7 +56,6 @@ export default function ReportesPage() {
     monthlyRevenue: 0,
     averageOrderValue: 0,
   });
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   // ✅ FIX: Ref para prevenir ejecución múltiple del useEffect
   const hasLoadedRef = useRef(false);
   const isLoadingRef = useRef(false);
@@ -101,18 +100,7 @@ export default function ReportesPage() {
         setLoading(true);
         
         console.log('🔄 [Reportes] useEffect triggered - organizationId READY y disponible:', organizationId);
-        console.log('🔄 [Reportes] Primera carga?', !hasLoadedOnce);
-        
-        // ✅ FIX: Limpiar cache en la primera carga para asegurar datos frescos
-        if (!hasLoadedOnce) {
-          const { clearOrdersCache } = await import('@/lib/database/queries/work-orders');
-          clearOrdersCache(organizationId);
-          console.log('🧹 [Reportes] Cache limpiado para primera carga');
-          setHasLoadedOnce(true);
-        }
-        
-        // ✅ Usar API route en lugar de query directa
-        const ordersResponse = await fetch('/api/work-orders', {
+        const ordersResponse = await fetch('/api/work-orders?stats=true', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
@@ -120,53 +108,23 @@ export default function ReportesPage() {
 
         if (!ordersResponse.ok) {
           const errorData = await ordersResponse.json();
-          throw new Error(errorData.error || 'Error al cargar órdenes');
+          throw new Error(errorData.error || 'Error al cargar estadísticas de órdenes');
         }
 
         const ordersResult = await ordersResponse.json();
-        // ✅ FIX: Manejar estructura paginada { data: { items, pagination } }
-        const orders = ordersResult.success 
-          ? (ordersResult.data?.items || ordersResult.data || [])
-          : [];
-        
-        console.log('🔍 [Reportes] Estructura recibida:', {
-          hasItems: !!ordersResult.data?.items,
-          isArray: Array.isArray(orders),
-          length: orders.length,
-          firstItem: orders[0]
-        });
-        console.log('📊 [Reportes] Órdenes cargadas:', orders.length);
-        
-        // ✅ FIX: Usar valores actuales de customers y vehicles sin incluirlos en dependencias
-        // Estos valores se actualizarán en un efecto separado si es necesario
+        const orderStats = ordersResult.data ?? {};
+
         const currentCustomers = customers?.length || 0;
         const currentVehicles = vehicles?.length || 0;
-        
-        // Calcular estadísticas usando los datos disponibles
+
         const totalCustomers = currentCustomers;
         const totalVehicles = currentVehicles;
-        const totalOrders = orders.length || 0;
-        const pendingOrders = orders.filter((order: any) => 
-          order.status === 'pending' || order.status === 'diagnosis' || order.status === 'reception'
-        ).length || 0;
-        const completedOrders = orders.filter((order: any) => 
-          order.status === 'completed' || order.status === 'completado' || order.status === 'archived'
-        ).length || 0;
-        const totalRevenue = orders.reduce((sum: number, order: any) => 
-          sum + (order.total_amount || order.total || 0), 0
-        );
-        const monthlyRevenue = totalRevenue; // Simplificado para este ejemplo
+        const totalOrders = orderStats.total ?? 0;
+        const pendingOrders = orderStats.pending ?? 0;
+        const completedOrders = (orderStats.completed ?? 0) + (orderStats.delivered ?? 0);
+        const totalRevenue = orderStats.total_revenue ?? 0;
+        const monthlyRevenue = totalRevenue;
         const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-        
-        console.log('📊 [Reportes] Estadísticas calculadas:', {
-          totalCustomers,
-          totalVehicles,
-          totalOrders,
-          totalRevenue,
-          pendingOrders,
-          completedOrders,
-          averageOrderValue
-        });
         
         // ✅ FIX: Actualizar estado una sola vez con todos los datos
         setReportData({

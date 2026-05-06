@@ -14,8 +14,7 @@ import { FEATURE_NAMES } from "@/types/billing";
 import type { LimitError } from "@/types/billing";
 import { useCurrencyConverter } from "@/lib/utils/currency-converter";
 import { PRICING } from "@/lib/billing/constants";
-
-const HOTMART_CHECKOUT_URL = "https://pay.hotmart.com/F105392844W";
+import { HOTMART_CHECKOUT_URL } from "@/lib/billing/hotmart";
 
 interface UpgradeModalProps {
   isOpen: boolean;

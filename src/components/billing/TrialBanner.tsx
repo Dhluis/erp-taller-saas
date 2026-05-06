@@ -5,8 +5,7 @@ import { Crown, Lock, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useBilling } from '@/hooks/useBilling'
 import { cn } from '@/lib/utils'
-
-const HOTMART_URL = 'https://pay.hotmart.com/F105392844W'
+import { HOTMART_CHECKOUT_URL as HOTMART_URL } from '@/lib/billing/hotmart'
 
 export function TrialBanner() {
   const { isTrialActive, daysLeftInTrial, isLoading, plan } = useBilling()

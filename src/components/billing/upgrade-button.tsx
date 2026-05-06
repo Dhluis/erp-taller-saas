@@ -3,8 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const HOTMART_CHECKOUT_URL = "https://pay.hotmart.com/F105392844W";
+import { HOTMART_CHECKOUT_URL } from "@/lib/billing/hotmart";
 
 interface UpgradeButtonProps {
   variant?: "default" | "outline";

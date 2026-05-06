@@ -244,7 +244,15 @@ function InventariosContent() {
 
   useEffect(() => {
     if (processedRef.current) return;
-    
+
+    // Abrir modal de nuevo producto directamente (sin AI)
+    const openCreate = searchParams.get('create');
+    if (openCreate === 'true') {
+      processedRef.current = true;
+      setShowNewProductModal(true);
+      return;
+    }
+
     const openMagicCreate = searchParams.get('openMagicCreate');
     if (openMagicCreate === 'true') {
       try {

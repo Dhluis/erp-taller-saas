@@ -124,6 +124,13 @@ export default function FacturacionPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [isManualInvoiceModalOpen, setIsManualInvoiceModalOpen] = useState(false);
+  const [showOrderPicker, setShowOrderPicker] = useState(false);
+  const [orderPickerFilter, setOrderPickerFilter] = useState('completed');
+  const [pickerOrders, setPickerOrders] = useState<Array<any>>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
+  const [pickerSearchDebounced, setPickerSearchDebounced] = useState('');
+  const [pickerCreating, setPickerCreating] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalRevenue: 0,
     monthlyRevenue: 0,
@@ -228,6 +235,47 @@ export default function FacturacionPage() {
     }
   };
 
+  useEffect(() => {
+    const t = setTimeout(() => setPickerSearchDebounced(pickerSearch), 400);
+    return () => clearTimeout(t);
+  }, [pickerSearch]);
+
+  useEffect(() => {
+    if (!showOrderPicker) return;
+    let active = true;
+    setPickerLoading(true);
+    const qs = pickerSearchDebounced ? `&search=${encodeURIComponent(pickerSearchDebounced)}` : '';
+    fetch(`/api/work-orders?filter_status=${orderPickerFilter}&limit=20${qs}`)
+      .then(r => r.json())
+      .then(d => { if (active) setPickerOrders(d.data?.items || []); })
+      .catch(() => { if (active) setPickerOrders([]); })
+      .finally(() => { if (active) setPickerLoading(false); });
+    return () => { active = false; };
+  }, [showOrderPicker, orderPickerFilter, pickerSearchDebounced]);
+
+  const handleCreateFromOrder = async (orderId: string) => {
+    setPickerCreating(orderId);
+    try {
+      const res = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: 'work_order', work_order_id: orderId }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        toast.success('Factura creada correctamente');
+        mutate();
+        setShowOrderPicker(false);
+      } else {
+        toast.error(d.error || 'Error al crear la factura');
+      }
+    } catch {
+      toast.error('Error de conexión');
+    } finally {
+      setPickerCreating(null);
+    }
+  };
+
   const handleCancelInvoice = async () => {
     if (!invoiceToCancel) return;
     try {
@@ -273,13 +321,13 @@ export default function FacturacionPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64">
-                  <DropdownMenuItem onClick={() => router.push('/ordenes?filter_status=completed')}>
+                  <DropdownMenuItem onClick={() => { setOrderPickerFilter('completed'); setPickerSearch(''); setShowOrderPicker(true); }}>
                     <div>
                       <p className="font-medium">Desde orden completada</p>
                       <p className="text-xs text-muted-foreground">Facturar trabajo terminado</p>
                     </div>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push('/ordenes?filter_status=in_progress,diagnosis,disassembly,assembly,testing')}>
+                  <DropdownMenuItem onClick={() => { setOrderPickerFilter('in_progress,diagnosis,disassembly,assembly,testing'); setPickerSearch(''); setShowOrderPicker(true); }}>
                     <div>
                       <p className="font-medium">Crear anticipo</p>
                       <p className="text-xs text-muted-foreground">Cobro parcial de trabajo en proceso</p>
@@ -570,6 +618,65 @@ export default function FacturacionPage() {
           mutate();
         }}
       />
+
+      {/* Order Picker: crear factura desde orden */}
+      <Dialog open={showOrderPicker} onOpenChange={setShowOrderPicker}>
+        <DialogContent className="max-w-2xl bg-slate-900 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle>Seleccionar orden de trabajo</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              {orderPickerFilter === 'completed'
+                ? 'Órdenes completadas listas para facturar'
+                : 'Órdenes en proceso — anticipo parcial'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por cliente, número de orden..."
+                value={pickerSearch}
+                onChange={e => setPickerSearch(e.target.value)}
+                className="pl-9 bg-slate-800 border-slate-600 text-white"
+              />
+            </div>
+            <div className="max-h-96 overflow-y-auto space-y-2 pr-1">
+              {pickerLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-6 w-6 animate-spin text-cyan-500" />
+                </div>
+              ) : pickerOrders.length === 0 ? (
+                <p className="text-center text-slate-400 py-10">No se encontraron órdenes</p>
+              ) : pickerOrders.map((order: any) => (
+                <div key={order.id} className="flex items-center justify-between p-3 bg-slate-800 rounded-lg border border-slate-700 hover:border-slate-500 transition-colors">
+                  <div className="min-w-0">
+                    <p className="font-medium text-white truncate">{order.order_number || `#${order.id.slice(0, 8)}`}</p>
+                    <p className="text-sm text-slate-400 truncate">{order.customer?.name || 'Sin cliente'}</p>
+                    {order.vehicle && (
+                      <p className="text-xs text-slate-500">{order.vehicle.brand} {order.vehicle.model} {order.vehicle.year ?? ''}</p>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    className="ml-4 shrink-0"
+                    disabled={!!pickerCreating}
+                    onClick={() => handleCreateFromOrder(order.id)}
+                  >
+                    {pickerCreating === order.id
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : 'Crear factura'}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-800" onClick={() => setShowOrderPicker(false)}>
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Confirmación cancelar factura */}
       <AlertDialog open={!!invoiceToCancel} onOpenChange={(v) => !v && setInvoiceToCancel(null)}>
