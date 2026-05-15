@@ -88,7 +88,7 @@ function DashboardContent() {
   // Redirigir a onboarding si el usuario aún no lo ha completado
   useEffect(() => {
     if (!sessionLoading && sessionReady && organizationId) {
-      const done = localStorage.getItem(`onboarding_v1_${organizationId}`)
+      const done = localStorage.getItem(`onboarding_v2_${organizationId}`)
       if (!done) {
         router.replace('/onboarding')
       }

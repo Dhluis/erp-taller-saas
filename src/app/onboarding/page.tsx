@@ -18,7 +18,7 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
-const ONBOARDING_KEY = (orgId: string) => `onboarding_v1_${orgId}`
+const ONBOARDING_KEY = (orgId: string) => `onboarding_v2_${orgId}`
 
 const STEPS = [
   { id: 1, label: 'Tu taller', icon: Building2 },
