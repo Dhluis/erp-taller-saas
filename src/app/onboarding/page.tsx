@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useOrganization } from '@/lib/context/SessionContext'
+import { useOrganization, useSession } from '@/lib/context/SessionContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -29,14 +29,25 @@ const STEPS = [
 export default function OnboardingPage() {
   const router = useRouter()
   const { organizationId, loading: orgLoading, ready } = useOrganization()
+  const { companySettings, profile } = useSession()
 
   const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
 
-  // Step 1
+  // Step 1 — pre-fill from existing data
+  const [companyName, setCompanyName] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
   const [website, setWebsite] = useState('')
   const [city, setCity] = useState('')
+
+  // Pre-fill when companySettings loads
+  useEffect(() => {
+    if (companySettings) {
+      setCompanyName(companySettings.company_name || '')
+      setLogoUrl(companySettings.logo_url || '')
+      setWebsite(companySettings.website || '')
+    }
+  }, [companySettings])
 
   // Step 2
   const [custName, setCustName] = useState('')
@@ -62,7 +73,12 @@ export default function OnboardingPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ logo_url: logoUrl || undefined, website: website || undefined, city: city || undefined }),
+        body: JSON.stringify({
+          company_name: companyName || undefined,
+          logo_url: logoUrl || undefined,
+          website: website || undefined,
+          city: city || undefined,
+        }),
       })
     } catch {
       // non-blocking — datos opcionales
@@ -164,6 +180,16 @@ export default function OnboardingPage() {
 
             <div className="space-y-4">
               <div className="space-y-1.5">
+                <Label className="text-slate-300 text-sm">Nombre del taller en documentos</Label>
+                <Input
+                  placeholder="Ej. Taller Automotriz García"
+                  value={companyName}
+                  onChange={e => setCompanyName(e.target.value)}
+                  className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500"
+                />
+                <p className="text-[11px] text-slate-500">Aparece en cotizaciones, facturas y la barra lateral</p>
+              </div>
+              <div className="space-y-1.5">
                 <Label className="text-slate-300 text-sm">Logo (URL de imagen)</Label>
                 <Input
                   placeholder="https://tusitio.com/logo.png"
@@ -171,6 +197,7 @@ export default function OnboardingPage() {
                   onChange={e => setLogoUrl(e.target.value)}
                   className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500"
                 />
+                <p className="text-[11px] text-slate-500">Sube tu imagen a imgur.com o imgbb.com y pega el enlace directo</p>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-slate-300 text-sm">Sitio web</Label>
@@ -196,7 +223,7 @@ export default function OnboardingPage() {
               <Button
                 variant="ghost"
                 className="text-slate-400 hover:text-slate-200 flex-1"
-                onClick={() => { markDone(); setStep(2) }}
+                onClick={() => setStep(2)}
                 disabled={submitting}
               >
                 Omitir este paso
