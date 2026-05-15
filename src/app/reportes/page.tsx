@@ -65,41 +65,25 @@ export default function ReportesPage() {
   const [pendingReportType, setPendingReportType] = useState<string | null>(null);
 
   // Usar hooks para obtener datos reales
-  const { customers, loading: customersLoading } = useCustomers();
-  const { vehicles, loading: vehiclesLoading } = useVehicles();
+  const { pagination: customerPagination } = useCustomers();
+  const { pagination: vehiclePagination } = useVehicles();
   const { organizationId, loading: orgLoading, ready } = useOrganization();
 
   useEffect(() => {
     // ✅ FIX: Prevenir ejecución múltiple usando ref
-    if (hasLoadedRef.current) {
-      console.log('⏸️ [Reportes] Ya se cargó una vez, omitiendo ejecución duplicada');
-      return;
-    }
+    if (hasLoadedRef.current) return;
 
-    // ✅ FIX: Solo cargar cuando organizationId esté listo y ESTABLE (ready)
     if (!organizationId || orgLoading || !ready) {
-      // Si está cargando organizationId o no está ready, mantener loading state
-      if (orgLoading || !ready) {
-        setLoading(true);
-        console.log('⏳ [Reportes] Esperando a que organizationId esté ready...', { orgLoading, ready, organizationId: !!organizationId });
-      } else if (!organizationId) {
-        console.log('⚠️ [Reportes] organizationId no disponible todavía');
-      }
+      if (orgLoading || !ready) setLoading(true);
       return;
     }
 
-    // ✅ FIX: Prevenir múltiples llamadas simultáneas
-    if (isLoadingRef.current) {
-      console.log('⏸️ [Reportes] Ya hay una carga en curso, omitiendo...');
-      return;
-    }
+    if (isLoadingRef.current) return;
 
     const loadReportData = async () => {
       try {
         isLoadingRef.current = true;
         setLoading(true);
-        
-        console.log('🔄 [Reportes] useEffect triggered - organizationId READY y disponible:', organizationId);
         const ordersResponse = await fetch('/api/work-orders?stats=true', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
@@ -114,11 +98,8 @@ export default function ReportesPage() {
         const ordersResult = await ordersResponse.json();
         const orderStats = ordersResult.data ?? {};
 
-        const currentCustomers = customers?.length || 0;
-        const currentVehicles = vehicles?.length || 0;
-
-        const totalCustomers = currentCustomers;
-        const totalVehicles = currentVehicles;
+        const totalCustomers = customerPagination.total;
+        const totalVehicles = vehiclePagination.total;
         const totalOrders = orderStats.total ?? 0;
         const pendingOrders = orderStats.pending ?? 0;
         const completedOrders = (orderStats.completed ?? 0) + (orderStats.delivered ?? 0);

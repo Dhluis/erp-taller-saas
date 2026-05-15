@@ -11,7 +11,9 @@
       "Bash(git commit -m ' *)",
       "Bash(vercel project *)",
       "Bash(grep -E \"page\\\\.tsx$\")",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(xargs grep *)",
+      "mcp__supabase__list_projects"
     ]
   }
 }

@@ -600,8 +600,7 @@ export default function RegisterPage() {
                       await new Promise(resolve => setTimeout(resolve, 1000))
                       
                       // 5. Redirigir
-                      console.log('🚀 [Register] Redirigiendo al dashboard...')
-                      router.push('/dashboard')
+                      router.push('/onboarding')
                       router.refresh()
                     } catch (err) {
                       console.error('❌ [Register] Error crítico en redirección:', err)

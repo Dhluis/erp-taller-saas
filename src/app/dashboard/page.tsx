@@ -84,7 +84,17 @@ function DashboardContent() {
   ]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  
+
+  // Redirigir a onboarding si el usuario aún no lo ha completado
+  useEffect(() => {
+    if (!sessionLoading && sessionReady && organizationId) {
+      const done = localStorage.getItem(`onboarding_v1_${organizationId}`)
+      if (!done) {
+        router.replace('/onboarding')
+      }
+    }
+  }, [sessionLoading, sessionReady, organizationId, router])
+
   // ✅ Estado para ingresos y otras métricas - MOVER ANTES DEL RETURN CONDICIONAL
   const [ingresos, setIngresos] = useState(0);
   const [ingresosDia, setIngresosDia] = useState(0);
