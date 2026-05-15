@@ -18,7 +18,7 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
-const ONBOARDING_KEY = (orgId: string) => `onboarding_v2_${orgId}`
+const ONBOARDING_KEY = (orgId: string) => `onboarding_v3_${orgId}`
 
 const STEPS = [
   { id: 1, label: 'Tu taller', icon: Building2 },
@@ -69,7 +69,7 @@ export default function OnboardingPage() {
   const handleStep1 = async () => {
     setSubmitting(true)
     try {
-      await fetch('/api/onboarding/complete', {
+      const res = await fetch('/api/onboarding/complete', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -80,11 +80,16 @@ export default function OnboardingPage() {
           city: city || undefined,
         }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'Error al guardar los datos del taller')
+        return
+      }
+      setStep(2)
     } catch {
-      // non-blocking — datos opcionales
+      toast.error('Error de conexión')
     } finally {
       setSubmitting(false)
-      setStep(2)
     }
   }
 

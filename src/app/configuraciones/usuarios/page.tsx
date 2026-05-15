@@ -52,6 +52,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
 
 // Schema de validación con Zod
 const userSchema = z.object({
@@ -846,45 +847,15 @@ export default function UsuariosPage() {
       </Dialog>
 
       {/* Dialog de confirmación de eliminación */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-slate-900 text-white border-slate-700">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-500 flex items-center gap-2">
-              <AlertCircle className="h-5 w-5" />
-              ⚠️ Eliminar Usuario
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-300">
-              Esta acción es irreversible. Se eliminará permanentemente el usuario{' '}
-              <strong className="text-white">
-                {(userToDelete as any)?.name || (userToDelete as any)?.full_name || userToDelete?.email}
-              </strong>
-              {' '}y todas sus asignaciones.
-              <br /><br />
-              <span className="text-yellow-400 font-semibold">¿Estás seguro de que deseas continuar?</span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-700 text-white hover:bg-slate-600 border-none">Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              disabled={isSubmitting}
-              className="bg-red-600 hover:bg-red-700 text-white font-semibold"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Eliminando...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Eliminar
-                </>
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        onClose={() => { setDeleteDialogOpen(false); setUserToDelete(null); }}
+        onConfirm={confirmDelete}
+        title="Eliminar Usuario"
+        entityName={(userToDelete as any)?.name || (userToDelete as any)?.full_name || userToDelete?.email}
+        items={['Todas sus asignaciones en el sistema']}
+        confirmText="Eliminar Usuario"
+      />
 
       {/* Dialog de error - Órdenes activas */}
       <AlertDialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>

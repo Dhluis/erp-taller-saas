@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select'
 import { Pagination } from '@/components/ui/pagination'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { Plus, Search, RefreshCw, FileText, Edit, Eye, Trash2, Loader2, AlertCircle, Brain, Mic } from 'lucide-react'
+import { Plus, Search, RefreshCw, FileText, Edit, Eye, Trash2, Loader2, Brain, Mic } from 'lucide-react'
 import { useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
@@ -31,16 +31,7 @@ import { es } from 'date-fns/locale'
 import { useQuotations, type Quotation } from '@/hooks/useQuotations'
 import { CreateQuotationModal } from '@/components/quotations/CreateQuotationModal'
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import {
   Dialog,
   DialogContent,
@@ -113,7 +104,6 @@ export default function QuotationsPage() {
   const [quotationToEdit, setQuotationToEdit] = useState<Quotation | null>(null)
   const [quotationToView, setQuotationToView] = useState<Quotation | null>(null)
   const [quotationToDelete, setQuotationToDelete] = useState<Quotation | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
   const [isProcessingAI, setIsProcessingAI] = useState(false)
   const [viewActionLoading, setViewActionLoading] = useState<'approve' | 'reject' | 'convert' | null>(null)
   const searchParams = useSearchParams()
@@ -258,35 +248,22 @@ export default function QuotationsPage() {
 
   const confirmDelete = async () => {
     if (!quotationToDelete) return
-
-    setIsDeleting(true)
     try {
       await deleteQuotation(quotationToDelete.id)
       toast.success('Cotización eliminada exitosamente', {
         description: `La cotización ${quotationToDelete.quotation_number} ha sido eliminada permanentemente.`,
         duration: 5000,
-        className: 'bg-green-500/10 border-green-500/50 text-green-400 [&>div]:text-green-300'
       })
       setDeleteDialogOpen(false)
       setQuotationToDelete(null)
     } catch (error: any) {
       console.error('Error eliminando cotización:', error)
       const errorMessage = error?.message || 'Error al eliminar cotización'
-      
-      // Verificar si es error de estado
       if (errorMessage.includes('convertida') || errorMessage.includes('borrador')) {
-        toast.error('No se puede eliminar esta cotización', {
-          description: errorMessage,
-          duration: 6000
-        })
+        toast.error('No se puede eliminar esta cotización', { description: errorMessage, duration: 6000 })
       } else {
-        toast.error('Error al eliminar cotización', {
-          description: errorMessage,
-          duration: 6000
-        })
+        toast.error('Error al eliminar cotización', { description: errorMessage, duration: 6000 })
       }
-    } finally {
-      setIsDeleting(false)
     }
   }
 
@@ -726,48 +703,15 @@ export default function QuotationsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Dialog de confirmación de eliminación */}
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent className="bg-slate-900 text-white border-slate-700">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-red-500 flex items-center gap-2">
-                <AlertCircle className="h-5 w-5" />
-                ⚠️ Eliminar Cotización
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-slate-300">
-                Esta acción es irreversible. Se eliminará permanentemente la cotización{' '}
-                <strong className="text-white">
-                  {quotationToDelete?.quotation_number}
-                </strong>
-                {' '}y todos sus items asociados.
-                <br /><br />
-                <span className="text-yellow-400 font-semibold">¿Estás seguro de que deseas continuar?</span>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="bg-slate-700 text-white hover:bg-slate-600 border-none">
-                Cancelar
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={confirmDelete}
-                disabled={isDeleting}
-                className="bg-red-600 hover:bg-red-700 text-white font-semibold"
-              >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Eliminando...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Eliminar
-                  </>
-                )}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <ConfirmDeleteDialog
+          open={deleteDialogOpen}
+          onClose={() => { setDeleteDialogOpen(false); setQuotationToDelete(null) }}
+          onConfirm={confirmDelete}
+          title="Eliminar Cotización"
+          entityName={quotationToDelete?.quotation_number}
+          items={['Todos los items de la cotización']}
+          confirmText="Eliminar Cotización"
+        />
       </div>
     </AppLayout>
   )

@@ -22,16 +22,7 @@ import { toast } from 'sonner';
 import { useInventory, type CreateInventoryItemData, type UpdateInventoryItemData, type InventoryItem } from '@/hooks/useInventory';
 import { VoiceInput } from '@/components/ui/VoiceInput';
 import { cn } from '@/lib/utils';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
 
 import { Suspense } from 'react';
 
@@ -97,7 +88,6 @@ function InventariosContent() {
     description: ''
   });
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<InventoryItem | null>(null);
   const [isProcessingAI, setIsProcessingAI] = useState(false);
@@ -436,18 +426,13 @@ function InventariosContent() {
 
   const handleDeleteConfirm = async () => {
     if (!productToDelete) return;
-
-    setDeleting(true);
     try {
-      const success = await deleteItem(productToDelete.id);
-      if (success) {
-        setDeleteDialogOpen(false);
-        setProductToDelete(null);
-      }
+      await deleteItem(productToDelete.id);
+      setDeleteDialogOpen(false);
+      setProductToDelete(null);
     } catch (error) {
       console.error('Error deleting product:', error);
-    } finally {
-      setDeleting(false);
+      toast.error('Error al eliminar el producto');
     }
   };
 
@@ -1123,35 +1108,15 @@ function InventariosContent() {
           </div>
         )}
 
-        {/* AlertDialog para Confirmar Eliminación */}
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent className="bg-bg-primary border-border">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-text-primary">
-                ¿Eliminar producto "{productToDelete?.name}"?
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-text-secondary">
-                Esta acción no se puede deshacer. El producto será eliminado permanentemente del inventario.
-                Si el producto tiene movimientos asociados, no podrá ser eliminado.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel asChild>
-                <Button variant="outline" disabled={deleting}>Cancelar</Button>
-              </AlertDialogCancel>
-              <AlertDialogAction asChild>
-                <Button
-                  variant="danger"
-                  onClick={handleDeleteConfirm}
-                  disabled={deleting}
-                  className="bg-red-600 hover:bg-red-700 text-white border-red-600"
-                >
-                  {deleting ? 'Eliminando...' : 'Eliminar'}
-                </Button>
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <ConfirmDeleteDialog
+          open={deleteDialogOpen}
+          onClose={() => { setDeleteDialogOpen(false); setProductToDelete(null); }}
+          onConfirm={handleDeleteConfirm}
+          title="Eliminar Producto"
+          entityName={productToDelete?.name}
+          items={['El producto será eliminado del inventario permanentemente']}
+          confirmText="Eliminar Producto"
+        />
 
         {/* Modal para Ver Detalles */}
         {showDetailsModal && selectedProduct && (

@@ -13,16 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Pagination } from '@/components/ui/pagination';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Search, FileText, Edit, Trash2, Eye, Plus, Download, RefreshCw, User, Printer, Loader2 } from 'lucide-react';
 import { downloadWorkOrderPDF } from '@/lib/utils/work-order-pdf';
@@ -84,7 +75,6 @@ function OrdenesPageContent() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [orderPendingDelete, setOrderPendingDelete] = useState<WorkOrder | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [assignedUsersMap, setAssignedUsersMap] = useState<Record<string, any>>({});
   const [showExportModal, setShowExportModal] = useState(false);
   const [companySettings, setCompanySettings] = useState<any>(null);
@@ -288,11 +278,8 @@ function OrdenesPageContent() {
 
   const handleConfirmDelete = async () => {
     if (!orderPendingDelete) return;
-
-    setIsDeleting(true);
     try {
       const success = await deleteWorkOrderFromHook(orderPendingDelete.id);
-      
       if (success) {
         toast.success('Orden eliminada exitosamente');
         setIsDeleteDialogOpen(false);
@@ -304,8 +291,6 @@ function OrdenesPageContent() {
     } catch (error) {
       console.error('Error deleting order:', error);
       toast.error('Error al eliminar la orden');
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -926,26 +911,15 @@ function OrdenesPageContent() {
       />
 
       {/* Confirmación de eliminado */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="bg-[#0F172A] border-slate-700">
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar orden de trabajo?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. La orden y todos sus datos asociados serán eliminados permanentemente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
-              disabled={isDeleting}
-            >
-              {isDeleting ? 'Eliminando...' : 'Eliminar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={isDeleteDialogOpen}
+        onClose={() => { setIsDeleteDialogOpen(false); setOrderPendingDelete(null); }}
+        onConfirm={handleConfirmDelete}
+        title="Eliminar Orden de Trabajo"
+        entityName={orderPendingDelete ? `Orden #${(orderPendingDelete as any).order_number || orderPendingDelete.id.slice(0, 8)}` : undefined}
+        items={['Notas e imágenes de la orden', 'Items y servicios asociados']}
+        confirmText="Eliminar Orden"
+      />
 
       <Dialog open={showExportModal} onOpenChange={setShowExportModal}>
         <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-sm">

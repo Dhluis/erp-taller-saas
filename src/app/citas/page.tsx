@@ -24,15 +24,16 @@ import {
   TabsTrigger,
   TabsContent
 } from "@/components/ui/tabs"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
 } from "@/components/ui/dialog"
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -131,7 +132,7 @@ function CitasContent() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [appointmentToDelete, setAppointmentToDelete] = useState<string | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
   const [isProcessingAI, setIsProcessingAI] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -617,29 +618,22 @@ function CitasContent() {
 
 
   const handleDelete = (id: string) => {
-    toast('¿Estás seguro de eliminar esta cita?', {
-      description: 'Esta acción no se puede deshacer.',
-      action: {
-        label: 'Eliminar',
-        onClick: async () => {
-          try {
-            const response = await fetch(`/api/appointments/${id}`, { method: 'DELETE' })
-            const result = await response.json()
-            if (!response.ok || !result.success) throw new Error(result.error || 'Error al eliminar')
-            toast.success('Cita eliminada correctamente')
-            loadData()
-          } catch (error) {
-            console.error('Error deleting appointment:', error)
-            toast.error('Error al eliminar cita')
-          }
-        },
-      },
-      cancel: {
-        label: 'Cancelar',
-        onClick: () => {},
-      },
-      duration: 10000,
-    })
+    setAppointmentToDelete(id)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!appointmentToDelete) return
+    try {
+      const response = await fetch(`/api/appointments/${appointmentToDelete}`, { method: 'DELETE' })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.error || 'Error al eliminar')
+      toast.success('Cita eliminada correctamente')
+      setAppointmentToDelete(null)
+      loadData()
+    } catch (error) {
+      console.error('Error deleting appointment:', error)
+      toast.error('Error al eliminar cita')
+    }
   }
 
   // Función para obtener los días del calendario
@@ -1265,6 +1259,15 @@ function CitasContent() {
           </div>
         )}
       </div>
+
+      <ConfirmDeleteDialog
+        open={!!appointmentToDelete}
+        onClose={() => setAppointmentToDelete(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Eliminar Cita"
+        question="¿Estás seguro que deseas eliminar esta cita? Esta acción no se puede deshacer."
+        confirmText="Eliminar Cita"
+      />
 
       {/* Modal para crear orden desde cita */}
       <CreateWorkOrderModal

@@ -8,13 +8,13 @@ import { PageHeader } from '@/components/navigation/page-header';
 import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { 
-  VehiclesTable, 
-  VehiclesFilters, 
-  VehicleForm, 
-  DeleteVehicleModal, 
-  VehicleDetailsModal 
+import {
+  VehiclesTable,
+  VehiclesFilters,
+  VehicleForm,
+  VehicleDetailsModal
 } from '@/components/vehicles';
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
 import { useVehicles } from '@/hooks/useVehicles';
 import { useToast } from '@/hooks/useToast';
 import { ToastContainer } from '@/components/ui/ToastContainer';
@@ -56,7 +56,6 @@ export default function VehiculosPage() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [formLoading, setFormLoading] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Sincronizar búsqueda con debounce
   useEffect(() => {
@@ -140,24 +139,15 @@ export default function VehiculosPage() {
 
   const handleDeleteConfirm = async () => {
     if (!selectedVehicle) return;
-    
     try {
-      setDeleteLoading(true);
-      
       await deleteVehicle(selectedVehicle.id);
       showToast('Vehículo eliminado correctamente', 'success');
-      
-      // Cerrar todos los modales y limpiar selección
       setShowDeleteModal(false);
       setShowDetailsModal(false);
       setSelectedVehicle(null);
-      
-      // Refrescar la lista (esto ya lo hace deleteVehicle internamente)
     } catch (error) {
       console.error('Error al eliminar vehículo:', error);
       showToast('Error al eliminar el vehículo', 'error');
-    } finally {
-      setDeleteLoading(false);
     }
   };
 
@@ -260,12 +250,14 @@ export default function VehiculosPage() {
           onCancel={handleCloseModals}
         />
 
-        <DeleteVehicleModal
-          isOpen={showDeleteModal}
-          vehicle={selectedVehicle}
+        <ConfirmDeleteDialog
+          open={showDeleteModal}
+          onClose={() => { setShowDeleteModal(false); setSelectedVehicle(null); }}
           onConfirm={handleDeleteConfirm}
-          onCancel={handleCloseModals}
-          loading={deleteLoading}
+          title="Eliminar Vehículo"
+          entityName={selectedVehicle ? `${selectedVehicle.brand} ${selectedVehicle.model} ${selectedVehicle.year ?? ''}`.trim() : undefined}
+          items={['Historial de órdenes de trabajo del vehículo', 'Cotizaciones asociadas']}
+          confirmText="Eliminar Vehículo"
         />
 
         <VehicleDetailsModal

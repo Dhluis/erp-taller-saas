@@ -16,16 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useInventory } from '@/hooks/useInventory';
 import { toast } from 'sonner';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
 
 export default function InventariosCategoriasPage() {
   const { categories, loading, fetchCategories, createCategory, updateCategory, deleteCategory } = useInventory();
@@ -37,7 +28,6 @@ export default function InventariosCategoriasPage() {
     description: ''
   });
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
 
@@ -127,7 +117,6 @@ export default function InventariosCategoriasPage() {
   const handleDeleteCategory = async () => {
     if (!categoryToDelete) return;
 
-    setDeleting(true);
     try {
       await deleteCategory(categoryToDelete);
       // ✅ Toast manejado aquí (único lugar)
@@ -137,8 +126,6 @@ export default function InventariosCategoriasPage() {
     } catch (error) {
       console.error('Error deleting category:', error);
       toast.error('Error al eliminar la categoría');
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -298,12 +285,11 @@ export default function InventariosCategoriasPage() {
                       <PencilIcon className="h-4 w-4 mr-1" />
                       Editar
                     </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
+                    <Button
+                      size="sm"
+                      variant="outline"
                       className="flex-1 text-red-600 hover:text-red-700"
                       onClick={() => handleDeleteClick(category.id)}
-                      disabled={deleting}
                     >
                       <TrashIcon className="h-4 w-4 mr-1" />
                       Eliminar
@@ -366,37 +352,14 @@ export default function InventariosCategoriasPage() {
       )}
 
       {/* Dialog de confirmación para eliminar */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-bg-primary border-border">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-text-primary">
-              ¿Eliminar categoría?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-text-secondary">
-              Esta acción no se puede deshacer. La categoría será eliminada permanentemente.
-              {categoryToDelete && (
-                <>
-                  <br />
-                  <br />
-                  <strong className="text-text-primary">
-                    {(categories || []).find(c => c.id === categoryToDelete)?.name}
-                  </strong>
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteCategory}
-              disabled={deleting}
-              className="bg-red-500 hover:bg-red-600 text-white"
-            >
-              {deleting ? 'Eliminando...' : 'Eliminar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        onClose={() => { setDeleteDialogOpen(false); setCategoryToDelete(null); }}
+        onConfirm={handleDeleteCategory}
+        title="Eliminar Categoría"
+        entityName={(categories || []).find(c => c.id === categoryToDelete)?.name}
+        confirmText="Eliminar Categoría"
+      />
     </div>
   </AppLayout>
   );

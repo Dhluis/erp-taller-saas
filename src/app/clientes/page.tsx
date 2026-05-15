@@ -6,13 +6,13 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/navigation/page-header';
 import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
-import { 
-  CustomersTable, 
-  CustomersFilters, 
-  CustomerForm, 
-  DeleteCustomerModal, 
-  CustomerDetailsModal 
+import {
+  CustomersTable,
+  CustomersFilters,
+  CustomerForm,
+  CustomerDetailsModal
 } from '@/components/customers';
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
 import { WorkOrderDetailsModal } from '@/components/work-orders/WorkOrderDetailsModal';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
@@ -68,7 +68,6 @@ export default function ClientesPage() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [formLoading, setFormLoading] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // ✅ Sincronizar búsqueda debounced con hook
   useEffect(() => {
@@ -160,19 +159,14 @@ export default function ClientesPage() {
 
   const handleDeleteConfirm = async () => {
     if (!selectedCustomer) return;
-    
     try {
-      setDeleteLoading(true);
-      
       await deleteCustomer(selectedCustomer.id);
       showToast('Cliente eliminado correctamente', 'success');
       setShowDeleteModal(false);
-      await refresh(); // Recargar lista después de eliminar
+      await refresh();
     } catch (error) {
       console.error('Error al eliminar cliente:', error);
       showToast('Error al eliminar el cliente', 'error');
-    } finally {
-      setDeleteLoading(false);
     }
   };
 
@@ -251,12 +245,14 @@ export default function ClientesPage() {
         isOpen={showCustomerForm}
       />
 
-      <DeleteCustomerModal
-        customer={selectedCustomer}
-        isOpen={showDeleteModal}
+      <ConfirmDeleteDialog
+        open={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setSelectedCustomer(null); }}
         onConfirm={handleDeleteConfirm}
-        onCancel={handleCloseModals}
-        loading={deleteLoading}
+        title="Eliminar Cliente"
+        entityName={selectedCustomer?.name}
+        items={['Historial de órdenes de trabajo', 'Vehículos asociados', 'Cotizaciones relacionadas']}
+        confirmText="Eliminar Cliente"
       />
 
       <CustomerDetailsModal

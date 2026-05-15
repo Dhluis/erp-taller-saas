@@ -30,7 +30,11 @@ import {
   Printer,
   Clock,
   Banknote,
-  Landmark
+  Landmark,
+  Calculator,
+  CheckCircle2,
+  AlertCircle,
+  Plus,
 } from 'lucide-react'
 import { useSession } from '@/lib/context/SessionContext'
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
@@ -69,6 +73,31 @@ interface CashAccount {
   last_four_digits?: string
   card_brand?: string
 }
+
+interface CashClosure {
+  id: string
+  closed_at: string
+  opening_balance: number
+  closing_balance: number
+  counted_amount: number
+  difference: number
+  notes: string | null
+  cash_account?: { name: string } | null
+}
+
+const DENOMINATIONS = [
+  { label: '$1,000', value: 1000, type: 'billete' },
+  { label: '$500',   value: 500,  type: 'billete' },
+  { label: '$200',   value: 200,  type: 'billete' },
+  { label: '$100',   value: 100,  type: 'billete' },
+  { label: '$50',    value: 50,   type: 'billete' },
+  { label: '$20',    value: 20,   type: 'billete' },
+  { label: '$10',    value: 10,   type: 'moneda'  },
+  { label: '$5',     value: 5,    type: 'moneda'  },
+  { label: '$2',     value: 2,    type: 'moneda'  },
+  { label: '$1',     value: 1,    type: 'moneda'  },
+  { label: '$0.50',  value: 0.5,  type: 'moneda'  },
+]
 
 const CATEGORY_LABELS: Record<string, string> = {
   cobro_factura: 'Cobro de Factura',
@@ -132,6 +161,71 @@ export default function FinanzasPage() {
   }
 
   const isToday = date === new Date().toISOString().split('T')[0]
+
+  // ── Arqueo de caja ──────────────────────────────────────────────
+  const [arqueoCuentaId, setArqueoCuentaId]   = useState('')
+  const [denomCounts, setDenomCounts]         = useState<Record<number, number>>({})
+  const [arqueoNotes, setArqueoNotes]         = useState('')
+  const [arqueoBusy, setArqueoBusy]           = useState(false)
+  const [todaysArqueos, setTodaysArqueos]     = useState<CashClosure[]>([])
+  const [arqueoLoading, setArqueoLoading]     = useState(false)
+
+  const countedTotal = DENOMINATIONS.reduce(
+    (sum, d) => sum + d.value * (denomCounts[d.value] || 0), 0
+  )
+  const selectedAccount  = accounts.find(a => a.id === arqueoCuentaId)
+  const systemBalance    = selectedAccount ? Number(selectedAccount.current_balance) : 0
+  const difference       = countedTotal - systemBalance
+
+  const loadTodaysArqueos = useCallback(async () => {
+    setArqueoLoading(true)
+    try {
+      const res = await fetch(`/api/cash-closures?from=${date}&to=${date}`, { credentials: 'include' })
+      const json = await res.json()
+      if (json.success) setTodaysArqueos(json.data || [])
+    } finally {
+      setArqueoLoading(false)
+    }
+  }, [date])
+
+  useEffect(() => { loadTodaysArqueos() }, [loadTodaysArqueos])
+
+  const handleSaveArqueo = async () => {
+    if (!arqueoCuentaId) { toast.error('Selecciona una cuenta de efectivo'); return }
+    if (countedTotal === 0) { toast.error('Ingresa al menos una denominación'); return }
+    setArqueoBusy(true)
+    try {
+      const breakdown = DENOMINATIONS
+        .filter(d => denomCounts[d.value] > 0)
+        .map(d => ({ denominacion: d.label, cantidad: denomCounts[d.value], subtotal: d.value * denomCounts[d.value] }))
+      const fullNotes = [
+        `DESGLOSE: ${JSON.stringify(breakdown)}`,
+        arqueoNotes ? `NOTAS: ${arqueoNotes}` : ''
+      ].filter(Boolean).join(' | ')
+
+      const res = await fetch('/api/cash-closures', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          cash_account_id: arqueoCuentaId,
+          closing_balance: systemBalance,
+          counted_amount:  countedTotal,
+          notes: fullNotes,
+        })
+      })
+      const json = await res.json()
+      if (json.success) {
+        toast.success('Arqueo guardado')
+        setDenomCounts({})
+        setArqueoNotes('')
+        loadTodaysArqueos()
+      } else {
+        toast.error(json.error || 'Error al guardar el arqueo')
+      }
+    } catch { toast.error('Error de conexión') }
+    finally { setArqueoBusy(false) }
+  }
 
   const filteredTransactions = (summary?.transactions || []).filter(t => {
     if (filterType === 'all') return true
@@ -336,6 +430,170 @@ export default function FinanzasPage() {
             )}
           </CardContent>
         </Card>
+        {/* ── ARQUEO DE CAJA ── */}
+        <Card className="bg-bg-secondary border border-border rounded-xl">
+          <CardHeader className="pb-3 border-b border-border">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold text-text-primary flex items-center gap-2">
+                <Calculator className="h-5 w-5 text-amber-400" />
+                Arqueo de Caja
+              </CardTitle>
+              {todaysArqueos.length > 0 && (
+                <span className="text-xs text-muted-foreground">{todaysArqueos.length} corte(s) registrado(s) hoy</span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="pt-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+              {/* Tabla de denominaciones */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Contar billetes y monedas</p>
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-bg-tertiary/60 text-xs text-muted-foreground uppercase">
+                        <th className="text-left px-3 py-2">Denominación</th>
+                        <th className="text-center px-3 py-2 w-24">Cantidad</th>
+                        <th className="text-right px-3 py-2">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {DENOMINATIONS.map((d, i) => {
+                        const qty      = denomCounts[d.value] || 0
+                        const subtotal = qty * d.value
+                        return (
+                          <tr key={d.value} className={`border-t border-border/50 ${i === 5 ? 'border-t-2 border-amber-500/30' : ''}`}>
+                            <td className="px-3 py-1.5">
+                              <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${d.type === 'billete' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                                {d.type === 'billete' ? '💵' : '🪙'} {d.label}
+                              </span>
+                            </td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="number"
+                                min="0"
+                                value={qty || ''}
+                                placeholder="0"
+                                onChange={e => {
+                                  const v = Math.max(0, parseInt(e.target.value) || 0)
+                                  setDenomCounts(prev => ({ ...prev, [d.value]: v }))
+                                }}
+                                className="w-full text-center bg-bg-tertiary border border-border rounded px-2 py-1 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30"
+                              />
+                            </td>
+                            <td className="px-3 py-1.5 text-right font-mono text-sm">
+                              {subtotal > 0 ? formatMoney(subtotal) : <span className="text-muted-foreground/40">—</span>}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                      <tr className="border-t-2 border-amber-500/40 bg-amber-500/5">
+                        <td className="px-3 py-2 font-bold text-amber-400">TOTAL CONTADO</td>
+                        <td />
+                        <td className="px-3 py-2 text-right font-bold text-amber-400 font-mono">{formatMoney(countedTotal)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Panel derecho: cuenta, diferencia, guardar */}
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Cuenta a cerrar</p>
+                  <select
+                    value={arqueoCuentaId}
+                    onChange={e => setArqueoCuentaId(e.target.value)}
+                    className="w-full bg-bg-tertiary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="">— Seleccionar cuenta —</option>
+                    {accounts.filter(a => a.account_type === 'cash').map(a => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Resumen de diferencia */}
+                <div className="rounded-lg border border-border bg-bg-tertiary/40 p-4 space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total contado físicamente</span>
+                    <span className="font-mono font-semibold">{formatMoney(countedTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Saldo según sistema</span>
+                    <span className="font-mono font-semibold">{arqueoCuentaId ? formatMoney(systemBalance) : '—'}</span>
+                  </div>
+                  <div className="border-t border-border pt-3 flex justify-between items-center">
+                    <span className="font-semibold text-sm">
+                      {difference === 0 ? 'Sin diferencia' : difference > 0 ? 'Sobrante' : 'Faltante'}
+                    </span>
+                    <span className={`font-bold font-mono text-lg flex items-center gap-1 ${
+                      difference === 0 ? 'text-emerald-400' :
+                      difference > 0  ? 'text-blue-400' : 'text-rose-400'
+                    }`}>
+                      {difference === 0
+                        ? <><CheckCircle2 className="h-4 w-4" />{formatMoney(0)}</>
+                        : <><AlertCircle className="h-4 w-4" />{difference > 0 ? '+' : ''}{formatMoney(difference)}</>
+                      }
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Observaciones (opcional)</p>
+                  <textarea
+                    value={arqueoNotes}
+                    onChange={e => setArqueoNotes(e.target.value)}
+                    placeholder="Ej. Faltante por cambio a cliente, etc."
+                    rows={3}
+                    className="w-full bg-bg-tertiary border border-border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30"
+                  />
+                </div>
+
+                <button
+                  onClick={handleSaveArqueo}
+                  disabled={arqueoBusy || countedTotal === 0 || !arqueoCuentaId}
+                  className="w-full h-11 flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold rounded-lg transition-colors"
+                >
+                  {arqueoBusy
+                    ? <><RefreshCw className="h-4 w-4 animate-spin" />Guardando...</>
+                    : <><Plus className="h-4 w-4" />Registrar arqueo</>
+                  }
+                </button>
+              </div>
+            </div>
+
+            {/* Historial de arqueos del día */}
+            {(todaysArqueos.length > 0 || arqueoLoading) && (
+              <div className="mt-6 border-t border-border pt-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Cortes registrados hoy</p>
+                {arqueoLoading ? (
+                  <p className="text-sm text-muted-foreground">Cargando...</p>
+                ) : (
+                  <div className="space-y-2">
+                    {todaysArqueos.map(c => (
+                      <div key={c.id} className="flex items-center justify-between rounded-lg border border-border bg-bg-tertiary/30 px-4 py-2.5 text-sm">
+                        <div className="flex items-center gap-3">
+                          <Wallet className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-text-primary font-medium">{c.cash_account?.name ?? 'Cuenta'}</span>
+                          <span className="text-muted-foreground">{new Date(c.closed_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-right">
+                          <span className="text-muted-foreground">Contado: <span className="text-text-primary font-mono">{formatMoney(c.counted_amount)}</span></span>
+                          <span className={`font-mono font-semibold ${c.difference === 0 ? 'text-emerald-400' : c.difference > 0 ? 'text-blue-400' : 'text-rose-400'}`}>
+                            {c.difference === 0 ? '✓ Cuadrado' : `${c.difference > 0 ? '+' : ''}${formatMoney(c.difference)}`}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
       </div>
     </AppLayout>
   )

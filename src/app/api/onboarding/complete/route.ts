@@ -18,43 +18,63 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Error de configuración' }, { status: 500 });
     }
 
-    // Obtener datos actuales de la organización para usar como defaults
-    const { data: org } = await (supabase
-      .from('organizations')
-      .select('name, address, phone, email')
-      .eq('id', orgId)
-      .single() as any);
-
-    // Obtener company_settings existente (puede tener rfc ya guardado)
-    const { data: existingSettings } = await (supabase
+    // Verificar si ya existe una fila en company_settings
+    const { data: existing } = await (supabase
       .from('company_settings')
-      .select('rfc, company_name')
+      .select('id')
       .eq('organization_id', orgId)
       .maybeSingle() as any);
 
-    const resolvedName = company_name || existingSettings?.company_name || org?.name || '';
+    if (existing) {
+      // Fila existente: solo actualizar los campos que el wizard provee
+      const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+      if (company_name) updates.company_name = company_name;
+      if (logo_url)     updates.logo_url = logo_url;
+      if (website)      updates.website = website;
 
-    // Upsert en company_settings — es aquí donde Logo.tsx y documentos leen
-    const upsertData: Record<string, any> = {
-      organization_id: orgId,
-      company_name: resolvedName,
-      rfc: existingSettings?.rfc || '',
-      address: org?.address || '',
-      phone: org?.phone || '',
-      email: org?.email || '',
-      updated_at: new Date().toISOString(),
-    };
-    if (logo_url !== undefined) upsertData.logo_url = logo_url;
-    if (website !== undefined) upsertData.website = website;
+      const { error } = await (supabase
+        .from('company_settings') as any)
+        .update(updates)
+        .eq('organization_id', orgId);
 
-    const { error: upsertError } = await (supabase.from('company_settings') as any)
-      .upsert(upsertData, { onConflict: 'organization_id' });
+      if (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      }
+    } else {
+      // Sin fila: crear una nueva usando datos de la organización como defaults
+      const { data: org } = await (supabase
+        .from('organizations')
+        .select('name, address, phone, email')
+        .eq('id', orgId)
+        .single() as any);
 
-    if (upsertError) {
-      return NextResponse.json({ success: false, error: upsertError.message }, { status: 500 });
+      const insertData: Record<string, any> = {
+        organization_id: orgId,
+        company_name:       company_name || org?.name || '',
+        tax_id:             null,
+        address:            org?.address || '',
+        phone:              org?.phone   || '',
+        email:              org?.email   || null,
+        currency:           'MXN',
+        base_currency:      'MXN',
+        tax_rate:           16,
+        working_hours:      {},
+        appointment_defaults: {},
+        created_at:         new Date().toISOString(),
+        updated_at:         new Date().toISOString(),
+      };
+      if (logo_url) insertData.logo_url = logo_url;
+      if (website)  insertData.website  = website;
+
+      const { error } = await (supabase.from('company_settings') as any)
+        .insert(insertData);
+
+      if (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      }
     }
 
-    // También actualizar city en organizations si se proporcionó
+    // Actualizar city en organizations si se proporcionó
     if (city) {
       await (supabase.from('organizations') as any)
         .update({ city, updated_at: new Date().toISOString() })

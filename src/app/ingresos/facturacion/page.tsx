@@ -42,17 +42,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Plus, Search, Eye, DollarSign, XCircle, Loader2, CalendarDays, ChevronDown, Printer, AlertTriangle } from 'lucide-react';
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
+import { Plus, Search, Eye, DollarSign, XCircle, Loader2, CalendarDays, ChevronDown, Printer } from 'lucide-react';
 import { useInvoices } from '@/hooks/useInvoices';
 import { CreateManualInvoiceModal } from '@/components/invoices/CreateManualInvoiceModal';
 import { toast } from 'sonner';
@@ -679,35 +670,17 @@ export default function FacturacionPage() {
       </Dialog>
 
       {/* Confirmación cancelar factura */}
-      <AlertDialog open={!!invoiceToCancel} onOpenChange={(v) => !v && setInvoiceToCancel(null)}>
-        <AlertDialogContent className="bg-slate-900 border-slate-700 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-500 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              ¿Cancelar factura?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-300 space-y-2">
-              <span>Esta acción no se puede deshacer. La factura quedará marcada como cancelada de forma permanente.</span>
-              {invoiceToCancel && (
-                <span className="block font-semibold text-yellow-400 mt-2">
-                  Folio: {invoiceToCancel.invoice_number} — ${(invoiceToCancel.total_amount ?? 0).toLocaleString()}
-                </span>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-slate-600 text-slate-300 hover:bg-slate-800">
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
-              onClick={handleCancelInvoice}
-            >
-              Sí, cancelar factura
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={!!invoiceToCancel}
+        onClose={() => setInvoiceToCancel(null)}
+        onConfirm={handleCancelInvoice}
+        title="Cancelar Factura"
+        question={invoiceToCancel
+          ? `¿Estás seguro que deseas cancelar la factura ${invoiceToCancel.invoice_number} por $${(invoiceToCancel.total_amount ?? 0).toLocaleString()}? Esta acción no se puede deshacer.`
+          : undefined}
+        confirmText="Sí, cancelar factura"
+        variant="warning"
+      />
     </AppLayout>
   );
 }
