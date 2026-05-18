@@ -25,6 +25,9 @@ export async function PATCH(request: NextRequest) {
       .eq('organization_id', orgId)
       .maybeSingle() as any);
 
+    const isWebsiteColumnError = (msg: string) =>
+      msg.includes("'website'") || msg.toLowerCase().includes('website');
+
     if (existing) {
       // Fila existente: solo actualizar los campos que el wizard provee
       const updates: Record<string, any> = { updated_at: new Date().toISOString() };
@@ -32,10 +35,19 @@ export async function PATCH(request: NextRequest) {
       if (logo_url)     updates.logo_url = logo_url;
       if (website)      updates.website = website;
 
-      const { error } = await (supabase
+      let { error } = await (supabase
         .from('company_settings') as any)
         .update(updates)
         .eq('organization_id', orgId);
+
+      // Si la columna website no existe en la BD, reintentar sin ella
+      if (error && isWebsiteColumnError(error.message)) {
+        delete updates.website;
+        const retry = await (supabase.from('company_settings') as any)
+          .update(updates)
+          .eq('organization_id', orgId);
+        error = retry.error;
+      }
 
       if (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -66,8 +78,16 @@ export async function PATCH(request: NextRequest) {
       if (logo_url) insertData.logo_url = logo_url;
       if (website)  insertData.website  = website;
 
-      const { error } = await (supabase.from('company_settings') as any)
+      let { error } = await (supabase.from('company_settings') as any)
         .insert(insertData);
+
+      // Si la columna website no existe en la BD, reintentar sin ella
+      if (error && isWebsiteColumnError(error.message)) {
+        delete insertData.website;
+        const retry = await (supabase.from('company_settings') as any)
+          .insert(insertData);
+        error = retry.error;
+      }
 
       if (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
