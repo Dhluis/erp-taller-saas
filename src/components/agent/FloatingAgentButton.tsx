@@ -60,7 +60,7 @@ export function FloatingAgentButton() {
         onClick={handleOpenAgent}
         aria-label="Abrir asistente de IA"
         className={cn(
-          'fixed bottom-6 right-6 z-40',
+          'fixed bottom-[calc(4rem+1.5rem)] right-4 z-40 lg:bottom-6 lg:right-6',
           'flex items-center justify-center',
           'w-14 h-14 rounded-full',
           'bg-slate-900/90 backdrop-blur-md border border-amber-500/60',
