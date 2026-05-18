@@ -31,7 +31,7 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
   return (
     <>
       <nav
-        className="fixed bottom-0 left-0 right-0 z-[90] lg:hidden bg-[#0f1422] border-t border-border"
+        className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-[#0f1422] border-t border-border"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="flex items-center justify-around h-16">
