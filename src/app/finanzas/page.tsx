@@ -270,7 +270,7 @@ export default function FinanzasPage() {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-[160px] text-center"
+              className="w-full sm:w-[160px] text-center"
             />
             <Button variant="outline" size="sm" onClick={() => changeDate(1)} disabled={isToday}>
               <ChevronRight className="h-4 w-4" />
@@ -363,7 +363,7 @@ export default function FinanzasPage() {
               Timeline
             </CardTitle>
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

@@ -432,7 +432,7 @@ function OrdenesPageContent() {
       <StandardBreadcrumbs currentPage="Órdenes de Trabajo" />
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold text-white">Órdenes de Trabajo</h1>
           <p className="text-slate-400 mt-1">Gestiona todas las órdenes del taller</p>
@@ -445,7 +445,7 @@ function OrdenesPageContent() {
           )}
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             onClick={handleRefresh}
@@ -557,7 +557,7 @@ function OrdenesPageContent() {
             onValueChange={(value) => setStatusFilter(value as OrderStatus | 'all' | string)}
             disabled={loading}
           >
-            <SelectTrigger className="w-[200px] bg-slate-900/50 border-slate-700 text-white hover:bg-slate-800/50 focus:ring-2 focus:ring-cyan-500">
+            <SelectTrigger className="w-full sm:w-[200px] bg-slate-900/50 border-slate-700 text-white hover:bg-slate-800/50 focus:ring-2 focus:ring-cyan-500">
               <SelectValue placeholder="Todos los estados" />
             </SelectTrigger>
             <SelectContent className="bg-slate-900 border-slate-700">
@@ -654,7 +654,72 @@ function OrdenesPageContent() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Mobile card list — visible below md */}
+            <div className="block md:hidden space-y-3">
+              {workOrders.map((order) => {
+                const statusConf = STATUS_CONFIG[order.status];
+                return (
+                  <div key={order.id} className="bg-slate-800 rounded-xl border border-slate-700 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono text-slate-400">
+                        {(order as any).order_number ? `#${(order as any).order_number}` : truncateId(order.id)}
+                      </span>
+                      <Badge className={`${statusConf?.bgColor} ${statusConf?.color} border-0 text-xs`}>
+                        {statusConf?.label || order.status}
+                      </Badge>
+                    </div>
+
+                    <div>
+                      <p className="font-semibold text-white">{order.customer?.name || 'Sin cliente'}</p>
+                      <p className="text-sm text-slate-400">
+                        {order.vehicle?.brand} {order.vehicle?.model}
+                        {order.vehicle?.license_plate ? ` · ${order.vehicle.license_plate}` : ''}
+                      </p>
+                    </div>
+
+                    {order.description && (
+                      <p className="text-sm text-slate-300 truncate">{order.description}</p>
+                    )}
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-cyan-400">
+                        {formatCurrency(order.total_amount || order.estimated_cost)}
+                      </span>
+                      <span className="text-xs text-slate-500">{formatDate(order.entry_date || order.created_at)}</span>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleViewOrder(order)}
+                        className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm transition-colors touch-manipulation"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Ver
+                      </button>
+                      <button
+                        onClick={() => handleEditOrder(order)}
+                        className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm transition-colors touch-manipulation"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Editar
+                      </button>
+                      {(permissions.isAdmin || permissions.isAdvisor) && (
+                        <button
+                          onClick={() => handleDeleteClick(order)}
+                          className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm transition-colors touch-manipulation"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table — visible from md up */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-900/50 border-b border-slate-700">
                   <tr>
@@ -731,7 +796,7 @@ function OrdenesPageContent() {
 
                         {/* Servicio */}
                         <td className="px-6 py-4">
-                          <div className="text-sm text-slate-300 max-w-xs truncate" title={order.description}>
+                          <div className="text-sm text-slate-300 max-w-xs truncate" title={order.description ?? undefined}>
                             {order.description || 'Sin descripción'}
                           </div>
                         </td>
@@ -846,7 +911,7 @@ function OrdenesPageContent() {
                 </tbody>
               </table>
             </div>
-            
+
             {/* ✅ Componente de Paginación */}
             {pagination && pagination.totalPages && pagination.totalPages > 1 && (
               <Pagination

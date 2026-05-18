@@ -127,118 +127,175 @@ export function VehiclesTable({
   }
 
   return (
-    <div className="bg-bg-secondary rounded-xl border border-border overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-bg-tertiary border-b border-border">
-            <tr>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-text-primary">
-                Vehículo
-              </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-text-primary">
-                Cliente
-              </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-text-primary">
-                Placa
-              </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-text-primary">
-                Año
-              </th>
-              <th className="px-6 py-4 text-right text-sm font-semibold text-text-primary">
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {vehicles.map((vehicle) => (
-              <tr
-                key={vehicle.id}
-                className="border-b border-border hover:bg-bg-tertiary/50 transition-colors group"
+    <>
+      {/* Mobile card list — visible below md */}
+      <div className="block md:hidden space-y-3">
+        {vehicles.map((vehicle) => (
+          <div
+            key={vehicle.id}
+            className="bg-bg-secondary rounded-xl border border-border p-4 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <TruckIcon className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-text-primary">
+                    {vehicle.brand} {vehicle.model}
+                  </p>
+                  {vehicle.color && (
+                    <p className="text-xs text-text-secondary">Color: {vehicle.color}</p>
+                  )}
+                </div>
+              </div>
+              <span className="font-mono text-sm bg-bg-tertiary px-2 py-1 rounded text-text-primary">
+                {vehicle.license_plate}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between text-sm text-text-secondary">
+              <span>{vehicle.customer?.name || 'Sin cliente'}</span>
+              <div className="flex items-center space-x-1">
+                <CalendarIcon className="w-4 h-4" />
+                <span>{vehicle.year ?? 'N/A'}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => onView(vehicle)}
+                className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-bg-tertiary hover:bg-bg-primary text-text-secondary text-sm transition-colors touch-manipulation"
               >
-                {/* Vehículo */}
-                <td className="px-6 py-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                      <TruckIcon className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-text-primary">
-                        {vehicle.brand} {vehicle.model}
-                      </p>
-                      {vehicle.color && (
-                        <p className="text-sm text-text-secondary">
-                          Color: {vehicle.color}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </td>
-
-                {/* Cliente */}
-                <td className="px-6 py-4">
-                  <div className="space-y-1">
-                    <p className="font-medium text-text-primary">
-                      {vehicle.customer?.name || 'Cliente no encontrado'}
-                    </p>
-                    <p className="text-sm text-text-secondary">
-                      {vehicle.customer?.email}
-                    </p>
-                  </div>
-                </td>
-
-                {/* Placa */}
-                <td className="px-6 py-4">
-                  <div className="flex items-center space-x-2">
-                    <TagIcon className="w-4 h-4 text-text-secondary flex-shrink-0" />
-                    <span className="font-mono text-sm bg-bg-tertiary px-2 py-1 rounded">
-                      {vehicle.license_plate}
-                    </span>
-                  </div>
-                </td>
-
-                {/* Año */}
-                <td className="px-6 py-4">
-                  <div className="flex items-center space-x-2">
-                    <CalendarIcon className="w-4 h-4 text-text-secondary flex-shrink-0" />
-                    <span className="text-sm text-text-primary">
-                      {vehicle.year}
-                    </span>
-                  </div>
-                </td>
-
-                {/* Acciones */}
-                <td className="px-6 py-4">
-                  <div className="flex items-center justify-end space-x-2">
-                    <button
-                      onClick={() => onView(vehicle)}
-                      className="p-2 hover:bg-bg-primary rounded-lg transition-colors group-hover:visible"
-                      title="Ver detalles"
-                    >
-                      <EyeIcon className="w-5 h-5 text-text-secondary hover:text-primary" />
-                    </button>
-
-                    <button
-                      onClick={() => onEdit(vehicle)}
-                      className="p-2 hover:bg-bg-primary rounded-lg transition-colors"
-                      title="Editar"
-                    >
-                      <PencilIcon className="w-5 h-5 text-text-secondary hover:text-primary" />
-                    </button>
-
-                    <button
-                      onClick={() => onDelete(vehicle)}
-                      className="p-2 hover:bg-error/10 rounded-lg transition-colors"
-                      title="Eliminar"
-                    >
-                      <TrashIcon className="w-5 h-5 text-text-secondary hover:text-error" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                <EyeIcon className="w-4 h-4" />
+                Ver
+              </button>
+              <button
+                onClick={() => onEdit(vehicle)}
+                className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-bg-tertiary hover:bg-bg-primary text-text-secondary text-sm transition-colors touch-manipulation"
+              >
+                <PencilIcon className="w-4 h-4" />
+                Editar
+              </button>
+              <button
+                onClick={() => onDelete(vehicle)}
+                className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-error/10 hover:bg-error/20 text-error text-sm transition-colors touch-manipulation"
+              >
+                <TrashIcon className="w-4 h-4" />
+                Eliminar
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
-    </div>
+
+      {/* Desktop table — visible from md up */}
+      <div className="hidden md:block bg-bg-secondary rounded-xl border border-border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-bg-tertiary border-b border-border">
+              <tr>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-text-primary">
+                  Vehículo
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-text-primary">
+                  Cliente
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-text-primary">
+                  Placa
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-text-primary">
+                  Año
+                </th>
+                <th className="px-6 py-4 text-right text-sm font-semibold text-text-primary">
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {vehicles.map((vehicle) => (
+                <tr
+                  key={vehicle.id}
+                  className="border-b border-border hover:bg-bg-tertiary/50 transition-colors group"
+                >
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                        <TruckIcon className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-text-primary">
+                          {vehicle.brand} {vehicle.model}
+                        </p>
+                        {vehicle.color && (
+                          <p className="text-sm text-text-secondary">
+                            Color: {vehicle.color}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4">
+                    <div className="space-y-1">
+                      <p className="font-medium text-text-primary">
+                        {vehicle.customer?.name || 'Cliente no encontrado'}
+                      </p>
+                      <p className="text-sm text-text-secondary">
+                        {vehicle.customer?.email}
+                      </p>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-2">
+                      <TagIcon className="w-4 h-4 text-text-secondary flex-shrink-0" />
+                      <span className="font-mono text-sm bg-bg-tertiary px-2 py-1 rounded">
+                        {vehicle.license_plate}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-2">
+                      <CalendarIcon className="w-4 h-4 text-text-secondary flex-shrink-0" />
+                      <span className="text-sm text-text-primary">
+                        {vehicle.year}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-end space-x-2">
+                      <button
+                        onClick={() => onView(vehicle)}
+                        className="p-2 hover:bg-bg-primary rounded-lg transition-colors"
+                        title="Ver detalles"
+                      >
+                        <EyeIcon className="w-5 h-5 text-text-secondary hover:text-primary" />
+                      </button>
+                      <button
+                        onClick={() => onEdit(vehicle)}
+                        className="p-2 hover:bg-bg-primary rounded-lg transition-colors"
+                        title="Editar"
+                      >
+                        <PencilIcon className="w-5 h-5 text-text-secondary hover:text-primary" />
+                      </button>
+                      <button
+                        onClick={() => onDelete(vehicle)}
+                        className="p-2 hover:bg-error/10 rounded-lg transition-colors"
+                        title="Eliminar"
+                      >
+                        <TrashIcon className="w-5 h-5 text-text-secondary hover:text-error" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
   );
 }

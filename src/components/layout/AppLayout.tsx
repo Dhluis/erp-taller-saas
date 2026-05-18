@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant'
 import { usePermissions } from '@/hooks/usePermissions'
 import { TrialBanner } from '@/components/billing/TrialBanner'
+import { MobileBottomNav } from './MobileBottomNav'
 
 // Prevents double-rendering when a page AND the root layout both wrap with AppLayout
 const AppLayoutMountedCtx = createContext(false)
@@ -87,7 +88,7 @@ export function AppLayout({ children, title, breadcrumbs }: AppLayoutProps) {
 
             {/* Main Content */}
             <main className="flex-1 overflow-auto bg-bg-primary">
-              <div className="p-2 sm:p-4 md:p-6">
+              <div className="p-2 sm:p-4 md:p-6 pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-6">
                 {!isMechanic && (
                   <div className="max-w-5xl mx-auto mb-2 sm:mb-6">
                     <FloatingAIAssistant />
@@ -97,6 +98,7 @@ export function AppLayout({ children, title, breadcrumbs }: AppLayoutProps) {
               </div>
             </main>
           </div>
+          <MobileBottomNav onMenuClick={() => setIsMobileMenuOpen(true)} />
           <FloatingAgentButton />
         </div>
       </div>

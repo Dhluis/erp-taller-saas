@@ -141,7 +141,77 @@ export function CustomersTable({
   }
 
   return (
-    <div className="bg-bg-secondary rounded-xl border border-border overflow-hidden">
+    <>
+      {/* Mobile card list — visible below md */}
+      <div className="block md:hidden space-y-3">
+        {processedCustomers.map((customer) => (
+          <div
+            key={customer.id}
+            className="bg-bg-secondary rounded-xl border border-border p-4 space-y-3"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-primary font-bold text-sm">
+                  {customer.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-text-primary truncate">{customer.name}</p>
+                {customer.firstVehicle && (
+                  <p className="text-xs text-text-secondary truncate">
+                    {[customer.firstVehicle.brand, customer.firstVehicle.model].filter(Boolean).join(' ')}
+                    {customer.firstVehicle.license_plate ? ` · ${customer.firstVehicle.license_plate}` : ''}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1 text-sm">
+              {customer.phone && (
+                <a href={`tel:${customer.phone}`} className="flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors">
+                  <PhoneIcon className="w-4 h-4 flex-shrink-0" />
+                  <span>{customer.phone}</span>
+                </a>
+              )}
+              {customer.email && (
+                <a href={`mailto:${customer.email}`} className="flex items-center gap-2 text-primary hover:text-primary-light transition-colors">
+                  <EnvelopeIcon className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">{customer.email}</span>
+                </a>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => onView(customer)}
+                className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-bg-tertiary hover:bg-bg-primary text-text-secondary text-sm transition-colors touch-manipulation"
+              >
+                <EyeIcon className="w-4 h-4" />
+                Ver
+              </button>
+              <button
+                onClick={() => handleEdit(customer)}
+                className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-bg-tertiary hover:bg-bg-primary text-text-secondary text-sm transition-colors touch-manipulation"
+              >
+                <PencilIcon className="w-4 h-4" />
+                Editar
+              </button>
+              {canDelete && (
+                <button
+                  onClick={() => handleDelete(customer)}
+                  className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-error/10 hover:bg-error/20 text-error text-sm transition-colors touch-manipulation"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                  Eliminar
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table — visible from md up */}
+      <div className="hidden md:block bg-bg-secondary rounded-xl border border-border overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-bg-tertiary border-b border-border">
@@ -299,5 +369,6 @@ export function CustomersTable({
         </table>
       </div>
     </div>
+    </>
   );
 }
