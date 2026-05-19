@@ -15,6 +15,7 @@ import {
 import { logger, createLogContext } from '@/lib/core/logging';
 import { createClientFromRequest } from '@/lib/supabase/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
+import { checkResourceLimit } from '@/lib/billing/check-limits';
 import { 
   extractPaginationFromURL, 
   calculateOffset, 
@@ -225,7 +226,16 @@ export async function POST(request: NextRequest) {
       'quotations-api',
       'POST'
     );
-    
+
+    // ── Billing: verificar límite de órdenes/cotizaciones del plan ──
+    const limitCheck = await checkResourceLimit(organizationId, 'work_order', { useOrganizationId: true });
+    if (!limitCheck.canCreate) {
+      return NextResponse.json(
+        { success: false, error: limitCheck.error?.message || 'Límite del plan alcanzado', limit_reached: true, limit_error: limitCheck.error },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     logger.info('Creando nueva cotización', context, { quotationData: body });
 

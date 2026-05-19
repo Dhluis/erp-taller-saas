@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest } from '@/lib/supabase/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
+import { checkResourceLimit } from '@/lib/billing/check-limits';
 
 /** Shared helper: resolve organization_id from authenticated user */
 async function resolveOrg(request: NextRequest) {
@@ -101,6 +102,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Faltan campos requeridos (teléfono, servicio, fecha)' }, { status: 400 });
     }
 
+    // ── Billing: verificar límite de citas del plan ──
+    const apptLimitCheck = await checkResourceLimit(organizationId, 'work_order', { useOrganizationId: true });
+    if (!apptLimitCheck.canCreate) {
+      return NextResponse.json(
+        { success: false, error: apptLimitCheck.error?.message || 'Límite del plan alcanzado', limit_reached: true, limit_error: apptLimitCheck.error },
+        { status: 403 }
+      );
+    }
+
     const supabaseAdmin = getSupabaseServiceClient();
 
     // ─── 1. Buscar o crear cliente ─────────────────────────────────────────────
@@ -117,6 +127,15 @@ export async function POST(request: NextRequest) {
       customerId = (existingCustomer as any).id;
       console.log('✅ [POST /api/appointments] Cliente encontrado:', customerId);
     } else {
+      // Verificar límite de clientes antes de crear uno nuevo implícitamente
+      const custLimitCheck = await checkResourceLimit(organizationId, 'customer', { useOrganizationId: true });
+      if (!custLimitCheck.canCreate) {
+        return NextResponse.json(
+          { success: false, error: custLimitCheck.error?.message || 'Límite de clientes del plan alcanzado', limit_reached: true, limit_error: custLimitCheck.error },
+          { status: 403 }
+        );
+      }
+
       const { data: newCustomer, error: customerError } = await supabaseAdmin
         .from('customers')
         .insert({

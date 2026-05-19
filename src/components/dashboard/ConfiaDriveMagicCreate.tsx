@@ -1,18 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-import { Wand2, Loader2, Sparkles, Send, Mic } from 'lucide-react';
+import { Wand2, Loader2, Sparkles, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { VoiceInput } from '@/components/ui/VoiceInput';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { useBilling } from '@/hooks/useBilling';
+import Link from 'next/link';
 
 export function ConfiaDriveMagicCreate() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { canUseAI, isLoading: billingLoading } = useBilling();
 
   const handleCreate = async () => {
     if (!input.trim()) {
@@ -66,6 +69,8 @@ export function ConfiaDriveMagicCreate() {
     }
   };
 
+  const isPremium = !billingLoading && canUseAI;
+
   return (
     <Card className="overflow-hidden border-2 border-amber-500/25 bg-slate-900/50 backdrop-blur-sm shadow-xl hover:shadow-amber-500/10 transition-all duration-300">
       <CardHeader className="pb-3 border-b border-white/5 bg-gradient-to-r from-amber-500/10 to-yellow-600/5">
@@ -85,33 +90,55 @@ export function ConfiaDriveMagicCreate() {
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-4 space-y-4">
-        <div className="relative group">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder='Ej: "Juan Pérez trajo un Toyota Corolla 2018 con frenos gastados, presupuesto de $2500..."'
-            className="min-h-[120px] bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-indigo-500/50 focus:border-indigo-500/50 resize-none pr-12"
-          />
-          <div className="absolute top-2 right-2">
-            <VoiceInput 
-              onTranscript={(text) => setInput(prev => prev ? `${prev} ${text}` : text)}
-              className="bg-slate-700/50 hover:bg-amber-500/20 text-amber-400"
-            />
-          </div>
-        </div>
 
-        <Button
-          onClick={handleCreate}
-          disabled={loading || !input.trim()}
-          className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white shadow-lg shadow-amber-500/20 font-semibold group transition-all duration-300"
-        >
-          {loading ? (
-            <Loader2 className="w-4 h-4 animate-spin mr-2" />
-          ) : (
-            <Wand2 className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform" />
-          )}
-          {loading ? 'Procesando...' : 'Crear con Confia Drive AI'}
-        </Button>
+        {/* Bloqueo para plan free — misma lógica que el asistente flotante */}
+        {!billingLoading && !isPremium ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-6 text-center">
+            <div className="p-3 rounded-full bg-amber-500/10 border border-amber-500/20">
+              <Lock className="w-6 h-6 text-amber-400" />
+            </div>
+            <p className="text-slate-300 text-sm font-medium">Función exclusiva Premium</p>
+            <p className="text-slate-500 text-xs max-w-[260px]">
+              Dicta o escribe en lenguaje natural y la IA crea la orden automáticamente.
+            </p>
+            <Link
+              href="/settings/billing"
+              className="mt-1 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-white text-sm font-semibold transition-colors shadow-lg shadow-amber-500/20"
+            >
+              Activar Premium
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div className="relative group">
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder='Ej: "Juan Pérez trajo un Toyota Corolla 2018 con frenos gastados, presupuesto de $2500..."'
+                className="min-h-[120px] bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-indigo-500/50 focus:border-indigo-500/50 resize-none pr-12"
+              />
+              <div className="absolute top-2 right-2">
+                <VoiceInput
+                  onTranscript={(text) => setInput(prev => prev ? `${prev} ${text}` : text)}
+                  className="bg-slate-700/50 hover:bg-amber-500/20 text-amber-400"
+                />
+              </div>
+            </div>
+
+            <Button
+              onClick={handleCreate}
+              disabled={loading || !input.trim()}
+              className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white shadow-lg shadow-amber-500/20 font-semibold group transition-all duration-300"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Wand2 className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform" />
+              )}
+              {loading ? 'Procesando...' : 'Crear con Confia Drive AI'}
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   );
