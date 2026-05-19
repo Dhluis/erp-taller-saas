@@ -213,6 +213,8 @@ const INITIAL_FORM_DATA = {
 
   dashboard_indicators: {} as Record<string, boolean>,
 
+  vehicle_condition: {} as Record<string, boolean>,
+
 }
 
 // Icono personalizado para Check Engine
@@ -1843,6 +1845,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
 
           dashboard_indicators: formData.dashboard_indicators,
 
+          vehicle_condition: Object.keys(formData.vehicle_condition).length > 0 ? formData.vehicle_condition : null,
+
         } as any)
 
       if (inspectionError) {
@@ -2667,6 +2671,75 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
                   className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                 />
               </div>
+            </div>
+
+            {/* Condición del vehículo al ingreso */}
+            <div>
+              <Label className="flex items-center gap-2 mb-3 text-slate-300">
+                <Shield className="h-4 w-4 text-cyan-500" />
+                Condición del vehículo al ingreso
+                <span className="text-xs text-slate-500 font-normal">(marcar lo que está OK / presente)</span>
+              </Label>
+
+              {[
+                {
+                  label: 'Exterior',
+                  items: [
+                    { key: 'luces', label: 'Luces completas' },
+                    { key: 'cristales', label: 'Cristales' },
+                    { key: 'espejos', label: 'Espejos laterales' },
+                    { key: 'plumas', label: 'Plumas limpiadoras' },
+                    { key: 'tapones_ruedas', label: 'Tapones de ruedas' },
+                    { key: 'carroceria_sin_golpes', label: 'Carrocería sin golpes' },
+                  ],
+                },
+                {
+                  label: 'Interior',
+                  items: [
+                    { key: 'tablero', label: 'Tablero completo' },
+                    { key: 'radio', label: 'Radio / audio' },
+                    { key: 'espejo_retrovisor', label: 'Espejo retrovisor' },
+                    { key: 'cinturones', label: 'Cinturones' },
+                    { key: 'tapetes', label: 'Tapetes' },
+                    { key: 'manijas', label: 'Manijas' },
+                  ],
+                },
+                {
+                  label: 'Accesorios',
+                  items: [
+                    { key: 'gato', label: 'Gato hidráulico' },
+                    { key: 'llanta_refaccion', label: 'Llanta de refacción' },
+                    { key: 'herramientas', label: 'Estuche de herramientas' },
+                    { key: 'varilla_aceite', label: 'Varilla de aceite' },
+                    { key: 'cables_corriente', label: 'Cables de corriente' },
+                  ],
+                },
+              ].map((group) => (
+                <div key={group.label} className="mb-3">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{group.label}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {group.items.map((item) => (
+                      <label
+                        key={item.key}
+                        className="flex items-center gap-2 px-3 py-2 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors border border-slate-700"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!!formData.vehicle_condition[item.key]}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              vehicle_condition: { ...formData.vehicle_condition, [item.key]: e.target.checked },
+                            })
+                          }
+                          className="w-4 h-4 rounded"
+                        />
+                        <span className="text-sm text-slate-300">{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
 
           </div>
