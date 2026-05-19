@@ -85,6 +85,8 @@ export default function OnboardingPage() {
         toast.error(data.error || 'Error al guardar los datos del taller')
         return
       }
+      // Refrescar SessionContext para que el Sidebar/Logo lean el logo nuevo de BD
+      window.dispatchEvent(new Event('session:reload'))
       setStep(2)
     } catch {
       toast.error('Error de conexión')

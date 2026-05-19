@@ -519,8 +519,13 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
   }, [fetchWorkOrders, enableCache])
 
   const updateWorkOrder = useCallback(async (id: string, orderData: UpdateWorkOrderData) => {
-    setLoading(true)
     setError(null)
+
+    // Optimistic update — apply changes immediately to the list
+    const snapshot = workOrders.map(o => ({ ...o }))
+    setWorkOrders(prev =>
+      prev.map(o => o.id === id ? ({ ...o, ...orderData } as WorkOrder) : o)
+    )
 
     try {
       const response = await fetch(`/api/work-orders/${id}`, {
@@ -537,20 +542,25 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
       }
 
       toast.success('Orden actualizada')
-      
+
+      // Sync with server response to get computed fields (totals, etc.)
+      if (data.data) {
+        setWorkOrders(prev =>
+          prev.map(o => o.id === id ? { ...o, ...data.data } : o)
+        )
+      }
       if (enableCache) cacheRef.current.clear()
-      await fetchWorkOrders()
 
       return data.data
     } catch (err) {
+      // Rollback
+      setWorkOrders(snapshot)
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
       setError(errorMessage)
       toast.error('Error al actualizar orden', { description: errorMessage })
       return null
-    } finally {
-      setLoading(false)
     }
-  }, [fetchWorkOrders, enableCache])
+  }, [workOrders, enableCache])
 
   const deleteWorkOrder = useCallback(async (id: string) => {
     setLoading(true)
@@ -585,8 +595,32 @@ export function useWorkOrders(options: UseWorkOrdersOptions = {}): UseWorkOrders
   }, [fetchWorkOrders, enableCache])
 
   const updateWorkOrderStatus = useCallback(async (id: string, status: string) => {
-    return await updateWorkOrder(id, { status }) !== null
-  }, [updateWorkOrder])
+    // Snapshot for rollback
+    const snapshot = workOrders.map(o => ({ ...o }))
+
+    // Optimistic update — change visible immediately, no loading flicker
+    setWorkOrders(prev =>
+      prev.map(o => o.id === id ? { ...o, status: status as WorkOrder['status'] } : o)
+    )
+
+    try {
+      const response = await fetch(`/api/work-orders/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status }),
+      })
+      const data = await response.json()
+      if (!data.success) throw new Error(data.error || 'Error al actualizar estado')
+      return true
+    } catch (err) {
+      // Rollback to previous state
+      setWorkOrders(snapshot)
+      const msg = err instanceof Error ? err.message : 'Error al actualizar estado'
+      toast.error('No se pudo cambiar el estado', { description: msg })
+      return false
+    }
+  }, [workOrders, setWorkOrders])
 
   // ==========================================
   // ITEMS OPERATIONS (mantener existente)

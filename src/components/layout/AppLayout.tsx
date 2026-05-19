@@ -12,6 +12,7 @@ import { FloatingAIAssistant } from '@/components/dashboard/FloatingAIAssistant'
 import { usePermissions } from '@/hooks/usePermissions'
 import { TrialBanner } from '@/components/billing/TrialBanner'
 import { MobileBottomNav } from './MobileBottomNav'
+import { OfflineBanner } from './OfflineBanner'
 
 // Prevents double-rendering when a page AND the root layout both wrap with AppLayout
 const AppLayoutMountedCtx = createContext(false)
@@ -74,6 +75,8 @@ export function AppLayout({ children, title, breadcrumbs }: AppLayoutProps) {
 
           {/* Main Content Area */}
           <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300 relative z-10">
+            {/* Offline indicator */}
+            <OfflineBanner />
             {/* TopBar */}
             <TopBar title={title} onMenuClick={() => setIsMobileMenuOpen(true)} />
 
