@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Mic, MicOff, Loader2 } from 'lucide-react';
+import { Mic, Lock } from 'lucide-react';
 import { IconButton } from '@/components/ui/button';
 import { useSpeechToText } from '@/hooks/useSpeechToText';
 import { cn } from '@/lib/utils';
@@ -65,7 +65,7 @@ export function VoiceInput({
       silenceTimerRef.current = setTimeout(() => {
         console.log('🔇 Silencio detectado, deteniendo...');
         stop();
-      }, 60000); // 60 segundos de tolerancia al silencio (antes 10)
+      }, 60000);
     }
   };
 
@@ -83,13 +83,15 @@ export function VoiceInput({
 
   if (!isSupported) return null;
 
+  const isLocked = !billingLoading && !canUseAI;
+
   const toggleListening = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (billingLoading) return;
-    
-    if (!canUseAI) {
+
+    if (isLocked) {
       showUpgrade(AI_VOICE_LIMIT_ERROR);
       return;
     }
@@ -113,10 +115,17 @@ export function VoiceInput({
         className={cn(
           "relative transition-all duration-200",
           isListening && "bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 shadow-[0_0_12px_rgba(245,158,11,0.3)]",
-          !isListening && "hover:text-amber-400",
+          isLocked && "opacity-50 cursor-pointer",
+          !isListening && !isLocked && "hover:text-amber-400",
           className
         )}
-        title={isListening ? "Detener dictado" : "Dictar con voz"}
+        title={
+          isLocked
+            ? "Dictado por voz — función Premium"
+            : isListening
+            ? "Detener dictado"
+            : "Dictar con voz"
+        }
         icon={
           isListening ? (
             <div className="relative">
@@ -124,6 +133,13 @@ export function VoiceInput({
               <span className="absolute -top-1 -right-1 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              </span>
+            </div>
+          ) : isLocked ? (
+            <div className="relative">
+              <Mic className="w-4 h-4 text-slate-500" />
+              <span className="absolute -bottom-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-amber-500">
+                <Lock className="w-1.5 h-1.5 text-white" />
               </span>
             </div>
           ) : (

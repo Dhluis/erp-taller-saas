@@ -23,9 +23,10 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<any>(null);
 
-  // Refs for synchronous state — avoids stale closure bugs in start/stop
+  // Refs para estado sincrónico — evita stale closures en start/stop
   const isListeningRef = useRef(false);
-  const isStartingRef = useRef(false); // true during gap between start() call and onstart firing
+  // true durante la ventana entre start() y onstart (previene doble-llamada)
+  const isStartingRef = useRef(false);
 
   const onResultRef = useRef(onResult);
   const onErrorRef = useRef(onError);
@@ -36,11 +37,23 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     onErrorRef.current = onError;
   }, [onResult, onError]);
 
-  const buildRecognition = useCallback((langVal: string, continuousVal: boolean, interimVal: boolean) => {
+  // Limpia y nulifica la instancia actual sin crear una nueva
+  const destroyCurrent = useCallback(() => {
+    const cur = recognitionRef.current;
+    if (!cur) return;
+    cur.onstart = null;
+    cur.onresult = null;
+    cur.onerror = null;
+    cur.onend = null;
+    try { cur.abort(); } catch {}
+    recognitionRef.current = null;
+  }, []);
+
+  // Crea una instancia fresca con todos sus handlers
+  const buildFresh = useCallback((langVal: string, continuousVal: boolean, interimVal: boolean) => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return null;
 
-    console.log('🎙️ Inicializando SpeechRecognition...');
     const recognition = new SpeechRecognition();
     recognition.lang = langVal;
     recognition.continuous = continuousVal;
@@ -85,8 +98,7 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       isStartingRef.current = false;
       setIsListening(false);
 
-      // "aborted" is an internal browser state error (e.g. start() called while already running)
-      // It is not a user-facing problem — suppress it silently
+      // "aborted" es un error interno del browser — suprimir silenciosamente
       if (error === 'aborted') return;
 
       if (onErrorRef.current) onErrorRef.current(error);
@@ -102,49 +114,30 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     return recognition;
   }, []);
 
-  // Initialize once on mount; update params if lang/continuous/interimResults change
+  // Limpieza al desmontar
   useEffect(() => {
-    const r = buildRecognition(lang, continuous, interimResults);
-    if (r) recognitionRef.current = r;
-
     return () => {
-      const cur = recognitionRef.current;
-      if (cur) {
-        cur.onstart = null;
-        cur.onresult = null;
-        cur.onerror = null;
-        cur.onend = null;
-        try { cur.abort(); } catch {}
-        recognitionRef.current = null;
-      }
+      destroyCurrent();
       isListeningRef.current = false;
       isStartingRef.current = false;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // mount/unmount only
-
-  // Keep lang/continuous/interimResults in sync without rebuilding
-  useEffect(() => {
-    const r = recognitionRef.current;
-    if (!r) return;
-    r.lang = lang;
-    r.continuous = continuous;
-    r.interimResults = interimResults;
-  }, [lang, continuous, interimResults]);
+  }, []);
 
   const start = useCallback(() => {
-    // Guard using refs — immune to stale React state closures
+    // Guard con refs — inmune a stale closures de React
     if (isListeningRef.current || isStartingRef.current) {
       console.log('🎙️ Ya está activo o iniciando, ignorando');
       return;
     }
 
-    let recognition = recognitionRef.current;
-    if (!recognition) {
-      recognition = buildRecognition(lang, continuous, interimResults);
-      if (!recognition) return;
-      recognitionRef.current = recognition;
-    }
+    // Siempre crear instancia fresca para cada sesión:
+    // reutilizar el mismo objeto entre start/stop puede acumular estado
+    // interno en Chrome y degradar la calidad del reconocimiento
+    destroyCurrent();
+    const recognition = buildFresh(lang, continuous, interimResults);
+    if (!recognition) return;
+    recognitionRef.current = recognition;
 
     isStartingRef.current = true;
     setTranscript('');
@@ -155,23 +148,10 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       console.log('🎙️ Iniciando manualmente...');
     } catch (err: any) {
       isStartingRef.current = false;
-      if (err.name === 'InvalidStateError') {
-        // Browser considers it already started — sync our state
-        console.log('🎙️ Ya estaba activo, sincronizando estado');
-        isListeningRef.current = true;
-        setIsListening(true);
-      } else {
-        console.error('🎙️ Error al iniciar:', err);
-        // Recreate on catastrophic failure and retry once
-        const fresh = buildRecognition(lang, continuous, interimResults);
-        if (fresh) {
-          recognitionRef.current = fresh;
-          isStartingRef.current = true;
-          try { fresh.start(); } catch { isStartingRef.current = false; }
-        }
-      }
+      console.error('🎙️ Error al iniciar:', err);
+      destroyCurrent();
     }
-  }, [buildRecognition, lang, continuous, interimResults]);
+  }, [buildFresh, destroyCurrent, lang, continuous, interimResults]);
 
   const stop = useCallback(() => {
     if (!isListeningRef.current && !isStartingRef.current) return;

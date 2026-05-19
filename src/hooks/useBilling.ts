@@ -127,9 +127,11 @@ export function useBilling(): UseBillingReturn {
       }
 
       const rawPlanTier = (org.plan_tier || 'free') as PlanTier
-      // Durante trial activo usar límites premium para que la UI sea consistente con el servidor
+      // Misma lógica que check-limits.ts en el servidor:
+      // premium solo si suscripción activa O trial no expirado
       const trialCurrentlyActive = subscriptionStatus === 'trial'
-      const planTier: PlanTier = trialCurrentlyActive ? 'premium' : rawPlanTier
+      const isPaidPremium = rawPlanTier === 'premium' && subscriptionStatus === 'active'
+      const planTier: PlanTier = (isPaidPremium || trialCurrentlyActive) ? 'premium' : 'free'
 
       // 2.5. Obtener límites desde la base de datos
       const { data: planLimitsData, error: limitsError } = await supabase
@@ -218,7 +220,7 @@ export function useBilling(): UseBillingReturn {
       // 5. Construir plan completo
       const organizationPlan: OrganizationPlan = {
         organization_id: organizationId,
-        plan_tier: trialCurrentlyActive ? 'premium' : rawPlanTier,
+        plan_tier: planTier,
         subscription_status: subscriptionStatus,
         plan_started_at: org.plan_started_at ?? null,
         trial_ends_at: org.trial_ends_at ?? messagingConfig?.trial_ends_at ?? null,
