@@ -13,7 +13,10 @@
       "Bash(grep -E \"page\\\\.tsx$\")",
       "Bash(npx tsc *)",
       "Bash(xargs grep *)",
-      "mcp__supabase__list_projects"
+      "mcp__supabase__list_projects",
+      "Bash(npx supabase *)",
+      "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\AppData\\\\Roaming\\\\supabase\" -ErrorAction SilentlyContinue -Recurse | Select-Object FullName)",
+      "mcp__supabase__apply_migration"
     ]
   }
 }

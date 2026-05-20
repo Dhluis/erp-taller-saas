@@ -20,7 +20,9 @@ import {
   Package,
   Wallet,
   ClipboardCheck,
-  Receipt
+  Receipt,
+  ShoppingCart,
+  Banknote
 } from "lucide-react"
 import { useSidebar } from '@/contexts/SidebarContext'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -76,13 +78,14 @@ export function Sidebar({ className }: SidebarProps) {
 
   // Inicializar secciones expandidas solo si la ruta actual está dentro de una sección
   useEffect(() => {
-    const sections = ['inventarios', 'finanzas', 'reportes', 'configuraciones']
+    const sections = ['inventarios', 'compras', 'finanzas', 'reportes', 'configuraciones']
     const activeSections: string[] = []
-    
+
     // Verificar si la ruta actual está dentro de alguna sección
     sections.forEach(section => {
       const sectionRoutes: Record<string, string[]> = {
         'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos', '/service-packages'],
+        'compras': ['/compras', '/compras/ordenes', '/compras/proveedores', '/compras/gastos', '/compras/pagos', '/compras/anticipos'],
         'finanzas': ['/finanzas', '/finanzas/cuentas', '/finanzas/pagos-gastos', '/ingresos', '/ingresos/facturacion', '/ingresos/cuentas-efectivo', '/ingresos/ajustes-devoluciones', '/ingresos/entregas', '/ingresos/arqueo-caja'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/ventas-por-items', '/reportes/inventario', '/reportes/financieros', '/reportes/operaciones'],
         'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/perfil']
@@ -181,16 +184,27 @@ export function Sidebar({ className }: SidebarProps) {
       ]
     },
     {
+      key: 'compras',
+      label: 'Compras',
+      icon: () => <ShoppingCart size={20} className="text-blue-400" />,
+      visible: showAllForAdmin || permissions.canManagePurchases() || permissions.canManageSuppliers(),
+      items: [
+        { href: "/compras/ordenes", label: "Órdenes de Compra", icon: () => <ModernIcons.Ordenes size={18} />, visible: permissions.canManagePurchases() },
+        { href: "/compras/anticipos", label: "Anticipos de Efectivo", icon: () => <Banknote size={18} className="text-amber-400" />, visible: permissions.canManagePurchases() },
+        { href: "/compras/gastos", label: "Gastos", icon: () => <Receipt size={18} className="text-orange-400" />, visible: permissions.canManagePurchases() },
+        { href: "/compras/proveedores", label: "Proveedores", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageSuppliers() },
+      ].filter(item => item.visible !== false)
+    },
+    {
       key: 'finanzas',
       label: 'Finanzas',
       icon: () => <ModernIcons.Finanzas size={20} />,
-      visible: showAllForAdmin || permissions.canRead('invoices') || permissions.canPayInvoices() || permissions.canManagePurchases(),
+      visible: showAllForAdmin || permissions.canRead('invoices') || permissions.canPayInvoices(),
       items: [
         { href: "/finanzas", label: "Resumen del Día", icon: () => <ClipboardCheck size={18} className="text-cyan-400" />, visible: true },
         { href: "/ingresos/facturacion", label: "Facturación", icon: () => <ModernIcons.Facturacion size={18} />, visible: permissions.canRead('invoices') },
         { href: "/finanzas/cuentas", label: "Cuentas", icon: () => <Wallet size={18} className="text-emerald-400" />, visible: permissions.canPayInvoices() },
         { href: "/finanzas/pagos-gastos", label: "Entradas y Salidas", icon: () => <Receipt size={18} className="text-orange-400" />, visible: permissions.canPayInvoices() },
-        { href: "/proveedores", label: "Proveedores", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageSuppliers() },
       ].filter(item => item.visible !== false)
     },
     {
@@ -275,7 +289,7 @@ export function Sidebar({ className }: SidebarProps) {
       const sectionRoutes: Record<string, string[]> = {
         'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos', '/service-packages'],
         'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/cuentas-efectivo', '/ingresos/ajustes-devoluciones', '/ingresos/entregas', '/ingresos/arqueo-caja', '/ingresos/reportes'],
-        'compras': ['/compras', '/compras/proveedores', '/compras/pagos', '/compras/gastos'],
+        'compras': ['/compras', '/compras/ordenes', '/compras/proveedores', '/compras/pagos', '/compras/gastos', '/compras/anticipos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/ventas-por-items', '/reportes/inventario', '/reportes/financieros', '/reportes/operaciones'],
         'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/perfil']
       }

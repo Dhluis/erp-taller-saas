@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ShoppingCart, Clock, CheckCircle, DollarSign, Package, Eye, XCircle } from 'lucide-react';
+import { ShoppingCart, Clock, CheckCircle, DollarSign, Package, Eye, XCircle, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { useOrgCurrency } from '@/lib/context/CurrencyContext';
 import { toast } from 'sonner';
@@ -45,6 +45,7 @@ export default function PurchaseOrdersPage() {
     approved: 0,
     totalValue: 0
   });
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hasLoadedRef.current) {
@@ -71,8 +72,8 @@ export default function PurchaseOrdersPage() {
         // Calcular stats desde los datos
         setStats({
           total: items.length,
-          pending: items.filter(o => o.status === 'draft' || o.status === 'sent').length,
-          approved: items.filter(o => o.status === 'received').length,
+          pending: items.filter(o => o.status === 'draft').length,
+          approved: items.filter(o => o.status === 'confirmed' || o.status === 'received').length,
           totalValue: items.reduce((sum, o) => sum + (parseFloat(o.total_amount ?? o.total) || 0), 0)
         });
         
@@ -90,6 +91,54 @@ export default function PurchaseOrdersPage() {
   const handleCreateOrder = () => {
     router.push('/compras/ordenes/nueva');
   };
+
+  async function handleApproveOrder(orderId: string) {
+    setApprovingId(orderId);
+    try {
+      const res = await fetch(`/api/purchase-orders/${orderId}/approve`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Orden aprobada');
+        loadOrders();
+      } else {
+        toast.error(data.error || 'Error al aprobar');
+      }
+    } catch {
+      toast.error('Error al aprobar la orden');
+    } finally {
+      setApprovingId(null);
+    }
+  }
+
+  function handleRejectOrder(orderId: string) {
+    toast('¿Rechazar esta orden de compra?', {
+      action: { label: 'Rechazar', onClick: () => confirmRejectOrder(orderId) },
+      cancel: { label: 'Cancelar', onClick: () => {} }
+    });
+  }
+
+  async function confirmRejectOrder(orderId: string) {
+    try {
+      const res = await fetch(`/api/purchase-orders/${orderId}/approve`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: 'Rechazada por el administrador' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Orden rechazada');
+        loadOrders();
+      } else {
+        toast.error(data.error || 'Error al rechazar');
+      }
+    } catch {
+      toast.error('Error al rechazar la orden');
+    }
+  }
 
   function handleCancelOrder(orderId: string) {
     toast('¿Cancelar esta orden de compra?', {
@@ -130,9 +179,10 @@ export default function PurchaseOrdersPage() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; className: string }> = {
-      draft: { label: 'Borrador', className: 'bg-gray-500 text-white' },
-      sent: { label: 'Enviada', className: 'bg-blue-500 text-white' },
-      in_transit: { label: 'En tránsito', className: 'bg-yellow-500 text-white' },
+      draft: { label: 'Pendiente de aprobación', className: 'bg-yellow-500 text-white' },
+      confirmed: { label: 'Aprobada', className: 'bg-blue-500 text-white' },
+      sent: { label: 'Enviada', className: 'bg-indigo-500 text-white' },
+      in_transit: { label: 'En tránsito', className: 'bg-purple-500 text-white' },
       partial: { label: 'Recibido parcial', className: 'bg-orange-500 text-white' },
       received: { label: 'Recibida', className: 'bg-green-500 text-white' },
       cancelled: { label: 'Cancelada', className: 'bg-red-500 text-white' }
@@ -217,7 +267,7 @@ export default function PurchaseOrdersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-400">{stats.pending}</div>
-            <p className="text-xs text-muted-foreground">Por aprobar</p>
+            <p className="text-xs text-muted-foreground">Requieren aprobación</p>
           </CardContent>
         </Card>
 
@@ -260,7 +310,8 @@ export default function PurchaseOrdersPage() {
             <SelectItem value={STATUS_FILTER_ALL} className="text-white hover:bg-slate-800">
               Todos
             </SelectItem>
-            <SelectItem value="draft" className="text-white hover:bg-slate-800">Borrador</SelectItem>
+            <SelectItem value="draft" className="text-white hover:bg-slate-800">Pendiente de aprobación</SelectItem>
+            <SelectItem value="confirmed" className="text-white hover:bg-slate-800">Aprobada</SelectItem>
             <SelectItem value="sent" className="text-white hover:bg-slate-800">Enviada</SelectItem>
             <SelectItem value="in_transit" className="text-white hover:bg-slate-800">En tránsito</SelectItem>
             <SelectItem value="partial" className="text-white hover:bg-slate-800">Recibido parcial</SelectItem>
@@ -310,7 +361,7 @@ export default function PurchaseOrdersPage() {
                       <td className="p-4">{formatCurrency(order.total_amount ?? order.total)}</td>
                       <td className="p-4">{formatDate(order.created_at)}</td>
                       <td className="p-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Button
                             size="sm"
                             variant="outline"
@@ -319,12 +370,35 @@ export default function PurchaseOrdersPage() {
                             <Eye className="mr-1 h-3 w-3" />
                             Ver
                           </Button>
+                          {order.status === 'draft' && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={approvingId === order.id}
+                                onClick={() => handleApproveOrder(order.id)}
+                                className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950/30 border-green-600"
+                              >
+                                <ThumbsUp className="mr-1 h-3 w-3" />
+                                {approvingId === order.id ? 'Aprobando...' : 'Aprobar'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRejectOrder(order.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 border-red-600"
+                              >
+                                <ThumbsDown className="mr-1 h-3 w-3" />
+                                Rechazar
+                              </Button>
+                            </>
+                          )}
                           {canReceiveOrder(order.status) && (
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => router.push(`/compras/ordenes/${order.id}/recibir`)}
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950/30"
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
                             >
                               <Package className="mr-1 h-3 w-3" />
                               Recibir

@@ -249,7 +249,20 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
     
-    // 11. Retornar orden creada
+    // 11. Notificar a los admins de la org que hay una compra pendiente (fire-and-forget)
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+    fetch(`${baseUrl}/api/push/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        organizationId,
+        title: 'Nueva solicitud de compra',
+        body: `Se solicitó una compra a ${supplier.name} por $${total.toFixed(2)}. Requiere tu aprobación.`,
+        url: `/compras/ordenes/${order.id}`,
+      }),
+    }).catch(() => {});
+
+    // 12. Retornar orden creada
     return NextResponse.json({
       success: true,
       data: {
