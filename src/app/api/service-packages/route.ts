@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
         description,
         category,
         price,
+        labor_cost,
         estimated_minutes,
         is_active,
         created_at,
@@ -52,7 +53,8 @@ export async function GET(request: NextRequest) {
             id,
             name,
             unit,
-            current_stock
+            current_stock,
+            purchase_price
           )
         )
       `)
@@ -147,6 +149,7 @@ export async function POST(request: NextRequest) {
         description: body.description?.trim() || null,
         category: body.category?.trim() || null,
         price,
+        labor_cost: body.labor_cost != null ? parseFloat(body.labor_cost) || null : null,
         estimated_minutes: isNaN(estimated_minutes as number) ? null : estimated_minutes,
         is_active: true,
       } as any)
@@ -192,7 +195,7 @@ export async function POST(request: NextRequest) {
           id,
           quantity,
           inventory_item_id,
-          inventory:inventory (id, name, unit, current_stock)
+          inventory:inventory (id, name, unit, current_stock, purchase_price)
         )
       `)
       .eq('id', packageId)

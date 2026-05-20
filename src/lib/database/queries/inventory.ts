@@ -224,6 +224,7 @@ export async function createInventoryItem(organizationId: string, itemData: Crea
         quantity: itemData.quantity,
         min_quantity: itemData.min_quantity,
         unit_price: itemData.unit_price,
+        purchase_price: itemData.purchase_price ?? null,
         code: itemData.sku,
         status: 'active',
       },
@@ -280,7 +281,8 @@ export async function updateInventoryItem(organizationId: string, id: string, it
   if (itemData.category_id !== undefined) updateData.category_id = itemData.category_id;
   if (itemData.quantity !== undefined) updateData.quantity = itemData.quantity;
   if (itemData.unit_price !== undefined) updateData.unit_price = itemData.unit_price;
-  
+  if ((itemData as any).purchase_price !== undefined) updateData.purchase_price = (itemData as any).purchase_price ?? null;
+
   // ✅ FIX: Mapear minimum_stock a min_quantity si viene
   if (itemData.min_quantity !== undefined) {
     updateData.min_quantity = itemData.min_quantity;

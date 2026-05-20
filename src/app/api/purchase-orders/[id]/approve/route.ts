@@ -17,15 +17,24 @@ export async function POST(
     }
 
     const supabaseAdmin = getSupabaseServiceClient();
+    if (!supabaseAdmin) {
+      return NextResponse.json({ success: false, error: 'Configuración de servidor incompleta' }, { status: 500 });
+    }
 
     // 2. Obtener perfil del aprobador
-    const { data: approverProfile } = await supabaseAdmin
+    const { data: approverProfile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('id, organization_id, name, role')
+      .select('id, organization_id, name')
       .eq('auth_user_id', user.id)
-      .single();
+      .maybeSingle();
+
+    if (profileError) {
+      console.error('[approve] Error obteniendo perfil:', profileError.message, 'auth_user_id:', user.id);
+      return NextResponse.json({ success: false, error: 'Error al verificar perfil: ' + profileError.message }, { status: 500 });
+    }
 
     if (!approverProfile?.organization_id) {
+      console.error('[approve] Perfil no encontrado para auth_user_id:', user.id);
       return NextResponse.json({ success: false, error: 'Perfil no encontrado' }, { status: 403 });
     }
 
@@ -111,12 +120,20 @@ export async function DELETE(
     }
 
     const supabaseAdmin = getSupabaseServiceClient();
+    if (!supabaseAdmin) {
+      return NextResponse.json({ success: false, error: 'Configuración de servidor incompleta' }, { status: 500 });
+    }
 
-    const { data: approverProfile } = await supabaseAdmin
+    const { data: approverProfile, error: profileErr } = await supabaseAdmin
       .from('users')
       .select('id, organization_id, name')
       .eq('auth_user_id', user.id)
-      .single();
+      .maybeSingle();
+
+    if (profileErr) {
+      console.error('[reject] Error obteniendo perfil:', profileErr.message);
+      return NextResponse.json({ success: false, error: 'Error al verificar perfil' }, { status: 500 });
+    }
 
     if (!approverProfile?.organization_id) {
       return NextResponse.json({ success: false, error: 'Perfil no encontrado' }, { status: 403 });

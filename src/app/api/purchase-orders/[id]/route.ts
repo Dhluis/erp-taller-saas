@@ -9,6 +9,7 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server'
 // GET /api/purchase-orders/[id] - Obtener orden de compra por ID
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
+    const { id } = await params;
     const supabase = createClientFromRequest(request);
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -130,6 +131,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 // PUT /api/purchase-orders/[id] - Actualizar orden de compra
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
+    const { id } = await params;
     const body = await request.json()
 
     const updatedOrder = await updatePurchaseOrder(id, body)
@@ -156,6 +158,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 // DELETE /api/purchase-orders/[id] - Cancelar orden de compra
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
+    const { id } = await params;
     const { searchParams } = new URL(request.url)
     const reason = searchParams.get('reason')
 

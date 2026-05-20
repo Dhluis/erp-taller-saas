@@ -287,14 +287,15 @@ export async function getInventoryReport(organizationId: string) {
     // 1. Obtener inventario (tabla inventory)
     const { data: inventoryData } = await supabase
       .from('inventory')
-      .select('id, name, code, sku, category, unit, current_stock, min_stock, max_stock, unit_price, status')
+      .select('id, name, code, sku, category, unit, current_stock, min_stock, max_stock, unit_price, purchase_price, status')
       .eq('organization_id', organizationId)
       .eq('status', 'active')
 
-    const allItems = inventoryData || []
-    const totalValue = allItems.reduce((sum, item) =>
+    const allItems = (inventoryData || []) as any[]
+    const totalValue = allItems.reduce((sum: number, item: any) =>
       sum + ((item.current_stock || 0) * (item.unit_price || 0)), 0)
-    const totalCost = 0 // no existe columna cost en inventory
+    const totalCost = allItems.reduce((sum: number, item: any) =>
+      sum + ((item.current_stock || 0) * (item.purchase_price || 0)), 0)
 
     const lowStockProducts = allItems.filter(item =>
       (item.current_stock || 0) <= (item.min_stock ?? 0)
@@ -358,11 +359,30 @@ export async function getInventoryReport(organizationId: string) {
       .map(([category, data]) => ({ category, count: data.count, value: data.value }))
       .sort((a, b) => b.value - a.value)
 
-    // 4. Estadísticas
+    // 4. Análisis de márgenes
+    const itemsWithMargin = allItems.filter(i => i.purchase_price != null && Number(i.purchase_price) > 0 && Number(i.unit_price) > 0)
+    const itemsWithoutCost = allItems.filter(i => i.purchase_price == null || Number(i.purchase_price) === 0)
+
+    const marginsMap = itemsWithMargin.map(i => {
+      const pp = Number(i.purchase_price)
+      const up = Number(i.unit_price)
+      const stock = Number(i.current_stock) || 0
+      const margin_pct = Math.round(((up - pp) / pp) * 1000) / 10
+      const margin_per_unit = Math.round((up - pp) * 100) / 100
+      const potential_profit = Math.round(stock * (up - pp) * 100) / 100
+      return { name: i.name, sku: i.sku, purchase_price: pp, unit_price: up, margin_pct, margin_per_unit, potential_profit, stock }
+    }).sort((a, b) => a.margin_pct - b.margin_pct)
+
+    const avgMarginPct = marginsMap.length > 0
+      ? Math.round(marginsMap.reduce((s, i) => s + i.margin_pct, 0) / marginsMap.length * 10) / 10
+      : 0
+
+    // 5. Estadísticas
     const totalProducts = allItems.length
     const totalStock = allItems.reduce((sum, item) => sum + (item.current_stock || 0), 0)
     const lowStockCount = lowStockProducts.length
     const overStockCount = overStockProducts.length
+    const grossProfit = totalValue - totalCost
 
     return {
       summary: {
@@ -370,7 +390,11 @@ export async function getInventoryReport(organizationId: string) {
         total_stock_units: totalStock,
         total_value: totalValue,
         total_cost: totalCost,
-        profit_margin: totalValue > 0 ? ((totalValue - totalCost) / totalValue * 100).toFixed(1) : '0.0',
+        gross_profit: Math.round(grossProfit * 100) / 100,
+        profit_margin: totalCost > 0 ? ((grossProfit / totalCost) * 100).toFixed(1) : '0.0',
+        avg_margin_pct: avgMarginPct,
+        items_with_cost: itemsWithMargin.length,
+        items_without_cost: itemsWithoutCost.length,
         low_stock_count: lowStockCount,
         over_stock_count: overStockCount
       },
@@ -378,9 +402,16 @@ export async function getInventoryReport(organizationId: string) {
       over_stock_products: overStockProducts,
       recent_movements: recentMovements,
       categories_breakdown: categoriesBreakdown,
+      margins_analysis: {
+        avg_margin_pct: avgMarginPct,
+        low_margin_items: marginsMap.slice(0, 5),
+        high_margin_items: [...marginsMap].reverse().slice(0, 5),
+        items_without_cost: itemsWithoutCost.slice(0, 10).map(i => ({ name: i.name, sku: i.sku, unit_price: Number(i.unit_price) })),
+      },
       alerts: {
         low_stock_alerts: lowStockCount,
-        over_stock_alerts: overStockCount
+        over_stock_alerts: overStockCount,
+        missing_cost_alerts: itemsWithoutCost.length
       }
     }
   }, { operation: 'getInventoryReport', table: 'multiple' })

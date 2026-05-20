@@ -27,6 +27,7 @@ export default function InventoryForm({
     category_id: '',
     quantity: 0,
     minimum_stock: 0,
+    purchase_price: '' as number | '',
     unit_price: 0,
   });
 
@@ -41,6 +42,7 @@ export default function InventoryForm({
         category_id: item.category_id || '',
         quantity: item.quantity || 0,
         minimum_stock: item.minimum_stock || 0,
+        purchase_price: item.purchase_price ?? '',
         unit_price: item.unit_price || 0,
       });
     }
@@ -89,11 +91,14 @@ export default function InventoryForm({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
+    const numericFields = ['quantity', 'minimum_stock', 'unit_price'];
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'quantity' || name === 'minimum_stock' || name === 'unit_price'
+      [name]: numericFields.includes(name)
         ? parseFloat(value) || 0
-        : value,
+        : name === 'purchase_price'
+          ? value === '' ? '' : parseFloat(value) || 0
+          : value,
     }));
     // Clear error when user starts typing
     if (errors[name]) {
@@ -226,11 +231,11 @@ export default function InventoryForm({
             </div>
           </div>
 
-          {/* Quantity & Minimum Stock & Unit Price */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Quantity & Minimum Stock */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Cantidad *
+                Cantidad
               </label>
               <input
                 type="number"
@@ -251,7 +256,7 @@ export default function InventoryForm({
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Stock Mínimo *
+                Stock Mínimo
               </label>
               <input
                 type="number"
@@ -269,11 +274,32 @@ export default function InventoryForm({
                 <p className="mt-1 text-sm text-red-400">{errors.minimum_stock}</p>
               )}
             </div>
+          </div>
+
+          {/* Costo de compra & Precio de venta */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Costo de Compra
+              </label>
+              <p className="text-xs text-gray-500 mb-2">Lo que pagas al proveedor</p>
+              <input
+                type="number"
+                name="purchase_price"
+                value={formData.purchase_price}
+                onChange={handleChange}
+                min="0"
+                step="0.01"
+                className="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                placeholder="0.00 (opcional)"
+              />
+            </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Precio Unitario *
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Precio de Venta *
               </label>
+              <p className="text-xs text-gray-500 mb-2">Lo que cobras al cliente</p>
               <input
                 type="number"
                 name="unit_price"
@@ -291,6 +317,22 @@ export default function InventoryForm({
               )}
             </div>
           </div>
+
+          {/* Margen calculado */}
+          {formData.purchase_price !== '' && formData.purchase_price > 0 && formData.unit_price > 0 && (
+            <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+              <p className="text-sm text-emerald-400">
+                Margen:{' '}
+                <span className="font-bold">
+                  {(((formData.unit_price - (formData.purchase_price as number)) / (formData.purchase_price as number)) * 100).toFixed(1)}%
+                </span>
+                {' '}— Ganancia por pieza:{' '}
+                <span className="font-bold">
+                  ${(formData.unit_price - (formData.purchase_price as number)).toFixed(2)}
+                </span>
+              </p>
+            </div>
+          )}
 
           {/* Buttons */}
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">

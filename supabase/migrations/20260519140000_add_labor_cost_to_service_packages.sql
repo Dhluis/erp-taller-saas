@@ -1,0 +1,2 @@
+ALTER TABLE service_packages
+  ADD COLUMN IF NOT EXISTS labor_cost DECIMAL(10,2) DEFAULT NULL;

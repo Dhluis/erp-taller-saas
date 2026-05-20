@@ -1166,3 +1166,109 @@ export async function getCashClosuresSummary(organizationId: string): Promise<Ca
     recent: mapped.slice(0, 10),
   }
 }
+
+/**
+ * Anticipos de efectivo (cash_advances): listado con saldo pendiente calculado.
+ * status: 'open' | 'closed' | 'cancelled' — omitir para todos.
+ */
+export async function getCashAdvancesTool(
+  organizationId: string,
+  status?: string
+): Promise<{
+  total: number
+  total_amount: number
+  total_pending_balance: number
+  by_status: Record<string, { count: number; amount: number }>
+  recent: Array<{
+    id: string; amount: number; purpose: string; status: string
+    employee: string | null; balance: number; created_at: string
+  }>
+}> {
+  const supabase = getSupabaseServiceClient()
+  if (!supabase) return { total: 0, total_amount: 0, total_pending_balance: 0, by_status: {}, recent: [] }
+  let q = supabase
+    .from('cash_advances')
+    .select(`id, amount, purpose, status, created_at,
+      employee:users!cash_advances_employee_id_fkey(name),
+      expenses(amount)`)
+    .eq('organization_id', organizationId)
+    .order('created_at', { ascending: false })
+    .limit(30)
+  if (status) q = q.eq('status', status)
+  const { data } = await q
+
+  const advances = (data || []) as any[]
+  const by_status: Record<string, { count: number; amount: number }> = {}
+  let total_pending_balance = 0
+
+  const recent = advances.map((adv: any) => {
+    const spent = (adv.expenses || []).reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0)
+    const balance = Number(adv.amount) - spent
+    if (adv.status === 'open') total_pending_balance += balance
+    by_status[adv.status] = by_status[adv.status] || { count: 0, amount: 0 }
+    by_status[adv.status].count++
+    by_status[adv.status].amount += Number(adv.amount)
+    return {
+      id: adv.id,
+      amount: Number(adv.amount),
+      purpose: adv.purpose,
+      status: adv.status,
+      employee: adv.employee?.name ?? null,
+      balance,
+      created_at: adv.created_at,
+    }
+  })
+
+  return {
+    total: advances.length,
+    total_amount: advances.reduce((s: number, a: any) => s + Number(a.amount), 0),
+    total_pending_balance,
+    by_status,
+    recent,
+  }
+}
+
+/**
+ * Márgenes del inventario: productos con costo de compra vs precio de venta.
+ * Permite al agente analizar rentabilidad por producto.
+ */
+export async function getInventoryMarginsTool(organizationId: string): Promise<{
+  items_with_margin: number
+  items_without_purchase_price: number
+  avg_margin_pct: number
+  low_margin_items: Array<{ name: string; purchase_price: number; unit_price: number; margin_pct: number; sku: string | null }>
+  high_margin_items: Array<{ name: string; purchase_price: number; unit_price: number; margin_pct: number; sku: string | null }>
+  no_cost_items: Array<{ name: string; unit_price: number; sku: string | null }>
+}> {
+  const supabase = getSupabaseServiceClient()
+  if (!supabase) return { items_with_margin: 0, items_without_purchase_price: 0, avg_margin_pct: 0, low_margin_items: [], high_margin_items: [], no_cost_items: [] }
+  const { data } = await supabase
+    .from('inventory')
+    .select('id, name, sku, unit_price, purchase_price')
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null)
+    .limit(300)
+
+  const items = (data || []) as any[]
+  const withCost = items.filter(i => i.purchase_price != null && Number(i.purchase_price) > 0 && Number(i.unit_price) > 0)
+  const withoutCost = items.filter(i => i.purchase_price == null)
+
+  const mapped = withCost.map(i => {
+    const margin_pct = Math.round(((Number(i.unit_price) - Number(i.purchase_price)) / Number(i.purchase_price)) * 1000) / 10
+    return { name: i.name, sku: i.sku ?? null, purchase_price: Number(i.purchase_price), unit_price: Number(i.unit_price), margin_pct }
+  })
+
+  const sorted = [...mapped].sort((a, b) => a.margin_pct - b.margin_pct)
+  const avg_margin_pct = mapped.length > 0
+    ? Math.round(mapped.reduce((s, i) => s + i.margin_pct, 0) / mapped.length * 10) / 10
+    : 0
+
+  return {
+    items_with_margin: withCost.length,
+    items_without_purchase_price: withoutCost.length,
+    avg_margin_pct,
+    low_margin_items: sorted.slice(0, 5),
+    high_margin_items: sorted.slice(-5).reverse(),
+    no_cost_items: withoutCost.slice(0, 10).map(i => ({ name: i.name, unit_price: Number(i.unit_price), sku: i.sku ?? null })),
+  }
+}

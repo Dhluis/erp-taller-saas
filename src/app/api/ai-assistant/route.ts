@@ -367,14 +367,20 @@ CRÍTICO:
     }
 
     if (action === "get-insights") {
+      if (!supabaseAdmin) {
+        return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 });
+      }
       const [
         { data: lowStock },
         { data: activeOrders },
         { data: recentCompletions },
+        { data: openAdvances },
+        { data: noMarginItems },
+        { data: draftPurchaseOrders },
       ] = await Promise.all([
         supabaseAdmin
           .from("inventory")
-          .select("name, quantity")
+          .select("name, quantity, minimum_stock, purchase_price, unit_price")
           .lt("quantity", 5)
           .eq("organization_id", organizationId)
           .limit(10),
@@ -391,48 +397,94 @@ CRÍTICO:
           .eq("organization_id", organizationId)
           .order("updated_at", { ascending: false })
           .limit(5),
+        // Anticipos abiertos con saldo pendiente
+        supabaseAdmin
+          .from("cash_advances")
+          .select("id, amount, purpose, created_at, employee:users!cash_advances_employee_id_fkey(name), expenses(amount)")
+          .eq("organization_id", organizationId)
+          .eq("status", "open")
+          .limit(10),
+        // Refacciones sin precio de compra (no se puede calcular anticipo)
+        supabaseAdmin
+          .from("inventory")
+          .select("name, unit_price")
+          .eq("organization_id", organizationId)
+          .is("purchase_price", null)
+          .gt("unit_price", 0)
+          .limit(5),
+        // Órdenes de compra pendientes de aprobación
+        supabaseAdmin
+          .from("purchase_orders")
+          .select("id, order_number, total, status, created_at")
+          .eq("organization_id", organizationId)
+          .eq("status", "draft")
+          .limit(5),
       ]);
+
+      // Calcular saldos pendientes de anticipos
+      const advancesWithBalance = (openAdvances || []).map((adv: any) => {
+        const spent = (adv.expenses || []).reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0);
+        return {
+          purpose: adv.purpose,
+          amount: Number(adv.amount),
+          balance: Number(adv.amount) - spent,
+          employee: adv.employee?.name ?? "Sin asignar",
+          days_open: Math.floor((Date.now() - new Date(adv.created_at).getTime()) / 86400000),
+        };
+      });
+      const totalPendingBalance = advancesWithBalance.reduce((s, a) => s + a.balance, 0);
+
+      const contextData = {
+        lowStock,
+        activeOrders,
+        recentCompletions,
+        openAdvances: advancesWithBalance,
+        totalPendingAdvanceBalance: totalPendingBalance,
+        itemsWithoutPurchasePrice: noMarginItems,
+        pendingApprovalPurchaseOrders: draftPurchaseOrders,
+      };
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: `Eres el analista experto de Confia Drive ERP. Tu tarea es generar 3 insights estratégicos basados en los datos del taller.
-            
+            content: `Eres el analista experto de Confia Drive ERP para un taller mecánico. Tu tarea es generar 3 insights estratégicos basados en los datos actuales del taller.
+
+CONTEXTO DEL NEGOCIO:
+- El taller maneja efectivo con empleados que salen a comprar refacciones (anticipos). Es crítico que los anticipos se liquiden.
+- Las refacciones tienen costo de compra (purchase_price) y precio de venta (unit_price). Sin costo configurado no se pueden calcular anticipos automáticos.
+- Las órdenes de compra en estado "draft" necesitan aprobación del dueño para evitar fraudes.
+
 Reglas de formato (JSON):
-Debes devolver un objeto con una propiedad "insights" que sea un array de 3 objetos con:
-- title: Título corto y directo (ej: "Stock Crítico de Aceite").
-- description: Explicación breve del hallazgo.
-- severity: "HIGH" (urgente) o "MEDIUM" (informativo/importante).
-- actionLabel: Texto corto para un botón de acción (ej: "REVISAR STOCK", "VER ÓRDENES"). MÁXIMO 20 caracteres.
-- actionLink: La ruta interna del dashboard para resolver el insight.
+Devuelve un objeto con "insights": array de exactamente 3 objetos con:
+- title: Título corto y directo (máx 40 caracteres).
+- description: Explicación concreta del hallazgo con números cuando estén disponibles.
+- severity: "HIGH" (urgente, requiere acción hoy) o "MEDIUM" (importante, esta semana).
+- actionLabel: Texto del botón de acción (MÁXIMO 20 caracteres, en mayúsculas).
+- actionLink: Ruta interna para resolver el insight.
 
-Rutas válidas para actionLink:
-- Si es de inventario/stock: "/inventarios"
-- Si es de órdenes de trabajo/carga: "/ordenes"
-- Si es general: "/dashboard"
+Rutas válidas:
+- Inventario/stock bajo: "/inventarios"
+- Anticipos pendientes: "/compras/anticipos"
+- Órdenes pendientes de aprobación: "/compras/ordenes"
+- Órdenes de trabajo activas: "/ordenes"
+- Dashboard general: "/dashboard"
 
-Ejemplo de respuesta:
-{
-  "insights": [
-    {
-      "title": "Bajo Stock de Aceite",
-      "description": "Tienes 3 productos con menos de 5 unidades.",
-      "severity": "HIGH",
-      "actionLabel": "GESTIONAR STOCK",
-      "actionLink": "/inventarios"
-    }
-  ]
-}`,
+Prioriza insights en este orden:
+1. Anticipos abiertos con saldo > $0 (riesgo de pérdida de efectivo)
+2. Órdenes de compra pendientes de aprobación (posible fraude)
+3. Stock bajo en refacciones críticas
+4. Refacciones sin costo de compra configurado (opacidad de márgenes)
+5. Carga de trabajo de órdenes activas`,
           },
           {
             role: "user",
-            content: `Datos actuales del taller: ${JSON.stringify({ lowStock, activeOrders, recentCompletions })}`,
+            content: `Datos actuales del taller: ${JSON.stringify(contextData)}`,
           },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.5,
+        temperature: 0.4,
       });
 
       const insightsData = JSON.parse(

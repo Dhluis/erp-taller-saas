@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Package, Wrench, Box, Plus, Pencil, Trash2, Loader2 } from 'lucide-react'
+import { Package, Wrench, Box, Plus, Pencil, Trash2, Loader2, CheckCircle2, ShoppingCart, Banknote } from 'lucide-react'
 import { toast } from 'sonner'
 import { usePermissions } from '@/hooks/usePermissions'
 
@@ -50,11 +50,22 @@ interface ServicePackage {
   name: string
   description: string | null
   price: number
+  labor_cost?: number | null
   service_package_items?: Array<{
     quantity: number
     inventory_item_id: string
-    inventory?: { name: string; unit?: string; current_stock?: number } | null
+    inventory?: { name: string; unit?: string; current_stock?: number; purchase_price?: number | null } | null
   }>
+}
+
+interface StockCheckItem {
+  name: string
+  required: number
+  available: number
+  shortage: number
+  unit: string
+  purchasePrice: number | null
+  costToBuy: number
 }
 
 function stockStatusForPackage(pkg: ServicePackage): { ok: boolean; text: string } {
@@ -82,6 +93,8 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
   const [modalEdit, setModalEdit] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editingService, setEditingService] = useState<WorkOrderServiceRow | null>(null)
+  const [stockCheckItems, setStockCheckItems] = useState<StockCheckItem[]>([])
+  const [creatingAdvance, setCreatingAdvance] = useState(false)
 
   const [formPackage, setFormPackage] = useState({ service_package_id: '', name: '', unit_price: 0, quantity: 1 })
   const [formFree, setFormFree] = useState({ name: '', unit_price: 0, quantity: 1, description: '' })
@@ -175,6 +188,7 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
       }
       setModalPackage(false)
       setFormPackage({ service_package_id: '', name: '', unit_price: 0, quantity: 1 })
+      setStockCheckItems([])
       refresh()
     } catch (e: any) {
       toast.error(e.message || 'Error al agregar paquete')
@@ -400,8 +414,8 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
       )}
 
       {/* Modal + Paquete */}
-      <Dialog open={modalPackage} onOpenChange={setModalPackage}>
-        <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-white">
+      <Dialog open={modalPackage} onOpenChange={(open) => { if (!open) setStockCheckItems([]); setModalPackage(open) }}>
+        <DialogContent className="max-w-lg bg-slate-900 border-slate-700 text-white">
           <DialogHeader>
             <DialogTitle className="text-white">Agregar paquete</DialogTitle>
             <DialogDescription className="text-slate-300">Elige un paquete predefinido de la organización.</DialogDescription>
@@ -419,6 +433,31 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
                     name: p?.name ?? prev.name,
                     unit_price: p?.price ?? prev.unit_price
                   }))
+                  // Compute stock check for selected package
+                  if (p?.service_package_items?.length) {
+                    const qty = formPackage.quantity || 1
+                    const items: StockCheckItem[] = p.service_package_items
+                      .filter(it => it.inventory_item_id && it.inventory)
+                      .map(it => {
+                        const required = Number(it.quantity || 0) * qty
+                        const available = Number(it.inventory?.current_stock ?? 0)
+                        const shortage = Math.max(0, required - available)
+                        const purchasePrice = it.inventory?.purchase_price ?? null
+                        const costToBuy = shortage > 0 && purchasePrice != null ? shortage * purchasePrice : 0
+                        return {
+                          name: it.inventory?.name || 'Producto',
+                          unit: it.inventory?.unit || 'pza',
+                          required,
+                          available,
+                          shortage,
+                          purchasePrice,
+                          costToBuy,
+                        }
+                      })
+                    setStockCheckItems(items)
+                  } else {
+                    setStockCheckItems([])
+                  }
                 }}
               >
                 <SelectTrigger className="bg-slate-800/80 border-slate-600 text-white hover:bg-slate-700/80">
@@ -473,8 +512,110 @@ export function WorkOrderServices({ orderId, onUpdate }: WorkOrderServicesProps)
                 />
               </div>
             </div>
+            {/* Stock check table */}
+            {stockCheckItems.length > 0 && (
+              <div className="border border-slate-700 rounded-lg overflow-hidden">
+                <div className="bg-slate-800/60 px-3 py-2 text-xs font-semibold text-slate-300 uppercase tracking-wide">
+                  Materiales requeridos
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-700 text-slate-400 text-xs">
+                      <th className="text-left px-3 py-1.5">Parte</th>
+                      <th className="text-center px-2 py-1.5">Nec.</th>
+                      <th className="text-center px-2 py-1.5">Stock</th>
+                      <th className="text-center px-2 py-1.5">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stockCheckItems.map((item, i) => (
+                      <tr key={i} className="border-b border-slate-700/50 last:border-0">
+                        <td className="px-3 py-2 text-white">{item.name}</td>
+                        <td className="px-2 py-2 text-center text-slate-300">{item.required} {item.unit}</td>
+                        <td className="px-2 py-2 text-center text-slate-300">{item.available}</td>
+                        <td className="px-2 py-2 text-center">
+                          {item.shortage === 0 ? (
+                            <span className="inline-flex items-center gap-1 text-emerald-400 text-xs">
+                              <CheckCircle2 className="h-3 w-3" /> OK
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-amber-400 text-xs">
+                              <ShoppingCart className="h-3 w-3" /> Comprar {item.shortage}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {/* Advance CTA */}
+                {(() => {
+                  const pkg = packages.find(p => p.id === formPackage.service_package_id)
+                  const partsCost = stockCheckItems.reduce((s, i) => s + i.costToBuy, 0)
+                  const hasShortageMissingPrice = stockCheckItems.some(i => i.shortage > 0 && i.purchasePrice == null)
+                  const hasShortages = stockCheckItems.some(i => i.shortage > 0)
+                  const hasMixed = stockCheckItems.some(i => i.shortage === 0) && hasShortages
+                  if (!hasShortages) return null
+                  return (
+                    <div className="px-3 py-2 bg-amber-500/10 border-t border-slate-700 space-y-2">
+                      {hasMixed && (
+                        <p className="text-xs text-slate-400">
+                          Los materiales en stock se descontarán del inventario al cerrar la OT. El anticipo solo cubre lo que falta comprar.
+                        </p>
+                      )}
+                      {pkg?.labor_cost != null && pkg.labor_cost > 0 && (
+                        <p className="text-xs text-slate-400">
+                          MO de este servicio: <span className="text-amber-300 font-medium">${Number(pkg.labor_cost).toFixed(2)}</span> — no requiere anticipo en efectivo.
+                        </p>
+                      )}
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="text-xs text-amber-300">
+                          {partsCost > 0
+                            ? <>Anticipo estimado por materiales: <span className="font-bold text-amber-200">${partsCost.toFixed(2)}</span></>
+                            : hasShortageMissingPrice
+                              ? <span>Sin precio de compra en algunos materiales — configúralo en inventario</span>
+                              : null}
+                        </div>
+                        {partsCost > 0 && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="border-amber-500/50 text-amber-300 hover:bg-amber-500/10 shrink-0"
+                            disabled={creatingAdvance}
+                            onClick={async () => {
+                              setCreatingAdvance(true)
+                              try {
+                                const res = await fetch('/api/cash-advances', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    amount: partsCost,
+                                    purpose: `Materiales faltantes para ${pkg?.name || 'paquete de servicio'}`,
+                                  })
+                                })
+                                const json = await res.json()
+                                if (!res.ok) throw new Error(json.error || 'Error al crear anticipo')
+                                toast.success(`Anticipo de $${partsCost.toFixed(2)} creado`)
+                              } catch (e: any) {
+                                toast.error(e.message || 'Error al crear anticipo')
+                              } finally {
+                                setCreatingAdvance(false)
+                              }
+                            }}
+                          >
+                            {creatingAdvance ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Banknote className="h-3 w-3 mr-1" />}
+                            Crear anticipo
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
             <div className="flex justify-end gap-2">
-              <Button variant="outline" className="border-slate-600 text-slate-200 hover:bg-slate-800" onClick={() => setModalPackage(false)}>Cancelar</Button>
+              <Button variant="outline" className="border-slate-600 text-slate-200 hover:bg-slate-800" onClick={() => { setModalPackage(false); setStockCheckItems([]) }}>Cancelar</Button>
               <Button onClick={submitPackage} disabled={saving || !formPackage.service_package_id}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Agregar

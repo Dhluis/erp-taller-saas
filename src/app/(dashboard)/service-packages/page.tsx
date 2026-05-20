@@ -95,6 +95,7 @@ interface ServicePackage {
   description: string | null;
   category: string | null;
   price: number;
+  labor_cost: number | null;
   estimated_minutes: number | null;
   service_package_items?: ServicePackageItem[];
 }
@@ -116,6 +117,7 @@ export default function ServicePackagesPage() {
     description: '',
     category: '' as Category | '',
     price: '',
+    labor_cost: '',
     estimated_value: '',
     estimated_unit: 'minutes' as EstimatedUnit,
     items: [] as RecipeItem[],
@@ -157,6 +159,7 @@ export default function ServicePackagesPage() {
       description: '',
       category: '',
       price: '',
+      labor_cost: '',
       estimated_value: '',
       estimated_unit: 'minutes',
       items: [],
@@ -187,6 +190,7 @@ export default function ServicePackagesPage() {
       description: d.description ?? '',
       category: (d.category as Category) ?? '',
       price: String(d.price),
+      labor_cost: d.labor_cost != null ? String(d.labor_cost) : '',
       estimated_value: display != null ? String(display.value) : '',
       estimated_unit: display?.unit ?? 'minutes',
       items,
@@ -297,11 +301,13 @@ export default function ServicePackagesPage() {
       rawVal != null && !isNaN(rawVal) && rawVal >= 0
         ? displayToMinutes(rawVal, form.estimated_unit)
         : null;
+    const laborCostRaw = form.labor_cost.trim() ? parseFloat(form.labor_cost) : null;
     const body = {
       name,
       description: form.description.trim() || undefined,
       category: form.category || undefined,
       price,
+      labor_cost: laborCostRaw != null && !isNaN(laborCostRaw) && laborCostRaw >= 0 ? laborCostRaw : null,
       estimated_minutes: estimated_minutes != null ? Math.round(estimated_minutes) : undefined,
       items: form.items.map((i) => ({ inventory_id: i.inventory_id, quantity: i.quantity })),
     };
@@ -447,6 +453,11 @@ export default function ServicePackagesPage() {
                   <p className="text-lg font-medium mt-2 text-white">
                     ${Number(pkg.price).toFixed(2)}
                   </p>
+                  {pkg.labor_cost != null && pkg.labor_cost > 0 && (
+                    <p className="text-sm text-amber-400/80">
+                      MO: ${Number(pkg.labor_cost).toFixed(2)}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-400">
                     {itemCount(pkg)} producto(s) en la receta
                   </p>
@@ -522,7 +533,7 @@ export default function ServicePackagesPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-300">Precio *</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-300">Precio al cliente *</label>
                     <Input
                       type="number"
                       min={0}
@@ -533,6 +544,21 @@ export default function ServicePackagesPage() {
                       className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-cyan-500 focus:ring-cyan-500"
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-300">Costo de mano de obra</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={form.labor_cost}
+                      onChange={(e) => setForm((p) => ({ ...p, labor_cost: e.target.value }))}
+                      placeholder="0.00 (opcional)"
+                      className="bg-gray-800 border-amber-700/50 text-white placeholder:text-gray-500 focus:border-amber-500 focus:ring-amber-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Lo que le cuesta al taller este trabajo</p>
+                  </div>
+                </div>
+                <div>
                   <div>
                     <label className="block text-sm font-medium mb-1 text-gray-300">Tiempo estimado</label>
                     <div className="flex gap-2">

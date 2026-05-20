@@ -27,6 +27,7 @@ export interface InventoryItem {
   min_quantity: number;
   minimum_stock?: number;
   unit_price: number;
+  purchase_price?: number | null;
   created_at: string;
   updated_at: string;
   category?: {
@@ -52,6 +53,7 @@ export interface CreateInventoryItemData {
   quantity: number;
   min_quantity: number;
   unit_price: number;
+  purchase_price?: number | null;
 }
 
 export interface UpdateInventoryItemData extends Partial<CreateInventoryItemData> {}

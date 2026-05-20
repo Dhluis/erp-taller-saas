@@ -23,6 +23,8 @@ import {
   getDeliveryNotesSummary,
   getCreditNotesSummary,
   getCashClosuresSummary,
+  getCashAdvancesTool,
+  getInventoryMarginsTool,
 } from '@/lib/agent/erp-tools'
 import { checkAIAgentEnabled } from '@/lib/billing/check-limits'
 
@@ -37,6 +39,10 @@ GLOSARIO TÉCNICO (Jerga de taller):
 - Cita: Es una reserva futura. No confundas "OT" con "Cita".
 - Stock: Inventario disponible.
 - Lead: Cliente potencial o prospecto.
+- Anticipo / Anticipos: Efectivo entregado a un empleado para comprar refacciones externas. Se registra en cash_advances con status open/closed. Al regresar, el empleado liquida el gasto y el saldo pendiente debe ser cero.
+- Costo de compra / purchase_price: Lo que el taller paga al proveedor por una refacción. Distinto de unit_price (precio al cliente). La diferencia es el margen bruto.
+- MO / Mano de obra / labor_cost: Costo interno del trabajo del mecánico en un paquete de servicio. No genera anticipo en efectivo.
+- Paquete de servicio / Receta: Plantilla de servicio con lista de refacciones (con cantidades) y costo de MO. Se aplica a una OT para calcular materiales y anticipos.
 
 HERRAMIENTAS disponibles:
 
@@ -61,6 +67,8 @@ HERRAMIENTAS disponibles:
 19. get_delivery_notes(): Notas de entrega (remisiones). Usar para "remisiones", "notas de entrega", "entregas pendientes".
 20. get_credit_notes(): Notas de crédito emitidas. Usar para "notas de crédito", "devoluciones", "créditos emitidos".
 21. get_cash_closures(): Historial de cortes de caja. Usar para "cortes de caja", "último corte", "historial de cierres de caja".
+22. get_cash_advances(status?): Anticipos de efectivo entregados a empleados. Devuelve saldo pendiente, monto total y desglose por estado. Usar para "anticipos", "anticipos abiertos", "¿cuánto efectivo salió para compras?", "anticipos pendientes de liquidar", "¿quién tiene efectivo sin rendir?".
+23. get_inventory_margins(): Análisis de márgenes por producto: costo de compra vs precio de venta, margen %, productos sin costo configurado. Usar para "margen de mis productos", "¿cuánto gano por refacción?", "productos con bajo margen", "rentabilidad del inventario", "¿qué productos no tienen costo de compra?".
 
 REGLAS:
 - Usa la herramienta más específica. "OT" siempre se asocia a herramientas de "orders".
@@ -334,6 +342,27 @@ export async function POST(request: NextRequest) {
         function: {
           name: 'get_cash_closures',
           description: 'Historial de cortes de caja. Usar para: "cortes de caja", "último corte de caja", "historial de cierres", "¿cuándo fue el último corte?".',
+          parameters: { type: 'object', properties: {} },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_cash_advances',
+          description: 'Anticipos de efectivo entregados a empleados para comprar refacciones. Devuelve monto total, saldo pendiente de liquidar y detalle por anticipo. Usar para: "anticipos", "anticipos abiertos", "¿cuánto efectivo salió para compras?", "anticipos sin liquidar", "¿quién tiene efectivo sin rendir?".',
+          parameters: {
+            type: 'object',
+            properties: {
+              status: { type: 'string', description: 'Filtrar por estado: "open" (abiertos), "closed" (liquidados), "cancelled". Omitir para todos.' },
+            },
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_inventory_margins',
+          description: 'Análisis de rentabilidad del inventario: margen % por producto (costo de compra vs precio de venta), productos con margen bajo, productos sin costo de compra configurado. Usar para: "margen de mis productos", "¿cuánto gano por refacción?", "productos con bajo margen", "rentabilidad del inventario", "¿qué refacciones no tienen costo?".',
           parameters: { type: 'object', properties: {} },
         },
       },
@@ -647,6 +676,39 @@ export async function POST(request: NextRequest) {
                 historial: cc.recent,
               })
           links.push({ label: 'Ver cortes de caja', url: '/ingresos/cortes-caja' })
+
+        } else if (name === 'get_cash_advances') {
+          const statusArg = typeof args.status === 'string' ? args.status : undefined
+          const adv = await getCashAdvancesTool(organizationId, statusArg)
+          content = adv.total === 0
+            ? JSON.stringify({ mensaje: 'No hay anticipos registrados.' })
+            : JSON.stringify({
+                total_anticipos: adv.total,
+                monto_total_entregado: adv.total_amount,
+                saldo_pendiente_de_liquidar: adv.total_pending_balance,
+                por_estado: adv.by_status,
+                detalle: adv.recent.map(a => ({
+                  monto: a.amount,
+                  propósito: a.purpose,
+                  estado: a.status,
+                  empleado: a.employee,
+                  saldo_por_rendir: a.balance,
+                  fecha: a.created_at,
+                })),
+              })
+          links.push({ label: 'Ver anticipos', url: '/compras/anticipos' })
+
+        } else if (name === 'get_inventory_margins') {
+          const margins = await getInventoryMarginsTool(organizationId)
+          content = JSON.stringify({
+            productos_con_costo_configurado: margins.items_with_margin,
+            productos_sin_costo_de_compra: margins.items_without_purchase_price,
+            margen_promedio_pct: margins.avg_margin_pct,
+            productos_bajo_margen: margins.low_margin_items,
+            productos_alto_margen: margins.high_margin_items,
+            sin_costo_configurado: margins.no_cost_items,
+          })
+          links.push({ label: 'Ver inventario', url: '/inventarios/productos' })
 
         } else {
           content = JSON.stringify({
