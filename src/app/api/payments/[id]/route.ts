@@ -17,9 +17,10 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server';
 // =====================================================
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
@@ -37,11 +38,11 @@ export async function GET(
       undefined,
       'payments-api',
       'GET',
-      { paymentId: params.id }
+      { paymentId: id }
     );
     logger.info('Obteniendo pago por ID', context);
 
-    const payment = await getPaymentById(params.id);
+    const payment = await getPaymentById(id);
 
     if (!payment) {
       logger.warn('Pago no encontrado', context);
@@ -78,9 +79,10 @@ export async function GET(
 // =====================================================
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
@@ -98,7 +100,7 @@ export async function PUT(
       undefined,
       'payments-api',
       'PUT',
-      { paymentId: params.id }
+      { paymentId: id }
     );
     
     const body = await request.json();
@@ -142,9 +144,9 @@ export async function PUT(
       }
     }
 
-    const payment = await updatePayment(params.id, body);
+    const payment = await updatePayment(id, body);
 
-    logger.businessEvent('payment_updated', 'payment', params.id, context);
+    logger.businessEvent('payment_updated', 'payment', id, context);
 
     return NextResponse.json({
       success: true,
@@ -168,9 +170,10 @@ export async function PUT(
 // =====================================================
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
@@ -188,12 +191,12 @@ export async function DELETE(
       undefined,
       'payments-api',
       'DELETE',
-      { paymentId: params.id }
+      { paymentId: id }
     );
     logger.info('Eliminando pago', context);
 
     // Verificar que el pago existe antes de eliminar
-    const existingPayment = await getPaymentById(params.id);
+    const existingPayment = await getPaymentById(id);
     if (!existingPayment) {
       logger.warn('Intento de eliminar pago inexistente', context);
       return NextResponse.json(
@@ -205,9 +208,9 @@ export async function DELETE(
       );
     }
 
-    await deletePayment(params.id);
+    await deletePayment(id);
 
-    logger.businessEvent('payment_deleted', 'payment', params.id, context);
+    logger.businessEvent('payment_deleted', 'payment', id, context);
     logger.info('Pago eliminado exitosamente', context);
 
     return NextResponse.json({

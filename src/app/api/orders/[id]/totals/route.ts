@@ -5,9 +5,10 @@ import { getOrganizationId } from '@/lib/auth/organization-server'
 // POST /api/orders/[id]/totals - Recalcular totales de una orden
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     // ✅ Obtener contexto del usuario autenticado
     const organizationId = await getOrganizationId(request)
     
@@ -21,7 +22,7 @@ export async function POST(
       )
     }
 
-    const result = await calculateOrderTotals(params.id, organizationId)
+    const result = await calculateOrderTotals(id, organizationId)
     return NextResponse.json(result)
   } catch (error: any) {
     console.error('Error in POST /api/orders/[id]/totals:', error)
@@ -47,9 +48,10 @@ export async function POST(
 // GET /api/orders/[id]/totals - Obtener totales calculados de una orden
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     // ✅ Obtener contexto del usuario autenticado
     const organizationId = await getOrganizationId(request)
     
@@ -63,7 +65,7 @@ export async function GET(
       )
     }
 
-    const result = await calculateOrderTotals(params.id, organizationId)
+    const result = await calculateOrderTotals(id, organizationId)
     return NextResponse.json({
       subtotal: result.subtotal,
       tax_amount: result.tax_amount,

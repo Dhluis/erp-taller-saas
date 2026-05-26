@@ -16,9 +16,10 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server';
 // =====================================================
 export async function GET(
   request: NextRequest,
-  { params }: { params: { invoiceId: string } }
+  { params }: { params: Promise<{ invoiceId: string }> }
 ) {
   try {
+    const { invoiceId } = await params
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
@@ -36,15 +37,15 @@ export async function GET(
       undefined,
       'payments-by-invoice-api',
       'GET',
-      { invoiceId: params.invoiceId }
+      { invoiceId: invoiceId }
     );
     
     logger.info('Obteniendo pagos por nota de venta', context, { 
-      invoiceId: params.invoiceId
+      invoiceId: invoiceId
     });
 
     // Verificar que la nota de venta existe
-    const invoice = await getInvoiceById(params.invoiceId);
+    const invoice = await getInvoiceById(invoiceId);
     if (!invoice) {
       logger.warn('Intento de obtener pagos de nota de venta inexistente', context);
       return NextResponse.json(
@@ -57,9 +58,9 @@ export async function GET(
     }
 
     // Obtener pagos de la nota de venta
-    const payments = await getPaymentsByInvoice(params.invoiceId);
+    const payments = await getPaymentsByInvoice(invoiceId);
 
-    logger.info(`Pagos obtenidos exitosamente para nota de venta: ${params.invoiceId}`, context, {
+    logger.info(`Pagos obtenidos exitosamente para nota de venta: ${invoiceId}`, context, {
       paymentsCount: payments.length
     });
 

@@ -20,9 +20,10 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server';
 // =====================================================
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
@@ -40,12 +41,12 @@ export async function GET(
       undefined,
       'invoices-items-api',
       'GET',
-      { invoiceId: params.id }
+      { invoiceId: id }
     );
     logger.info('Obteniendo items de nota de venta', context);
 
     // Verificar que la nota de venta existe
-    const invoice = await getInvoiceById(params.id);
+    const invoice = await getInvoiceById(id);
     if (!invoice) {
       logger.warn('Intento de obtener items de nota de venta inexistente', context);
       return NextResponse.json(
@@ -57,9 +58,9 @@ export async function GET(
       );
     }
 
-    const items = await getInvoiceItems(params.id);
+    const items = await getInvoiceItems(id);
 
-    logger.info(`Items obtenidos para nota de venta ${params.id}: ${items.length} items`, context);
+    logger.info(`Items obtenidos para nota de venta ${id}: ${items.length} items`, context);
 
     return NextResponse.json({
       success: true,
@@ -83,9 +84,10 @@ export async function GET(
 // =====================================================
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
@@ -103,14 +105,14 @@ export async function POST(
       undefined,
       'invoices-items-api',
       'POST',
-      { invoiceId: params.id }
+      { invoiceId: id }
     );
     
     const body = await request.json();
     logger.info('Creando item de nota de venta', context, { itemData: body });
 
     // Verificar que la nota de venta existe
-    const invoice = await getInvoiceById(params.id);
+    const invoice = await getInvoiceById(id);
     if (!invoice) {
       logger.warn('Intento de crear item en nota de venta inexistente', context);
       return NextResponse.json(
@@ -182,7 +184,7 @@ export async function POST(
 
     // Crear item
     const itemData = {
-      invoice_id: params.id,
+      invoice_id: id,
       item_type: body.item_type,
       item_name: body.item_name,
       description: body.description || null,
@@ -193,10 +195,10 @@ export async function POST(
     const item = await createInvoiceItem(itemData);
 
     // Recalcular totales de la nota de venta
-    await recalculateInvoiceTotals(params.id);
+    await recalculateInvoiceTotals(id);
 
     logger.businessEvent('invoice_item_created', 'invoice_item', item.id, context);
-    logger.info(`Item creado exitosamente para nota de venta ${params.id}: ${item.id}`, context);
+    logger.info(`Item creado exitosamente para nota de venta ${id}: ${item.id}`, context);
 
     return NextResponse.json({
       success: true,
@@ -220,9 +222,10 @@ export async function POST(
 // =====================================================
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
@@ -240,7 +243,7 @@ export async function PUT(
       undefined,
       'invoices-items-api',
       'PUT',
-      { invoiceId: params.id }
+      { invoiceId: id }
     );
     
     const body = await request.json();
@@ -249,7 +252,7 @@ export async function PUT(
     });
 
     // Verificar que la nota de venta existe
-    const invoice = await getInvoiceById(params.id);
+    const invoice = await getInvoiceById(id);
     if (!invoice) {
       logger.warn('Intento de actualizar items de nota de venta inexistente', context);
       return NextResponse.json(
@@ -317,7 +320,7 @@ export async function PUT(
 
     // Recalcular totales si hubo actualizaciones exitosas
     if (results.successful.length > 0) {
-      await recalculateInvoiceTotals(params.id);
+      await recalculateInvoiceTotals(id);
       logger.info('Totales recalculados después de actualización en lote', context);
     }
 

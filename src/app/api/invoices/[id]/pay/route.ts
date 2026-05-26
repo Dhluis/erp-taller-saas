@@ -4,11 +4,12 @@ import { markInvoiceAsPaid } from '@/lib/database/queries/invoices'
 // POST /api/invoices/[id]/pay - Marcar factura como pagada
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
-    
+
     // Validar payment_method requerido
     if (!body.payment_method) {
       return NextResponse.json(
@@ -32,7 +33,7 @@ export async function POST(
       )
     }
     
-    const invoice = await markInvoiceAsPaid(params.id, {
+    const invoice = await markInvoiceAsPaid(id, {
       payment_method: body.payment_method,
       paid_date: body.paid_date,
       payment_reference: body.payment_reference || body.reference,  // Acepta ambos

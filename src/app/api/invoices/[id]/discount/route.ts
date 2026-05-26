@@ -19,9 +19,10 @@ export const dynamic = 'force-dynamic';
 // =====================================================
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
@@ -39,12 +40,12 @@ export async function PUT(
       undefined,
       'invoices-discount-api',
       'PUT',
-      { invoiceId: params.id }
+      { invoiceId: id }
     );
     
     const body = await request.json();
     logger.info('Actualizando descuento de nota de venta', context, { 
-      invoiceId: params.id,
+      invoiceId: id,
       discount: body.discount
     });
 
@@ -86,7 +87,7 @@ export async function PUT(
     }
 
     // Verificar que la nota de venta existe
-    const invoice = await getInvoiceById(params.id);
+    const invoice = await getInvoiceById(id);
     if (!invoice) {
       logger.warn('Intento de actualizar descuento de nota de venta inexistente', context);
       return NextResponse.json(
@@ -113,10 +114,10 @@ export async function PUT(
     }
 
     // Actualizar el descuento
-    const updatedInvoice = await updateInvoiceDiscount(params.id, discount);
+    const updatedInvoice = await updateInvoiceDiscount(id, discount);
 
-    logger.businessEvent('invoice_discount_updated', 'invoice', params.id, context);
-    logger.info(`Descuento de nota de venta actualizado exitosamente: ${params.id}`, context);
+    logger.businessEvent('invoice_discount_updated', 'invoice', id, context);
+    logger.info(`Descuento de nota de venta actualizado exitosamente: ${id}`, context);
 
     return NextResponse.json({
       success: true,

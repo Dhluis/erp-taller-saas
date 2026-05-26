@@ -5,16 +5,17 @@ import { requireAuth, validateAccess } from '@/lib/auth/validation'
 // GET /api/backups/[id]/verify - Verificar integridad del backup
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const user = await requireAuth(request)
-    
+
     if (!await validateAccess(user.id, 'backups', 'read')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const result = await verifyBackupIntegrity(params.id)
+    const result = await verifyBackupIntegrity(id)
 
     return NextResponse.json({
       data: result,

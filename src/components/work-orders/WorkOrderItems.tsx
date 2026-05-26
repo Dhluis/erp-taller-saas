@@ -16,6 +16,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { usePermissions } from '@/hooks/usePermissions'
 import { cn } from '@/lib/utils'
+import { ReceiptAnalyzer } from '@/components/work-orders/ReceiptAnalyzer'
 
 interface WorkOrderItemsProps {
   orderId: string
@@ -317,10 +318,16 @@ export function WorkOrderItems({ orderId, orderStatus, onTotalChange }: WorkOrde
             {items.length} {items.length === 1 ? 'item' : 'items'}
           </p>
         </div>
-        <Button type="button" onClick={handleOpenAddModal} disabled={orderStatus === 'completed' || orderStatus === 'cancelled'}>
-          <Plus className="h-4 w-4 mr-2" />
-          Agregar Item
-        </Button>
+        <div className="flex items-center gap-2">
+          <ReceiptAnalyzer
+            workOrderId={orderId}
+            onPartsAdded={() => { loadItems() }}
+          />
+          <Button type="button" onClick={handleOpenAddModal} disabled={orderStatus === 'completed' || orderStatus === 'cancelled'}>
+            <Plus className="h-4 w-4 mr-2" />
+            Agregar Item
+          </Button>
+        </div>
       </div>
 
       {/* Lista de items */}

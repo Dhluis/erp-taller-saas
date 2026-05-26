@@ -1,10 +1,32 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Instrucciones para Claude Code en este repositorio.
+
+---
+
+## Recuperación de Contexto — Inicio de Sesión
+
+**Al iniciar una nueva conversación, dile a Claude:**
+
+> "Estoy trabajando en [módulo]. Lee `docs/specs/[módulo].md` y `docs/PROJECT_STATUS.md` antes de empezar."
+
+Si no sabes qué módulo: `"Lee CLAUDE.md y docs/specs/README.md para orientarte."`
+
+**Módulos disponibles:** `auth-permissions`, `work-orders`, `invoices-quotations`, `inventory`, `customers-vehicles`, `purchases-suppliers`, `finances`, `whatsapp-communications`, `billing-plans`, `antifraude`
+
+**Protocolo al terminar una sesión:**
+> "Actualiza el spec del módulo que modificamos."
+
+---
 
 ## Project Overview
 
-**Confia Drive ERP** is a multi-tenant SaaS ERP system for automotive workshops. Built with Next.js 15 (App Router), TypeScript, Supabase (PostgreSQL + Auth), and Tailwind CSS + shadcn/ui.
+**Confia Drive ERP** — SaaS ERP multi-tenant para talleres mecánicos.
+Stack: Next.js 15 (App Router), TypeScript, Supabase (PostgreSQL + Auth), Tailwind CSS + shadcn/ui.
+
+**Estado:** Producción activa con clientes reales. Versión 5.0.0.
+
+---
 
 ## Commands
 
@@ -14,89 +36,140 @@ npm run build        # Production build
 npm run lint         # Run ESLint
 npm run type-check   # TypeScript check without emitting
 npm run test         # Run Vitest
-npm run test:ui      # Vitest with UI
-npm run test:coverage # Coverage report
 npm run diagnose     # type-check + test
 npm run full-check   # type-check + test + build
 
 npm run migrate      # Run database migrations
 npm run env:check    # Verify environment variables
-npm run setup        # Initial setup script
 npm run sync-auth    # Sync Supabase auth users
 ```
+
+---
 
 ## Architecture
 
 ### Multi-tenancy
-Every query **must** include `organization_id`. All 41+ database tables have Row Level Security (RLS) policies enforcing tenant isolation. Use `getTenantContext()` to get the current tenant's IDs. The `workshop_id` is optional (can be NULL). The RLS pattern is:
+Cada query **debe** incluir `organization_id`. 41+ tablas con RLS. Usar `getTenantContext(request)` en API routes. `workshop_id` es opcional (NULL permitido). Patrón RLS:
 ```sql
 organization_id IN (SELECT organization_id FROM users WHERE auth_user_id = auth.uid())
 ```
 
 ### Data Access Layer
-- **No ORM** — direct Supabase client with typed queries (`supabase.from('table').select()`)
-- Query functions are organized by domain in `src/lib/supabase/` and `src/lib/database/queries/`
-- Use the **retry client** (`src/lib/supabase/retry-client.ts`) for Supabase queries to handle network failures
-- 10-second cache strategy is used in query functions
+- Sin ORM — Supabase client directo con typed queries
+- Queries por dominio en `src/lib/supabase/` y `src/lib/database/queries/`
+- Usar **retry client** (`src/lib/supabase/retry-client.ts`) para manejar fallos de red
+- Cache de 10 segundos en funciones de query
 
 ### Session & State
-- `SessionContext` (`src/lib/context/SessionContext.tsx`) provides `user`, `organization_id`, and `workshop_id` to all components via `useSession()`
-- Global state: React Context + Zustand; sidebar state: `SidebarContext`
-- Toast notifications use **sonner** (`toast.success()`, `toast.error()`)
+- `SessionContext` (`src/lib/context/SessionContext.tsx`) provee `user`, `organization_id`, `workshop_id` a todos los componentes via `useSession()`
+- State global: React Context + Zustand; sidebar: `SidebarContext`
+- Toast: **sonner** (`toast.success()`, `toast.error()`) — NO usar `useToast`
 
 ### Authentication
-- **Supabase Auth** (email/password, OAuth/Google, magic link)
-- Auth middleware order is critical — do not change: `src/middleware.ts` → `src/lib/auth/middleware.ts`
-- Session context is initialized in `src/app/layout.tsx`
+- Supabase Auth (email/contraseña, Google OAuth, magic link)
+- Orden del middleware es crítica — no cambiar: `src/middleware.ts` → `src/lib/auth/middleware.ts`
+- Session context se inicializa en `src/app/layout.tsx`
+
+### Next.js 15 — Async Params
+En route handlers, `params` es `Promise`. Siempre hacer await:
+```typescript
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  // ...
+}
+```
 
 ### API Routes
-42+ Next.js API routes under `src/app/api/`. All routes validate `organization_id` from the session before performing any database operations.
+42+ rutas bajo `src/app/api/`. Todas validan `organization_id` de la sesión antes de operar.
 
 ### UI Conventions
-- Components: PascalCase (`WorkOrderDetailsModal.tsx`)
-- Hooks: `use` prefix camelCase (`useWorkOrders.ts`)
-- Utilities: camelCase (`queries/orders.ts`)
-- Types: PascalCase (`WorkOrder`, `OrderStatus`)
-- Pages use lowercase route segments (`app/ordenes/page.tsx`)
-- Layout: `AppLayout` with `Sidebar` and `TopBar` from `src/components/layout/`
-- Breadcrumbs: `StandardBreadcrumbs` component
+- Componentes: PascalCase (`WorkOrderDetailsModal.tsx`)
+- Hooks: prefijo `use` camelCase (`useWorkOrders.ts`)
+- Utilidades: camelCase (`queries/orders.ts`)
+- Tipos: PascalCase (`WorkOrder`, `OrderStatus`)
+- Páginas: rutas en minúsculas (`app/ordenes/page.tsx`)
+- Layout: `AppLayout` con `Sidebar` y `TopBar` de `src/components/layout/`
 
-## Protected Areas — Do Not Modify Without Explicit Authorization
+---
 
-The following are stable and must not be changed unless explicitly asked:
+## Protected Areas — No Modificar Sin Autorización Explícita
 
-- **WhatsApp integration** (`src/components/WhatsAppQRConnectorSimple.tsx`) — polling intervals are precisely tuned after 10+ hours of debugging. Never change them without measurement.
-- **RLS policies** (`supabase/migrations/**/*.sql`) — 5+ hours of audit work across 41 tables. Never add "Enable all" policies or remove existing ones.
+### Absolutamente protegidos:
+- **RLS policies** (`supabase/migrations/**/*.sql`) — auditoría de 5+ horas en 41 tablas. Nunca agregar "Enable all" ni eliminar políticas existentes.
 - **Auth & session flow** — `src/middleware.ts`, `src/lib/context/SessionContext.tsx`, `src/lib/auth/middleware.ts`
+- **WhatsApp AI Agent** — `src/integrations/whatsapp/services/ai-agent.ts`
+- **WhatsApp utils** — `src/integrations/whatsapp/utils/index.ts` (parsers Twilio/Meta/Evolution, no eliminar)
+- **Work orders route** — `src/app/api/work-orders/route.ts`
 
-Other protected zones (modify only with permission):
+### Modificar solo con permiso:
 - `src/components/ui/**` — base UI components
 - `src/components/layout/**` — layout components
 - `src/lib/database/**`, `src/lib/supabase/**` — data access layer
 - `src/hooks/**`, `src/contexts/**`, `src/types/**`
-- Config files: `next.config.js`, `tailwind.config.ts`, `tsconfig.json`, `package.json`
+- Config: `next.config.js`, `tailwind.config.ts`, `tsconfig.json`, `package.json`
+
+---
 
 ## Integration Pattern
 
-When extending existing functionality, **create wrappers/adapters** instead of modifying protected files:
+Al extender funcionalidad existente, **crear wrappers** en lugar de modificar archivos protegidos:
 
 ```typescript
-// ✅ Correct: new wrapper in src/components/new/
+// ✅ Correcto: wrapper en src/components/new/
 import { WorkOrderDetailsModal } from '@/components/work-orders/WorkOrderDetailsModal';
-export const EnhancedWorkOrderModal = ({ ... }) => { /* extend without touching original */ };
+export const EnhancedWorkOrderModal = ({ ... }) => { /* extender sin tocar el original */ };
 
-// ❌ Wrong: modifying the protected original directly
+// ❌ Incorrecto: modificar el original protegido directamente
 ```
 
-New components and features go in `src/components/new/` or `src/features-new/`.
+Nuevos componentes y features → `src/components/new/` o `src/features-new/`.
+
+---
+
+## Integraciones Activas
+
+| Servicio | Propósito | Notas |
+|----------|-----------|-------|
+| Supabase | BD + Auth + Storage | Principal |
+| Twilio | WhatsApp Business | Webhooks por organización |
+| Hotmart | Facturación SaaS | Sin Stripe |
+| SendGrid | Email transaccional | |
+| Upstash Redis | Rate limiting en login | Fail-open si no responde |
+| Web Push (VAPID) | Push notifications | SW propio (`public/sw.js`) |
+
+**WAHA fue completamente eliminado en Feb 2026.** Solo existe Twilio como proveedor de WhatsApp.
+
+---
 
 ## Environment Variables
 
-Required:
+Requeridas:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` — required for admin operations that bypass RLS
+- `SUPABASE_SERVICE_ROLE_KEY` — admin operations que bypasan RLS
 
-Optional integrations: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (WhatsApp vía Twilio), `HOTMART_WEBHOOK_SECRET` (billing), SendGrid, Upstash Redis.
+Opcionales: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `HOTMART_WEBHOOK_SECRET`, SendGrid keys, `UPSTASH_REDIS_REST_URL`, VAPID keys para push.
 
-Run `npm run env:check` to validate the environment before development.
+```bash
+npm run env:check   # validar entorno antes de desarrollar
+```
+
+---
+
+## Documentación de Referencia
+
+- `docs/PROJECT_STATUS.md` — estado actual del proyecto, módulos implementados
+- `docs/DEVELOPER_GUIDE.md` — reglas críticas, qué no tocar, cómo funciona cada área
+- `docs/DATABASE_SCHEMA.md` — esquema completo de la BD
+- `docs/API_ENDPOINTS_COMPLETE_LIST.md` — lista de endpoints
+- `docs/specs/` — **specs vivos por módulo** (fuente de verdad por feature)
+
+---
+
+## Reglas de Documentación (SDD)
+
+Al terminar de implementar algo:
+1. Actualizar el spec del módulo afectado en `docs/specs/`
+2. Si cambia la BD, actualizar `docs/DATABASE_SCHEMA.md`
+3. Si cambia el estado del proyecto, actualizar `docs/PROJECT_STATUS.md`
+4. **Nunca crear documentos de evento** (FIXES_*, DIAGNOSTICO_*, *_COMPLETE.md) — el código y git history son el registro

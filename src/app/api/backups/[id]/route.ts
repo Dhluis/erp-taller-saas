@@ -6,16 +6,17 @@ import { requireAuth, validateAccess } from '@/lib/auth/validation'
 // GET /api/backups/[id] - Obtener backup
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const user = await requireAuth(request)
-    
+
     if (!await validateAccess(user.id, 'backups', 'read')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const backup = await getBackupById(params.id)
+    const backup = await getBackupById(id)
 
     return NextResponse.json({
       data: backup,
@@ -40,16 +41,17 @@ export async function GET(
 // DELETE /api/backups/[id] - Eliminar backup
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const user = await requireAuth(request)
-    
+
     if (!await validateAccess(user.id, 'backups', 'delete')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const backup = await deleteBackup(params.id)
+    const backup = await deleteBackup(id)
 
     return NextResponse.json({
       data: backup,

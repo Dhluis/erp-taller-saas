@@ -3,9 +3,10 @@ import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabas
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     console.log('🔄 GET /api/orders/[id]/items - Iniciando...')
     
     // ✅ Obtener usuario autenticado usando patrón robusto
@@ -39,7 +40,7 @@ export async function GET(
     const { data: order, error: orderError } = await supabaseAdmin
       .from('work_orders')
       .select('id, organization_id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .single();
 
@@ -71,7 +72,7 @@ export async function GET(
           name
         )
       `)
-      .eq('order_id', params.id)
+      .eq('order_id', id)
       .order('created_at', { ascending: true })
 
     if (error) {
@@ -127,7 +128,7 @@ export async function POST(
     const { data: order, error: orderError } = await supabaseAdmin
       .from('work_orders')
       .select('id, organization_id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .single();
 
@@ -156,7 +157,7 @@ export async function POST(
 
     // Crear nuevo item
     const itemData: any = {
-      order_id: params.id,
+      order_id: id,
       item_type: body.item_type,
       service_id: body.service_id || null,
       inventory_id: body.inventory_id || null,
@@ -207,7 +208,7 @@ export async function POST(
     }
 
     // Actualizar totales de la orden
-    await updateOrderTotals(supabaseAdmin, params.id)
+    await updateOrderTotals(supabaseAdmin, id)
 
     console.log('✅ Item creado:', item.id)
     return NextResponse.json(item)

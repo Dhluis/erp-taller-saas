@@ -16,7 +16,11 @@
       "mcp__supabase__list_projects",
       "Bash(npx supabase *)",
       "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\AppData\\\\Roaming\\\\supabase\" -ErrorAction SilentlyContinue -Recurse | Select-Object FullName)",
-      "mcp__supabase__apply_migration"
+      "mcp__supabase__apply_migration",
+      "Bash(npm run *)",
+      "Bash(npx next *)",
+      "Bash(awk '{print $NF}')",
+      "Bash(xargs -I{} sh -c 'echo \"=== {} ===\" && head -2 {}')"
     ]
   }
 }

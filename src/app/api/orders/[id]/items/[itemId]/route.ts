@@ -4,11 +4,12 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; itemId: string } }
+  { params }: { params: Promise<{ id: string; itemId: string }> }
 ) {
   try {
+    const { id, itemId } = await params
     console.log('🔄 PUT /api/orders/[id]/items/[itemId] - Iniciando...')
-    
+
     const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -49,8 +50,8 @@ export async function PUT(
         notes: body.notes || null,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.itemId)
-      .eq('order_id', params.id)
+      .eq('id', itemId)
+      .eq('order_id', id)
       .select(`
         *,
         service:services (
@@ -76,7 +77,7 @@ export async function PUT(
     }
 
     // Actualizar totales de la orden
-    await updateOrderTotals(supabase, params.id)
+    await updateOrderTotals(supabase, id)
 
     console.log('✅ Item actualizado:', item.id)
     return NextResponse.json(item)
@@ -105,8 +106,8 @@ export async function DELETE(
     const { error } = await supabase
       .from('order_items')
       .delete()
-      .eq('id', params.itemId)
-      .eq('order_id', params.id)
+      .eq('id', itemId)
+      .eq('order_id', id)
 
     if (error) {
       console.error('❌ Error eliminando item:', error)
@@ -114,9 +115,9 @@ export async function DELETE(
     }
 
     // Actualizar totales de la orden
-    await updateOrderTotals(supabase, params.id)
+    await updateOrderTotals(supabase, id)
 
-    console.log('✅ Item eliminado:', params.itemId)
+    console.log('✅ Item eliminado:', itemId)
     return NextResponse.json({ success: true })
 
   } catch (error: any) {

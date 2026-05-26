@@ -7,10 +7,11 @@ import type { WorkOrder } from '@/types/orders'
 // GET /api/orders/[id] - Obtener detalles de una orden
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔄 GET /api/orders/[id] - Iniciando...', params.id)
+    const { id } = await params
+    console.log('🔄 GET /api/orders/[id] - Iniciando...', id)
     
     // ✅ Obtener usuario autenticado usando patrón robusto
     const supabase = createClientFromRequest(request);
@@ -48,7 +49,7 @@ export async function GET(
     if (currentUserRole === 'MECANICO') {
       const canAccess = await canAccessWorkOrder(
         user.id,
-        params.id,
+        id,
         currentUserRole,
         supabaseAdmin
       );
@@ -90,7 +91,7 @@ export async function GET(
         ),
         order_items(*)
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .single();
 
@@ -131,10 +132,11 @@ export async function GET(
 // PATCH /api/orders/[id] - Actualizar una orden
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔄 PATCH /api/orders/[id] - Iniciando...', params.id)
+    const { id } = await params
+    console.log('🔄 PATCH /api/orders/[id] - Iniciando...', id)
     
     // ✅ Obtener usuario autenticado usando patrón robusto
     const supabase = createClientFromRequest(request);
@@ -171,7 +173,7 @@ export async function PATCH(
     if (currentUserRole === 'MECANICO') {
       const canAccess = await canAccessWorkOrder(
         user.id,
-        params.id,
+        id,
         currentUserRole,
         supabaseAdmin
       );
@@ -188,18 +190,18 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    console.log('🔄 [PATCH /api/orders/[id]] Actualizando orden:', params.id)
+    console.log('🔄 [PATCH /api/orders/[id]] Actualizando orden:', id)
     console.log('🔄 [PATCH /api/orders/[id]] Datos recibidos:', body)
     console.log('🔄 [PATCH /api/orders/[id]] Organization ID:', organizationId)
     
     // Si solo se está actualizando el status, usar función específica
     if (body.status && Object.keys(body).length === 1) {
-      const order = await updateWorkOrderStatus(params.id, body.status)
+      const order = await updateWorkOrderStatus(id, body.status)
       return NextResponse.json({ success: true, data: order })
     }
     
     // Actualización completa
-    const order = await updateWorkOrder(params.id, body)
+    const order = await updateWorkOrder(id, body)
     console.log('✅ [PATCH /api/orders/[id]] Orden actualizada exitosamente')
     return NextResponse.json({ success: true, data: order })
   } catch (error: any) {
@@ -232,10 +234,11 @@ export async function PATCH(
 // DELETE /api/orders/[id] - Eliminar una orden
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔄 DELETE /api/orders/[id] - Iniciando...', params.id)
+    const { id } = await params
+    console.log('🔄 DELETE /api/orders/[id] - Iniciando...', id)
     
     // ✅ Obtener usuario autenticado usando patrón robusto
     const supabase = createClientFromRequest(request);
@@ -279,7 +282,7 @@ export async function DELETE(
       );
     }
 
-    await deleteWorkOrder(params.id)
+    await deleteWorkOrder(id)
     return NextResponse.json({ success: true })
   } catch (error: any) {
     console.error('❌ Error in DELETE /api/orders/[id]:', error)

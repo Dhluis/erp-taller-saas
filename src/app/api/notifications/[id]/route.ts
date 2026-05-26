@@ -5,10 +5,11 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server'
 // GET /api/notifications/[id] - Obtener notificación
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔄 GET /api/notifications/[id] - Iniciando...', params.id)
+    const { id } = await params
+    console.log('🔄 GET /api/notifications/[id] - Iniciando...', id)
     
     // ✅ Obtener usuario autenticado usando patrón robusto
     const supabase = createClientFromRequest(request);
@@ -41,7 +42,7 @@ export async function GET(
     const { data: notification, error: queryError } = await supabaseAdmin
       .from('notifications')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId) // ✅ Validación explícita de multi-tenancy
       .single();
 
@@ -79,10 +80,11 @@ export async function GET(
 // PUT /api/notifications/[id] - Marcar como leída
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔄 PUT /api/notifications/[id] - Iniciando...', params.id)
+    const { id } = await params
+    console.log('🔄 PUT /api/notifications/[id] - Iniciando...', id)
     
     // ✅ Obtener usuario autenticado usando patrón robusto
     const supabase = createClientFromRequest(request);
@@ -115,7 +117,7 @@ export async function PUT(
     const { data: existingNotification, error: fetchError } = await supabaseAdmin
       .from('notifications')
       .select('id, organization_id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .single();
 
@@ -131,7 +133,7 @@ export async function PUT(
     const { data: updatedNotification, error: updateError } = await (supabaseAdmin as any)
       .from('notifications')
       .update({ read: true })
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .select()
       .single();
@@ -170,10 +172,10 @@ export async function PUT(
 // DELETE /api/notifications/[id] - Eliminar notificación
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔄 DELETE /api/notifications/[id] - Iniciando...', params.id)
+    console.log('🔄 DELETE /api/notifications/[id] - Iniciando...', id)
     
     // ✅ Obtener usuario autenticado usando patrón robusto
     const supabase = createClientFromRequest(request);
@@ -206,7 +208,7 @@ export async function DELETE(
     const { data: existingNotification, error: fetchError } = await supabaseAdmin
       .from('notifications')
       .select('id, organization_id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .single();
 
@@ -222,7 +224,7 @@ export async function DELETE(
     const { error: deleteError } = await supabaseAdmin
       .from('notifications')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId); // ✅ Validación explícita
 
     if (deleteError) {

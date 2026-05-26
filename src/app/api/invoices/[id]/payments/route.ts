@@ -14,16 +14,16 @@ import { safeError } from '@/lib/utils/api-error';
 // =====================================================
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: invoiceId } = await params
     const tenantContext = await getTenantContext(request);
     if (!tenantContext?.organizationId) {
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 403 });
     }
 
     const supabase = getSupabaseServiceClient();
-    const invoiceId = params.id;
 
     const { data: payments, error } = await supabase
       .from('invoice_payments')
@@ -63,7 +63,7 @@ export async function GET(
 // =====================================================
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const tenantContext = await getTenantContext(request);

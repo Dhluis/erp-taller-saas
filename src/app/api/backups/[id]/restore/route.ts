@@ -5,9 +5,10 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server'
 // POST /api/backups/[id]/restore - Restaurar backup
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     // ✅ Obtener organizationId SOLO del usuario autenticado
     const tenantContext = await getTenantContext(request)
     if (!tenantContext || !tenantContext.organizationId) {
@@ -18,7 +19,7 @@ export async function POST(
     }
     const organizationId = tenantContext.organizationId
 
-    const result = await restoreBackup(params.id, organizationId)
+    const result = await restoreBackup(id, organizationId)
 
     return NextResponse.json({
       data: result,

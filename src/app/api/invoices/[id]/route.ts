@@ -21,9 +21,10 @@ import { createClient } from '@/lib/supabase/server';
 // =====================================================
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
@@ -41,11 +42,11 @@ export async function GET(
       undefined,
       'invoices-api',
       'GET',
-      { invoiceId: params.id }
+      { invoiceId: id }
     );
     logger.info('Obteniendo nota de venta por ID', context);
 
-    const invoice = await getInvoiceById(params.id);
+    const invoice = await getInvoiceById(id);
 
     if (!invoice) {
       logger.warn('Nota de venta no encontrada', context);
@@ -87,9 +88,10 @@ export async function GET(
 // =====================================================
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
@@ -107,7 +109,7 @@ export async function PUT(
       undefined,
       'invoices-api',
       'PUT',
-      { invoiceId: params.id }
+      { invoiceId: id }
     );
     
     // Obtener rol del usuario actual
@@ -157,15 +159,15 @@ export async function PUT(
       );
     }
 
-    const invoice = await updateInvoiceDb(params.id, body);
+    const invoice = await updateInvoiceDb(id, body);
 
     // Si se actualizaron items, recalcular totales
     if (body.items || body.subtotal || body.tax || body.discount) {
-      await recalculateInvoiceTotals(params.id);
+      await recalculateInvoiceTotals(id);
       logger.info('Totales recalculados después de actualización', context);
     }
 
-    logger.businessEvent('invoice_updated', 'invoice', params.id, context);
+    logger.businessEvent('invoice_updated', 'invoice', id, context);
 
     return NextResponse.json({
       success: true,
@@ -189,9 +191,10 @@ export async function PUT(
 // =====================================================
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
@@ -209,12 +212,12 @@ export async function DELETE(
       undefined,
       'invoices-api',
       'DELETE',
-      { invoiceId: params.id }
+      { invoiceId: id }
     );
     logger.info('Eliminando nota de venta', context);
 
     // Verificar que la nota de venta existe antes de eliminar
-    const existingInvoice = await getInvoiceById(params.id);
+    const existingInvoice = await getInvoiceById(id);
     if (!existingInvoice) {
       logger.warn('Intento de eliminar nota de venta inexistente', context);
       return NextResponse.json(
@@ -238,9 +241,9 @@ export async function DELETE(
       );
     }
 
-    await deleteInvoice(params.id);
+    await deleteInvoice(id);
 
-    logger.businessEvent('invoice_deleted', 'invoice', params.id, context);
+    logger.businessEvent('invoice_deleted', 'invoice', id, context);
     logger.info('Nota de venta eliminada exitosamente', context);
 
     return NextResponse.json({
@@ -265,9 +268,10 @@ export async function DELETE(
 // =====================================================
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
@@ -285,7 +289,7 @@ export async function PATCH(
       undefined,
       'invoices-api',
       'PATCH',
-      { invoiceId: params.id }
+      { invoiceId: id }
     );
     
     // Obtener rol del usuario actual
@@ -324,9 +328,9 @@ export async function PATCH(
             { status: 400 }
           );
         }
-        result = await updateInvoiceDiscount(params.id, data.discount);
-        await recalculateInvoiceTotals(params.id);
-        logger.businessEvent('invoice_discount_updated', 'invoice', params.id, context);
+        result = await updateInvoiceDiscount(id, data.discount);
+        await recalculateInvoiceTotals(id);
+        logger.businessEvent('invoice_discount_updated', 'invoice', id, context);
         break;
 
       case 'update_paid_amount':
@@ -352,13 +356,13 @@ export async function PATCH(
             { status: 400 }
           );
         }
-        result = await updateInvoicePaidAmount(params.id, data.paid_amount);
-        logger.businessEvent('invoice_payment_updated', 'invoice', params.id, context);
+        result = await updateInvoicePaidAmount(id, data.paid_amount);
+        logger.businessEvent('invoice_payment_updated', 'invoice', id, context);
         break;
 
       case 'recalculate_totals':
-        await recalculateInvoiceTotals(params.id);
-        result = await getInvoiceById(params.id);
+        await recalculateInvoiceTotals(id);
+        result = await getInvoiceById(id);
         logger.info('Totales de nota de venta recalculados', context);
         break;
 
