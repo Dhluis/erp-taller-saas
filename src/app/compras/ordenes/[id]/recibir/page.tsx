@@ -10,6 +10,7 @@ import { ArrowLeft, Package, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs';
 import { useOrgCurrency } from '@/lib/context/CurrencyContext';
+import { PurchaseReceiptAnalyzer } from '@/components/purchases/PurchaseReceiptAnalyzer';
 
 interface PurchaseOrderItem {
   id: string;
@@ -378,29 +379,43 @@ export default function ReceivePurchaseOrderPage() {
       </Card>
 
       {/* Actions */}
-      <div className="mt-6 flex justify-end gap-4">
-        <Button
-          variant="outline"
-          onClick={() => router.back()}
-          disabled={saving}
-        >
-          Cancelar
-        </Button>
-        
-        <Button
-          onClick={handleReceive}
-          disabled={saving || !order.items?.length}
-          className="bg-green-600 hover:bg-green-700"
-        >
-          {saving ? (
-            'Procesando...'
-          ) : (
-            <>
-              <Package className="mr-2 h-4 w-4" />
-              Confirmar Recepción
-            </>
-          )}
-        </Button>
+      <div className="mt-6 flex justify-between items-center gap-4 flex-wrap">
+        <PurchaseReceiptAnalyzer
+          orderId={orderId}
+          orderItems={(order.items || []).map(item => ({
+            id: item.id,
+            product_name: item.product_name || 'Producto',
+            quantity: item.quantity || 0,
+            quantity_received: item.quantity_received || 0,
+            unit_cost: item.unit_cost || 0,
+          }))}
+          onQuantitiesDetected={(quantities) => {
+            setReceivedQuantities(prev => ({ ...prev, ...quantities }));
+          }}
+        />
+        <div className="flex gap-4">
+          <Button
+            variant="outline"
+            onClick={() => router.back()}
+            disabled={saving}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleReceive}
+            disabled={saving || !order.items?.length}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            {saving ? (
+              'Procesando...'
+            ) : (
+              <>
+                <Package className="mr-2 h-4 w-4" />
+                Confirmar Recepción
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );

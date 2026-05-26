@@ -20,7 +20,11 @@
       "Bash(npm run *)",
       "Bash(npx next *)",
       "Bash(awk '{print $NF}')",
-      "Bash(xargs -I{} sh -c 'echo \"=== {} ===\" && head -2 {}')"
+      "Bash(xargs -I{} sh -c 'echo \"=== {} ===\" && head -2 {}')",
+      "Bash(mkdir -p \"c:/Users/exclu/erp-taller-saas/src/app/api/purchase-orders/[id]/analyze-receipt\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\exclu\\erp-taller-saas\\src\\app\\api\\purchase-orders\\[id]"
     ]
   }
 }
