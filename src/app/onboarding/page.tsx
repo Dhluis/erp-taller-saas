@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useOrganization, useSession } from '@/lib/context/SessionContext'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,8 @@ import {
   ArrowRight,
   ArrowLeft,
   ChevronRight,
+  UploadCloud,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -39,6 +41,35 @@ export default function OnboardingPage() {
   const [logoUrl, setLogoUrl] = useState('')
   const [website, setWebsite] = useState('')
   const [city, setCity] = useState('')
+
+  // Logo upload
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoDragging, setLogoDragging] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
+
+  const uploadLogo = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Solo se permiten imágenes (JPG, PNG, SVG, etc.)')
+      return
+    }
+    setLogoUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/onboarding/logo-upload', { method: 'POST', body: fd, credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Error al subir el logo')
+        return
+      }
+      setLogoUrl(data.url)
+      toast.success('Logo subido correctamente')
+    } catch {
+      toast.error('Error de conexión al subir el logo')
+    } finally {
+      setLogoUploading(false)
+    }
+  }, [])
 
   // Pre-fill when companySettings loads
   useEffect(() => {
@@ -197,14 +228,69 @@ export default function OnboardingPage() {
                 <p className="text-[11px] text-slate-500">Aparece en cotizaciones, facturas y la barra lateral</p>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-300 text-sm">Logo (URL de imagen)</Label>
-                <Input
-                  placeholder="https://tusitio.com/logo.png"
-                  value={logoUrl}
-                  onChange={e => setLogoUrl(e.target.value)}
-                  className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500"
+                <Label className="text-slate-300 text-sm">Logo del taller</Label>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(f); e.target.value = '' }}
                 />
-                <p className="text-[11px] text-slate-500">Sube tu imagen a imgur.com o imgbb.com y pega el enlace directo</p>
+                {logoUrl ? (
+                  <div className="relative flex items-center gap-3 p-3 bg-slate-700/50 border border-slate-600 rounded-lg">
+                    <img src={logoUrl} alt="Logo" className="h-14 w-14 object-contain rounded bg-white/5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-slate-300 truncate">Logo cargado</p>
+                      <button
+                        type="button"
+                        onClick={() => logoInputRef.current?.click()}
+                        className="text-xs text-cyan-400 hover:text-cyan-300 mt-0.5"
+                      >
+                        Cambiar imagen
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setLogoUrl('')}
+                      className="text-slate-500 hover:text-slate-300 shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => !logoUploading && logoInputRef.current?.click()}
+                    onDragOver={e => { e.preventDefault(); setLogoDragging(true) }}
+                    onDragLeave={() => setLogoDragging(false)}
+                    onDrop={e => {
+                      e.preventDefault()
+                      setLogoDragging(false)
+                      const f = e.dataTransfer.files?.[0]
+                      if (f) uploadLogo(f)
+                    }}
+                    className={cn(
+                      'flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors',
+                      logoDragging
+                        ? 'border-cyan-400 bg-cyan-500/10'
+                        : 'border-slate-600 bg-slate-700/30 hover:border-slate-500 hover:bg-slate-700/50'
+                    )}
+                  >
+                    {logoUploading ? (
+                      <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
+                    ) : (
+                      <UploadCloud className={cn('h-6 w-6', logoDragging ? 'text-cyan-400' : 'text-slate-400')} />
+                    )}
+                    <p className="text-sm text-slate-400 text-center">
+                      {logoUploading
+                        ? 'Subiendo...'
+                        : logoDragging
+                          ? 'Suelta aquí'
+                          : <><span className="text-cyan-400">Haz clic</span> o arrastra tu logo aquí</>
+                      }
+                    </p>
+                    <p className="text-[11px] text-slate-500">PNG, JPG, SVG — máx. 5 MB</p>
+                  </div>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-slate-300 text-sm">Sitio web</Label>

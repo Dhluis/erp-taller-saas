@@ -1,151 +1,142 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
+import { AuthLogo } from '@/components/auth/AuthLogo'
+import { Mail, Loader2, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState('')
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setMessage('')
+    setError('')
 
     try {
-      // ✅ Siempre enviar el reset sin validar existencia
-      // Supabase Auth maneja esto de forma segura y solo envía email si existe
-      // Usar callback para manejar el recovery correctamente
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
       })
 
-      // ✅ Siempre mostrar el mismo mensaje genérico para no revelar si el email existe
-      // Esto previene fuga de información sobre qué emails están registrados
-      if (error) {
-        console.error('❌ [ForgotPassword] Error:', error)
-        // Aún así mostrar mensaje genérico para no revelar información
-        setMessage('Si el email está registrado, recibirás un enlace de recuperación en tu correo.')
-      } else {
-        console.log('✅ [ForgotPassword] Solicitud procesada')
-        // Mensaje genérico que no revela si el email existe o no
-        setMessage('Si el email está registrado, recibirás un enlace de recuperación en tu correo.')
+      if (resetError) {
+        console.error('❌ [ForgotPassword] Error:', resetError)
       }
-    } catch (error: any) {
-      console.error('💥 [ForgotPassword] Excepción:', error)
-      // Mensaje genérico incluso en caso de excepción
-      setMessage('Si el email está registrado, recibirás un enlace de recuperación en tu correo.')
+      // Siempre mostrar mensaje genérico (no revelar si el email existe)
+      setSent(true)
+    } catch (err: any) {
+      console.error('💥 [ForgotPassword] Excepción:', err)
+      setSent(true)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      backgroundColor: '#f9fafb' 
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        padding: '2rem',
-        borderRadius: '8px',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-        maxWidth: '400px',
-        width: '100%'
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-          <h1 style={{ 
-            fontSize: '1.5rem', 
-            fontWeight: 'bold', 
-            color: '#111827',
-            marginBottom: '0.5rem'
-          }}>
-            📧 Recuperar Contraseña
-          </h1>
-          <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>
-            Ingresa tu email para recibir un enlace de recuperación
-          </p>
+    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white">
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.12),_transparent_55%)]" />
+
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="mb-10 flex flex-col items-center gap-4">
+          <div className="relative">
+            <AuthLogo size="lg" showText={false} />
+            <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-purple-500/20 rounded-2xl blur-xl opacity-50" />
+          </div>
         </div>
 
-        <form onSubmit={handleResetPassword} style={{ marginBottom: '1rem' }}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '0.875rem', 
-              fontWeight: '500', 
-              color: '#374151',
-              marginBottom: '0.25rem'
-            }}>
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="Ingresa tu email"
-              autoComplete="off"
-              autoFocus={false}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                fontSize: '0.875rem'
-              }}
-            />
+        {/* Card */}
+        <div className="relative bg-slate-900/80 rounded-2xl shadow-2xl p-8 border border-slate-800 backdrop-blur">
+          <div className="absolute -top-10 right-6 h-24 w-24 rounded-full bg-cyan-500/10 blur-2xl" />
+
+          {!sent ? (
+            <>
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-semibold text-white">Recuperar Contraseña</h2>
+                <p className="mt-2 text-sm text-slate-400">
+                  Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña.
+                </p>
+              </div>
+
+              {error && (
+                <div className="mb-5 p-4 bg-red-500/10 border border-red-500/40 rounded-lg flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-300 shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-200">{error}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleResetPassword} className="space-y-5">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
+                    Correo electrónico
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      disabled={loading}
+                      autoComplete="email"
+                      placeholder="tu@email.com"
+                      className="w-full pl-10 pr-4 py-3 border border-slate-700 bg-slate-800/80 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-slate-500"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 px-4 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    'Enviar Enlace de Recuperación'
+                  )}
+                </button>
+              </form>
+            </>
+          ) : (
+            <div className="text-center py-4 space-y-4">
+              <div className="flex justify-center">
+                <div className="w-16 h-16 rounded-full bg-cyan-500/10 flex items-center justify-center">
+                  <CheckCircle2 className="w-8 h-8 text-cyan-400" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-semibold text-white">Revisa tu correo</h2>
+              <p className="text-sm text-slate-400 max-w-xs mx-auto">
+                Si el email <span className="text-white font-medium">{email}</span> está registrado,
+                recibirás un enlace de recuperación en los próximos minutos.
+              </p>
+              <p className="text-xs text-slate-500">
+                Revisa también tu carpeta de spam.
+              </p>
+            </div>
+          )}
+
+          <div className="mt-6 text-center">
+            <Link
+              href="/auth/login"
+              className="inline-flex items-center gap-1.5 text-sm text-cyan-400 hover:text-cyan-300 font-medium transition"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Volver al Login
+            </Link>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              backgroundColor: loading ? '#9ca3af' : '#2563eb',
-              color: 'white',
-              padding: '0.75rem',
-              borderRadius: '4px',
-              border: 'none',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              cursor: loading ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {loading ? '⏳ Enviando...' : '📧 Enviar Enlace de Recuperación'}
-          </button>
-        </form>
-
-        {message && (
-          <div style={{
-            padding: '0.75rem',
-            borderRadius: '4px',
-            fontSize: '0.875rem',
-            marginBottom: '1rem',
-            backgroundColor: '#f0fdf4',
-            color: '#166534',
-            border: '1px solid #bbf7d0'
-          }}>
-            {message}
-          </div>
-        )}
-
-        <div style={{ textAlign: 'center' }}>
-          <a 
-            href="/auth/login" 
-            style={{ 
-              color: '#2563eb', 
-              textDecoration: 'none',
-              fontSize: '0.875rem'
-            }}
-          >
-            ← Volver al Login
-          </a>
         </div>
 
+        <p className="mt-8 text-center text-sm text-slate-500">
+          © 2026 Confia Drive. Todos los derechos reservados.
+        </p>
       </div>
     </div>
   )
