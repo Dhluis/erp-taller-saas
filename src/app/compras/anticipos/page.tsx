@@ -3,21 +3,42 @@
 import { useState, useEffect, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PageHeader } from '@/components/navigation/page-header'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Wallet, Plus, CheckCircle2, XCircle, Clock, AlertTriangle, Loader2, User } from 'lucide-react'
+import {
+  Wallet,
+  Plus,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  AlertTriangle,
+  Loader2,
+  User,
+  Banknote,
+  ArrowRightLeft,
+  CreditCard,
+  Building2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 import { cn } from '@/lib/utils'
+
+type PaymentMethod = 'cash' | 'transfer' | 'card'
+
+interface CashAccount {
+  id: string
+  name: string
+  account_type: 'cash' | 'bank' | 'card'
+  current_balance?: number
+}
 
 interface CashAdvance {
   id: string
@@ -25,6 +46,9 @@ interface CashAdvance {
   purpose: string
   status: 'open' | 'closed' | 'cancelled'
   notes: string | null
+  payment_method: PaymentMethod | null
+  cash_account_id: string | null
+  cash_account: { id: string; name: string; account_type: string } | null
   created_at: string
   closed_at: string | null
   total_spent: number
@@ -34,22 +58,35 @@ interface CashAdvance {
   expenses: Array<{ id: string; amount: number; description: string; expense_date: string; receipt_image_url: string | null }>
 }
 
-interface User {
+interface UserOption {
   id: string
   name: string
   email: string
 }
 
 const STATUS_CONFIG = {
-  open: { label: 'Abierto', color: 'bg-amber-500/15 text-amber-400 border-amber-500/30', icon: Clock },
-  closed: { label: 'Cerrado', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', icon: CheckCircle2 },
-  cancelled: { label: 'Cancelado', color: 'bg-red-500/15 text-red-400 border-red-500/30', icon: XCircle },
+  open:      { label: 'Abierto',    color: 'bg-amber-500/15 text-amber-400 border-amber-500/30',   icon: Clock },
+  closed:    { label: 'Cerrado',    color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', icon: CheckCircle2 },
+  cancelled: { label: 'Cancelado',  color: 'bg-red-500/15 text-red-400 border-red-500/30',          icon: XCircle },
+}
+
+const METHOD_CONFIG: Record<PaymentMethod, { label: string; icon: typeof Banknote; color: string }> = {
+  cash:     { label: 'Efectivo',      icon: Banknote,       color: 'text-emerald-400' },
+  transfer: { label: 'Transferencia', icon: ArrowRightLeft,  color: 'text-blue-400' },
+  card:     { label: 'Tarjeta',       icon: CreditCard,      color: 'text-purple-400' },
+}
+
+const ACCOUNT_TYPE_FOR_METHOD: Record<PaymentMethod, CashAccount['account_type'][]> = {
+  cash:     ['cash'],
+  transfer: ['bank'],
+  card:     ['card', 'bank'],
 }
 
 export default function AnticiposPage() {
   const { formatMoney } = useOrgCurrency()
   const [advances, setAdvances] = useState<CashAdvance[]>([])
-  const [employees, setEmployees] = useState<User[]>([])
+  const [employees, setEmployees] = useState<UserOption[]>([])
+  const [accounts, setAccounts] = useState<CashAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState<string>('open')
   const [showCreate, setShowCreate] = useState(false)
@@ -60,6 +97,8 @@ export default function AnticiposPage() {
   const [purpose, setPurpose] = useState('')
   const [employeeId, setEmployeeId] = useState('')
   const [notes, setNotes] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+  const [cashAccountId, setCashAccountId] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const load = useCallback(async () => {
@@ -81,7 +120,26 @@ export default function AnticiposPage() {
       .then(r => r.json())
       .then(d => { if (d.success) setEmployees(d.data?.users || d.data || []) })
       .catch(() => {})
+
+    fetch('/api/cash-accounts', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d.success) setAccounts(d.data?.items || d.data || []) })
+      .catch(() => {})
   }, [])
+
+  // Filtrar cuentas según método seleccionado
+  const filteredAccounts = accounts.filter(a =>
+    ACCOUNT_TYPE_FOR_METHOD[paymentMethod].includes(a.account_type)
+  )
+
+  // Auto-seleccionar si solo hay una cuenta del tipo
+  useEffect(() => {
+    if (filteredAccounts.length === 1) {
+      setCashAccountId(filteredAccounts[0].id)
+    } else {
+      setCashAccountId('')
+    }
+  }, [paymentMethod, filteredAccounts.length])
 
   const handleCreate = async () => {
     if (!amount || !purpose.trim()) {
@@ -105,6 +163,8 @@ export default function AnticiposPage() {
           purpose: purpose.trim(),
           employee_id: employeeId || null,
           notes: notes.trim() || undefined,
+          payment_method: paymentMethod,
+          cash_account_id: cashAccountId || null,
         }),
       })
       const json = await res.json()
@@ -112,6 +172,7 @@ export default function AnticiposPage() {
       toast.success('Anticipo registrado correctamente')
       setShowCreate(false)
       setAmount(''); setPurpose(''); setEmployeeId(''); setNotes('')
+      setPaymentMethod('cash'); setCashAccountId('')
       load()
     } catch (e: any) {
       toast.error(e.message || 'Error al crear anticipo')
@@ -146,7 +207,7 @@ export default function AnticiposPage() {
     <AppLayout>
       <div className="p-4 md:p-6 space-y-6">
         <PageHeader
-          title="Anticipos de Efectivo"
+          title="Anticipos"
           description="Controla el dinero entregado a empleados para compras"
           icon={<Wallet className="w-5 h-5" />}
           actions={
@@ -226,6 +287,8 @@ export default function AnticiposPage() {
             {advances.map(adv => {
               const cfg = STATUS_CONFIG[adv.status]
               const StatusIcon = cfg.icon
+              const method = adv.payment_method ? METHOD_CONFIG[adv.payment_method] : null
+              const MethodIcon = method?.icon
               const hasDiscrepancy = adv.status === 'open' && adv.total_spent > 0 && adv.balance !== 0
               return (
                 <Card
@@ -244,6 +307,12 @@ export default function AnticiposPage() {
                             <StatusIcon className="w-3 h-3" />
                             {cfg.label}
                           </span>
+                          {method && MethodIcon && (
+                            <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-700/60 border border-slate-600", method.color)}>
+                              <MethodIcon className="w-3 h-3" />
+                              {method.label}
+                            </span>
+                          )}
                           {hasDiscrepancy && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
                               <AlertTriangle className="w-3 h-3" />
@@ -252,12 +321,20 @@ export default function AnticiposPage() {
                           )}
                         </div>
                         <p className="text-white font-medium truncate">{adv.purpose}</p>
-                        {adv.employee && (
-                          <p className="text-sm text-slate-400 flex items-center gap-1 mt-0.5">
-                            <User className="w-3 h-3" />
-                            {adv.employee.name}
-                          </p>
-                        )}
+                        <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                          {adv.employee && (
+                            <p className="text-sm text-slate-400 flex items-center gap-1">
+                              <User className="w-3 h-3" />
+                              {adv.employee.name}
+                            </p>
+                          )}
+                          {adv.cash_account && (
+                            <p className="text-sm text-slate-400 flex items-center gap-1">
+                              <Building2 className="w-3 h-3" />
+                              {adv.cash_account.name}
+                            </p>
+                          )}
+                        </div>
                         <p className="text-xs text-slate-500 mt-1">
                           {new Date(adv.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </p>
@@ -287,10 +364,58 @@ export default function AnticiposPage() {
             <DialogHeader>
               <DialogTitle className="text-white flex items-center gap-2">
                 <Wallet className="w-5 h-5 text-cyan-400" />
-                Registrar Anticipo de Efectivo
+                Registrar Anticipo
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-2">
+
+              {/* Método de pago */}
+              <div className="space-y-1.5">
+                <Label className="text-slate-300">Método de entrega *</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(Object.entries(METHOD_CONFIG) as [PaymentMethod, typeof METHOD_CONFIG[PaymentMethod]][]).map(([key, cfg]) => {
+                    const Icon = cfg.icon
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setPaymentMethod(key)}
+                        className={cn(
+                          'flex flex-col items-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-all',
+                          paymentMethod === key
+                            ? 'border-cyan-500 bg-cyan-500/10 text-cyan-400'
+                            : 'border-slate-600 bg-slate-700/30 text-slate-400 hover:border-slate-500'
+                        )}
+                      >
+                        <Icon className={cn('w-4 h-4', paymentMethod === key ? 'text-cyan-400' : cfg.color)} />
+                        {cfg.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Cuenta */}
+              <div className="space-y-1.5">
+                <Label className="text-slate-300">Cuenta de origen</Label>
+                {filteredAccounts.length === 0 ? (
+                  <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+                    No hay cuentas de tipo "{METHOD_CONFIG[paymentMethod].label}" configuradas. Crea una en Finanzas → Cuentas.
+                  </p>
+                ) : (
+                  <select
+                    value={cashAccountId}
+                    onChange={e => setCashAccountId(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm"
+                  >
+                    <option value="">Sin especificar</option>
+                    {filteredAccounts.map(acc => (
+                      <option key={acc.id} value={acc.id}>{acc.name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
               <div className="space-y-1.5">
                 <Label className="text-slate-300">Monto entregado *</Label>
                 <Input
@@ -303,6 +428,7 @@ export default function AnticiposPage() {
                   className="bg-slate-700/50 border-slate-600 text-white"
                 />
               </div>
+
               <div className="space-y-1.5">
                 <Label className="text-slate-300">Propósito / Para qué *</Label>
                 <Input
@@ -312,6 +438,7 @@ export default function AnticiposPage() {
                   className="bg-slate-700/50 border-slate-600 text-white"
                 />
               </div>
+
               <div className="space-y-1.5">
                 <Label className="text-slate-300">Empleado (opcional)</Label>
                 <select
@@ -325,6 +452,7 @@ export default function AnticiposPage() {
                   ))}
                 </select>
               </div>
+
               <div className="space-y-1.5">
                 <Label className="text-slate-300">Notas adicionales</Label>
                 <Input
@@ -334,6 +462,7 @@ export default function AnticiposPage() {
                   className="bg-slate-700/50 border-slate-600 text-white"
                 />
               </div>
+
               <div className="flex gap-3 pt-2">
                 <Button
                   variant="ghost"
@@ -368,6 +497,21 @@ export default function AnticiposPage() {
                     <span className="text-slate-400 text-sm">Anticipo entregado</span>
                     <span className="text-white font-bold">{formatMoney(selectedAdvance.amount)}</span>
                   </div>
+                  {selectedAdvance.payment_method && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 text-sm">Método</span>
+                      <span className={cn("text-sm font-medium flex items-center gap-1", METHOD_CONFIG[selectedAdvance.payment_method].color)}>
+                        {(() => { const Icon = METHOD_CONFIG[selectedAdvance.payment_method].icon; return <Icon className="w-3.5 h-3.5" /> })()}
+                        {METHOD_CONFIG[selectedAdvance.payment_method].label}
+                      </span>
+                    </div>
+                  )}
+                  {selectedAdvance.cash_account && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 text-sm">Cuenta</span>
+                      <span className="text-white text-sm">{selectedAdvance.cash_account.name}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-slate-400 text-sm">Total gastado</span>
                     <span className="text-white">{formatMoney(selectedAdvance.total_spent)}</span>

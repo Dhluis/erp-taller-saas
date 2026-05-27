@@ -190,8 +190,6 @@ export function Sidebar({ className }: SidebarProps) {
       visible: showAllForAdmin || permissions.canManagePurchases() || permissions.canManageSuppliers(),
       items: [
         { href: "/compras/ordenes", label: "Órdenes de Compra", icon: () => <ModernIcons.Ordenes size={18} />, visible: permissions.canManagePurchases() },
-        { href: "/compras/anticipos", label: "Anticipos de Efectivo", icon: () => <Banknote size={18} className="text-amber-400" />, visible: permissions.canManagePurchases() },
-        { href: "/compras/gastos", label: "Gastos", icon: () => <Receipt size={18} className="text-orange-400" />, visible: permissions.canManagePurchases() },
         { href: "/compras/proveedores", label: "Proveedores", icon: () => <ModernIcons.Clientes size={18} />, visible: permissions.canManageSuppliers() },
       ].filter(item => item.visible !== false)
     },
@@ -205,6 +203,7 @@ export function Sidebar({ className }: SidebarProps) {
         { href: "/ingresos/facturacion", label: "Facturación", icon: () => <ModernIcons.Facturacion size={18} />, visible: permissions.canRead('invoices') },
         { href: "/finanzas/cuentas", label: "Cuentas", icon: () => <Wallet size={18} className="text-emerald-400" />, visible: permissions.canPayInvoices() },
         { href: "/finanzas/pagos-gastos", label: "Entradas y Salidas", icon: () => <Receipt size={18} className="text-orange-400" />, visible: permissions.canPayInvoices() },
+        { href: "/compras/anticipos", label: "Anticipos de Efectivo", icon: () => <Banknote size={18} className="text-amber-400" />, visible: permissions.canManagePurchases() },
       ].filter(item => item.visible !== false)
     },
     {

@@ -7,6 +7,8 @@ const createAdvanceSchema = z.object({
   amount: z.number().positive(),
   purpose: z.string().min(1).max(500),
   notes: z.string().max(1000).optional(),
+  payment_method: z.enum(['cash', 'transfer', 'card']).default('cash'),
+  cash_account_id: z.string().uuid().optional().nullable(),
 });
 
 // GET /api/cash-advances
@@ -30,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     const url = new URL(request.url);
-    const status = url.searchParams.get('status'); // open | closed | cancelled
+    const status = url.searchParams.get('status');
 
     let query = supabaseAdmin
       .from('cash_advances')
@@ -38,6 +40,7 @@ export async function GET(request: NextRequest) {
         *,
         employee:users!cash_advances_employee_id_fkey(id, name, email),
         created_by_user:users!cash_advances_created_by_fkey(id, name),
+        cash_account:cash_accounts(id, name, account_type),
         expenses(id, amount, description, expense_date, receipt_image_url)
       `)
       .eq('organization_id', profile.organization_id)
@@ -51,7 +54,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    // Calcular diferencia para cada anticipo
     const advancesWithBalance = (advances || []).map((adv: any) => {
       const totalSpent = (adv.expenses || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
       const balance = adv.amount - totalSpent;
@@ -95,17 +97,45 @@ export async function POST(request: NextRequest) {
         amount: validated.amount,
         purpose: validated.purpose,
         notes: validated.notes || null,
+        payment_method: validated.payment_method,
+        cash_account_id: validated.cash_account_id || null,
         status: 'open',
         created_by: profile.id,
       })
       .select(`
         *,
-        employee:users!cash_advances_employee_id_fkey(id, name, email)
+        employee:users!cash_advances_employee_id_fkey(id, name, email),
+        cash_account:cash_accounts(id, name, account_type)
       `)
       .single();
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    // Registrar salida en la cuenta seleccionada
+    if (validated.cash_account_id && advance) {
+      const methodLabels: Record<string, string> = {
+        cash: 'efectivo',
+        transfer: 'transferencia',
+        card: 'tarjeta',
+      };
+      const { error: movError } = await (supabaseAdmin as any)
+        .from('cash_account_movements')
+        .insert({
+          cash_account_id: validated.cash_account_id,
+          organization_id: profile.organization_id,
+          movement_type: 'withdrawal',
+          amount: validated.amount,
+          notes: `Anticipo (${methodLabels[validated.payment_method]}): ${validated.purpose}`,
+          reference_type: 'cash_advance',
+          reference_id: (advance as any).id,
+          created_by: profile.id,
+        });
+
+      if (movError) {
+        console.error('[cash-advances] No se pudo registrar movimiento en cuenta:', movError);
+      }
     }
 
     // Notificar al empleado si está registrado
@@ -115,7 +145,7 @@ export async function POST(request: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           organizationId: profile.organization_id,
-          title: 'Anticipo de efectivo registrado',
+          title: 'Anticipo registrado',
           body: `${profile.name || 'El administrador'} registró un anticipo de $${validated.amount.toFixed(2)} para: ${validated.purpose}`,
           url: '/compras/gastos',
         }),
