@@ -79,10 +79,10 @@ export async function GET(request: NextRequest) {
 
 const createSchema = z.object({
   name: z.string().min(1, 'Nombre requerido'),
-  account_number: z.string().optional().default(''),
+  account_number: z.string().optional().nullable().default(''),
   account_type: z.enum(['cash', 'bank', 'card']).default('cash'),
   initial_balance: z.number().default(0),
-  notes: z.string().optional().default(''),
+  notes: z.string().optional().nullable().default(''),
   bank_name: z.string().optional().nullable(),
   last_four_digits: z.string().optional().nullable(),
   card_brand: z.string().optional().nullable(),
