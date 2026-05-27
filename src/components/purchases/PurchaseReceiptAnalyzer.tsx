@@ -82,7 +82,16 @@ export function PurchaseReceiptAnalyzer({
   const [matches, setMatches] = useState<MatchResult[]>([])
   const [documentUrl, setDocumentUrl] = useState<string | null>(null)
 
-  if (billingLoading || !canUseAI) return null
+  if (billingLoading) return null
+
+  if (!canUseAI) {
+    return (
+      <Button type="button" variant="outline" disabled className="gap-2 opacity-60" title="Requiere plan Premium">
+        <ScanLine className="h-4 w-4" />
+        Escanear Factura (Premium)
+      </Button>
+    )
+  }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
