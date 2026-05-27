@@ -61,7 +61,7 @@ export async function POST(
     // 4. Verificar que la orden existe y pertenece a la organización
     const { data: order, error: orderError } = await (supabaseAdmin
       .from('purchase_orders') as any)
-      .select('id, order_number, status, organization_id')
+      .select('id, order_number, status, organization_id, supplier:suppliers(name)')
       .eq('id', orderId)
       .eq('organization_id', organizationId)
       .single();
@@ -92,8 +92,16 @@ export async function POST(
     }
     
     // 6. Procesar cada item
-    const results = [];
-    
+    const results: Array<{
+      item_id: string;
+      product_id: string;
+      quantity_received: number;
+      unit_cost: number;
+      new_total_received: number;
+      previous_stock: number;
+      new_stock: number;
+    }> = [];
+
     console.log('📦 [Receive] Iniciando procesamiento de', validatedData.items.length, 'items');
     
     for (const item of validatedData.items) {
@@ -214,6 +222,7 @@ export async function POST(
         item_id: item.id,
         product_id: item.product_id,
         quantity_received: item.quantity_received,
+        unit_cost: itemData.unit_cost ?? 0,
         new_total_received: newTotalReceived,
         previous_stock: previousStock,
         new_stock: newStock
@@ -223,11 +232,43 @@ export async function POST(
     }
     
     console.log('📦 [Receive] Procesamiento finalizado. Total procesados:', results.length);
-    
+
     // 7. El trigger update_purchase_order_status() actualizará automáticamente
     //    el status de la orden si todos los items están completamente recibidos
-    
-    // 8. Obtener estado actualizado de la orden
+
+    // 8. Registrar en finanzas como gasto/salida
+    if (results.length > 0) {
+      const totalReceived = results.reduce(
+        (sum, r) => sum + r.quantity_received * r.unit_cost,
+        0
+      );
+      const orderData = order as { order_number: string; supplier?: { name: string } };
+      const supplierName = orderData.supplier?.name || 'Proveedor';
+
+      if (totalReceived > 0) {
+        const { error: txError } = await (supabaseAdmin
+          .from('financial_transactions') as any)
+          .insert({
+            organization_id: organizationId,
+            transaction_type: 'expense',
+            category: 'compra_inventario',
+            description: `Recepción OC #${orderData.order_number} — ${supplierName}`,
+            amount: totalReceived,
+            reference_type: 'purchase_order',
+            reference_id: orderId,
+            transaction_date: new Date().toISOString().split('T')[0],
+            created_by: userId,
+          });
+
+        if (txError) {
+          console.error('⚠️ [Receive] No se pudo registrar transacción financiera:', txError);
+        } else {
+          console.log('✅ [Receive] Transacción financiera registrada:', totalReceived);
+        }
+      }
+    }
+
+    // 9. Obtener estado actualizado de la orden
     const { data: updatedOrder } = await (supabaseAdmin
       .from('purchase_orders') as any)
       .select('id, order_number, status')

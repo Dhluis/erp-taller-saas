@@ -35,6 +35,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Plus,
+  Package,
 } from 'lucide-react'
 import { useSession } from '@/lib/context/SessionContext'
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
@@ -102,6 +103,7 @@ const DENOMINATIONS = [
 const CATEGORY_LABELS: Record<string, string> = {
   cobro_factura: 'Cobro de Factura',
   pago_proveedor: 'Pago a Proveedor',
+  compra_inventario: 'Compra de Inventario',
   gasto_operativo: 'Gasto Operativo',
   deposito_caja: 'Depósito en Caja',
   retiro_caja: 'Retiro de Caja',
@@ -113,6 +115,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 const CATEGORY_ICONS: Record<string, typeof FileText> = {
   cobro_factura: FileText,
   pago_proveedor: Building2,
+  compra_inventario: Package,
   gasto_operativo: Receipt,
   deposito_caja: ArrowUpCircle,
   retiro_caja: ArrowDownCircle,
