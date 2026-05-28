@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,13 +18,15 @@ import {
 } from '@/components/ui/select'
 import {
   Plus, Search, DollarSign, TrendingDown, TrendingUp, CreditCard, Loader2,
-  Receipt, Building2, RefreshCw, ArrowDownCircle, ArrowUpCircle, Clock, ScanLine
+  Receipt, Building2, RefreshCw, ArrowDownCircle, ArrowUpCircle, Clock, ScanLine,
+  Wallet, User, Banknote, ArrowRightLeft, CheckCircle2, XCircle, AlertTriangle
 } from 'lucide-react'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import { useOrganization } from '@/lib/context/SessionContext'
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 import { getCollections, Collection } from '@/lib/supabase/collections'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 type UnifiedEntry = {
   id: string
@@ -68,6 +71,48 @@ const EXPENSE_CATEGORIES = [
   { value: 'otro', label: 'Otro' },
 ]
 
+// ── Anticipos types & configs ──────────────────────────────────────────────
+
+type AdvancePaymentMethod = 'cash' | 'transfer' | 'card'
+
+interface CashAdvance {
+  id: string
+  amount: number
+  purpose: string
+  status: 'open' | 'closed' | 'cancelled'
+  notes: string | null
+  payment_method: AdvancePaymentMethod | null
+  cash_account_id: string | null
+  cash_account: { id: string; name: string; account_type: string } | null
+  created_at: string
+  total_spent: number
+  balance: number
+  employee: { id: string; name: string; email: string } | null
+  expenses: Array<{ id: string; amount: number; description: string; expense_date: string }>
+}
+
+interface UserOption { id: string; name: string; email: string }
+
+const ADV_STATUS: Record<string, { label: string; color: string; icon: typeof Clock }> = {
+  open:      { label: 'Abierto',   color: 'bg-amber-500/15 text-amber-400 border-amber-500/30',      icon: Clock },
+  closed:    { label: 'Cerrado',   color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', icon: CheckCircle2 },
+  cancelled: { label: 'Cancelado', color: 'bg-red-500/15 text-red-400 border-red-500/30',             icon: XCircle },
+}
+
+const ADV_METHOD: Record<AdvancePaymentMethod, { label: string; icon: typeof Banknote; color: string }> = {
+  cash:     { label: 'Efectivo',      icon: Banknote,      color: 'text-emerald-400' },
+  transfer: { label: 'Transferencia', icon: ArrowRightLeft, color: 'text-blue-400' },
+  card:     { label: 'Tarjeta',       icon: CreditCard,     color: 'text-purple-400' },
+}
+
+const ADV_ACCOUNT_TYPES: Record<AdvancePaymentMethod, string[]> = {
+  cash:     ['cash'],
+  transfer: ['bank'],
+  card:     ['card', 'bank'],
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+
 export default function EntradasSalidasPage() {
   const { organizationId, ready } = useOrganization()
   const { formatMoney } = useOrgCurrency()
@@ -83,7 +128,26 @@ export default function EntradasSalidasPage() {
   const [submitting, setSubmitting] = useState(false)
   const [confirmingSubmit, setConfirmingSubmit] = useState(false)
   const [stats, setStats] = useState({ totalCobrado: 0, totalEgresos: 0, pendingCobros: 0, count: 0 })
-  const [cashAccounts, setCashAccounts] = useState<Array<{ id: string; name: string }>>([])
+  const [cashAccounts, setCashAccounts] = useState<Array<{ id: string; name: string; account_type?: string }>>([])
+
+  // Main tab (movimientos / anticipos)
+  const searchParams = useSearchParams()
+  const [mainTab, setMainTab] = useState<'movimientos' | 'anticipos'>('movimientos')
+
+  // Anticipos state
+  const [advances, setAdvances] = useState<CashAdvance[]>([])
+  const [advancesLoading, setAdvancesLoading] = useState(false)
+  const [advFilterStatus, setAdvFilterStatus] = useState('open')
+  const [showAdvCreate, setShowAdvCreate] = useState(false)
+  const [selectedAdvance, setSelectedAdvance] = useState<CashAdvance | null>(null)
+  const [employees, setEmployees] = useState<UserOption[]>([])
+  const [advAmount, setAdvAmount] = useState('')
+  const [advPurpose, setAdvPurpose] = useState('')
+  const [advEmployeeId, setAdvEmployeeId] = useState('')
+  const [advNotes, setAdvNotes] = useState('')
+  const [advMethod, setAdvMethod] = useState<AdvancePaymentMethod>('cash')
+  const [advAccountId, setAdvAccountId] = useState('')
+  const [advSubmitting, setAdvSubmitting] = useState(false)
 
   // Customers for cobro
   const [customers, setCustomers] = useState<Array<{ id: string; name: string; phone?: string | null }>>([])
@@ -145,7 +209,7 @@ export default function EntradasSalidasPage() {
     if (!organizationId) return
     fetch('/api/cash-accounts', { credentials: 'include' })
       .then(r => r.json())
-      .then(res => { if (res?.success && res?.data?.items?.length) setCashAccounts(res.data.items.map((a: any) => ({ id: a.id, name: a.name }))) })
+      .then(res => { if (res?.success && res?.data?.items?.length) setCashAccounts(res.data.items.map((a: any) => ({ id: a.id, name: a.name, account_type: a.account_type }))) })
       .catch(() => {})
   }, [organizationId])
 
@@ -232,6 +296,98 @@ export default function EntradasSalidasPage() {
   useEffect(() => {
     if (ready && organizationId && !suppliersLoading) loadEntries()
   }, [ready, organizationId, suppliersLoading])
+
+  // Sync tab from URL
+  useEffect(() => {
+    if (searchParams.get('tab') === 'anticipos') setMainTab('anticipos')
+  }, [searchParams])
+
+  // Load employees for advance form
+  useEffect(() => {
+    if (!organizationId) return
+    fetch('/api/users', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d.success) setEmployees(d.data?.users || d.data || []) })
+      .catch(() => {})
+  }, [organizationId])
+
+  // Anticipos: load + filtered accounts + auto-select
+  const loadAdvances = useCallback(async () => {
+    setAdvancesLoading(true)
+    try {
+      const params = advFilterStatus !== 'all' ? `?status=${advFilterStatus}` : ''
+      const res = await fetch(`/api/cash-advances${params}`, { credentials: 'include' })
+      const json = await res.json()
+      if (json.success) setAdvances(json.data || [])
+    } finally {
+      setAdvancesLoading(false)
+    }
+  }, [advFilterStatus])
+
+  useEffect(() => {
+    if (mainTab === 'anticipos') loadAdvances()
+  }, [mainTab, loadAdvances])
+
+  const filteredAdvanceAccounts = cashAccounts.filter(a =>
+    ADV_ACCOUNT_TYPES[advMethod].includes(a.account_type || 'cash')
+  )
+
+  useEffect(() => {
+    if (filteredAdvanceAccounts.length === 1) setAdvAccountId(filteredAdvanceAccounts[0].id)
+    else setAdvAccountId('')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [advMethod, filteredAdvanceAccounts.length])
+
+  const handleCreateAdvance = async () => {
+    if (!advAmount || !advPurpose.trim()) { toast.error('Monto y propósito son requeridos'); return }
+    const amountNum = parseFloat(advAmount)
+    if (isNaN(amountNum) || amountNum <= 0) { toast.error('El monto debe ser mayor a 0'); return }
+    setAdvSubmitting(true)
+    try {
+      const res = await fetch('/api/cash-advances', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          amount: amountNum,
+          purpose: advPurpose.trim(),
+          employee_id: advEmployeeId || null,
+          notes: advNotes.trim() || undefined,
+          payment_method: advMethod,
+          cash_account_id: advAccountId || null,
+        }),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error)
+      toast.success('Anticipo registrado correctamente')
+      setShowAdvCreate(false)
+      setAdvAmount(''); setAdvPurpose(''); setAdvEmployeeId(''); setAdvNotes('')
+      setAdvMethod('cash'); setAdvAccountId('')
+      loadAdvances()
+    } catch (e: any) {
+      toast.error(e.message || 'Error al crear anticipo')
+    } finally {
+      setAdvSubmitting(false)
+    }
+  }
+
+  const handleCloseAdvance = async (adv: CashAdvance, statusTo: 'closed' | 'cancelled') => {
+    try {
+      const res = await fetch(`/api/cash-advances/${adv.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: statusTo }),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error)
+      toast.success(statusTo === 'closed' ? 'Anticipo cerrado' : 'Anticipo cancelado')
+      setSelectedAdvance(null)
+      loadAdvances()
+    } catch (e: any) {
+      toast.error(e.message)
+    }
+  }
 
   // Resolve customer names after both customers and entries are loaded
   useEffect(() => {
@@ -495,16 +651,25 @@ export default function EntradasSalidasPage() {
             <p className="text-muted-foreground">Cobros de clientes, pagos a proveedores y gastos</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => scanFileRef.current?.click()} disabled={scanLoading}>
-              {scanLoading
-                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                : <ScanLine className="mr-2 h-4 w-4" />}
-              {scanLoading ? 'Analizando...' : 'Escanear Ticket IA'}
-            </Button>
-            <input ref={scanFileRef} type="file" className="hidden" accept="image/*,application/pdf" onChange={handleScanFile} />
-            <Button onClick={() => setModalOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Nuevo registro
-            </Button>
+            {mainTab === 'movimientos' && (
+              <>
+                <Button variant="outline" onClick={() => scanFileRef.current?.click()} disabled={scanLoading}>
+                  {scanLoading
+                    ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    : <ScanLine className="mr-2 h-4 w-4" />}
+                  {scanLoading ? 'Analizando...' : 'Escanear Ticket IA'}
+                </Button>
+                <input ref={scanFileRef} type="file" className="hidden" accept="image/*,application/pdf" onChange={handleScanFile} />
+                <Button onClick={() => setModalOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" /> Nuevo registro
+                </Button>
+              </>
+            )}
+            {mainTab === 'anticipos' && (
+              <Button onClick={() => setShowAdvCreate(true)} className="bg-cyan-600 hover:bg-cyan-500">
+                <Plus className="mr-2 h-4 w-4" /> Nuevo Anticipo
+              </Button>
+            )}
           </div>
         </div>
 
@@ -552,96 +717,267 @@ export default function EntradasSalidasPage() {
           </Card>
         </div>
 
-        {/* Tabs + Search */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex gap-1 bg-bg-secondary rounded-lg p-1 border border-border">
-            {[
-              { key: 'all', label: 'Todos' },
-              { key: 'cobro', label: 'Cobros' },
-              { key: 'gastos', label: 'Gastos' },
-            ].map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setFilterTab(tab.key as any)}
-                className={`px-4 py-2 text-sm rounded-md transition-colors ${filterTab === tab.key ? 'bg-primary text-white shadow' : 'text-muted-foreground hover:text-text-primary'}`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          <div className="relative flex-1 sm:max-w-sm">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-8" />
-          </div>
+        {/* Main tab switcher */}
+        <div className="flex gap-1 bg-bg-secondary rounded-lg p-1 border border-border w-fit">
+          <button
+            onClick={() => setMainTab('movimientos')}
+            className={`px-4 py-2 text-sm rounded-md transition-colors ${mainTab === 'movimientos' ? 'bg-primary text-white shadow' : 'text-muted-foreground hover:text-text-primary'}`}
+          >
+            Movimientos
+          </button>
+          <button
+            onClick={() => setMainTab('anticipos')}
+            className={`px-4 py-2 text-sm rounded-md transition-colors flex items-center gap-1.5 ${mainTab === 'anticipos' ? 'bg-primary text-white shadow' : 'text-muted-foreground hover:text-text-primary'}`}
+          >
+            <Wallet className="h-3.5 w-3.5" />
+            Anticipos de Efectivo
+          </button>
         </div>
 
-        {/* List */}
-        <Card className="bg-bg-secondary border border-border rounded-xl">
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : filteredEntries.length === 0 ? (
-              <p className="py-12 text-center text-muted-foreground">No hay registros. Crea uno con el botón superior.</p>
-            ) : (
-              <div className="divide-y divide-border">
-                {filteredEntries.map(e => (
-                  <div key={`${e.type}-${e.id}`} className="flex items-center justify-between p-4 hover:bg-bg-tertiary/30 transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`p-2 rounded-full shrink-0 ${
-                        e.type === 'cobro' ? 'bg-emerald-500/10' :
-                        e.type === 'supplier' ? 'bg-rose-500/10' : 'bg-orange-500/10'
-                      }`}>
-                        {e.type === 'cobro'
-                          ? <ArrowDownCircle className="h-4 w-4 text-emerald-400" />
-                          : e.type === 'supplier'
-                          ? <Building2 className="h-4 w-4 text-rose-400" />
-                          : <Receipt className="h-4 w-4 text-orange-400" />
-                        }
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-text-primary truncate">
-                          {e.type === 'cobro'
-                            ? (e.customer_name || e.customer_id || 'Cliente')
-                            : e.type === 'supplier'
-                            ? e.supplier_name
-                            : (e.description || e.category || 'Gasto')}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className={`font-medium ${e.type === 'cobro' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                            {e.type === 'cobro' ? '↓ Cobro' : e.type === 'supplier' ? '↑ Proveedor' : '↑ Gasto'}
-                          </span>
-                          <span>·</span>
-                          <span>{new Date(e.payment_date).toLocaleDateString('es-MX')}</span>
-                          <span>·</span>
-                          <span>{PAYMENT_METHODS.find(m => m.value === e.payment_method)?.label || e.payment_method}</span>
-                          {(e.reference || e.reference_number) && <><span>·</span><span>{e.reference || e.reference_number}</span></>}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      {getStatusBadge(e)}
-                      <span className={`text-sm font-bold ${e.type === 'cobro' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {formatMoney(e.amount)}
-                      </span>
-                      {e.type === 'cobro' && e.status === 'pending' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
-                          onClick={() => { setCobroToPay(e); setCobroPayOpen(true); setCobroPayForm({ payment_method: 'transfer', cash_account_id: '' }) }}
-                        >
-                          Cobrar
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+        {/* ── MOVIMIENTOS ── */}
+        {mainTab === 'movimientos' && (
+          <>
+            {/* Tabs + Search */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex gap-1 bg-bg-secondary rounded-lg p-1 border border-border">
+                {[
+                  { key: 'all', label: 'Todos' },
+                  { key: 'cobro', label: 'Cobros' },
+                  { key: 'gastos', label: 'Gastos' },
+                ].map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setFilterTab(tab.key as any)}
+                    className={`px-4 py-2 text-sm rounded-md transition-colors ${filterTab === tab.key ? 'bg-primary text-white shadow' : 'text-muted-foreground hover:text-text-primary'}`}
+                  >
+                    {tab.label}
+                  </button>
                 ))}
               </div>
+              <div className="relative flex-1 sm:max-w-sm">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-8" />
+              </div>
+            </div>
+
+            {/* List */}
+            <Card className="bg-bg-secondary border border-border rounded-xl">
+              <CardContent className="p-0">
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : filteredEntries.length === 0 ? (
+                  <p className="py-12 text-center text-muted-foreground">No hay registros. Crea uno con el botón superior.</p>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {filteredEntries.map(e => (
+                      <div key={`${e.type}-${e.id}`} className="flex items-center justify-between p-4 hover:bg-bg-tertiary/30 transition-colors">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`p-2 rounded-full shrink-0 ${
+                            e.type === 'cobro' ? 'bg-emerald-500/10' :
+                            e.type === 'supplier' ? 'bg-rose-500/10' : 'bg-orange-500/10'
+                          }`}>
+                            {e.type === 'cobro'
+                              ? <ArrowDownCircle className="h-4 w-4 text-emerald-400" />
+                              : e.type === 'supplier'
+                              ? <Building2 className="h-4 w-4 text-rose-400" />
+                              : <Receipt className="h-4 w-4 text-orange-400" />
+                            }
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-text-primary truncate">
+                              {e.type === 'cobro'
+                                ? (e.customer_name || e.customer_id || 'Cliente')
+                                : e.type === 'supplier'
+                                ? e.supplier_name
+                                : (e.description || e.category || 'Gasto')}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span className={`font-medium ${e.type === 'cobro' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                {e.type === 'cobro' ? '↓ Cobro' : e.type === 'supplier' ? '↑ Proveedor' : '↑ Gasto'}
+                              </span>
+                              <span>·</span>
+                              <span>{new Date(e.payment_date).toLocaleDateString('es-MX')}</span>
+                              <span>·</span>
+                              <span>{PAYMENT_METHODS.find(m => m.value === e.payment_method)?.label || e.payment_method}</span>
+                              {(e.reference || e.reference_number) && <><span>·</span><span>{e.reference || e.reference_number}</span></>}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {getStatusBadge(e)}
+                          <span className={`text-sm font-bold ${e.type === 'cobro' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {formatMoney(e.amount)}
+                          </span>
+                          {e.type === 'cobro' && e.status === 'pending' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                              onClick={() => { setCobroToPay(e); setCobroPayOpen(true); setCobroPayForm({ payment_method: 'transfer', cash_account_id: '' }) }}
+                            >
+                              Cobrar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {/* ── ANTICIPOS ── */}
+        {mainTab === 'anticipos' && (
+          <div className="space-y-4">
+            {/* KPIs */}
+            {(() => {
+              const openAdv = advances.filter(a => a.status === 'open')
+              const totalPending = openAdv.reduce((s, a) => s + a.balance, 0)
+              const withDiscrepancy = openAdv.filter(a => a.total_spent > 0 && a.balance !== 0)
+              return (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <Card className="bg-slate-800/60 border-slate-700/50 rounded-xl">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-slate-400 mb-1">Anticipos abiertos</p>
+                      <p className="text-2xl font-bold text-white">{openAdv.length}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-slate-800/60 border-slate-700/50 rounded-xl">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-slate-400 mb-1">Saldo pendiente total</p>
+                      <p className={cn('text-2xl font-bold', totalPending > 0 ? 'text-amber-400' : 'text-emerald-400')}>
+                        {formatMoney(totalPending)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-slate-800/60 border-slate-700/50 rounded-xl col-span-2 md:col-span-1">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-slate-400 mb-1">Con diferencia pendiente</p>
+                      <p className={cn('text-2xl font-bold', withDiscrepancy.length > 0 ? 'text-red-400' : 'text-slate-400')}>
+                        {withDiscrepancy.length}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )
+            })()}
+
+            {/* Filtros de estado */}
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { key: 'open', label: 'Abiertos' },
+                { key: 'closed', label: 'Cerrados' },
+                { key: 'cancelled', label: 'Cancelados' },
+                { key: 'all', label: 'Todos' },
+              ].map(f => (
+                <button
+                  key={f.key}
+                  onClick={() => setAdvFilterStatus(f.key)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+                    advFilterStatus === f.key ? 'bg-cyan-600 text-white' : 'bg-slate-700/50 text-slate-400 hover:text-slate-200'
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Lista de anticipos */}
+            {advancesLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-cyan-500" />
+              </div>
+            ) : advances.length === 0 ? (
+              <Card className="bg-bg-secondary border border-border rounded-xl">
+                <CardContent className="py-12 text-center">
+                  <Wallet className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                  <p className="text-slate-400">No hay anticipos {advFilterStatus !== 'all' ? `con estado "${advFilterStatus}"` : ''}</p>
+                  <Button onClick={() => setShowAdvCreate(true)} className="mt-4 bg-cyan-600 hover:bg-cyan-500">
+                    Registrar primer anticipo
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {advances.map(adv => {
+                  const cfg = ADV_STATUS[adv.status] || ADV_STATUS.open
+                  const StatusIcon = cfg.icon
+                  const method = adv.payment_method ? ADV_METHOD[adv.payment_method] : null
+                  const hasDiscrepancy = adv.status === 'open' && adv.total_spent > 0 && adv.balance !== 0
+                  return (
+                    <Card
+                      key={adv.id}
+                      className={cn(
+                        'bg-bg-secondary border border-border rounded-xl cursor-pointer hover:border-slate-600 transition-colors',
+                        hasDiscrepancy && 'border-amber-500/40'
+                      )}
+                      onClick={() => setSelectedAdvance(adv)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border', cfg.color)}>
+                                <StatusIcon className="w-3 h-3" />
+                                {cfg.label}
+                              </span>
+                              {method && (
+                                <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-700/60 border border-slate-600', method.color)}>
+                                  <method.icon className="w-3 h-3" />
+                                  {method.label}
+                                </span>
+                              )}
+                              {hasDiscrepancy && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                  <AlertTriangle className="w-3 h-3" />
+                                  Diferencia
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm font-medium text-text-primary truncate">{adv.purpose}</p>
+                            <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                              {adv.employee && (
+                                <p className="text-xs text-slate-400 flex items-center gap-1">
+                                  <User className="w-3 h-3" />
+                                  {adv.employee.name}
+                                </p>
+                              )}
+                              {adv.cash_account && (
+                                <p className="text-xs text-slate-400 flex items-center gap-1">
+                                  <Building2 className="w-3 h-3" />
+                                  {adv.cash_account.name}
+                                </p>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {new Date(adv.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-bold text-text-primary">{formatMoney(adv.amount)}</p>
+                            {adv.total_spent > 0 && (
+                              <p className="text-xs text-slate-400">Gastado: {formatMoney(adv.total_spent)}</p>
+                            )}
+                            {adv.status === 'open' && (
+                              <p className={cn('text-xs font-semibold', adv.balance > 0 ? 'text-amber-400' : adv.balance < 0 ? 'text-red-400' : 'text-emerald-400')}>
+                                {adv.balance > 0 ? `Saldo: ${formatMoney(adv.balance)}` : adv.balance < 0 ? `Excedido: ${formatMoney(Math.abs(adv.balance))}` : 'Cuadrado'}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        )}
       </div>
 
       {/* ── Modal nuevo registro ── */}
@@ -949,6 +1285,198 @@ export default function EntradasSalidasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* ── Modal crear anticipo ── */}
+      <Dialog open={showAdvCreate} onOpenChange={setShowAdvCreate}>
+        <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-cyan-400" />
+              Registrar Anticipo
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {/* Método */}
+            <div className="space-y-1.5">
+              <Label className="text-slate-300">Método de entrega *</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.entries(ADV_METHOD) as [AdvancePaymentMethod, typeof ADV_METHOD[AdvancePaymentMethod]][]).map(([key, cfg]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setAdvMethod(key)}
+                    className={cn(
+                      'flex flex-col items-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-all',
+                      advMethod === key ? 'border-cyan-500 bg-cyan-500/10 text-cyan-400' : 'border-slate-600 bg-slate-700/30 text-slate-400 hover:border-slate-500'
+                    )}
+                  >
+                    <cfg.icon className={cn('w-4 h-4', advMethod === key ? 'text-cyan-400' : cfg.color)} />
+                    {cfg.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Cuenta */}
+            <div className="space-y-1.5">
+              <Label className="text-slate-300">Cuenta de origen</Label>
+              {filteredAdvanceAccounts.length === 0 ? (
+                <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+                  No hay cuentas de tipo &quot;{ADV_METHOD[advMethod].label}&quot;. Crea una en Finanzas → Cuentas.
+                </p>
+              ) : (
+                <select
+                  value={advAccountId}
+                  onChange={e => setAdvAccountId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm"
+                >
+                  <option value="">Sin especificar</option>
+                  {filteredAdvanceAccounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-slate-300">Monto entregado *</Label>
+              <Input
+                type="number" min="0" step="0.01" placeholder="0.00"
+                value={advAmount} onChange={e => setAdvAmount(e.target.value)}
+                className="bg-slate-700/50 border-slate-600 text-white"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-slate-300">Propósito / Para qué *</Label>
+              <Input
+                placeholder="Ej: Compra de refacciones en AutoPartes García"
+                value={advPurpose} onChange={e => setAdvPurpose(e.target.value)}
+                className="bg-slate-700/50 border-slate-600 text-white"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-slate-300">Empleado (opcional)</Label>
+              <select
+                value={advEmployeeId}
+                onChange={e => setAdvEmployeeId(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm"
+              >
+                <option value="">Sin asignar</option>
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.id}>{emp.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-slate-300">Notas adicionales</Label>
+              <Input
+                placeholder="Observaciones..."
+                value={advNotes} onChange={e => setAdvNotes(e.target.value)}
+                className="bg-slate-700/50 border-slate-600 text-white"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button variant="ghost" className="flex-1 text-slate-400" onClick={() => setShowAdvCreate(false)} disabled={advSubmitting}>
+                Cancelar
+              </Button>
+              <Button className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold" onClick={handleCreateAdvance} disabled={advSubmitting}>
+                {advSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Registrar Anticipo'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal detalle anticipo ── */}
+      {selectedAdvance && (
+        <Dialog open={!!selectedAdvance} onOpenChange={() => setSelectedAdvance(null)}>
+          <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-white">Detalle del Anticipo</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="bg-slate-800/60 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-400 text-sm">Anticipo entregado</span>
+                  <span className="text-white font-bold">{formatMoney(selectedAdvance.amount)}</span>
+                </div>
+                {selectedAdvance.payment_method && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400 text-sm">Método</span>
+                    <span className={cn('text-sm font-medium flex items-center gap-1', ADV_METHOD[selectedAdvance.payment_method].color)}>
+                      {(() => { const Icon = ADV_METHOD[selectedAdvance.payment_method].icon; return <Icon className="w-3.5 h-3.5" /> })()}
+                      {ADV_METHOD[selectedAdvance.payment_method].label}
+                    </span>
+                  </div>
+                )}
+                {selectedAdvance.cash_account && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400 text-sm">Cuenta</span>
+                    <span className="text-white text-sm">{selectedAdvance.cash_account.name}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-slate-400 text-sm">Total gastado</span>
+                  <span className="text-white">{formatMoney(selectedAdvance.total_spent)}</span>
+                </div>
+                <div className="border-t border-slate-700 pt-2 flex justify-between">
+                  <span className="text-slate-400 text-sm font-medium">Saldo pendiente</span>
+                  <span className={cn('font-bold', selectedAdvance.balance > 0 ? 'text-amber-400' : selectedAdvance.balance < 0 ? 'text-red-400' : 'text-emerald-400')}>
+                    {selectedAdvance.balance > 0 ? `${formatMoney(selectedAdvance.balance)} por devolver` :
+                     selectedAdvance.balance < 0 ? `${formatMoney(Math.abs(selectedAdvance.balance))} excedido` :
+                     'Cuadrado ✓'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-slate-400 text-xs mb-1">Propósito</p>
+                <p className="text-white text-sm">{selectedAdvance.purpose}</p>
+              </div>
+
+              {selectedAdvance.expenses.length > 0 && (
+                <div>
+                  <p className="text-slate-400 text-xs mb-2">Gastos registrados</p>
+                  <div className="space-y-2">
+                    {selectedAdvance.expenses.map(exp => (
+                      <div key={exp.id} className="flex justify-between items-center bg-slate-800/60 rounded-lg p-2.5">
+                        <div>
+                          <p className="text-white text-sm">{exp.description}</p>
+                          <p className="text-slate-500 text-xs">{new Date(exp.expense_date).toLocaleDateString('es-MX')}</p>
+                        </div>
+                        <p className="text-white font-medium text-sm">{formatMoney(exp.amount)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedAdvance.status === 'open' && (
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    variant="ghost"
+                    className="flex-1 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                    onClick={() => handleCloseAdvance(selectedAdvance, 'cancelled')}
+                  >
+                    <XCircle className="w-4 h-4 mr-1" />
+                    Cancelar
+                  </Button>
+                  <Button
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+                    onClick={() => handleCloseAdvance(selectedAdvance, 'closed')}
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-1" />
+                    Cerrar anticipo
+                  </Button>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </AppLayout>
   )
 }

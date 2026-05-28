@@ -85,8 +85,8 @@ export function Sidebar({ className }: SidebarProps) {
     sections.forEach(section => {
       const sectionRoutes: Record<string, string[]> = {
         'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos', '/service-packages'],
-        'compras': ['/compras', '/compras/ordenes', '/compras/proveedores', '/compras/gastos', '/compras/pagos', '/compras/anticipos'],
-        'finanzas': ['/finanzas', '/finanzas/cuentas', '/finanzas/pagos-gastos', '/ingresos', '/ingresos/facturacion', '/ingresos/cuentas-efectivo', '/ingresos/ajustes-devoluciones', '/ingresos/entregas', '/ingresos/arqueo-caja'],
+        'compras': ['/compras', '/compras/ordenes', '/compras/proveedores', '/compras/gastos', '/compras/pagos'],
+        'finanzas': ['/finanzas', '/finanzas/cuentas', '/finanzas/pagos-gastos', '/ingresos', '/ingresos/facturacion', '/ingresos/cuentas-efectivo', '/ingresos/ajustes-devoluciones', '/ingresos/entregas', '/ingresos/arqueo-caja', '/compras/anticipos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/ventas-por-items', '/reportes/inventario', '/reportes/financieros', '/reportes/operaciones'],
         'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/perfil']
       }
@@ -203,7 +203,7 @@ export function Sidebar({ className }: SidebarProps) {
         { href: "/ingresos/facturacion", label: "Facturación", icon: () => <ModernIcons.Facturacion size={18} />, visible: permissions.canRead('invoices') },
         { href: "/finanzas/cuentas", label: "Cuentas", icon: () => <Wallet size={18} className="text-emerald-400" />, visible: permissions.canPayInvoices() },
         { href: "/finanzas/pagos-gastos", label: "Entradas y Salidas", icon: () => <Receipt size={18} className="text-orange-400" />, visible: permissions.canPayInvoices() },
-        { href: "/compras/anticipos", label: "Anticipos de Efectivo", icon: () => <Banknote size={18} className="text-amber-400" />, visible: permissions.canManagePurchases() },
+        { href: "/finanzas/pagos-gastos?tab=anticipos", label: "Anticipos de Efectivo", icon: () => <Banknote size={18} className="text-amber-400" />, visible: permissions.canManagePurchases() },
       ].filter(item => item.visible !== false)
     },
     {
@@ -288,7 +288,7 @@ export function Sidebar({ className }: SidebarProps) {
       const sectionRoutes: Record<string, string[]> = {
         'inventarios': ['/inventarios', '/inventarios/productos', '/inventarios/categorias', '/inventarios/movimientos', '/service-packages'],
         'ingresos': ['/ingresos', '/ingresos/facturacion', '/cobros', '/ingresos/cuentas-efectivo', '/ingresos/ajustes-devoluciones', '/ingresos/entregas', '/ingresos/arqueo-caja', '/ingresos/reportes'],
-        'compras': ['/compras', '/compras/ordenes', '/compras/proveedores', '/compras/pagos', '/compras/gastos', '/compras/anticipos'],
+        'compras': ['/compras', '/compras/ordenes', '/compras/proveedores', '/compras/pagos', '/compras/gastos'],
         'reportes': ['/reportes', '/reportes/ventas', '/reportes/ventas-por-items', '/reportes/inventario', '/reportes/financieros', '/reportes/operaciones'],
         'configuraciones': ['/configuraciones', '/configuraciones/empresa', '/configuraciones/usuarios', '/configuraciones/sistema', '/settings/billing', '/perfil']
       }

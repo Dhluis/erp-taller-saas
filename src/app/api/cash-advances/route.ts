@@ -113,13 +113,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
+    const methodLabels: Record<string, string> = {
+      cash: 'efectivo',
+      transfer: 'transferencia',
+      card: 'tarjeta',
+    };
+
     // Registrar salida en la cuenta seleccionada
     if (validated.cash_account_id && advance) {
-      const methodLabels: Record<string, string> = {
-        cash: 'efectivo',
-        transfer: 'transferencia',
-        card: 'tarjeta',
-      };
       const { error: movError } = await (supabaseAdmin as any)
         .from('cash_account_movements')
         .insert({
@@ -136,6 +137,26 @@ export async function POST(request: NextRequest) {
       if (movError) {
         console.error('[cash-advances] No se pudo registrar movimiento en cuenta:', movError);
       }
+    }
+
+    // Registrar en financial_transactions (corrige brecha contable)
+    if (advance) {
+      await supabaseAdmin
+        .from('financial_transactions')
+        .insert({
+          organization_id: profile.organization_id,
+          transaction_type: 'expense',
+          category: 'anticipo_efectivo',
+          description: `Anticipo (${methodLabels[validated.payment_method]}): ${validated.purpose}`,
+          amount: validated.amount,
+          account_id: validated.cash_account_id || null,
+          reference_type: 'cash_advance',
+          reference_id: (advance as any).id,
+          created_by: profile.id,
+        } as any)
+        .then(({ error: ftErr }) => {
+          if (ftErr) console.error('[cash-advances] No se pudo registrar en financial_transactions:', ftErr);
+        });
     }
 
     // Notificar al empleado si está registrado
