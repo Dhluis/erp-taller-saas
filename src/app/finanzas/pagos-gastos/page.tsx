@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,10 +17,11 @@ import {
 } from '@/components/ui/select'
 import {
   Plus, Search, DollarSign, TrendingDown, TrendingUp, CreditCard, Loader2,
-  Receipt, Building2, RefreshCw, ArrowDownCircle, ArrowUpCircle, Clock
+  Receipt, Building2, RefreshCw, ArrowDownCircle, ArrowUpCircle, Clock, ScanLine
 } from 'lucide-react'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import { useOrganization } from '@/lib/context/SessionContext'
+import { useBilling } from '@/hooks/useBilling'
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 import { getCollections, Collection } from '@/lib/supabase/collections'
 import { toast } from 'sonner'
@@ -72,9 +73,12 @@ export default function EntradasSalidasPage() {
   const { organizationId, ready } = useOrganization()
   const { formatMoney } = useOrgCurrency()
   const { suppliers, loading: suppliersLoading } = useSuppliers({ pageSize: 500, autoLoad: true })
+  const { canUseAI } = useBilling()
 
   const [entries, setEntries] = useState<UnifiedEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [scanLoading, setScanLoading] = useState(false)
+  const scanFileRef = useRef<HTMLInputElement>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterTab, setFilterTab] = useState<'all' | 'cobro' | 'gastos'>('all')
   const [modalOpen, setModalOpen] = useState(false)
@@ -420,6 +424,45 @@ export default function EntradasSalidasPage() {
     }
   }
 
+  async function handleScanFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    setScanLoading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/receipts/scan', { method: 'POST', body: fd })
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error(data.error || 'Error al analizar el ticket')
+        return
+      }
+
+      if (data.ai_error) toast.warning('Ticket guardado, pero no se pudo extraer texto.')
+
+      setForm(f => ({
+        ...f,
+        paymentType: 'expense',
+        amount: data.total ? String(data.total) : f.amount,
+        description: data.description || (data.vendor ? `Compra en ${data.vendor}` : ''),
+        payment_date: data.date || f.payment_date,
+        category: data.suggested_category || 'otro',
+      }))
+      setModalOpen(true)
+
+      if (data.total) {
+        toast.success(`Ticket detectado: $${data.total}${data.vendor ? ` — ${data.vendor}` : ''}`)
+      }
+    } catch {
+      toast.error('Error de conexión al analizar el ticket')
+    } finally {
+      setScanLoading(false)
+    }
+  }
+
   const filteredEntries = entries.filter(e => {
     if (filterTab === 'cobro' && e.type !== 'cobro') return false
     if (filterTab === 'gastos' && e.type === 'cobro') return false
@@ -453,9 +496,25 @@ export default function EntradasSalidasPage() {
             <h1 className="text-2xl font-bold">Entradas y Salidas</h1>
             <p className="text-muted-foreground">Cobros de clientes, pagos a proveedores y gastos</p>
           </div>
-          <Button onClick={() => setModalOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Nuevo registro
-          </Button>
+          <div className="flex gap-2">
+            {canUseAI ? (
+              <Button variant="outline" onClick={() => scanFileRef.current?.click()} disabled={scanLoading}>
+                {scanLoading
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : <ScanLine className="mr-2 h-4 w-4" />}
+                {scanLoading ? 'Analizando...' : 'Escanear Ticket'}
+              </Button>
+            ) : (
+              <Button variant="outline" disabled className="opacity-50" title="Requiere plan Premium">
+                <ScanLine className="mr-2 h-4 w-4" />
+                Escanear Ticket
+              </Button>
+            )}
+            <input ref={scanFileRef} type="file" className="hidden" accept="image/*,application/pdf" onChange={handleScanFile} />
+            <Button onClick={() => setModalOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Nuevo registro
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
