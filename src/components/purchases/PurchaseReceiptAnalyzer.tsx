@@ -13,7 +13,6 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Loader2, ScanLine, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
-import { useBilling } from '@/hooks/useBilling'
 
 interface OrderItem {
   id: string
@@ -71,7 +70,6 @@ export function PurchaseReceiptAnalyzer({
   orderItems,
   onQuantitiesDetected,
 }: PurchaseReceiptAnalyzerProps) {
-  const { canUseAI, isLoading: billingLoading } = useBilling()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [isUploading, setIsUploading] = useState(false)
@@ -81,17 +79,6 @@ export function PurchaseReceiptAnalyzer({
   const [date, setDate] = useState<string | null>(null)
   const [matches, setMatches] = useState<MatchResult[]>([])
   const [documentUrl, setDocumentUrl] = useState<string | null>(null)
-
-  if (billingLoading) return null
-
-  if (!canUseAI) {
-    return (
-      <Button type="button" variant="outline" disabled className="gap-2 opacity-60" title="Requiere plan Premium">
-        <ScanLine className="h-4 w-4" />
-        Escanear Factura (Premium)
-      </Button>
-    )
-  }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]

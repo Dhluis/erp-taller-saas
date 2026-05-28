@@ -21,7 +21,6 @@ import {
 } from 'lucide-react'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import { useOrganization } from '@/lib/context/SessionContext'
-import { useBilling } from '@/hooks/useBilling'
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 import { getCollections, Collection } from '@/lib/supabase/collections'
 import { toast } from 'sonner'
@@ -73,7 +72,6 @@ export default function EntradasSalidasPage() {
   const { organizationId, ready } = useOrganization()
   const { formatMoney } = useOrgCurrency()
   const { suppliers, loading: suppliersLoading } = useSuppliers({ pageSize: 500, autoLoad: true })
-  const { canUseAI } = useBilling()
 
   const [entries, setEntries] = useState<UnifiedEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -497,19 +495,12 @@ export default function EntradasSalidasPage() {
             <p className="text-muted-foreground">Cobros de clientes, pagos a proveedores y gastos</p>
           </div>
           <div className="flex gap-2">
-            {canUseAI ? (
-              <Button variant="outline" onClick={() => scanFileRef.current?.click()} disabled={scanLoading}>
-                {scanLoading
-                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  : <ScanLine className="mr-2 h-4 w-4" />}
-                {scanLoading ? 'Analizando...' : 'Escanear Ticket'}
-              </Button>
-            ) : (
-              <Button variant="outline" disabled className="opacity-50" title="Requiere plan Premium">
-                <ScanLine className="mr-2 h-4 w-4" />
-                Escanear Ticket
-              </Button>
-            )}
+            <Button variant="outline" onClick={() => scanFileRef.current?.click()} disabled={scanLoading}>
+              {scanLoading
+                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                : <ScanLine className="mr-2 h-4 w-4" />}
+              {scanLoading ? 'Analizando...' : 'Escanear Ticket IA'}
+            </Button>
             <input ref={scanFileRef} type="file" className="hidden" accept="image/*,application/pdf" onChange={handleScanFile} />
             <Button onClick={() => setModalOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> Nuevo registro
