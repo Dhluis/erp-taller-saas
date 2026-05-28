@@ -84,9 +84,8 @@ export default function ReportesPage() {
       try {
         isLoadingRef.current = true;
         setLoading(true);
-        const ordersResponse = await fetch('/api/work-orders?stats=true', {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
+        const ordersResponse = await fetch('/api/reports/order-stats', {
+          credentials: 'include',
           cache: 'no-store',
         });
 
