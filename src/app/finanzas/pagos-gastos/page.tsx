@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { StandardBreadcrumbs } from '@/components/ui/breadcrumbs'
@@ -113,7 +113,15 @@ const ADV_ACCOUNT_TYPES: Record<AdvancePaymentMethod, string[]> = {
 
 // ───────────────────────────────────────────────────────────────────────────
 
-export default function EntradasSalidasPage() {
+export default function Page() {
+  return (
+    <Suspense>
+      <EntradasSalidasPage />
+    </Suspense>
+  )
+}
+
+function EntradasSalidasPage() {
   const { organizationId, ready } = useOrganization()
   const { formatMoney } = useOrgCurrency()
   const { suppliers, loading: suppliersLoading } = useSuppliers({ pageSize: 500, autoLoad: true })
