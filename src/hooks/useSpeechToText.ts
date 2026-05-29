@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface UseSpeechToTextOptions {
   lang?: string;
@@ -14,8 +14,9 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   const {
     lang = 'es-MX',
     continuous = false,
-    // false = solo resultados finales → comportamiento más estable en Safari
-    interimResults = false,
+    // true es necesario para que Safari mantenga el micrófono abierto.
+    // Con false, webkitSpeechRecognition dispara onend inmediatamente.
+    interimResults = true,
     onResult,
     onError,
   } = options;
@@ -29,13 +30,17 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
 
   const onResultRef = useRef(onResult);
   const onErrorRef = useRef(onError);
-
-  // Actualizar refs sin recrear callbacks
-  onResultRef.current = onResult;
-  onErrorRef.current = onError;
-
-  // Índice para continuous=true (evita re-emitir resultados ya procesados)
   const lastProcessedIndexRef = useRef<number>(0);
+
+  // Acumula texto interim para el fallback de Safari
+  const pendingInterimRef = useRef<string>('');
+  // True si ya se disparó onResult al menos una vez en esta sesión
+  const firedResultRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    onResultRef.current = onResult;
+    onErrorRef.current = onError;
+  }, [onResult, onError]);
 
   const destroyCurrent = useCallback(() => {
     const cur = recognitionRef.current;
@@ -63,38 +68,40 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       isStartingRef.current = false;
       setIsListening(true);
       lastProcessedIndexRef.current = 0;
+      pendingInterimRef.current = '';
+      firedResultRef.current = false;
       console.log('🎙️ Microfono activo');
     };
 
     recognition.onresult = (event: any) => {
-      let newFinalText = '';
-      let interimText = '';
+      let sessionFinalTranscript = '';
+      let interimTranscript = '';
+      let newFinalTranscript = '';
 
-      for (let i = lastProcessedIndexRef.current; i < event.results.length; i++) {
-        const result = event.results[i];
-        const seg = result[0].transcript;
-
-        if (result.isFinal) {
-          newFinalText += seg;
-          lastProcessedIndexRef.current = i + 1;
+      for (let i = 0; i < event.results.length; i++) {
+        const seg = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          sessionFinalTranscript += seg;
+          if (i >= lastProcessedIndexRef.current) {
+            newFinalTranscript += seg;
+            lastProcessedIndexRef.current = i + 1;
+          }
         } else {
-          interimText += seg;
+          interimTranscript += seg;
         }
       }
 
-      // Safari fallback: con continuous=false e interimResults=false Safari a veces
-      // devuelve isFinal=false aunque el reconocimiento ya terminó. En ese caso
-      // tomamos el último resultado como definitivo.
-      if (!newFinalText && !continuousVal && !interimVal && event.results.length > 0) {
-        const last = event.results[event.results.length - 1];
-        newFinalText = last[0].transcript;
-        lastProcessedIndexRef.current = event.results.length;
+      setTranscript(sessionFinalTranscript + interimTranscript);
+
+      // Guardar interim para Safari: si onend llega sin isFinal, lo usamos ahí
+      if (interimTranscript) {
+        pendingInterimRef.current = interimTranscript;
       }
 
-      setTranscript(newFinalText || interimText);
-
-      if (newFinalText.trim() && onResultRef.current) {
-        onResultRef.current(newFinalText.trim());
+      if (newFinalTranscript) {
+        firedResultRef.current = true;
+        pendingInterimRef.current = '';
+        if (onResultRef.current) onResultRef.current(newFinalTranscript);
       }
     };
 
@@ -113,9 +120,28 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       isListeningRef.current = false;
       isStartingRef.current = false;
       setIsListening(false);
+
+      // Safari fallback: webkitSpeechRecognition nunca pone isFinal=true
+      // pero acumula el texto en resultados interim. Lo disparamos en onend.
+      if (!firedResultRef.current && pendingInterimRef.current.trim()) {
+        console.log('🎙️ Safari fallback: usando interim como resultado final');
+        if (onResultRef.current) onResultRef.current(pendingInterimRef.current.trim());
+      }
+
+      pendingInterimRef.current = '';
+      firedResultRef.current = false;
     };
 
     return recognition;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      destroyCurrent();
+      isListeningRef.current = false;
+      isStartingRef.current = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const start = useCallback(() => {
@@ -135,6 +161,7 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
 
     try {
       recognition.start();
+      console.log('🎙️ Iniciando manualmente...');
     } catch (err: any) {
       isStartingRef.current = false;
       console.error('🎙️ Error al iniciar:', err);
