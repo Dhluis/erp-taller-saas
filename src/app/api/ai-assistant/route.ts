@@ -253,7 +253,7 @@ Reglas:
 - inspection_details.will_diagnose: true si menciona "diagnóstico", "hay que diagnosticar", "requiere diagnóstico".
 - inspection_details.is_warranty: true si menciona "garantía", "viene en garantía", "es garantía".
 - inspection_details.authorize_test_drive: true si menciona "prueba de ruta", "autoriza prueba", "puede salir a probar".
-- work_order.assigned_to_name: nombre del mecánico o empleado asignado si se menciona ("asígnalo a Juan", "para Carlos el mecánico").
+- work_order.assigned_to_name: nombre del mecánico o empleado asignado si se menciona ("asígnalo a Juan", "para Carlos el mecánico").`;
       } else if (context === "quotation") {
         systemPrompt = `Eres el extractor de datos para cotizaciones en Confia Drive ERP.
 JSON:
