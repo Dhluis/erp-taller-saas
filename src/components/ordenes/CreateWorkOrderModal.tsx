@@ -489,8 +489,9 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           if (aiData.customer.name) prefill.customerName = aiData.customer.name;
           if (aiData.customer.phone) prefill.customerPhone = sanitize.phone(aiData.customer.phone);
           if (aiData.customer.email) prefill.customerEmail = aiData.customer.email;
+          if (aiData.customer.address) prefill.customerAddress = aiData.customer.address;
         }
-        
+
         // — Vehículo —
         if (aiData.vehicle) {
           if (aiData.vehicle.brand) prefill.vehicleBrand = aiData.vehicle.brand;
@@ -498,8 +499,10 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
           if (aiData.vehicle.year) prefill.vehicleYear = String(aiData.vehicle.year);
           if (aiData.vehicle.plate) prefill.vehiclePlate = sanitize.plate(aiData.vehicle.plate);
           if (aiData.vehicle.color) prefill.vehicleColor = aiData.vehicle.color;
+          if (aiData.vehicle.vin) prefill.vehicleVin = sanitize.vin(aiData.vehicle.vin);
+          if (aiData.vehicle.mileage) prefill.vehicleMileage = String(aiData.vehicle.mileage);
         }
-        
+
         // — Orden —
         if (aiData.work_order) {
           if (aiData.work_order.description) prefill.description = aiData.work_order.description;
@@ -508,16 +511,39 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
             prefill.entry_reason = aiData.work_order.notes;
             if (!prefill.description) prefill.description = aiData.work_order.notes;
           }
+          if (aiData.work_order.assigned_to_name && employees.length > 0) {
+            const needle = aiData.work_order.assigned_to_name.toLowerCase();
+            const found = employees.find((e: any) =>
+              e.name?.toLowerCase().includes(needle) || needle.includes(e.name?.toLowerCase())
+            );
+            if (found) prefill.assigned_to = found.id;
+          }
         }
-        
+
         // — Inspección —
         if (aiData.inspection) {
           if (aiData.inspection.fuel_level) prefill.fuel_level = aiData.inspection.fuel_level;
           if (aiData.inspection.fluids) {
             prefill.fluids = { ...INITIAL_FORM_DATA.fluids, ...aiData.inspection.fluids };
           }
+          if (aiData.inspection.dashboard_indicators) {
+            prefill.dashboard_indicators = aiData.inspection.dashboard_indicators;
+          }
+          if (aiData.inspection.vehicle_condition) {
+            prefill.vehicle_condition = aiData.inspection.vehicle_condition;
+          }
         }
-        
+
+        // — Detalles de Inspección —
+        if (aiData.inspection_details) {
+          if (aiData.inspection_details.valuable_items) prefill.valuable_items = aiData.inspection_details.valuable_items;
+          if (aiData.inspection_details.entry_reason) prefill.entry_reason = aiData.inspection_details.entry_reason;
+          if (aiData.inspection_details.procedures) prefill.procedures = aiData.inspection_details.procedures;
+          if (aiData.inspection_details.will_diagnose) prefill.will_diagnose = aiData.inspection_details.will_diagnose;
+          if (aiData.inspection_details.is_warranty) prefill.is_warranty = aiData.inspection_details.is_warranty;
+          if (aiData.inspection_details.authorize_test_drive) prefill.authorize_test_drive = aiData.inspection_details.authorize_test_drive;
+        }
+
         setFormData(prev => ({ ...prev, ...prefill }));
         toast.success('✨ Confia Drive AI ha completado el formulario');
       }

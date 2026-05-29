@@ -221,19 +221,39 @@ JSON:
 JSON:
 {
   "action_type": "work-order",
-  "customer": { "name": string, "phone": string, "email": string },
-  "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string },
-  "work_order": { "description": string, "budget": number, "notes": string, "deadline": string },
+  "customer": { "name": string, "phone": string, "email": string, "address": string },
+  "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string, "vin": string, "mileage": number },
+  "work_order": { "description": string, "budget": number, "notes": string, "deadline": string, "assigned_to_name": string },
   "inspection": {
     "fuel_level": "empty" | "quarter" | "half" | "three_quarters" | "full",
-    "fluids": { "aceite_motor": boolean, "aceite_transmision": boolean, "liquido_frenos": boolean, "liquido_embrague": boolean, "refrigerante": boolean, "aceite_hidraulico": boolean, "limpia_parabrisas": boolean }
+    "fluids": { "aceite_motor": boolean, "aceite_transmision": boolean, "liquido_frenos": boolean, "liquido_embrague": boolean, "refrigerante": boolean, "aceite_hidraulico": boolean, "limpia_parabrisas": boolean },
+    "dashboard_indicators": { "check_engine": boolean, "battery": boolean, "oil": boolean, "brake": boolean, "abs": boolean, "temperature": boolean, "airbag": boolean, "tpms": boolean, "lights": boolean, "transmission": boolean },
+    "vehicle_condition": {
+      "luces": boolean, "cristales": boolean, "espejos": boolean, "plumas": boolean, "tapones_ruedas": boolean, "carroceria_sin_golpes": boolean,
+      "tablero": boolean, "radio": boolean, "espejo_retrovisor": boolean, "cinturones": boolean, "tapetes": boolean, "manijas": boolean,
+      "gato": boolean, "llanta_refaccion": boolean, "herramientas": boolean, "varilla_aceite": boolean, "cables_corriente": boolean
+    }
   },
-  "inspection_details": { "valuable_items": string, "entry_reason": string, "procedures": string }
+  "inspection_details": {
+    "valuable_items": string,
+    "entry_reason": string,
+    "procedures": string,
+    "will_diagnose": boolean,
+    "is_warranty": boolean,
+    "authorize_test_drive": boolean
+  }
 }
 Reglas:
 - fuel_level: "vacio"->empty, "un cuarto"->quarter, "mitad"->half, "tres cuartos"->three_quarters, "lleno"->full.
 - fluids: si dice que todos están bien, pon todos en true.
-- inspection_details: extrae cosas de valor o el motivo específico si se menciona.`;
+- dashboard_indicators: solo incluye los testigos mencionados como encendidos/prendidos. "testigo del ABS"->abs:true, "check engine"/"testigo del motor"->check_engine:true, "testigo de batería"->battery:true, "testigo de temperatura"->temperature:true, "testigo de frenos"->brake:true, "testigo de aceite"->oil:true, "bolsas de aire"->airbag:true, "presión de llantas"->tpms:true, "testigo de luces"->lights:true, "testigo de transmisión"->transmission:true.
+- vehicle_condition: pon true en los ítems que se mencionen como presentes o en buen estado. Exterior: "luces completas"->luces, "cristales"->cristales, "espejos"->espejos, "plumas"->plumas, "tapones"->tapones_ruedas, "sin golpes"/"carrocería"->carroceria_sin_golpes. Interior: "tablero completo"->tablero, "radio"->radio, "espejo retrovisor"->espejo_retrovisor, "cinturones"->cinturones, "tapetes"->tapetes, "manijas"->manijas. Accesorios: "gato"->gato, "llanta de refacción"->llanta_refaccion, "estuche de herramientas"/"herramientas"->herramientas, "varilla de aceite"->varilla_aceite, "cables de corriente"->cables_corriente.
+- inspection_details.valuable_items: extrae objetos de valor mencionados (estuches, electrónicos, documentos, etc.).
+- inspection_details.entry_reason: motivo de ingreso o síntoma reportado por el cliente.
+- inspection_details.will_diagnose: true si menciona "diagnóstico", "hay que diagnosticar", "requiere diagnóstico".
+- inspection_details.is_warranty: true si menciona "garantía", "viene en garantía", "es garantía".
+- inspection_details.authorize_test_drive: true si menciona "prueba de ruta", "autoriza prueba", "puede salir a probar".
+- work_order.assigned_to_name: nombre del mecánico o empleado asignado si se menciona ("asígnalo a Juan", "para Carlos el mecánico").
       } else if (context === "quotation") {
         systemPrompt = `Eres el extractor de datos para cotizaciones en Confia Drive ERP.
 JSON:
@@ -274,11 +294,11 @@ Estructuras JSON requeridas según la acción:
 - Si es "work-order" (orden de trabajo, OT, OTs, reparación, auto en taller):
 {
   "action_type": "work-order",
-  "customer": { "name": string, "phone": string, "email": string },
-  "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string },
-  "work_order": { "description": string, "budget": number, "notes": string, "deadline": string },
-  "inspection": { "fuel_level": "empty" | "quarter" | "half" | "three_quarters" | "full", "fluids": { "aceite_motor": boolean, "aceite_transmision": boolean, "liquido_frenos": boolean, "liquido_embrague": boolean, "refrigerante": boolean, "aceite_hidraulico": boolean, "limpia_parabrisas": boolean } },
-  "inspection_details": { "valuable_items": string, "entry_reason": string, "procedures": string }
+  "customer": { "name": string, "phone": string, "email": string, "address": string },
+  "vehicle": { "brand": string, "model": string, "year": number, "plate": string, "color": string, "vin": string, "mileage": number },
+  "work_order": { "description": string, "budget": number, "notes": string, "deadline": string, "assigned_to_name": string },
+  "inspection": { "fuel_level": "empty" | "quarter" | "half" | "three_quarters" | "full", "fluids": { "aceite_motor": boolean, "aceite_transmision": boolean, "liquido_frenos": boolean, "liquido_embrague": boolean, "refrigerante": boolean, "aceite_hidraulico": boolean, "limpia_parabrisas": boolean }, "dashboard_indicators": { "check_engine": boolean, "battery": boolean, "oil": boolean, "brake": boolean, "abs": boolean, "temperature": boolean, "airbag": boolean, "tpms": boolean, "lights": boolean, "transmission": boolean }, "vehicle_condition": { "luces": boolean, "cristales": boolean, "espejos": boolean, "plumas": boolean, "tapones_ruedas": boolean, "carroceria_sin_golpes": boolean, "tablero": boolean, "radio": boolean, "espejo_retrovisor": boolean, "cinturones": boolean, "tapetes": boolean, "manijas": boolean, "gato": boolean, "llanta_refaccion": boolean, "herramientas": boolean, "varilla_aceite": boolean, "cables_corriente": boolean } },
+  "inspection_details": { "valuable_items": string, "entry_reason": string, "procedures": string, "will_diagnose": boolean, "is_warranty": boolean, "authorize_test_drive": boolean }
 }
 
 - Si es "appointment" (cita futura, agenda, reserva):
