@@ -94,12 +94,16 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Actualizar city en organizations si se proporcionó
-    if (city) {
-      await (supabase.from('organizations') as any)
-        .update({ city, updated_at: new Date().toISOString() })
-        .eq('id', orgId);
-    }
+    // Actualizar city y marcar onboarding como completado en organizations
+    const orgUpdates: Record<string, any> = {
+      onboarding_completed: true,
+      updated_at: new Date().toISOString(),
+    };
+    if (city) orgUpdates.city = city;
+
+    await (supabase.from('organizations') as any)
+      .update(orgUpdates)
+      .eq('id', orgId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

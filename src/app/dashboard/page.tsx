@@ -85,13 +85,30 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Redirigir a onboarding si el usuario aún no lo ha completado
+  // Redirigir a onboarding si el usuario aún no lo ha completado.
+  // Revisa localStorage primero (rápido) y luego la BD como respaldo
+  // para Safari/modo privado donde localStorage se puede borrar.
   useEffect(() => {
     if (!sessionLoading && sessionReady && organizationId) {
-      const done = localStorage.getItem(`onboarding_v3_${organizationId}`)
-      if (!done) {
-        router.replace('/onboarding')
-      }
+      const lsKey = `onboarding_v3_${organizationId}`
+      const doneLocal = localStorage.getItem(lsKey)
+
+      if (doneLocal) return // ya está en caché local, no redirigir
+
+      // No está en localStorage: consultar BD
+      fetch('/api/onboarding/status', { credentials: 'include' })
+        .then(r => r.json())
+        .then(({ completed }) => {
+          if (completed) {
+            // Restaurar caché local y quedarse en dashboard
+            localStorage.setItem(lsKey, '1')
+          } else {
+            router.replace('/onboarding')
+          }
+        })
+        .catch(() => {
+          // Error de red: no redirigir para no bloquear al usuario
+        })
     }
   }, [sessionLoading, sessionReady, organizationId, router])
 

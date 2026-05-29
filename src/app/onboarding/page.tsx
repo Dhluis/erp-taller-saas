@@ -87,9 +87,24 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (!orgLoading && ready && organizationId) {
-      if (localStorage.getItem(ONBOARDING_KEY(organizationId))) {
+      const lsKey = ONBOARDING_KEY(organizationId)
+
+      // Caché local presente → ir al dashboard directamente
+      if (localStorage.getItem(lsKey)) {
         router.replace('/dashboard')
+        return
       }
+
+      // Verificar BD como respaldo (Safari borra localStorage entre sesiones)
+      fetch('/api/onboarding/status', { credentials: 'include' })
+        .then(r => r.json())
+        .then(({ completed }) => {
+          if (completed) {
+            localStorage.setItem(lsKey, '1')
+            router.replace('/dashboard')
+          }
+        })
+        .catch(() => {})
     }
   }, [orgLoading, ready, organizationId, router])
 
