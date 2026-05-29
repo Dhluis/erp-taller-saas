@@ -16,10 +16,7 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     lang = 'es-MX',
     continuous = false,
     interimResults = true,
-    // Tiempo de silencio antes de parar automáticamente.
-    // Con continuous=false en Chrome no aplica (para solo). En Safari (donde
-    // continuous=true es necesario) este timer es el que dispara el stop().
-    silenceTimeoutMs = 3000,
+    silenceTimeoutMs = 4000,
     onResult,
     onError,
   } = options;
@@ -30,12 +27,16 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
 
   const isListeningRef   = useRef(false);
   const isStartingRef    = useRef(false);
+  // true cuando el usuario presionó Stop explícitamente
+  const userStoppedRef   = useRef(false);
   const onResultRef      = useRef(onResult);
   const onErrorRef       = useRef(onError);
   const lastProcessedIndexRef = useRef<number>(0);
   const pendingInterimRef     = useRef<string>('');
   const firedResultRef        = useRef<boolean>(false);
   const silenceTimerRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Máximo absoluto de sesión para no dejar el mic abierto eternamente
+  const maxSessionTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     onResultRef.current = onResult;
@@ -43,14 +44,16 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   }, [onResult, onError]);
 
   const clearSilenceTimer = useCallback(() => {
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
+    if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
+  }, []);
+
+  const clearMaxTimer = useCallback(() => {
+    if (maxSessionTimerRef.current) { clearTimeout(maxSessionTimerRef.current); maxSessionTimerRef.current = null; }
   }, []);
 
   const destroyCurrent = useCallback(() => {
     clearSilenceTimer();
+    clearMaxTimer();
     const cur = recognitionRef.current;
     if (!cur) return;
     cur.onstart  = null;
@@ -59,7 +62,7 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     cur.onend    = null;
     try { cur.abort(); } catch {}
     recognitionRef.current = null;
-  }, [clearSilenceTimer]);
+  }, [clearSilenceTimer, clearMaxTimer]);
 
   const buildFresh = useCallback((
     langVal: string,
@@ -71,25 +74,23 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return null;
 
-    // Detectar Safari (solo tiene webkitSpeechRecognition, Chrome tiene ambos)
+    // Safari solo tiene webkitSpeechRecognition; Chrome tiene ambos
     const isSafari =
       !!(window as any).webkitSpeechRecognition &&
       !(window as any).SpeechRecognition;
 
     const recognition = new SpeechRecognition();
-    recognition.lang = langVal;
-    recognition.interimResults = interimVal;
+    recognition.lang            = langVal;
+    recognition.interimResults  = interimVal;
     recognition.maxAlternatives = 1;
-
-    // Safari con continuous=false dispara onend inmediatamente sin capturar nada.
-    // Forzamos continuous=true y paramos manualmente con un timer de silencio.
+    // Safari: forzar continuous=true; Chrome: usar el valor real
     recognition.continuous = isSafari ? true : continuousVal;
 
-    const stopAfterSilence = () => {
+    const hardStop = () => {
       clearSilenceTimer();
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch {}
-      }
+      clearMaxTimer();
+      userStoppedRef.current = true;
+      try { recognition.stop(); } catch {}
     };
 
     recognition.onstart = () => {
@@ -99,20 +100,18 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       lastProcessedIndexRef.current = 0;
       pendingInterimRef.current     = '';
       firedResultRef.current        = false;
-      console.log('🎙️ Microfono activo');
+      console.log('🎙️ Microfono activo (Safari:', isSafari, ')');
 
-      // Safari: arrancar timer de silencio desde el inicio
-      if (isSafari) {
-        clearSilenceTimer();
-        silenceTimerRef.current = setTimeout(stopAfterSilence, silenceMs);
-      }
+      // Límite absoluto de 45 s para no dejar el mic abierto eternamente
+      clearMaxTimer();
+      maxSessionTimerRef.current = setTimeout(hardStop, 45000);
     };
 
     recognition.onresult = (event: any) => {
-      // Cualquier resultado (interim o final) reinicia el timer de silencio
+      // Reiniciar timer de silencio SOLO después de que el usuario habla
       if (isSafari) {
         clearSilenceTimer();
-        silenceTimerRef.current = setTimeout(stopAfterSilence, silenceMs);
+        silenceTimerRef.current = setTimeout(hardStop, silenceMs);
       }
 
       let sessionFinalTranscript = '';
@@ -133,8 +132,6 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       }
 
       setTranscript(sessionFinalTranscript + interimTranscript);
-
-      // Guardar interim para el fallback de Safari en onend
       if (interimTranscript) pendingInterimRef.current = interimTranscript;
 
       if (newFinalTranscript) {
@@ -153,23 +150,48 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     recognition.onerror = (event: any) => {
       const error = event.error;
       console.error('❌ Speech recognition error:', error);
+      if (error === 'aborted') return;
+
       clearSilenceTimer();
+      clearMaxTimer();
       isListeningRef.current  = false;
       isStartingRef.current   = false;
+      userStoppedRef.current  = false;
       setIsListening(false);
-      if (error === 'aborted') return;
       if (onErrorRef.current) onErrorRef.current(error);
     };
 
     recognition.onend = () => {
-      console.log('🎙️ Reconocimiento terminado');
+      console.log('🎙️ onend — userStopped:', userStoppedRef.current, 'firedResult:', firedResultRef.current);
+
+      // ── Safari auto-restart ──────────────────────────────────────────────
+      // Safari dispara onend espontáneamente aunque continuous=true.
+      // Si el usuario NO paró manualmente y todavía NO recibimos resultado,
+      // reiniciamos la misma instancia para seguir escuchando.
+      if (
+        isSafari &&
+        !userStoppedRef.current &&
+        isListeningRef.current &&
+        !firedResultRef.current
+      ) {
+        console.log('🎙️ Safari: reiniciando reconocimiento...');
+        try {
+          recognition.start();
+          return; // No cambiar estado — el mic sigue activo para el usuario
+        } catch (e) {
+          console.error('🎙️ Safari: error al reiniciar', e);
+        }
+      }
+      // ────────────────────────────────────────────────────────────────────
+
       clearSilenceTimer();
+      clearMaxTimer();
       isListeningRef.current  = false;
       isStartingRef.current   = false;
+      userStoppedRef.current  = false;
       setIsListening(false);
 
-      // Safari fallback: nunca pone isFinal=true pero acumula interim.
-      // Cuando para (por timer o por stop manual), usamos ese texto.
+      // Safari fallback: usar interim acumulado si nunca hubo isFinal=true
       if (!firedResultRef.current && pendingInterimRef.current.trim()) {
         console.log('🎙️ Safari fallback: usando interim como resultado final');
         if (onResultRef.current) onResultRef.current(pendingInterimRef.current.trim());
@@ -180,13 +202,14 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     };
 
     return recognition;
-  }, [clearSilenceTimer]);
+  }, [clearSilenceTimer, clearMaxTimer]);
 
   useEffect(() => {
     return () => {
       destroyCurrent();
       isListeningRef.current = false;
       isStartingRef.current  = false;
+      userStoppedRef.current = false;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -202,7 +225,8 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     if (!recognition) return;
     recognitionRef.current = recognition;
 
-    isStartingRef.current = true;
+    userStoppedRef.current = false;
+    isStartingRef.current  = true;
     setTranscript('');
     lastProcessedIndexRef.current = 0;
 
@@ -219,11 +243,13 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   const stop = useCallback(() => {
     if (!isListeningRef.current && !isStartingRef.current) return;
     clearSilenceTimer();
-    isStartingRef.current = false;
+    clearMaxTimer();
+    userStoppedRef.current = true;
+    isStartingRef.current  = false;
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch {}
     }
-  }, [clearSilenceTimer]);
+  }, [clearSilenceTimer, clearMaxTimer]);
 
   const reset = useCallback(() => setTranscript(''), []);
 
