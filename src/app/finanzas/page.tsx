@@ -530,18 +530,24 @@ export default function FinanzasPage() {
                     <span className="font-mono font-semibold">{arqueoCuentaId ? formatMoney(systemBalance) : '—'}</span>
                   </div>
                   <div className="border-t border-border pt-3 flex justify-between items-center">
-                    <span className="font-semibold text-sm">
-                      {difference === 0 ? 'Sin diferencia' : difference > 0 ? 'Sobrante' : 'Faltante'}
-                    </span>
-                    <span className={`font-bold font-mono text-lg flex items-center gap-1 ${
-                      difference === 0 ? 'text-emerald-400' :
-                      difference > 0  ? 'text-blue-400' : 'text-rose-400'
-                    }`}>
-                      {difference === 0
-                        ? <><CheckCircle2 className="h-4 w-4" />{formatMoney(0)}</>
-                        : <><AlertCircle className="h-4 w-4" />{difference > 0 ? '+' : ''}{formatMoney(difference)}</>
-                      }
-                    </span>
+                    {countedTotal === 0 || !arqueoCuentaId ? (
+                      <span className="text-sm text-muted-foreground italic">Ingresa denominaciones para ver la diferencia</span>
+                    ) : (
+                      <>
+                        <span className="font-semibold text-sm">
+                          {difference === 0 ? 'Sin diferencia' : difference > 0 ? 'Sobrante' : 'Faltante'}
+                        </span>
+                        <span className={`font-bold font-mono text-lg flex items-center gap-1 ${
+                          difference === 0 ? 'text-emerald-400' :
+                          difference > 0  ? 'text-blue-400' : 'text-rose-400'
+                        }`}>
+                          {difference === 0
+                            ? <><CheckCircle2 className="h-4 w-4" />{formatMoney(0)}</>
+                            : <><AlertCircle className="h-4 w-4" />{difference > 0 ? '+' : ''}{formatMoney(difference)}</>
+                          }
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
 

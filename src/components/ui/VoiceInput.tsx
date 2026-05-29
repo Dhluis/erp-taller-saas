@@ -40,10 +40,9 @@ export function VoiceInput({
 
   const { isListening, transcript, start, stop, isSupported } = useSpeechToText({
     lang: language,
-    continuous: true,
+    continuous: false,
     onResult: (text) => {
       onTranscript(text);
-      resetSilenceTimer();
     },
     onError: (error) => {
       console.error('🎙️ Error de voz:', error);
@@ -57,27 +56,9 @@ export function VoiceInput({
     }
   });
 
-  const silenceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-
-  const resetSilenceTimer = () => {
-    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-    if (isListening) {
-      silenceTimerRef.current = setTimeout(() => {
-        console.log('🔇 Silencio detectado, deteniendo...');
-        stop();
-      }, 60000);
-    }
-  };
-
   useEffect(() => {
     if (isListening) {
-      resetSilenceTimer();
-      toast.info('Escuchando...', { duration: 2000, id: 'voice-listening' });
-    } else {
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-    }
-    return () => {
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      toast.info('Escuchando... habla ahora', { duration: 2500, id: 'voice-listening' });
     }
   }, [isListening]);
 
