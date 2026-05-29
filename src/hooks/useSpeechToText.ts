@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 interface UseSpeechToTextOptions {
   lang?: string;
@@ -14,7 +14,8 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   const {
     lang = 'es-MX',
     continuous = false,
-    interimResults = true,
+    // false = solo resultados finales → comportamiento más estable en Safari
+    interimResults = false,
     onResult,
     onError,
   } = options;
@@ -23,21 +24,19 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<any>(null);
 
-  // Refs para estado sincrónico — evita stale closures en start/stop
   const isListeningRef = useRef(false);
-  // true durante la ventana entre start() y onstart (previene doble-llamada)
   const isStartingRef = useRef(false);
 
   const onResultRef = useRef(onResult);
   const onErrorRef = useRef(onError);
+
+  // Actualizar refs sin recrear callbacks
+  onResultRef.current = onResult;
+  onErrorRef.current = onError;
+
+  // Índice para continuous=true (evita re-emitir resultados ya procesados)
   const lastProcessedIndexRef = useRef<number>(0);
 
-  useEffect(() => {
-    onResultRef.current = onResult;
-    onErrorRef.current = onError;
-  }, [onResult, onError]);
-
-  // Limpia y nulifica la instancia actual sin crear una nueva
   const destroyCurrent = useCallback(() => {
     const cur = recognitionRef.current;
     if (!cur) return;
@@ -49,7 +48,6 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     recognitionRef.current = null;
   }, []);
 
-  // Crea una instancia fresca con todos sus handlers
   const buildFresh = useCallback((langVal: string, continuousVal: boolean, interimVal: boolean) => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return null;
@@ -58,6 +56,7 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     recognition.lang = langVal;
     recognition.continuous = continuousVal;
     recognition.interimResults = interimVal;
+    recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       isListeningRef.current = true;
@@ -68,26 +67,34 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     };
 
     recognition.onresult = (event: any) => {
-      let sessionFinalTranscript = '';
-      let interimTranscript = '';
-      let newFinalTranscript = '';
+      let newFinalText = '';
+      let interimText = '';
 
-      for (let i = 0; i < event.results.length; i++) {
-        const seg = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          sessionFinalTranscript += seg;
-          if (i >= lastProcessedIndexRef.current) {
-            newFinalTranscript += seg;
-            lastProcessedIndexRef.current = i + 1;
-          }
+      for (let i = lastProcessedIndexRef.current; i < event.results.length; i++) {
+        const result = event.results[i];
+        const seg = result[0].transcript;
+
+        if (result.isFinal) {
+          newFinalText += seg;
+          lastProcessedIndexRef.current = i + 1;
         } else {
-          interimTranscript += seg;
+          interimText += seg;
         }
       }
 
-      setTranscript(sessionFinalTranscript + interimTranscript);
-      if (newFinalTranscript && onResultRef.current) {
-        onResultRef.current(newFinalTranscript);
+      // Safari fallback: con continuous=false e interimResults=false Safari a veces
+      // devuelve isFinal=false aunque el reconocimiento ya terminó. En ese caso
+      // tomamos el último resultado como definitivo.
+      if (!newFinalText && !continuousVal && !interimVal && event.results.length > 0) {
+        const last = event.results[event.results.length - 1];
+        newFinalText = last[0].transcript;
+        lastProcessedIndexRef.current = event.results.length;
+      }
+
+      setTranscript(newFinalText || interimText);
+
+      if (newFinalText.trim() && onResultRef.current) {
+        onResultRef.current(newFinalText.trim());
       }
     };
 
@@ -97,10 +104,7 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       isListeningRef.current = false;
       isStartingRef.current = false;
       setIsListening(false);
-
-      // "aborted" es un error interno del browser — suprimir silenciosamente
       if (error === 'aborted') return;
-
       if (onErrorRef.current) onErrorRef.current(error);
     };
 
@@ -114,26 +118,12 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     return recognition;
   }, []);
 
-  // Limpieza al desmontar
-  useEffect(() => {
-    return () => {
-      destroyCurrent();
-      isListeningRef.current = false;
-      isStartingRef.current = false;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const start = useCallback(() => {
-    // Guard con refs — inmune a stale closures de React
     if (isListeningRef.current || isStartingRef.current) {
       console.log('🎙️ Ya está activo o iniciando, ignorando');
       return;
     }
 
-    // Siempre crear instancia fresca para cada sesión:
-    // reutilizar el mismo objeto entre start/stop puede acumular estado
-    // interno en Chrome y degradar la calidad del reconocimiento
     destroyCurrent();
     const recognition = buildFresh(lang, continuous, interimResults);
     if (!recognition) return;
@@ -145,7 +135,6 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
 
     try {
       recognition.start();
-      console.log('🎙️ Iniciando manualmente...');
     } catch (err: any) {
       isStartingRef.current = false;
       console.error('🎙️ Error al iniciar:', err);
