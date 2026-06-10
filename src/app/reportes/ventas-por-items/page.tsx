@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -148,7 +148,7 @@ export default function VentasPorItemsPage() {
       <table><thead><tr><th>Tipo</th><th>Líneas</th><th>Ingresos</th></tr></thead><tbody>
         ${report.by_type.map(t => `<tr><td>${TYPE_LABELS[t.type] || t.type}</td><td>${t.count}</td><td>$${t.revenue.toLocaleString()}</td></tr>`).join('')}
       </tbody></table>
-      <div class="footer"><p>Generado por Confia Drive — ${currentDate}</p></div>
+      <div class="footer"><p>Generado por Eagles System — ${currentDate}</p></div>
       </body></html>`
 
     const w = window.open('', '_blank')

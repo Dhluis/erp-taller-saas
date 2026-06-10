@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
@@ -21,9 +21,7 @@ export function Logo({ size = 'md', variant = 'default', className }: LogoProps)
   const { companySettings } = useSession()
   
   const isSquare = size === 'sm';
-  const defaultLogo = isSquare 
-    ? "https://i.ibb.co/d4CNVSBS/conf-a-Drive-logo-con-11.png"
-    : "https://i.ibb.co/5h083nG9/cmyk-confia-drive-Mesa-de-trabajo-1-copia-1.png";
+  const defaultLogo = "/eagles-logo.jpg";
     
   const logoUrl = companySettings?.logo_url || defaultLogo
   
@@ -34,7 +32,7 @@ export function Logo({ size = 'md', variant = 'default', className }: LogoProps)
     <div className={cn('flex items-center justify-center', sizeClasses[size], className)}>
       <Image
         src={logoUrl}
-        alt={companySettings?.company_name || "Confia Drive Logo"}
+        alt={companySettings?.company_name || "Eagles System Logo"}
         width={imgWidth}
         height={imgHeight}
         className="w-full h-auto object-contain"
@@ -50,7 +48,7 @@ interface LogoWithTextProps extends LogoProps {
 
 export function LogoWithText({ size = 'md', variant = 'default', className, companyName: propCompanyName }: LogoWithTextProps) {
   const { companySettings } = useSession()
-  const companyName = propCompanyName || companySettings?.company_name || 'Confia Drive'
+  const companyName = propCompanyName || companySettings?.company_name || 'Eagles System'
   
   const textSizes = {
     sm: 'text-sm',

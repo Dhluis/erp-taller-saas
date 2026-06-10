@@ -1,4 +1,4 @@
-import * as sgMail from '@sendgrid/mail';
+﻿import * as sgMail from '@sendgrid/mail';
 import { configureSendGrid, getMessagingConfig } from './twilio-client';
 
 export interface EmailOptions {
@@ -23,7 +23,7 @@ export async function sendEmailSendGridGlobal(options: EmailOptions): Promise<bo
   }
 
   const fromEmail = process.env.SMTP_FROM_EMAIL?.trim() || 'noreply@confiadrive.io';
-  const fromName = options.fromName || process.env.SMTP_FROM_NAME?.trim() || 'Confia Drive';
+  const fromName = options.fromName || process.env.SMTP_FROM_NAME?.trim() || 'Eagles System';
 
   try {
     configureSendGrid();
@@ -73,7 +73,7 @@ export async function sendEmailViaSendGrid(
     // 3. Preparar email
     const from = {
       email: process.env.SMTP_FROM_EMAIL || 'noreply@confiadrive.io',
-      name: options.fromName || config.emailFromName || 'Confia Drive'
+      name: options.fromName || config.emailFromName || 'Eagles System'
     };
 
     const replyTo = options.replyTo || config.emailReplyTo || undefined;

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { MessageSquare, Sparkles, Loader2, Copy } from 'lucide-react';
@@ -14,17 +14,17 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 
-interface ConfiaDriveAIActionButtonProps {
+interface EaglesAIActionButtonProps {
   workOrderId: string;
   customerPhone?: string | null;
   className?: string;
 }
 
-export function ConfiaDriveAIActionButton({
+export function EaglesAIActionButton({
   workOrderId,
   customerPhone,
   className
-}: ConfiaDriveAIActionButtonProps) {
+}: EaglesAIActionButtonProps) {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
@@ -80,7 +80,7 @@ export function ConfiaDriveAIActionButton({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-indigo-400">
               <MessageSquare className="w-5 h-5" />
-              Borrador de Actualización (Confia Drive AI)
+              Borrador de Actualización (Eagles AI)
             </DialogTitle>
             <DialogDescription className="text-slate-400">
               Revisa y edita el mensaje generado por la IA, luego cópialo para enviarlo.

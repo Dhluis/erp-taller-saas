@@ -1,6 +1,6 @@
-/**
+﻿/**
  * useCustomers Hook con Paginación
- * Confia Drive - Hook para gestión de clientes con paginación completa
+ * Eagles System - Hook para gestión de clientes con paginación completa
  */
 
 'use client'

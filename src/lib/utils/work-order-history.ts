@@ -1,6 +1,6 @@
-/**
+﻿/**
  * Utilidades para registrar historial de órdenes de trabajo
- * Confia Drive - Work Order History Logger
+ * Eagles System - Work Order History Logger
  */
 
 // ============================================================

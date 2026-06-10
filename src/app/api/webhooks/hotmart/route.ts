@@ -1,6 +1,6 @@
-/**
+﻿/**
  * =====================================================
- * WEBHOOK: Hotmart → Confia Drive
+ * WEBHOOK: Hotmart → Eagles System
  * =====================================================
  * Endpoint: POST /api/webhooks/hotmart
  * 
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
           .maybeSingle() as { data: UserRow | null; error: unknown }
 
         if (userError || !user) {
-          // El comprador aún no tiene cuenta en Confia Drive
+          // El comprador aún no tiene cuenta en Eagles System
           // TODO: Cuando se defina el flujo de "compra antes de registro",
           // aquí se creará la organización automáticamente.
           console.warn(`[Hotmart Webhook] ⚠️ Usuario no encontrado: ${buyerEmail}. El usuario debe registrarse en confiadrive.io`)
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({
             received: true,
             status: 'user_not_found',
-            message: 'El comprador aún no tiene cuenta en Confia Drive. Debe registrarse en confiadrive.io',
+            message: 'El comprador aún no tiene cuenta en Eagles System. Debe registrarse en confiadrive.io',
           })
         }
 

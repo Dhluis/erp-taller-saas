@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import Link from 'next/link'
@@ -135,7 +135,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         <p className="mt-8 text-center text-sm text-slate-500">
-          © 2026 Confia Drive. Todos los derechos reservados.
+          © 2026 Eagles System. Todos los derechos reservados.
         </p>
       </div>
     </div>

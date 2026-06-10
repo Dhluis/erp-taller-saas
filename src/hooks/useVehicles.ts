@@ -1,6 +1,6 @@
-/**
+﻿/**
  * useVehicles Hook con Paginación
- * Confia Drive - Hook para gestión de vehículos con paginación
+ * Eagles System - Hook para gestión de vehículos con paginación
  */
 
 'use client';

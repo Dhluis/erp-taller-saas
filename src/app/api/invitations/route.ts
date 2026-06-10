@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/core/multi-tenant-server'
 import { sendEmail } from '@/lib/email/mailer'
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
       .eq('id', tenantContext.organizationId)
       .single()
 
-    const orgName = org?.name || 'Confia Drive ERP'
+    const orgName = org?.name || 'Eagles System ERP'
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://confiadrive.io'
     const roleLabels: Record<string, string> = {
       admin: 'Administrador',
@@ -212,11 +212,11 @@ export async function POST(request: NextRequest) {
 
     const emailSent = await sendEmail({
       to: email,
-      subject: `Invitación a ${orgName} en Confia Drive ERP`,
+      subject: `Invitación a ${orgName} en Eagles System ERP`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #1a1a2e;">Has sido invitado a ${orgName}</h2>
-          <p>Has recibido una invitación para unirte a <strong>${orgName}</strong> en Confia Drive ERP con el rol de <strong>${roleLabel}</strong>.</p>
+          <p>Has recibido una invitación para unirte a <strong>${orgName}</strong> en Eagles System ERP con el rol de <strong>${roleLabel}</strong>.</p>
           ${message ? `<p style="background: #f5f5f5; padding: 12px; border-radius: 6px; font-style: italic;">"${message}"</p>` : ''}
           <p>Esta invitación expira el <strong>${expiresAt.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}</strong>.</p>
           <div style="text-align: center; margin: 30px 0;">

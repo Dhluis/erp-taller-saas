@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -109,7 +109,7 @@ export default function QuotationsPage() {
   const searchParams = useSearchParams()
   const processedRef = useRef(false)
 
-  // Efecto para capturar datos de Confia Drive AI
+  // Efecto para capturar datos de Eagles AI
   useEffect(() => {
     if (processedRef.current) return
 

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect } from 'react'
 import { useSession } from '@/lib/context/SessionContext'
@@ -14,7 +14,7 @@ export function BrandingSync() {
     if (isLoading || !companySettings) return
 
     const logo = companySettings.logo_url
-    const companyName = companySettings.company_name || 'Confia Drive ERP'
+    const companyName = companySettings.company_name || 'Eagles System ERP'
 
     // 1. Actualizar el Favicon dinámicamente
     if (logo) {

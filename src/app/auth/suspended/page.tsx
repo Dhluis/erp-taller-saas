@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -66,7 +66,7 @@ export default function SuspendedPage() {
               <AlertTriangle className="h-8 w-8 text-white" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-white">Confia Drive</h1>
+          <h1 className="text-2xl font-bold text-white">Eagles System</h1>
           <p className="text-slate-400">Cuenta suspendida</p>
         </div>
 

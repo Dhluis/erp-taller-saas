@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =====================================================
  * BILLING: Constantes de Planes y Precios
  * =====================================================
@@ -120,10 +120,10 @@ export const FEATURES = {
     "✅ Inventario ilimitado",
     "✅ Usuarios ilimitados",
     "✅ WhatsApp con API oficial",
-    "✅ Confia Drive AI Assistant (Agente)",
+    "✅ Eagles AI Assistant (Agente)",
     "✅ Magic Create (Intención IA)",
     "✅ Dictado por Voz Inteligente",
-    "✅ Confia Drive AI Insights & BI",
+    "✅ Eagles AI Insights & BI",
     "✅ Reportes avanzados",
     "✅ Soporte prioritario 24/7",
     "✅ Acceso a API",
@@ -131,10 +131,10 @@ export const FEATURES = {
   ],
   premium_only: [
     "WhatsApp con API oficial",
-    "Confia Drive AI Assistant (Agente)",
+    "Eagles AI Assistant (Agente)",
     "Magic Create (Intención IA)",
     "Dictado por Voz Inteligente",
-    "Confia Drive AI Insights & BI",
+    "Eagles AI Insights & BI",
     "Usuarios ilimitados",
     "Reportes avanzados",
   ],

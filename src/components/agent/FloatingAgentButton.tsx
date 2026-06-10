@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
@@ -9,7 +9,7 @@ import { useLimitCheck } from '@/hooks/useLimitCheck'
 import { UpgradeModal } from '@/components/billing/upgrade-modal'
 import type { LimitError } from '@/types/billing'
 
-const FAVICON_SRC = 'https://i.ibb.co/d4CNVSBS/conf-a-Drive-logo-con-11.png'
+const FAVICON_SRC = '/eagles-logo.jpg'
 const FAVICON_FALLBACK = '/favicon.svg'
 
 const AI_AGENT_LIMIT_ERROR: LimitError = {
@@ -74,7 +74,7 @@ export function FloatingAgentButton() {
         <span className="relative w-8 h-8 flex items-center justify-center overflow-hidden rounded-full">
           <Image
             src={imgSrc}
-            alt="Confia Drive Asistente"
+            alt="Eagles System Asistente"
             width={32}
             height={32}
             className="w-8 h-8 object-contain"

@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+﻿import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -72,7 +72,7 @@ export const generateWorkOrderPDF = async ({ order, company: providedCompany }: 
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 41, 59); // Slate 800
-  doc.text(company?.company_name || 'Confia Drive', margin + 35, currentY + 5);
+  doc.text(company?.company_name || 'Eagles System', margin + 35, currentY + 5);
   
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
@@ -388,7 +388,7 @@ export const generateWorkOrderPDF = async ({ order, company: providedCompany }: 
     doc.setFontSize(7);
     doc.setTextColor(180);
     doc.text(
-      `Página ${i} de ${totalPages} - Generado por Confia Drive - ${company?.company_name || ''}`,
+      `Página ${i} de ${totalPages} - Generado por Eagles System - ${company?.company_name || ''}`,
       pageWidth / 2,
       pageHeight - 10,
       { align: 'center' }

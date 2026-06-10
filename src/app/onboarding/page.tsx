@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
@@ -186,7 +186,7 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-4">
       {/* Logo */}
       <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-white">Confia Drive ERP</h1>
+        <h1 className="text-2xl font-bold text-white">Eagles System ERP</h1>
         <p className="text-slate-400 text-sm mt-1">Configura tu taller en 2 minutos</p>
       </div>
 

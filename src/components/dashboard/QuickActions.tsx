@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -19,7 +19,7 @@ export function QuickActions({ onOrderCreated, initialData }: QuickActionsProps)
   const [modalOpen, setModalOpen] = useState(false)
   const [prefilledServiceType, setPrefilledServiceType] = useState<string>('')
 
-  // Efecto para abrir el modal si llegan datos iniciales (desde Confia Drive AI)
+  // Efecto para abrir el modal si llegan datos iniciales (desde Eagles AI)
   useEffect(() => {
     if (initialData) {
       console.log('⚡ [QuickActions] Detectados datos iniciales de AI, abriendo modal...');

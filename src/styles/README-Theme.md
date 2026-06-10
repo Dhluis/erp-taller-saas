@@ -1,8 +1,8 @@
-# 🎨 Sistema de Temas Confia Drive - Tema Oscuro Moderno
+﻿# 🎨 Sistema de Temas Eagles System - Tema Oscuro Moderno
 
 ## 📋 Descripción
 
-Sistema completo de temas para el ERP Confia Drive con un diseño oscuro moderno inspirado en las mejores prácticas de UI/UX, utilizando colores cyan/turquesa como color principal y fondos oscuros para una experiencia visual premium.
+Sistema completo de temas para el ERP Eagles System con un diseño oscuro moderno inspirado en las mejores prácticas de UI/UX, utilizando colores cyan/turquesa como color principal y fondos oscuros para una experiencia visual premium.
 
 ## 🎯 Características del Tema
 
@@ -404,7 +404,7 @@ const variants = {
 
 ## 🎯 Conclusión
 
-El sistema de temas Confia Drive proporciona:
+El sistema de temas Eagles System proporciona:
 
 - ✅ **Tema oscuro moderno** con colores cyan/turquesa
 - ✅ **Componentes reutilizables** y consistentes
@@ -415,5 +415,5 @@ El sistema de temas Confia Drive proporciona:
 - ✅ **Documentación completa** con ejemplos
 - ✅ **Fácil personalización** y extensión
 
-**El ERP Confia Drive ahora tiene un sistema de temas completo y moderno que proporciona una experiencia visual premium para los usuarios del taller automotriz.** 🚀
+**El ERP Eagles System ahora tiene un sistema de temas completo y moderno que proporciona una experiencia visual premium para los usuarios del taller automotriz.** 🚀
 

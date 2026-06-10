@@ -1,8 +1,8 @@
--- =====================================================
+﻿-- =====================================================
 -- OPTIMIZACIÓN DE CONSULTAS FRECUENTES
 -- =====================================================
 -- Consultas optimizadas para mejorar el rendimiento
--- Confia Drive
+-- Eagles System
 
 -- =====================================================
 -- CONSULTA OPTIMIZADA: ÓRDENES EN PROGRESO

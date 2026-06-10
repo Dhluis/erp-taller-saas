@@ -1,8 +1,8 @@
-# 📚 Sistema de Documentación Swagger/OpenAPI
+﻿# 📚 Sistema de Documentación Swagger/OpenAPI
 
 ## 🎯 Descripción
 
-Sistema completo de documentación automática para la API del Confia Drive, generando especificaciones OpenAPI 3.0.0 desde comentarios JSDoc en el código.
+Sistema completo de documentación automática para la API del Eagles System, generando especificaciones OpenAPI 3.0.0 desde comentarios JSDoc en el código.
 
 ## 🚀 Características
 

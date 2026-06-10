@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -46,7 +46,7 @@ export function CreateLeadDialog({ open, onOpenChange, editLead, onSuccess }: Cr
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
-  // ✅ Nueva lógica: Detectar si hay datos de Confia Drive AI pendientes al abrir
+  // ✅ Nueva lógica: Detectar si hay datos de Eagles AI pendientes al abrir
   useEffect(() => {
     if (open && !editLead) {
       handleMagicFill()

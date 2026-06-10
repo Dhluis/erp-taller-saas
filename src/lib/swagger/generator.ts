@@ -1,4 +1,4 @@
-import swaggerJsdoc from 'swagger-jsdoc'
+﻿import swaggerJsdoc from 'swagger-jsdoc'
 import path from 'path'
 
 /**
@@ -13,7 +13,7 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Confia Drive API',
+      title: 'Eagles System API',
       version: '1.0.0',
       description: 'API completa para el sistema ERP de taller automotriz con gestión de clientes, vehículos, cotizaciones, órdenes, facturas, inventario, proveedores, notificaciones y backups.',
       contact: {
@@ -338,7 +338,7 @@ export function generateSwaggerSpec() {
     return {
       openapi: '3.0.0',
       info: {
-        title: 'Confia Drive API',
+        title: 'Eagles System API',
         version: '1.0.0',
         description: 'API del sistema ERP de taller automotriz'
       },

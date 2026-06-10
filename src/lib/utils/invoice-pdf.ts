@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+﻿import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -62,7 +62,7 @@ export const generateInvoicePDF = async ({ invoice, company }: InvoicePDFData) =
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 41, 59);
-  doc.text(company?.company_name || 'Confia Drive', margin + 35, currentY + 5);
+  doc.text(company?.company_name || 'Eagles System', margin + 35, currentY + 5);
   
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');

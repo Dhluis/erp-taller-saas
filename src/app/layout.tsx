@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next"
+﻿import type { Metadata, Viewport } from "next"
 import { Inter, Outfit } from "next/font/google"
 import "./globals.css"
 import { Providers } from "@/components/providers/Providers"
@@ -18,12 +18,12 @@ const outfit = Outfit({
 })
 
 export const metadata: Metadata = {
-  title: "Confia Drive - Taller Automotriz",
+  title: "Eagles System - Taller Automotriz",
   description: "Sistema de gestión integral para talleres automotrices con tema oscuro moderno",
   keywords: ["ERP", "Taller", "Automotriz", "Gestión", "Sistema"],
-  authors: [{ name: "Confia Drive Team" }],
-  creator: "Confia Drive",
-  publisher: "Confia Drive",
+  authors: [{ name: "Eagles System Team" }],
+  creator: "Eagles System",
+  publisher: "Eagles System",
   manifest: "/manifest.json",
   formatDetection: {
     email: false,
@@ -32,18 +32,18 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/eagles-icon.png", sizes: "192x192", type: "image/png" },
+      { url: "/eagles-icon.png", sizes: "512x512", type: "image/png" },
     ],
-    shortcut: "/icon-192.png",
+    shortcut: "/eagles-icon.png",
     apple: [
-      { url: "/icon-512.png", type: "image/png" },
+      { url: "/eagles-icon.png", type: "image/png" },
     ],
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Confia Drive ERP",
+    title: "Eagles System ERP",
   },
   other: {
     "google": "notranslate",

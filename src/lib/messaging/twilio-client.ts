@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Messaging utilities — Email only (WhatsApp/Twilio removed)
  * Kept for backward compat with email-service.ts and api/messaging/config
  */
@@ -46,7 +46,7 @@ export async function getMessagingConfig(organizationId: string): Promise<Messag
     const d = data as any;
     return {
       emailEnabled: d.email_enabled ?? true,
-      emailFromName: d.email_from_name || 'Confia Drive',
+      emailFromName: d.email_from_name || 'Eagles System',
       emailReplyTo: d.email_reply_to || null,
       whatsappProvider: d.whatsapp_provider || 'twilio',
       whatsappEnabled: false, // WhatsApp disabled

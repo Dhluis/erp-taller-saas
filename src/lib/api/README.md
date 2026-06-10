@@ -1,4 +1,4 @@
-# 🔒 Utilidades Seguras de Fetch
+﻿# 🔒 Utilidades Seguras de Fetch
 
 Este módulo proporciona utilidades seguras para realizar peticiones HTTP en el proyecto, manejando automáticamente errores de red, HTTP, JSON parsing y respuestas HTML inesperadas.
 
@@ -337,7 +337,7 @@ Para agregar nuevas funcionalidades:
 
 ## 📄 Licencia
 
-Este módulo es parte del proyecto Confia Drive.
+Este módulo es parte del proyecto Eagles System.
 
 
 

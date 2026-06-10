@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { Wand2, Loader2, Sparkles, Lock } from 'lucide-react';
@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useBilling } from '@/hooks/useBilling';
 import Link from 'next/link';
 
-export function ConfiaDriveMagicCreate() {
+export function EaglesMagicCreate() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -40,7 +40,7 @@ export function ConfiaDriveMagicCreate() {
 
       if (result.success && result.data) {
         toast.success('¡IA procesó los datos con éxito!');
-        console.log('Datos extraídos por Confia Drive AI:', result.data);
+        console.log('Datos extraídos por Eagles AI:', result.data);
         
         const actionType = result.data.action_type || 'work-order';
         const queryParams = new URLSearchParams();
@@ -79,7 +79,7 @@ export function ConfiaDriveMagicCreate() {
             <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
               <Sparkles className="w-5 h-5" />
             </div>
-            Creación Mágica (Confia Drive AI)
+            Creación Mágica (Eagles AI)
           </CardTitle>
           <div className="px-2 py-0.5 rounded-full bg-amber-500 text-[10px] font-semibold text-white tracking-wider uppercase animate-pulse">
             Beta
@@ -135,7 +135,7 @@ export function ConfiaDriveMagicCreate() {
               ) : (
                 <Wand2 className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform" />
               )}
-              {loading ? 'Procesando...' : 'Crear con Confia Drive AI'}
+              {loading ? 'Procesando...' : 'Crear con Eagles AI'}
             </Button>
           </>
         )}

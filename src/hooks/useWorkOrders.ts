@@ -1,6 +1,6 @@
-/**
+﻿/**
  * useWorkOrders Hook con Paginación
- * Confia Drive - Hook para gestión de órdenes de trabajo con paginación
+ * Eagles System - Hook para gestión de órdenes de trabajo con paginación
  */
 
 'use client'

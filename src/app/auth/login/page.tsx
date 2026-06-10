@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { Suspense } from 'react'
 import React, { useState } from 'react'
@@ -289,7 +289,7 @@ function LoginContent() {
 
         {/* Footer */}
         <p className="mt-8 text-center text-sm text-slate-500">
-          © 2026 Confia Drive. Todos los derechos reservados.
+          © 2026 Eagles System. Todos los derechos reservados.
         </p>
       </div>
 
@@ -306,7 +306,7 @@ function LoginContent() {
               Crea tu cuenta primero
             </DialogTitle>
             <DialogDescription className="text-slate-300 text-center mt-2">
-              Para usar Google como método de inicio de sesión, primero debes crear tu cuenta en Confia Drive.
+              Para usar Google como método de inicio de sesión, primero debes crear tu cuenta en Eagles System.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-6 space-y-4">

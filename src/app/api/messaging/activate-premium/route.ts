@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 /**
  * ACTIVACIÓN TIER PREMIUM - Twilio WhatsApp API
  * 
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
         smsMethod: 'POST',
         statusCallback: webhookUrl,
         statusCallbackMethod: 'POST',
-        friendlyName: `Confia Drive - ${organization.name} - WhatsApp Premium`,
+        friendlyName: `Eagles System - ${organization.name} - WhatsApp Premium`,
       });
       
       console.log('[Activate Premium] ✅ Número comprado:', purchasedNumber.phoneNumber);

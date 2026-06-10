@@ -1,7 +1,7 @@
-/**
+﻿/**
  * =====================================================
  * TYPES: Sistema de Planes Free/Premium
- * Autor: Confia Drive
+ * Autor: Eagles System
  * Fecha: 2026-02-06
  * Descripción: Tipos TypeScript para modelo freemium
  * =====================================================

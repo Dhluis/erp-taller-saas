@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
 import Link from "next/link"
@@ -45,7 +45,7 @@ export function Sidebar({ className }: SidebarProps) {
   const [magicCreateData, setMagicCreateData] = useState<any>(null)
   const searchParams = useSearchParams()
 
-  // Efecto global para capturar datos de Confia Drive AI de la URL
+  // Efecto global para capturar datos de Eagles AI de la URL
   useEffect(() => {
     const openMagicCreate = searchParams.get('openMagicCreate');
     if (openMagicCreate === 'true') {
@@ -57,7 +57,7 @@ export function Sidebar({ className }: SidebarProps) {
 
         if (aiDataRaw) {
           const parsedData = JSON.parse(aiDataRaw);
-          console.log('✨ [Sidebar] Capturado Confia Drive AI global:', parsedData);
+          console.log('✨ [Sidebar] Capturado Eagles AI global:', parsedData);
           
           if (parsedData.action_type === 'work-order' || !parsedData.action_type) {
             setMagicCreateData(parsedData);

@@ -1,4 +1,4 @@
-interface QuotationEmailData {
+﻿interface QuotationEmailData {
   customerName: string;
   quotationNumber: string;
   vehicleInfo: string;
@@ -131,7 +131,7 @@ export function getQuotationEmailTemplate(data: QuotationEmailData): string {
                 © ${new Date().getFullYear()} ${data.organizationName}
               </p>
               <p style="margin: 10px 0 0 0; color: #94a3b8; font-size: 12px;">
-                Powered by Confia Drive
+                Powered by Eagles System
               </p>
             </td>
           </tr>

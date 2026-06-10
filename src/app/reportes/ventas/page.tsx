@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -291,7 +291,7 @@ export default function ReportesVentasPage() {
           </div>
 
           <div class="footer">
-            <p>Generado por Confia Drive</p>
+            <p>Generado por Eagles System</p>
             <p>${currentDate}</p>
           </div>
         </body>

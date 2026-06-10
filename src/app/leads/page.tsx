@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useCallback, useEffect, useRef, Suspense } from "react"
 import { useSearchParams } from 'next/navigation'
@@ -44,7 +44,7 @@ function LeadsPageContent() {
   const searchParams = useSearchParams()
   const processedRef = useRef(false)
 
-  // Efecto para capturar datos de Confia Drive AI
+  // Efecto para capturar datos de Eagles AI
   useEffect(() => {
     if (processedRef.current) return
 

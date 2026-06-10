@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -42,8 +42,8 @@ export default function LandingPage() {
             <div className="relative group">
               <div className="absolute -inset-2 bg-cyan-500/10 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
               <Image
-                src="https://i.ibb.co/5h083nG9/cmyk-confia-drive-Mesa-de-trabajo-1-copia-1.png"
-                alt="Confia Drive"
+                src="/eagles-logo.jpg"
+                alt="Eagles System"
                 width={160}
                 height={64}
                 className="h-10 w-auto object-contain relative"
@@ -82,7 +82,7 @@ export default function LandingPage() {
                 Gestiona tu Taller Mecánico de manera Profesional
               </h1>
               <p className="text-xl lg:text-2xl text-cyan-50 leading-relaxed text-pretty">
-                Confia Drive es un software completo: órdenes de trabajo, inventario, clientes, facturación y más. Todo en la nube.
+                Eagles System es un software completo: órdenes de trabajo, inventario, clientes, facturación y más. Todo en la nube.
               </p>
 
               {/* CTAs */}
@@ -140,7 +140,7 @@ export default function LandingPage() {
                 <div className="relative w-full flex items-center justify-center">
                   <Image
                     src="https://i.ibb.co/ZzFzkkRZ/Captura-de-pantalla-2026-01-05-223640.png"
-                    alt="Confia Drive - Dashboard Taller - Sistema de gestión completo para talleres mecánicos"
+                    alt="Eagles System - Dashboard Taller - Sistema de gestión completo para talleres mecánicos"
                     width={1920}
                     height={1080}
                     className="w-full h-auto rounded-lg object-contain"
@@ -475,7 +475,7 @@ export default function LandingPage() {
             <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-8">
               <h3 className="text-xl font-bold text-white mb-3">Empieza hoy, paga solo si creces</h3>
               <p className="text-cyan-50 text-sm leading-relaxed">
-                Confia Drive es tuyo desde el primer día, sin compromisos. Administra tu taller, conoce la plataforma y mejora al plan Premium solo cuando lo necesites.
+                Eagles System es tuyo desde el primer día, sin compromisos. Administra tu taller, conoce la plataforma y mejora al plan Premium solo cuando lo necesites.
               </p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-8">
@@ -500,7 +500,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-3 gap-8">
             {[
               {
-                quote: "Desde que uso Confia Drive, he reducido el papeleo en 90%. Todo está organizado y mis clientes están más contentos.",
+                quote: "Desde que uso Eagles System, he reducido el papeleo en 90%. Todo está organizado y mis clientes están más contentos.",
                 author: "Carlos Méndez",
                 business: "Taller Méndez",
                 location: "CDMX",
@@ -556,7 +556,7 @@ export default function LandingPage() {
               {[
                 {
                   question: "¿Necesito instalar software?",
-                  answer: "No, Confia Drive es 100% en la nube. Solo necesitas un navegador web y conexión a internet. Funciona en cualquier dispositivo: computadora, tablet o celular.",
+                  answer: "No, Eagles System es 100% en la nube. Solo necesitas un navegador web y conexión a internet. Funciona en cualquier dispositivo: computadora, tablet o celular.",
                 },
                 {
                   question: "¿Mis datos están seguros?",
@@ -572,7 +572,7 @@ export default function LandingPage() {
                 },
                 {
                   question: "¿Funciona sin internet?",
-                  answer: "Confia Drive requiere conexión a internet para funcionar. Sin embargo, la app móvil puede guardar datos temporalmente y sincronizarlos cuando recuperes la conexión.",
+                  answer: "Eagles System requiere conexión a internet para funcionar. Sin embargo, la app móvil puede guardar datos temporalmente y sincronizarlos cuando recuperes la conexión.",
                 },
                 {
                   question: "¿Incluye facturación?",
@@ -630,7 +630,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-4 gap-8 mb-12">
             {/* Brand */}
             <div>
-              <h3 className="text-white font-bold text-xl mb-4">Confia Drive</h3>
+              <h3 className="text-white font-bold text-xl mb-4">Eagles System</h3>
               <p className="text-sm leading-relaxed">
                 La solución completa para gestionar tu taller mecánico de manera profesional.
               </p>
@@ -681,7 +681,7 @@ export default function LandingPage() {
 
           {/* Bottom section */}
           <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm">© 2026 Confia Drive. Hecho en México.</p>
+            <p className="text-sm">© 2026 Eagles System. Hecho en México.</p>
           </div>
         </div>
       </footer>

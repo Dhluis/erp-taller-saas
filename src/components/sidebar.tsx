@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
@@ -213,15 +213,15 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Image
-              src="https://i.ibb.co/5h083nG9/cmyk-confia-drive-Mesa-de-trabajo-1-copia-1.png"
-              alt="Confia Drive"
+              src="/eagles-logo.jpg"
+              alt="Eagles System"
               width={40}
               height={40}
-              className="object-contain"
+              className="object-contain rounded-lg"
             />
             <div>
               <h1 className="text-xl font-bold text-foreground">
-                CONFIA DRIVE
+                EAGLES SYSTEM
               </h1>
               <p className="text-xs text-muted-foreground">Taller Automotriz</p>
             </div>

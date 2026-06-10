@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -134,7 +134,7 @@ function InventariosContent() {
         setShowCopilotModal(false);
       }
     } catch (error) {
-      toast.error('Error de conexión con Confia Drive AI');
+      toast.error('Error de conexión con Eagles AI');
       setShowCopilotModal(false);
     } finally {
       setIsAnalyzingCopilot(false);
@@ -276,13 +276,13 @@ function InventariosContent() {
               unit_price: p.unit_price?.toString() || '',
               stock: (p.quantity || p.stock)?.toString() || '',
               minimum_stock: (p.min_quantity || p.minimum_stock)?.toString() || '5',
-              description: p.description || 'Producto agregado vía Confia Drive AI',
+              description: p.description || 'Producto agregado vía Eagles AI',
               category_id: foundCategoryId || ''
             });
 
             console.log('🚀 [Inventory] Abriendo modal de nuevo producto...');
             setShowNewProductModal(true);
-            toast.success('¡Confia Drive AI preparó los datos del producto!');
+            toast.success('¡Eagles AI preparó los datos del producto!');
             
             // Limpiar
             sessionStorage.removeItem('confiadrive_ai_pending_data');
@@ -806,7 +806,7 @@ function InventariosContent() {
                 <div>
                   <h2 className="text-xl font-bold text-white flex items-center gap-2">
                     <Sparkles className="h-6 w-6 text-indigo-400" />
-                    Confia Drive Copilot
+                    Eagles System Copilot
                   </h2>
                   <p className="text-sm text-slate-400 mt-1">Análisis inteligente de tu inventario crítico</p>
                 </div>
@@ -857,7 +857,7 @@ function InventariosContent() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Confia Drive AI</p>
+                        <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Eagles AI</p>
                         <span className="h-1 w-1 rounded-full bg-slate-600"></span>
                         <p className="text-[10px] text-slate-400 truncate">Dicta nombre, SKU y precio...</p>
                       </div>
@@ -992,7 +992,7 @@ function InventariosContent() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Confia Drive AI</p>
+                        <p className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">Eagles AI</p>
                         <span className="h-1 w-1 rounded-full bg-slate-600"></span>
                         <p className="text-[10px] text-slate-400 truncate">Actualiza datos con tu voz...</p>
                       </div>

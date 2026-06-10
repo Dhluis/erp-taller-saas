@@ -1,9 +1,9 @@
-import { MetadataRoute } from 'next'
+﻿import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Confia Drive ERP - Taller Automotriz',
-    short_name: 'Confia Drive ERP',
+    name: 'Eagles System ERP - Taller Automotriz',
+    short_name: 'Eagles System ERP',
     description: 'Sistema de gestión integral para talleres automotrices',
     start_url: '/dashboard',
     scope: '/',
@@ -14,25 +14,25 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ['business', 'productivity'],
     icons: [
       {
-        src: '/icon-192.png',
+        src: '/eagles-icon.png',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/icon-192.png',
+        src: '/eagles-icon.png',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'maskable',
       },
       {
-        src: '/icon-512.png',
+        src: '/eagles-icon.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/icon-512.png',
+        src: '/eagles-icon.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',

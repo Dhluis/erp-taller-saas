@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import {
@@ -15,7 +15,7 @@ import { WorkOrderDetailsTabs } from './WorkOrderDetailsTabs'
 import AssignMechanicModal from '@/components/mecanicos/AssignMechanicModal'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ConfiaDriveAIActionButton } from './ConfiaDriveAIActionButton'
+import { EaglesAIActionButton } from './EaglesAIActionButton'
 import { WorkOrderQRCode } from './WorkOrderQRCode'
 import { Printer, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -143,7 +143,7 @@ export function WorkOrderDetailsModal({
             </div>
             
             <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
-              <ConfiaDriveAIActionButton 
+              <EaglesAIActionButton 
                 workOrderId={order.id} 
                 customerPhone={order.customer?.phone} 
               />

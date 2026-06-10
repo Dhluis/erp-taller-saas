@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
 import { getMessagingConfig } from '@/lib/messaging/twilio-client';
 
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         success: true,
         config: {
           emailEnabled: true,
-          emailFromName: process.env.SMTP_FROM_NAME || 'Confia Drive',
+          emailFromName: process.env.SMTP_FROM_NAME || 'Eagles System',
           emailReplyTo: process.env.SMTP_FROM_EMAIL || 'servicios@confiadrive.io',
           whatsappProvider: 'twilio',
           whatsappEnabled: false,
@@ -231,7 +231,7 @@ export async function PUT(request: NextRequest) {
     const configData = data as any;
     const responseConfig = {
       emailEnabled: configData.email_enabled ?? true,
-      emailFromName: configData.email_from_name || 'Confia Drive',
+      emailFromName: configData.email_from_name || 'Eagles System',
       emailReplyTo: configData.email_reply_to,
       whatsappProvider: configData.whatsapp_provider || 'twilio',
       whatsappEnabled: configData.whatsapp_enabled ?? false,
