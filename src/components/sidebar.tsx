@@ -213,7 +213,7 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Image
-              src="/eagles-logo.jpg"
+              src="/eagles-logo-dark.png"
               alt="Eagles System"
               width={40}
               height={40}

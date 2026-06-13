@@ -42,7 +42,7 @@ export default function LandingPage() {
             <div className="relative group">
               <div className="absolute -inset-2 bg-cyan-500/10 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
               <Image
-                src="/eagles-logo.jpg"
+                src="/eagles-logo-dark.png"
                 alt="Eagles System"
                 width={160}
                 height={64}

@@ -19,7 +19,7 @@ export function AuthLogo({ size = 'lg', showText = true }: AuthLogoProps) {
     <div className="text-center">
       <div className="inline-flex items-center justify-center mb-4">
         <Image
-          src="/eagles-logo.jpg"
+          src="/eagles-logo-dark.png"
           alt="Eagles System"
           width={200}
           height={100}

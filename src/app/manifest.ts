@@ -14,25 +14,25 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ['business', 'productivity'],
     icons: [
       {
-        src: '/eagles-icon.png',
+        src: '/eagles-logo-light.png',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/eagles-icon.png',
+        src: '/eagles-logo-light.png',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'maskable',
       },
       {
-        src: '/eagles-icon.png',
+        src: '/eagles-logo-light.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/eagles-icon.png',
+        src: '/eagles-logo-light.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',

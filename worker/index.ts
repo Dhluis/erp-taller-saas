@@ -1,4 +1,4 @@
-// Eagles System ERP — Custom Service Worker: Push Notifications
+﻿// Eagles System ERP — Custom Service Worker: Push Notifications
 // Este archivo se fusiona con el SW generado por @ducanh2912/next-pwa (Workbox)
 
 // @ts-ignore
@@ -15,8 +15,8 @@ sw.addEventListener('push', (event) => {
   const title = data.title ?? 'Eagles System ERP';
   const options: NotificationOptions = {
     body: data.body ?? '',
-    icon: '/eagles-icon.png',
-    badge: '/eagles-icon.png',
+    icon: '/eagles-logo-light.png',
+    badge: '/eagles-logo-light.png',
     data: { url: data.url ?? '/dashboard' },
     requireInteraction: false,
   };

@@ -21,7 +21,7 @@ export function Logo({ size = 'md', variant = 'default', className }: LogoProps)
   const { companySettings } = useSession()
   
   const isSquare = size === 'sm';
-  const defaultLogo = "/eagles-logo.jpg";
+  const defaultLogo = "/eagles-logo-dark.png";
     
   const logoUrl = companySettings?.logo_url || defaultLogo
   
