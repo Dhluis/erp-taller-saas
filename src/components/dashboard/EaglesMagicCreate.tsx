@@ -47,7 +47,7 @@ export function EaglesMagicCreate() {
         queryParams.set('openMagicCreate', 'true');
         // Usar sessionStorage para evitar problemas de URL
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('confiadrive_ai_pending_data', JSON.stringify(result.data));
+          sessionStorage.setItem('eagles_ai_pending_data', JSON.stringify(result.data));
         }
 
         let targetPath = '/ordenes';

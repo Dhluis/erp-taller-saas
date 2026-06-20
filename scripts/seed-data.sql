@@ -19,10 +19,10 @@
 INSERT INTO organizations (id, name, address, phone, email, created_at, updated_at)
 VALUES (
   '00000000-0000-0000-0000-000000000001'::uuid,
-  'Taller Confia Drive Demo',
+  'Taller Eagles System Demo',
   'Av. Tecnológico #1000, Aguascalientes, AGS',
   '449-123-4567',
-  'contacto@tallerConfia Drivedemo.com',
+  'contacto@tallerEagles Systemdemo.com',
   NOW(),
   NOW()
 )

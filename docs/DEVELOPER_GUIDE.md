@@ -1,4 +1,4 @@
-# Confia Drive ERP - Developer Guide
+# Eagles System ERP - Developer Guide
 
 **Última actualización:** Abril 2026
 **Versión del proyecto:** 5.0.0
@@ -646,7 +646,7 @@ npm start
 - `docs/MOBILE_PERFORMANCE_ANALYSIS.md` - Análisis de performance mobile
 - `docs/PROJECT_STATUS.md` - Estado del proyecto
 - `docs/PLACEHOLDERS_CLEANUP_REPORT.md` - Reporte de placeholders
-- `docs/Confia Drive_ERP_DEVELOPER_SKILL.md` - Guía de desarrollo (alternativa)
+- `docs/Eagles System_ERP_DEVELOPER_SKILL.md` - Guía de desarrollo (alternativa)
 - `docs/DEVELOPER_GUIDE.md` - Esta guía
 
 ### **APIs Documentadas:**
@@ -687,7 +687,7 @@ npm start
 ---
 
 **Última revisión:** 2026-01-05  
-**Mantenido por:** Confia Drive ERP Development Team  
+**Mantenido por:** Eagles System ERP Development Team  
 **Versión del documento:** 1.0.0
 
 

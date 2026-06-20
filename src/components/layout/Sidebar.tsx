@@ -50,7 +50,7 @@ export function Sidebar({ className }: SidebarProps) {
     const openMagicCreate = searchParams.get('openMagicCreate');
     if (openMagicCreate === 'true') {
       try {
-        let aiDataRaw = sessionStorage.getItem('confiadrive_ai_pending_data');
+        let aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data');
         if (!aiDataRaw) {
           aiDataRaw = searchParams.get('aiData');
         }
@@ -65,7 +65,7 @@ export function Sidebar({ className }: SidebarProps) {
             toast.info('IA preparó una orden de trabajo');
             
             // Limpiar URL y Storage
-            sessionStorage.removeItem('confiadrive_ai_pending_data');
+            sessionStorage.removeItem('eagles_ai_pending_data');
             const newPath = window.location.pathname;
             window.history.replaceState({}, '', newPath);
           }

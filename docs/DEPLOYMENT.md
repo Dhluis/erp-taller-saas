@@ -1,4 +1,4 @@
-# Guía de Despliegue — Confia Drive ERP
+# Guía de Despliegue — Eagles System ERP
 
 **Plataforma de producción:** Vercel
 **Última actualización:** Abril 2026

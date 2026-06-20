@@ -14,7 +14,7 @@
  * 
  * Configuración en Hotmart:
  *   1. Panel Hotmart → Ferramentas → Webhook
- *   2. URL: https://confiadrive.io/api/webhooks/hotmart
+ *   2. URL: https://eaglessystem.io/api/webhooks/hotmart
  *   3. Copiar el "Hottok" y pegarlo en HOTMART_WEBHOOK_SECRET (Vercel env vars)
  */
 
@@ -136,12 +136,12 @@ export async function POST(request: NextRequest) {
           // El comprador aún no tiene cuenta en Eagles System
           // TODO: Cuando se defina el flujo de "compra antes de registro",
           // aquí se creará la organización automáticamente.
-          console.warn(`[Hotmart Webhook] ⚠️ Usuario no encontrado: ${buyerEmail}. El usuario debe registrarse en confiadrive.io`)
+          console.warn(`[Hotmart Webhook] ⚠️ Usuario no encontrado: ${buyerEmail}. El usuario debe registrarse en eaglessystem.io`)
           // Respondemos 200 para que Hotmart no re-intente
           return NextResponse.json({
             received: true,
             status: 'user_not_found',
-            message: 'El comprador aún no tiene cuenta en Eagles System. Debe registrarse en confiadrive.io',
+            message: 'El comprador aún no tiene cuenta en Eagles System. Debe registrarse en eaglessystem.io',
           })
         }
 

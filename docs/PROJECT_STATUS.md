@@ -1,4 +1,4 @@
-# Estado del Proyecto — Confia Drive ERP
+# Estado del Proyecto — Eagles System ERP
 
 **Última actualización:** Abril 2026
 **Versión:** 5.0.0 — Producción estable

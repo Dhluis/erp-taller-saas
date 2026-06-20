@@ -81,9 +81,9 @@ Cada país puede tener requisitos diferentes. Datos comunes:
 ### Paso 3: Nombre Amigable
 
 Sugerencia de nombres:
-- `Confia Drive - Bundle México`
-- `Confia Drive - Bundle Colombia`
-- `Confia Drive - Bundle Argentina`
+- `Eagles System - Bundle México`
+- `Eagles System - Bundle Colombia`
+- `Eagles System - Bundle Argentina`
 - etc.
 
 ### Paso 4: Esperar Aprobación

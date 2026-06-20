@@ -1,4 +1,4 @@
--- Migración para tablas faltantes en Confia Drive ERP
+-- Migración para tablas faltantes en Eagles System ERP
 -- Ejecutar este script en el SQL Editor de Supabase
 
 -- 1. Crear tabla inventory_categories

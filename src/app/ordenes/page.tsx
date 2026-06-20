@@ -151,7 +151,7 @@ function OrdenesPageContent() {
   useEffect(() => {
     const openMagic = searchParams.get('openMagicCreate') === 'true';
     if (openMagic) {
-      const pendingData = sessionStorage.getItem('confiadrive_ai_pending_data');
+      const pendingData = sessionStorage.getItem('eagles_ai_pending_data');
       if (pendingData) {
         try {
           const parsedData = JSON.parse(pendingData);
@@ -936,7 +936,7 @@ function OrdenesPageContent() {
           setIsCreateModalOpen(open);
           if (!open) {
             setAiData(null);
-            sessionStorage.removeItem('confiadrive_ai_pending_data');
+            sessionStorage.removeItem('eagles_ai_pending_data');
           }
         }}
         initialData={aiData}

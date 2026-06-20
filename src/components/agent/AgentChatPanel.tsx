@@ -23,7 +23,7 @@ export interface SavedConversation {
   createdAt: string
 }
 
-const STORAGE_KEY = 'confiadrive_agent_conversations'
+const STORAGE_KEY = 'eagles_agent_conversations'
 const MAX_CONVERSATIONS = 50
 
 interface AgentChatPanelProps {

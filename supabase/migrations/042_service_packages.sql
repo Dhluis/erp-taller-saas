@@ -1,6 +1,6 @@
 -- ============================================================
 -- Migration 042: Service Packages Module (Paquetes de Servicio)
--- Confia Drive ERP - Catálogo de paquetes y líneas de servicio en órdenes
+-- Eagles System ERP - Catálogo de paquetes y líneas de servicio en órdenes
 -- ============================================================
 -- Referencia: docs/DEVELOPER_GUIDE.md (RLS multi-tenant)
 -- Tabla de inventario del proyecto: public.inventory (no inventory_items)

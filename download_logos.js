@@ -27,7 +27,7 @@ async function main() {
     console.log('Downloading Horizontal Logo...');
     await downloadFile(
       'https://i.ibb.co/5h083nG9/cmyk-confia-drive-Mesa-de-trabajo-1-copia-1.png', 
-      path.join(__dirname, 'public', 'confiadrive-logo.png')
+      path.join(__dirname, 'public', 'eagles-logo-dark.png')
     );
     
     console.log('Downloading Square Icon...');
@@ -37,7 +37,7 @@ async function main() {
     );
     await downloadFile(
       'https://i.ibb.co/s84KMYf/Whats-App-Image-2026-04-14-at-5-45-32-PM.jpg', 
-      path.join(__dirname, 'public', 'confiadrive-icon.jpg')
+      path.join(__dirname, 'public', 'eagles-icon.png')
     );
 
     console.log('All downloads completed successfully.');

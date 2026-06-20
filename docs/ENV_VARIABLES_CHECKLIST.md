@@ -1,4 +1,4 @@
-# Variables de Entorno — Confia Drive ERP
+# Variables de Entorno — Eagles System ERP
 
 **Última actualización:** Abril 2026
 **Comando de verificación:** `npm run env:check`

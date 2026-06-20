@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { ReactNode } from 'react'
 import { AppLayout } from './AppLayout'
+import { OfflineIndicator } from '@/components/ui/OfflineIndicator'
 
 // Paths that should NOT show the sidebar/app layout
 const PUBLIC_PREFIXES = [
@@ -28,7 +29,10 @@ export function GlobalLayoutWrapper({ children }: { children: ReactNode }) {
     pathname === '/' ||
     PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 
-  if (isPublic) return <>{children}</>
-
-  return <AppLayout>{children}</AppLayout>
+  return (
+    <>
+      <OfflineIndicator />
+      {isPublic ? <>{children}</> : <AppLayout>{children}</AppLayout>}
+    </>
+  )
 }

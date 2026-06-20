@@ -30,7 +30,7 @@ SELECT
     o.name as organizacion_actual,
     CASE 
         WHEN c.organization_id = '042ab6bd-8979-4166-882a-c244b5e51e51' THEN '✅ En Xpandifai (correcta)'
-        WHEN c.organization_id = '00000000-0000-0000-0000-000000000001' THEN '⚠️ En Taller Confia Drive Demo (mover a Xpandifai)'
+        WHEN c.organization_id = '00000000-0000-0000-0000-000000000001' THEN '⚠️ En Taller Eagles System Demo (mover a Xpandifai)'
         ELSE '❓ Otra organización'
     END as estado
 FROM customers c

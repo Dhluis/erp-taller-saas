@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     const openai = getOpenAIClient();
 
     if (action === "draft-message") {
-      const { workOrderId, origin = "https://confiadrive.io" } = payload;
+      const { workOrderId, origin = "https://eaglessystem.io" } = payload;
       if (!workOrderId)
         return NextResponse.json(
           { error: "Falta workOrderId" },

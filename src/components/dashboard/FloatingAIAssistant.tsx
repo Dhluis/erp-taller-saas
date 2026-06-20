@@ -54,7 +54,7 @@ export function FloatingAIAssistant() {
         
         // Guardar en sessionStorage para transferencia robusta
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('confiadrive_ai_pending_data', JSON.stringify(result.data));
+          sessionStorage.setItem('eagles_ai_pending_data', JSON.stringify(result.data));
         }
 
         const queryParams = new URLSearchParams();

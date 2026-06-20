@@ -21,7 +21,7 @@ Si no sabes qué módulo: `"Lee CLAUDE.md y docs/specs/README.md para orientarte
 
 ## Project Overview
 
-**Confia Drive ERP** — SaaS ERP multi-tenant para talleres mecánicos.
+**Eagles System ERP** — SaaS ERP multi-tenant para talleres mecánicos.
 Stack: Next.js 15 (App Router), TypeScript, Supabase (PostgreSQL + Auth), Tailwind CSS + shadcn/ui.
 
 **Estado:** Producción activa con clientes reales. Versión 5.0.0.

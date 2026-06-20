@@ -22,7 +22,7 @@ export async function sendEmailSendGridGlobal(options: EmailOptions): Promise<bo
     return false;
   }
 
-  const fromEmail = process.env.SMTP_FROM_EMAIL?.trim() || 'noreply@confiadrive.io';
+  const fromEmail = process.env.SMTP_FROM_EMAIL?.trim() || 'noreply@eaglessystem.io';
   const fromName = options.fromName || process.env.SMTP_FROM_NAME?.trim() || 'Eagles System';
 
   try {
@@ -72,7 +72,7 @@ export async function sendEmailViaSendGrid(
 
     // 3. Preparar email
     const from = {
-      email: process.env.SMTP_FROM_EMAIL || 'noreply@confiadrive.io',
+      email: process.env.SMTP_FROM_EMAIL || 'noreply@eaglessystem.io',
       name: options.fromName || config.emailFromName || 'Eagles System'
     };
 

@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         config: {
           emailEnabled: true,
           emailFromName: process.env.SMTP_FROM_NAME || 'Eagles System',
-          emailReplyTo: process.env.SMTP_FROM_EMAIL || 'servicios@confiadrive.io',
+          emailReplyTo: process.env.SMTP_FROM_EMAIL || 'servicios@eaglessystem.io',
           whatsappProvider: 'twilio',
           whatsappEnabled: false,
           whatsappTwilioNumber: null,

@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect } from 'react'
+import { useFormAutoSave, timeSince } from '@/hooks/useFormAutoSave'
 import {
   Dialog,
   DialogContent,
@@ -121,6 +122,25 @@ export function CreateQuotationModal({
     status: 'draft',
   })
 
+  const isNewQuotation = !quotation
+  const { getSaved, clear } = useFormAutoSave('create-quotation', formData, open && isNewQuotation)
+
+  // Ofrecer restaurar borrador al abrir en modo creación
+  useEffect(() => {
+    if (!open || !isNewQuotation) return
+    const saved = getSaved()
+    if (!saved) return
+    toast('Borrador de cotización encontrado', {
+      description: `Último guardado ${timeSince(saved.savedAt)}`,
+      duration: 10000,
+      action: {
+        label: 'Restaurar',
+        onClick: () => setFormData(prev => ({ ...prev, ...saved.data })),
+      },
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   // Cargar datos iniciales
   useEffect(() => {
     if (open) {
@@ -174,7 +194,7 @@ export function CreateQuotationModal({
 
   const handleMagicFill = () => {
     try {
-      const aiDataRaw = sessionStorage.getItem('confiadrive_ai_pending_data')
+      const aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data')
       if (!aiDataRaw) return
 
       const result = JSON.parse(aiDataRaw)
@@ -227,7 +247,7 @@ export function CreateQuotationModal({
       }
 
       toast.success('¡IA pobló el formulario con éxito!')
-      sessionStorage.removeItem('confiadrive_ai_pending_data')
+      sessionStorage.removeItem('eagles_ai_pending_data')
     } catch (error) {
       console.error('Error in handleMagicFill:', error)
     }
@@ -248,7 +268,7 @@ export function CreateQuotationModal({
       const result = await res.json()
       if (result.success && result.data) {
         // Re-usar la lógica de Magic Fill con los datos recién obtenidos
-        sessionStorage.setItem('confiadrive_ai_pending_data', JSON.stringify(result))
+        sessionStorage.setItem('eagles_ai_pending_data', JSON.stringify(result))
         handleMagicFill()
       }
     } catch (e) {
@@ -451,6 +471,7 @@ export function CreateQuotationModal({
 
       const result = await response.json()
       if (result.success) {
+        clear()
         toast.success(
           status === 'sent'
             ? 'Cotización enviada exitosamente'

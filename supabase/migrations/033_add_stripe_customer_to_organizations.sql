@@ -1,6 +1,6 @@
 -- =====================================================
 -- MIGRACIÓN 033: Agregar stripe_customer_id a organizations
--- Autor: Confia Drive ERP
+-- Autor: Eagles System ERP
 -- Fecha: 2026-02-09
 -- Descripción: Permite vincular organizaciones con Stripe Customer
 -- =====================================================

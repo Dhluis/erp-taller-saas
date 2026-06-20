@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     const orgName = org?.name || 'Eagles System ERP'
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://confiadrive.io'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'
     const roleLabels: Record<string, string> = {
       admin: 'Administrador',
       manager: 'Gerente',

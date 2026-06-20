@@ -58,6 +58,7 @@ import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers'
 import { useLimitCheck } from '@/hooks/useLimitCheck'
 import { UpgradeModal } from '@/components/billing/upgrade-modal'
 import { VoiceInput } from '@/components/ui/VoiceInput'
+import { useFormAutoSave, timeSince } from '@/hooks/useFormAutoSave'
 
 interface CreateWorkOrderModalProps {
 
@@ -656,6 +657,31 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   }, [open, currentStep])
 
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
+
+  // Auto-save: excluir File y base64 que no son serializables / pesan mucho
+  const saveableFormData = useMemo(() => {
+    const { terms_file, customer_signature, ...rest } = formData
+    return rest
+  }, [formData])
+
+  const isNewForm = !initialData && !appointmentId
+  const { getSaved, clear } = useFormAutoSave('create-work-order', saveableFormData, open && isNewForm)
+
+  // Ofrecer restaurar borrador al abrir el modal en modo creación
+  useEffect(() => {
+    if (!open || !isNewForm) return
+    const saved = getSaved()
+    if (!saved) return
+    toast('Borrador guardado encontrado', {
+      description: `Último guardado ${timeSince(saved.savedAt)}`,
+      duration: 10000,
+      action: {
+        label: 'Restaurar',
+        onClick: () => setFormData(prev => ({ ...prev, ...saved.data })),
+      },
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   const validateField = (name: string, value: string): string => {
 
@@ -1952,6 +1978,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   }
 
   const resetForm = () => {
+
+    clear()
 
     setFormData(INITIAL_FORM_DATA)
 

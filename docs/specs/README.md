@@ -1,4 +1,4 @@
-# Specs — Confia Drive ERP
+# Specs — Eagles System ERP
 
 Fuente de verdad por módulo. Actualizar al final de cada sesión cuando se modifica un módulo.
 

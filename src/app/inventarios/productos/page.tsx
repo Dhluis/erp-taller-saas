@@ -247,7 +247,7 @@ function InventariosContent() {
     if (openMagicCreate === 'true') {
       try {
         console.log('🔍 [Inventory] Buscando datos de AI en URL/Storage...');
-        let aiDataRaw = sessionStorage.getItem('confiadrive_ai_pending_data');
+        let aiDataRaw = sessionStorage.getItem('eagles_ai_pending_data');
         if (!aiDataRaw) {
           aiDataRaw = searchParams.get('aiData');
         }
@@ -285,7 +285,7 @@ function InventariosContent() {
             toast.success('¡Eagles AI preparó los datos del producto!');
             
             // Limpiar
-            sessionStorage.removeItem('confiadrive_ai_pending_data');
+            sessionStorage.removeItem('eagles_ai_pending_data');
             const newPath = window.location.pathname;
             window.history.replaceState({}, '', newPath);
           } else {

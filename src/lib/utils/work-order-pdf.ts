@@ -93,7 +93,7 @@ export const generateWorkOrderPDF = async ({ order, company: providedCompany }: 
   currentY += 40;
 
   // --- ESCANEAR PARA TRACKING (QR Superior Derecha) ---
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://confiadrive.io';
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://eaglessystem.io';
   const trackingUrl = `${origin}/tracking/${order.id}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(trackingUrl)}&size=150x150`;
   

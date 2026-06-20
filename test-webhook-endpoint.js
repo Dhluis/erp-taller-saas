@@ -17,7 +17,7 @@
     console.log('\n2️⃣ Probando POST con payload de prueba...');
     const testPayload = {
       event: 'message',
-      session: 'confiadrive_bbca12292c4f4838b5f9',
+      session: 'eagles_bbca12292c4f4838b5f9',
       payload: {
         id: 'test-message-' + Date.now(),
         from: '5211234567890@c.us',

@@ -1,5 +1,5 @@
 -- =====================================================
--- MIGRACIÓN CORREGIDA PARA Confia Drive ERP
+-- MIGRACIÓN CORREGIDA PARA Eagles System ERP
 -- Soluciona problemas de columnas existentes
 -- =====================================================
 
@@ -457,14 +457,14 @@ CREATE POLICY "Enable all operations for all users" ON public.payments FOR ALL U
 
 -- Insertar organización por defecto
 INSERT INTO public.organizations (id, name, address, phone, email) 
-VALUES ('00000000-0000-0000-0000-000000000000', 'Confia Drive ERP Demo', 'Dirección de ejemplo', '555-0123', 'demo@Confia Drive.com');
+VALUES ('00000000-0000-0000-0000-000000000000', 'Eagles System ERP Demo', 'Dirección de ejemplo', '555-0123', 'demo@Eagles System.com');
 
 -- Insertar empleados de ejemplo
 INSERT INTO public.employees (organization_id, name, email, phone, role, specialties) VALUES
-('00000000-0000-0000-0000-000000000000', 'Carlos Méndez', 'carlos@Confia Drive.com', '555-0001', 'mechanic', ARRAY['motor', 'transmisión']),
-('00000000-0000-0000-0000-000000000000', 'Ana García', 'ana@Confia Drive.com', '555-0002', 'mechanic', ARRAY['eléctrico', 'diagnóstico']),
-('00000000-0000-0000-0000-000000000000', 'Roberto López', 'roberto@Confia Drive.com', '555-0003', 'supervisor', ARRAY['carrocería', 'suspensión']),
-('00000000-0000-0000-0000-000000000000', 'María Rodríguez', 'maria@Confia Drive.com', '555-0004', 'receptionist', ARRAY['atención al cliente']);
+('00000000-0000-0000-0000-000000000000', 'Carlos Méndez', 'carlos@Eagles System.com', '555-0001', 'mechanic', ARRAY['motor', 'transmisión']),
+('00000000-0000-0000-0000-000000000000', 'Ana García', 'ana@Eagles System.com', '555-0002', 'mechanic', ARRAY['eléctrico', 'diagnóstico']),
+('00000000-0000-0000-0000-000000000000', 'Roberto López', 'roberto@Eagles System.com', '555-0003', 'supervisor', ARRAY['carrocería', 'suspensión']),
+('00000000-0000-0000-0000-000000000000', 'María Rodríguez', 'maria@Eagles System.com', '555-0004', 'receptionist', ARRAY['atención al cliente']);
 
 -- Insertar servicios de ejemplo
 INSERT INTO public.services (organization_id, code, name, description, category, base_price, estimated_hours) VALUES
@@ -490,7 +490,7 @@ INSERT INTO public.products (organization_id, code, name, description, category,
 
 -- Insertar configuración de empresa
 INSERT INTO public.company_settings (organization_id, company_name, tax_id, address, phone, email, currency, tax_rate) VALUES
-('00000000-0000-0000-0000-000000000000', 'Confia Drive ERP Demo', 'RFC123456789', 'Dirección de ejemplo', '555-0123', 'demo@Confia Drive.com', 'MXN', 16.00);
+('00000000-0000-0000-0000-000000000000', 'Eagles System ERP Demo', 'RFC123456789', 'Dirección de ejemplo', '555-0123', 'demo@Eagles System.com', 'MXN', 16.00);
 
 -- =====================================================
 -- VERIFICAR CREACIÓN DE TABLAS

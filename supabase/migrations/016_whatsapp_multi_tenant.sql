@@ -19,7 +19,7 @@ BEGIN
         ALTER TABLE public.ai_agent_config 
         ADD COLUMN whatsapp_session_name VARCHAR(100);
         
-        COMMENT ON COLUMN public.ai_agent_config.whatsapp_session_name IS 'Nombre único de sesión de WAHA para esta organización (formato: confiadrive_<orgId>)';
+        COMMENT ON COLUMN public.ai_agent_config.whatsapp_session_name IS 'Nombre único de sesión de WAHA para esta organización (formato: eagles_<orgId>)';
     END IF;
 
     -- Agregar columna whatsapp_connected si no existe

@@ -7,7 +7,7 @@ Para que la integración de WhatsApp funcione correctamente en producción (Verc
 ### Variables de WAHA
 
 1. **WAHA_API_URL**
-   - Valor: `https://waha-erp-Confia Drive-sistem.0rfifc.easypanel.host`
+   - Valor: `https://waha-erp-Eagles System-sistem.0rfifc.easypanel.host`
    - Descripción: URL base de la API de WAHA
    - Scope: Production, Preview, Development
 
@@ -31,7 +31,7 @@ Para que la integración de WhatsApp funcione correctamente en producción (Verc
 3. Ve a **Settings** → **Environment Variables**
 4. Agrega cada variable:
    - **Name**: `WAHA_API_URL`
-   - **Value**: `https://waha-erp-Confia Drive-sistem.0rfifc.easypanel.host`
+   - **Value**: `https://waha-erp-Eagles System-sistem.0rfifc.easypanel.host`
    - **Environment**: Selecciona Production, Preview y Development según necesites
 5. Repite para `WAHA_API_KEY` y `NEXT_PUBLIC_APP_URL`
 6. **Importante**: Marca `WAHA_API_KEY` como "Sensitive"

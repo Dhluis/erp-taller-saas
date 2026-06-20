@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     // 5. Preparar email
     const from = {
-      email: (process.env.SMTP_FROM_EMAIL || 'servicios@confiadrive.io').trim(),
+      email: (process.env.SMTP_FROM_EMAIL || 'servicios@eaglessystem.io').trim(),
       name: (process.env.SMTP_FROM_NAME || 'Eagles System').trim(),
     };
 

@@ -1,6 +1,6 @@
 -- =====================================================
 -- MIGRACIÓN 034: Agregar columnas de suscripción a organizations
--- Autor: Confia Drive ERP
+-- Autor: Eagles System ERP
 -- Fecha: 2026-02-09
 -- Descripción: Para tracking de suscripciones Stripe (webhook)
 -- =====================================================

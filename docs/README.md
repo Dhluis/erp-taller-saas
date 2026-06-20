@@ -1,4 +1,4 @@
-# Confia Drive ERP — Documentación
+# Eagles System ERP — Documentación
 
 **Versión:** 5.0.0 | **Stack:** Next.js 15, TypeScript, Supabase, Tailwind CSS, shadcn/ui
 **Estado:** Producción estable | **Actualizado:** Abril 2026
