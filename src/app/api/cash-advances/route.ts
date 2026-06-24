@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 const createAdvanceSchema = z.object({
   employee_id: z.string().uuid().optional().nullable(),
+  customer_id: z.string().uuid().optional().nullable(),
   amount: z.number().positive(),
   purpose: z.string().min(1).max(500),
   notes: z.string().max(1000).optional(),
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         employee:users!cash_advances_employee_id_fkey(id, name, email),
+        customer:customers(id, name, phone),
         created_by_user:users!cash_advances_created_by_fkey(id, name),
         cash_account:cash_accounts(id, name, account_type),
         expenses(id, amount, description, expense_date, receipt_image_url)
@@ -94,6 +96,7 @@ export async function POST(request: NextRequest) {
       .insert({
         organization_id: profile.organization_id,
         employee_id: validated.employee_id || null,
+        customer_id: validated.customer_id || null,
         amount: validated.amount,
         purpose: validated.purpose,
         notes: validated.notes || null,
@@ -105,6 +108,7 @@ export async function POST(request: NextRequest) {
       .select(`
         *,
         employee:users!cash_advances_employee_id_fkey(id, name, email),
+        customer:customers(id, name, phone),
         cash_account:cash_accounts(id, name, account_type)
       `)
       .single();

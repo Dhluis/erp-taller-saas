@@ -19,7 +19,7 @@ import {
 import {
   Plus, Search, DollarSign, TrendingDown, TrendingUp, CreditCard, Loader2,
   Receipt, Building2, RefreshCw, ArrowDownCircle, ArrowUpCircle, Clock, ScanLine,
-  Wallet, User, Banknote, ArrowRightLeft, CheckCircle2, XCircle, AlertTriangle
+  Wallet, User, Banknote, ArrowRightLeft, CheckCircle2, XCircle, AlertTriangle, Trash2
 } from 'lucide-react'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import { useOrganization } from '@/lib/context/SessionContext'
@@ -88,6 +88,7 @@ interface CashAdvance {
   total_spent: number
   balance: number
   employee: { id: string; name: string; email: string } | null
+  customer: { id: string; name: string; phone?: string | null } | null
   expenses: Array<{ id: string; amount: number; description: string; expense_date: string }>
 }
 
@@ -135,6 +136,9 @@ function EntradasSalidasPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [confirmingSubmit, setConfirmingSubmit] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'cobro' | 'supplier' | 'expense'; label: string } | null>(null)
+  const [deleteAdvanceTarget, setDeleteAdvanceTarget] = useState<CashAdvance | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [stats, setStats] = useState({ totalCobrado: 0, totalEgresos: 0, pendingCobros: 0, count: 0 })
   const [cashAccounts, setCashAccounts] = useState<Array<{ id: string; name: string; account_type?: string }>>([])
 
@@ -156,6 +160,12 @@ function EntradasSalidasPage() {
   const [advMethod, setAdvMethod] = useState<AdvancePaymentMethod>('cash')
   const [advAccountId, setAdvAccountId] = useState('')
   const [advSubmitting, setAdvSubmitting] = useState(false)
+  // Customer for advance
+  const [advCustomerId, setAdvCustomerId] = useState('')
+  const [advCustomerSearch, setAdvCustomerSearch] = useState('')
+  const [advCustomerFreeText, setAdvCustomerFreeText] = useState('')
+  const [advCustomerPhone, setAdvCustomerPhone] = useState('')
+  const [advRegisterCustomer, setAdvRegisterCustomer] = useState(true)
 
   // Customers for cobro
   const [customers, setCustomers] = useState<Array<{ id: string; name: string; phone?: string | null }>>([])
@@ -207,6 +217,14 @@ function EntradasSalidasPage() {
     ).slice(0, 20)
   }, [customers, customerSearch])
 
+  const filteredAdvCustomers = useMemo(() => {
+    if (!advCustomerSearch) return customers.slice(0, 20)
+    const t = advCustomerSearch.toLowerCase()
+    return customers.filter(c =>
+      c.name.toLowerCase().includes(t) || (c.phone || '').includes(t)
+    ).slice(0, 20)
+  }, [customers, advCustomerSearch])
+
   // Load customers once
   useEffect(() => {
     if (!organizationId) return
@@ -249,6 +267,7 @@ function EntradasSalidasPage() {
           customer_id: c.customer_id,
           customer_name: '',
           reference_number: c.reference_number,
+          notes: (c as any).notes || null,
           amount: Number(c.amount || 0),
           payment_date: c.due_date,
           payment_method: c.payment_method || 'transfer',
@@ -343,9 +362,8 @@ function EntradasSalidasPage() {
     if (mainTab === 'anticipos') loadAdvances()
   }, [mainTab, loadAdvances])
 
-  const filteredAdvanceAccounts = cashAccounts.filter(a =>
-    ADV_ACCOUNT_TYPES[advMethod].includes(a.account_type || 'cash')
-  )
+  // Mostrar todas las cuentas — el filtro por tipo era demasiado estricto y ocultaba cuentas reales
+  const filteredAdvanceAccounts = cashAccounts
 
   useEffect(() => {
     if (filteredAdvanceAccounts.length === 1) setAdvAccountId(filteredAdvanceAccounts[0].id)
@@ -359,6 +377,21 @@ function EntradasSalidasPage() {
     if (isNaN(amountNum) || amountNum <= 0) { toast.error('El monto debe ser mayor a 0'); return }
     setAdvSubmitting(true)
     try {
+      // Resolver o crear cliente si viene como texto libre
+      let resolvedCustomerId = advCustomerId || null
+      if (!resolvedCustomerId && advCustomerFreeText.trim() && advRegisterCustomer) {
+        const createRes = await fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ name: advCustomerFreeText.trim(), phone: advCustomerPhone.trim() || undefined }),
+        })
+        const createData = await createRes.json()
+        if (!createData?.success) { toast.error('No se pudo registrar el cliente'); setAdvSubmitting(false); return }
+        resolvedCustomerId = createData.data.id
+        setCustomers(prev => [...prev, { id: resolvedCustomerId!, name: advCustomerFreeText.trim(), phone: advCustomerPhone.trim() || null }])
+      }
+
       const res = await fetch('/api/cash-advances', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -367,6 +400,7 @@ function EntradasSalidasPage() {
           amount: amountNum,
           purpose: advPurpose.trim(),
           employee_id: advEmployeeId || null,
+          customer_id: resolvedCustomerId,
           notes: advNotes.trim() || undefined,
           payment_method: advMethod,
           cash_account_id: advAccountId || null,
@@ -374,10 +408,12 @@ function EntradasSalidasPage() {
       })
       const json = await res.json()
       if (!json.success) throw new Error(json.error)
-      toast.success('Anticipo registrado correctamente')
+      const extra = !advCustomerId && advCustomerFreeText.trim() && advRegisterCustomer ? ` · ${advCustomerFreeText.trim()} guardado como cliente` : ''
+      toast.success('Anticipo registrado' + extra)
       setShowAdvCreate(false)
       setAdvAmount(''); setAdvPurpose(''); setAdvEmployeeId(''); setAdvNotes('')
       setAdvMethod('cash'); setAdvAccountId('')
+      setAdvCustomerId(''); setAdvCustomerSearch(''); setAdvCustomerFreeText(''); setAdvCustomerPhone(''); setAdvRegisterCustomer(true)
       loadAdvances()
     } catch (e: any) {
       toast.error(e.message || 'Error al crear anticipo')
@@ -579,7 +615,7 @@ function EntradasSalidasPage() {
       }
 
       if (success) {
-        const labels = { cobro: 'Cobro registrado', supplier: 'Pago a proveedor registrado', expense: 'Gasto registrado' }
+        const labels = { cobro: 'Ingreso registrado', supplier: 'Pago a proveedor registrado', expense: 'Gasto registrado' }
         const extraMsg =
           (form.paymentType === 'cobro' && !form.customer_id && customerFreeText.trim() && registerNewCustomer)
             ? ` · ${customerFreeText.trim()} guardado como cliente`
@@ -633,7 +669,7 @@ function EntradasSalidasPage() {
             reference_id: cobroToPay.id,
           }),
         }).catch(() => {})
-        toast.success('Cobro marcado como pagado')
+        toast.success('Ingreso marcado como pagado')
         setCobroPayOpen(false)
         setCobroToPay(null)
         loadEntries()
@@ -644,6 +680,52 @@ function EntradasSalidasPage() {
       toast.error('Error de red')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleDeleteEntry = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      const endpoints: Record<string, string> = {
+        cobro: `/api/collections/${deleteTarget.id}`,
+        supplier: `/api/supplier-payments/${deleteTarget.id}`,
+        expense: `/api/expenses/${deleteTarget.id}`,
+      }
+      const res = await fetch(endpoints[deleteTarget.type], { method: 'DELETE', credentials: 'include' })
+      const data = await res.json()
+      if (data?.success) {
+        toast.success('Registro eliminado')
+        setDeleteTarget(null)
+        loadEntries()
+      } else {
+        toast.error(data?.error || 'Error al eliminar')
+      }
+    } catch {
+      toast.error('Error de red')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleDeleteAdvance = async () => {
+    if (!deleteAdvanceTarget) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/cash-advances/${deleteAdvanceTarget.id}`, { method: 'DELETE', credentials: 'include' })
+      const data = await res.json()
+      if (data?.success) {
+        toast.success('Anticipo eliminado')
+        setDeleteAdvanceTarget(null)
+        setSelectedAdvance(null)
+        loadAdvances()
+      } else {
+        toast.error(data?.error || 'Error al eliminar')
+      }
+    } catch {
+      toast.error('Error de red')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -717,7 +799,7 @@ function EntradasSalidasPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">Entradas y Salidas</h1>
-            <p className="text-muted-foreground">Cobros de clientes, pagos a proveedores y gastos</p>
+            <p className="text-muted-foreground">Ingresos de clientes, pagos a proveedores y gastos</p>
           </div>
           <div className="flex gap-2">
             {mainTab === 'movimientos' && (
@@ -746,22 +828,22 @@ function EntradasSalidasPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="bg-emerald-500/10 border-emerald-500/20 rounded-xl">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-emerald-400">Total Cobrado</CardTitle>
+              <CardTitle className="text-sm font-medium text-emerald-400">Total Ingresado</CardTitle>
               <TrendingUp className="h-4 w-4 text-emerald-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-emerald-400">{formatMoney(stats.totalCobrado)}</div>
-              <p className="text-xs text-muted-foreground">Cobros pagados</p>
+              <p className="text-xs text-muted-foreground">Ingresos recibidos</p>
             </CardContent>
           </Card>
           <Card className="bg-amber-500/10 border-amber-500/20 rounded-xl">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-amber-400">Cobros Pendientes</CardTitle>
+              <CardTitle className="text-sm font-medium text-amber-400">Ingresos Pendientes</CardTitle>
               <Clock className="h-4 w-4 text-amber-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-amber-400">{formatMoney(stats.pendingCobros)}</div>
-              <p className="text-xs text-muted-foreground">Por cobrar</p>
+              <p className="text-xs text-muted-foreground">Por ingresar</p>
             </CardContent>
           </Card>
           <Card className="bg-rose-500/10 border-rose-500/20 rounded-xl">
@@ -811,7 +893,7 @@ function EntradasSalidasPage() {
               <div className="flex gap-1 bg-bg-secondary rounded-lg p-1 border border-border">
                 {[
                   { key: 'all', label: 'Todos' },
-                  { key: 'cobro', label: 'Cobros' },
+                  { key: 'cobro', label: 'Ingresos' },
                   { key: 'gastos', label: 'Gastos' },
                 ].map(tab => (
                   <button
@@ -864,17 +946,17 @@ function EntradasSalidasPage() {
                             </p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <span className={`font-medium ${e.type === 'cobro' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                {e.type === 'cobro' ? '↓ Cobro' : e.type === 'supplier' ? '↑ Proveedor' : '↑ Gasto'}
+                                {e.type === 'cobro' ? '↓ Ingreso' : e.type === 'supplier' ? '↑ Proveedor' : '↑ Gasto'}
                               </span>
                               <span>·</span>
                               <span>{new Date(e.payment_date).toLocaleDateString('es-MX')}</span>
                               <span>·</span>
                               <span>{PAYMENT_METHODS.find(m => m.value === e.payment_method)?.label || e.payment_method}</span>
-                              {(e.reference || e.reference_number) && <><span>·</span><span>{e.reference || e.reference_number}</span></>}
+                              {e.notes && <><span>·</span><span className="truncate max-w-[120px]">{e.notes}</span></>}
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0">
                           {getStatusBadge(e)}
                           <span className={`text-sm font-bold ${e.type === 'cobro' ? 'text-emerald-400' : 'text-rose-400'}`}>
                             {formatMoney(e.amount)}
@@ -889,6 +971,22 @@ function EntradasSalidasPage() {
                               Cobrar
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 h-8 w-8 p-0"
+                            onClick={() => setDeleteTarget({
+                              id: e.id,
+                              type: e.type,
+                              label: e.type === 'cobro'
+                                ? (e.customer_name || 'Ingreso')
+                                : e.type === 'supplier'
+                                ? (e.supplier_name || 'Pago proveedor')
+                                : (e.description || e.category || 'Gasto'),
+                            })}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -1069,7 +1167,7 @@ function EntradasSalidasPage() {
                     className={`p-3 rounded-lg border text-sm font-medium transition-colors ${form.paymentType === 'cobro' ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400' : 'border-slate-700 text-slate-400 hover:text-white'}`}
                   >
                     <ArrowDownCircle className="h-5 w-5 mx-auto mb-1" />
-                    Cobro
+                    Ingreso
                   </button>
                   <button
                     type="button"
@@ -1283,7 +1381,7 @@ function EntradasSalidasPage() {
                       form.paymentType === 'supplier' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-orange-600 hover:bg-orange-700'
                     }
                   >
-                    {{ cobro: 'Registrar Cobro', supplier: 'Registrar Pago', expense: 'Registrar Gasto' }[form.paymentType]}
+                    {{ cobro: 'Registrar Ingreso', supplier: 'Registrar Pago', expense: 'Registrar Gasto' }[form.paymentType]}
                   </Button>
                 </DialogFooter>
               </form>
@@ -1298,7 +1396,7 @@ function EntradasSalidasPage() {
                   form.paymentType === 'cobro' ? 'text-emerald-400' :
                   form.paymentType === 'supplier' ? 'text-rose-400' : 'text-orange-400'
                 }>
-                  {{ cobro: '¿Confirmar cobro de cliente?', supplier: '¿Confirmar pago a proveedor?', expense: '¿Confirmar gasto operativo?' }[form.paymentType]}
+                  {{ cobro: '¿Confirmar ingreso de cliente?', supplier: '¿Confirmar pago a proveedor?', expense: '¿Confirmar gasto operativo?' }[form.paymentType]}
                 </DialogTitle>
                 <DialogDescription className="text-slate-400">Verifica los datos — este registro es permanente.</DialogDescription>
               </DialogHeader>
@@ -1410,7 +1508,7 @@ function EntradasSalidasPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-slate-300">Método de cobro</Label>
+              <Label className="text-slate-300">Método de pago</Label>
               <Select value={cobroPayForm.payment_method} onValueChange={v => setCobroPayForm(f => ({ ...f, payment_method: v }))}>
                 <SelectTrigger className="bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-700">
@@ -1435,13 +1533,19 @@ function EntradasSalidasPage() {
             <Button variant="outline" onClick={() => setCobroPayOpen(false)} disabled={submitting} className="border-slate-600 text-slate-300 hover:bg-slate-800">Cancelar</Button>
             <Button onClick={handleMarkCobroAsPaid} disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700">
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirmar cobro
+              Confirmar ingreso
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       {/* ── Modal crear anticipo ── */}
-      <Dialog open={showAdvCreate} onOpenChange={setShowAdvCreate}>
+      <Dialog open={showAdvCreate} onOpenChange={open => {
+        setShowAdvCreate(open)
+        if (!open) {
+          setAdvAmount(''); setAdvPurpose(''); setAdvNotes(''); setAdvAccountId(''); setAdvMethod('cash'); setAdvEmployeeId('')
+          setAdvCustomerId(''); setAdvCustomerSearch(''); setAdvCustomerFreeText(''); setAdvCustomerPhone(''); setAdvRegisterCustomer(true)
+        }
+      }}>
         <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-white">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
@@ -1474,9 +1578,9 @@ function EntradasSalidasPage() {
             {/* Cuenta */}
             <div className="space-y-1.5">
               <Label className="text-slate-300">Cuenta de origen</Label>
-              {filteredAdvanceAccounts.length === 0 ? (
+              {cashAccounts.length === 0 ? (
                 <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
-                  No hay cuentas de tipo &quot;{ADV_METHOD[advMethod].label}&quot;. Crea una en Finanzas → Cuentas.
+                  No tienes cuentas registradas. Crea una en Finanzas → Cuentas.
                 </p>
               ) : (
                 <select
@@ -1485,7 +1589,7 @@ function EntradasSalidasPage() {
                   className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm"
                 >
                   <option value="">Sin especificar</option>
-                  {filteredAdvanceAccounts.map(acc => (
+                  {cashAccounts.map(acc => (
                     <option key={acc.id} value={acc.id}>{acc.name}</option>
                   ))}
                 </select>
@@ -1495,9 +1599,9 @@ function EntradasSalidasPage() {
             <div className="space-y-1.5">
               <Label className="text-slate-300">Monto entregado *</Label>
               <Input
-                type="number" min="0" step="0.01" placeholder="0.00"
+                type="number" min={0.01} step="0.01" placeholder="0.00"
                 value={advAmount} onChange={e => setAdvAmount(e.target.value)}
-                className="bg-slate-700/50 border-slate-600 text-white"
+                className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
               />
             </div>
 
@@ -1506,22 +1610,72 @@ function EntradasSalidasPage() {
               <Input
                 placeholder="Ej: Compra de refacciones en AutoPartes García"
                 value={advPurpose} onChange={e => setAdvPurpose(e.target.value)}
-                className="bg-slate-700/50 border-slate-600 text-white"
+                className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
               />
             </div>
 
+            {/* Cliente asociado */}
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Empleado (opcional)</Label>
-              <select
-                value={advEmployeeId}
-                onChange={e => setAdvEmployeeId(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm"
+              <Label className="text-slate-300">Cliente asociado (opcional)</Label>
+              <Select
+                value={advCustomerId}
+                onValueChange={v => { setAdvCustomerId(v); setAdvCustomerFreeText(''); setAdvCustomerPhone('') }}
               >
-                <option value="">Sin asignar</option>
-                {employees.map(emp => (
-                  <option key={emp.id} value={emp.id}>{emp.name}</option>
-                ))}
-              </select>
+                <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white">
+                  <SelectValue placeholder="Buscar cliente registrado..." />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-slate-700">
+                  <div className="p-2">
+                    <Input
+                      placeholder="Buscar..."
+                      value={advCustomerSearch}
+                      onChange={e => setAdvCustomerSearch(e.target.value)}
+                      className="h-8 bg-slate-700 border-slate-600 text-white"
+                    />
+                  </div>
+                  {filteredAdvCustomers.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}{c.phone ? ` (${c.phone})` : ''}</SelectItem>
+                  ))}
+                  {filteredAdvCustomers.length === 0 && <p className="text-xs text-slate-400 p-2">Sin resultados</p>}
+                </SelectContent>
+              </Select>
+
+              {!advCustomerId && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-px bg-slate-700" />
+                    <span className="text-xs text-slate-500">o ingresa el nombre</span>
+                    <div className="flex-1 h-px bg-slate-700" />
+                  </div>
+                  <Input
+                    value={advCustomerFreeText}
+                    onChange={e => setAdvCustomerFreeText(e.target.value)}
+                    placeholder="Nombre del cliente (sin registrar)"
+                    className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
+                  />
+                  {advCustomerFreeText.trim() && (
+                    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={advRegisterCustomer}
+                          onChange={e => setAdvRegisterCustomer(e.target.checked)}
+                          className="w-4 h-4 rounded accent-emerald-500"
+                        />
+                        <span className="text-sm text-emerald-400 font-medium">¿Registrarlo como cliente?</span>
+                      </label>
+                      {advRegisterCustomer && (
+                        <Input
+                          value={advCustomerPhone}
+                          onChange={e => setAdvCustomerPhone(e.target.value)}
+                          placeholder="Teléfono (opcional)"
+                          className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 h-8 text-sm"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -1529,7 +1683,7 @@ function EntradasSalidasPage() {
               <Input
                 placeholder="Observaciones..."
                 value={advNotes} onChange={e => setAdvNotes(e.target.value)}
-                className="bg-slate-700/50 border-slate-600 text-white"
+                className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
               />
             </div>
 
@@ -1571,6 +1725,12 @@ function EntradasSalidasPage() {
                   <div className="flex justify-between">
                     <span className="text-slate-400 text-sm">Cuenta</span>
                     <span className="text-white text-sm">{selectedAdvance.cash_account.name}</span>
+                  </div>
+                )}
+                {selectedAdvance.customer && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400 text-sm">Cliente</span>
+                    <span className="text-white text-sm">{selectedAdvance.customer.name}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
@@ -1628,10 +1788,73 @@ function EntradasSalidasPage() {
                   </Button>
                 </div>
               )}
+              <div className="pt-2 border-t border-slate-700/50">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-slate-500 hover:text-red-400 hover:bg-red-500/10"
+                  onClick={() => setDeleteAdvanceTarget(selectedAdvance)}
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                  Eliminar anticipo
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
       )}
+
+      {/* ── Confirmar eliminar movimiento ── */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}>
+        <DialogContent className="max-w-sm bg-slate-900 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-red-400 flex items-center gap-2">
+              <Trash2 className="w-4 h-4" /> Eliminar registro
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-slate-700 bg-slate-800 p-3 text-sm">
+            <p className="text-slate-300">¿Eliminar <span className="text-white font-medium">"{deleteTarget?.label}"</span>?</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting} className="border-slate-600 text-slate-300 hover:bg-slate-800">
+              Cancelar
+            </Button>
+            <Button onClick={handleDeleteEntry} disabled={deleting} className="bg-red-600 hover:bg-red-700 text-white">
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sí, eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Confirmar eliminar anticipo ── */}
+      <Dialog open={!!deleteAdvanceTarget} onOpenChange={(o) => { if (!o) setDeleteAdvanceTarget(null) }}>
+        <DialogContent className="max-w-sm bg-slate-900 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-red-400 flex items-center gap-2">
+              <Trash2 className="w-4 h-4" /> Eliminar anticipo
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-slate-700 bg-slate-800 p-3 text-sm">
+            <p className="text-slate-300">¿Eliminar el anticipo <span className="text-white font-medium">"{deleteAdvanceTarget?.purpose}"</span> por <span className="text-amber-400 font-medium">{deleteAdvanceTarget ? formatMoney(deleteAdvanceTarget.amount) : ''}</span>?</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteAdvanceTarget(null)} disabled={deleting} className="border-slate-600 text-slate-300 hover:bg-slate-800">
+              Cancelar
+            </Button>
+            <Button onClick={handleDeleteAdvance} disabled={deleting} className="bg-red-600 hover:bg-red-700 text-white">
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sí, eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   )
 }

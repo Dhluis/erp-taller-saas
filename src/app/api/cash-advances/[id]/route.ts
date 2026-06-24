@@ -69,6 +69,34 @@ export async function PATCH(
   }
 }
 
+// DELETE /api/cash-advances/[id]
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+
+    const supabase = createClientFromRequest(request)
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
+
+    const supabaseAdmin = getSupabaseServiceClient()
+    const { data: profile } = await supabaseAdmin.from('users').select('organization_id').eq('auth_user_id', user.id).single()
+    if (!profile?.organization_id) return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 })
+
+    const { data: existing } = await supabaseAdmin.from('cash_advances').select('id').eq('id', id).eq('organization_id', profile.organization_id).single()
+    if (!existing) return NextResponse.json({ success: false, error: 'Anticipo no encontrado' }, { status: 404 })
+
+    const { error } = await supabaseAdmin.from('cash_advances').delete().eq('id', id).eq('organization_id', profile.organization_id)
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  }
+}
+
 // GET /api/cash-advances/[id]
 export async function GET(
   request: NextRequest,
@@ -99,6 +127,7 @@ export async function GET(
       .select(`
         *,
         employee:users!cash_advances_employee_id_fkey(id, name, email),
+        customer:customers(id, name, phone),
         created_by_user:users!cash_advances_created_by_fkey(id, name),
         expenses(id, amount, description, expense_date, receipt_image_url, payment_method)
       `)

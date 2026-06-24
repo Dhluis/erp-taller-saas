@@ -17,6 +17,25 @@ async function getOrg(request: NextRequest) {
   return { organizationId: profile.organization_id }
 }
 
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const org = await getOrg(request)
+    if ('error' in org) return NextResponse.json({ success: false, error: org.error }, { status: org.status })
+    const { id } = await params
+    const admin = getSupabaseServiceClient()
+    const { data: existing } = await admin.from('expenses').select('id').eq('id', id).eq('organization_id', org.organizationId).single()
+    if (!existing) return NextResponse.json({ success: false, error: 'Gasto no encontrado' }, { status: 404 })
+    const { error } = await admin.from('expenses').delete().eq('id', id).eq('organization_id', org.organizationId)
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  } catch (e) {
+    return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
