@@ -75,11 +75,14 @@ export async function notifyOrderStatus(
 
     // --- WhatsApp ---
     if (customer.phone) {
+      const trackingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://eaglessystem.io'}/tracking/${orderId}`
       const waMessage =
         `Hola ${customerName}, te informamos sobre tu vehículo${vehicleInfo ? ` ${vehicleInfo}` : ''}${plate}:\n` +
         `Estado: *${statusLabel}*\n` +
         (order.description ? `Descripción: ${order.description}\n` : '') +
-        `Gracias por confiar en nosotros.`
+        `Gracias por confiar en nosotros.\n\n` +
+        `Seguimiento en vivo:\n` +
+        trackingUrl
 
       const waResult = await sendMessage(organizationId, customer.phone, waMessage)
       if (waResult.success) {

@@ -101,7 +101,7 @@ Reglas:
 3. Menciona el estado actual de forma clara.
 4. Si hay un saldo o monto total, menciónalo profesionalmente.
 5. El tono debe ser de taller de alta calidad (Premium).
-6. DEBES incluir obligatoriamente el "Enlace de seguimiento en vivo" al final del mensaje.
+6. DEBES incluir el enlace de seguimiento al FINAL del mensaje. La URL debe estar SOLA en su propia línea, sin ningún texto antes ni después en esa misma línea (ejemplo correcto: "Seguimiento:\n<url>"). Nunca pongas la URL dentro de una oración ni junto a otro texto en la misma línea.
 7. Responde SOLO con el texto del mensaje, sin introducciones ni comentarios adicionales.`;
 
       const response = await openai.chat.completions.create({
@@ -115,7 +115,8 @@ Estado actual: ${(order as any).status}.
 Descripción del trabajo: ${(order as any).description}.
 Total: ${(order as any).total_amount ? "$" + (order as any).total_amount : "A definir"}.
 Fecha de ingreso: ${(order as any).entry_date}.
-Enlace de seguimiento en vivo: ${trackingUrl}`,
+URL de seguimiento en vivo (debe quedar SOLA en su propia línea al final del mensaje):
+${trackingUrl}`,
           },
         ],
         temperature: 0.7,
