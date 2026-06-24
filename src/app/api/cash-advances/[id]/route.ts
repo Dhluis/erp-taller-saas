@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
 
+async function resolveOrg(supabase: any, supabaseAdmin: any, userId: string) {
+  const { data: profile } = await supabaseAdmin
+    .from('users')
+    .select('id, organization_id, workshop_id')
+    .or(`auth_user_id.eq.${userId},id.eq.${userId}`)
+    .maybeSingle();
+
+  let organization_id = profile?.organization_id;
+  if (!organization_id && profile?.workshop_id) {
+    const { data: ws } = await supabaseAdmin
+      .from('workshops').select('organization_id').eq('id', profile.workshop_id).single();
+    organization_id = ws?.organization_id;
+  }
+  return organization_id as string | null;
+}
+
 // PATCH /api/cash-advances/[id] - Cerrar o cancelar anticipo
 export async function PATCH(
   request: NextRequest,
@@ -21,15 +37,9 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
     }
 
-    const serviceClient = getSupabaseServiceClient();
-    const supabaseAdmin = (serviceClient || supabase) as any;
-    const { data: profile } = await supabaseAdmin
-      .from('users')
-      .select('organization_id')
-      .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
-      .maybeSingle();
-
-    if (!profile?.organization_id) {
+    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any;
+    const organization_id = await resolveOrg(supabase, supabaseAdmin, user.id);
+    if (!organization_id) {
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
     }
 
@@ -37,7 +47,7 @@ export async function PATCH(
       .from('cash_advances')
       .select('id, status, organization_id')
       .eq('id', id)
-      .eq('organization_id', profile.organization_id)
+      .eq('organization_id', organization_id)
       .single();
 
     if (!advance) {
@@ -82,15 +92,14 @@ export async function DELETE(
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
 
-    const serviceClient = getSupabaseServiceClient()
-    const supabaseAdmin = (serviceClient || supabase) as any
-    const { data: profile } = await supabaseAdmin.from('users').select('organization_id').or(`auth_user_id.eq.${user.id},id.eq.${user.id}`).maybeSingle()
-    if (!profile?.organization_id) return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 })
+    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any
+    const organization_id = await resolveOrg(supabase, supabaseAdmin, user.id)
+    if (!organization_id) return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 })
 
-    const { data: existing } = await supabaseAdmin.from('cash_advances').select('id').eq('id', id).eq('organization_id', profile.organization_id).single()
+    const { data: existing } = await supabaseAdmin.from('cash_advances').select('id').eq('id', id).eq('organization_id', organization_id).single()
     if (!existing) return NextResponse.json({ success: false, error: 'Anticipo no encontrado' }, { status: 404 })
 
-    const { error } = await supabaseAdmin.from('cash_advances').delete().eq('id', id).eq('organization_id', profile.organization_id)
+    const { error } = await supabaseAdmin.from('cash_advances').delete().eq('id', id).eq('organization_id', organization_id)
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
 
     return NextResponse.json({ success: true })
@@ -113,15 +122,9 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
     }
 
-    const serviceClient = getSupabaseServiceClient();
-    const supabaseAdmin = (serviceClient || supabase) as any;
-    const { data: profile } = await supabaseAdmin
-      .from('users')
-      .select('organization_id')
-      .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
-      .maybeSingle();
-
-    if (!profile?.organization_id) {
+    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any;
+    const organization_id = await resolveOrg(supabase, supabaseAdmin, user.id);
+    if (!organization_id) {
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
     }
 
@@ -139,19 +142,19 @@ export async function GET(
       expenses(id, amount, description, expense_date, receipt_image_url, payment_method)
     `;
 
-    let { data: advance, error } = await (supabaseAdmin as any)
+    let { data: advance, error } = await supabaseAdmin
       .from('cash_advances')
       .select(selectWithCustomer)
       .eq('id', id)
-      .eq('organization_id', profile.organization_id)
+      .eq('organization_id', organization_id)
       .single();
 
     if (error && (error.code === 'PGRST200' || error.message?.includes('customer'))) {
-      const retry = await (supabaseAdmin as any)
+      const retry = await supabaseAdmin
         .from('cash_advances')
         .select(selectFallback)
         .eq('id', id)
-        .eq('organization_id', profile.organization_id)
+        .eq('organization_id', organization_id)
         .single();
       advance = retry.data;
       error = retry.error;
@@ -161,8 +164,8 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Anticipo no encontrado' }, { status: 404 });
     }
 
-    const totalSpent = ((advance as any).expenses || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
-    const balance = (advance as any).amount - totalSpent;
+    const totalSpent = (advance.expenses || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
+    const balance = advance.amount - totalSpent;
 
     return NextResponse.json({ success: true, data: { ...advance, total_spent: totalSpent, balance } });
   } catch (error: any) {

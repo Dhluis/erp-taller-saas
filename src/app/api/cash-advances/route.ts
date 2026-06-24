@@ -25,11 +25,20 @@ export async function GET(request: NextRequest) {
     const supabaseAdmin = (serviceClient || supabase) as any;
     const { data: profile } = await supabaseAdmin
       .from('users')
-      .select('organization_id')
+      .select('organization_id, workshop_id')
       .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
       .maybeSingle();
 
-    if (!profile?.organization_id) {
+    let organization_id = profile?.organization_id;
+    if (!organization_id && profile?.workshop_id) {
+      const { data: ws } = await supabaseAdmin
+        .from('workshops')
+        .select('organization_id')
+        .eq('id', profile.workshop_id)
+        .single();
+      organization_id = ws?.organization_id;
+    }
+    if (!organization_id) {
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
     }
 
@@ -47,7 +56,7 @@ export async function GET(request: NextRequest) {
     let queryWithCustomer = supabaseAdmin
       .from('cash_advances')
       .select(`${baseSelect}, customer:customers(id, name, phone)`)
-      .eq('organization_id', profile.organization_id)
+      .eq('organization_id', organization_id)
       .order('created_at', { ascending: false }) as any;
 
     if (status) queryWithCustomer = queryWithCustomer.eq('status', status);
@@ -60,7 +69,7 @@ export async function GET(request: NextRequest) {
         let queryFallback = supabaseAdmin
           .from('cash_advances')
           .select(baseSelect)
-          .eq('organization_id', profile.organization_id)
+          .eq('organization_id', organization_id)
           .order('created_at', { ascending: false }) as any;
         if (status) queryFallback = queryFallback.eq('status', status);
         const fallback = await queryFallback;
@@ -97,11 +106,21 @@ export async function POST(request: NextRequest) {
     const supabaseAdmin = (serviceClient || supabase) as any;
     const { data: profile } = await supabaseAdmin
       .from('users')
-      .select('id, organization_id, name')
+      .select('id, organization_id, workshop_id, name')
       .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
       .maybeSingle();
 
-    if (!profile?.organization_id) {
+    // Fallback: si organization_id es null, obtenerlo del workshop (igual que getTenantContext)
+    let organization_id = profile?.organization_id;
+    if (!organization_id && profile?.workshop_id) {
+      const { data: ws } = await supabaseAdmin
+        .from('workshops')
+        .select('organization_id')
+        .eq('id', profile.workshop_id)
+        .single();
+      organization_id = ws?.organization_id;
+    }
+    if (!organization_id) {
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
     }
 
@@ -109,7 +128,7 @@ export async function POST(request: NextRequest) {
     const validated = createAdvanceSchema.parse(body);
 
     const insertPayload: Record<string, any> = {
-      organization_id: profile.organization_id,
+      organization_id,
       employee_id: validated.employee_id || null,
       amount: validated.amount,
       purpose: validated.purpose,
