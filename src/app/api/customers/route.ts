@@ -355,11 +355,11 @@ export async function POST(request: NextRequest) {
     console.log("📦 Datos recibidos:", body);
 
     // Validar datos requeridos
-    if (!body.name || !body.email) {
+    if (!body.name) {
       return NextResponse.json(
         {
           success: false,
-          error: "Nombre y email son requeridos",
+          error: "El nombre del cliente es requerido",
         },
         { status: 400 },
       );

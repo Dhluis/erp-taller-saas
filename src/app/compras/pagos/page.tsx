@@ -75,6 +75,8 @@ export default function PagosPage() {
     cash_account_id: "",
   })
   const [cashAccounts, setCashAccounts] = useState<Array<{ id: string; name: string }>>([])
+  const [supplierFreeText, setSupplierFreeText] = useState('')
+  const [registerNewSupplier, setRegisterNewSupplier] = useState(true)
 
   const loadPayments = useCallback(async () => {
     if (!organizationId) return
@@ -124,8 +126,12 @@ export default function PagosPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.supplier_id || !form.amount) {
-      toast.error("Proveedor y monto son requeridos")
+    if (!form.supplier_id && !supplierFreeText.trim()) {
+      toast.error("Selecciona o ingresa el nombre del proveedor")
+      return
+    }
+    if (!form.amount) {
+      toast.error("El monto es requerido")
       return
     }
     const amount = parseFloat(form.amount)
@@ -135,12 +141,30 @@ export default function PagosPage() {
     }
     setSubmitting(true)
     try {
+      let resolvedSupplierId = form.supplier_id
+
+      if (!resolvedSupplierId && supplierFreeText.trim()) {
+        const createRes = await fetch('/api/suppliers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ name: supplierFreeText.trim() }),
+        })
+        const createData = await createRes.json()
+        if (!createData?.success) {
+          toast.error('No se pudo registrar el proveedor, intenta de nuevo')
+          setSubmitting(false)
+          return
+        }
+        resolvedSupplierId = createData.data.id
+      }
+
       const res = await fetch("/api/supplier-payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          supplier_id: form.supplier_id,
+          supplier_id: resolvedSupplierId,
           amount,
           payment_date: form.payment_date,
           payment_method: form.payment_method,
@@ -151,7 +175,9 @@ export default function PagosPage() {
       })
       const data = await res.json()
       if (data?.success) {
-        toast.success(form.cash_account_id ? "Pago registrado y retiro en cuenta de efectivo." : "Pago registrado.")
+        const extra = !form.supplier_id && supplierFreeText.trim() && registerNewSupplier
+          ? ` · ${supplierFreeText.trim()} guardado como proveedor` : ''
+        toast.success((form.cash_account_id ? "Pago registrado y retiro en cuenta de efectivo." : "Pago registrado.") + extra)
         setModalOpen(false)
         setForm({
           supplier_id: "",
@@ -162,6 +188,7 @@ export default function PagosPage() {
           notes: "",
           cash_account_id: "",
         })
+        setSupplierFreeText(''); setRegisterNewSupplier(true)
         loadPayments()
       } else {
         toast.error(data?.error || "Error al registrar pago")
@@ -429,18 +456,21 @@ export default function PagosPage() {
         </Card>
       </div>
 
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog open={modalOpen} onOpenChange={(o) => { setModalOpen(o); if (!o) { setSupplierFreeText(''); setRegisterNewSupplier(true) } }}>
         <DialogContent className="max-w-md border border-border bg-card">
           <DialogHeader>
             <DialogTitle>Registrar pago a proveedor</DialogTitle>
             <DialogDescription>El pago quedará registrado y, si eliges una cuenta, se descontará de Cuentas de efectivo.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label>Proveedor *</Label>
-              <Select value={form.supplier_id} onValueChange={(v) => setForm((f) => ({ ...f, supplier_id: v }))} required>
+              <Select
+                value={form.supplier_id}
+                onValueChange={(v) => { setForm((f) => ({ ...f, supplier_id: v })); setSupplierFreeText('') }}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona proveedor" />
+                  <SelectValue placeholder="Buscar proveedor registrado..." />
                 </SelectTrigger>
                 <SelectContent>
                   {suppliersLoading ? (
@@ -452,6 +482,34 @@ export default function PagosPage() {
                   )}
                 </SelectContent>
               </Select>
+
+              {!form.supplier_id && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-xs text-muted-foreground">o ingresa el nombre</span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                  <Input
+                    value={supplierFreeText}
+                    onChange={e => setSupplierFreeText(e.target.value)}
+                    placeholder="Nombre del proveedor (sin registrar)"
+                  />
+                  {supplierFreeText.trim() && (
+                    <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={registerNewSupplier}
+                          onChange={e => setRegisterNewSupplier(e.target.checked)}
+                          className="w-4 h-4 rounded accent-rose-500"
+                        />
+                        <span className="text-sm text-rose-500 font-medium">¿Registrarlo como proveedor?</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div>
               <Label>Monto *</Label>

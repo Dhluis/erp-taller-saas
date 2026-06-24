@@ -160,6 +160,13 @@ function EntradasSalidasPage() {
   // Customers for cobro
   const [customers, setCustomers] = useState<Array<{ id: string; name: string; phone?: string | null }>>([])
   const [customerSearch, setCustomerSearch] = useState('')
+  const [customerFreeText, setCustomerFreeText] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [registerNewCustomer, setRegisterNewCustomer] = useState(true)
+
+  // Suppliers free-text for pagos
+  const [supplierFreeText, setSupplierFreeText] = useState('')
+  const [registerNewSupplier, setRegisterNewSupplier] = useState(true)
 
   // Mark cobro as paid
   const [cobroToPay, setCobroToPay] = useState<UnifiedEntry | null>(null)
@@ -409,8 +416,8 @@ function EntradasSalidasPage() {
     e.preventDefault()
     const amount = parseFloat(form.amount)
     if (!amount || amount <= 0) { toast.error('Monto debe ser mayor a 0'); return }
-    if (form.paymentType === 'cobro' && !form.customer_id) { toast.error('Selecciona un cliente'); return }
-    if (form.paymentType === 'supplier' && !form.supplier_id) { toast.error('Selecciona un proveedor'); return }
+    if (form.paymentType === 'cobro' && !form.customer_id && !customerFreeText.trim()) { toast.error('Selecciona o ingresa el nombre del cliente'); return }
+    if (form.paymentType === 'supplier' && !form.supplier_id && !supplierFreeText.trim()) { toast.error('Selecciona o ingresa el nombre del proveedor'); return }
     if (form.paymentType === 'expense' && !form.category) { toast.error('Selecciona una categoría'); return }
     setConfirmingSubmit(true)
   }
@@ -422,12 +429,37 @@ function EntradasSalidasPage() {
       let success = false
 
       if (form.paymentType === 'cobro') {
+        // Resolve or create customer on-the-fly
+        let resolvedCustomerId = form.customer_id
+        let resolvedCustomerName = customerNameById[form.customer_id] || 'Cliente'
+
+        if (!resolvedCustomerId && customerFreeText.trim()) {
+          const createRes = await fetch('/api/customers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              name: customerFreeText.trim(),
+              phone: customerPhone.trim() || undefined,
+            }),
+          })
+          const createData = await createRes.json()
+          if (!createData?.success) {
+            toast.error('No se pudo registrar el cliente, intenta de nuevo')
+            setSubmitting(false)
+            return
+          }
+          resolvedCustomerId = createData.data.id
+          resolvedCustomerName = customerFreeText.trim()
+          setCustomers(prev => [...prev, { id: resolvedCustomerId!, name: resolvedCustomerName, phone: customerPhone.trim() || null }])
+        }
+
         const res = await fetch('/api/collections', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
-            customer_id: form.customer_id,
+            customer_id: resolvedCustomerId,
             amount,
             due_date: form.payment_date,
             payment_method: form.payment_method,
@@ -440,7 +472,7 @@ function EntradasSalidasPage() {
         const data = await res.json()
         success = data?.success
         if (success && form.cobro_status === 'paid') {
-          const customerName = customerNameById[form.customer_id] || 'Cliente'
+          const customerName = resolvedCustomerName
           await fetch('/api/financial-transactions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -457,12 +489,33 @@ function EntradasSalidasPage() {
           }).catch(() => {})
         }
       } else if (form.paymentType === 'supplier') {
+        // Resolve or create supplier on-the-fly
+        let resolvedSupplierId = form.supplier_id
+        let resolvedSupplierName = supplierNameById[form.supplier_id] || 'Proveedor'
+
+        if (!resolvedSupplierId && supplierFreeText.trim()) {
+          const createRes = await fetch('/api/suppliers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ name: supplierFreeText.trim() }),
+          })
+          const createData = await createRes.json()
+          if (!createData?.success) {
+            toast.error('No se pudo registrar el proveedor, intenta de nuevo')
+            setSubmitting(false)
+            return
+          }
+          resolvedSupplierId = createData.data.id
+          resolvedSupplierName = supplierFreeText.trim()
+        }
+
         const res = await fetch('/api/supplier-payments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
-            supplier_id: form.supplier_id,
+            supplier_id: resolvedSupplierId,
             amount,
             payment_date: form.payment_date,
             payment_method: form.payment_method,
@@ -474,7 +527,7 @@ function EntradasSalidasPage() {
         const data = await res.json()
         success = data?.success
         if (success) {
-          const supplierName = supplierNameById[form.supplier_id] || 'Proveedor'
+          const supplierName = resolvedSupplierName
           await fetch('/api/financial-transactions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -527,10 +580,18 @@ function EntradasSalidasPage() {
 
       if (success) {
         const labels = { cobro: 'Cobro registrado', supplier: 'Pago a proveedor registrado', expense: 'Gasto registrado' }
-        toast.success(labels[form.paymentType])
+        const extraMsg =
+          (form.paymentType === 'cobro' && !form.customer_id && customerFreeText.trim() && registerNewCustomer)
+            ? ` · ${customerFreeText.trim()} guardado como cliente`
+          : (form.paymentType === 'supplier' && !form.supplier_id && supplierFreeText.trim() && registerNewSupplier)
+            ? ` · ${supplierFreeText.trim()} guardado como proveedor`
+          : ''
+        toast.success(labels[form.paymentType] + extraMsg)
         setConfirmingSubmit(false)
         setModalOpen(false)
         setForm({ paymentType: 'cobro', customer_id: '', cobro_status: 'pending', supplier_id: '', category: '', amount: '', payment_date: new Date().toISOString().split('T')[0], payment_method: 'transfer', description: '', reference: '', notes: '', cash_account_id: '' })
+        setCustomerFreeText(''); setCustomerPhone(''); setRegisterNewCustomer(true)
+        setSupplierFreeText(''); setRegisterNewSupplier(true)
         loadEntries()
       } else {
         toast.error('Error al registrar')
@@ -989,7 +1050,7 @@ function EntradasSalidasPage() {
       </div>
 
       {/* ── Modal nuevo registro ── */}
-      <Dialog open={modalOpen} onOpenChange={(o) => { if (!o) { setModalOpen(false); setConfirmingSubmit(false) } }}>
+      <Dialog open={modalOpen} onOpenChange={(o) => { if (!o) { setModalOpen(false); setConfirmingSubmit(false); setCustomerFreeText(''); setCustomerPhone(''); setRegisterNewCustomer(true); setSupplierFreeText(''); setRegisterNewSupplier(true) } }}>
         <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-white">
 
           {/* Paso 1: Formulario */}
@@ -1033,8 +1094,11 @@ function EntradasSalidasPage() {
                   <>
                     <div>
                       <Label className="text-slate-300">Cliente *</Label>
-                      <Select value={form.customer_id} onValueChange={v => setForm(f => ({ ...f, customer_id: v }))}>
-                        <SelectTrigger className="bg-slate-800 border-slate-600 text-white"><SelectValue placeholder="Selecciona un cliente" /></SelectTrigger>
+                      <Select
+                        value={form.customer_id}
+                        onValueChange={v => { setForm(f => ({ ...f, customer_id: v })); setCustomerFreeText(''); setCustomerPhone('') }}
+                      >
+                        <SelectTrigger className="bg-slate-800 border-slate-600 text-white"><SelectValue placeholder="Buscar cliente registrado..." /></SelectTrigger>
                         <SelectContent className="bg-slate-800 border-slate-700">
                           <div className="p-2">
                             <Input placeholder="Buscar cliente..." value={customerSearch} onChange={e => setCustomerSearch(e.target.value)} className="h-8 bg-slate-700 border-slate-600 text-white" />
@@ -1044,6 +1108,45 @@ function EntradasSalidasPage() {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Free-text fallback when no registered customer selected */}
+                    {!form.customer_id && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-px bg-slate-700" />
+                          <span className="text-xs text-slate-500">o ingresa el nombre</span>
+                          <div className="flex-1 h-px bg-slate-700" />
+                        </div>
+                        <Input
+                          value={customerFreeText}
+                          onChange={e => setCustomerFreeText(e.target.value)}
+                          placeholder="Nombre del cliente (sin registrar)"
+                          className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                        />
+                        {customerFreeText.trim() && (
+                          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2">
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={registerNewCustomer}
+                                onChange={e => setRegisterNewCustomer(e.target.checked)}
+                                className="w-4 h-4 rounded accent-emerald-500"
+                              />
+                              <span className="text-sm text-emerald-400 font-medium">¿Registrarlo como cliente?</span>
+                            </label>
+                            {registerNewCustomer && (
+                              <Input
+                                value={customerPhone}
+                                onChange={e => setCustomerPhone(e.target.value)}
+                                placeholder="Teléfono (opcional)"
+                                className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 h-8 text-sm"
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div>
                       <Label className="text-slate-300">Estado</Label>
                       <Select value={form.cobro_status} onValueChange={v => setForm(f => ({ ...f, cobro_status: v }))}>
@@ -1059,14 +1162,48 @@ function EntradasSalidasPage() {
 
                 {/* Supplier fields */}
                 {form.paymentType === 'supplier' && (
-                  <div>
-                    <Label className="text-slate-300">Proveedor *</Label>
-                    <Select value={form.supplier_id} onValueChange={v => setForm(f => ({ ...f, supplier_id: v }))}>
-                      <SelectTrigger className="bg-slate-800 border-slate-600 text-white"><SelectValue placeholder="Selecciona proveedor" /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-700">
-                        {suppliersLoading ? <SelectItem value="" disabled>Cargando...</SelectItem> : suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-2">
+                    <div>
+                      <Label className="text-slate-300">Proveedor *</Label>
+                      <Select
+                        value={form.supplier_id}
+                        onValueChange={v => { setForm(f => ({ ...f, supplier_id: v })); setSupplierFreeText('') }}
+                      >
+                        <SelectTrigger className="bg-slate-800 border-slate-600 text-white"><SelectValue placeholder="Buscar proveedor registrado..." /></SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-slate-700">
+                          {suppliersLoading ? <SelectItem value="" disabled>Cargando...</SelectItem> : suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {!form.supplier_id && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-px bg-slate-700" />
+                          <span className="text-xs text-slate-500">o ingresa el nombre</span>
+                          <div className="flex-1 h-px bg-slate-700" />
+                        </div>
+                        <Input
+                          value={supplierFreeText}
+                          onChange={e => setSupplierFreeText(e.target.value)}
+                          placeholder="Nombre del proveedor (sin registrar)"
+                          className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                        />
+                        {supplierFreeText.trim() && (
+                          <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={registerNewSupplier}
+                                onChange={e => setRegisterNewSupplier(e.target.checked)}
+                                className="w-4 h-4 rounded accent-rose-500"
+                              />
+                              <span className="text-sm text-rose-400 font-medium">¿Registrarlo como proveedor?</span>
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1171,7 +1308,12 @@ function EntradasSalidasPage() {
                   <>
                     <div className="flex justify-between">
                       <span className="text-slate-400">Cliente</span>
-                      <span className="text-white font-medium">{customerNameById[form.customer_id] || form.customer_id}</span>
+                      <span className="text-white font-medium">
+                        {customerNameById[form.customer_id] || customerFreeText || form.customer_id}
+                        {!form.customer_id && customerFreeText && registerNewCustomer && (
+                          <span className="ml-2 text-xs text-emerald-400">(se registrará)</span>
+                        )}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400">Estado</span>
@@ -1182,7 +1324,12 @@ function EntradasSalidasPage() {
                 {form.paymentType === 'supplier' && (
                   <div className="flex justify-between">
                     <span className="text-slate-400">Proveedor</span>
-                    <span className="text-white font-medium">{supplierNameById[form.supplier_id] || form.supplier_id}</span>
+                    <span className="text-white font-medium">
+                      {supplierNameById[form.supplier_id] || supplierFreeText || form.supplier_id}
+                      {!form.supplier_id && supplierFreeText && registerNewSupplier && (
+                        <span className="ml-2 text-xs text-rose-400">(se registrará)</span>
+                      )}
+                    </span>
                   </div>
                 )}
                 {form.paymentType === 'expense' && (
