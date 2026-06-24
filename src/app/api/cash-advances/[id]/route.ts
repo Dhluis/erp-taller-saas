@@ -22,11 +22,11 @@ export async function PATCH(
     }
 
     const supabaseAdmin = getSupabaseServiceClient();
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await (supabaseAdmin as any)
       .from('users')
       .select('organization_id')
-      .eq('auth_user_id', user.id)
-      .single();
+      .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
+      .maybeSingle();
 
     if (!profile?.organization_id) {
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
@@ -82,7 +82,7 @@ export async function DELETE(
     if (authError || !user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
 
     const supabaseAdmin = getSupabaseServiceClient()
-    const { data: profile } = await supabaseAdmin.from('users').select('organization_id').eq('auth_user_id', user.id).single()
+    const { data: profile } = await (supabaseAdmin as any).from('users').select('organization_id').or(`auth_user_id.eq.${user.id},id.eq.${user.id}`).maybeSingle()
     if (!profile?.organization_id) return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 })
 
     const { data: existing } = await supabaseAdmin.from('cash_advances').select('id').eq('id', id).eq('organization_id', profile.organization_id).single()
@@ -112,11 +112,11 @@ export async function GET(
     }
 
     const supabaseAdmin = getSupabaseServiceClient();
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await (supabaseAdmin as any)
       .from('users')
       .select('organization_id')
-      .eq('auth_user_id', user.id)
-      .single();
+      .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
+      .maybeSingle();
 
     if (!profile?.organization_id) {
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });

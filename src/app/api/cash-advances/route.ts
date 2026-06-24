@@ -22,11 +22,11 @@ export async function GET(request: NextRequest) {
     }
 
     const supabaseAdmin = getSupabaseServiceClient();
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await (supabaseAdmin as any)
       .from('users')
       .select('organization_id')
-      .eq('auth_user_id', user.id)
-      .single();
+      .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
+      .maybeSingle();
 
     if (!profile?.organization_id) {
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
@@ -93,11 +93,11 @@ export async function POST(request: NextRequest) {
     }
 
     const supabaseAdmin = getSupabaseServiceClient();
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await (supabaseAdmin as any)
       .from('users')
       .select('id, organization_id, name')
-      .eq('auth_user_id', user.id)
-      .single();
+      .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
+      .maybeSingle();
 
     if (!profile?.organization_id) {
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
