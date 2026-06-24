@@ -21,8 +21,9 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
     }
 
-    const supabaseAdmin = getSupabaseServiceClient();
-    const { data: profile } = await (supabaseAdmin as any)
+    const serviceClient = getSupabaseServiceClient();
+    const supabaseAdmin = (serviceClient || supabase) as any;
+    const { data: profile } = await supabaseAdmin
       .from('users')
       .select('organization_id')
       .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
@@ -81,8 +82,9 @@ export async function DELETE(
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
 
-    const supabaseAdmin = getSupabaseServiceClient()
-    const { data: profile } = await (supabaseAdmin as any).from('users').select('organization_id').or(`auth_user_id.eq.${user.id},id.eq.${user.id}`).maybeSingle()
+    const serviceClient = getSupabaseServiceClient()
+    const supabaseAdmin = (serviceClient || supabase) as any
+    const { data: profile } = await supabaseAdmin.from('users').select('organization_id').or(`auth_user_id.eq.${user.id},id.eq.${user.id}`).maybeSingle()
     if (!profile?.organization_id) return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 })
 
     const { data: existing } = await supabaseAdmin.from('cash_advances').select('id').eq('id', id).eq('organization_id', profile.organization_id).single()
@@ -111,8 +113,9 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
     }
 
-    const supabaseAdmin = getSupabaseServiceClient();
-    const { data: profile } = await (supabaseAdmin as any)
+    const serviceClient = getSupabaseServiceClient();
+    const supabaseAdmin = (serviceClient || supabase) as any;
+    const { data: profile } = await supabaseAdmin
       .from('users')
       .select('organization_id')
       .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)

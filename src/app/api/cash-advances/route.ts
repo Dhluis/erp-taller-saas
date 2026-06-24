@@ -21,8 +21,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
     }
 
-    const supabaseAdmin = getSupabaseServiceClient();
-    const { data: profile } = await (supabaseAdmin as any)
+    const serviceClient = getSupabaseServiceClient();
+    const supabaseAdmin = (serviceClient || supabase) as any;
+    const { data: profile } = await supabaseAdmin
       .from('users')
       .select('organization_id')
       .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
@@ -92,8 +93,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
     }
 
-    const supabaseAdmin = getSupabaseServiceClient();
-    const { data: profile } = await (supabaseAdmin as any)
+    const serviceClient = getSupabaseServiceClient();
+    const supabaseAdmin = (serviceClient || supabase) as any;
+    const { data: profile } = await supabaseAdmin
       .from('users')
       .select('id, organization_id, name')
       .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
