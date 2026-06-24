@@ -122,18 +122,37 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
     }
 
-    const { data: advance, error } = await supabaseAdmin
+    const selectWithCustomer = `
+      *,
+      employee:users!cash_advances_employee_id_fkey(id, name, email),
+      customer:customers(id, name, phone),
+      created_by_user:users!cash_advances_created_by_fkey(id, name),
+      expenses(id, amount, description, expense_date, receipt_image_url, payment_method)
+    `;
+    const selectFallback = `
+      *,
+      employee:users!cash_advances_employee_id_fkey(id, name, email),
+      created_by_user:users!cash_advances_created_by_fkey(id, name),
+      expenses(id, amount, description, expense_date, receipt_image_url, payment_method)
+    `;
+
+    let { data: advance, error } = await (supabaseAdmin as any)
       .from('cash_advances')
-      .select(`
-        *,
-        employee:users!cash_advances_employee_id_fkey(id, name, email),
-        customer:customers(id, name, phone),
-        created_by_user:users!cash_advances_created_by_fkey(id, name),
-        expenses(id, amount, description, expense_date, receipt_image_url, payment_method)
-      `)
+      .select(selectWithCustomer)
       .eq('id', id)
       .eq('organization_id', profile.organization_id)
       .single();
+
+    if (error && (error.code === 'PGRST200' || error.message?.includes('customer'))) {
+      const retry = await (supabaseAdmin as any)
+        .from('cash_advances')
+        .select(selectFallback)
+        .eq('id', id)
+        .eq('organization_id', profile.organization_id)
+        .single();
+      advance = retry.data;
+      error = retry.error;
+    }
 
     if (error || !advance) {
       return NextResponse.json({ success: false, error: 'Anticipo no encontrado' }, { status: 404 });

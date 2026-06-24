@@ -35,25 +35,40 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const status = url.searchParams.get('status');
 
-    let query = supabaseAdmin
+    const baseSelect = `
+      *,
+      employee:users!cash_advances_employee_id_fkey(id, name, email),
+      created_by_user:users!cash_advances_created_by_fkey(id, name),
+      cash_account:cash_accounts(id, name, account_type),
+      expenses(id, amount, description, expense_date, receipt_image_url)
+    `;
+
+    let queryWithCustomer = supabaseAdmin
       .from('cash_advances')
-      .select(`
-        *,
-        employee:users!cash_advances_employee_id_fkey(id, name, email),
-        customer:customers(id, name, phone),
-        created_by_user:users!cash_advances_created_by_fkey(id, name),
-        cash_account:cash_accounts(id, name, account_type),
-        expenses(id, amount, description, expense_date, receipt_image_url)
-      `)
+      .select(`${baseSelect}, customer:customers(id, name, phone)`)
       .eq('organization_id', profile.organization_id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false }) as any;
 
-    if (status) query = query.eq('status', status);
+    if (status) queryWithCustomer = queryWithCustomer.eq('status', status);
 
-    const { data: advances, error } = await query;
+    let { data: advances, error } = await queryWithCustomer;
 
+    // Si falla por columna customer_id inexistente (migración pendiente), reintenta sin el join
     if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      if (error.code === 'PGRST200' || error.message?.includes('customer')) {
+        let queryFallback = supabaseAdmin
+          .from('cash_advances')
+          .select(baseSelect)
+          .eq('organization_id', profile.organization_id)
+          .order('created_at', { ascending: false }) as any;
+        if (status) queryFallback = queryFallback.eq('status', status);
+        const fallback = await queryFallback;
+        advances = fallback.data;
+        error = fallback.error;
+      }
+      if (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      }
     }
 
     const advancesWithBalance = (advances || []).map((adv: any) => {
@@ -91,27 +106,40 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = createAdvanceSchema.parse(body);
 
-    const { data: advance, error } = await supabaseAdmin
+    const insertPayload: Record<string, any> = {
+      organization_id: profile.organization_id,
+      employee_id: validated.employee_id || null,
+      amount: validated.amount,
+      purpose: validated.purpose,
+      notes: validated.notes || null,
+      payment_method: validated.payment_method,
+      cash_account_id: validated.cash_account_id || null,
+      status: 'open',
+      created_by: profile.id,
+    };
+    if (validated.customer_id) insertPayload.customer_id = validated.customer_id;
+
+    // INSERT con RETURNING básico para evitar fallo si customer_id no existe aún
+    let { data: inserted, error: insertError } = await (supabaseAdmin as any)
       .from('cash_advances')
-      .insert({
-        organization_id: profile.organization_id,
-        employee_id: validated.employee_id || null,
-        customer_id: validated.customer_id || null,
-        amount: validated.amount,
-        purpose: validated.purpose,
-        notes: validated.notes || null,
-        payment_method: validated.payment_method,
-        cash_account_id: validated.cash_account_id || null,
-        status: 'open',
-        created_by: profile.id,
-      })
-      .select(`
-        *,
-        employee:users!cash_advances_employee_id_fkey(id, name, email),
-        customer:customers(id, name, phone),
-        cash_account:cash_accounts(id, name, account_type)
-      `)
+      .insert(insertPayload)
+      .select()
       .single();
+
+    // Si falla por customer_id inexistente, reintenta sin ese campo
+    if (insertError && insertPayload.customer_id) {
+      const { customer_id: _removed, ...payloadWithout } = insertPayload;
+      const retry = await (supabaseAdmin as any)
+        .from('cash_advances')
+        .insert(payloadWithout)
+        .select()
+        .single();
+      inserted = retry.data;
+      insertError = retry.error;
+    }
+
+    const advance = inserted;
+    const error = insertError;
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
