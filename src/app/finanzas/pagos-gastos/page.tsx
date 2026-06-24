@@ -389,6 +389,7 @@ function EntradasSalidasPage() {
         const createData = await createRes.json()
         if (!createData?.success) { toast.error('No se pudo registrar el cliente'); setAdvSubmitting(false); return }
         resolvedCustomerId = createData.data.id
+        setAdvCustomerId(resolvedCustomerId!)
         setCustomers(prev => [...prev, { id: resolvedCustomerId!, name: advCustomerFreeText.trim(), phone: advCustomerPhone.trim() || null }])
       }
 
