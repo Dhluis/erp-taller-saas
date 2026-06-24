@@ -192,7 +192,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
           </div>
           
           {/* ✅ Nav scrollable en mobile - evita que se corte CRM/WhatsApp */}
-          <nav className="flex items-center gap-2 overflow-x-auto overflow-y-hidden flex-1 min-w-0 hide-scrollbar flex-nowrap pr-2">
+          <nav className="hidden lg:flex items-center gap-2 overflow-x-auto overflow-y-hidden flex-1 min-w-0 hide-scrollbar flex-nowrap pr-2">
           {/* ✅ NAVEGACIÓN SIMPLIFICADA PARA MECÁNICOS - Solo Órdenes */}
           {isMechanic ? (
             <Link href="/ordenes/kanban">
@@ -412,7 +412,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
 
                 <DropdownMenuItem asChild>
                   <a
-                    href="https://soporte.CONFIA DRIVE.com"
+                    href="https://eaglessystem.io"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center cursor-pointer"
