@@ -63,6 +63,16 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const status = url.searchParams.get('status');
 
+    // Determina si el error es un problema de esquema (falta columna/relación)
+    const isSchemaErr = (err: any) =>
+      !!err && (
+        err.code === 'PGRST200' ||
+        err.code?.startsWith('42') ||
+        String(err.message).includes('does not exist') ||
+        String(err.message).includes('relationship') ||
+        String(err.message).includes('column')
+      );
+
     // Construir queries con diferentes niveles de joins (de más completo a más simple)
     const buildQuery = (selectStr: string) => {
       let q = supabaseAdmin
@@ -74,7 +84,7 @@ export async function GET(request: NextRequest) {
       return q;
     };
 
-    // Nivel 1: joins completos (customer + cash_account + expenses + employee)
+    // Nivel 1: joins completos (customer + cash_account + expenses + employee + name)
     const fullSelect = `
       *,
       employee:users!cash_advances_employee_id_fkey(id, name, email),
@@ -83,8 +93,7 @@ export async function GET(request: NextRequest) {
       expenses(id, amount, description, expense_date, receipt_image_url),
       customer:customers(id, name, phone)
     `;
-
-    // Nivel 2: sin customer (en caso de que customer_id FK no exista aún)
+    // Nivel 2: sin customer
     const noCustomerSelect = `
       *,
       employee:users!cash_advances_employee_id_fkey(id, name, email),
@@ -92,23 +101,26 @@ export async function GET(request: NextRequest) {
       cash_account:cash_accounts(id, name, account_type),
       expenses(id, amount, description, expense_date, receipt_image_url)
     `;
-
-    // Nivel 3: solo campos base sin joins opcionales problemáticos
+    // Nivel 3: sin joins opcionales que dependen de migraciones (expenses/cash_account)
     const minimalSelect = `
       *,
       employee:users!cash_advances_employee_id_fkey(id, name, email),
       created_by_user:users!cash_advances_created_by_fkey(id, name)
     `;
+    // Nivel 4: sin name (si users.name no existe en producción — migración 021 pendiente)
+    const noNameSelect = `
+      *,
+      employee:users!cash_advances_employee_id_fkey(id, email),
+      created_by_user:users!cash_advances_created_by_fkey(id)
+    `;
+    // Nivel 5: sin FK joins — siempre funciona
+    const bareSelect = '*';
 
     let result = await buildQuery(fullSelect);
-
-    if (result.error?.code === 'PGRST200') {
-      result = await buildQuery(noCustomerSelect);
-    }
-
-    if (result.error?.code === 'PGRST200') {
-      result = await buildQuery(minimalSelect);
-    }
+    if (isSchemaErr(result.error)) result = await buildQuery(noCustomerSelect);
+    if (isSchemaErr(result.error)) result = await buildQuery(minimalSelect);
+    if (isSchemaErr(result.error)) result = await buildQuery(noNameSelect);
+    if (isSchemaErr(result.error)) result = await buildQuery(bareSelect);
 
     if (result.error) {
       console.error('[cash-advances GET] Error final:', result.error?.code, result.error?.message);
@@ -142,7 +154,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await supabaseAdmin
       .from('users')
-      .select('id, name')
+      .select('id')
       .or(`auth_user_id.eq.${user?.id},id.eq.${user?.id}`)
       .maybeSingle();
     const createdById: string = profile?.id || user?.id || '';

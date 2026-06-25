@@ -112,6 +112,15 @@ export async function GET(
     if (!ctx) return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
     const { organizationId, admin } = ctx;
 
+    const isSchemaErr = (err: any) =>
+      !!err && (
+        err.code === 'PGRST200' ||
+        err.code?.startsWith('42') ||
+        String(err.message).includes('does not exist') ||
+        String(err.message).includes('relationship') ||
+        String(err.message).includes('column')
+      );
+
     const buildQ = (sel: string) =>
       admin.from('cash_advances').select(sel).eq('id', id).eq('organization_id', organizationId).single();
 
@@ -122,23 +131,23 @@ export async function GET(
       created_by_user:users!cash_advances_created_by_fkey(id, name),
       expenses(id, amount, description, expense_date, receipt_image_url, payment_method)
     `);
-
-    if (result.error?.code === 'PGRST200') {
-      result = await buildQ(`
-        *,
-        employee:users!cash_advances_employee_id_fkey(id, name, email),
-        created_by_user:users!cash_advances_created_by_fkey(id, name),
-        expenses(id, amount, description, expense_date, receipt_image_url, payment_method)
-      `);
-    }
-
-    if (result.error?.code === 'PGRST200') {
-      result = await buildQ(`
-        *,
-        employee:users!cash_advances_employee_id_fkey(id, name, email),
-        created_by_user:users!cash_advances_created_by_fkey(id, name)
-      `);
-    }
+    if (isSchemaErr(result.error)) result = await buildQ(`
+      *,
+      employee:users!cash_advances_employee_id_fkey(id, name, email),
+      created_by_user:users!cash_advances_created_by_fkey(id, name),
+      expenses(id, amount, description, expense_date, receipt_image_url, payment_method)
+    `);
+    if (isSchemaErr(result.error)) result = await buildQ(`
+      *,
+      employee:users!cash_advances_employee_id_fkey(id, name, email),
+      created_by_user:users!cash_advances_created_by_fkey(id, name)
+    `);
+    if (isSchemaErr(result.error)) result = await buildQ(`
+      *,
+      employee:users!cash_advances_employee_id_fkey(id, email),
+      created_by_user:users!cash_advances_created_by_fkey(id)
+    `);
+    if (isSchemaErr(result.error)) result = await buildQ('*');
 
     if (result.error || !result.data) {
       return NextResponse.json({ success: false, error: 'Anticipo no encontrado' }, { status: 404 });
