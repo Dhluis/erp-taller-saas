@@ -61,6 +61,7 @@ export function useUserProfile() {
 
       const res = await fetch('/api/users/me', {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(profileData)
       })
@@ -106,9 +107,9 @@ export function useUserProfile() {
       if (!profile?.id) throw new Error('Perfil no cargado')
       const publicUrl = await uploadUserAvatar(file, profile.id)
 
-      // Persistir la URL en la DB
       await fetch('/api/users/me', {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ avatar_url: publicUrl })
       })
@@ -135,6 +136,7 @@ export function useUserProfile() {
 
       await fetch('/api/users/me', {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ avatar_url: null })
       })

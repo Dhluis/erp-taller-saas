@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Wrench, Package, User, Calculator } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from 'sonner'
 import { safeFetch, safePost, safePut } from "@/lib/api"
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 
@@ -85,8 +85,6 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(false)
-  const { toast } = useToast()
-
   useEffect(() => {
     loadData()
     if (item) {
@@ -113,11 +111,7 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
       if (servicesResult.success && servicesResult.data) {
         setServices(servicesResult.data)
       } else {
-        toast({
-          title: "Error al cargar servicios",
-          description: "No se pudieron cargar los servicios",
-          variant: "destructive"
-        })
+        toast.error("No se pudieron cargar los servicios")
       }
 
       // Cargar inventario
@@ -125,11 +119,7 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
       if (inventoryResult.success && inventoryResult.data) {
         setInventory(inventoryResult.data)
       } else {
-        toast({
-          title: "Error al cargar inventario",
-          description: "No se pudo cargar el inventario",
-          variant: "destructive"
-        })
+        toast.error("No se pudo cargar el inventario")
       }
 
       // Cargar empleados (mecánicos)
@@ -137,19 +127,11 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
       if (employeesResult.success && employeesResult.data) {
         setEmployees(employeesResult.data.filter((emp: Employee) => emp.role === 'mechanic'))
       } else {
-        toast({
-          title: "Error al cargar empleados",
-          description: "No se pudieron cargar los empleados",
-          variant: "destructive"
-        })
+        toast.error("No se pudieron cargar los empleados")
       }
     } catch (error) {
       console.error('Error loading data:', error)
-      toast({
-        title: "Error al cargar datos",
-        description: "Ocurrió un error al cargar los datos necesarios",
-        variant: "destructive"
-      })
+      toast.error("Error al cargar los datos necesarios")
     }
   }
 
@@ -198,11 +180,7 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
     if (formData.item_type === 'product') {
       const selectedItem = inventory.find(i => i.id === formData.inventory_id)
       if (selectedItem && formData.quantity > selectedItem.quantity) {
-        toast({
-          title: "Error de stock",
-          description: `Solo hay ${selectedItem.quantity} unidades disponibles`,
-          variant: "destructive"
-        })
+        toast.error(`Solo hay ${selectedItem.quantity} unidades disponibles`)
         return
       }
     }
@@ -227,27 +205,16 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
       }
 
       if (!result.success) {
-        toast({
-          title: "Error",
-          description: result.error || "No se pudo guardar el item",
-          variant: "destructive"
-        })
+        toast.error(result.error || "No se pudo guardar el item")
         return
       }
 
-      toast({
-        title: item ? "Item actualizado" : "Item agregado",
-        description: "El item se ha guardado correctamente"
-      })
+      toast.success(item ? "Item actualizado correctamente" : "Item agregado correctamente")
 
       onSave()
     } catch (error) {
       console.error('Error saving item:', error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "No se pudo guardar el item",
-        variant: "destructive"
-      })
+      toast.error(error instanceof Error ? error.message : "No se pudo guardar el item")
     } finally {
       setLoading(false)
     }

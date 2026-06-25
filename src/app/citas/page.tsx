@@ -357,6 +357,7 @@ function CitasContent() {
       // ✅ Usar API route en lugar de queries directas desde el cliente
       const response = await fetch('/api/appointments', {
         method: 'GET',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -380,6 +381,7 @@ function CitasContent() {
       // ✅ Usar API route para estadísticas en lugar de query directa
       const statsResponse = await fetch('/api/appointments/stats', {
         method: 'GET',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
       });
@@ -581,6 +583,7 @@ function CitasContent() {
         console.log('📝 [Citas] Actualizando cita via API:', editingAppointment.id)
         const response = await fetch(`/api/appointments/${editingAppointment.id}`, {
           method: 'PUT',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...payload, status: formData.status || editingAppointment.status }),
         })
@@ -593,6 +596,7 @@ function CitasContent() {
         console.log('➕ [Citas] Creando cita via API...')
         const response = await fetch('/api/appointments', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         })
@@ -624,7 +628,7 @@ function CitasContent() {
   const handleDeleteConfirm = async () => {
     if (!appointmentToDelete) return
     try {
-      const response = await fetch(`/api/appointments/${appointmentToDelete}`, { method: 'DELETE' })
+      const response = await fetch(`/api/appointments/${appointmentToDelete}`, { method: 'DELETE', credentials: 'include' })
       const result = await response.json()
       if (!response.ok || !result.success) throw new Error(result.error || 'Error al eliminar')
       toast.success('Cita eliminada correctamente')

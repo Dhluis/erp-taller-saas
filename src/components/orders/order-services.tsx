@@ -31,7 +31,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Trash2, Edit, Package, Wrench } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 import { toast } from 'sonner'
 
@@ -86,8 +85,6 @@ export function OrderServices({ orderId, orderStatus, onTotalChange }: OrderServ
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<OrderItem | null>(null)
-  const { toast } = useToast()
-
   // Estado del formulario
   const [formData, setFormData] = useState({
     item_type: 'service' as 'service' | 'product',
@@ -205,20 +202,13 @@ export function OrderServices({ orderId, orderStatus, onTotalChange }: OrderServ
       })
 
       if (response.ok) {
-        toast({
-          title: editingItem ? "Item actualizado" : "Item agregado",
-          description: "El item se ha guardado correctamente"
-        })
+        toast.success(editingItem ? "Item actualizado correctamente" : "Item agregado correctamente")
         setIsDialogOpen(false)
         resetForm()
         loadOrderItems()
       }
     } catch (error) {
-      toast({
-        title: "Error al guardar item",
-        description: "No se pudo guardar el item",
-        variant: "destructive"
-      })
+      toast.error("No se pudo guardar el item")
     }
   }
 
@@ -237,18 +227,11 @@ export function OrderServices({ orderId, orderStatus, onTotalChange }: OrderServ
       })
 
       if (response.ok) {
-        toast({
-          title: "Item eliminado",
-          description: "El item se ha eliminado correctamente"
-        })
+        toast.success("Item eliminado correctamente")
         loadOrderItems()
       }
     } catch (error) {
-      toast({
-        title: "Error al eliminar item",
-        description: "No se pudo eliminar el item",
-        variant: "destructive"
-      })
+      toast.error("No se pudo eliminar el item")
     }
   }
 

@@ -44,6 +44,7 @@ export function useGlobalSearch() {
       // ✅ Usar API route en lugar de queries directas desde el cliente
       const response = await fetch(`/api/search/global?q=${encodeURIComponent(trimmedQuery)}`, {
         method: 'GET',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },

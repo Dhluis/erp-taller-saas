@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { OrderItemsManager } from "@/components/orders/order-items-manager"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from 'sonner'
 import { safeFetch, safePatch } from "@/lib/api"
 import { PageHeader } from '@/components/navigation/page-header'
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
@@ -66,7 +66,6 @@ interface OrderResponse {
 export default function OrderDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { toast } = useToast()
   const orderId = params.id as string
   const { currency } = useOrgCurrency()
 
@@ -88,25 +87,13 @@ export default function OrderDetailPage() {
       
       if (!result.success) {
         if (result.status === 404) {
-          toast({
-            title: "Orden no encontrada",
-            description: "La orden solicitada no existe",
-            variant: "destructive"
-          })
+          toast.error("La orden solicitada no existe")
           router.push('/ordenes')
         } else if (result.status === 403) {
-          toast({
-            title: "Sin permisos",
-            description: "No tienes permiso para ver esta orden",
-            variant: "destructive"
-          })
+          toast.error("No tienes permiso para ver esta orden")
           router.push('/ordenes')
         } else {
-          toast({
-            title: "Error al cargar orden",
-            description: result.error || "No se pudo cargar la orden",
-            variant: "destructive"
-          })
+          toast.error(result.error || "No se pudo cargar la orden")
         }
         setLoading(false)
         return
@@ -120,19 +107,11 @@ export default function OrderDetailPage() {
         }
         setOrder(orderData)
       } else {
-        toast({
-          title: "Error",
-          description: result.data?.error || "Error al obtener datos de la orden",
-          variant: "destructive"
-        })
+        toast.error(result.data?.error || "Error al obtener datos de la orden")
       }
     } catch (error) {
       console.error('Error loading order:', error)
-      toast({
-        title: "Error",
-        description: "Error inesperado al cargar la orden",
-        variant: "destructive"
-      })
+      toast.error("Error inesperado al cargar la orden")
     } finally {
       setLoading(false)
     }
@@ -150,35 +129,20 @@ export default function OrderDetailPage() {
       const result = await safePatch(`/api/orders/${orderId}`, { total_amount: total })
 
       if (!result.success) {
-        toast({
-          title: "Error al actualizar total",
-          description: result.error || "No se pudo actualizar el costo final",
-          variant: "destructive"
-        })
+        toast.error(result.error || "No se pudo actualizar el costo final")
         return
       }
 
       if (result.data?.success) {
         // Actualizar el estado local con los nuevos datos
         setOrder(prev => prev ? { ...prev, final_cost: total, total_amount: total } : null)
-        toast({
-          title: "Total actualizado",
-          description: "El costo final se ha actualizado correctamente"
-        })
+        toast.success("El costo final se ha actualizado correctamente")
       } else {
-        toast({
-          title: "Error",
-          description: result.data?.error || "Error al actualizar el costo",
-          variant: "destructive"
-        })
+        toast.error(result.data?.error || "Error al actualizar el costo")
       }
     } catch (error) {
       console.error('Error updating order total:', error)
-      toast({
-        title: "Error",
-        description: "Error inesperado al actualizar el total",
-        variant: "destructive"
-      })
+      toast.error("Error inesperado al actualizar el total")
     } finally {
       setSaving(false)
     }

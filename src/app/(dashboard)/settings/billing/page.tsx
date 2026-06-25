@@ -20,7 +20,6 @@ import {
   type CountryCode,
 } from "@/lib/billing/constants";
 import { useSearchParams } from "next/navigation";
-import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { CurrencySelectorGlobal } from "@/components/currency/CurrencySelectorGlobal";
 
@@ -68,8 +67,6 @@ export default function BillingPage() {
   const [showCanceled, setShowCanceled] = useState(false);
   const [faqOpenIndex, setFaqOpenIndex] = useState<number | null>(null);
   const [userCountry, setUserCountry] = useState<CountryCode>("US");
-  const { toast } = useToast();
-
   const { selectedCurrency, convertUSD, formatLocalCurrency } =
     useCurrencyConverter();
   const monthlyLocal = convertUSD(PRICING.monthly.amount, selectedCurrency);

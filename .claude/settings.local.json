@@ -22,10 +22,12 @@
       "Bash(awk '{print $NF}')",
       "Bash(xargs -I{} sh -c 'echo \"=== {} ===\" && head -2 {}')",
       "Bash(mkdir -p \"c:/Users/exclu/erp-taller-saas/src/app/api/purchase-orders/[id]/analyze-receipt\")",
-      "mcp__supabase__execute_sql"
+      "mcp__supabase__execute_sql",
+      "Bash(mkdir -p \"src/app/api/expenses/[id]\")"
     ],
     "additionalDirectories": [
-      "c:\\Users\\exclu\\erp-taller-saas\\src\\app\\api\\purchase-orders\\[id]"
+      "c:\\Users\\exclu\\erp-taller-saas\\src\\app\\api\\purchase-orders\\[id]",
+      "C:\\Users\\exclu\\erp-taller-saas\\src\\app\\api\\expenses\\[id]"
     ]
   }
 }

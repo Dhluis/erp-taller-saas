@@ -14,8 +14,8 @@ export function useNotifications() {
     try {
       setIsLoading(true)
       const [allRes, unreadRes] = await Promise.all([
-        fetch('/api/notifications?limit=20'),
-        fetch('/api/notifications?is_read=false&limit=50')
+        fetch('/api/notifications?limit=20', { credentials: 'include' }),
+        fetch('/api/notifications?is_read=false&limit=50', { credentials: 'include' })
       ])
       const allJson = await allRes.json()
       const unreadJson = await unreadRes.json()
@@ -35,6 +35,7 @@ export function useNotifications() {
     try {
       await fetch(`/api/notifications/${notificationId}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ read: true })
       })
@@ -46,7 +47,7 @@ export function useNotifications() {
 
   const markAllAsRead = useCallback(async () => {
     try {
-      await fetch('/api/notifications/mark-all-read', { method: 'POST' })
+      await fetch('/api/notifications/mark-all-read', { method: 'POST', credentials: 'include' })
       await loadNotifications()
     } catch (error) {
       console.error('Error marking all notifications as read:', error)

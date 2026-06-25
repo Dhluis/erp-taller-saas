@@ -131,7 +131,7 @@ export default function ServicePackagesPage() {
   const fetchPackages = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/service-packages');
+      const res = await fetch('/api/service-packages', { credentials: 'include' });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setPackages(json.data);
@@ -171,7 +171,7 @@ export default function ServicePackagesPage() {
 
   const openEdit = async (pkg: ServicePackage) => {
     setEditingId(pkg.id);
-    const res = await fetch(`/api/service-packages/${pkg.id}`);
+    const res = await fetch(`/api/service-packages/${pkg.id}`, { credentials: 'include' });
     const json = await res.json();
     if (!json.success || !json.data) {
       return;
@@ -317,6 +317,7 @@ export default function ServicePackagesPage() {
       if (editingId) {
         const res = await fetch(`/api/service-packages/${editingId}`, {
           method: 'PUT',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
@@ -330,6 +331,7 @@ export default function ServicePackagesPage() {
       } else {
         const res = await fetch('/api/service-packages', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
@@ -360,6 +362,7 @@ export default function ServicePackagesPage() {
     try {
       const res = await fetch(`/api/service-packages/${packageToDelete.id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
       const json = await res.json();
       if (json.success) {

@@ -229,6 +229,7 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
 
       // Fetch
       const response = await fetch(url, {
+        credentials: 'include',
         headers: { 'Cache-Control': 'no-cache' }
       });
       
@@ -348,6 +349,7 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
     try {
       const response = await fetch('/api/inventory', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(itemData),
       });
@@ -381,6 +383,7 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
     try {
       const response = await fetch(`/api/inventory/${id}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(itemData),
       });
@@ -550,6 +553,7 @@ export function useInventory(options: UseInventoryOptions = {}): UseInventoryRet
     try {
       const response = await fetch(`/api/inventory/categories/${id}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(categoryData),
       });

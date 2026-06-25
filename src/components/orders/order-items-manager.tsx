@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { AddItemModal } from "./add-item-modal"
 import { Plus, Edit, Trash2, Wrench, Package, User } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
 import { safeFetch, safeDelete } from "@/lib/api"
 import { useOrgCurrency } from '@/lib/context/CurrencyContext'
 import { toast } from 'sonner'
@@ -59,8 +58,6 @@ export function OrderItemsManager({ orderId, onTotalChange }: OrderItemsManagerP
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<OrderItem | null>(null)
   const [loading, setLoading] = useState(true)
-  const { toast } = useToast()
-
   useEffect(() => {
     loadOrderItems()
   }, [orderId])
@@ -71,11 +68,7 @@ export function OrderItemsManager({ orderId, onTotalChange }: OrderItemsManagerP
       const result = await safeFetch(`/api/orders/${orderId}/items`)
       
       if (!result.success) {
-        toast({
-          title: "Error al cargar items",
-          description: result.error || "No se pudieron cargar los items de la orden",
-          variant: "destructive"
-        })
+        toast.error(result.error || "No se pudieron cargar los items de la orden")
         return
       }
       
@@ -91,11 +84,7 @@ export function OrderItemsManager({ orderId, onTotalChange }: OrderItemsManagerP
       }
     } catch (error) {
       console.error('Error loading order items:', error)
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los items de la orden",
-        variant: "destructive"
-      })
+      toast.error("No se pudieron cargar los items de la orden")
     } finally {
       setLoading(false)
     }
@@ -124,27 +113,16 @@ export function OrderItemsManager({ orderId, onTotalChange }: OrderItemsManagerP
       const result = await safeDelete(`/api/orders/${orderId}/items/${itemId}`)
 
       if (!result.success) {
-        toast({
-          title: "Error al eliminar item",
-          description: result.error || "No se pudo eliminar el item",
-          variant: "destructive"
-        })
+        toast.error(result.error || "No se pudo eliminar el item")
         return
       }
 
-      toast({
-        title: "Item eliminado",
-        description: "El item se ha eliminado correctamente"
-      })
+      toast.success("Item eliminado correctamente")
 
       loadOrderItems()
     } catch (error) {
       console.error('Error deleting item:', error)
-      toast({
-        title: "Error al eliminar item",
-        description: "No se pudo eliminar el item",
-        variant: "destructive"
-      })
+      toast.error("No se pudo eliminar el item")
     }
   }
 
