@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
-async function resolveOrg(supabase: any, supabaseAdmin: any, userId: string) {
-  const { data: profile } = await supabaseAdmin
-    .from('users')
-    .select('id, organization_id, workshop_id')
-    .or(`auth_user_id.eq.${userId},id.eq.${userId}`)
-    .maybeSingle();
-
-  let organization_id = profile?.organization_id;
-  if (!organization_id && profile?.workshop_id) {
-    const { data: ws } = await supabaseAdmin
-      .from('workshops').select('organization_id').eq('id', profile.workshop_id).single();
-    organization_id = ws?.organization_id;
+async function getOrg(request: NextRequest) {
+  try {
+    const ctx = await getTenantContext(request);
+    return ctx.organizationId;
+  } catch {
+    return null;
   }
-  return organization_id as string | null;
 }
 
 // PATCH /api/cash-advances/[id] - Cerrar o cancelar anticipo
@@ -31,17 +25,13 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Estado inválido' }, { status: 400 });
     }
 
-    const supabase = createClientFromRequest(request);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-    }
-
-    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any;
-    const organization_id = await resolveOrg(supabase, supabaseAdmin, user.id);
+    const organization_id = await getOrg(request);
     if (!organization_id) {
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
     }
+
+    const supabase = createClientFromRequest(request);
+    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any;
 
     const { data: advance } = await supabaseAdmin
       .from('cash_advances')
@@ -88,13 +78,11 @@ export async function DELETE(
   try {
     const { id } = await params
 
-    const supabase = createClientFromRequest(request)
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
-
-    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any
-    const organization_id = await resolveOrg(supabase, supabaseAdmin, user.id)
+    const organization_id = await getOrg(request)
     if (!organization_id) return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 })
+
+    const supabase = createClientFromRequest(request)
+    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any
 
     const { data: existing } = await supabaseAdmin.from('cash_advances').select('id').eq('id', id).eq('organization_id', organization_id).single()
     if (!existing) return NextResponse.json({ success: false, error: 'Anticipo no encontrado' }, { status: 404 })
@@ -116,17 +104,13 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const supabase = createClientFromRequest(request);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-    }
-
-    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any;
-    const organization_id = await resolveOrg(supabase, supabaseAdmin, user.id);
+    const organization_id = await getOrg(request);
     if (!organization_id) {
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
     }
+
+    const supabase = createClientFromRequest(request);
+    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any;
 
     const selectWithCustomer = `
       *,

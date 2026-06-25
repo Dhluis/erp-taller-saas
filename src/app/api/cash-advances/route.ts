@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
+import { getTenantContext } from '@/lib/core/multi-tenant-server';
 import { z } from 'zod';
 
 const createAdvanceSchema = z.object({
@@ -15,32 +16,16 @@ const createAdvanceSchema = z.object({
 // GET /api/cash-advances
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClientFromRequest(request);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-    }
-
-    const serviceClient = getSupabaseServiceClient();
-    const supabaseAdmin = (serviceClient || supabase) as any;
-    const { data: profile } = await supabaseAdmin
-      .from('users')
-      .select('organization_id, workshop_id')
-      .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
-      .maybeSingle();
-
-    let organization_id = profile?.organization_id;
-    if (!organization_id && profile?.workshop_id) {
-      const { data: ws } = await supabaseAdmin
-        .from('workshops')
-        .select('organization_id')
-        .eq('id', profile.workshop_id)
-        .single();
-      organization_id = ws?.organization_id;
-    }
-    if (!organization_id) {
+    let tenantCtx: Awaited<ReturnType<typeof getTenantContext>>;
+    try {
+      tenantCtx = await getTenantContext(request);
+    } catch {
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
     }
+    const { organizationId: organization_id } = tenantCtx;
+
+    const supabase = createClientFromRequest(request);
+    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any;
 
     const url = new URL(request.url);
     const status = url.searchParams.get('status');
@@ -96,33 +81,26 @@ export async function GET(request: NextRequest) {
 // POST /api/cash-advances
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClientFromRequest(request);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-    }
-
-    const serviceClient = getSupabaseServiceClient();
-    const supabaseAdmin = (serviceClient || supabase) as any;
-    const { data: profile } = await supabaseAdmin
-      .from('users')
-      .select('id, organization_id, workshop_id, name')
-      .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
-      .maybeSingle();
-
-    // Fallback: si organization_id es null, obtenerlo del workshop (igual que getTenantContext)
-    let organization_id = profile?.organization_id;
-    if (!organization_id && profile?.workshop_id) {
-      const { data: ws } = await supabaseAdmin
-        .from('workshops')
-        .select('organization_id')
-        .eq('id', profile.workshop_id)
-        .single();
-      organization_id = ws?.organization_id;
-    }
-    if (!organization_id) {
+    // Usar getTenantContext — misma lógica que el resto de rutas que funcionan
+    let tenantCtx: Awaited<ReturnType<typeof getTenantContext>>;
+    try {
+      tenantCtx = await getTenantContext(request);
+    } catch {
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
     }
+    const { organizationId: organization_id } = tenantCtx;
+
+    const supabase = createClientFromRequest(request);
+    const { data: { user } } = await supabase.auth.getUser();
+    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any;
+
+    // Obtener id interno del usuario para created_by (fallback a auth user id)
+    const { data: profile } = await supabaseAdmin
+      .from('users')
+      .select('id, name')
+      .or(`auth_user_id.eq.${user?.id},id.eq.${user?.id}`)
+      .maybeSingle();
+    const createdById: string = profile?.id || user?.id || '';
 
     const body = await request.json();
     const validated = createAdvanceSchema.parse(body);
@@ -136,7 +114,7 @@ export async function POST(request: NextRequest) {
       payment_method: validated.payment_method,
       cash_account_id: validated.cash_account_id || null,
       status: 'open',
-      created_by: profile.id,
+      created_by: createdById,
     };
     if (validated.customer_id) insertPayload.customer_id = validated.customer_id;
 
@@ -178,13 +156,13 @@ export async function POST(request: NextRequest) {
         .from('cash_account_movements')
         .insert({
           cash_account_id: validated.cash_account_id,
-          organization_id: profile.organization_id,
+          organization_id,
           movement_type: 'withdrawal',
           amount: validated.amount,
           notes: `Anticipo (${methodLabels[validated.payment_method]}): ${validated.purpose}`,
           reference_type: 'cash_advance',
           reference_id: (advance as any).id,
-          created_by: profile.id,
+          created_by: createdById,
         });
 
       if (movError) {
@@ -197,7 +175,7 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin
         .from('financial_transactions')
         .insert({
-          organization_id: profile.organization_id,
+          organization_id,
           transaction_type: 'expense',
           category: 'anticipo_efectivo',
           description: `Anticipo (${methodLabels[validated.payment_method]}): ${validated.purpose}`,
@@ -205,7 +183,7 @@ export async function POST(request: NextRequest) {
           account_id: validated.cash_account_id || null,
           reference_type: 'cash_advance',
           reference_id: (advance as any).id,
-          created_by: profile.id,
+          created_by: createdById,
         } as any)
         .then(({ error: ftErr }) => {
           if (ftErr) console.error('[cash-advances] No se pudo registrar en financial_transactions:', ftErr);
@@ -218,9 +196,9 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          organizationId: profile.organization_id,
+          organizationId: organization_id,
           title: 'Anticipo registrado',
-          body: `${profile.name || 'El administrador'} registró un anticipo de $${validated.amount.toFixed(2)} para: ${validated.purpose}`,
+          body: `${profile?.name || 'El administrador'} registró un anticipo de $${validated.amount.toFixed(2)} para: ${validated.purpose}`,
           url: '/compras/gastos',
         }),
       }).catch(() => {});
