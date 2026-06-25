@@ -1,11 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
-import { getTenantContext } from '@/lib/core/multi-tenant-server';
 
-async function getOrg(request: NextRequest) {
+async function getOrg(request: NextRequest): Promise<{ organizationId: string; admin: any } | null> {
   try {
-    const ctx = await getTenantContext(request);
-    return ctx.organizationId;
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return null;
+
+    const serviceClient = getSupabaseServiceClient();
+    const admin = (serviceClient || supabase) as any;
+
+    const { data: profile } = await admin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .maybeSingle();
+
+    if (profile?.organization_id) return { organizationId: profile.organization_id, admin };
+
+    const { data: p2 } = await admin
+      .from('users')
+      .select('organization_id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (p2?.organization_id) return { organizationId: p2.organization_id, admin };
+    return null;
   } catch {
     return null;
   }
@@ -25,30 +45,21 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Estado inválido' }, { status: 400 });
     }
 
-    const organization_id = await getOrg(request);
-    if (!organization_id) {
-      return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
-    }
+    const ctx = await getOrg(request);
+    if (!ctx) return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
+    const { organizationId, admin } = ctx;
 
-    const supabase = createClientFromRequest(request);
-    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any;
-
-    const { data: advance } = await supabaseAdmin
+    const { data: advance } = await admin
       .from('cash_advances')
-      .select('id, status, organization_id')
+      .select('id, status')
       .eq('id', id)
-      .eq('organization_id', organization_id)
+      .eq('organization_id', organizationId)
       .single();
 
-    if (!advance) {
-      return NextResponse.json({ success: false, error: 'Anticipo no encontrado' }, { status: 404 });
-    }
+    if (!advance) return NextResponse.json({ success: false, error: 'Anticipo no encontrado' }, { status: 404 });
+    if (advance.status !== 'open') return NextResponse.json({ success: false, error: 'Solo se pueden cerrar anticipos abiertos' }, { status: 400 });
 
-    if (advance.status !== 'open') {
-      return NextResponse.json({ success: false, error: 'Solo se pueden cerrar anticipos abiertos' }, { status: 400 });
-    }
-
-    const { data: updated, error } = await supabaseAdmin
+    const { data: updated, error } = await admin
       .from('cash_advances')
       .update({
         status,
@@ -60,13 +71,10 @@ export async function PATCH(
       .select()
       .single();
 
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
-
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, data: updated });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error?.message }, { status: 500 });
   }
 }
 
@@ -76,23 +84,20 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    const { id } = await params;
+    const ctx = await getOrg(request);
+    if (!ctx) return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
+    const { organizationId, admin } = ctx;
 
-    const organization_id = await getOrg(request)
-    if (!organization_id) return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 })
+    const { data: existing } = await admin.from('cash_advances').select('id').eq('id', id).eq('organization_id', organizationId).single();
+    if (!existing) return NextResponse.json({ success: false, error: 'Anticipo no encontrado' }, { status: 404 });
 
-    const supabase = createClientFromRequest(request)
-    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any
+    const { error } = await admin.from('cash_advances').delete().eq('id', id).eq('organization_id', organizationId);
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
 
-    const { data: existing } = await supabaseAdmin.from('cash_advances').select('id').eq('id', id).eq('organization_id', organization_id).single()
-    if (!existing) return NextResponse.json({ success: false, error: 'Anticipo no encontrado' }, { status: 404 })
-
-    const { error } = await supabaseAdmin.from('cash_advances').delete().eq('id', id).eq('organization_id', organization_id)
-    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
-
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: error?.message }, { status: 500 });
   }
 }
 
@@ -103,56 +108,47 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const ctx = await getOrg(request);
+    if (!ctx) return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
+    const { organizationId, admin } = ctx;
 
-    const organization_id = await getOrg(request);
-    if (!organization_id) {
-      return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
-    }
+    const buildQ = (sel: string) =>
+      admin.from('cash_advances').select(sel).eq('id', id).eq('organization_id', organizationId).single();
 
-    const supabase = createClientFromRequest(request);
-    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any;
-
-    const selectWithCustomer = `
+    let result = await buildQ(`
       *,
       employee:users!cash_advances_employee_id_fkey(id, name, email),
       customer:customers(id, name, phone),
       created_by_user:users!cash_advances_created_by_fkey(id, name),
       expenses(id, amount, description, expense_date, receipt_image_url, payment_method)
-    `;
-    const selectFallback = `
-      *,
-      employee:users!cash_advances_employee_id_fkey(id, name, email),
-      created_by_user:users!cash_advances_created_by_fkey(id, name),
-      expenses(id, amount, description, expense_date, receipt_image_url, payment_method)
-    `;
+    `);
 
-    let { data: advance, error } = await supabaseAdmin
-      .from('cash_advances')
-      .select(selectWithCustomer)
-      .eq('id', id)
-      .eq('organization_id', organization_id)
-      .single();
-
-    if (error && (error.code === 'PGRST200' || error.message?.includes('customer'))) {
-      const retry = await supabaseAdmin
-        .from('cash_advances')
-        .select(selectFallback)
-        .eq('id', id)
-        .eq('organization_id', organization_id)
-        .single();
-      advance = retry.data;
-      error = retry.error;
+    if (result.error?.code === 'PGRST200') {
+      result = await buildQ(`
+        *,
+        employee:users!cash_advances_employee_id_fkey(id, name, email),
+        created_by_user:users!cash_advances_created_by_fkey(id, name),
+        expenses(id, amount, description, expense_date, receipt_image_url, payment_method)
+      `);
     }
 
-    if (error || !advance) {
+    if (result.error?.code === 'PGRST200') {
+      result = await buildQ(`
+        *,
+        employee:users!cash_advances_employee_id_fkey(id, name, email),
+        created_by_user:users!cash_advances_created_by_fkey(id, name)
+      `);
+    }
+
+    if (result.error || !result.data) {
       return NextResponse.json({ success: false, error: 'Anticipo no encontrado' }, { status: 404 });
     }
 
+    const advance = result.data;
     const totalSpent = (advance.expenses || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
-    const balance = advance.amount - totalSpent;
 
-    return NextResponse.json({ success: true, data: { ...advance, total_spent: totalSpent, balance } });
+    return NextResponse.json({ success: true, data: { ...advance, total_spent: totalSpent, balance: advance.amount - totalSpent } });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error?.message }, { status: 500 });
   }
 }

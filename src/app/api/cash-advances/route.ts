@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server';
-import { getTenantContext } from '@/lib/core/multi-tenant-server';
 import { z } from 'zod';
 
 const createAdvanceSchema = z.object({
@@ -13,24 +12,80 @@ const createAdvanceSchema = z.object({
   cash_account_id: z.string().uuid().optional().nullable(),
 });
 
+// Helper: autenticar y obtener organization_id sin depender de getTenantContext
+async function getOrgAndAdmin(request: NextRequest): Promise<{ organization_id: string; supabaseAdmin: any } | null> {
+  try {
+    const supabase = createClientFromRequest(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) return null;
+
+    const serviceClient = getSupabaseServiceClient();
+    const supabaseAdmin = (serviceClient || supabase) as any;
+
+    // Buscar por auth_user_id primero
+    const { data: profile } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .maybeSingle();
+
+    if (profile?.organization_id) {
+      return { organization_id: profile.organization_id, supabaseAdmin };
+    }
+
+    // Fallback por id interno
+    const { data: profile2 } = await supabaseAdmin
+      .from('users')
+      .select('organization_id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile2?.organization_id) {
+      return { organization_id: profile2.organization_id, supabaseAdmin };
+    }
+
+    return null;
+  } catch (e: any) {
+    console.error('[cash-advances] getOrgAndAdmin error:', e?.message);
+    return null;
+  }
+}
+
 // GET /api/cash-advances
 export async function GET(request: NextRequest) {
   try {
-    let tenantCtx: Awaited<ReturnType<typeof getTenantContext>>;
-    try {
-      tenantCtx = await getTenantContext(request);
-    } catch {
+    const ctx = await getOrgAndAdmin(request);
+    if (!ctx) {
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
     }
-    const { organizationId: organization_id } = tenantCtx;
-
-    const supabase = createClientFromRequest(request);
-    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any;
+    const { organization_id, supabaseAdmin } = ctx;
 
     const url = new URL(request.url);
     const status = url.searchParams.get('status');
 
-    const baseSelect = `
+    // Construir queries con diferentes niveles de joins (de más completo a más simple)
+    const buildQuery = (selectStr: string) => {
+      let q = supabaseAdmin
+        .from('cash_advances')
+        .select(selectStr)
+        .eq('organization_id', organization_id)
+        .order('created_at', { ascending: false });
+      if (status) q = q.eq('status', status);
+      return q;
+    };
+
+    // Nivel 1: joins completos (customer + cash_account + expenses + employee)
+    const fullSelect = `
+      *,
+      employee:users!cash_advances_employee_id_fkey(id, name, email),
+      created_by_user:users!cash_advances_created_by_fkey(id, name),
+      cash_account:cash_accounts(id, name, account_type),
+      expenses(id, amount, description, expense_date, receipt_image_url),
+      customer:customers(id, name, phone)
+    `;
+
+    // Nivel 2: sin customer (en caso de que customer_id FK no exista aún)
+    const noCustomerSelect = `
       *,
       employee:users!cash_advances_employee_id_fkey(id, name, email),
       created_by_user:users!cash_advances_created_by_fkey(id, name),
@@ -38,63 +93,53 @@ export async function GET(request: NextRequest) {
       expenses(id, amount, description, expense_date, receipt_image_url)
     `;
 
-    let queryWithCustomer = supabaseAdmin
-      .from('cash_advances')
-      .select(`${baseSelect}, customer:customers(id, name, phone)`)
-      .eq('organization_id', organization_id)
-      .order('created_at', { ascending: false }) as any;
+    // Nivel 3: solo campos base sin joins opcionales problemáticos
+    const minimalSelect = `
+      *,
+      employee:users!cash_advances_employee_id_fkey(id, name, email),
+      created_by_user:users!cash_advances_created_by_fkey(id, name)
+    `;
 
-    if (status) queryWithCustomer = queryWithCustomer.eq('status', status);
+    let result = await buildQuery(fullSelect);
 
-    let { data: advances, error } = await queryWithCustomer;
-
-    // Si falla por columna customer_id inexistente (migración pendiente), reintenta sin el join
-    if (error) {
-      if (error.code === 'PGRST200' || error.message?.includes('customer')) {
-        let queryFallback = supabaseAdmin
-          .from('cash_advances')
-          .select(baseSelect)
-          .eq('organization_id', organization_id)
-          .order('created_at', { ascending: false }) as any;
-        if (status) queryFallback = queryFallback.eq('status', status);
-        const fallback = await queryFallback;
-        advances = fallback.data;
-        error = fallback.error;
-      }
-      if (error) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-      }
+    if (result.error?.code === 'PGRST200') {
+      result = await buildQuery(noCustomerSelect);
     }
 
-    const advancesWithBalance = (advances || []).map((adv: any) => {
+    if (result.error?.code === 'PGRST200') {
+      result = await buildQuery(minimalSelect);
+    }
+
+    if (result.error) {
+      console.error('[cash-advances GET] Error final:', result.error?.code, result.error?.message);
+      return NextResponse.json({ success: false, error: result.error.message }, { status: 500 });
+    }
+
+    const advances = (result.data || []).map((adv: any) => {
       const totalSpent = (adv.expenses || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
-      const balance = adv.amount - totalSpent;
-      return { ...adv, total_spent: totalSpent, balance };
+      return { ...adv, total_spent: totalSpent, balance: adv.amount - totalSpent };
     });
 
-    return NextResponse.json({ success: true, data: advancesWithBalance });
+    return NextResponse.json({ success: true, data: advances });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('[cash-advances GET] Unhandled error:', error?.message, error?.code);
+    return NextResponse.json({ success: false, error: error?.message || 'Error interno' }, { status: 500 });
   }
 }
 
 // POST /api/cash-advances
 export async function POST(request: NextRequest) {
   try {
-    // Usar getTenantContext — misma lógica que el resto de rutas que funcionan
-    let tenantCtx: Awaited<ReturnType<typeof getTenantContext>>;
-    try {
-      tenantCtx = await getTenantContext(request);
-    } catch {
+    const ctx = await getOrgAndAdmin(request);
+    if (!ctx) {
       return NextResponse.json({ success: false, error: 'Sin organización' }, { status: 403 });
     }
-    const { organizationId: organization_id } = tenantCtx;
+    const { organization_id, supabaseAdmin } = ctx;
 
+    // Obtener el usuario para created_by
     const supabase = createClientFromRequest(request);
     const { data: { user } } = await supabase.auth.getUser();
-    const supabaseAdmin = (getSupabaseServiceClient() || supabase) as any;
 
-    // Obtener id interno del usuario para created_by (fallback a auth user id)
     const { data: profile } = await supabaseAdmin
       .from('users')
       .select('id, name')
@@ -118,17 +163,17 @@ export async function POST(request: NextRequest) {
     };
     if (validated.customer_id) insertPayload.customer_id = validated.customer_id;
 
-    // INSERT con RETURNING básico para evitar fallo si customer_id no existe aún
-    let { data: inserted, error: insertError } = await (supabaseAdmin as any)
+    let { data: inserted, error: insertError } = await supabaseAdmin
       .from('cash_advances')
       .insert(insertPayload)
       .select()
       .single();
 
-    // Si falla por customer_id inexistente, reintenta sin ese campo
+    // Fallback: si falla por customer_id inexistente, reintentar sin ese campo
     if (insertError && insertPayload.customer_id) {
+      console.warn('[cash-advances POST] Reintentando sin customer_id:', insertError?.code);
       const { customer_id: _removed, ...payloadWithout } = insertPayload;
-      const retry = await (supabaseAdmin as any)
+      const retry = await supabaseAdmin
         .from('cash_advances')
         .insert(payloadWithout)
         .select()
@@ -137,22 +182,16 @@ export async function POST(request: NextRequest) {
       insertError = retry.error;
     }
 
-    const advance = inserted;
-    const error = insertError;
-
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    if (insertError) {
+      console.error('[cash-advances POST] Insert error:', insertError?.message);
+      return NextResponse.json({ success: false, error: insertError.message }, { status: 500 });
     }
 
-    const methodLabels: Record<string, string> = {
-      cash: 'efectivo',
-      transfer: 'transferencia',
-      card: 'tarjeta',
-    };
+    const methodLabels: Record<string, string> = { cash: 'efectivo', transfer: 'transferencia', card: 'tarjeta' };
 
-    // Registrar salida en la cuenta seleccionada
-    if (validated.cash_account_id && advance) {
-      const { error: movError } = await (supabaseAdmin as any)
+    // Registrar movimiento en cuenta
+    if (validated.cash_account_id && inserted) {
+      const { error: movError } = await supabaseAdmin
         .from('cash_account_movements')
         .insert({
           cash_account_id: validated.cash_account_id,
@@ -161,18 +200,15 @@ export async function POST(request: NextRequest) {
           amount: validated.amount,
           notes: `Anticipo (${methodLabels[validated.payment_method]}): ${validated.purpose}`,
           reference_type: 'cash_advance',
-          reference_id: (advance as any).id,
+          reference_id: inserted.id,
           created_by: createdById,
         });
-
-      if (movError) {
-        console.error('[cash-advances] No se pudo registrar movimiento en cuenta:', movError);
-      }
+      if (movError) console.error('[cash-advances] movimiento cuenta error:', movError?.message);
     }
 
-    // Registrar en financial_transactions (corrige brecha contable)
-    if (advance) {
-      await supabaseAdmin
+    // Registrar en financial_transactions (brecha contable)
+    if (inserted) {
+      supabaseAdmin
         .from('financial_transactions')
         .insert({
           organization_id,
@@ -182,33 +218,21 @@ export async function POST(request: NextRequest) {
           amount: validated.amount,
           account_id: validated.cash_account_id || null,
           reference_type: 'cash_advance',
-          reference_id: (advance as any).id,
+          reference_id: inserted.id,
           created_by: createdById,
         } as any)
-        .then(({ error: ftErr }) => {
-          if (ftErr) console.error('[cash-advances] No se pudo registrar en financial_transactions:', ftErr);
-        });
+        .then(({ error: ftErr }: { error: any }) => {
+          if (ftErr) console.error('[cash-advances] financial_transactions error:', ftErr?.message);
+        })
+        .catch(() => {});
     }
 
-    // Notificar al empleado si está registrado
-    if (validated.employee_id) {
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/push/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          organizationId: organization_id,
-          title: 'Anticipo registrado',
-          body: `${profile?.name || 'El administrador'} registró un anticipo de $${validated.amount.toFixed(2)} para: ${validated.purpose}`,
-          url: '/compras/gastos',
-        }),
-      }).catch(() => {});
-    }
-
-    return NextResponse.json({ success: true, data: advance }, { status: 201 });
+    return NextResponse.json({ success: true, data: inserted }, { status: 201 });
   } catch (error: any) {
+    console.error('[cash-advances POST] Unhandled error:', error?.message);
     if (error instanceof z.ZodError) {
       return NextResponse.json({ success: false, error: 'Datos inválidos', details: error.errors }, { status: 400 });
     }
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error?.message || 'Error interno' }, { status: 500 });
   }
 }

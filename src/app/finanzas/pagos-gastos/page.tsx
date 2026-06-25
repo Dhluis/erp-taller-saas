@@ -347,20 +347,22 @@ function EntradasSalidasPage() {
 
   // Anticipos: load + filtered accounts + auto-select
   const loadAdvances = useCallback(async () => {
+    if (!organizationId) return
     setAdvancesLoading(true)
     try {
       const params = advFilterStatus !== 'all' ? `?status=${advFilterStatus}` : ''
       const res = await fetch(`/api/cash-advances${params}`, { credentials: 'include' })
       const json = await res.json()
       if (json.success) setAdvances(json.data || [])
+      else console.error('[loadAdvances] error:', json.error)
     } finally {
       setAdvancesLoading(false)
     }
-  }, [advFilterStatus])
+  }, [advFilterStatus, organizationId])
 
   useEffect(() => {
-    if (mainTab === 'anticipos') loadAdvances()
-  }, [mainTab, loadAdvances])
+    if (mainTab === 'anticipos' && ready && organizationId) loadAdvances()
+  }, [mainTab, loadAdvances, ready, organizationId])
 
   // Mostrar todas las cuentas — el filtro por tipo era demasiado estricto y ocultaba cuentas reales
   const filteredAdvanceAccounts = cashAccounts
