@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils'
 
 type UnifiedEntry = {
   id: string
-  type: 'cobro' | 'supplier' | 'expense'
+  type: 'cobro' | 'supplier' | 'expense' | 'cash_advance'
   // cobro fields
   customer_id?: string
   customer_name?: string
@@ -41,6 +41,10 @@ type UnifiedEntry = {
   // expense fields
   category?: string
   description?: string | null
+  // cash_advance fields
+  purpose?: string
+  advance_status?: 'open' | 'closed' | 'cancelled'
+  balance?: number
   // common
   amount: number
   payment_date: string
@@ -250,10 +254,11 @@ function EntradasSalidasPage() {
     if (!organizationId) return
     setLoading(true)
     try {
-      const [paymentsRes, expensesRes, collectionsData] = await Promise.all([
+      const [paymentsRes, expensesRes, collectionsData, advancesRes] = await Promise.all([
         fetch('/api/supplier-payments', { credentials: 'include' }).then(r => r.json()).catch(() => null),
         fetch('/api/expenses', { credentials: 'include' }).then(r => r.json()).catch(() => null),
         getCollections(organizationId).catch(() => [] as Collection[]),
+        fetch('/api/cash-advances', { credentials: 'include' }).then(r => r.json()).catch(() => null),
       ])
 
       const unified: UnifiedEntry[] = []
@@ -313,6 +318,26 @@ function EntradasSalidasPage() {
             created_at: e.created_at,
           })
           totalEgresos += Number(e.amount)
+        }
+      }
+
+      // Anticipos de efectivo (todos excepto cancelados)
+      if (advancesRes?.success && advancesRes?.data) {
+        for (const adv of advancesRes.data) {
+          if (adv.status === 'cancelled') continue
+          unified.push({
+            id: adv.id,
+            type: 'cash_advance',
+            purpose: adv.purpose,
+            amount: Number(adv.amount),
+            payment_date: adv.created_at,
+            payment_method: adv.payment_method || 'cash',
+            status: adv.status === 'open' ? 'pending' : 'paid',
+            advance_status: adv.status,
+            balance: adv.balance ?? adv.amount,
+            created_at: adv.created_at,
+          })
+          totalEgresos += Number(adv.amount)
         }
       }
 
@@ -780,6 +805,7 @@ function EntradasSalidasPage() {
       (e.supplier_name || '').toLowerCase().includes(term) ||
       (e.category || '').toLowerCase().includes(term) ||
       (e.description || '').toLowerCase().includes(term) ||
+      (e.purpose || '').toLowerCase().includes(term) ||
       (e.reference || '').toLowerCase().includes(term) ||
       (e.reference_number || '').toLowerCase().includes(term)
   })
@@ -789,6 +815,10 @@ function EntradasSalidasPage() {
       if (entry.status === 'paid') return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Pagado</Badge>
       if (entry.status === 'overdue') return <Badge className="bg-rose-500/20 text-rose-400 border-rose-500/30">Vencido</Badge>
       return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Pendiente</Badge>
+    }
+    if (entry.type === 'cash_advance') {
+      if (entry.advance_status === 'open') return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Abierto</Badge>
+      return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Cerrado</Badge>
     }
     if (entry.status === 'pending') return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Pendiente</Badge>
     return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Pagado</Badge>
@@ -930,12 +960,16 @@ function EntradasSalidasPage() {
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`p-2 rounded-full shrink-0 ${
                             e.type === 'cobro' ? 'bg-emerald-500/10' :
-                            e.type === 'supplier' ? 'bg-rose-500/10' : 'bg-orange-500/10'
+                            e.type === 'supplier' ? 'bg-rose-500/10' :
+                            e.type === 'cash_advance' ? 'bg-yellow-500/10' :
+                            'bg-orange-500/10'
                           }`}>
                             {e.type === 'cobro'
                               ? <ArrowDownCircle className="h-4 w-4 text-emerald-400" />
                               : e.type === 'supplier'
                               ? <Building2 className="h-4 w-4 text-rose-400" />
+                              : e.type === 'cash_advance'
+                              ? <Wallet className="h-4 w-4 text-yellow-400" />
                               : <Receipt className="h-4 w-4 text-orange-400" />
                             }
                           </div>
@@ -945,17 +979,22 @@ function EntradasSalidasPage() {
                                 ? (e.customer_name || e.customer_id || 'Cliente')
                                 : e.type === 'supplier'
                                 ? e.supplier_name
+                                : e.type === 'cash_advance'
+                                ? (e.purpose || 'Anticipo')
                                 : (e.description || e.category || 'Gasto')}
                             </p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span className={`font-medium ${e.type === 'cobro' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                {e.type === 'cobro' ? '↓ Ingreso' : e.type === 'supplier' ? '↑ Proveedor' : '↑ Gasto'}
+                              <span className={`font-medium ${e.type === 'cobro' ? 'text-emerald-500' : e.type === 'cash_advance' ? 'text-yellow-500' : 'text-rose-500'}`}>
+                                {e.type === 'cobro' ? '↓ Ingreso' : e.type === 'supplier' ? '↑ Proveedor' : e.type === 'cash_advance' ? '↑ Anticipo' : '↑ Gasto'}
                               </span>
                               <span>·</span>
                               <span>{new Date(e.payment_date).toLocaleDateString('es-MX')}</span>
                               <span>·</span>
                               <span>{PAYMENT_METHODS.find(m => m.value === e.payment_method)?.label || e.payment_method}</span>
-                              {e.notes && <><span>·</span><span className="truncate max-w-[120px]">{e.notes}</span></>}
+                              {e.type === 'cash_advance' && e.advance_status === 'open' && e.balance != null && e.balance < e.amount && (
+                                <><span>·</span><span className="text-yellow-500">Saldo: {formatMoney(e.balance)}</span></>
+                              )}
+                              {e.notes && e.type !== 'cash_advance' && <><span>·</span><span className="truncate max-w-[120px]">{e.notes}</span></>}
                             </div>
                           </div>
                         </div>
@@ -974,22 +1013,24 @@ function EntradasSalidasPage() {
                               Cobrar
                             </Button>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 h-8 w-8 p-0"
-                            onClick={() => setDeleteTarget({
-                              id: e.id,
-                              type: e.type,
-                              label: e.type === 'cobro'
-                                ? (e.customer_name || 'Ingreso')
-                                : e.type === 'supplier'
-                                ? (e.supplier_name || 'Pago proveedor')
-                                : (e.description || e.category || 'Gasto'),
-                            })}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          {e.type !== 'cash_advance' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 h-8 w-8 p-0"
+                              onClick={() => setDeleteTarget({
+                                id: e.id,
+                                type: e.type as 'cobro' | 'supplier' | 'expense',
+                                label: e.type === 'cobro'
+                                  ? (e.customer_name || 'Ingreso')
+                                  : e.type === 'supplier'
+                                  ? (e.supplier_name || 'Pago proveedor')
+                                  : (e.description || e.category || 'Gasto'),
+                              })}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}
