@@ -65,6 +65,7 @@ export async function PUT(
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
+      .eq('organization_id', org.organizationId)
 
     if (updateError) {
       console.error('[PUT /api/collections/[id]/pay]', updateError)

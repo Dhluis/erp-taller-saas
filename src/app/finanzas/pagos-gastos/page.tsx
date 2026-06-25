@@ -491,6 +491,7 @@ function EntradasSalidasPage() {
     setSubmitting(true)
     try {
       let success = false
+      let apiError = ''
 
       if (form.paymentType === 'cobro') {
         // Resolve or create customer on-the-fly
@@ -535,6 +536,7 @@ function EntradasSalidasPage() {
         })
         const data = await res.json()
         success = data?.success
+        if (!success) apiError = data?.error || 'Error al registrar cobro'
         if (success && form.cobro_status === 'paid') {
           const customerName = resolvedCustomerName
           await fetch('/api/financial-transactions', {
@@ -590,6 +592,7 @@ function EntradasSalidasPage() {
         })
         const data = await res.json()
         success = data?.success
+        if (!success) apiError = data?.error || 'Error al registrar pago'
         if (success) {
           const supplierName = resolvedSupplierName
           await fetch('/api/financial-transactions', {
@@ -623,6 +626,7 @@ function EntradasSalidasPage() {
         })
         const data = await res.json()
         success = data?.success
+        if (!success) apiError = data?.error || 'Error al registrar gasto'
         if (success) {
           const catLabel = EXPENSE_CATEGORIES.find(c => c.value === form.category)?.label || form.category
           await fetch('/api/financial-transactions', {
@@ -658,10 +662,10 @@ function EntradasSalidasPage() {
         setSupplierFreeText(''); setRegisterNewSupplier(true)
         loadEntries()
       } else {
-        toast.error('Error al registrar')
+        toast.error(apiError || 'Error al registrar')
       }
-    } catch {
-      toast.error('Error de red')
+    } catch (err: any) {
+      toast.error(err?.message || 'Error de red')
     } finally {
       setSubmitting(false)
     }

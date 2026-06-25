@@ -1,20 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
-/**
- * GET /api/expenses/[id]
- */
-
+import { NextRequest, NextResponse } from 'next/server'
 import { createClientFromRequest, getSupabaseServiceClient } from '@/lib/supabase/server'
-import { getExpenseById } from '@/lib/database/queries/expenses'
-import { isSupabaseTableMissingError, MIGRATION_045_MESSAGE } from '@/lib/supabase/table-missing'
 
 async function getOrg(request: NextRequest) {
   const supabase = createClientFromRequest(request)
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return { error: 'No autorizado', status: 401 as const }
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) return { error: 'No autorizado', status: 401 as const }
   const admin = getSupabaseServiceClient()
-  const { data: profile } = await admin.from('users').select('organization_id').eq('auth_user_id', user.id).single()
-  if (!profile?.organization_id) return { error: 'Organización no encontrada', status: 403 as const }
-  return { organizationId: profile.organization_id }
+  const { data: profile } = await admin
+    .from('users')
+    .select('organization_id')
+    .eq('auth_user_id', user.id)
+    .single()
+  if (!profile?.organization_id) return { error: 'Sin organización', status: 403 as const }
+  return { organizationId: profile.organization_id, admin }
 }
 
 export async function DELETE(
@@ -22,39 +20,29 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const org = await getOrg(request)
     if ('error' in org) return NextResponse.json({ success: false, error: org.error }, { status: org.status })
-    const { id } = await params
-    const admin = getSupabaseServiceClient()
-    const { data: existing } = await admin.from('expenses').select('id').eq('id', id).eq('organization_id', org.organizationId).single()
-    if (!existing) return NextResponse.json({ success: false, error: 'Gasto no encontrado' }, { status: 404 })
-    const { error } = await admin.from('expenses').delete().eq('id', id).eq('organization_id', org.organizationId)
-    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
-    return NextResponse.json({ success: true })
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
-  }
-}
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const org = await getOrg(request)
-    if ('error' in org) return NextResponse.json({ success: false, error: org.error }, { status: org.status })
-    const { id } = await params
-    const expense = await getExpenseById(org.organizationId, id)
-    if (!expense) return NextResponse.json({ success: false, error: 'No encontrado' }, { status: 404 })
-    return NextResponse.json({ success: true, data: expense })
-  } catch (e) {
-    if (isSupabaseTableMissingError(e)) {
-      return NextResponse.json(
-        { success: false, error: MIGRATION_045_MESSAGE, code: 'MIGRATION_REQUIRED', migration: '045' },
-        { status: 503 }
-      )
-    }
-    console.error('GET /api/expenses/[id]:', e)
-    return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
+    const { data: existing } = await org.admin
+      .from('expenses')
+      .select('id')
+      .eq('id', id)
+      .eq('organization_id', org.organizationId)
+      .single()
+
+    if (!existing) return NextResponse.json({ success: false, error: 'Gasto no encontrado' }, { status: 404 })
+
+    const { error } = await org.admin
+      .from('expenses')
+      .delete()
+      .eq('id', id)
+      .eq('organization_id', org.organizationId)
+
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+
+    return NextResponse.json({ success: true })
+  } catch (e: any) {
+    return NextResponse.json({ success: false, error: e?.message || 'Error al eliminar' }, { status: 500 })
   }
 }

@@ -30,10 +30,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { id } = await params
     const supabaseAdmin = getSupabaseServiceClient()
 
-    const { data: existing } = await supabaseAdmin.from('supplier_payments').select('id').eq('id', id).eq('organization_id', org.organizationId).single()
+    const { data: existing } = await supabaseAdmin.from('payments').select('id').eq('id', id).eq('organization_id', org.organizationId).single()
     if (!existing) return NextResponse.json({ success: false, error: 'Pago no encontrado' }, { status: 404 })
 
-    const { error } = await supabaseAdmin.from('supplier_payments').delete().eq('id', id).eq('organization_id', org.organizationId)
+    const { error } = await supabaseAdmin.from('payments').delete().eq('id', id).eq('organization_id', org.organizationId)
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
 
     return NextResponse.json({ success: true })

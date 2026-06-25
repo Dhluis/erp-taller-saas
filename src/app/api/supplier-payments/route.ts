@@ -78,7 +78,7 @@ const createSchema = z.object({
   supplier_id: z.string().uuid('Proveedor requerido'),
   amount: z.number().positive('Monto debe ser mayor a 0'),
   payment_date: z.string().min(1, 'Fecha de pago requerida'),
-  payment_method: z.enum(['cash', 'bank_transfer', 'credit_card', 'check', 'other', 'transfer']).default('transfer'),
+  payment_method: z.enum(['cash', 'bank_transfer', 'credit_card', 'check', 'other', 'transfer', 'card']).default('transfer'),
   reference: z.string().optional(),
   notes: z.string().optional(),
   status: z.enum(['pending', 'completed']).optional().default('completed'),
