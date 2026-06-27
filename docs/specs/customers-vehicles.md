@@ -43,8 +43,15 @@ notes: text | null
 
 ### Historial
 
-Cada vehículo tiene historial completo de órdenes de trabajo.
-Consulta: `GET /api/vehicles/[id]/history` (si existe) o filtrar `work_orders` por `vehicle_id`.
+Cada vehículo tiene historial completo de órdenes y cotizaciones.
+Endpoint: `GET /api/vehicles/[id]/history` → devuelve:
+```typescript
+{
+  vehicle: { id, brand, model, year, license_plate, vin, color, mileage, customer }
+  history: { work_orders[], quotations[], work_orders_count, quotations_count, total_spent }
+  summary: { total_services, total_quotations, total_amount_spent, last_service, last_quotation }
+}
+```
 
 ---
 
@@ -57,6 +64,7 @@ Consulta: `GET /api/vehicles/[id]/history` (si existe) o filtrar `work_orders` p
 | GET | `/api/customers/suggestions` | Sugerencias para búsqueda |
 | GET/POST | `/api/vehicles` | Listar / crear |
 | GET/PUT/DELETE | `/api/vehicles/[id]` | CRUD |
+| GET | `/api/vehicles/[id]/history` | Historial de servicios y cotizaciones |
 
 ---
 

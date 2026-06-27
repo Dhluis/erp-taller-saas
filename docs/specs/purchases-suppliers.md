@@ -48,9 +48,14 @@ received_quantity: decimal | null
 
 ### Aprobación de Órdenes de Compra (Mayo 2026)
 
-- `POST /api/purchase-orders/[id]/approve` — aprobar orden
-- Solo `admin` puede aprobar
-- Al aprobar y marcar como recibida, actualiza stock en `products` automáticamente
+- `POST /api/purchase-orders/[id]/approve` — aprobar orden (solo `admin`)
+- `POST /api/purchase-orders/[id]/receive` — marcar recepción parcial o total de items
+
+**Al recibir una OC** (`/receive`): lógica en app-code (no trigger BD):
+1. Llama RPC `increment_product_stock(p_product_id, p_quantity)` — actualiza `inventory.quantity`
+2. Inserta `inventory_movements` con `movement_type: 'entry'`, `reference_type: 'purchase_order'`
+3. Actualiza `quantity_received` en `purchase_order_items`
+4. Nota: si el RPC falla, `quantity_received` queda actualizado sin stock → pendiente rollback (deuda técnica)
 
 **Anticipo de Compra:**
 - Tabla: `cash_advances` (agregada en sistema antifraude / May 2026)
@@ -80,5 +85,6 @@ reference: string | null
 | GET/POST | `/api/purchase-orders` | Listar / crear |
 | GET/PUT/DELETE | `/api/purchase-orders/[id]` | CRUD |
 | POST | `/api/purchase-orders/[id]/approve` | Aprobar (admin) |
+| POST | `/api/purchase-orders/[id]/receive` | Registrar recepción de items (actualiza stock) |
 | GET/POST | `/api/cash-advances` | Anticipos |
 | GET/PUT/DELETE | `/api/cash-advances/[id]` | CRUD anticipos |

@@ -1,6 +1,6 @@
 # Spec: Módulo Financiero
 
-**Última actualización:** Mayo 2026
+**Última actualización:** Junio 2026
 **Tablas:** `cash_accounts`, `cash_account_movements`, `financial_transactions`, `collections`, `invoice_payments`, `supplier_payments`, `cash_advances`, `cash_closures`
 
 ---
@@ -29,7 +29,16 @@ Maneja 3 tipos de registros:
 2. **Pagos a proveedores** → tabla `payments` + `financial_transactions` + `cash_account_movements`
 3. **Gastos operativos** → tabla `expenses` + `financial_transactions` (expense, gasto_operativo)
 
-Botón "Escanear Ticket IA" → POST `/api/receipts/scan` (Premium) — extrae vendor, fecha, monto con GPT-4o Vision.
+#### Escáner de Ticket IA (Premium/Trial)
+Botón "Escanear Ticket IA" en la barra del tab Movimientos. Acepta imagen o PDF.
+
+- **API:** `POST /api/receipts/scan` (`src/app/api/receipts/scan/route.ts`)
+- **Modelo:** GPT-4o vision (`gpt-4o`, temp=0)
+- **Retorna:** `{ vendor, date, total, description, suggested_category }`
+- **Categorías sugeridas:** `renta | servicios | nomina | herramientas | limpieza | comida | transporte | publicidad | mantenimiento | otro`
+- **Flujo:** el resultado pre-llena el formulario de "Nuevo registro" para que el usuario confirme antes de guardar
+- **Storage:** la imagen se sube a `work-order-documents/receipts/{org_id}/{timestamp}_{filename}` (no-fatal si falla)
+- **Gate:** `checkAIAgentEnabled(orgId)` server-side → 403 si plan free; archivo se sube igualmente en PDF (sin extracción)
 
 ### Tab "Anticipos de Efectivo"
 Gestión de anticipos entregados a empleados:
@@ -98,6 +107,23 @@ Conteo físico de billetes y monedas contra saldo del sistema.
 - Solo muestra Faltante/Sobrante cuando `countedTotal > 0` (fix Mayo 2026)
 - Registra en `cash_closures`
 
+### `cash_closures`
+
+```typescript
+id, organization_id
+cash_account_id: uuid           // FK a cash_accounts
+closed_at: datetime             // timestamp del cierre
+opening_balance: decimal        // saldo inicial del período
+closing_balance: decimal        // saldo del sistema al cierre
+counted_amount: decimal         // conteo físico
+difference: decimal             // counted_amount - closing_balance (negativo = faltante, positivo = sobrante)
+notes: string | null
+created_by: uuid | null
+created_at: datetime
+```
+
+**Queries:** `src/lib/database/queries/cash-closures.ts` → `getCashClosures()`, `getCashClosureById()`, `createCashClosure()`
+
 ---
 
 ## Sidebar — Estructura actual
@@ -129,7 +155,7 @@ Conteo físico de billetes y monedas contra saldo del sistema.
 | GET/POST | `/api/supplier-payments` | Pagos a proveedores |
 | GET/POST | `/api/expenses` | Gastos operativos |
 | GET/POST | `/api/cash-closures` | Arqueos de caja |
-| POST | `/api/receipts/scan` | Escáner IA de tickets (Premium) |
+| POST | `/api/receipts/scan` | Escáner IA de tickets — extrae vendor/fecha/monto/categoría con GPT-4o (Premium/Trial) |
 | GET | `/api/reports/order-stats` | Stats de órdenes para Reportes |
 
 ---

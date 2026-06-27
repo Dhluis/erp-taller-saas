@@ -35,8 +35,8 @@ Detectar patrones anómalos en operaciones del taller para alertar a administrad
 
 ### 3. Alertas en Dashboard
 
-**Estado actual:** No hay alertas automáticas en el dashboard. La detección es manual vía el chat del asistente AI.
-**Pendiente:** Implementar panel de anomalías en dashboard para admins (solo `role = 'admin'`).
+**Estado actual:** No hay alertas automáticas en el dashboard. La detección es 100% bajo demanda vía el chat del asistente AI.
+**Idea futura (sin fecha ni dueño):** Panel de anomalías en dashboard para admins (`role = 'admin'`). No está en roadmap activo — si se decide implementar, priorizar antes de activar.
 
 ---
 
