@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 
+const INSTALLED_KEY = 'pwa_installed';
+
 export type PWAInstallState =
   | 'standalone'       // Ya está instalada como PWA
   | 'installable'      // Tiene el prompt nativo disponible (Android Chrome/Edge)
@@ -14,6 +16,12 @@ export function usePWAInstall() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // Si el usuario ya instaló la app anteriormente, no mostrar nada
+    if (localStorage.getItem(INSTALLED_KEY) === 'true') {
+      setInstallState('standalone');
+      return;
+    }
 
     const ua = window.navigator.userAgent.toLowerCase();
 
@@ -31,13 +39,14 @@ export function usePWAInstall() {
     const isStandalone = isStandaloneMedia || isStandaloneNavigator || isAndroidApp;
 
     if (isStandalone) {
+      localStorage.setItem(INSTALLED_KEY, 'true');
       setInstallState('standalone');
       return;
     }
 
     if (isIOS) {
-      // En iOS, standalone se detecta via navigator.standalone
       if ((window.navigator as any).standalone === true) {
+        localStorage.setItem(INSTALLED_KEY, 'true');
         setInstallState('ios-installed');
       } else {
         setInstallState('ios');
@@ -54,11 +63,8 @@ export function usePWAInstall() {
 
     window.addEventListener('beforeinstallprompt', handler);
 
-    // ── Fallback: si el navegador no dispara beforeinstallprompt en 3 segundos,
-    //    detectar si es un contexto web apto para mostrar guía manual ──
-    // Esto cubre Samsung Internet, Firefox Android, Opera Mobile, etc.
+    // ── Fallback: si el navegador no dispara beforeinstallprompt en 3 segundos ──
     const fallbackTimer = setTimeout(() => {
-      // Solo si no capturamos el evento y no es iOS y es un entorno móvil
       const isMobileUA = /android|mobile|tablet/i.test(ua);
       const isHttps =
         window.location.protocol === 'https:' ||
@@ -79,18 +85,22 @@ export function usePWAInstall() {
     if (!installPrompt) return;
     installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;
-    console.log(`[PWA] User response: ${outcome}`);
     if (outcome === 'accepted') {
+      localStorage.setItem(INSTALLED_KEY, 'true');
       setInstallState('standalone');
     }
     setInstallPrompt(null);
-    // si rechaza, dejamos el botón visible para que pueda reintentar
     if (outcome !== 'accepted') {
       setInstallState('manual');
     }
   };
 
-  // Compat: mantener los nombres anteriores para no romper consumidores existentes
+  // Llamar cuando el usuario confirma instalación manual (iOS / guía Android)
+  const markAsInstalled = () => {
+    localStorage.setItem(INSTALLED_KEY, 'true');
+    setInstallState('standalone');
+  };
+
   const isInstallable = installState === 'installable';
   const isStandalone = installState === 'standalone' || installState === 'ios-installed';
   const isIOS = installState === 'ios';
@@ -103,5 +113,6 @@ export function usePWAInstall() {
     isIOS,
     isManual,
     handleInstallClick,
+    markAsInstalled,
   };
 }

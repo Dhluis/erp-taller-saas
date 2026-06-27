@@ -20,7 +20,7 @@ interface PWAInstallButtonProps {
 }
 
 export function PWAInstallButton({ isCollapsed, variant = 'sidebar' }: PWAInstallButtonProps) {
-  const { installState, isInstallable, isStandalone, isIOS, isManual, handleInstallClick } = usePWAInstall()
+  const { installState, isInstallable, isStandalone, isIOS, isManual, handleInstallClick, markAsInstalled } = usePWAInstall()
   const [showGuide, setShowGuide] = useState(false)
 
   // Si ya está instalada, no mostramos nada
@@ -65,7 +65,7 @@ export function PWAInstallButton({ isCollapsed, variant = 'sidebar' }: PWAInstal
             <Download className="h-5 w-5 shrink-0" />
             {!isCollapsed && <span className="font-medium">Instalar App</span>}
           </Button>
-          <InstallGuideContent type={guideType} onClose={() => setShowGuide(false)} />
+          <InstallGuideContent type={guideType} onClose={() => setShowGuide(false)} onInstalled={markAsInstalled} />
         </Dialog>
       </div>
     )
@@ -85,15 +85,20 @@ export function PWAInstallButton({ isCollapsed, variant = 'sidebar' }: PWAInstal
           <Download className="h-4 w-4" />
           <span className="text-xs font-semibold hidden md:inline">Instalar App</span>
         </Button>
-        <InstallGuideContent type={guideType} onClose={() => setShowGuide(false)} />
+        <InstallGuideContent type={guideType} onClose={() => setShowGuide(false)} onInstalled={markAsInstalled} />
       </Dialog>
     </div>
   )
 }
 
 // ── Contenido del modal de guía, adaptado iOS vs Android ──
-function InstallGuideContent({ type, onClose }: { type: 'ios' | 'android'; onClose: () => void }) {
+function InstallGuideContent({ type, onClose, onInstalled }: { type: 'ios' | 'android'; onClose: () => void; onInstalled: () => void }) {
   const isIOS = type === 'ios'
+
+  const handleInstalled = () => {
+    onInstalled()
+    onClose()
+  }
 
   return (
     <DialogContent className="sm:max-w-md bg-slate-900 border-slate-800 text-white">
@@ -147,12 +152,21 @@ function InstallGuideContent({ type, onClose }: { type: 'ios' | 'android'; onClo
         </div>
       </div>
 
-      <Button
-        className="w-full bg-primary hover:bg-primary/90 text-slate-900 font-bold"
-        onClick={onClose}
-      >
-        ¡Entendido!
-      </Button>
+      <div className="flex flex-col gap-2">
+        <Button
+          className="w-full bg-primary hover:bg-primary/90 text-slate-900 font-bold"
+          onClick={handleInstalled}
+        >
+          ✅ Ya la instalé
+        </Button>
+        <Button
+          variant="ghost"
+          className="w-full text-slate-400 hover:text-white text-sm"
+          onClick={onClose}
+        >
+          Cerrar
+        </Button>
+      </div>
     </DialogContent>
   )
 }
