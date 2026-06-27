@@ -112,6 +112,21 @@ const nextConfig = {
         ],
       },
       {
+        // El service worker nunca debe ser cacheado por la CDN —
+        // si se cachea, el browser no detecta actualizaciones tras un nuevo deploy
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'Service-Worker-Allowed',
+            value: '/',
+          },
+        ],
+      },
+      {
         // Forzar revalidación de páginas
         source: '/(.*)',
         headers: [

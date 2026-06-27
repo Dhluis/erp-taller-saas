@@ -48,3 +48,9 @@ next-env.d.ts
 
 # MCP config (puede contener tokens; usar mcp.json.example como plantilla)
 .cursor/mcp.json
+
+# next-pwa — archivos generados en cada build, no deben commitearse
+# (hashes cambian con cada deploy; si se commitean causan 404 en PWA)
+/public/sw.js
+/public/workbox-*.js
+/public/worker-*.js
