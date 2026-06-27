@@ -1197,7 +1197,7 @@ function EntradasSalidasPage() {
 
       {/* ── Modal nuevo registro ── */}
       <Dialog open={modalOpen} onOpenChange={(o) => { if (!o) { setModalOpen(false); setConfirmingSubmit(false); setCustomerFreeText(''); setCustomerPhone(''); setRegisterNewCustomer(true); setSupplierFreeText(''); setRegisterNewSupplier(true) } }}>
-        <DialogContent className="max-w-md flex flex-col max-h-[90vh] bg-slate-900 border-slate-700 text-white">
+        <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-white">
 
           {/* Paso 1: Formulario */}
           {!confirmingSubmit && (
@@ -1206,8 +1206,7 @@ function EntradasSalidasPage() {
                 <DialogTitle className="text-white">Registrar entrada o salida</DialogTitle>
                 <DialogDescription className="text-slate-400">Selecciona el tipo y completa los datos.</DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleFormSubmit} className="flex flex-col min-h-0 flex-1 gap-4">
-                <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+              <form onSubmit={handleFormSubmit} className="space-y-4">
                 {/* Type selector */}
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -1421,7 +1420,6 @@ function EntradasSalidasPage() {
                   <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="Observaciones" className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
                 </div>
 
-                </div>
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setModalOpen(false)} className="border-slate-600 text-slate-300 hover:bg-slate-800">Cancelar</Button>
                   <Button
@@ -1596,14 +1594,14 @@ function EntradasSalidasPage() {
           setAdvCustomerId(''); setAdvCustomerSearch(''); setAdvCustomerFreeText(''); setAdvCustomerPhone(''); setAdvRegisterCustomer(true)
         }
       }}>
-        <DialogContent className="max-w-md flex flex-col max-h-[90vh] bg-slate-900 border-slate-700 text-white">
+        <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-white">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <Wallet className="w-5 h-5 text-cyan-400" />
               Registrar Anticipo
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-2 overflow-y-auto flex-1 pr-1">
+          <div className="space-y-4 pt-2">
             {/* Método */}
             <div className="space-y-1.5">
               <Label className="text-slate-300">Método de entrega *</Label>
