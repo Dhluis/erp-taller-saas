@@ -37,11 +37,21 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   const silenceTimerRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Máximo absoluto de sesión para no dejar el mic abierto eternamente
   const maxSessionTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSafariRef           = useRef(false);
 
   useEffect(() => {
     onResultRef.current = onResult;
     onErrorRef.current  = onError;
   }, [onResult, onError]);
+
+  // Detectar Safari una sola vez al montar — necesario para pre-warm de getUserMedia
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      isSafariRef.current =
+        !!(window as any).webkitSpeechRecognition &&
+        !(window as any).SpeechRecognition;
+    }
+  }, []);
 
   const clearSilenceTimer = useCallback(() => {
     if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
@@ -158,7 +168,10 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       isStartingRef.current   = false;
       userStoppedRef.current  = false;
       setIsListening(false);
-      if (onErrorRef.current) onErrorRef.current(error);
+      // Safari lanza 'service-not-allowed' y 'audio-capture' como variantes de 'not-allowed'
+      const normalized =
+        (error === 'service-not-allowed' || error === 'audio-capture') ? 'not-allowed' : error;
+      if (onErrorRef.current) onErrorRef.current(normalized);
     };
 
     recognition.onend = () => {
@@ -214,10 +227,29 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const start = useCallback(() => {
+  const start = useCallback(async () => {
     if (isListeningRef.current || isStartingRef.current) {
       console.log('🎙️ Ya está activo o iniciando, ignorando');
       return;
+    }
+
+    // Safari PWA: pre-warm mic permission con getUserMedia antes de arrancar SR.
+    // En modo standalone (PWA), webkitSpeechRecognition falla con 'not-allowed'
+    // si el permiso no fue solicitado explícitamente primero en esta sesión.
+    if (isSafariRef.current && typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop()); // liberar inmediatamente, solo necesitábamos el permiso
+        console.log('🎙️ Safari: mic permission pre-warmed OK');
+      } catch (err: any) {
+        const errName = (err?.name ?? '') as string;
+        console.error('🎙️ Safari getUserMedia error:', errName);
+        if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+          if (onErrorRef.current) onErrorRef.current('not-allowed');
+          return;
+        }
+        // Otros errores (NotFoundError, etc.): continuar — SR reportará el error correctamente
+      }
     }
 
     destroyCurrent();

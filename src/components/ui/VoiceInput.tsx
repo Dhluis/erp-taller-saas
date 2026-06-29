@@ -47,9 +47,19 @@ export function VoiceInput({
     onError: (error) => {
       console.error('🎙️ Error de voz:', error);
       if (error === 'not-allowed') {
-        toast.error('Permiso de micrófono denegado. Permite el acceso en la configuración del navegador.');
+        const isIOS =
+          typeof navigator !== 'undefined' &&
+          /iphone|ipad|ipod/i.test(navigator.userAgent);
+        if (isIOS) {
+          toast.error(
+            'Sin acceso al micrófono. Ve a Ajustes > Eagles ERP (o Safari) > Micrófono y actívalo.',
+            { duration: 7000 }
+          );
+        } else {
+          toast.error('Permiso de micrófono denegado. Habilítalo en Configuración > Privacidad > Micrófono.');
+        }
       } else if (error === 'network') {
-        toast.error('Error de red al procesar voz');
+        toast.error('Error de red al procesar voz. Verifica tu conexión.');
       } else if (error !== 'aborted' && error !== 'no-speech') {
         toast.error(`Error de dictado: ${error}`);
       }
