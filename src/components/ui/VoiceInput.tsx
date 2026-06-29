@@ -76,24 +76,71 @@ export function VoiceInput({
 
   const isLocked = !billingLoading && !canUseAI;
 
-  const toggleListening = (e: React.MouseEvent) => {
+  const toggleListening = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
     if (billingLoading) return;
-
-    if (isLocked) {
-      showUpgrade(AI_VOICE_LIMIT_ERROR);
-      return;
-    }
+    if (isLocked) { showUpgrade(AI_VOICE_LIMIT_ERROR); return; }
 
     if (isListening) {
       console.log('🎙️ Deteniendo manualmente...');
       stop();
-    } else {
-      console.log('🎙️ Iniciando manualmente...');
-      start();
+      return;
     }
+
+    // iOS Safari: webkitSpeechRecognition.start() requiere un user gesture.
+    // Llamamos getUserMedia() primero (también requiere gesto); iOS 14.5+ propaga
+    // el contexto del gesto a través de la cadena de microtasks (.then / await),
+    // por lo que start() llamado después hereda ese contexto.
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const isIOS = /iphone|ipad|ipod/i.test(ua);
+    const hasSafariSR =
+      typeof window !== 'undefined' &&
+      !!(window as any).webkitSpeechRecognition &&
+      !(window as any).SpeechRecognition;
+
+    if (isIOS && hasSafariSR) {
+      if (navigator.mediaDevices?.getUserMedia) {
+        try {
+          console.log('🎙️ iOS Safari: solicitando permiso de mic...');
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach(t => t.stop()); // liberar — solo necesitamos el permiso
+          console.log('🎙️ iOS Safari: permiso OK → iniciando SR');
+          start(); // síncrono dentro de la cadena de microtasks del gesto original
+        } catch (err: any) {
+          const errName = (err?.name ?? '') as string;
+          console.error('🎙️ iOS getUserMedia error:', errName);
+          const isStandalone =
+            typeof window !== 'undefined' &&
+            (window.matchMedia('(display-mode: standalone)').matches ||
+             !!(window.navigator as any).standalone);
+          if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError' || errName === 'SecurityError') {
+            if (isStandalone) {
+              toast.error(
+                'Micrófono bloqueado. Ve a Ajustes del iPhone > Eagles ERP > activa "Micrófono", luego intenta de nuevo.',
+                { duration: 10000 }
+              );
+            } else {
+              toast.error(
+                'Toca "Permitir" cuando Safari solicite acceso al micrófono y vuelve a intentar.',
+                { duration: 6000 }
+              );
+            }
+          } else {
+            toast.error('No se pudo acceder al micrófono. Intenta de nuevo.');
+          }
+        }
+      } else {
+        // getUserMedia no disponible — intentar SR directamente
+        start();
+      }
+      return;
+    }
+
+    // Todos los demás navegadores: iniciar directamente dentro del gesto
+    console.log('🎙️ Iniciando manualmente...');
+    start();
   };
 
   return (

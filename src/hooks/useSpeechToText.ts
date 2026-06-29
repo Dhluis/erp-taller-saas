@@ -37,19 +37,20 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   const silenceTimerRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Máximo absoluto de sesión para no dejar el mic abierto eternamente
   const maxSessionTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isSafariRef           = useRef(false);
+  const isStandaloneRef       = useRef(false); // PWA standalone (home screen)
+  const isAutoRestartingRef   = useRef(false); // Safari auto-restart en curso
 
   useEffect(() => {
     onResultRef.current = onResult;
     onErrorRef.current  = onError;
   }, [onResult, onError]);
 
-  // Detectar Safari una sola vez al montar — necesario para pre-warm de getUserMedia
+  // Detectar modo standalone (PWA) una sola vez al montar
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      isSafariRef.current =
-        !!(window as any).webkitSpeechRecognition &&
-        !(window as any).SpeechRecognition;
+      isStandaloneRef.current =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        !!(window.navigator as any).standalone;
     }
   }, []);
 
@@ -168,6 +169,16 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       isStartingRef.current   = false;
       userStoppedRef.current  = false;
       setIsListening(false);
+
+      // Si el error ocurrió durante un auto-restart (no por acción del usuario)
+      // silenciar service-not-allowed para no mostrar toast espurio
+      const wasAutoRestarting = isAutoRestartingRef.current;
+      isAutoRestartingRef.current = false;
+      if (wasAutoRestarting && (error === 'service-not-allowed' || error === 'not-allowed')) {
+        console.log('🎙️ Auto-restart bloqueado por Safari — deteniendo silenciosamente');
+        return;
+      }
+
       // Safari lanza 'service-not-allowed' y 'audio-capture' como variantes de 'not-allowed'
       const normalized =
         (error === 'service-not-allowed' || error === 'audio-capture') ? 'not-allowed' : error;
@@ -181,17 +192,22 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       // Safari dispara onend espontáneamente aunque continuous=true.
       // Si el usuario NO paró manualmente y todavía NO recibimos resultado,
       // reiniciamos la misma instancia para seguir escuchando.
+      // EXCEPCIÓN: en modo standalone (PWA), no hay user gesture disponible
+      // para el restart, así que lo omitimos y dejamos que el usuario pulse de nuevo.
       if (
         isSafari &&
+        !isStandaloneRef.current &&
         !userStoppedRef.current &&
         isListeningRef.current &&
         !firedResultRef.current
       ) {
         console.log('🎙️ Safari: reiniciando reconocimiento...');
+        isAutoRestartingRef.current = true;
         try {
           recognition.start();
           return; // No cambiar estado — el mic sigue activo para el usuario
         } catch (e) {
+          isAutoRestartingRef.current = false;
           console.error('🎙️ Safari: error al reiniciar', e);
         }
       }
@@ -227,29 +243,10 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const start = useCallback(async () => {
+  const start = useCallback(() => {
     if (isListeningRef.current || isStartingRef.current) {
       console.log('🎙️ Ya está activo o iniciando, ignorando');
       return;
-    }
-
-    // Safari PWA: pre-warm mic permission con getUserMedia antes de arrancar SR.
-    // En modo standalone (PWA), webkitSpeechRecognition falla con 'not-allowed'
-    // si el permiso no fue solicitado explícitamente primero en esta sesión.
-    if (isSafariRef.current && typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(t => t.stop()); // liberar inmediatamente, solo necesitábamos el permiso
-        console.log('🎙️ Safari: mic permission pre-warmed OK');
-      } catch (err: any) {
-        const errName = (err?.name ?? '') as string;
-        console.error('🎙️ Safari getUserMedia error:', errName);
-        if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-          if (onErrorRef.current) onErrorRef.current('not-allowed');
-          return;
-        }
-        // Otros errores (NotFoundError, etc.): continuar — SR reportará el error correctamente
-      }
     }
 
     destroyCurrent();
