@@ -39,6 +39,7 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   const maxSessionTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isStandaloneRef       = useRef(false); // PWA standalone (home screen)
   const isAutoRestartingRef   = useRef(false); // Safari auto-restart en curso
+  const restartCountRef       = useRef(0);     // Reinicios consecutivos sin speech (Safari)
 
   useEffect(() => {
     onResultRef.current = onResult;
@@ -119,6 +120,7 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     };
 
     recognition.onresult = (event: any) => {
+      restartCountRef.current = 0; // El usuario habló — reiniciar contador de reinicios
       // Reiniciar timer de silencio SOLO después de que el usuario habla
       if (isSafari) {
         clearSilenceTimer();
@@ -190,18 +192,18 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
 
       // ── Safari auto-restart ──────────────────────────────────────────────
       // Safari dispara onend espontáneamente aunque continuous=true.
-      // Si el usuario NO paró manualmente y todavía NO recibimos resultado,
-      // reiniciamos la misma instancia para seguir escuchando.
-      // EXCEPCIÓN: en modo standalone (PWA), no hay user gesture disponible
-      // para el restart, así que lo omitimos y dejamos que el usuario pulse de nuevo.
+      // Con getUserMedia ya resuelto (permiso concedido), el restart desde onend
+      // funciona tanto en browser como en PWA standalone — no requiere nuevo gesto.
+      // Límite de 8 reinicios consecutivos sin speech para evitar loops infinitos.
       if (
         isSafari &&
-        !isStandaloneRef.current &&
         !userStoppedRef.current &&
         isListeningRef.current &&
-        !firedResultRef.current
+        !firedResultRef.current &&
+        restartCountRef.current < 8
       ) {
-        console.log('🎙️ Safari: reiniciando reconocimiento...');
+        restartCountRef.current++;
+        console.log('🎙️ Safari: reiniciando reconocimiento (intento', restartCountRef.current, ')...');
         isAutoRestartingRef.current = true;
         try {
           recognition.start();
@@ -249,6 +251,7 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       return;
     }
 
+    restartCountRef.current = 0; // Sesión nueva — reiniciar contador
     destroyCurrent();
     const recognition = buildFresh(lang, continuous, interimResults, silenceTimeoutMs);
     if (!recognition) return;
