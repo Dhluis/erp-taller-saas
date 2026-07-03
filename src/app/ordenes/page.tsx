@@ -11,7 +11,6 @@ import CreateWorkOrderModal from '@/components/ordenes/CreateWorkOrderModal';
 import { WorkOrderDetailsModal } from '@/components/work-orders/WorkOrderDetailsModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Pagination } from '@/components/ui/pagination';
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -80,6 +79,7 @@ function OrdenesPageContent() {
   const [companySettings, setCompanySettings] = useState<any>(null);
   const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
   const [aiData, setAiData] = useState<any>(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
   // ==========================================
   // ✅ DEBOUNCE DE BÚSQUEDA
@@ -101,6 +101,7 @@ function OrdenesPageContent() {
     refresh,
     deleteWorkOrder: deleteWorkOrderFromHook,
     fetchWorkOrderById,
+    updateWorkOrderStatus,
   } = useWorkOrders({
     page: 1,
     pageSize: 10,
@@ -297,6 +298,15 @@ function OrdenesPageContent() {
   const handleRefresh = () => {
     refresh();
     toast.success('Lista actualizada');
+  };
+
+  const handleStatusChange = async (orderId: string, newStatus: string) => {
+    setUpdatingStatusId(orderId);
+    try {
+      await updateWorkOrderStatus(orderId, newStatus);
+    } finally {
+      setUpdatingStatusId(null);
+    }
   };
 
   const exportToCSV = () => {
@@ -664,9 +674,36 @@ function OrdenesPageContent() {
                       <span className="text-xs font-mono text-slate-400">
                         {(order as any).order_number ? `#${(order as any).order_number}` : truncateId(order.id)}
                       </span>
-                      <Badge className={`${statusConf?.bgColor} ${statusConf?.color} border-0 text-xs`}>
-                        {statusConf?.label || order.status}
-                      </Badge>
+                      {updatingStatusId === order.id ? (
+                        <div className="flex items-center gap-1">
+                          <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
+                          <span className="text-xs text-slate-400">Guardando...</span>
+                        </div>
+                      ) : (
+                        <Select
+                          value={order.status}
+                          onValueChange={(newStatus) => handleStatusChange(order.id, newStatus)}
+                        >
+                          <SelectTrigger
+                            className={`h-auto py-0.5 px-2.5 text-xs font-medium rounded-full border-0 w-auto focus:ring-1 focus:ring-slate-500 focus:ring-offset-0 ${statusConf?.bgColor} ${statusConf?.color}`}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-900 border-slate-700 z-50">
+                            {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                              <SelectItem
+                                key={key}
+                                value={key}
+                                className="text-white hover:bg-slate-800 focus:bg-slate-800 cursor-pointer text-xs"
+                              >
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${config.bgColor} ${config.color}`}>
+                                  {config.label}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
 
                     <div>
@@ -832,11 +869,36 @@ function OrdenesPageContent() {
 
                         {/* Estado */}
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge
-                            className={`${STATUS_CONFIG[order.status]?.bgColor} ${STATUS_CONFIG[order.status]?.color} border-0`}
-                          >
-                            {STATUS_CONFIG[order.status]?.label || order.status}
-                          </Badge>
+                          {updatingStatusId === order.id ? (
+                            <div className="flex items-center gap-1.5">
+                              <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
+                              <span className="text-xs text-slate-400">Guardando...</span>
+                            </div>
+                          ) : (
+                            <Select
+                              value={order.status}
+                              onValueChange={(newStatus) => handleStatusChange(order.id, newStatus)}
+                            >
+                              <SelectTrigger
+                                className={`h-auto py-0.5 px-2.5 text-xs font-medium rounded-full border-0 w-auto focus:ring-1 focus:ring-slate-500 focus:ring-offset-0 ${STATUS_CONFIG[order.status]?.bgColor} ${STATUS_CONFIG[order.status]?.color}`}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-slate-900 border-slate-700 z-50">
+                                {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                                  <SelectItem
+                                    key={key}
+                                    value={key}
+                                    className="text-white hover:bg-slate-800 focus:bg-slate-800 cursor-pointer text-xs"
+                                  >
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${config.bgColor} ${config.color}`}>
+                                      {config.label}
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         </td>
 
                         {/* Fecha */}
