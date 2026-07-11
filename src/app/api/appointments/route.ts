@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
       appointment_date: appointmentDateTime,
       duration: estimated_duration || 60,
       notes: notes || null,
-      status: 'scheduled',
+      status: body.status || 'scheduled',
     };
     if (vehicleId) insertData.vehicle_id = vehicleId;
 

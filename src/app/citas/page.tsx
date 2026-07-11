@@ -408,21 +408,25 @@ function CitasContent() {
     }
   }
 
+  const STATUS_DISPLAY = {
+    scheduled: { label: 'Programada', badgeCls: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-700', iconColor: 'text-yellow-500' },
+    completed:  { label: 'Completada', badgeCls: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-700',   iconColor: 'text-green-500' },
+    cancelled:  { label: 'Cancelada',  badgeCls: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-700',             iconColor: 'text-red-500' },
+  } as const
+
   const getStatusBadge = (status: Appointment['status']) => {
-    const statusConfig = {
-      scheduled: { label: 'Programada', variant: 'info' as const, color: 'text-info' },
-      completed: { label: 'Completada', variant: 'success' as const, color: 'text-success' },
-      cancelled: { label: 'Cancelada', variant: 'error' as const, color: 'text-error' }
-    }
-    const config = statusConfig[status as 'scheduled' | 'completed' | 'cancelled'] || { label: status, variant: 'info', color: '' }
-    return <Badge variant={config.variant} className={config.color}>{config.label}</Badge>
+    const cfg = STATUS_DISPLAY[status as keyof typeof STATUS_DISPLAY] ?? { label: status, badgeCls: 'bg-gray-100 text-gray-700' }
+    return <Badge className={`${cfg.badgeCls} border font-medium text-xs`}>{cfg.label}</Badge>
   }
 
   const getStatusIcon = (status: Appointment['status']) => {
+    const cfg = STATUS_DISPLAY[status as keyof typeof STATUS_DISPLAY]
+    if (!cfg) return null
+    const color = cfg.iconColor
     switch (status) {
-      case 'scheduled': return <Clock className="h-4 w-4 text-blue-500" />
-      case 'completed': return <CheckCircle className="h-4 w-4 text-green-500" />
-      case 'cancelled': return <XCircle className="h-4 w-4 text-red-500" />
+      case 'scheduled': return <Clock className={`h-4 w-4 ${color}`} />
+      case 'completed': return <CheckCircle className={`h-4 w-4 ${color}`} />
+      case 'cancelled': return <XCircle className={`h-4 w-4 ${color}`} />
       default: return null
     }
   }
@@ -576,6 +580,7 @@ function CitasContent() {
         appointment_time: formData.appointment_time,
         notes: formData.notes || null,
         estimated_duration: formData.estimated_duration || 60,
+        status: formData.status || 'scheduled',
       }
 
       if (editingAppointment) {
@@ -893,6 +898,33 @@ function CitasContent() {
                 </div>
               </div>
               
+              {/* Estado de la cita */}
+              <div>
+                <Label className="mb-1.5 block">Estado de la cita</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: 'scheduled', label: 'Programada', Icon: Clock,        active: 'border-yellow-500 bg-yellow-500/15 text-yellow-600 dark:text-yellow-400', hover: 'hover:border-yellow-500/50' },
+                    { value: 'completed', label: 'Completada', Icon: CheckCircle,  active: 'border-green-500 bg-green-500/15 text-green-600 dark:text-green-400',    hover: 'hover:border-green-500/50' },
+                    { value: 'cancelled', label: 'Cancelada',  Icon: XCircle,      active: 'border-red-500 bg-red-500/15 text-red-600 dark:text-red-400',             hover: 'hover:border-red-500/50' },
+                  ] as const).map(({ value, label, Icon, active, hover }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, status: value }))}
+                      className={cn(
+                        'flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg border-2 text-sm font-medium transition-all',
+                        formData.status === value
+                          ? active
+                          : `border-border text-muted-foreground ${hover}`
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="relative">
                 <Label htmlFor="notes">Notas</Label>
                 <div className="relative">
@@ -967,7 +999,7 @@ function CitasContent() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-card p-4 rounded-lg border">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-blue-500" />
@@ -975,21 +1007,29 @@ function CitasContent() {
           </div>
           <p className="text-2xl font-bold mt-2">{stats.today}</p>
         </div>
-        
-        <div className="bg-card p-4 rounded-lg border">
+
+        <div className="bg-card p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/5">
           <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-orange-500" />
-            <span className="text-sm font-medium">Programadas</span>
+            <Clock className="h-5 w-5 text-yellow-500" />
+            <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">Programadas</span>
           </div>
-          <p className="text-2xl font-bold mt-2">{stats.scheduled}</p>
+          <p className="text-2xl font-bold mt-2 text-yellow-600 dark:text-yellow-400">{stats.scheduled}</p>
         </div>
-        
-        <div className="bg-card p-4 rounded-lg border">
+
+        <div className="bg-card p-4 rounded-lg border border-green-500/30 bg-green-500/5">
           <div className="flex items-center gap-2">
             <CheckCircle className="h-5 w-5 text-green-500" />
-            <span className="text-sm font-medium">Completadas</span>
+            <span className="text-sm font-medium text-green-600 dark:text-green-400">Completadas</span>
           </div>
-          <p className="text-2xl font-bold mt-2">{stats.completed}</p>
+          <p className="text-2xl font-bold mt-2 text-green-600 dark:text-green-400">{stats.completed}</p>
+        </div>
+
+        <div className="bg-card p-4 rounded-lg border border-red-500/30 bg-red-500/5">
+          <div className="flex items-center gap-2">
+            <XCircle className="h-5 w-5 text-red-500" />
+            <span className="text-sm font-medium text-red-600 dark:text-red-400">Canceladas</span>
+          </div>
+          <p className="text-2xl font-bold mt-2 text-red-600 dark:text-red-400">{stats.cancelled}</p>
         </div>
       </div>
 
@@ -1238,18 +1278,26 @@ function CitasContent() {
                     {day}
                   </div>
                   <div className="space-y-1">
-                    {dayAppointments.slice(0, 3).map((apt) => (
+                    {dayAppointments.slice(0, 3).map((apt) => {
+                      const calColor = apt.status === 'cancelled'
+                        ? 'bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/30'
+                        : apt.status === 'completed'
+                          ? 'bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/30'
+                          : 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/30'
+                      const dotColor = apt.status === 'cancelled' ? 'bg-red-500' : apt.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'
+                      return (
                       <div
                         key={apt.id}
-                        className="text-xs p-1 rounded bg-green-500/20 text-green-700 dark:text-green-400 flex items-center gap-1 cursor-pointer hover:bg-green-500/30"
+                        className={`text-xs p-1 rounded flex items-center gap-1 cursor-pointer ${calColor}`}
                         onClick={() => handleEdit(apt)}
                       >
-                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                        <div className={`w-2 h-2 rounded-full ${dotColor}`} />
                         <span className="truncate">
                           {apt.appointment_time} {apt.service_type}
                         </span>
                       </div>
-                    ))}
+                      )
+                    })}
                     {dayAppointments.length > 3 && (
                       <div className="text-xs text-muted-foreground">
                         +{dayAppointments.length - 3} más
