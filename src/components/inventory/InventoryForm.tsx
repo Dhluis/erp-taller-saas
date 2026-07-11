@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Package, Mic } from 'lucide-react';
+import { X, Package, AlertCircle } from 'lucide-react';
 import { InventoryItem, InventoryCategory } from '@/hooks/useInventory';
 import { VoiceInput } from '@/components/ui/VoiceInput';
 
@@ -76,6 +76,14 @@ export default function InventoryForm({
     }
 
     setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      const firstKey = Object.keys(newErrors)[0];
+      setTimeout(() => {
+        const el = document.querySelector(`[name="${firstKey}"]`) as HTMLElement | null;
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el?.focus();
+      }, 80);
+    }
     return Object.keys(newErrors).length === 0;
   };
 
@@ -121,6 +129,7 @@ export default function InventoryForm({
               </h2>
               <p className="text-gray-400 text-sm">
                 {item ? 'Actualiza la información del item' : 'Agrega un nuevo item al inventario'}
+                <span className="ml-2 text-xs"><span className="text-red-400">*</span> Campos obligatorios</span>
               </p>
             </div>
           </div>
@@ -134,10 +143,25 @@ export default function InventoryForm({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Banner campos obligatorios */}
+          {Object.keys(errors).length > 0 && (
+            <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-red-400 text-sm font-medium">Completa los campos obligatorios</p>
+                <p className="text-red-400/70 text-xs mt-0.5">
+                  {Object.keys(errors).map(k => ({
+                    name: 'Nombre', sku: 'SKU', category_id: 'Categoría',
+                    quantity: 'Cantidad', minimum_stock: 'Stock mínimo', unit_price: 'Precio de venta'
+                  }[k] || k)).join(' · ')}
+                </p>
+              </div>
+            </div>
+          )}
           {/* Name */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Nombre del Producto *
+              Nombre del Producto <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <input
@@ -189,7 +213,7 @@ export default function InventoryForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                SKU *
+                SKU <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -208,7 +232,7 @@ export default function InventoryForm({
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Categoría *
+                Categoría <span className="text-red-500">*</span>
               </label>
               <select
                 name="category_id"
@@ -297,7 +321,7 @@ export default function InventoryForm({
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
-                Precio de Venta *
+                Precio de Venta <span className="text-red-500">*</span>
               </label>
               <p className="text-xs text-gray-500 mb-2">Lo que cobras al cliente</p>
               <input
@@ -345,7 +369,7 @@ export default function InventoryForm({
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !formData.name.trim() || !formData.sku.trim() || !formData.category_id}
               className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {loading ? (

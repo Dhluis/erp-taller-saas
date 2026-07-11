@@ -22,7 +22,8 @@ import {
   DollarSign,
   Phone,
   Mail,
-  Loader2
+  Loader2,
+  AlertCircle
 } from "lucide-react"
 import { getSupplierStats } from "@/lib/supabase/suppliers"
 import { useSuppliers } from '@/hooks/useSuppliers'
@@ -76,7 +77,8 @@ export default function ProveedoresPage() {
   })
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+
   // Form data
   const [formData, setFormData] = useState({
     name: '',
@@ -86,6 +88,29 @@ export default function ProveedoresPage() {
     address: '',
     is_active: true
   })
+
+  const validateSupplierForm = (): boolean => {
+    const errors: Record<string, string> = {}
+    if (!formData.name.trim()) errors.name = 'El nombre de la empresa es requerido'
+    if (!formData.contact_person.trim()) errors.contact_person = 'La persona de contacto es requerida'
+    if (!formData.phone.trim()) errors.phone = 'El teléfono es requerido'
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = 'El formato de email no es válido'
+    }
+    setFormErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      const firstKey = Object.keys(errors)[0]
+      setTimeout(() => {
+        document.getElementById(firstKey)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        document.getElementById(firstKey)?.focus()
+      }, 80)
+    }
+    return Object.keys(errors).length === 0
+  }
+
+  const clearFieldError = (field: string) => {
+    setFormErrors(prev => { const n = { ...prev }; delete n[field]; return n })
+  }
 
   // ✅ Cargar stats en un useEffect separado (no paginado)
   useEffect(() => {
@@ -107,11 +132,13 @@ export default function ProveedoresPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validateSupplierForm()) return
     setIsSubmitting(true)
-    
+
     try {
       await createSupplier(formData)
       setIsDialogOpen(false)
+      setFormErrors({})
       // Resetear formulario
       setFormData({
         name: '',
@@ -174,7 +201,7 @@ export default function ProveedoresPage() {
         title="Gestión de Proveedores"
         description="Administra los proveedores y sus productos"
         actions={
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) setFormErrors({}) }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" /> Agregar Nuevo Proveedor
@@ -183,57 +210,78 @@ export default function ProveedoresPage() {
             <DialogContent className="sm:max-w-[425px] border border-border shadow-lg" style={{backgroundColor: '#000000'}}>
               <DialogHeader>
                 <DialogTitle>Agregar Nuevo Proveedor</DialogTitle>
-                <DialogDescription>
-                  Completa la información del proveedor. Los campos marcados con * son obligatorios.
+                <DialogDescription className="flex items-center justify-between">
+                  <span>Completa la información del proveedor.</span>
+                  <span className="text-xs"><span className="text-red-500">*</span> Campos obligatorios</span>
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nombre de la Empresa *</Label>
+                {/* Banner errores */}
+                {Object.keys(formErrors).length > 0 && (
+                  <div className="flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-sm text-red-400">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <div>
+                      <p className="font-medium">Completa los campos obligatorios</p>
+                      <p className="text-xs text-red-400/80 mt-0.5">
+                        {Object.keys(formErrors).map(k => ({
+                          name: 'Empresa', contact_person: 'Contacto', phone: 'Teléfono', email: 'Email'
+                        }[k] || k)).join(' · ')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <Label htmlFor="name">Nombre de la Empresa <span className="text-red-500">*</span></Label>
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, name: e.target.value}); clearFieldError('name') }}
                     placeholder="Nombre de la empresa"
-                    required
+                    className={formErrors.name ? 'border-red-500' : ''}
                   />
+                  {formErrors.name && <p className="text-red-500 text-xs">{formErrors.name}</p>}
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="contact_person">Persona de Contacto *</Label>
+
+                <div className="space-y-1">
+                  <Label htmlFor="contact_person">Persona de Contacto <span className="text-red-500">*</span></Label>
                   <Input
                     id="contact_person"
                     value={formData.contact_person}
-                    onChange={(e) => setFormData({...formData, contact_person: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, contact_person: e.target.value}); clearFieldError('contact_person') }}
                     placeholder="Nombre del contacto"
-                    required
+                    className={formErrors.contact_person ? 'border-red-500' : ''}
                   />
+                  {formErrors.contact_person && <p className="text-red-500 text-xs">{formErrors.contact_person}</p>}
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Teléfono *</Label>
+                  <div className="space-y-1">
+                    <Label htmlFor="phone">Teléfono <span className="text-red-500">*</span></Label>
                     <Input
                       id="phone"
                       value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                      onChange={(e) => { setFormData({...formData, phone: e.target.value}); clearFieldError('phone') }}
                       placeholder="Número de teléfono"
-                      required
+                      className={formErrors.phone ? 'border-red-500' : ''}
                     />
+                    {formErrors.phone && <p className="text-red-500 text-xs">{formErrors.phone}</p>}
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      onChange={(e) => { setFormData({...formData, email: e.target.value}); clearFieldError('email') }}
                       placeholder="correo@empresa.com"
+                      className={formErrors.email ? 'border-red-500' : ''}
                     />
+                    {formErrors.email && <p className="text-red-500 text-xs">{formErrors.email}</p>}
                   </div>
                 </div>
-                
-                <div className="space-y-2">
+
+                <div className="space-y-1">
                   <Label htmlFor="address">Dirección</Label>
                   <Textarea
                     id="address"
@@ -243,14 +291,17 @@ export default function ProveedoresPage() {
                     rows={3}
                   />
                 </div>
-                
+
                 <DialogFooter>
-                  <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>
+                  <Button type="button" variant="secondary" onClick={() => { setIsDialogOpen(false); setFormErrors({}) }}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={isSubmitting}>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || !formData.name.trim() || !formData.contact_person.trim() || !formData.phone.trim()}
+                  >
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {isSubmitting ? 'Guardando...' : 'Guardar'}
+                    {isSubmitting ? 'Guardando...' : 'Guardar Proveedor'}
                   </Button>
                 </DialogFooter>
               </form>

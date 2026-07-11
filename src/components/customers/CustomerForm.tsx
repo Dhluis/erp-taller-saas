@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import type { Customer } from '@/lib/database/queries/customers';
 import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers';
 
@@ -67,6 +67,13 @@ export function CustomerForm({ customer, onSubmit, onCancel, isOpen }: CustomerF
     }
 
     setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      const firstKey = Object.keys(newErrors)[0];
+      setTimeout(() => {
+        document.getElementById(firstKey)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById(firstKey)?.focus();
+      }, 80);
+    }
     return Object.keys(newErrors).length === 0;
   };
 
@@ -124,10 +131,13 @@ export function CustomerForm({ customer, onSubmit, onCancel, isOpen }: CustomerF
                 {customer ? 'Editar Cliente' : 'Nuevo Cliente'}
               </h2>
               <p className="text-sm text-text-secondary mt-1">
-                {customer 
-                  ? 'Actualiza la información del cliente' 
+                {customer
+                  ? 'Actualiza la información del cliente'
                   : 'Completa los datos del nuevo cliente'
                 }
+                <span className="ml-2 text-xs text-text-muted">
+                  <span className="text-error">*</span> Campos obligatorios
+                </span>
               </p>
             </div>
             <button
@@ -140,9 +150,23 @@ export function CustomerForm({ customer, onSubmit, onCancel, isOpen }: CustomerF
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {/* Error general */}
+            {/* Banner campos obligatorios */}
+            {Object.keys(errors).some(k => k !== 'submit') && (
+              <div className="flex items-start gap-2 p-3 bg-error/10 border border-error/30 rounded-lg">
+                <ExclamationCircleIcon className="w-4 h-4 text-error mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-error text-sm font-medium">Completa los campos obligatorios</p>
+                  <p className="text-error/70 text-xs mt-0.5">
+                    {Object.keys(errors).filter(k => k !== 'submit').map(k => ({
+                      name: 'Nombre', email: 'Email', phone: 'Teléfono'
+                    }[k] || k)).join(' · ')}
+                  </p>
+                </div>
+              </div>
+            )}
+            {/* Error del servidor */}
             {errors.submit && (
-              <div className="p-4 bg-error/10 border border-error/30 rounded-lg">
+              <div className="p-3 bg-error/10 border border-error/30 rounded-lg">
                 <p className="text-error text-sm">{errors.submit}</p>
               </div>
             )}
@@ -158,6 +182,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isOpen }: CustomerF
                     Nombre Completo <span className="text-error">*</span>
                   </label>
                   <input
+                    id="name"
                     type="text"
                     value={formData.name}
                     onChange={(e) => handleChange('name', e.target.value)}
@@ -188,6 +213,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isOpen }: CustomerF
                     Email <span className="text-error">*</span>
                   </label>
                   <input
+                    id="email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleChange('email', e.target.value)}
@@ -210,6 +236,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isOpen }: CustomerF
                     Teléfono <span className="text-error">*</span>
                   </label>
                   <input
+                    id="phone"
                     type="tel"
                     inputMode="numeric"
                     value={formData.phone}
@@ -283,7 +310,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isOpen }: CustomerF
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !formData.name.trim() || !formData.email.trim() || !formData.phone.trim()}
                 className="px-6 py-2.5 bg-primary hover:bg-primary-light
                          rounded-lg text-bg-primary font-medium
                          transition-colors disabled:opacity-50 disabled:cursor-not-allowed

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import type { Vehicle, CreateVehicleData } from '@/lib/database/queries/vehicles';
 import { useCustomers } from '@/hooks/useCustomers';
 import { sanitize, INPUT_LIMITS } from '@/lib/utils/input-sanitizers';
@@ -84,6 +84,13 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
     }
 
     setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      const firstKey = Object.keys(newErrors)[0];
+      setTimeout(() => {
+        document.getElementById(firstKey)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById(firstKey)?.focus();
+      }, 80);
+    }
     return Object.keys(newErrors).length === 0;
   };
 
@@ -150,6 +157,9 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
                   ? 'Actualiza la información del vehículo'
                   : 'Completa los datos del nuevo vehículo'
                 }
+                <span className="ml-2 text-xs text-text-muted">
+                  <span className="text-error">*</span> Campos obligatorios
+                </span>
               </p>
             </div>
             <button
@@ -162,9 +172,23 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {/* Error general */}
+            {/* Banner campos obligatorios */}
+            {Object.keys(errors).some(k => k !== 'submit') && (
+              <div className="flex items-start gap-2 p-3 bg-error/10 border border-error/30 rounded-lg">
+                <ExclamationCircleIcon className="w-4 h-4 text-error mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-error text-sm font-medium">Completa los campos obligatorios</p>
+                  <p className="text-error/70 text-xs mt-0.5">
+                    {Object.keys(errors).filter(k => k !== 'submit').map(k => ({
+                      customer_id: 'Cliente', brand: 'Marca', model: 'Modelo',
+                      year: 'Año', vin: 'VIN'
+                    }[k] || k)).join(' · ')}
+                  </p>
+                </div>
+              </div>
+            )}
             {errors.submit && (
-              <div className="p-4 bg-error/10 border border-error/30 rounded-lg">
+              <div className="p-3 bg-error/10 border border-error/30 rounded-lg">
                 <p className="text-error text-sm">{errors.submit}</p>
               </div>
             )}
@@ -180,6 +204,7 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
                     Cliente <span className="text-error">*</span>
                   </label>
                   <select
+                    id="customer_id"
                     value={formData.customer_id}
                     onChange={(e) => handleChange('customer_id', e.target.value)}
                     disabled={customersLoading}
@@ -243,6 +268,7 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
                     Marca <span className="text-error">*</span>
                   </label>
                   <input
+                    id="brand"
                     type="text"
                     value={formData.brand}
                     onChange={(e) => handleChange('brand', e.target.value)}
@@ -265,6 +291,7 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
                     Modelo <span className="text-error">*</span>
                   </label>
                   <input
+                    id="model"
                     type="text"
                     value={formData.model}
                     onChange={(e) => handleChange('model', e.target.value)}
@@ -373,7 +400,7 @@ export function VehicleForm({ vehicle, onSubmit, onCancel, isOpen }: VehicleForm
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !formData.customer_id || !formData.brand.trim() || !formData.model.trim()}
                 className="px-6 py-2.5 bg-primary hover:bg-primary-light
                          rounded-lg text-bg-primary font-medium
                          transition-colors disabled:opacity-50 disabled:cursor-not-allowed
