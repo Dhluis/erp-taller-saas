@@ -537,7 +537,23 @@ function CitasContent() {
 
     setFormErrors(errors)
     if (Object.keys(errors).length > 0) {
-      toast.error('Revisa los campos marcados en rojo')
+      const fieldLabels: Record<string, string> = {
+        customer_name: 'Nombre del cliente',
+        customer_phone: 'Teléfono',
+        customer_email: 'Email',
+        service_type: 'Tipo de servicio',
+        appointment_date: 'Fecha',
+        appointment_time: 'Hora',
+        vehicle_year: 'Año del vehículo',
+      }
+      const missing = Object.keys(errors).map(k => fieldLabels[k] || k).join(', ')
+      toast.error('Campos obligatorios incompletos', { description: missing })
+      // Scroll al primer campo con error
+      const firstKey = Object.keys(errors)[0]
+      setTimeout(() => {
+        document.getElementById(firstKey)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        document.getElementById(firstKey)?.focus()
+      }, 80)
     }
     return Object.keys(errors).length === 0
   }
@@ -719,13 +735,38 @@ function CitasContent() {
               <DialogTitle>
                 {editingAppointment ? 'Editar Cita' : 'Nueva Cita'}
               </DialogTitle>
-              <DialogDescription>
-                {editingAppointment 
-                  ? 'Modifica la información de la cita' 
-                  : 'Programa una nueva cita para un cliente'
-                }
+              <DialogDescription className="flex items-center justify-between gap-2">
+                <span>
+                  {editingAppointment
+                    ? 'Modifica la información de la cita'
+                    : 'Programa una nueva cita para un cliente'}
+                </span>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  <span className="text-red-500">*</span> Campos obligatorios
+                </span>
               </DialogDescription>
             </DialogHeader>
+
+            {/* Banner de errores de validación */}
+            {Object.keys(formErrors).length > 0 && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-sm text-red-400">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <p className="font-medium">Completa los campos obligatorios</p>
+                  <p className="text-xs text-red-400/80 mt-0.5">
+                    {Object.keys(formErrors).map(k => ({
+                      customer_name: 'Nombre del cliente',
+                      customer_phone: 'Teléfono',
+                      customer_email: 'Email',
+                      service_type: 'Tipo de servicio',
+                      appointment_date: 'Fecha',
+                      appointment_time: 'Hora',
+                      vehicle_year: 'Año del vehículo',
+                    }[k] || k)).join(' · ')}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Asistente de Voz AI */}
             {!editingAppointment && (
@@ -761,7 +802,7 @@ function CitasContent() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="customer_name">Nombre del Cliente *</Label>
+                  <Label htmlFor="customer_name">Nombre del Cliente <span className="text-red-500">*</span></Label>
                   <Input 
                     id="customer_name" 
                     value={formData.customer_name}
@@ -772,7 +813,7 @@ function CitasContent() {
                   {formErrors.customer_name && <p className="text-red-500 text-xs mt-1">{formErrors.customer_name}</p>}
                 </div>
                 <div>
-                  <Label htmlFor="customer_phone">Teléfono *</Label>
+                  <Label htmlFor="customer_phone">Teléfono <span className="text-red-500">*</span></Label>
                   <Input 
                     id="customer_phone" 
                     type="tel"
@@ -847,7 +888,7 @@ function CitasContent() {
               </div>
               
               <div>
-                <Label htmlFor="service_type">Tipo de Servicio *</Label>
+                <Label htmlFor="service_type">Tipo de Servicio <span className="text-red-500">*</span></Label>
                 <Input 
                   id="service_type" 
                   value={formData.service_type}
@@ -860,7 +901,7 @@ function CitasContent() {
               
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="appointment_date">Fecha *</Label>
+                  <Label htmlFor="appointment_date">Fecha <span className="text-red-500">*</span></Label>
                   <Input 
                     id="appointment_date" 
                     type="date"
@@ -871,7 +912,7 @@ function CitasContent() {
                   {formErrors.appointment_date && <p className="text-red-500 text-xs mt-1">{formErrors.appointment_date}</p>}
                 </div>
                 <div>
-                  <Label htmlFor="appointment_time">Hora *</Label>
+                  <Label htmlFor="appointment_time">Hora <span className="text-red-500">*</span></Label>
                   <Input 
                     id="appointment_time" 
                     type="time"
@@ -950,9 +991,19 @@ function CitasContent() {
               <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
                 Cancelar
               </Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting || !formData.customer_name.trim() || !formData.customer_phone.trim() || !formData.service_type.trim()}>
+              <Button
+                onClick={handleSubmit}
+                disabled={
+                  isSubmitting ||
+                  !formData.customer_name.trim() ||
+                  !formData.customer_phone.trim() ||
+                  !formData.service_type.trim() ||
+                  !formData.appointment_date ||
+                  !formData.appointment_time
+                }
+              >
                 {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {editingAppointment ? 'Actualizar' : 'Crear'}
+                {editingAppointment ? 'Actualizar' : 'Crear cita'}
               </Button>
             </DialogFooter>
           </DialogContent>
