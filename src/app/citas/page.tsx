@@ -204,6 +204,7 @@ function CitasContent() {
   const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false)
   const [selectedAppointmentForOrder, setSelectedAppointmentForOrder] = useState<Appointment | null>(null)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set())
   const [stats, setStats] = useState<AppointmentStats>({
     total: 0,
     scheduled: 0,
@@ -264,24 +265,37 @@ function CitasContent() {
     }
   }, [organizationId, orgLoading])
 
+  // Extrae "YYYY-MM-DD" del campo appointment_date sin conversión de zona horaria.
+  // Maneja formatos: "2025-01-15", "2025-01-15T09:00:00", "2025-01-15T09:00:00+00:00",
+  // "2025-01-15 09:00:00+00" (Postgres timestamptz sin 'T').
+  const apptDateStr = (raw: string | undefined | null): string =>
+    (raw || '').split('T')[0].split(' ')[0]
+
+  // Fecha local de hoy como "YYYY-MM-DD" (sin UTC)
+  const todayLocalStr = (): string => {
+    const t = new Date()
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+  }
+
+  // Formatea una celda de calendario como "YYYY-MM-DD" (ya es local, de new Date(year,month,day))
+  const calDateStr = (d: Date): string =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
   // Filtrar citas cuando cambie el término de búsqueda o la pestaña
   useEffect(() => {
     let result = appointments
 
-    // 1. Filtrar por pestaña
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    // 1. Filtrar por pestaña — comparar strings de fecha, no objetos Date (evita shift de timezone)
+    const today = todayLocalStr()
 
     if (filterTab === 'upcoming') {
       result = appointments.filter(apt => {
-        const aptDate = new Date(apt.appointment_date)
         const isActive = apt.status === 'scheduled' || apt.status === 'in_progress'
-        return aptDate >= today && isActive
+        return apptDateStr(apt.appointment_date) >= today && isActive
       })
     } else if (filterTab === 'history') {
       result = appointments.filter(apt => {
-        const aptDate = new Date(apt.appointment_date)
-        const isPast = aptDate < today
+        const isPast = apptDateStr(apt.appointment_date) < today
         const isFinished = apt.status === 'completed' || apt.status === 'cancelled'
         return isPast || isFinished
       })
@@ -376,7 +390,13 @@ function CitasContent() {
         throw new Error(result.error || 'Error al cargar citas')
       }
 
-      const appointmentsData = result.data || []
+      // Deduplicar por id (el canal realtime puede entregarlos duplicados)
+      const seen = new Set<string>()
+      const appointmentsData = (result.data || []).filter((a: Appointment) => {
+        if (seen.has(a.id)) return false
+        seen.add(a.id)
+        return true
+      })
       
       // ✅ Usar API route para estadísticas en lugar de query directa
       const statsResponse = await fetch('/api/appointments/stats', {
@@ -1162,7 +1182,10 @@ function CitasContent() {
                 <TableCell>
                   <div>
                     <div className="font-medium">
-                      {new Date(appointment.appointment_date).toLocaleDateString('es-MX')}
+                      {(() => {
+                        const [y, m, d] = apptDateStr(appointment.appointment_date).split('-')
+                        return d && m && y ? `${d}/${m}/${y}` : apptDateStr(appointment.appointment_date)
+                      })()}
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {appointment.appointment_time}
@@ -1312,11 +1335,12 @@ function CitasContent() {
             
             {/* Celdas del calendario */}
             {getCalendarDays().map(({ day, isCurrentMonth, date }, index) => {
-              const dayAppointments = appointments.filter(apt => {
-                const aptDate = new Date(apt.appointment_date)
-                return aptDate.toDateString() === date.toDateString()
-              })
-              const isToday = date.toDateString() === new Date().toDateString()
+              const thisDayStr = calDateStr(date)
+              const dayAppointments = appointments.filter(apt =>
+                apptDateStr(apt.appointment_date) === thisDayStr
+              )
+              const isToday = thisDayStr === todayLocalStr()
+              const isExpanded = expandedDays.has(index)
               
               return (
                 <div
@@ -1329,7 +1353,7 @@ function CitasContent() {
                     {day}
                   </div>
                   <div className="space-y-1">
-                    {dayAppointments.slice(0, 3).map((apt) => {
+                    {(isExpanded ? dayAppointments : dayAppointments.slice(0, 3)).map((apt) => {
                       const calColor = apt.status === 'cancelled'
                         ? 'bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/30'
                         : apt.status === 'completed'
@@ -1350,9 +1374,23 @@ function CitasContent() {
                       )
                     })}
                     {dayAppointments.length > 3 && (
-                      <div className="text-xs text-muted-foreground">
-                        +{dayAppointments.length - 3} más
-                      </div>
+                      <button
+                        type="button"
+                        className="text-xs text-blue-500 hover:text-blue-400 font-medium mt-0.5 text-left w-full"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setExpandedDays(prev => {
+                            const next = new Set(prev)
+                            if (next.has(index)) next.delete(index)
+                            else next.add(index)
+                            return next
+                          })
+                        }}
+                      >
+                        {isExpanded
+                          ? '▲ Ver menos'
+                          : `+${dayAppointments.length - 3} más`}
+                      </button>
                     )}
                   </div>
                 </div>
