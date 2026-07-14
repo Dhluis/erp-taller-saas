@@ -202,14 +202,19 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── 3. Normalizar fecha/hora y crear cita ────────────────────────────────
-    let dateOnly = appointment_date || '';
-    if (dateOnly.includes('T')) dateOnly = dateOnly.split('T')[0];
-
-    let timeStr = appointment_time || '09:00';
-    if (!timeStr.includes(':')) timeStr = `${timeStr}:00`;
-    if (timeStr.split(':').length === 2) timeStr = `${timeStr}:00`;
-
-    const appointmentDateTime = `${dateOnly}T${timeStr}`;
+    // El frontend envía un UTC ISO ("2025-01-15T15:00:00.000Z") → almacenar directo.
+    // Fallback legacy: construir naive string si llega sólo la fecha.
+    const dateRaw = appointment_date || '';
+    let appointmentDateTime: string;
+    if (dateRaw.includes('T') && (dateRaw.endsWith('Z') || /[+-]\d{2}:\d{2}/.test(dateRaw))) {
+      appointmentDateTime = dateRaw;
+    } else {
+      let dateOnly = dateRaw.split('T')[0].split(' ')[0] || '';
+      let timeStr = appointment_time || '09:00';
+      if (!timeStr.includes(':')) timeStr = `${timeStr}:00`;
+      if (timeStr.split(':').length === 2) timeStr = `${timeStr}:00`;
+      appointmentDateTime = `${dateOnly}T${timeStr}`;
+    }
 
     const insertData: Record<string, any> = {
       customer_id: customerId,

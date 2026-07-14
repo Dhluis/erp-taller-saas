@@ -163,14 +163,17 @@ export async function PUT(
     if (service_type !== undefined) updateData.service_type = service_type;
     
     if (appointment_date !== undefined || appointment_time !== undefined) {
-      // If we are updating date/time, we need a base date or keep existing
-      let dateBase = appointment_date || (existing as any).appointment_date?.split('T')[0] || '';
-      let timeBase = appointment_time || (existing as any).appointment_date?.split('T')[1]?.substring(0, 8) || '09:00:00';
-      
-      if (!timeBase.includes(':')) timeBase = `${timeBase}:00:00`;
-      else if (timeBase.split(':').length === 2) timeBase = `${timeBase}:00`;
-      
-      updateData.appointment_date = `${dateBase}T${timeBase}`;
+      const dateRaw = appointment_date || '';
+      // Frontend envía UTC ISO ("2025-01-15T15:00:00.000Z") → almacenar directo.
+      if (dateRaw.includes('T') && (dateRaw.endsWith('Z') || /[+-]\d{2}:\d{2}/.test(dateRaw))) {
+        updateData.appointment_date = dateRaw;
+      } else {
+        let dateBase = dateRaw.split('T')[0] || (existing as any).appointment_date?.split('T')[0] || '';
+        let timeBase = appointment_time || (existing as any).appointment_date?.split('T')[1]?.substring(0, 8) || '09:00:00';
+        if (!timeBase.includes(':')) timeBase = `${timeBase}:00:00`;
+        else if (timeBase.split(':').length === 2) timeBase = `${timeBase}:00`;
+        updateData.appointment_date = `${dateBase}T${timeBase}`;
+      }
     }
     
     if (estimated_duration !== undefined) updateData.duration = estimated_duration;

@@ -265,21 +265,51 @@ function CitasContent() {
     }
   }, [organizationId, orgLoading])
 
-  // Extrae "YYYY-MM-DD" del campo appointment_date sin conversión de zona horaria.
-  // Maneja formatos: "2025-01-15", "2025-01-15T09:00:00", "2025-01-15T09:00:00+00:00",
-  // "2025-01-15 09:00:00+00" (Postgres timestamptz sin 'T').
-  const apptDateStr = (raw: string | undefined | null): string =>
-    (raw || '').split('T')[0].split(' ')[0]
-
-  // Fecha local de hoy como "YYYY-MM-DD" (sin UTC)
-  const todayLocalStr = (): string => {
-    const t = new Date()
-    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+  // ── Helpers de timezone ─────────────────────────────────────────────────────
+  // Convierte fecha+hora LOCAL del form a UTC ISO (el browser hace la conversión).
+  // "2025-01-15T09:00:00" sin Z → Chrome lo trata como hora LOCAL → .toISOString() = UTC.
+  const localToUTC = (dateStr: string, timeStr: string): string => {
+    if (!dateStr || !timeStr) return ''
+    const d = new Date(`${dateStr}T${timeStr}:00`)
+    return isNaN(d.getTime()) ? `${dateStr}T${timeStr}:00` : d.toISOString()
   }
 
-  // Formatea una celda de calendario como "YYYY-MM-DD" (ya es local, de new Date(year,month,day))
+  // Extrae "YYYY-MM-DD" LOCAL a partir de un UTC ISO string almacenado.
+  // Usa getFullYear/getMonth/getDate que son métodos de hora LOCAL del browser,
+  // por lo que funcionan correctamente en cualquier timezone (México, NY, Argentina, etc.).
+  const utcToLocalDateStr = (utcStr: string | undefined | null): string => {
+    if (!utcStr) return ''
+    const d = new Date(utcStr)
+    if (isNaN(d.getTime())) return (utcStr).split('T')[0].split(' ')[0]  // fallback legacy
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
+  // Extrae "HH:mm" LOCAL a partir de un UTC ISO string.
+  const utcToLocalTimeStr = (utcStr: string | undefined | null): string => {
+    if (!utcStr) return ''
+    const d = new Date(utcStr)
+    if (isNaN(d.getTime())) return ''
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  }
+
+  // Formatea fecha para display (e.g. "15/01/2025") usando la hora local del browser.
+  const formatDisplayDate = (utcStr: string | undefined | null): string => {
+    if (!utcStr) return ''
+    const d = new Date(utcStr)
+    if (isNaN(d.getTime())) {
+      const parts = (utcStr).split('T')[0].split('-')
+      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : utcStr
+    }
+    return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  }
+
+  // "YYYY-MM-DD" de hoy en hora local (para comparaciones sin UTC shift)
+  const todayLocalStr = (): string => utcToLocalDateStr(new Date().toISOString())
+
+  // "YYYY-MM-DD" de una celda de calendario (new Date(year,month,day) ya es hora local)
   const calDateStr = (d: Date): string =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  // ────────────────────────────────────────────────────────────────────────────
 
   // Filtrar citas cuando cambie el término de búsqueda o la pestaña
   useEffect(() => {
@@ -291,11 +321,11 @@ function CitasContent() {
     if (filterTab === 'upcoming') {
       result = appointments.filter(apt => {
         const isActive = apt.status === 'scheduled' || apt.status === 'in_progress'
-        return apptDateStr(apt.appointment_date) >= today && isActive
+        return utcToLocalDateStr(apt.appointment_date) >= today && isActive
       })
     } else if (filterTab === 'history') {
       result = appointments.filter(apt => {
-        const isPast = apptDateStr(apt.appointment_date) < today
+        const isPast = utcToLocalDateStr(apt.appointment_date) < today
         const isFinished = apt.status === 'completed' || apt.status === 'cancelled'
         return isPast || isFinished
       })
@@ -475,27 +505,11 @@ function CitasContent() {
       vehicleInfo = parts.join(' ')
     }
     
-    // Extraer fecha (yyyy-MM-dd) y hora (HH:mm) del timestamp ISO o campo separado
-    let dateOnly = ''
-    let timeOnly = appointment.appointment_time || ''
-    if (appointment.appointment_date) {
-      const raw = appointment.appointment_date
-      // Si es un ISO timestamp (contiene 'T'), extraer partes
-      if (raw.includes('T')) {
-        const dt = new Date(raw)
-        if (!isNaN(dt.getTime())) {
-          dateOnly = dt.toISOString().split('T')[0]                    // yyyy-MM-dd
-          if (!timeOnly) {
-            timeOnly = dt.toISOString().split('T')[1].substring(0, 5)  // HH:mm
-          }
-        } else {
-          dateOnly = raw.split('T')[0]
-        }
-      } else {
-        // Ya es solo fecha (yyyy-MM-dd)
-        dateOnly = raw.split(' ')[0]
-      }
-    }
+    // Extraer fecha/hora en la timezone LOCAL del browser (correcto para cualquier país)
+    const dateOnly = utcToLocalDateStr(appointment.appointment_date)
+    const timeOnly = appointment.appointment_time
+      || utcToLocalTimeStr(appointment.appointment_date)
+      || '09:00'
 
     const vehicleYear = appointment.vehicle?.year ? String(appointment.vehicle.year) : ''
 
@@ -602,7 +616,11 @@ function CitasContent() {
     setIsSubmitting(true)
     
     try {
-      // ✅ El API route resuelve cliente, vehículo y cita en el servidor con service role (no RLS)
+      // Convertir hora local del form → UTC ISO antes de enviar al API.
+      // new Date("YYYY-MM-DDTHH:mm:ss") sin 'Z' = hora LOCAL del browser;
+      // .toISOString() da el UTC equivalente → correcto para cualquier timezone.
+      const utcDateTime = localToUTC(formData.appointment_date, formData.appointment_time)
+
       const payload = {
         customer_name: formData.customer_name,
         customer_phone: formData.customer_phone,
@@ -612,8 +630,8 @@ function CitasContent() {
         vehicle_year: formData.vehicle_year || null,
         vehicle_plate: formData.vehicle_plate || null,
         service_type: formData.service_type,
-        appointment_date: formData.appointment_date,
-        appointment_time: formData.appointment_time,
+        appointment_date: utcDateTime,   // UTC ISO — "2025-01-15T15:00:00.000Z"
+        appointment_time: formData.appointment_time,  // HH:mm local (para display legacy)
         notes: formData.notes || null,
         estimated_duration: formData.estimated_duration || 60,
         status: formData.status || 'scheduled',
@@ -1182,10 +1200,7 @@ function CitasContent() {
                 <TableCell>
                   <div>
                     <div className="font-medium">
-                      {(() => {
-                        const [y, m, d] = apptDateStr(appointment.appointment_date).split('-')
-                        return d && m && y ? `${d}/${m}/${y}` : apptDateStr(appointment.appointment_date)
-                      })()}
+                      {formatDisplayDate(appointment.appointment_date)}
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {appointment.appointment_time}
@@ -1337,7 +1352,7 @@ function CitasContent() {
             {getCalendarDays().map(({ day, isCurrentMonth, date }, index) => {
               const thisDayStr = calDateStr(date)
               const dayAppointments = appointments.filter(apt =>
-                apptDateStr(apt.appointment_date) === thisDayStr
+                utcToLocalDateStr(apt.appointment_date) === thisDayStr
               )
               const isToday = thisDayStr === todayLocalStr()
               const isExpanded = expandedDays.has(index)
