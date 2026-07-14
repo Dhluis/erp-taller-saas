@@ -263,7 +263,7 @@ function DashboardContent() {
       // ✅ CARD "Ingresos del Mes": datos reales desde invoices (status='paid', paid_date este mes)
       if (canViewFinancial) {
         try {
-          const ingresosRes = await fetch('/api/ingresos/stats', { credentials: 'include', cache: 'no-store' });
+          const ingresosRes = await fetch(`/api/ingresos/stats?localDate=${new Date().toLocaleDateString('sv')}`, { credentials: 'include', cache: 'no-store' });
           const ingresosJson = await ingresosRes.json();
           if (ingresosJson.success && ingresosJson.data) {
             const d = ingresosJson.data;
@@ -304,7 +304,7 @@ function DashboardContent() {
       // ✅ CARD "Gastos del Mes": OC recibidas + pagos a proveedores (mismo criterio que Reportes Financieros)
       if (canViewFinancial) {
         try {
-          const expensesRes = await fetch('/api/expenses/stats', { credentials: 'include', cache: 'no-store' });
+          const expensesRes = await fetch(`/api/expenses/stats?localDate=${new Date().toLocaleDateString('sv')}`, { credentials: 'include', cache: 'no-store' });
           const expensesJson = await expensesRes.json();
           if (expensesJson.success && expensesJson.data) {
             setGastosMes(expensesJson.data.monthlyExpenses ?? 0);

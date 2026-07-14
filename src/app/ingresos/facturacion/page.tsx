@@ -163,7 +163,7 @@ export default function FacturacionPage() {
     const loadStats = async () => {
       setStatsLoading(true);
       try {
-        const res = await fetch('/api/ingresos/stats', { credentials: 'include' });
+        const res = await fetch(`/api/ingresos/stats?localDate=${new Date().toLocaleDateString('sv')}`, { credentials: 'include' });
         const json = await res.json();
         if (json.success && json.data) {
           const d = json.data;
@@ -413,7 +413,7 @@ export default function FacturacionPage() {
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                            {new Date(inv.due_date || inv.created_at).toLocaleDateString('es')}
+                            {new Date((inv.due_date ? inv.due_date + 'T12:00:00' : inv.created_at)).toLocaleDateString('es-MX')}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
@@ -702,7 +702,7 @@ function RegisterPaymentModal({
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [reference, setReference] = useState('');
   const [paymentDate, setPaymentDate] = useState(
-    () => new Date().toISOString().split('T')[0]
+    () => new Date().toLocaleDateString('sv')
   );
   const [notes, setNotes] = useState('');
   const [cashAccountId, setCashAccountId] = useState('');
@@ -715,7 +715,7 @@ function RegisterPaymentModal({
   useEffect(() => {
     if (open && invoice) {
       setAmount(remaining > 0 ? String(remaining) : '0');
-      setPaymentDate(new Date().toISOString().split('T')[0]);
+      setPaymentDate(new Date().toLocaleDateString('sv'));
       setReference('');
       setNotes('');
       setCashAccountId('');

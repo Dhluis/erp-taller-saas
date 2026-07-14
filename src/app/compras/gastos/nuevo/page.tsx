@@ -26,7 +26,7 @@ function NuevoGastoContent() {
   // Pre-fill fields from AI Magic Create query parameters
   const [amount, setAmount] = useState(searchParams.get('amount') || '')
   const [category, setCategory] = useState(searchParams.get('category') || '')
-  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0])
+  const [expenseDate, setExpenseDate] = useState(new Date().toLocaleDateString('sv'))
   const [description, setDescription] = useState(searchParams.get('description') || '')
   const [paymentMethod, setPaymentMethod] = useState(searchParams.get('payment_method') || 'cash')
   const [cashAccountId, setCashAccountId] = useState(searchParams.get('cash_account_id') || '')

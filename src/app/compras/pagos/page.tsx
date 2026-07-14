@@ -68,7 +68,7 @@ export default function PagosPage() {
   const [form, setForm] = useState({
     supplier_id: "",
     amount: "",
-    payment_date: new Date().toISOString().split("T")[0],
+    payment_date: new Date().toLocaleDateString('sv'),
     payment_method: "transfer",
     reference: "",
     notes: "",
@@ -182,7 +182,7 @@ export default function PagosPage() {
         setForm({
           supplier_id: "",
           amount: "",
-          payment_date: new Date().toISOString().split("T")[0],
+          payment_date: new Date().toLocaleDateString('sv'),
           payment_method: "transfer",
           reference: "",
           notes: "",
@@ -360,9 +360,7 @@ export default function PagosPage() {
               <p className="py-8 text-center text-muted-foreground">No hay pagos registrados. Registra el primero con el botón superior.</p>
             ) : (
               (() => {
-                const today = new Date();
-                today.setHours(0,0,0,0);
-                const todayStr = today.toISOString().split('T')[0];
+                const todayStr = new Date().toLocaleDateString('sv');
 
                 const pendingPayments = filteredPayments.filter(p => (p.status === 'pending' || (p.status !== 'completed' && p.status !== 'paid')) && p.payment_date >= todayStr);
                 const overduePayments = filteredPayments.filter(p => (p.status === 'pending' || (p.status !== 'completed' && p.status !== 'paid')) && p.payment_date < todayStr);
@@ -383,7 +381,7 @@ export default function PagosPage() {
                     </div>
                     <div className="flex justify-between items-center text-xs text-slate-400 mt-2 border-t border-slate-700/50 pt-2">
                       <span className="flex items-center">
-                        <span className="mr-1">📅</span> {new Date(pago.payment_date).toLocaleDateString()}
+                        <span className="mr-1">📅</span> {new Date(pago.payment_date + 'T12:00:00').toLocaleDateString('es-MX')}
                       </span>
                       {pago.reference && <span className="bg-slate-700/30 px-1.5 py-0.5 rounded truncate max-w-[100px]">{pago.reference}</span>}
                     </div>

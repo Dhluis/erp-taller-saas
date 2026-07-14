@@ -198,7 +198,7 @@ function EntradasSalidasPage() {
     category: '',
     // common
     amount: '',
-    payment_date: new Date().toISOString().split('T')[0],
+    payment_date: new Date().toLocaleDateString('sv'),
     payment_method: 'transfer',
     description: '',
     reference: '',
@@ -657,7 +657,7 @@ function EntradasSalidasPage() {
         toast.success(labels[form.paymentType] + extraMsg)
         setConfirmingSubmit(false)
         setModalOpen(false)
-        setForm({ paymentType: 'cobro', customer_id: '', cobro_status: 'pending', supplier_id: '', category: '', amount: '', payment_date: new Date().toISOString().split('T')[0], payment_method: 'transfer', description: '', reference: '', notes: '', cash_account_id: '' })
+        setForm({ paymentType: 'cobro', customer_id: '', cobro_status: 'pending', supplier_id: '', category: '', amount: '', payment_date: new Date().toLocaleDateString('sv'), payment_method: 'transfer', description: '', reference: '', notes: '', cash_account_id: '' })
         setCustomerFreeText(''); setCustomerPhone(''); setRegisterNewCustomer(true)
         setSupplierFreeText(''); setRegisterNewSupplier(true)
         loadEntries()
@@ -992,7 +992,7 @@ function EntradasSalidasPage() {
                                 {e.type === 'cobro' ? '↓ Ingreso' : e.type === 'supplier' ? '↑ Proveedor' : e.type === 'cash_advance' ? '↑ Anticipo' : '↑ Gasto'}
                               </span>
                               <span>·</span>
-                              <span>{new Date(e.payment_date).toLocaleDateString('es-MX')}</span>
+                              <span>{new Date(e.payment_date + 'T12:00:00').toLocaleDateString('es-MX')}</span>
                               <span>·</span>
                               <span>{PAYMENT_METHODS.find(m => m.value === e.payment_method)?.label || e.payment_method}</span>
                               {e.type === 'cash_advance' && e.advance_status === 'open' && e.balance != null && e.balance < e.amount && (
@@ -1808,7 +1808,7 @@ function EntradasSalidasPage() {
                       <div key={exp.id} className="flex justify-between items-center bg-slate-800/60 rounded-lg p-2.5">
                         <div>
                           <p className="text-white text-sm">{exp.description}</p>
-                          <p className="text-slate-500 text-xs">{new Date(exp.expense_date).toLocaleDateString('es-MX')}</p>
+                          <p className="text-slate-500 text-xs">{new Date(exp.expense_date + 'T12:00:00').toLocaleDateString('es-MX')}</p>
                         </div>
                         <p className="text-white font-medium text-sm">{formatMoney(exp.amount)}</p>
                       </div>

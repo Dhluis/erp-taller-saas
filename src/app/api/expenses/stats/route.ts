@@ -16,8 +16,13 @@ export async function GET(request: NextRequest) {
     }
 
     const now = new Date()
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
-    const todayStr = now.toISOString().split('T')[0]
+    // El cliente envía ?localDate=YYYY-MM-DD (fecha local del browser).
+    // Fallback a UTC solo si no viene param (servidor no conoce timezone del usuario).
+    const localDate = request.nextUrl.searchParams.get('localDate')
+    const firstDay = localDate
+      ? localDate.substring(0, 7) + '-01'
+      : new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+    const todayStr = localDate || now.toISOString().split('T')[0]
 
     const supabase = getSupabaseServiceClient()
 

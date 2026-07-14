@@ -63,7 +63,7 @@ export default function DetalleGastoPage() {
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <p><span className="text-muted-foreground">Monto:</span> {formatMoney(expense.amount)}</p>
-              <p><span className="text-muted-foreground">Fecha:</span> {new Date(expense.expense_date).toLocaleDateString()}</p>
+              <p><span className="text-muted-foreground">Fecha:</span> {new Date(expense.expense_date + 'T12:00:00').toLocaleDateString('es-MX')}</p>
               <p><span className="text-muted-foreground">Medio de pago:</span> {paymentLabel[expense.payment_method] ?? expense.payment_method}</p>
               {expense.cash_account && <p><span className="text-muted-foreground">Cuenta:</span> {expense.cash_account.name}</p>}
               <p><span className="text-muted-foreground">Registrado:</span> {new Date(expense.created_at).toLocaleString()}</p>

@@ -16,8 +16,11 @@ export async function GET(request: NextRequest) {
     }
 
     const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const todayStr = now.toISOString().split('T')[0];
+    const localDate = request.nextUrl.searchParams.get('localDate');
+    const firstDay = localDate
+      ? localDate.substring(0, 7) + '-01'
+      : new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const todayStr = localDate || now.toISOString().split('T')[0];
 
     const supabase = getSupabaseServiceClient();
 

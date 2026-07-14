@@ -129,7 +129,7 @@ const CATEGORY_ICONS: Record<string, typeof FileText> = {
 export default function FinanzasPage() {
   const { organizationId } = useSession()
   const { formatMoney } = useOrgCurrency()
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(new Date().toLocaleDateString('sv'))
   const [summary, setSummary] = useState<DailySummary | null>(null)
   const [accounts, setAccounts] = useState<CashAccount[]>([])
   const [loading, setLoading] = useState(true)
@@ -162,10 +162,10 @@ export default function FinanzasPage() {
   const changeDate = (direction: number) => {
     const d = new Date(date + 'T12:00:00')
     d.setDate(d.getDate() + direction)
-    setDate(d.toISOString().split('T')[0])
+    setDate(d.toLocaleDateString('sv'))
   }
 
-  const isToday = date === new Date().toISOString().split('T')[0]
+  const isToday = date === new Date().toLocaleDateString('sv')
 
   // ── Arqueo de caja ──────────────────────────────────────────────
   const [arqueoCuentaId, setArqueoCuentaId]   = useState('')
@@ -185,7 +185,10 @@ export default function FinanzasPage() {
   const loadTodaysArqueos = useCallback(async () => {
     setArqueoLoading(true)
     try {
-      const res = await fetch(`/api/cash-closures?from=${date}&to=${date}`, { credentials: 'include' })
+      // Enviar rango UTC completo del día local para que el filtro TIMESTAMP funcione bien.
+      const dayStart = new Date(date + 'T00:00:00').toISOString()
+      const dayEnd   = new Date(date + 'T23:59:59').toISOString()
+      const res = await fetch(`/api/cash-closures?from=${dayStart}&to=${dayEnd}`, { credentials: 'include' })
       const json = await res.json()
       if (json.success) setTodaysArqueos(json.data || [])
     } finally {
@@ -281,7 +284,7 @@ export default function FinanzasPage() {
               <ChevronRight className="h-4 w-4" />
             </Button>
             {!isToday && (
-              <Button variant="outline" size="sm" onClick={() => setDate(new Date().toISOString().split('T')[0])}>
+              <Button variant="outline" size="sm" onClick={() => setDate(new Date().toLocaleDateString('sv'))}>
                 Hoy
               </Button>
             )}

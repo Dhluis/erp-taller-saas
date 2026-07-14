@@ -76,7 +76,7 @@ export default function CobrosPage() {
     customer_id: '',
     invoice_id: '',
     amount: 0,
-    due_date: new Date().toISOString().split('T')[0],
+    due_date: new Date().toLocaleDateString('sv'),
     payment_method: 'transfer',
     reference_number: '',
     status: 'pending',
@@ -178,7 +178,7 @@ export default function CobrosPage() {
           customer_id: '',
           invoice_id: '',
           amount: 0,
-          due_date: new Date().toISOString().split('T')[0],
+          due_date: new Date().toLocaleDateString('sv'),
           payment_method: 'transfer',
           reference_number: '',
           status: 'pending',
@@ -610,7 +610,7 @@ export default function CobrosPage() {
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 flex items-center gap-2"><CreditCard className="h-4 w-4 text-muted-foreground" />{collection.payment_method || '-'}</td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{collection.reference_number || '-'}</td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{getStatusBadge(collection.status)}</td>
-                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{new Date(collection.due_date).toLocaleDateString()}</td>
+                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{new Date(collection.due_date + 'T12:00:00').toLocaleDateString('es-MX')}</td>
                     <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
                       {collection.status === 'pending' && (
                         <Button

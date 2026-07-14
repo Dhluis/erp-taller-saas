@@ -49,7 +49,7 @@ export default function NewPurchaseOrderPage() {
   
   // Form state
   const [supplierId, setSupplierId] = useState('');
-  const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
+  const [orderDate, setOrderDate] = useState(new Date().toLocaleDateString('sv'));
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<string>('');
   const [notes, setNotes] = useState('');

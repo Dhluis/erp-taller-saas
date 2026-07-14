@@ -60,7 +60,7 @@ export default function CobrosPage() {
   const [formData, setFormData] = useState({
     customer_id: '',
     amount: 0,
-    due_date: new Date().toISOString().split('T')[0],
+    due_date: new Date().toLocaleDateString('sv'),
     payment_method: 'transfer',
     reference_number: '',
     status: 'pending',
@@ -189,7 +189,7 @@ export default function CobrosPage() {
 
         await loadData()
         setIsDialogOpen(false)
-        setFormData({ customer_id: '', amount: 0, due_date: new Date().toISOString().split('T')[0], payment_method: 'transfer', reference_number: '', status: 'pending', notes: '', cash_account_id: '' })
+        setFormData({ customer_id: '', amount: 0, due_date: new Date().toLocaleDateString('sv'), payment_method: 'transfer', reference_number: '', status: 'pending', notes: '', cash_account_id: '' })
         toast.success('Cobro registrado')
       } else {
         toast.error(data?.error || 'Error')
@@ -344,7 +344,7 @@ export default function CobrosPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-text-primary">{customerNameById[c.customer_id] || c.customer_id}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{new Date(c.due_date).toLocaleDateString('es-MX')}</span>
+                        <span>{new Date(c.due_date + 'T12:00:00').toLocaleDateString('es-MX')}</span>
                         {c.payment_method && <><span>·</span><span>{c.payment_method}</span></>}
                         {c.reference_number && <><span>·</span><span>{c.reference_number}</span></>}
                       </div>

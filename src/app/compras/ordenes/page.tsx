@@ -174,7 +174,7 @@ export default function PurchaseOrdersPage() {
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('es-MX');
+    return new Date(dateString + 'T12:00:00').toLocaleDateString('es-MX');
   };
 
   const getStatusBadge = (status: string) => {

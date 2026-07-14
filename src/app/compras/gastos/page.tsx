@@ -167,7 +167,7 @@ export default function GastosPage() {
                       <div>
                         <p className="font-medium">{e.category}</p>
                         <p className="text-sm text-muted-foreground">
-                          {e.description || 'Sin descripción'} · {new Date(e.expense_date).toLocaleDateString()}
+                          {e.description || 'Sin descripción'} · {new Date(e.expense_date + 'T12:00:00').toLocaleDateString('es-MX')}
                         </p>
                       </div>
                     </div>

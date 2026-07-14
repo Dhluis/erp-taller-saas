@@ -67,7 +67,7 @@ export default function IngresosPage() {
     const loadStats = async () => {
       setLoading(true);
       try {
-        const res = await fetch('/api/ingresos/stats', { credentials: 'include' });
+        const res = await fetch(`/api/ingresos/stats?localDate=${new Date().toLocaleDateString('sv')}`, { credentials: 'include' });
         const json = await res.json();
         if (json.success && json.data) {
           const d = json.data;

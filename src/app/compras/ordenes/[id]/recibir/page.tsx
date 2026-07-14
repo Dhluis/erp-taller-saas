@@ -225,7 +225,7 @@ export default function ReceivePurchaseOrderPage() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-MX');
+    return new Date(dateString + 'T12:00:00').toLocaleDateString('es-MX');
   };
 
   const totalToReceive = (order.items || []).reduce((sum, item) => {

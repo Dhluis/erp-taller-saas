@@ -60,7 +60,7 @@ export default function PurchaseOrderDetailPage() {
 
   const formatCurrency = (amount: number | undefined) =>
     new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(amount || 0);
-  const formatDate = (d: string | undefined) => (d ? new Date(d).toLocaleDateString('es-MX') : '-');
+  const formatDate = (d: string | undefined) => (d ? new Date(d + 'T12:00:00').toLocaleDateString('es-MX') : '-');
 
   const getStatusBadge = (status: string) => {
     const config: Record<string, { label: string; className: string }> = {
