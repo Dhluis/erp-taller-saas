@@ -657,6 +657,7 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   }, [open, currentStep])
 
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
+  const [savedDraft, setSavedDraft] = useState<{ data: Partial<typeof INITIAL_FORM_DATA>; savedAt: string } | null>(null)
 
   // Auto-save: excluir File y base64 que no son serializables / pesan mucho
   const saveableFormData = useMemo(() => {
@@ -667,19 +668,11 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
   const isNewForm = !initialData && !appointmentId
   const { getSaved, clear } = useFormAutoSave('create-work-order', saveableFormData, open && isNewForm)
 
-  // Ofrecer restaurar borrador al abrir el modal en modo creación
+  // Mostrar banner de borrador dentro del modal (más confiable que un toast con closure)
   useEffect(() => {
     if (!open || !isNewForm) return
     const saved = getSaved()
-    if (!saved) return
-    toast('Borrador guardado encontrado', {
-      description: `Último guardado ${timeSince(saved.savedAt)}`,
-      duration: 10000,
-      action: {
-        label: 'Restaurar',
-        onClick: () => setFormData(prev => ({ ...prev, ...saved.data })),
-      },
-    })
+    if (saved) setSavedDraft(saved as { data: Partial<typeof INITIAL_FORM_DATA>; savedAt: string })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
@@ -1249,7 +1242,8 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
     if (!open) {
 
       setFormData(INITIAL_FORM_DATA)
-      
+      setSavedDraft(null)
+
       setShowCustomerDropdown(false)
 
       // ✅ Limpiar IDs de la cita cuando se cierra el modal
@@ -2094,6 +2088,43 @@ const CreateWorkOrderModal = memo(function CreateWorkOrderModal({
         <div className="px-4 pt-1 pb-0 sm:px-6 sm:pt-2 sm:pb-1 bg-slate-900/30">
           <StepIndicator currentStep={currentStep} completedSteps={completedSteps} />
         </div>
+
+        {/* Banner de borrador guardado */}
+        {savedDraft && (
+          <div className="mx-4 sm:mx-6 mt-2 flex items-center gap-3 px-3 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex-shrink-0">
+            <RefreshCw className="w-4 h-4 text-amber-400 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-amber-300 text-sm font-medium leading-tight">Borrador guardado</p>
+              <p className="text-amber-400/70 text-xs">{timeSince(savedDraft.savedAt)}</p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button
+                type="button"
+                size="sm"
+                className="h-7 px-3 text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 hover:border-amber-400/60"
+                onClick={() => {
+                  setFormData(prev => ({ ...prev, ...savedDraft.data }))
+                  setSavedDraft(null)
+                  toast.success('Borrador restaurado')
+                }}
+              >
+                Restaurar
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-3 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                onClick={() => {
+                  clear()
+                  setSavedDraft(null)
+                }}
+              >
+                Descartar
+              </Button>
+            </div>
+          </div>
+        )}
 
         <form
           onSubmit={(e) => {

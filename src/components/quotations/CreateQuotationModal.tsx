@@ -36,6 +36,7 @@ import {
   Send,
   X,
   Calculator,
+  RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -124,20 +125,13 @@ export function CreateQuotationModal({
 
   const isNewQuotation = !quotation
   const { getSaved, clear } = useFormAutoSave('create-quotation', formData, open && isNewQuotation)
+  const [savedDraft, setSavedDraft] = useState<{ data: any; savedAt: string } | null>(null)
 
-  // Ofrecer restaurar borrador al abrir en modo creación
+  // Mostrar banner de borrador dentro del modal (más confiable que un toast con closure)
   useEffect(() => {
-    if (!open || !isNewQuotation) return
+    if (!open || !isNewQuotation) { setSavedDraft(null); return }
     const saved = getSaved()
-    if (!saved) return
-    toast('Borrador de cotización encontrado', {
-      description: `Último guardado ${timeSince(saved.savedAt)}`,
-      duration: 10000,
-      action: {
-        label: 'Restaurar',
-        onClick: () => setFormData(prev => ({ ...prev, ...saved.data })),
-      },
-    })
+    if (saved) setSavedDraft(saved)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
@@ -532,6 +526,40 @@ export function CreateQuotationModal({
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Banner de borrador guardado */}
+        {savedDraft && (
+          <div className="flex items-center gap-3 px-3 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+            <RefreshCw className="w-4 h-4 text-amber-400 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-amber-300 text-sm font-medium leading-tight">Borrador de cotización guardado</p>
+              <p className="text-amber-400/70 text-xs">{timeSince(savedDraft.savedAt)}</p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button
+                type="button"
+                size="sm"
+                className="h-7 px-3 text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 hover:border-amber-400/60"
+                onClick={() => {
+                  setFormData(prev => ({ ...prev, ...savedDraft.data }))
+                  setSavedDraft(null)
+                  toast.success('Borrador restaurado')
+                }}
+              >
+                Restaurar
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-3 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                onClick={() => { clear(); setSavedDraft(null) }}
+              >
+                Descartar
+              </Button>
             </div>
           </div>
         )}
