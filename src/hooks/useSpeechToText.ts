@@ -86,10 +86,11 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return null;
 
-    // Safari solo tiene webkitSpeechRecognition; Chrome tiene ambos
+    // Detectar Safari por UA — más confiable que comprobar APIs
+    // (Safari 17+ añadió window.SpeechRecognition sin prefijo, rompiendo la detección anterior)
+    const _ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
     const isSafari =
-      !!(window as any).webkitSpeechRecognition &&
-      !(window as any).SpeechRecognition;
+      /Safari/i.test(_ua) && !/Chrome|Chromium|CriOS|FxiOS|EdgiOS/i.test(_ua);
 
     const recognition = new SpeechRecognition();
     recognition.lang            = langVal;
@@ -164,6 +165,12 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       const error = event.error;
       console.error('❌ Speech recognition error:', error);
       if (error === 'aborted') return;
+
+      // Safari: errores de red son transitorios — no cancelar estado para que onend pueda reiniciar
+      if (isSafari && error === 'network' && isListeningRef.current && !userStoppedRef.current) {
+        console.log('🎙️ Safari: error de red transitorio, onend intentará restart');
+        return;
+      }
 
       clearSilenceTimer();
       clearMaxTimer();

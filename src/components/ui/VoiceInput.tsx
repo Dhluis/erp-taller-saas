@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Mic, Lock } from 'lucide-react';
 import { IconButton } from '@/components/ui/button';
 import { useSpeechToText } from '@/hooks/useSpeechToText';
@@ -37,6 +37,7 @@ export function VoiceInput({
 }: VoiceInputProps) {
   const { canUseAI, isLoading: billingLoading } = useBilling();
   const { showUpgradeModal, closeUpgradeModal, showUpgrade, limitError } = useLimitCheck();
+  const networkErrorCountRef = useRef(0);
 
   const { isListening, transcript, start, stop, isSupported } = useSpeechToText({
     lang: language,
@@ -59,7 +60,15 @@ export function VoiceInput({
           toast.error('Permiso de micrófono denegado. Habilítalo en Configuración > Privacidad > Micrófono.');
         }
       } else if (error === 'network') {
-        toast.error('Error de red al procesar voz. Verifica tu conexión.');
+        networkErrorCountRef.current++;
+        if (networkErrorCountRef.current >= 2) {
+          toast.error(
+            'Tu navegador no puede acceder al servicio de reconocimiento de voz. Prueba con Chrome para mejor compatibilidad.',
+            { duration: 7000 }
+          );
+        } else {
+          toast.error('Error de red al procesar voz. Verifica tu conexión.');
+        }
       } else if (error !== 'aborted' && error !== 'no-speech') {
         toast.error(`Error de dictado: ${error}`);
       }
@@ -68,6 +77,7 @@ export function VoiceInput({
 
   useEffect(() => {
     if (isListening) {
+      networkErrorCountRef.current = 0;
       toast.info('Escuchando... habla ahora', { duration: 2500, id: 'voice-listening' });
     }
   }, [isListening]);
