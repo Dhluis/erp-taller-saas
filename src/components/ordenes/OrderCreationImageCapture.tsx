@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -41,6 +41,7 @@ export function OrderCreationImageCapture({
   const [uploading, setUploading] = useState(false)
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const processingRef = useRef(false)
 
   // Detectar si es dispositivo móvil
   const isMobile = typeof window !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -59,19 +60,19 @@ export function OrderCreationImageCapture({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
+    if (processingRef.current) return
+
+    // Limpiar el input ANTES de procesar para que quede listo de inmediato
+    const filesCopy = Array.from(files)
+    e.target.value = ''
 
     // Verificar límite
-    if (images.length + files.length > maxImages) {
+    if (images.length + filesCopy.length > maxImages) {
       toast.error(`Solo puedes agregar hasta ${maxImages} fotos`)
-      // Agregar solo las que quepan
-      const filesToAdd = Array.from(files).slice(0, maxImages - images.length)
-      processFiles(filesToAdd)
+      processFiles(filesCopy.slice(0, maxImages - images.length))
     } else {
-      processFiles(Array.from(files))
+      processFiles(filesCopy)
     }
-
-    // Limpiar el input para permitir seleccionar el mismo archivo nuevamente
-    e.target.value = ''
   }
 
   // ✅ OPTIMIZACIÓN MÓVIL: Comprimir imágenes antes de crear preview
@@ -137,6 +138,8 @@ export function OrderCreationImageCapture({
   }
 
   const processFiles = async (files: File[]) => {
+    if (processingRef.current) return
+    processingRef.current = true
     setUploading(true)
     try {
       const newImages: TemporaryImage[] = []
@@ -179,6 +182,7 @@ export function OrderCreationImageCapture({
       toast.error('Error al procesar las imágenes')
     } finally {
       setUploading(false)
+      processingRef.current = false
     }
   }
 
@@ -289,15 +293,14 @@ export function OrderCreationImageCapture({
       {/* Preview de imágenes */}
       {images.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence mode="sync">
             {images.map((image, index) => (
               <motion.div
                 key={image.preview}
-                layout
-                initial={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0, scale: 0.85 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.15 } }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
               >
                 <Card 
                   className="relative group overflow-hidden border-slate-700/50 bg-slate-800/50"

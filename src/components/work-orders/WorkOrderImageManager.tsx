@@ -244,6 +244,7 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
   // Refs para inputs de archivo
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const processingRef = useRef(false)
   
   // Detectar si es dispositivo móvil
   const isMobile = typeof window !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -290,8 +291,12 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
       console.log('❌ [handleFileChange] No se seleccionaron archivos')
       return
     }
+    if (processingRef.current) return
+
     const categoryForUpload: ImageCategory = (e.target.getAttribute('data-category') as ImageCategory) || selectedCategory
     const filesArray = Array.from(files)
+    // Limpiar input antes de procesar para que quede listo de inmediato
+    e.target.value = ''
     console.log('🔄 [handleFileChange] Archivos seleccionados:', filesArray.length)
 
     // Validar límite total
@@ -301,6 +306,7 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
       return
     }
 
+    processingRef.current = true
     setUploading(true)
     console.log('🔄 [handleFileChange] Iniciando subida de múltiples imágenes...')
 
@@ -476,35 +482,19 @@ export const WorkOrderImageManager = React.memo(function WorkOrderImageManager({
       const newImagesList = [...images, ...successfulUploads]
       onImagesChange(newImagesList)
 
-      // ✅ Abrir automáticamente el modal de la última foto subida para editar categoría/descripción
-      if (successfulUploads.length > 0) {
-        const lastUploadedImage = successfulUploads[successfulUploads.length - 1]
-        // Esperar un momento para que la UI se actualice
-        setTimeout(() => {
-          openImageDetail(lastUploadedImage)
-          // Activar edición de categoría automáticamente para que pueda cambiarla si se equivocó
-          setEditingCategory(true)
-          // Si no tiene descripción, también activar edición de descripción
-          if (!lastUploadedImage.description) {
-            setEditingDescription(true)
-          }
-        }, 300)
-      }
-
       if (successfulUploads.length === filesArray.length) {
         toast.success(`${successfulUploads.length} imagen${successfulUploads.length > 1 ? 'es' : ''} subida${successfulUploads.length > 1 ? 's' : ''} exitosamente. Puedes editar categoría y descripción.`)
       } else {
         toast.warning(`${successfulUploads.length} de ${filesArray.length} imagen${filesArray.length > 1 ? 'es' : ''} subida${successfulUploads.length > 1 ? 's' : ''} exitosamente`)
       }
 
-      // Limpiar
-      e.target.value = ''
       setUploadDescription('')
     } catch (error: any) {
       console.error('❌ [handleFileChange] Error general:', error)
       toast.error(error.message || 'Error al subir imágenes')
     } finally {
       setUploading(false)
+      processingRef.current = false
     }
   }
 
