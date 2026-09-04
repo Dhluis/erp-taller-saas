@@ -55,23 +55,7 @@ export async function GET(
     // ✅ Obtener items de la orden usando supabaseAdmin (bypass RLS)
     const { data: items, error } = await supabaseAdmin
       .from('order_items')
-      .select(`
-        *,
-        service:services (
-          id,
-          name,
-          category
-        ),
-        product:inventory!inventory_id (
-          id,
-          name,
-          code
-        ),
-        mechanic:employees!mechanic_id (
-          id,
-          name
-        )
-      `)
+      .select('*')
       .eq('order_id', id)
       .order('created_at', { ascending: true })
 
@@ -179,23 +163,7 @@ export async function POST(
     const { data: item, error } = await supabaseAdmin
       .from('order_items')
       .insert(itemData)
-      .select(`
-        *,
-        service:services (
-          id,
-          name,
-          category
-        ),
-        product:inventory!inventory_id (
-          id,
-          name,
-          code
-        ),
-        mechanic:employees!mechanic_id (
-          id,
-          name
-        )
-      `)
+      .select('*')
       .single()
 
     if (error) {

@@ -52,23 +52,7 @@ export async function PUT(
       })
       .eq('id', itemId)
       .eq('order_id', id)
-      .select(`
-        *,
-        service:services (
-          id,
-          name,
-          category
-        ),
-        product:inventory!inventory_id (
-          id,
-          name,
-          code
-        ),
-        mechanic:employees!mechanic_id (
-          id,
-          name
-        )
-      `)
+      .select('*')
       .single()
 
     if (error) {
