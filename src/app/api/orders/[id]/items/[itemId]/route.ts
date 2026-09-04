@@ -90,18 +90,19 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; itemId: string } }
+  { params }: { params: Promise<{ id: string; itemId: string }> }
 ) {
   try {
+    const { id, itemId } = await params
     console.log('🔄 DELETE /api/orders/[id]/items/[itemId] - Iniciando...')
-    
+
     const tenantContext = await getTenantContext(request)
     if (!tenantContext) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
     const supabase = await createClient()
-    
+
     // Eliminar item
     const { error } = await supabase
       .from('order_items')

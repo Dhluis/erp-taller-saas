@@ -140,10 +140,17 @@ export function WorkOrderItems({ orderId, orderStatus, onTotalChange }: WorkOrde
 
   async function loadProducts() {
     try {
-      const response = await fetch('/api/inventory')
+      const response = await fetch('/api/inventory?pageSize=200')
       if (!response.ok) throw new Error('Error al cargar productos')
       const data = await response.json()
-      setProducts(data)
+      const items = data?.data?.items || data?.data || []
+      setProducts(
+        (Array.isArray(items) ? items : []).map((p: any) => ({
+          ...p,
+          price: p.unit_price ?? p.price ?? 0,
+          stock_quantity: p.quantity ?? p.current_stock ?? p.stock_quantity ?? 0,
+        }))
+      )
     } catch (error) {
       console.error('Error cargando productos:', error)
     }
