@@ -21,10 +21,10 @@ export async function PUT(
     const supabase = await createClient()
     
     // Calcular totales
-    const quantity = body.quantity || 1
-    const unitPrice = body.unit_price || 0
-    const discountPercent = body.discount_percent || 0
-    const taxPercent = body.tax_percent || 16
+    const quantity = body.quantity ?? 1
+    const unitPrice = body.unit_price ?? 0
+    const discountPercent = body.discount_percent ?? 0
+    const taxPercent = body.tax_percent ?? 16
     
     const subtotal = quantity * unitPrice
     const discountAmount = subtotal * (discountPercent / 100)
@@ -59,7 +59,7 @@ export async function PUT(
           name,
           category
         ),
-        product:products!inventory_id (
+        product:inventory!inventory_id (
           id,
           name,
           code

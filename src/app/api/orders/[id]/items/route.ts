@@ -62,7 +62,7 @@ export async function GET(
           name,
           category
         ),
-        product:products!inventory_id (
+        product:inventory!inventory_id (
           id,
           name,
           code
@@ -110,7 +110,7 @@ export async function POST(
     const supabaseAdmin = getSupabaseServiceClient();
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('organization_id, workshop_id')
+      .select('organization_id')
       .eq('auth_user_id', user.id)
       .single();
 
@@ -123,7 +123,6 @@ export async function POST(
     }
 
     const organizationId = userProfile.organization_id;
-    const workshopId = userProfile.workshop_id;
     
     // ✅ Verificar que la orden pertenece a la organización del usuario
     const { data: order, error: orderError } = await supabaseAdmin
@@ -145,10 +144,10 @@ export async function POST(
     console.log('📝 Datos recibidos:', body)
     
     // Calcular totales
-    const quantity = body.quantity || 1
-    const unitPrice = body.unit_price || 0
-    const discountPercent = body.discount_percent || 0
-    const taxPercent = body.tax_percent || 16
+    const quantity = body.quantity ?? 1
+    const unitPrice = body.unit_price ?? 0
+    const discountPercent = body.discount_percent ?? 0
+    const taxPercent = body.tax_percent ?? 16
     
     const subtotal = quantity * unitPrice
     const discountAmount = subtotal * (discountPercent / 100)
@@ -158,6 +157,7 @@ export async function POST(
 
     // Crear nuevo item
     const itemData: any = {
+      organization_id: organizationId,
       order_id: id,
       item_type: body.item_type,
       service_id: body.service_id || null,
@@ -176,11 +176,6 @@ export async function POST(
       notes: body.notes || null
     }
     
-    // ✅ Solo agregar workshop_id si existe
-    if (workshopId) {
-      itemData.workshop_id = workshopId
-    }
-    
     const { data: item, error } = await supabaseAdmin
       .from('order_items')
       .insert(itemData)
@@ -191,7 +186,7 @@ export async function POST(
           name,
           category
         ),
-        product:products!inventory_id (
+        product:inventory!inventory_id (
           id,
           name,
           code
