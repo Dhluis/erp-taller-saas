@@ -106,26 +106,37 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
 
   const loadData = async () => {
     try {
-      // Cargar servicios
+      // Cargar servicios (el endpoint devuelve un array plano)
       const servicesResult = await safeFetch('/api/services')
       if (servicesResult.success && servicesResult.data) {
-        setServices(servicesResult.data)
+        const list = servicesResult.data
+        setServices(Array.isArray(list) ? list : (list.data ?? []))
       } else {
         toast.error("No se pudieron cargar los servicios")
       }
 
-      // Cargar inventario
-      const inventoryResult = await safeFetch('/api/inventory')
+      // Cargar inventario (el endpoint devuelve { success, data: { items, pagination } })
+      const inventoryResult = await safeFetch('/api/inventory?pageSize=200')
       if (inventoryResult.success && inventoryResult.data) {
-        setInventory(inventoryResult.data)
+        const raw = inventoryResult.data
+        const items = raw?.data?.items ?? (Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []))
+        setInventory(
+          items.map((p: any) => ({
+            ...p,
+            price: p.unit_price ?? p.price ?? 0,
+            quantity: p.quantity ?? p.current_stock ?? 0,
+          }))
+        )
       } else {
         toast.error("No se pudo cargar el inventario")
       }
 
-      // Cargar empleados (mecánicos)
+      // Cargar empleados (el endpoint devuelve { success, employees, data })
       const employeesResult = await safeFetch('/api/employees')
       if (employeesResult.success && employeesResult.data) {
-        setEmployees(employeesResult.data.filter((emp: Employee) => emp.role === 'mechanic'))
+        const raw = employeesResult.data
+        const list = raw?.employees ?? raw?.data ?? (Array.isArray(raw) ? raw : [])
+        setEmployees((Array.isArray(list) ? list : []).filter((emp: Employee) => emp.role === 'mechanic'))
       } else {
         toast.error("No se pudieron cargar los empleados")
       }
@@ -265,13 +276,13 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
         <div className="space-y-2">
           {formData.item_type === 'service' ? (
             <>
-              <Label htmlFor="service">Servicio</Label>
+              <Label htmlFor="service">Servicio (opcional — o escribe la descripción abajo)</Label>
               <Select value={formData.service_id} onValueChange={handleServiceSelect}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar servicio" />
                 </SelectTrigger>
                 <SelectContent>
-                  {services.map(service => (
+                  {(Array.isArray(services) ? services : []).map(service => (
                     <SelectItem key={service.id} value={service.id}>
                       <div className="flex flex-col">
                         <span>{service.name}</span>
@@ -286,18 +297,18 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
             </>
           ) : (
             <>
-              <Label htmlFor="inventory">Producto</Label>
+              <Label htmlFor="inventory">Producto (opcional — o escribe la descripción abajo)</Label>
               <Select value={formData.inventory_id} onValueChange={handleInventorySelect}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar producto" />
                 </SelectTrigger>
                 <SelectContent>
-                  {inventory.map(item => (
+                  {(Array.isArray(inventory) ? inventory : []).map(item => (
                     <SelectItem key={item.id} value={item.id}>
                       <div className="flex flex-col">
                         <span>{item.name}</span>
                         <span className="text-sm text-muted-foreground">
-                          Stock: {item.quantity} - {formatCurrency(item.price)}
+                          Stock: {item.quantity ?? 0} - {formatCurrency(item.price ?? 0)}
                         </span>
                       </div>
                     </SelectItem>
@@ -348,17 +359,32 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
           </div>
         </div>
 
-        {/* Descuento */}
-        <div className="space-y-2">
-          <Label htmlFor="discount">Descuento (%)</Label>
-          <Input
-            id="discount"
-            type="number"
-            min="0"
-            max="100"
-            value={formData.discount_percent}
-            onChange={(e) => setFormData({...formData, discount_percent: parseFloat(e.target.value) || 0})}
-          />
+        {/* Descuento e IVA */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="discount">Descuento (%)</Label>
+            <Input
+              id="discount"
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={formData.discount_percent}
+              onChange={(e) => setFormData({...formData, discount_percent: parseFloat(e.target.value) || 0})}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="tax">IVA (%)</Label>
+            <Input
+              id="tax"
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={formData.tax_percent}
+              onChange={(e) => setFormData({...formData, tax_percent: parseFloat(e.target.value) || 0})}
+            />
+          </div>
         </div>
 
         {/* Mecánico */}
@@ -369,12 +395,12 @@ export function AddItemModal({ orderId, item, onSave, onCancel }: AddItemModalPr
               <SelectValue placeholder="Seleccionar mecánico" />
             </SelectTrigger>
             <SelectContent>
-              {employees.map(employee => (
+              {(Array.isArray(employees) ? employees : []).map(employee => (
                 <SelectItem key={employee.id} value={employee.id}>
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4" />
                     <span>{employee.name}</span>
-                    {employee.specialties.length > 0 && (
+                    {employee.specialties?.length > 0 && (
                       <Badge variant="outline" className="text-xs">
                         {employee.specialties[0]}
                       </Badge>
