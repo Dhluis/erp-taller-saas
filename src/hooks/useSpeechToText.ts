@@ -11,6 +11,16 @@ interface UseSpeechToTextOptions {
   onError?: (error: any) => void;
 }
 
+// Detección única de Safari/WebKit — compartida por este hook y VoiceInput.tsx.
+// Antes había dos detecciones separadas (una por UA, otra por feature-detection)
+// que se desincronizaron cuando Safari 17+ empezó a exponer `window.SpeechRecognition`
+// sin prefijo: la de feature-detection quedó invertida y dejó de activar el flujo
+// especial de iOS. Mantener una sola fuente de verdad evita que vuelva a pasar.
+export const isSafariBrowser = (): boolean => {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  return /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|FxiOS|EdgiOS/i.test(ua);
+};
+
 export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   const {
     lang = 'es-MX',
@@ -86,11 +96,7 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return null;
 
-    // Detectar Safari por UA — más confiable que comprobar APIs
-    // (Safari 17+ añadió window.SpeechRecognition sin prefijo, rompiendo la detección anterior)
-    const _ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-    const isSafari =
-      /Safari/i.test(_ua) && !/Chrome|Chromium|CriOS|FxiOS|EdgiOS/i.test(_ua);
+    const isSafari = isSafariBrowser();
 
     const recognition = new SpeechRecognition();
     recognition.lang            = langVal;
@@ -276,6 +282,10 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
       isStartingRef.current = false;
       console.error('🎙️ Error al iniciar:', err);
       destroyCurrent();
+      // Antes este error se tragaba en silencio (solo console.error) — el usuario
+      // no tenía forma de saber que el dictado no arrancó. Lo propagamos para
+      // que la UI pueda avisar en vez de quedar "muerta" sin feedback.
+      if (onErrorRef.current) onErrorRef.current(err?.name === 'InvalidStateError' ? 'aborted' : 'start-failed');
     }
   }, [buildFresh, destroyCurrent, lang, continuous, interimResults, silenceTimeoutMs]);
 

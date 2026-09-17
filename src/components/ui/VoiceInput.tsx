@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, Lock } from 'lucide-react';
 import { IconButton } from '@/components/ui/button';
-import { useSpeechToText } from '@/hooks/useSpeechToText';
+import { useSpeechToText, isSafariBrowser } from '@/hooks/useSpeechToText';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useBilling } from '@/hooks/useBilling';
@@ -69,6 +69,8 @@ export function VoiceInput({
         } else {
           toast.error('Error de red al procesar voz. Verifica tu conexión.');
         }
+      } else if (error === 'start-failed') {
+        toast.error('No se pudo iniciar el dictado. Vuelve a tocar el micrófono.');
       } else if (error !== 'aborted' && error !== 'no-speech') {
         toast.error(`Error de dictado: ${error}`);
       }
@@ -105,12 +107,8 @@ export function VoiceInput({
     // por lo que start() llamado después hereda ese contexto.
     const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
     const isIOS = /iphone|ipad|ipod/i.test(ua);
-    const hasSafariSR =
-      typeof window !== 'undefined' &&
-      !!(window as any).webkitSpeechRecognition &&
-      !(window as any).SpeechRecognition;
 
-    if (isIOS && hasSafariSR) {
+    if (isIOS && isSafariBrowser()) {
       if (navigator.mediaDevices?.getUserMedia) {
         try {
           console.log('🎙️ iOS Safari: solicitando permiso de mic...');
