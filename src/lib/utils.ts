@@ -115,6 +115,19 @@ export function isValidPhone(phone: string): boolean {
 }
 
 /**
+ * Formatear tamaño de archivo en bytes a una unidad legible (KB, MB, GB...)
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes'
+
+  const units = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+  const exponent = Math.min(Math.floor(Math.log(Math.abs(bytes)) / Math.log(1024)), units.length - 1)
+  const value = bytes / Math.pow(1024, exponent)
+
+  return `${parseFloat(value.toFixed(2))} ${units[exponent]}`
+}
+
+/**
  * Formatear teléfono
  */
 export function formatPhone(phone: string): string {

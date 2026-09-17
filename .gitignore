@@ -54,3 +54,10 @@ next-env.d.ts
 /public/sw.js
 /public/workbox-*.js
 /public/worker-*.js
+
+# gentle-ai SDD orchestrator
+# .atl/ = cache del skill-registry (paths absolutos por máquina, regenerable)
+# openspec/ = artefactos de fase (proposal/spec/design/tasks) en modo file-based.
+# docs/specs/ es la fuente de verdad; ninguna de las dos se commitea.
+.atl/
+openspec/

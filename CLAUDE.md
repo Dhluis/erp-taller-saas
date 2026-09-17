@@ -173,3 +173,14 @@ Al terminar de implementar algo:
 2. Si cambia la BD, actualizar `docs/DATABASE_SCHEMA.md`
 3. Si cambia el estado del proyecto, actualizar `docs/PROJECT_STATUS.md`
 4. **Nunca crear documentos de evento** (FIXES_*, DIAGNOSTICO_*, *_COMPLETE.md) — el código y git history son el registro
+
+### Sub-agentes SDD de gentle-ai (opcional, no reemplaza lo anterior)
+
+Este entorno tiene instalados los skills/agentes `sdd-*` de gentle-ai (orquestador de fases: explore/propose/spec/design/tasks/apply/verify/archive). Son una herramienta de orquestación **opt-in**, no el flujo por defecto de este proyecto:
+
+- Úsalos solo para features grandes o riesgosas donde valga la pena el pipeline formal con fases separadas. Para un cambio chico (ej. una función utilitaria de pocas líneas), el pipeline completo es puro overhead — usa el protocolo simple de arriba.
+- Para trabajo cotidiano, sigue el protocolo simple de arriba (leer spec → implementar → actualizar spec).
+- **Elige Engram como artifact store en el preflight** (`sdd-init` / pregunta "Artifacts"), no OpenSpec. Verificado con `gentle-ai sdd-status`: si no se fija el modo, el dispatcher nativo resuelve a `openspec` por defecto, que crea archivos de fase (`proposal`/`spec`/`design`/`tasks`) en una carpeta `openspec/` en la raíz del repo — exactamente el tipo de documento de evento que este proyecto evita. En modo Engram no se crea ningún archivo, solo memoria.
+- `.atl/` es solo el índice de skills (`skill-registry.md`), no los artefactos de fase — igual es scratch y no se commitea.
+- Tanto `openspec/` como `.atl/` ya están en `.gitignore` como red de seguridad, pero el objetivo es que `openspec/` nunca llegue a crearse.
+- Al terminar de usar el pipeline, vuelca el resultado final en `docs/specs/[modulo].md` — ni Engram ni `openspec/` reemplazan esa fuente de verdad para este proyecto.
