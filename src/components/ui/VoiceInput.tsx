@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Lock } from 'lucide-react';
+import { Mic, MicOff, Lock } from 'lucide-react';
 import { IconButton } from '@/components/ui/button';
-import { useSpeechToText, isSafariBrowser } from '@/hooks/useSpeechToText';
+import { useSpeechToText, isSafariBrowser, isIOSDevice } from '@/hooks/useSpeechToText';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useBilling } from '@/hooks/useBilling';
@@ -48,10 +48,7 @@ export function VoiceInput({
     onError: (error) => {
       console.error('🎙️ Error de voz:', error);
       if (error === 'not-allowed') {
-        const isIOS =
-          typeof navigator !== 'undefined' &&
-          /iphone|ipad|ipod/i.test(navigator.userAgent);
-        if (isIOS) {
+        if (isIOSDevice()) {
           toast.error(
             'Sin acceso al micrófono. Ve a Ajustes > Eagles ERP (o Safari) > Micrófono y actívalo.',
             { duration: 7000 }
@@ -84,7 +81,22 @@ export function VoiceInput({
     }
   }, [isListening]);
 
-  if (!isSupported) return null;
+  if (!isSupported) {
+    // No ocultar el botón en silencio: sin esto, navegadores sin soporte de
+    // reconocimiento de voz (Firefox estable, por ejemplo) dejaban el rótulo
+    // "Dictado inteligente" sin ningún control al lado — parecía roto.
+    return (
+      <IconButton
+        type="button"
+        size={size}
+        variant={variant}
+        disabled
+        className={cn("opacity-40", className)}
+        title="Dictado por voz no disponible en este navegador — probá con Chrome, Edge o Safari"
+        icon={<MicOff className="w-4 h-4" />}
+      />
+    );
+  }
 
   const isLocked = !billingLoading && !canUseAI;
 
@@ -101,30 +113,31 @@ export function VoiceInput({
       return;
     }
 
-    // iOS Safari: webkitSpeechRecognition.start() requiere un user gesture.
-    // Llamamos getUserMedia() primero (también requiere gesto); iOS 14.5+ propaga
-    // el contexto del gesto a través de la cadena de microtasks (.then / await),
-    // por lo que start() llamado después hereda ese contexto.
-    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-    const isIOS = /iphone|ipad|ipod/i.test(ua);
-
-    if (isIOS && isSafariBrowser()) {
+    // Safari (iOS Y macOS de escritorio) necesita que el permiso de mic ya esté
+    // resuelto antes de llamar a start() para no perder el contexto del gesto del
+    // usuario. Llamamos getUserMedia() primero (también requiere gesto); el
+    // contexto se propaga a través de la cadena de microtasks (.then / await), por
+    // lo que start() llamado después lo hereda. buildFresh() ya trata a Safari de
+    // escritorio y móvil como un solo caso (continuous forzado, auto-restart), así
+    // que este flujo se aplica igual, sin distinguir iOS de macOS.
+    if (isSafariBrowser()) {
+      const deviceIsIOS = isIOSDevice();
       if (navigator.mediaDevices?.getUserMedia) {
         try {
-          console.log('🎙️ iOS Safari: solicitando permiso de mic...');
+          console.log('🎙️ Safari: solicitando permiso de mic...');
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           stream.getTracks().forEach(t => t.stop()); // liberar — solo necesitamos el permiso
-          console.log('🎙️ iOS Safari: permiso OK → iniciando SR');
+          console.log('🎙️ Safari: permiso OK → iniciando SR');
           start(); // síncrono dentro de la cadena de microtasks del gesto original
         } catch (err: any) {
           const errName = (err?.name ?? '') as string;
-          console.error('🎙️ iOS getUserMedia error:', errName);
+          console.error('🎙️ Safari getUserMedia error:', errName);
           const isStandalone =
             typeof window !== 'undefined' &&
             (window.matchMedia('(display-mode: standalone)').matches ||
              !!(window.navigator as any).standalone);
           if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError' || errName === 'SecurityError') {
-            if (isStandalone) {
+            if (deviceIsIOS && isStandalone) {
               toast.error(
                 'Micrófono bloqueado. Ve a Ajustes del iPhone > Eagles ERP > activa "Micrófono", luego intenta de nuevo.',
                 { duration: 10000 }

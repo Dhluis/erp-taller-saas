@@ -21,6 +21,17 @@ export const isSafariBrowser = (): boolean => {
   return /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|FxiOS|EdgiOS/i.test(ua);
 };
 
+// Detección de iOS que también cubre iPad en modo "Solicitar sitio de escritorio"
+// (activado por defecto desde iPadOS 13): en ese modo el UA dice "Macintosh" igual
+// que un Mac real, así que un simple /ipad/i.test(ua) no lo detecta. Un Mac real
+// nunca tiene puntos de contacto; un iPad sí.
+export const isIOSDevice = (): boolean => {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/i.test(ua)) return true;
+  return /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
+};
+
 export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   const {
     lang = 'es-MX',
