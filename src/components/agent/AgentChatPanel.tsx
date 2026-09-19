@@ -4,10 +4,10 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useSession } from '@/lib/context/SessionContext'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { X, Send, Loader2, AlertCircle, History, MessageSquarePlus, Trash2, Mic, MicOff } from 'lucide-react'
+import { X, Send, Loader2, AlertCircle, History, MessageSquarePlus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { toast } from 'sonner'
+import { VoiceInput } from '@/components/ui/VoiceInput'
 
 export interface AgentMessage {
   id: string
@@ -79,8 +79,6 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [logoSrc, setLogoSrc] = useState('/eagles-logo-dark.png')
-  const [isListening, setIsListening] = useState(false)
-  const recognitionRef = useRef<any>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const isNewChat = messages.length <= 1 && messages[0]?.id === 'welcome'
@@ -185,65 +183,8 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
     }
   }
 
-  // ✅ SOPORTE DE VOZ (Speech to Text)
-  useEffect(() => {
-    if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-      recognitionRef.current = new SpeechRecognition()
-      recognitionRef.current.continuous = true
-      recognitionRef.current.interimResults = true
-      recognitionRef.current.lang = 'es-ES'
-
-      recognitionRef.current.onresult = (event: any) => {
-        let transcript = ''
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i].isFinal) {
-            transcript += event.results[i][0].transcript
-          }
-        }
-        if (transcript) {
-          setInput((prev) => prev + (prev ? ' ' : '') + transcript)
-        }
-      }
-
-      recognitionRef.current.onerror = (event: any) => {
-        console.error('❌ [AI Assistant] Error de voz:', event.error)
-        setIsListening(false)
-        if (event.error === 'not-allowed') {
-          toast.error('Permiso de micrófono denegado')
-        }
-      }
-
-      recognitionRef.current.onend = () => {
-        setIsListening(false)
-      }
-    }
-
-    return () => {
-      recognitionRef.current?.stop()
-    }
-  }, [])
-
-  const toggleVoice = () => {
-    if (!recognitionRef.current) {
-      toast.error('Tu navegador no soporta reconocimiento de voz')
-      return
-    }
-
-    if (isListening) {
-      recognitionRef.current.stop()
-      setIsListening(false)
-    } else {
-      try {
-        recognitionRef.current.start()
-        setIsListening(true)
-        toast.info('Escuchando...')
-      } catch (e) {
-        console.error('Error starting recognition:', e)
-        recognitionRef.current.stop()
-        setIsListening(false)
-      }
-    }
+  const handleVoiceTranscript = (text: string) => {
+    setInput((prev) => (prev ? `${prev} ${text}` : text))
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -475,21 +416,12 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
             <form onSubmit={handleSubmit} className="p-4 border-t border-border bg-bg-tertiary">
               <div className="flex gap-2 items-center">
                 {/* Botón de Voz */}
-                <Button
-                  type="button"
+                <VoiceInput
+                  onTranscript={handleVoiceTranscript}
+                  size="md"
                   variant="ghost"
-                  size="icon"
-                  onClick={toggleVoice}
-                  className={cn(
-                    "rounded-xl shrink-0 transition-all duration-300",
-                    isListening 
-                      ? "bg-amber-500/20 text-amber-400 ring-2 ring-amber-500/60 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.3)]" 
-                      : "text-text-muted hover:text-amber-400 hover:bg-amber-500/10"
-                  )}
-                  title={isListening ? "Detener voz" : "Hablar con Eagles AI"}
-                >
-                  {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                </Button>
+                  className="rounded-xl shrink-0"
+                />
 
                 <input
                   type="text"
@@ -501,11 +433,8 @@ export function AgentChatPanel({ open, onOpenChange, onLimitReached }: AgentChat
                       handleSubmit(e as any)
                     }
                   }}
-                  placeholder={isListening ? "Escuchando..." : "Pregunta sobre órdenes, clientes..."}
-                  className={cn(
-                    "flex-1 rounded-xl border border-border bg-bg-primary px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none transition-all",
-                    isListening ? "ring-2 ring-amber-500/40 border-amber-500/60" : "focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50"
-                  )}
+                  placeholder="Pregunta sobre órdenes, clientes..."
+                  className="flex-1 rounded-xl border border-border bg-bg-primary px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none transition-all focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50"
                   disabled={loading}
                 />
 
