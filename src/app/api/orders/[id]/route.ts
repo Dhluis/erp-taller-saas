@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServiceClient, createClientFromRequest } from '@/lib/supabase/server'
-import { updateWorkOrder, updateWorkOrderStatus, deleteWorkOrder } from '@/lib/database/queries/work-orders'
+import { deleteWorkOrder } from '@/lib/database/queries/work-orders'
 import { hasPermission, canAccessWorkOrder, UserRole } from '@/lib/auth/permissions'
 import type { WorkOrder } from '@/types/orders'
 
@@ -193,36 +193,62 @@ export async function PATCH(
     console.log('🔄 [PATCH /api/orders/[id]] Actualizando orden:', id)
     console.log('🔄 [PATCH /api/orders/[id]] Datos recibidos:', body)
     console.log('🔄 [PATCH /api/orders/[id]] Organization ID:', organizationId)
-    
-    // Si solo se está actualizando el status, usar función específica
-    if (body.status && Object.keys(body).length === 1) {
-      const order = await updateWorkOrderStatus(id, body.status)
-      return NextResponse.json({ success: true, data: order })
+
+    // ✅ Actualizar directamente con supabaseAdmin usando el organizationId ya validado arriba.
+    // (updateWorkOrder() de lib/database/queries/work-orders.ts usa el cliente de navegador
+    // y siempre falla con "Usuario no autenticado" cuando se llama desde una API route)
+    const { data: order, error: updateError } = await supabaseAdmin
+      .from('work_orders')
+      .update({
+        ...body,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .is('deleted_at', null)
+      .select(`
+        *,
+        customer:customers(
+          id,
+          name,
+          email,
+          phone
+        ),
+        vehicle:vehicles(
+          id,
+          brand,
+          model,
+          year,
+          license_plate
+        ),
+        order_items(*)
+      `)
+      .single();
+
+    if (updateError || !order) {
+      console.error('❌ [PATCH /api/orders/[id]] Error actualizando orden:', updateError)
+      if (updateError?.code === 'PGRST116') {
+        return NextResponse.json(
+          { success: false, error: 'Orden no encontrada' },
+          { status: 404 }
+        )
+      }
+      return NextResponse.json(
+        { success: false, error: updateError?.message || 'No se pudo actualizar la orden' },
+        { status: 500 }
+      )
     }
-    
-    // Actualización completa
-    const order = await updateWorkOrder(id, body)
+
     console.log('✅ [PATCH /api/orders/[id]] Orden actualizada exitosamente')
     return NextResponse.json({ success: true, data: order })
   } catch (error: any) {
     console.error('❌ [PATCH /api/orders/[id]] Error:', error)
     console.error('❌ [PATCH /api/orders/[id]] Error message:', error?.message)
     console.error('❌ [PATCH /api/orders/[id]] Error stack:', error?.stack)
-    
-    // Si es error de autenticación, retornar 401
-    if (error?.message?.includes('no autenticado') || error?.message?.includes('autenticado')) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Usuario no autenticado' 
-        },
-        { status: 401 }
-      )
-    }
-    
+
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: error?.message || 'Error interno del servidor',
         details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
       },
