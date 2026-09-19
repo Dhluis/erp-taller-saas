@@ -22,6 +22,7 @@ import {
   generatePaginationMeta 
 } from '@/lib/utils/pagination';
 import type { PaginatedResponse } from '@/types/pagination';
+import { applyWorkshopScope } from '@/lib/auth/workshop-scope';
 
 // =====================================================
 // GET - Obtener todas las cotizaciones
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
     const supabaseAdmin = getSupabaseServiceClient();
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('organization_id')
+      .select('organization_id, role, workshop_id')
       .eq('auth_user_id', user.id)
       .single();
 
@@ -63,6 +64,10 @@ export async function GET(request: NextRequest) {
     }
 
     const organizationId = userProfile.organization_id;
+    const scopeContext = {
+      role: (userProfile as any).role || '',
+      workshopId: (userProfile as any).workshop_id || null,
+    };
     const context = createLogContext(
       organizationId,
       undefined,
@@ -106,14 +111,17 @@ export async function GET(request: NextRequest) {
 
     // ✅ MODE PAGINADO: Obtener cotizaciones con paginación
     // ✅ Query con count para paginación
-    let query = supabaseAdmin
-      .from('quotations')
-      .select(`
-        *,
-        customer:customers(id, name, email, phone),
-        items:quotation_items(*)
-      `, { count: 'exact' })
-      .eq('organization_id', organizationId);
+    let query = applyWorkshopScope(
+      supabaseAdmin
+        .from('quotations')
+        .select(`
+          *,
+          customer:customers(id, name, email, phone),
+          items:quotation_items(*)
+        `, { count: 'exact' })
+        .eq('organization_id', organizationId),
+      scopeContext
+    );
 
     // Búsqueda multi-campo
     if (search) {

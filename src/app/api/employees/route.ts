@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const supabaseAdmin = getSupabaseServiceClient();
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('organization_id')
+      .select('organization_id, role')
       .eq('auth_user_id', user.id)
       .single();
 
@@ -43,8 +43,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (!hasPermission((userProfile as any).role as UserRole, 'employees', 'read')) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para ver empleados', data: [] },
+        { status: 403 }
+      );
+    }
+
     const organizationId = userProfile.organization_id;
-    
+
     // Obtener parámetros de query
     const { searchParams } = new URL(request.url)
     const activeOnly = searchParams.get('active') === 'true'

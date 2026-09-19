@@ -20,7 +20,7 @@ import {
 } from "lucide-react"
 import { useUserProfile } from "@/hooks/use-user-profile"
 import { useOrganization } from "@/lib/context/SessionContext"
-import { getCompanySettings, updateCompanySettings } from "@/lib/supabase/company-settings"
+import { getCompanySettings } from "@/lib/supabase/company-settings"
 import { toast } from "sonner"
 
 type SystemConfig = {
@@ -107,12 +107,20 @@ export default function ConfiguracionesSistemaPage() {
     }
     setIsSaving(true)
     try {
-      await updateCompanySettings(organizationId, {
-        appointment_defaults: {
-          ...appointmentDefaultsRest,
-          system_config: settings
-        }
+      const response = await fetch('/api/company-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointment_defaults: {
+            ...appointmentDefaultsRest,
+            system_config: settings
+          }
+        }),
       })
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Error al guardar la configuración')
+      }
       setLastSaved(new Date())
       toast.success("Configuración del sistema guardada")
     } catch {

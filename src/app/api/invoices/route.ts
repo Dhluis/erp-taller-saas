@@ -15,6 +15,8 @@ import { getTenantContext } from '@/lib/core/multi-tenant-server';
 import { extractPaginationFromURL, calculateOffset, generatePaginationMeta } from '@/lib/utils/pagination';
 import type { PaginatedResponse } from '@/types/pagination';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
+import { hasPermission, UserRole } from '@/lib/auth/permissions';
+import { applyWorkshopScope } from '@/lib/auth/workshop-scope';
 
 // =====================================================
 // GET - Obtener todas las notas de venta
@@ -32,6 +34,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (!hasPermission(tenantContext.role as UserRole, 'invoices', 'read')) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para ver notas de venta' },
+        { status: 403 }
+      );
+    }
+
     const organizationId = tenantContext.organizationId;
     const context = createLogContext(
       organizationId,
@@ -39,7 +48,7 @@ export async function GET(request: NextRequest) {
       'invoices-api',
       'GET'
     );
-    
+
     const url = new URL(request.url);
     const { searchParams } = url;
     const status = searchParams.get('status') as 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled' | null;
@@ -72,15 +81,18 @@ export async function GET(request: NextRequest) {
       const supabaseAdmin = getSupabaseServiceClient();
       
       // Construir query con relaciones (igual que getAllInvoices)
-      let query = supabaseAdmin
-        .from('invoices')
-        .select(`
-          *,
-          customer:customers(*),
-          vehicle:vehicles(*)
-        `, { count: 'exact' })
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false });
+      let query = applyWorkshopScope(
+        supabaseAdmin
+          .from('invoices')
+          .select(`
+            *,
+            customer:customers(*),
+            vehicle:vehicles(*)
+          `, { count: 'exact' })
+          .eq('organization_id', organizationId)
+          .order('created_at', { ascending: false }),
+        tenantContext
+      );
 
       // Aplicar filtro de status (pending = draft + sent)
       if (status) {
@@ -173,6 +185,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!hasPermission(tenantContext.role as UserRole, 'invoices', 'create')) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para crear notas de venta' },
+        { status: 403 }
+      );
+    }
+
     const organizationId = tenantContext.organizationId;
     context = createLogContext(
       organizationId,
@@ -180,7 +199,7 @@ export async function POST(request: NextRequest) {
       'invoices-api',
       'POST'
     );
-    
+
     const body = await request.json();
     const { source, ...data } = body;
 

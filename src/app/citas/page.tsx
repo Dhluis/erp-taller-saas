@@ -1122,137 +1122,6 @@ function CitasContent() {
         </div>
       </div>
 
-      {/* Appointments Table - scroll horizontal en mobile */}
-      <div className="bg-card rounded-lg border overflow-x-auto">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin mr-2" />
-            <span>Cargando citas...</span>
-          </div>
-        ) : (
-          <Table className="min-w-[600px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Vehículo</TableHead>
-                <TableHead>Servicio</TableHead>
-                <TableHead>Fecha y Hora</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAppointments.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <Calendar className="h-8 w-8 opacity-20" />
-                      <p>
-                        {searchTerm 
-                          ? 'No se encontraron citas con ese criterio' 
-                          : filterTab === 'upcoming' 
-                            ? 'No hay citas próximas programadas' 
-                            : filterTab === 'history' 
-                              ? 'No hay historial de citas' 
-                              : 'No hay citas registradas'}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredAppointments.map((appointment) => (
-              <TableRow key={appointment.id}>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">
-                      {appointment.customer?.name || appointment.customer_name || 'Sin nombre'}
-                    </div>
-                    <div className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
-                      {appointment.customer?.phone || appointment.customer_phone || 'Sin teléfono'}
-                    </div>
-                    {(appointment.customer?.email || appointment.customer_email) && (
-                      <div className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Mail className="h-3 w-3" />
-                        {appointment.customer?.email || appointment.customer_email}
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Car className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">
-                      {appointment.vehicle 
-                        ? `${appointment.vehicle.brand} ${appointment.vehicle.model}` 
-                        : appointment.vehicle_info || 'Sin vehículo'}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{appointment.service_type}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {appointment.estimated_duration} min
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">
-                      {formatDisplayDate(appointment.appointment_date)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {appointment.appointment_time}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(appointment.status)}
-                    {getStatusBadge(appointment.status)}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => {
-                        setSelectedAppointmentForOrder(appointment)
-                        setIsCreateOrderModalOpen(true)
-                      }}
-                      className="h-8 w-8 p-0"
-                      title="Crear orden desde esta cita"
-                    >
-                      <Wrench className="h-4 w-4 text-blue-500" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => handleEdit(appointment)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => handleDelete(appointment.id)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        )}
-      </div>
-
       {/* Calendario de Citas */}
       <div className="bg-card rounded-lg border p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1413,6 +1282,137 @@ function CitasContent() {
             })}
           </div>
           </div>
+        )}
+      </div>
+
+      {/* Appointments Table - scroll horizontal en mobile */}
+      <div className="bg-card rounded-lg border overflow-x-auto">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin mr-2" />
+            <span>Cargando citas...</span>
+          </div>
+        ) : (
+          <Table className="min-w-[600px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Vehículo</TableHead>
+                <TableHead>Servicio</TableHead>
+                <TableHead>Fecha y Hora</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAppointments.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Calendar className="h-8 w-8 opacity-20" />
+                      <p>
+                        {searchTerm
+                          ? 'No se encontraron citas con ese criterio'
+                          : filterTab === 'upcoming'
+                            ? 'No hay citas próximas programadas'
+                            : filterTab === 'history'
+                              ? 'No hay historial de citas'
+                              : 'No hay citas registradas'}
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredAppointments.map((appointment) => (
+              <TableRow key={appointment.id}>
+                <TableCell>
+                  <div>
+                    <div className="font-medium">
+                      {appointment.customer?.name || appointment.customer_name || 'Sin nombre'}
+                    </div>
+                    <div className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      {appointment.customer?.phone || appointment.customer_phone || 'Sin teléfono'}
+                    </div>
+                    {(appointment.customer?.email || appointment.customer_email) && (
+                      <div className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        {appointment.customer?.email || appointment.customer_email}
+                      </div>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Car className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">
+                      {appointment.vehicle
+                        ? `${appointment.vehicle.brand} ${appointment.vehicle.model}`
+                        : appointment.vehicle_info || 'Sin vehículo'}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div>
+                    <div className="font-medium">{appointment.service_type}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {appointment.estimated_duration} min
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div>
+                    <div className="font-medium">
+                      {formatDisplayDate(appointment.appointment_date)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {appointment.appointment_time}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon(appointment.status)}
+                    {getStatusBadge(appointment.status)}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedAppointmentForOrder(appointment)
+                        setIsCreateOrderModalOpen(true)
+                      }}
+                      className="h-8 w-8 p-0"
+                      title="Crear orden desde esta cita"
+                    >
+                      <Wrench className="h-4 w-4 text-blue-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEdit(appointment)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(appointment.id)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         )}
       </div>
 

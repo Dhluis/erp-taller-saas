@@ -13,8 +13,11 @@ import { createClient, createClientFromRequest } from '@/lib/supabase/server'
 
 export interface TenantContext {
   organizationId: string
-  workshopId: string
+  /** UUID del workshop del usuario, o null si no tiene sucursal asignada. */
+  workshopId: string | null
   userId: string
+  /** 'ADMIN' | 'ASESOR' | 'MECANICO' — evita que cada ruta repita su propia query de rol. */
+  role: string
 }
 
 export interface OrganizationInfo {
@@ -92,23 +95,24 @@ export async function getTenantContext(request?: any): Promise<TenantContext> {
     // Intento 1: Tabla 'users' (Principal)
     let { data: userProfile, error: profileError } = await (supabaseAdmin as any)
       .from('users')
-      .select('workshop_id, organization_id')
+      .select('workshop_id, organization_id, role')
       .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
       .maybeSingle()
- 
+
     // Intento 2: Tabla 'system_users' (Fallback)
     if (profileError || !userProfile) {
       console.log(`🔍 [getTenantContext] Buscando en 'system_users' para ${user.id}...`);
       const { data: systemData } = await (supabaseAdmin as any)
         .from('system_users')
-        .select('organization_id')
+        .select('organization_id, role')
         .or(`auth_user_id.eq.${user.id},email.eq.${user.email || 'unset'}`)
         .maybeSingle();
 
       if (systemData) {
         userProfile = {
           organization_id: systemData.organization_id,
-          workshop_id: null
+          workshop_id: null,
+          role: systemData.role || 'ADMIN'
         };
         profileError = null;
       }
@@ -159,22 +163,24 @@ export async function getTenantContext(request?: any): Promise<TenantContext> {
       throw new Error('No se pudo determinar la organización del usuario');
     }
 
-    if (!workshopId) {
-      // Si no hay workshop_id, usar organization_id como workshop_id (compatibilidad)
-      console.warn('[getTenantContext] ⚠️ No hay workshop_id, usando organization_id como fallback');
-      workshopId = organizationId;
-    }
-    
+    // ⚠️ Antes se usaba organizationId como valor de workshopId cuando el usuario no
+    // tenía sucursal asignada. Eso nunca coincide con un workshop_id real de negocio
+    // (es un UUID de organización, no de workshop), así que cualquier `.eq('workshop_id', ...)`
+    // que confiara en ese valor no encontraba nada. Ahora se devuelve null, honesto.
+    workshopId = workshopId || null;
+
     console.log('[getTenantContext] ✅ Contexto final:', {
       organizationId,
       workshopId,
-      userId: user.id
+      userId: user.id,
+      role: userProfile.role
     })
 
     return {
       organizationId,
       workshopId,
-      userId: user.id
+      userId: user.id,
+      role: userProfile.role
     }
   } catch (error: any) {
     // Si el error ya tiene un mensaje, re-lanzarlo
@@ -199,7 +205,7 @@ export async function getOrganizationId(): Promise<string> {
 /**
  * Obtiene solo el workshop_id del usuario autenticado
  */
-export async function getWorkshopId(): Promise<string> {
+export async function getWorkshopId(): Promise<string | null> {
   const context = await getTenantContext()
   return context.workshopId
 }
@@ -231,6 +237,10 @@ export async function getWorkshopInfo(workshopId?: string): Promise<WorkshopInfo
   const supabase = await createClient()
   const wsId = workshopId || await getWorkshopId()
 
+  if (!wsId) {
+    throw new Error('Workshop no encontrado')
+  }
+
   const { data: workshop, error } = await supabase
     .from('workshops')
     .select('id, name, organization_id, email, phone, address')
@@ -247,7 +257,7 @@ export async function getWorkshopInfo(workshopId?: string): Promise<WorkshopInfo
 /**
  * API simplificada para obtener solo organization_id y workshop_id
  */
-export async function getSimpleTenantContext(): Promise<{ organizationId: string; workshopId: string }> {
+export async function getSimpleTenantContext(): Promise<{ organizationId: string; workshopId: string | null }> {
   const context = await getTenantContext()
   return {
     organizationId: context.organizationId,

@@ -22,7 +22,7 @@ import {
   Trash2,
   Eye
 } from "lucide-react"
-import { getCompanySettings, updateCompanySettings, type CompanySettings } from "@/lib/supabase/company-settings"
+import { getCompanySettings, type CompanySettings, type UpdateCompanySettings } from "@/lib/supabase/company-settings"
 import { uploadTermsPdf, deleteTermsPdf } from "@/lib/supabase/terms-pdf"
 import { uploadCompanyLogo } from "@/lib/supabase/logo-storage"
 import { uploadCompanySignature, deleteCompanySignature } from "@/lib/supabase/signature-storage"
@@ -124,8 +124,8 @@ function apiToFormSettings(api: CompanySettings | null): CompanySettingsForm {
   }
 }
 
-/** Convierte el estado del formulario al payload que espera updateCompanySettings. */
-function formToApiSettings(form: CompanySettingsForm): Parameters<typeof updateCompanySettings>[1] {
+/** Convierte el estado del formulario al payload que espera la API de configuración. */
+function formToApiSettings(form: CompanySettingsForm): UpdateCompanySettings {
   return {
     company_name: form.name,
     tax_id: form.rfc || null,
@@ -147,6 +147,20 @@ function formToApiSettings(form: CompanySettingsForm): Parameters<typeof updateC
     },
     signature_url: form.signature_url || null
   }
+}
+
+/** Guarda la configuración vía API route (server-side valida el rol antes de escribir). */
+async function saveCompanySettingsViaApi(settings: UpdateCompanySettings): Promise<CompanySettings> {
+  const response = await fetch('/api/company-settings', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  })
+  const result = await response.json()
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || 'Error al guardar la configuración')
+  }
+  return result.data as CompanySettings
 }
 
 export default function EmpresaPage() {
@@ -196,7 +210,7 @@ export default function EmpresaPage() {
         ...formData,
         billing: { ...formData.billing, currency }
       }
-      await updateCompanySettings(organizationId, formToApiSettings(updatedForm))
+      await saveCompanySettingsViaApi(formToApiSettings(updatedForm))
       setFormData(updatedForm)
       if (currency in SUPPORTED_CURRENCIES) {
         await setGlobalCurrency(currency as OrgCurrencyCode)
@@ -337,7 +351,7 @@ export default function EmpresaPage() {
     setIsSaving(true)
     try {
       if (!organizationId) throw new Error('organizationId no disponible')
-      const success = await updateCompanySettings(organizationId, formToApiSettings(formData))
+      const success = await saveCompanySettingsViaApi(formToApiSettings(formData))
       if (success) {
         // Sincronizar la moneda seleccionada con el contexto global
         if (formData.billing?.currency && formData.billing.currency in SUPPORTED_CURRENCIES) {

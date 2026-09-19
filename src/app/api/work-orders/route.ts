@@ -8,6 +8,7 @@ import {
   generatePaginationMeta 
 } from '@/lib/utils/pagination';
 import type { PaginatedResponse } from '@/types/pagination';
+import { applyWorkshopScope } from '@/lib/auth/workshop-scope';
 
 // ✅ Función helper para retry logic
 async function retryQuery<T>(
@@ -158,12 +159,13 @@ export async function GET(request: NextRequest) {
     const supabaseAdmin = getSupabaseServiceClient();
     const { data: userProfile } = await supabaseAdmin
       .from('users')
-      .select('id, role')
+      .select('id, role, workshop_id')
       .eq('auth_user_id', user.id)
       .single();
-    
+
     const userRole = userProfile?.role || 'ADMIN';
     const assignedUserId = userRole === 'MECANICO' ? userProfile?.id : null;
+    const scopeContext = { role: userRole, workshopId: (userProfile as any)?.workshop_id || null };
     
     // ✅ Helper para crear timeout promise
     const createTimeoutPromise = () => new Promise((_, reject) => {
@@ -178,35 +180,38 @@ export async function GET(request: NextRequest) {
         console.log('🔍 [GET /api/work-orders] Construyendo query paginada...');
         
         // Base query
-        let query = supabaseAdmin
-          .from('work_orders')
-          .select(`
-            *,
-            customer:customers(
-              id,
-              name,
-              email,
-              phone
-            ),
-            vehicle:vehicles(
-              id,
-              brand,
-              model,
-              year,
-              license_plate,
-              color,
-              mileage,
-              vin
-            ),
-            assigned_user:users!work_orders_assigned_to_fkey(
-              id,
-              full_name,
-              role,
-              email
-            )
-          `, { count: 'exact' }) // ✅ IMPORTANTE: count para paginación
-          .eq('organization_id', organizationId)
-          .is('deleted_at', null); // ✅ SOFT DELETE: Solo mostrar órdenes activas
+        let query = applyWorkshopScope(
+          supabaseAdmin
+            .from('work_orders')
+            .select(`
+              *,
+              customer:customers(
+                id,
+                name,
+                email,
+                phone
+              ),
+              vehicle:vehicles(
+                id,
+                brand,
+                model,
+                year,
+                license_plate,
+                color,
+                mileage,
+                vin
+              ),
+              assigned_user:users!work_orders_assigned_to_fkey(
+                id,
+                full_name,
+                role,
+                email
+              )
+            `, { count: 'exact' }) // ✅ IMPORTANTE: count para paginación
+            .eq('organization_id', organizationId)
+            .is('deleted_at', null), // ✅ SOFT DELETE: Solo mostrar órdenes activas
+          scopeContext
+        );
         
         // ✅ Si es mecánico, filtrar solo órdenes asignadas a él (usando users.id)
         if (userRole === 'MECANICO' && assignedUserId) {

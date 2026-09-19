@@ -34,6 +34,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (!hasPermission(tenantContext.role as UserRole, 'payments', 'read')) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para ver pagos' },
+        { status: 403 }
+      );
+    }
+
     const organizationId = tenantContext.organizationId;
     const context = createLogContext(
       organizationId,

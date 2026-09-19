@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClientFromRequest } from '@/lib/supabase/server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { checkResourceLimit } from '@/lib/billing/check-limits';
+import { applyWorkshopScope } from '@/lib/auth/workshop-scope';
 
 /** Shared helper: resolve organization_id from authenticated user */
 async function resolveOrg(request: NextRequest) {
@@ -12,7 +13,7 @@ async function resolveOrg(request: NextRequest) {
   const supabaseAdmin = getSupabaseServiceClient();
   const { data: userProfile, error: profileError } = await supabaseAdmin
     .from('users')
-    .select('organization_id, workshop_id')
+    .select('organization_id, workshop_id, role')
     .eq('auth_user_id', user.id)
     .single();
 
@@ -24,6 +25,7 @@ async function resolveOrg(request: NextRequest) {
     user,
     organizationId: userProfile.organization_id as string,
     workshopId: (userProfile as any).workshop_id as string | null,
+    role: (userProfile as any).role as string,
     error: null,
   };
 }
@@ -33,7 +35,7 @@ async function resolveOrg(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const { organizationId, error } = await resolveOrg(request);
+    const { organizationId, workshopId, role, error } = await resolveOrg(request);
     if (error || !organizationId) {
       return NextResponse.json({ success: false, error: error || 'No autorizado', data: [] }, { status: 401 });
     }
@@ -46,10 +48,13 @@ export async function GET(request: NextRequest) {
     const dateFrom = searchParams.get('date_from');
     const dateTo = searchParams.get('date_to');
 
-    let query = supabaseAdmin
-      .from('appointments')
-      .select(`*, customer:customers(id, name, phone, email), vehicle:vehicles(id, brand, model, year, license_plate)`)
-      .eq('organization_id', organizationId);
+    let query = applyWorkshopScope(
+      supabaseAdmin
+        .from('appointments')
+        .select(`*, customer:customers(id, name, phone, email), vehicle:vehicles(id, brand, model, year, license_plate)`)
+        .eq('organization_id', organizationId),
+      { role: role || '', workshopId: workshopId || null }
+    );
 
     if (status)     query = query.eq('status', status);
     if (customerId) query = query.eq('customer_id', customerId);

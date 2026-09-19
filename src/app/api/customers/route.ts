@@ -10,6 +10,7 @@ import {
   generatePaginationMeta,
 } from "@/lib/utils/pagination";
 import type { PaginatedResponse } from "@/types/pagination";
+import { applyWorkshopScope } from "@/lib/auth/workshop-scope";
 
 // ✅ Función helper para retry logic
 async function retryQuery<T>(
@@ -65,6 +66,17 @@ export async function GET(request: NextRequest) {
     // ✅ PASO 2b: Obtener cliente admin para queries sin RLS
     const supabaseAdmin = getSupabaseServiceClient() || supabase;
 
+    // ✅ PASO 2c: Rol y sucursal del usuario, para restringir ASESOR/MECANICO a su propia sucursal
+    const { data: currentUserProfile } = await (supabaseAdmin as any)
+      .from("users")
+      .select("role, workshop_id")
+      .eq("auth_user_id", authUser.id)
+      .maybeSingle();
+    const scopeContext = {
+      role: currentUserProfile?.role || "",
+      workshopId: currentUserProfile?.workshop_id || null,
+    };
+
     // ✅ PASO 3: Extraer parámetros de URL
     const url = new URL(request.url);
     const { page, pageSize, sortBy, sortOrder } = extractPaginationFromURL(url);
@@ -102,10 +114,11 @@ export async function GET(request: NextRequest) {
           console.log("🔍 [GET /api/customers] Construyendo query paginada...");
 
           // Base query
-          let query = supabaseAdmin
-            .from("customers")
-            .select(
-              `
+          let query = applyWorkshopScope(
+            supabaseAdmin
+              .from("customers")
+              .select(
+                `
             id,
             name,
             email,
@@ -123,9 +136,11 @@ export async function GET(request: NextRequest) {
               color
             )
           `,
-              { count: "exact" },
-            ) // ✅ IMPORTANTE: count para paginación
-            .eq("organization_id", organizationId);
+                { count: "exact" },
+              ) // ✅ IMPORTANTE: count para paginación
+              .eq("organization_id", organizationId),
+            scopeContext
+          );
 
           // ✅ Filtros
 

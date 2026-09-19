@@ -13,6 +13,7 @@ import {
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { hasPermission, UserRole } from '@/lib/auth/permissions';
 
 // =====================================================
 // GET - Obtener item específico
@@ -42,11 +43,17 @@ export async function GET(
       'GET',
       { invoiceId: id, itemId: itemId }
     );
+    if (!hasPermission(tenantContext.role as UserRole, 'invoices', 'read')) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para ver notas de venta' },
+        { status: 403 }
+      );
+    }
     logger.info('Obteniendo item específico de nota de venta', context);
 
     // Verificar que la nota de venta existe
     const invoice = await getInvoiceById(id);
-    if (!invoice) {
+    if (!invoice || (invoice as any).organization_id !== organizationId) {
       logger.warn('Intento de obtener item de nota de venta inexistente', context);
       return NextResponse.json(
         {
@@ -119,13 +126,19 @@ export async function PUT(
       'PUT',
       { invoiceId: id, itemId: itemId }
     );
-    
+    if (!hasPermission(tenantContext.role as UserRole, 'invoices', 'update')) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para modificar notas de venta' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     logger.info('Actualizando item específico de nota de venta', context, { updateData: body });
 
     // Verificar que la nota de venta existe
     const invoice = await getInvoiceById(id);
-    if (!invoice) {
+    if (!invoice || (invoice as any).organization_id !== organizationId) {
       logger.warn('Intento de actualizar item de nota de venta inexistente', context);
       return NextResponse.json(
         {
@@ -244,11 +257,17 @@ export async function DELETE(
       'DELETE',
       { invoiceId: id, itemId: itemId }
     );
+    if (!hasPermission(tenantContext.role as UserRole, 'invoices', 'update')) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para modificar notas de venta' },
+        { status: 403 }
+      );
+    }
     logger.info('Eliminando item específico de nota de venta', context);
 
     // Verificar que la nota de venta existe
     const invoice = await getInvoiceById(id);
-    if (!invoice) {
+    if (!invoice || (invoice as any).organization_id !== organizationId) {
       logger.warn('Intento de eliminar item de nota de venta inexistente', context);
       return NextResponse.json(
         {

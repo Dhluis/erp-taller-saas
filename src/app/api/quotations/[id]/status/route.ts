@@ -10,12 +10,14 @@ import {
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { hasPermission, UserRole } from '@/lib/auth/permissions';
 
 // =====================================================
 // PUT - Actualizar estado de cotización
 // =====================================================
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
+    const { id } = await params;
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
@@ -77,9 +79,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       );
     }
 
-    // Verificar que la cotización existe
+    // Verificar que la cotización existe Y pertenece a esta organización
     const existingQuotation = await getQuotationById(id);
-    if (!existingQuotation) {
+    if (!existingQuotation || (existingQuotation as any).organization_id !== organizationId) {
       logger.warn('Intento de actualizar estado de cotización inexistente', context);
       return NextResponse.json(
         {
@@ -93,6 +95,22 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     // Validar transiciones de estado
     const currentStatus = existingQuotation.status;
     const newStatus = body.status;
+
+    // ✅ Aprobar/rechazar es una decisión reservada a ADMIN (hasPermission 'approve').
+    // Otras transiciones (convertir, expirar, reactivar) solo requieren poder editar la cotización.
+    const requiresApprovalPermission = newStatus === 'approved' || newStatus === 'rejected';
+    const permissionAction = requiresApprovalPermission ? 'approve' : 'update';
+    if (!hasPermission(tenantContext.role as UserRole, 'quotations', permissionAction)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: requiresApprovalPermission
+            ? 'No tienes permisos para aprobar o rechazar cotizaciones'
+            : 'No tienes permisos para modificar cotizaciones',
+        },
+        { status: 403 }
+      );
+    }
 
     // Reglas de transición de estado
     const validTransitions: Record<string, string[]> = {
@@ -168,6 +186,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 // =====================================================
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   try {
+    const { id } = await params;
     const tenantContext = await getTenantContext(request);
     if (!tenantContext || !tenantContext.organizationId) {
       return NextResponse.json(
@@ -187,11 +206,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       'GET',
       { quotationId: id }
     );
+    if (!hasPermission(tenantContext.role as UserRole, 'quotations', 'read')) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para ver cotizaciones' },
+        { status: 403 }
+      );
+    }
+
     logger.info('Obteniendo estados válidos para cotización', context);
 
     // Obtener cotización actual
     const quotation = await getQuotationById(id);
-    if (!quotation) {
+    if (!quotation || (quotation as any).organization_id !== organizationId) {
       logger.warn('Cotización no encontrada para obtener estados válidos', context);
       return NextResponse.json(
         {

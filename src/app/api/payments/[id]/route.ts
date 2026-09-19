@@ -11,6 +11,7 @@ import {
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { hasPermission, UserRole } from '@/lib/auth/permissions';
 
 // =====================================================
 // GET - Obtener pago por ID
@@ -32,6 +33,13 @@ export async function GET(
       );
     }
 
+    if (!hasPermission(tenantContext.role as UserRole, 'payments', 'read')) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para ver pagos' },
+        { status: 403 }
+      );
+    }
+
     const organizationId = tenantContext.organizationId;
     const context = createLogContext(
       organizationId,
@@ -44,7 +52,8 @@ export async function GET(
 
     const payment = await getPaymentById(id);
 
-    if (!payment) {
+    // ✅ El pago puede existir pero pertenecer a otra organización — nunca revelarlo
+    if (!payment || (payment as any).organization_id !== organizationId) {
       logger.warn('Pago no encontrado', context);
       return NextResponse.json(
         {
@@ -94,6 +103,13 @@ export async function PUT(
       );
     }
 
+    if (!hasPermission(tenantContext.role as UserRole, 'payments', 'update')) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para modificar pagos' },
+        { status: 403 }
+      );
+    }
+
     const organizationId = tenantContext.organizationId;
     const context = createLogContext(
       organizationId,
@@ -102,7 +118,16 @@ export async function PUT(
       'PUT',
       { paymentId: id }
     );
-    
+
+    // ✅ Verificar que el pago pertenece a esta organización antes de tocarlo
+    const existingForUpdate = await getPaymentById(id);
+    if (!existingForUpdate || (existingForUpdate as any).organization_id !== organizationId) {
+      return NextResponse.json(
+        { success: false, error: 'Pago no encontrado' },
+        { status: 404 }
+      );
+    }
+
     const body = await request.json();
     logger.info('Actualizando pago', context, { updateData: body });
 
@@ -185,6 +210,13 @@ export async function DELETE(
       );
     }
 
+    if (!hasPermission(tenantContext.role as UserRole, 'payments', 'delete')) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para eliminar pagos' },
+        { status: 403 }
+      );
+    }
+
     const organizationId = tenantContext.organizationId;
     const context = createLogContext(
       organizationId,
@@ -195,10 +227,10 @@ export async function DELETE(
     );
     logger.info('Eliminando pago', context);
 
-    // Verificar que el pago existe antes de eliminar
+    // Verificar que el pago existe Y pertenece a esta organización antes de eliminar
     const existingPayment = await getPaymentById(id);
-    if (!existingPayment) {
-      logger.warn('Intento de eliminar pago inexistente', context);
+    if (!existingPayment || (existingPayment as any).organization_id !== organizationId) {
+      logger.warn('Intento de eliminar pago inexistente o de otra organización', context);
       return NextResponse.json(
         {
           success: false,

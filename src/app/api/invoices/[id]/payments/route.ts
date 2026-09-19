@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { safeError } from '@/lib/utils/api-error';
+import { hasPermission, UserRole } from '@/lib/auth/permissions';
 
 // =====================================================
 // GET - Listar pagos de una factura
@@ -21,6 +22,9 @@ export async function GET(
     const tenantContext = await getTenantContext(request);
     if (!tenantContext?.organizationId) {
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 403 });
+    }
+    if (!hasPermission(tenantContext.role as UserRole, 'payments', 'read')) {
+      return NextResponse.json({ success: false, error: 'No tienes permisos para ver pagos' }, { status: 403 });
     }
 
     const supabase = getSupabaseServiceClient();
@@ -69,6 +73,9 @@ export async function POST(
     const tenantContext = await getTenantContext(request);
     if (!tenantContext?.organizationId) {
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 403 });
+    }
+    if (!hasPermission(tenantContext.role as UserRole, 'payments', 'create')) {
+      return NextResponse.json({ success: false, error: 'No tienes permisos para registrar pagos' }, { status: 403 });
     }
 
     const body = await request.json();

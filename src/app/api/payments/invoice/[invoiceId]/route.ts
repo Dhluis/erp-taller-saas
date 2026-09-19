@@ -10,6 +10,7 @@ import {
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { hasPermission, UserRole } from '@/lib/auth/permissions';
 
 // =====================================================
 // GET - Obtener pagos por nota de venta
@@ -31,6 +32,13 @@ export async function GET(
       );
     }
 
+    if (!hasPermission(tenantContext.role as UserRole, 'payments', 'read')) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para ver pagos' },
+        { status: 403 }
+      );
+    }
+
     const organizationId = tenantContext.organizationId;
     const context = createLogContext(
       organizationId,
@@ -39,14 +47,14 @@ export async function GET(
       'GET',
       { invoiceId: invoiceId }
     );
-    
-    logger.info('Obteniendo pagos por nota de venta', context, { 
+
+    logger.info('Obteniendo pagos por nota de venta', context, {
       invoiceId: invoiceId
     });
 
-    // Verificar que la nota de venta existe
+    // Verificar que la nota de venta existe Y pertenece a esta organización
     const invoice = await getInvoiceById(invoiceId);
-    if (!invoice) {
+    if (!invoice || (invoice as any).organization_id !== organizationId) {
       logger.warn('Intento de obtener pagos de nota de venta inexistente', context);
       return NextResponse.json(
         {

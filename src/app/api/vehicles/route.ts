@@ -8,6 +8,7 @@ import {
   generatePaginationMeta 
 } from '@/lib/utils/pagination';
 import type { PaginatedResponse } from '@/types/pagination';
+import { applyWorkshopScope } from '@/lib/auth/workshop-scope';
 
 /**
  * @swagger
@@ -88,7 +89,7 @@ export async function GET(request: NextRequest) {
     const supabaseAdmin = getSupabaseServiceClient();
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('organization_id')
+      .select('organization_id, role, workshop_id')
       .eq('auth_user_id', user.id)
       .single();
 
@@ -105,6 +106,10 @@ export async function GET(request: NextRequest) {
     }
 
     const organizationId = userProfile.organization_id;
+    const scopeContext = {
+      role: (userProfile as any).role || '',
+      workshopId: (userProfile as any).workshop_id || null,
+    };
 
     // ✅ Extraer parámetros de paginación
     const url = new URL(request.url);
@@ -123,18 +128,21 @@ export async function GET(request: NextRequest) {
     });
 
     // ✅ Usar Service Role Client directamente para queries
-    let query = supabaseAdmin
-      .from('vehicles')
-      .select(`
-        *,
-        customer:customers(
-          id,
-          name,
-          email,
-          phone
-        )
-      `, { count: 'exact' })
-      .eq('organization_id', organizationId);
+    let query = applyWorkshopScope(
+      supabaseAdmin
+        .from('vehicles')
+        .select(`
+          *,
+          customer:customers(
+            id,
+            name,
+            email,
+            phone
+          )
+        `, { count: 'exact' })
+        .eq('organization_id', organizationId),
+      scopeContext
+    );
 
     // Búsqueda en múltiples campos
     if (search) {

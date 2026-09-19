@@ -10,6 +10,7 @@ import {
 } from '@/lib/supabase/quotations-invoices';
 import { logger, createLogContext } from '@/lib/core/logging';
 import { getTenantContext } from '@/lib/core/multi-tenant-server';
+import { hasPermission, UserRole } from '@/lib/auth/permissions';
 
 // Force dynamic rendering to avoid build-time execution
 export const dynamic = 'force-dynamic';
@@ -34,6 +35,13 @@ export async function PUT(
       );
     }
 
+    if (!hasPermission(tenantContext.role as UserRole, 'invoices', 'update')) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para modificar notas de venta' },
+        { status: 403 }
+      );
+    }
+
     const organizationId = tenantContext.organizationId;
     const context = createLogContext(
       organizationId,
@@ -42,7 +50,7 @@ export async function PUT(
       'PUT',
       { invoiceId: id }
     );
-    
+
     const body = await request.json();
     logger.info('Actualizando descuento de nota de venta', context, { 
       invoiceId: id,
@@ -86,9 +94,9 @@ export async function PUT(
       );
     }
 
-    // Verificar que la nota de venta existe
+    // Verificar que la nota de venta existe Y pertenece a esta organización
     const invoice = await getInvoiceById(id);
-    if (!invoice) {
+    if (!invoice || (invoice as any).organization_id !== organizationId) {
       logger.warn('Intento de actualizar descuento de nota de venta inexistente', context);
       return NextResponse.json(
         {
