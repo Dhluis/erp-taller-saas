@@ -960,7 +960,7 @@ function EntradasSalidasPage() {
                 ) : (
                   <div className="divide-y divide-border">
                     {filteredEntries.map(e => (
-                      <div key={`${e.type}-${e.id}`} className="flex items-center justify-between p-4 hover:bg-bg-tertiary/30 transition-colors">
+                      <div key={`${e.type}-${e.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 hover:bg-bg-tertiary/30 transition-colors">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`p-2 rounded-full shrink-0 ${
                             e.type === 'cobro' ? 'bg-emerald-500/10' :
@@ -987,7 +987,7 @@ function EntradasSalidasPage() {
                                 ? (e.purpose || 'Anticipo')
                                 : (e.description || e.category || 'Gasto')}
                             </p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                               <span className={`font-medium ${e.type === 'cobro' ? 'text-emerald-500' : e.type === 'cash_advance' ? 'text-yellow-500' : 'text-rose-500'}`}>
                                 {e.type === 'cobro' ? '↓ Ingreso' : e.type === 'supplier' ? '↑ Proveedor' : e.type === 'cash_advance' ? '↑ Anticipo' : '↑ Gasto'}
                               </span>
@@ -1002,7 +1002,7 @@ function EntradasSalidasPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-2 flex-wrap justify-end sm:shrink-0">
                           {getStatusBadge(e)}
                           <span className={`text-sm font-bold ${e.type === 'cobro' ? 'text-emerald-400' : 'text-rose-400'}`}>
                             {formatMoney(e.amount)}
