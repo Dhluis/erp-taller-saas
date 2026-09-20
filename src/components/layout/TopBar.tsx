@@ -45,7 +45,8 @@ import {
   Loader2,
   Eye,
   EyeOff,
-  TrendingUp
+  TrendingUp,
+  MessageCircle
 } from 'lucide-react'
 import { useSession } from '@/lib/context/SessionContext'
 import { createClient } from '@/lib/supabase/client'
@@ -81,6 +82,7 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
   const isOrdenesActive = pathname?.startsWith('/ordenes')
   const isReportesActive = pathname?.startsWith('/reportes')
   const isLeadsActive = pathname?.startsWith('/leads')
+  const isWhatsAppActive = pathname?.startsWith('/whatsapp')
   
   const userName = profile?.full_name || 'Usuario'
   const userEmail = profile?.email || 'Cargando...'
@@ -292,6 +294,23 @@ export function TopBar({ onMenuClick, title }: TopBarProps) {
                   >
                     <TrendingUp size={18} className={isLeadsActive ? "text-white" : "text-blue-400"} />
                     <span className="text-sm font-medium hidden md:inline">CRM</span>
+                  </Button>
+                </Link>
+              )}
+
+              {(permissions.isAdmin || permissions.isAdvisor) && (
+                <Link href="/whatsapp" className="flex-shrink-0" title="WhatsApp">
+                  <Button
+                    variant={isWhatsAppActive ? "primary" : "outline"}
+                    className={cn(
+                      "transition-all duration-200 gap-1.5 min-h-[44px] min-w-[44px] md:min-w-auto touch-manipulation",
+                      isWhatsAppActive
+                        ? "bg-primary text-bg-primary hover:bg-primary-dark"
+                        : "border-border bg-bg-tertiary text-text-primary hover:bg-bg-quaternary hover:border-primary/50"
+                    )}
+                  >
+                    <MessageCircle size={18} className={isWhatsAppActive ? "text-white" : "text-green-400"} />
+                    <span className="text-sm font-medium hidden md:inline">WhatsApp</span>
                   </Button>
                 </Link>
               )}

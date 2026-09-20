@@ -11,10 +11,11 @@ import {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { organizationId } = await getTenantContext(request)
-    if (!organizationId) {
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext) {
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
     }
+    const { organizationId } = tenantContext
     const body = await request.json().catch(() => ({}))
     const quotation_id = body.quotation_id
     if (!quotation_id || typeof quotation_id !== 'string') {

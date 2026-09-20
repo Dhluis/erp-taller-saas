@@ -23,7 +23,8 @@ const MIDDLEWARE_ROUTES = [
   '/configuracion',
   '/cotizaciones',
   '/perfil',
-  '/settings'
+  '/settings',
+  '/whatsapp'
 ]
 
 // Rutas de autenticación (redirigir al dashboard si ya hay sesión)

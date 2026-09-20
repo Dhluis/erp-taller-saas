@@ -1,6 +1,9 @@
 ﻿/**
- * Messaging utilities — Email only (WhatsApp/Twilio removed)
- * Kept for backward compat with email-service.ts and api/messaging/config
+ * Messaging utilities — configuración de mensajería para la pantalla de Settings.
+ * WhatsApp se reconstruyó en 2026-09 sobre Meta Cloud API (ver
+ * src/lib/messaging/sender.ts y meta-whatsapp-client.ts) — este archivo ya
+ * refleja el estado real en vez del `whatsappEnabled: false` hardcodeado que
+ * quedó del borrado accidental de fa3f49c5.
  */
 import * as sgMail from '@sendgrid/mail';
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
@@ -48,10 +51,10 @@ export async function getMessagingConfig(organizationId: string): Promise<Messag
       emailEnabled: d.email_enabled ?? true,
       emailFromName: d.email_from_name || 'Eagles System',
       emailReplyTo: d.email_reply_to || null,
-      whatsappProvider: d.whatsapp_provider || 'twilio',
-      whatsappEnabled: false, // WhatsApp disabled
-      whatsappTwilioNumber: null,
-      whatsappVerified: false,
+      whatsappProvider: d.whatsapp_api_provider || d.whatsapp_provider || null,
+      whatsappEnabled: Boolean(d.whatsapp_enabled && d.whatsapp_api_provider),
+      whatsappTwilioNumber: d.whatsapp_api_provider === 'twilio' ? d.whatsapp_api_number || null : null,
+      whatsappVerified: d.whatsapp_verified ?? false,
       chatbotEnabled: d.chatbot_enabled ?? false,
       chatbotSystemPrompt: d.chatbot_system_prompt || null,
       monthlyEmailLimit: d.monthly_email_limit ?? 1000,

@@ -9,11 +9,11 @@ import { createClient } from '@/lib/supabase/server'
  */
 export async function GET(request: NextRequest) {
   try {
-    const { organizationId, userId } = await getTenantContext(request)
-
-    if (!organizationId) {
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
+    const { organizationId, userId } = tenantContext
 
     const supabase = await createClient()
     const { data: currentUser } = await (supabase as any)

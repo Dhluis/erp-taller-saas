@@ -66,7 +66,7 @@ async function getIdentifier(
     case 'organization': {
       try {
         const tenantContext = await getTenantContext(request);
-        const organizationId = tenantContext.organizationId;
+        const organizationId = tenantContext?.organizationId;
         if (!organizationId) {
           console.warn(
             '[Rate Limit] ⚠️ Could not get organization ID, falling back to IP'

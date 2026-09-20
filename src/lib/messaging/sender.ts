@@ -5,6 +5,8 @@
 
 import { getSupabaseServiceClient } from '@/lib/supabase/server';
 import { MessagingConfig, SendMessageResult } from './types';
+import { sendMetaTextMessage } from './meta-whatsapp-client';
+import { checkWhatsAppQuota } from '@/lib/billing/check-limits';
 import twilio from 'twilio';
 
 /**
@@ -17,12 +19,22 @@ export async function sendMessage(
 ): Promise<SendMessageResult> {
   try {
     const config = await getMessagingConfig(organizationId);
-    
+
     if (!config) {
       console.error('[Messaging Sender] Configuración no encontrada para org:', organizationId);
       return { success: false, error: 'Configuración de mensajería no encontrada' };
     }
-    
+
+    // ✅ Control de cuota — obligatorio antes de cualquier envío, sin importar el
+    // proveedor. A partir de oct-2026 Meta cobra por prácticamente todo mensaje
+    // de WhatsApp; sin este chequeo un solo taller podría generar gasto sin
+    // control en la cuenta centralizada.
+    const quota = await checkWhatsAppQuota(organizationId);
+    if (!quota.canCreate) {
+      console.warn('[Messaging Sender] Cuota de WhatsApp excedida para org:', organizationId, quota.error?.message);
+      return { success: false, error: quota.error?.message || 'Cuota de WhatsApp excedida' };
+    }
+
     // Normalizar número destino a formato E.164
     // Elimina caracteres no numéricos (excepto +) y agrega +52 si es número mexicano de 10 dígitos
     let normalizedTo = to.replace(/[^0-9+]/g, '')
@@ -35,6 +47,19 @@ export async function sendMessage(
       }
     }
     
+    // Enviar por Meta WhatsApp Cloud API
+    if (config.whatsapp_api_provider === 'meta') {
+      if (!config.meta_phone_number_id) {
+        return { success: false, error: 'Número de WhatsApp (Meta) no configurado para esta organización' };
+      }
+      const accessToken = config.meta_access_token || process.env.META_WHATSAPP_ACCESS_TOKEN;
+      if (!accessToken) {
+        return { success: false, error: 'Token de acceso de Meta no configurado' };
+      }
+      console.log('[Messaging Sender] Enviando por Meta WhatsApp Cloud API');
+      return await sendMetaTextMessage(config.meta_phone_number_id, accessToken, normalizedTo, message);
+    }
+
     // Enviar por Twilio WhatsApp API
     if (!config.whatsapp_api_number) {
       return {
@@ -49,7 +74,7 @@ export async function sendMessage(
       normalizedTo,
       message
     );
-    
+
   } catch (error: any) {
     console.error('[Messaging Sender] Error enviando mensaje:', error);
     return { 
@@ -85,12 +110,14 @@ async function getMessagingConfig(organizationId: string): Promise<MessagingConf
     return {
       organization_id: data.organization_id,
       tier: (data.tier as 'basic' | 'premium') || 'basic',
-      whatsapp_api_provider: data.whatsapp_api_provider as 'twilio' | null,
+      whatsapp_api_provider: data.whatsapp_api_provider as 'twilio' | 'meta' | null,
       whatsapp_api_number: data.whatsapp_api_number,
       whatsapp_api_twilio_sid: data.whatsapp_api_twilio_sid,
       whatsapp_api_status: (data.whatsapp_api_status as 'active' | 'inactive' | 'pending') || 'inactive',
       whatsapp_enabled: data.whatsapp_enabled || false,
       whatsapp_verified: data.whatsapp_verified || false,
+      meta_phone_number_id: data.meta_phone_number_id ?? null,
+      meta_access_token: data.meta_access_token ?? null,
     };
     
   } catch (error) {

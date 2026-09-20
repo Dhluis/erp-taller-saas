@@ -8,10 +8,11 @@ import { createQuotationFromWorkOrder } from '@/lib/supabase/quotations-invoices
  */
 export async function POST(request: NextRequest) {
   try {
-    const { organizationId } = await getTenantContext(request)
-    if (!organizationId) {
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext) {
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
     }
+    const { organizationId } = tenantContext
     const body = await request.json().catch(() => ({}))
     const work_order_id = body.work_order_id
     if (!work_order_id || typeof work_order_id !== 'string') {

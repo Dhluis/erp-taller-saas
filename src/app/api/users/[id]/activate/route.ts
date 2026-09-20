@@ -7,8 +7,9 @@ import { createClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: targetUserId } = await params
-    const { userId, organizationId } = await getTenantContext(request)
-    if (!organizationId) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
+    const { userId, organizationId } = tenantContext
 
     const body = await request.json().catch(() => ({}))
     const is_active = body.is_active

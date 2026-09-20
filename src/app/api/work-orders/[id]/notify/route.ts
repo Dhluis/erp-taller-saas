@@ -9,11 +9,11 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string  }> }) {
   const { id } = await params;
   try {
-    const { organizationId } = await getTenantContext(request)
-
-    if (!organizationId) {
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext) {
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
     }
+    const { organizationId } = tenantContext
 
     const orderId = id
     if (!orderId) {

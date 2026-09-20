@@ -7,11 +7,11 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const { organizationId, userId } = await getTenantContext(request)
-
-    if (!organizationId || !userId) {
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext) {
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
     }
+    const { organizationId, userId } = tenantContext
 
     const subscription = await request.json()
 
@@ -48,11 +48,11 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { organizationId, userId } = await getTenantContext(request)
-
-    if (!organizationId || !userId) {
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext) {
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
     }
+    const { organizationId, userId } = tenantContext
 
     const { endpoint } = await request.json()
 

@@ -9,7 +9,10 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server'
  */
 export async function POST(request: NextRequest) {
   try {
-    await getTenantContext(request)
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext) {
+      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
+    }
     const body = await request.json().catch(() => ({}))
     const work_order_id = body.work_order_id
     if (!work_order_id || typeof work_order_id !== 'string') {

@@ -367,6 +367,96 @@ export async function checkWhatsAppEnabled(userId: string): Promise<boolean> {
 }
 
 /**
+ * Verifica si una organización puede enviar un mensaje más de WhatsApp este mes.
+ *
+ * A diferencia de `checkResourceLimit('whatsapp_conversation', ...)` (que solo es
+ * un interruptor on/off por plan, sin tope numérico), esta función sí cuenta uso
+ * real: mensajes salientes en `whatsapp_messages` desde el inicio del mes,
+ * comparado contra `organization_messaging_config.monthly_whatsapp_limit`
+ * (0 = ilimitado). Existe porque a partir de octubre 2026 Meta cobra por
+ * prácticamente todo mensaje de WhatsApp, y sin este tope un solo taller podría
+ * generar gasto sin control en la cuenta centralizada de la plataforma.
+ */
+export async function checkWhatsAppQuota(organizationId: string): Promise<CheckLimitResult> {
+  try {
+    const planTier = await getPlanTier(organizationId)
+    if (!PLAN_FEATURES[planTier].whatsapp) {
+      return {
+        canCreate: false,
+        current: 0,
+        limit: 0,
+        error: {
+          type: 'limit_exceeded',
+          resource: 'whatsapp_conversation',
+          message: `La función de WhatsApp no está habilitada en tu plan ${planTier === 'free' ? 'Free' : 'Premium'}.`,
+          feature: 'whatsapp_enabled',
+          upgrade_url: '/settings/billing',
+          plan_required: 'premium',
+        },
+      }
+    }
+
+    const supabase = getSupabaseServiceClient()
+
+    const { data: config } = await supabase
+      .from('organization_messaging_config')
+      .select('monthly_whatsapp_limit')
+      .eq('organization_id', organizationId)
+      .maybeSingle()
+
+    const limit = (config as any)?.monthly_whatsapp_limit ?? 500
+
+    if (!limit || limit <= 0) {
+      return { canCreate: true, current: 0, limit: null }
+    }
+
+    const monthStart = new Date()
+    monthStart.setDate(1)
+    monthStart.setHours(0, 0, 0, 0)
+
+    const { count } = await supabase
+      .from('whatsapp_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId)
+      .eq('direction', 'outbound')
+      .gte('created_at', monthStart.toISOString())
+
+    const current = count || 0
+
+    if (current >= limit) {
+      return {
+        canCreate: false,
+        current,
+        limit,
+        error: {
+          type: 'limit_exceeded',
+          resource: 'whatsapp_conversation',
+          current,
+          limit,
+          message: `Se alcanzó el límite mensual de ${limit} mensajes de WhatsApp para esta organización.`,
+          feature: 'whatsapp_enabled',
+          upgrade_url: '/settings/billing',
+          plan_required: 'premium',
+        },
+      }
+    }
+
+    return { canCreate: true, current, limit }
+  } catch (error: any) {
+    console.error('[checkWhatsAppQuota] Error:', error)
+    // Fallar cerrado: si no se puede verificar la cuota, no enviar (evita gasto no controlado)
+    return {
+      canCreate: false,
+      error: {
+        type: 'limit_exceeded',
+        resource: 'whatsapp_conversation',
+        message: error.message || 'Error al verificar cuota de WhatsApp',
+      },
+    }
+  }
+}
+
+/**
  * Verifica si el Asistente de IA (agente ERP) está habilitado para la organización.
  * Solo Premium (o trial activo) tiene acceso. Usado por POST /api/agent/query.
  */

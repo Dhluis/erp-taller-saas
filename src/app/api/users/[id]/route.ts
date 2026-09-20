@@ -28,7 +28,11 @@ export async function GET(
 ) {
   try {
     const { id: userId } = await params
-    const { organizationId } = await getTenantContext(request)
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext) {
+      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
+    }
+    const { organizationId } = tenantContext
     const supabase = await createClient()
     
     const { data: user, error } = await (supabase as any)
@@ -69,17 +73,18 @@ async function updateUserHandler(
 ) {
   try {
     const { id: targetUserId } = await params
-    const { userId, organizationId } = await getTenantContext(request)
-    
-    if (!organizationId) {
+    const tenantContext = await getTenantContext(request)
+
+    if (!tenantContext) {
       return NextResponse.json(
         { success: false, error: 'No autorizado' },
         { status: 401 }
       )
     }
+    const { userId, organizationId } = tenantContext
 
     const supabase = await createClient()
-    
+
     // Obtener rol del usuario actual
     const { data: currentUser, error: userError } = await (supabase as any)
       .from('users')
@@ -272,8 +277,12 @@ export async function DELETE(
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     
     const { id: targetUserId } = await params
-    const { userId, organizationId } = await getTenantContext(request)
-    
+    const tenantContext = await getTenantContext(request)
+    if (!tenantContext) {
+      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
+    }
+    const { userId, organizationId } = tenantContext
+
     console.log('📋 [DELETE USER] Parámetros recibidos:', {
       targetUserId,
       targetUserIdType: typeof targetUserId,

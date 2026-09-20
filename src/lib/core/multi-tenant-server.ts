@@ -44,10 +44,20 @@ export interface WorkshopInfo {
 /**
  * Obtiene el contexto completo del tenant (organization + workshop + user)
  * Para usar SOLO en API routes (server-side)
- * 
+ *
+ * Devuelve `null` (no lanza excepción) cuando la petición no puede asociarse
+ * a un tenant por una razón esperada: sin sesión, sin perfil, sin
+ * organización. Todas las rutas del proyecto ya están escritas asumiendo
+ * este contrato (`if (!tenantContext) return 401`) — antes esta función
+ * lanzaba una excepción en esos casos, así que ese chequeo nunca se
+ * ejecutaba y el error terminaba como un 500 genérico con el mensaje de la
+ * excepción (ej. "Usuario no autenticado") en vez de un 401 limpio. Solo se
+ * lanza una excepción real para errores verdaderamente inesperados
+ * (red, base de datos), donde un 500 sí es la respuesta correcta.
+ *
  * @param request - Opcional: NextRequest para obtener cookies del request
  */
-export async function getTenantContext(request?: any): Promise<TenantContext> {
+export async function getTenantContext(request?: any): Promise<TenantContext | null> {
   try {
     // Intentar primero con request si está disponible (para API routes)
     // Si falla o no hay request, usar cookies() de next/headers (para Server Components)
@@ -68,17 +78,17 @@ export async function getTenantContext(request?: any): Promise<TenantContext> {
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     
     if (userError) {
-      console.error('[getTenantContext] ❌ Error obteniendo usuario:', {
+      console.warn('[getTenantContext] ⚠️ Usuario no autenticado:', {
         message: userError.message,
         status: userError.status,
         name: userError.name
       })
-      throw new Error('Usuario no autenticado')
+      return null
     }
-    
+
     if (!user) {
       console.warn('[getTenantContext] ⚠️ No se encontró usuario autenticado')
-      throw new Error('Usuario no autenticado')
+      return null
     }
     
     console.log('[getTenantContext] ✅ Usuario obtenido:', user.id)
@@ -119,8 +129,8 @@ export async function getTenantContext(request?: any): Promise<TenantContext> {
     }
 
     if (profileError || !userProfile) {
-      console.error('[getTenantContext] ❌ No se encontró perfil:', profileError);
-      throw new Error('Perfil de usuario no encontrado');
+      console.warn('[getTenantContext] ⚠️ No se encontró perfil:', profileError);
+      return null
     }
     
     console.log('[getTenantContext] ✅ Perfil robusto obtenido:', {
@@ -159,8 +169,8 @@ export async function getTenantContext(request?: any): Promise<TenantContext> {
     }
 
     if (!organizationId) {
-      console.error('[getTenantContext] ❌ No se pudo obtener organizationId');
-      throw new Error('No se pudo determinar la organización del usuario');
+      console.warn('[getTenantContext] ⚠️ No se pudo obtener organizationId');
+      return null
     }
 
     // ⚠️ Antes se usaba organizationId como valor de workshopId cuando el usuario no
@@ -183,12 +193,9 @@ export async function getTenantContext(request?: any): Promise<TenantContext> {
       role: userProfile.role
     }
   } catch (error: any) {
-    // Si el error ya tiene un mensaje, re-lanzarlo
-    if (error.message && (error.message.includes('no autenticado') || 
-                          error.message.includes('no encontrado'))) {
-      throw error
-    }
-    // Otros errores
+    // Solo llega acá un error verdaderamente inesperado (red, base de datos) —
+    // los casos esperados (sin sesión, sin perfil, sin organización) ya
+    // retornan null arriba. Acá sí corresponde un 500 en el caller.
     console.error('[getTenantContext] ❌ Error inesperado:', error)
     throw new Error('Error obteniendo contexto del tenant: ' + error.message)
   }
@@ -199,6 +206,7 @@ export async function getTenantContext(request?: any): Promise<TenantContext> {
  */
 export async function getOrganizationId(): Promise<string> {
   const context = await getTenantContext()
+  if (!context) throw new Error('Usuario no autenticado')
   return context.organizationId
 }
 
@@ -207,6 +215,7 @@ export async function getOrganizationId(): Promise<string> {
  */
 export async function getWorkshopId(): Promise<string | null> {
   const context = await getTenantContext()
+  if (!context) throw new Error('Usuario no autenticado')
   return context.workshopId
 }
 
@@ -259,6 +268,7 @@ export async function getWorkshopInfo(workshopId?: string): Promise<WorkshopInfo
  */
 export async function getSimpleTenantContext(): Promise<{ organizationId: string; workshopId: string | null }> {
   const context = await getTenantContext()
+  if (!context) throw new Error('Usuario no autenticado')
   return {
     organizationId: context.organizationId,
     workshopId: context.workshopId
